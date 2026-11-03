@@ -13,8 +13,13 @@ import {
     Stack,
     Text,
     Title,
+    Tooltip,
 } from '@mantine/core';
-import { IconBrandGithub, IconCircleCheck } from '@tabler/icons-react';
+import {
+    IconBrandGithub,
+    IconCircleCheck,
+    IconInfoCircle,
+} from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, type FC, type ReactNode } from 'react';
 import { Link, Navigate, useParams, useSearchParams } from 'react-router';
@@ -27,7 +32,10 @@ import {
     useOnboardingVariant,
     useStepCopy,
 } from '../components/common/onboardingVariant';
-import { StepVisual } from '../components/common/OnboardingVisuals';
+import {
+    StepVisual,
+    ToolsVisual,
+} from '../components/common/OnboardingVisuals';
 import { useOnboardingNavigate } from '../components/common/viewTransition';
 import { ConnectionFormSkeleton } from '../components/ProjectConnection/ConnectionFormSkeleton';
 import {
@@ -51,6 +59,7 @@ import { getLiveSource } from '../features/externalConnections/liveSources/liveS
 import { LiveSourceIcon } from '../features/externalConnections/liveSources/LiveSourceIcon';
 import { useGetSlack } from '../hooks/slack/useSlack';
 import { useOnboardingPageGuard } from '../hooks/useOnboardingPageGuard';
+import { useProject } from '../hooks/useProject';
 import { type UserWithAbility } from '../hooks/user/useUser';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
@@ -78,9 +87,10 @@ const ToolRow: FC<{
     icon: ReactNode;
     label: string;
     description: string;
+    info: string | null;
     connectedDetail: string | null;
     action: ReactNode;
-}> = ({ icon, label, description, connectedDetail, action }) => (
+}> = ({ icon, label, description, info, connectedDetail, action }) => (
     <Group justify="space-between" wrap="nowrap" gap="md" p="md">
         <Group gap="sm" wrap="nowrap" miw={0}>
             {icon}
@@ -91,9 +101,25 @@ const ToolRow: FC<{
                 {connectedDetail ? (
                     <ConnectedStatus detail={connectedDetail} />
                 ) : (
-                    <Text fz="xs" c="dimmed" truncate>
-                        {description}
-                    </Text>
+                    <Group gap={4} wrap="nowrap" miw={0}>
+                        <Text fz="xs" c="dimmed" truncate>
+                            {description}
+                        </Text>
+                        {info && (
+                            <Tooltip
+                                label={info}
+                                multiline
+                                w={280}
+                                withinPortal
+                            >
+                                <MantineIcon
+                                    icon={IconInfoCircle}
+                                    size={12}
+                                    color="ldGray.5"
+                                />
+                            </Tooltip>
+                        )}
+                    </Group>
                 )}
             </Stack>
         </Group>
@@ -169,6 +195,7 @@ const PostHogInlineConnect: FC<{
                     isEditing={false}
                     canSignIn={canSignIn}
                     onReconnect={null}
+                    showIntro={false}
                 />
                 <Group justify="flex-end" gap="xs">
                     <Button
@@ -252,7 +279,7 @@ const TeamStep: FC<{
             stackDepth={3}
             aside={<StepVisual step="team" />}
         >
-            <DocumentTitle title="Bring Aurora to your team" />
+            <DocumentTitle title="Connect Slack and GitHub" />
             <Stack className={classes.column} gap="xl">
                 <Stack gap={4}>
                     <Title order={1}>{copy.title}</Title>
@@ -264,7 +291,8 @@ const TeamStep: FC<{
                         <ToolRow
                             icon={<SlackSvg width={24} height={24} />}
                             label="Slack"
-                            description="Mention Aurora in any channel and get answers in the thread"
+                            description="Schedule dashboards, get alerts and ask questions in any channel"
+                            info={null}
                             connectedDetail={null}
                             action={connectButton(
                                 '/api/v1/slack/install/',
@@ -278,6 +306,7 @@ const TeamStep: FC<{
                             icon={<MsTeamsSvg width={24} height={24} />}
                             label="Microsoft Teams"
                             description="Send dashboards and alerts to your team's channels"
+                            info={null}
                             connectedDetail={null}
                             action={connectButton(
                                 '/generalSettings/integrations',
@@ -292,7 +321,8 @@ const TeamStep: FC<{
                                 <MantineIcon icon={IconBrandGithub} size={24} />
                             }
                             label="GitHub"
-                            description="Let Aurora open pull requests on the repos your projects use"
+                            description="Save new metrics, charts and dashboards as pull requests"
+                            info={null}
                             connectedDetail={
                                 isGithubInstalled
                                     ? 'GitHub app installed'
@@ -368,6 +398,7 @@ const OnboardingToolsContent: FC<{
     const showGoogle =
         showLiveSources && health.data?.hasGoogleLiveSources === true;
 
+    const { data: project } = useProject(projectUuid);
     const { data: connections = [] } = useExternalConnections(
         showLiveSources ? projectUuid : undefined,
     );
@@ -425,7 +456,11 @@ const OnboardingToolsContent: FC<{
             screen="tools"
             journey={{ currentStep: 2, steps: ONBOARDING_DATA_STEPS }}
             stackDepth={2}
-            aside={<StepVisual step="tools" />}
+            aside={
+                <ToolsVisual
+                    warehouse={project?.warehouseConnection?.type ?? null}
+                />
+            }
         >
             <DocumentTitle title="Connect your tools" />
             <Stack className={classes.column} gap="xl">
@@ -450,6 +485,7 @@ const OnboardingToolsContent: FC<{
                                 getLiveSource(ApiConnectorType.POSTHOG)
                                     .description
                             }
+                            info="AI agents send HogQL queries to this PostHog project and read the results live. Sign in, or use a personal API key with the Query Read scope."
                             connectedDetail={describeConnections(
                                 postHogConnections,
                             )}
@@ -499,6 +535,7 @@ const OnboardingToolsContent: FC<{
                                         }
                                         label={entry.label}
                                         description={entry.description}
+                                        info={null}
                                         connectedDetail={describeConnections(
                                             connected,
                                         )}

@@ -39,7 +39,7 @@ const COPY: Record<
         default: {
             title: 'Bring in your other tools',
             subtitle:
-                'Optional. Connect product or marketing tools so Aurora can answer across them. You can also do this later from home.',
+                'Connect product or marketing tools so Aurora can answer across them. You can also do this later from home.',
         },
         explained: {
             title: "Add the data your warehouse doesn't have",
@@ -49,14 +49,14 @@ const COPY: Record<
     },
     team: {
         default: {
-            title: 'Bring Aurora to your team',
+            title: 'Connect Slack and GitHub',
             subtitle:
-                'Ask Aurora in Slack, or let it open pull requests on GitHub. You can also do this later from home.',
+                'Send dashboards and alerts to Slack, and save metric changes as pull requests on GitHub. You can also do this later from home.',
         },
         explained: {
-            title: 'Use Aurora in Slack and GitHub',
+            title: 'Connect Slack and GitHub',
             subtitle:
-                'With Slack, anyone can ask Aurora in a thread. With GitHub, Aurora proposes metric changes as pull requests you approve. Optional, and you can do it later from home.',
+                'With Slack, dashboards and alerts land in your channels and anyone can ask a question in a thread. With GitHub, new metrics and charts become pull requests you approve. You can do this later from home.',
         },
     },
 };

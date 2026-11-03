@@ -111,7 +111,7 @@ const warehouseStatus = ({
     isVisible: true,
     isComplete: hasRealWarehouseProject,
     annotation: warehouseType ? getWarehouseLabel(warehouseType) : null,
-    doneIcon: warehouseType ? getWarehouseIcon(warehouseType, 'sm') : null,
+    doneIcon: warehouseType ? getWarehouseIcon(warehouseType, 14) : null,
     url: '/onboarding/data-source',
     ctaLabel: DEFAULT_CTA_LABEL,
 });

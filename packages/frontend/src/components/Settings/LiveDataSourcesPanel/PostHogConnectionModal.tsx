@@ -80,6 +80,7 @@ export const PostHogConnectionModal: FC<Props> = ({
             cancelDisabled={isSaving}
         >
             <PostHogConnectionStep
+                showIntro
                 projectUuid={projectUuid}
                 form={form}
                 isEditing={!!connection}

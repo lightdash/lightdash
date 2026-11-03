@@ -1,49 +1,18 @@
-import {
-    ActionIcon,
-    Anchor,
-    Box,
-    Button,
-    Group,
-    Stack,
-    Text,
-    UnstyledButton,
-} from '@mantine/core';
+import { ActionIcon, Anchor, Box, Button, Group, Text } from '@mantine/core';
 import { useDisclosure, useLocalStorage } from '@mantine/hooks';
-import {
-    IconExternalLink,
-    IconInfoCircle,
-    IconLayersLinked,
-    IconX,
-} from '@tabler/icons-react';
+import { IconExternalLink, IconLayersLinked, IconX } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
 import { getAgentOnboardingDashboardUrl } from '../../../agentOnboarding/utils';
+import { SemanticLayerExplainer } from './SemanticLayerExplainer';
 import classes from './SetupGuide.module.css';
 import { type SetupGuideRow } from './setupGuideModel';
 import { StepArt } from './StepArt';
 
 const SEMANTIC_LAYER_DOCS_URL = 'https://docs.lightdash.com/semantic-layer';
-
-const PARTS: { key: string; term: string; detail: string }[] = [
-    {
-        key: 'metrics',
-        term: 'Metrics',
-        detail: 'The numbers you track, like revenue or order count.',
-    },
-    {
-        key: 'dimensions',
-        term: 'Dimensions',
-        detail: 'What you slice them by, like date, region or status.',
-    },
-    {
-        key: 'code',
-        term: 'Defined in code',
-        detail: 'Kept in YAML next to your models, so changes are reviewed like any other code.',
-    },
-];
 
 export const SemanticLayerCard: FC<{
     projectUuid: string;
@@ -75,17 +44,14 @@ export const SemanticLayerCard: FC<{
             </ActionIcon>
             <Box className={classes.nextBody}>
                 <Text fw={600}>Your semantic layer is ready</Text>
-                <UnstyledButton className={classes.lessonToggle} onClick={open}>
-                    <MantineIcon icon={IconInfoCircle} size={14} />
-                    How it works
-                </UnstyledButton>
-                <Group
-                    gap="sm"
-                    wrap="nowrap"
-                    mt="auto"
-                    pt="sm"
-                    justify="space-between"
-                >
+                <Text fz="sm" c="dimmed">
+                    Metrics are defined once, so every chart and answer uses the
+                    same numbers.{' '}
+                    <Anchor component="button" fz="sm" onClick={open}>
+                        How it works
+                    </Anchor>
+                </Text>
+                <Group gap={4} wrap="nowrap" mt="auto" pt="sm">
                     <Button
                         size="xs"
                         component={Link}
@@ -97,14 +63,15 @@ export const SemanticLayerCard: FC<{
                         Explore your metrics
                     </Button>
                     {hasStarterDashboard && (
-                        <Anchor
+                        <Button
+                            size="xs"
+                            variant="subtle"
+                            color="gray"
                             component={Link}
                             to={getAgentOnboardingDashboardUrl(projectUuid)}
-                            fz="xs"
-                            c="dimmed"
                         >
                             Open starter dashboard
-                        </Anchor>
+                        </Button>
                     )}
                 </Group>
             </Box>
@@ -133,24 +100,7 @@ export const SemanticLayerCard: FC<{
                     )
                 }
             >
-                <Stack gap="md">
-                    <Text fz="sm" c="dimmed">
-                        Your metrics are defined once on top of your tables.
-                        Every chart, dashboard and Aurora answer uses those
-                        definitions, so the same question always gets the same
-                        number.
-                    </Text>
-                    {PARTS.map(({ key, term, detail }) => (
-                        <Box key={key}>
-                            <Text fz="sm" fw={500}>
-                                {term}
-                            </Text>
-                            <Text fz="sm" c="dimmed">
-                                {detail}
-                            </Text>
-                        </Box>
-                    ))}
-                </Stack>
+                <SemanticLayerExplainer />
             </MantineModal>
         </Box>
     );

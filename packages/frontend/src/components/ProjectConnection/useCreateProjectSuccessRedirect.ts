@@ -105,7 +105,7 @@ export const useCreateProjectSuccessRedirect = ({
             } catch {
                 // Ignore — the destination will load normally on its own.
             }
-            void navigate({ pathname: redirectTo }, { viewTransition: true });
+            void navigate(redirectTo, { viewTransition: true });
         })();
     }, [
         activeJob,

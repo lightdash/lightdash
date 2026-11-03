@@ -86,8 +86,8 @@ const TABLES: [string, string][] = [
 
 const WarehouseVisual: FC = () => (
     <Figure
-        title="Your warehouse stays the source of truth"
-        body="Aurora runs a real query against your tables each time you ask, so you can check any number at the source."
+        title="Build anything on your own tables"
+        body="Charts, dashboards and answers from Aurora all run on your warehouse, so every number traces back to the source."
     >
         <Box className={classes.card} __vars={{ '--i': '0' }}>
             <Group gap={8} wrap="nowrap" className={classes.cardHeader}>
@@ -141,70 +141,117 @@ const WarehouseVisual: FC = () => (
     </Figure>
 );
 
-const SOURCES = [
-    ApiConnectorType.POSTHOG,
-    ApiConnectorType.GA4,
-    ApiConnectorType.SEARCH_CONSOLE,
+const SOURCES: [ApiConnectorType, string][] = [
+    [ApiConnectorType.POSTHOG, 'events'],
+    [ApiConnectorType.GA4, 'sessions'],
+    [ApiConnectorType.SEARCH_CONSOLE, 'search clicks'],
 ];
 
-const ToolsVisual: FC = () => (
-    <Figure
-        title="One question, every source"
-        body="Aurora can query tool data and warehouse tables in the same answer."
-    >
-        <Group gap={8} justify="center" wrap="nowrap">
-            <Box className={classes.sourceTile} __vars={{ '--i': '0' }}>
-                <MantineIcon icon={IconDatabase} size={16} />
-            </Box>
-            {SOURCES.map((connector, index) => (
-                <Box
-                    key={connector}
-                    className={classes.sourceTile}
-                    __vars={{ '--i': String(index + 1) }}
-                >
-                    <LiveSourceIcon connector={connector} size={16} />
-                </Box>
-            ))}
-        </Group>
-        <Box className={classes.merge} __vars={{ '--i': '4' }} aria-hidden />
-        <Box className={classes.answer} __vars={{ '--i': '5' }}>
-            <Group gap={6} wrap="nowrap" mb={8}>
-                <AuroraMark />
-                <Text fz="xs" fw={500}>
-                    Signups by campaign, last 30 days
-                </Text>
-            </Group>
-            {(
-                [
-                    ['spring-launch', 1284, 'GA4'],
-                    ['newsletter', 842, 'PostHog'],
-                    ['brand search', 611, 'Search Console'],
-                ] as const
-            ).map(([campaign, signups, source], index) => (
-                <Box
-                    key={campaign}
-                    className={classes.meterRow}
-                    __vars={{ '--i': String(index + 6) }}
-                >
-                    <Text fz="xs" truncate>
-                        {campaign}
-                    </Text>
-                    <Box className={classes.meter}>
+const getWarehouseLogo = (warehouse: WarehouseTypes) => {
+    const entry = WarehouseTypeLabels.find((item) => item.key === warehouse);
+    return entry?.iconType === 'image' ? entry.image : null;
+};
+
+/** The warehouse card from the previous step, with live sources beside it */
+export const ToolsVisual: FC<{ warehouse: WarehouseTypes | null }> = ({
+    warehouse,
+}) => {
+    const warehouseLogo = warehouse ? getWarehouseLogo(warehouse) : null;
+    return (
+        <Figure
+            title="Add what your warehouse is missing"
+            body="Product events, traffic and search data sit next to your tables, so Aurora can explain why a number moved."
+        >
+            <Box className={classes.sourcePair}>
+                <Box className={classes.card} __vars={{ '--i': '0' }}>
+                    <Group gap={8} wrap="nowrap" className={classes.cardHeader}>
+                        <Box className={classes.logoStack}>
+                            {(warehouseLogo
+                                ? [warehouseLogo]
+                                : WAREHOUSE_LOGOS
+                            ).map((logo) => (
+                                <Image
+                                    key={logo}
+                                    src={logo}
+                                    w={14}
+                                    h={14}
+                                    fit="contain"
+                                />
+                            ))}
+                        </Box>
+                        <Text fz="xs" fw={500}>
+                            analytics
+                        </Text>
+                    </Group>
+                    {TABLES.slice(0, 3).map(([name], index) => (
                         <Box
-                            className={classes.meterFill}
-                            __vars={{
-                                '--w': `${Math.round((signups / 1284) * 100)}%`,
-                            }}
-                        />
-                    </Box>
-                    <Text fz="xs" c="dimmed" className={classes.source}>
-                        {source}
-                    </Text>
+                            key={name}
+                            className={classes.scanRow}
+                            __vars={{ '--i': String(index) }}
+                        >
+                            <MantineIcon icon={IconDatabase} size={12} />
+                            <Text fz="xs" fw={500}>
+                                {name}
+                            </Text>
+                        </Box>
+                    ))}
                 </Box>
-            ))}
-        </Box>
-    </Figure>
-);
+                <Box className={classes.card} __vars={{ '--i': '1' }}>
+                    <Group gap={8} wrap="nowrap" className={classes.cardHeader}>
+                        <Text fz="xs" fw={500}>
+                            Live sources
+                        </Text>
+                    </Group>
+                    {SOURCES.map(([connector, detail]) => (
+                        <Box key={connector} className={classes.sourceRow}>
+                            <LiveSourceIcon connector={connector} size={12} />
+                            <Text fz="xs" fw={500}>
+                                {detail}
+                            </Text>
+                        </Box>
+                    ))}
+                </Box>
+            </Box>
+            <Connector index={2} />
+            <Box className={classes.answer} __vars={{ '--i': '3' }}>
+                <Group gap={6} wrap="nowrap" mb={8}>
+                    <AuroraMark />
+                    <Text fz="xs" fw={500}>
+                        Signups by campaign, last 30 days
+                    </Text>
+                </Group>
+                {(
+                    [
+                        ['spring-launch', 1284, 'GA4'],
+                        ['newsletter', 842, 'PostHog'],
+                        ['brand search', 611, 'Search Console'],
+                    ] as const
+                ).map(([campaign, signups, source], index) => (
+                    <Box
+                        key={campaign}
+                        className={classes.meterRow}
+                        __vars={{ '--i': String(index + 4) }}
+                    >
+                        <Text fz="xs" truncate>
+                            {campaign}
+                        </Text>
+                        <Box className={classes.meter}>
+                            <Box
+                                className={classes.meterFill}
+                                __vars={{
+                                    '--w': `${Math.round((signups / 1284) * 100)}%`,
+                                }}
+                            />
+                        </Box>
+                        <Text fz="xs" c="dimmed" className={classes.source}>
+                            {source}
+                        </Text>
+                    </Box>
+                ))}
+            </Box>
+        </Figure>
+    );
+};
 
 const TeamVisual: FC = () => (
     <Figure title={null} body={null}>
@@ -318,7 +365,7 @@ export const StepVisual: FC<{ step: OnboardingVisualStep }> = ({ step }) => {
         case 'warehouse':
             return <WarehouseVisual />;
         case 'tools':
-            return <ToolsVisual />;
+            return <ToolsVisual warehouse={null} />;
         case 'team':
             return <TeamVisual />;
         default: {

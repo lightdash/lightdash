@@ -25,6 +25,7 @@ type Props = {
     isEditing: boolean;
     canSignIn: boolean;
     onReconnect: (() => void) | null;
+    showIntro: boolean;
 };
 
 export const PostHogConnectionStep: FC<Props> = ({
@@ -33,6 +34,7 @@ export const PostHogConnectionStep: FC<Props> = ({
     isEditing,
     canSignIn,
     onReconnect,
+    showIntro,
 }) => {
     const isSignIn = form.values.authMethod === 'signIn';
     const testMutation = useTestConnectionConfig();
@@ -51,13 +53,15 @@ export const PostHogConnectionStep: FC<Props> = ({
 
     return (
         <Stack gap="sm">
-            <Text c="dimmed" fz="sm">
-                AI agents send HogQL queries to this PostHog project and read
-                the results live.{' '}
-                {isSignIn
-                    ? 'Sign in to PostHog and pick the project to allow read-only query access.'
-                    : 'Use a personal API key with the Query Read scope.'}
-            </Text>
+            {showIntro && (
+                <Text c="dimmed" fz="sm">
+                    AI agents send HogQL queries to this PostHog project and
+                    read the results live.{' '}
+                    {isSignIn
+                        ? 'Sign in to PostHog and pick the project to allow read-only query access.'
+                        : 'Use a personal API key with the Query Read scope.'}
+                </Text>
+            )}
             {canSignIn && !isEditing && (
                 <SegmentedControl
                     fullWidth

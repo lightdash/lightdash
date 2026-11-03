@@ -15,7 +15,7 @@ import { useSetupGuide } from '../homepageBuilder/blocks/setupGuide/useSetupGuid
 import { useRecommendedActions } from '../homepageBuilder/blocks/useRecommendedActions';
 import { markHomepageTourSeen } from '../homepageBuilder/onboarding';
 import { useAuroraRun } from './hooks/useAuroraRun';
-import { useAskAurora, useFirstQuestions } from './hooks/useFirstQuestions';
+import { useAskAurora } from './hooks/useFirstQuestions';
 import classes from './OnboardingDoneStep.module.css';
 
 type Source = {
@@ -36,9 +36,8 @@ const SourceName: FC<{ source: Source }> = ({ source }) => (
     </Box>
 );
 
-const FIRST_QUESTION_LIMIT = 1;
-const STARTER_PROMPT =
-    'Give me a quick tour of my data and suggest three questions worth asking.';
+const FIRST_QUESTION =
+    "What's in my data, and what are three questions worth asking?";
 
 type RecapItem = { key: string; state: 'done' | 'live' | 'todo'; text: string };
 
@@ -108,7 +107,6 @@ export const OnboardingDoneStep: FC<{ projectUuid: string }> = ({
 }) => {
     useEffect(markHomepageTourSeen, []);
     const [variant] = useOnboardingVariant();
-    const questions = useFirstQuestions(projectUuid, FIRST_QUESTION_LIMIT);
     const ask = useAskAurora(projectUuid);
     const { data: project } = useProject(projectUuid);
     const { data: connections = [] } = useExternalConnections(projectUuid);
@@ -140,6 +138,9 @@ export const OnboardingDoneStep: FC<{ projectUuid: string }> = ({
     return (
         <OnboardingLayout screen="done" stackDepth={6} centered size="compact">
             <DocumentTitle title="You're all set" />
+            <Box className={classes.tick} aria-hidden>
+                <MantineIcon icon={IconCheck} size={28} stroke={2.5} />
+            </Box>
             <Stack className={classes.column} gap="xl">
                 <Stack gap={4} align="center">
                     <Title order={1}>You're all set</Title>
@@ -178,7 +179,7 @@ export const OnboardingDoneStep: FC<{ projectUuid: string }> = ({
                     <Button
                         size="md"
                         fullWidth
-                        onClick={() => ask(questions[0] ?? STARTER_PROMPT)}
+                        onClick={() => ask(FIRST_QUESTION)}
                         rightSection={<MantineIcon icon={IconArrowRight} />}
                         className={classes.primary}
                     >

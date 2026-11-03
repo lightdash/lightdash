@@ -224,6 +224,14 @@
     transform-origin: top center;
 }
 
+.content[data-size='compact'] .ghost {
+    display: none;
+}
+
+.content[data-size='compact'] .stack[data-depth='1'] {
+    margin-top: 0;
+}
+
 .ghost {
     transform: translateY(-12px) scale(0.97);
     opacity: 0.7;

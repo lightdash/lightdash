@@ -1,6 +1,69 @@
 .column {
     width: 100%;
     text-align: center;
+    animation: reveal 480ms cubic-bezier(0.22, 1, 0.36, 1) 1150ms both;
+}
+
+/* A tick draws in, then makes way for the page */
+.tick {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+    animation: tickOut 280ms ease-in 1000ms both;
+}
+
+.tick > svg {
+    box-sizing: content-box;
+    padding: 18px;
+    border-radius: 50%;
+    background: var(--mantine-color-text);
+    color: var(--mantine-color-body);
+    animation: tickPop 420ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.tick path {
+    stroke-dasharray: 24;
+    stroke-dashoffset: 24;
+    animation: tickDraw 360ms ease-out 260ms forwards;
+}
+
+@keyframes tickPop {
+    from {
+        opacity: 0;
+        transform: scale(0.4);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes tickDraw {
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+
+@keyframes tickOut {
+    to {
+        opacity: 0;
+        transform: scale(0.8);
+        visibility: hidden;
+    }
+}
+
+@keyframes reveal {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
 }
 
 .primary {
@@ -63,7 +126,12 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .recapGlyph[data-state='live'] {
+    .recapGlyph[data-state='live'],
+    .column {
         animation: none;
+    }
+
+    .tick {
+        display: none;
     }
 }

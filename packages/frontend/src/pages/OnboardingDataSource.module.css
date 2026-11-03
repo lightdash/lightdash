@@ -245,3 +245,36 @@
         min-height: 44px;
     }
 }
+
+.choiceCard {
+    padding: var(--mantine-spacing-sm);
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    transition: border-color 100ms ease;
+}
+
+.choiceCard:hover {
+    border-color: var(--mantine-color-ldGray-4);
+}
+
+.choiceCard[data-checked] {
+    border-color: var(--mantine-color-text);
+}
+
+.choiceIcon {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-sm);
+    background: var(--mantine-color-body);
+}
+
+.choiceIcon :global(.mantine-Avatar-root) {
+    width: 18px;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 0;
+    background: transparent;
+}

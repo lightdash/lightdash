@@ -6,24 +6,24 @@ import {
 } from '@lightdash/common';
 import {
     Box,
+    Group,
+    Image,
     Loader,
     SimpleGrid,
     Stack,
     Text,
+    Tooltip,
     UnstyledButton,
 } from '@mantine/core';
 import { captureException } from '@sentry/react';
-import {
-    IconBrandGithub,
-    IconCheck,
-    IconChevronRight,
-    IconFileSpreadsheet,
-    IconUserPlus,
-} from '@tabler/icons-react';
-import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState, type FC, type ReactNode } from 'react';
+import { IconCheck, IconChevronRight, IconUserPlus } from '@tabler/icons-react';
+import { useState, type FC, type ReactNode } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
-import { getLiveSource } from '../../../features/externalConnections/liveSources/liveSourceCatalog';
+import {
+    isAvailableLiveSource,
+    LIVE_SOURCE_CATALOG,
+    type AvailableLiveSource,
+} from '../../../features/externalConnections/liveSources/liveSourceCatalog';
 import { LiveSourceIcon } from '../../../features/externalConnections/liveSources/LiveSourceIcon';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useEnsurePlaygroundProject } from '../../../hooks/useEnsurePlaygroundProject';
@@ -31,9 +31,7 @@ import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFla
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import LogoIcon from '../../../svgs/logo-icon.svg?react';
-import SlackSvg from '../../../svgs/slack.svg?react';
 import { EventName } from '../../../types/Events';
-import { useGithubConfig } from '../../common/GithubIntegration/hooks/useGithubIntegration';
 import MantineIcon from '../../common/MantineIcon';
 import { useOnboardingNavigate } from '../../common/viewTransition';
 import classes from './DataSourceChooser.module.css';
@@ -60,7 +58,7 @@ const WAREHOUSES: SelectedWarehouse[] = [
 
 const POPULAR = new Set<SelectedWarehouse>(WAREHOUSES.slice(0, 4));
 
-export const ShortcutCard: FC<{
+const ShortcutCard: FC<{
     icon: ReactNode;
     title: string;
     description: string;
@@ -88,34 +86,30 @@ export const ShortcutCard: FC<{
 // Read by the tools step, which opens the first picked source after setup
 const THEN_PARAM = 'then';
 
-type CatalogItem = {
-    id: string;
-    icon: ReactNode;
-    label: string;
-};
-
-const CatalogTile: FC<{
-    item: CatalogItem;
-    status: string;
-    isActive: boolean;
-    onClick: (() => void) | null;
-}> = ({ item, status, isActive, onClick }) => (
+const SourceTile: FC<{
+    source: AvailableLiveSource;
+    isPicked: boolean;
+    onClick: () => void;
+}> = ({ source, isPicked, onClick }) => (
     <UnstyledButton
         className={classes.catalogTile}
-        data-active={isActive}
-        disabled={onClick === null}
-        onClick={onClick ?? undefined}
+        data-active={isPicked}
+        onClick={onClick}
     >
-        <Box className={classes.tileLogo}>{item.icon}</Box>
+        <Box className={classes.tileLogo}>
+            <LiveSourceIcon connector={source.connector} size={16} />
+        </Box>
         <Stack gap={0} miw={0}>
-            <Text fw={500} size="sm" truncate>
-                {item.label}
+            <Text fw={500} size="sm" lh={1.3}>
+                {source.label}
             </Text>
-            <Text size="xs" c="dimmed" truncate>
-                {status}
-            </Text>
+            {isPicked && (
+                <Text size="xs" c="dimmed" truncate>
+                    Next up
+                </Text>
+            )}
         </Stack>
-        {isActive && (
+        {isPicked && (
             <MantineIcon
                 icon={IconCheck}
                 size={14}
@@ -125,27 +119,21 @@ const CatalogTile: FC<{
     </UnstyledButton>
 );
 
-const StackCatalog: FC<{ canInstallGithub: boolean }> = ({
-    canInstallGithub,
-}) => {
+const LiveSourceCatalog: FC = () => {
     const { health } = useApp();
-    const queryClient = useQueryClient();
     const [searchParams, setSearchParams] = useSearchParams();
     const liveSourcesFlag = useServerFeatureFlag(FeatureFlags.ApiQuerySources);
-    const externalSourcesFlag = useServerFeatureFlag(
-        FeatureFlags.ExternalSources,
-    );
-    const hasGithub = health.data?.hasGithub === true && canInstallGithub;
-    const githubQuery = useGithubConfig();
-    const isGithubInstalled = hasGithub && githubQuery.data?.enabled === true;
 
-    // GitHub installs in a popup, so pick it up when the user comes back
-    useEffect(() => {
-        const refresh = () =>
-            void queryClient.invalidateQueries(['github_installation']);
-        window.addEventListener('focus', refresh);
-        return () => window.removeEventListener('focus', refresh);
-    }, [queryClient]);
+    if (!liveSourcesFlag.data?.enabled) return null;
+
+    const available = LIVE_SOURCE_CATALOG.filter(isAvailableLiveSource).filter(
+        ({ connector }) =>
+            connector === ApiConnectorType.POSTHOG ||
+            health.data?.hasGoogleLiveSources === true,
+    );
+    const comingSoon = LIVE_SOURCE_CATALOG.filter(
+        (entry) => !isAvailableLiveSource(entry),
+    );
 
     const picked = new Set(
         (searchParams.get(THEN_PARAM) ?? '').split(',').filter(Boolean),
@@ -164,86 +152,43 @@ const StackCatalog: FC<{ canInstallGithub: boolean }> = ({
         );
     };
 
-    const laterItems: CatalogItem[] = [
-        ...(health.data?.hasSlack
-            ? [
-                  {
-                      id: 'slack',
-                      icon: <SlackSvg width={16} height={16} />,
-                      label: 'Slack',
-                  },
-              ]
-            : []),
-        ...(liveSourcesFlag.data?.enabled
-            ? [
-                  ApiConnectorType.POSTHOG,
-                  ...(health.data?.hasGoogleLiveSources
-                      ? [ApiConnectorType.GA4]
-                      : []),
-              ].map((connector) => ({
-                  id: connector,
-                  icon: <LiveSourceIcon connector={connector} size={16} />,
-                  label: getLiveSource(connector).label,
-              }))
-            : []),
-        ...(externalSourcesFlag.data?.enabled
-            ? [
-                  {
-                      id: 'files',
-                      icon: (
-                          <MantineIcon
-                              icon={IconFileSpreadsheet}
-                              size={16}
-                              color="ldGray.7"
-                          />
-                      ),
-                      label: 'CSV and Sheets',
-                  },
-              ]
-            : []),
-    ];
-
-    if (!hasGithub && laterItems.length === 0) return null;
-
     return (
         <Stack gap="xs">
-            <Text size="sm" fw={500} c="dimmed">
-                Also bring in
-            </Text>
+            <Stack gap={0}>
+                <Text size="sm" fw={500}>
+                    Also bring in live data
+                </Text>
+                <Text size="xs" c="dimmed">
+                    Pick any to connect right after your warehouse
+                </Text>
+            </Stack>
             <SimpleGrid cols={{ base: 2, sm: 3 }} spacing="xs">
-                {hasGithub && (
-                    <CatalogTile
-                        item={{
-                            id: 'github',
-                            icon: (
-                                <MantineIcon icon={IconBrandGithub} size={16} />
-                            ),
-                            label: 'GitHub',
-                        }}
-                        status={isGithubInstalled ? 'Connected' : 'Connect now'}
-                        isActive={isGithubInstalled}
-                        onClick={
-                            isGithubInstalled
-                                ? null
-                                : () =>
-                                      window.open(
-                                          '/api/v1/github/install',
-                                          '_blank',
-                                          'popup=true,width=600,height=700',
-                                      )
-                        }
-                    />
-                )}
-                {laterItems.map((item) => (
-                    <CatalogTile
-                        key={item.id}
-                        item={item}
-                        status={picked.has(item.id) ? 'Next up' : 'After setup'}
-                        isActive={picked.has(item.id)}
-                        onClick={() => togglePicked(item.id)}
+                {available.map((source) => (
+                    <SourceTile
+                        key={source.connector}
+                        source={source}
+                        isPicked={picked.has(source.connector)}
+                        onClick={() => togglePicked(source.connector)}
                     />
                 ))}
             </SimpleGrid>
+            <Group gap={6} wrap="wrap" justify="flex-end">
+                <Text size="xs" c="dimmed">
+                    Coming soon
+                </Text>
+                {comingSoon.map((entry) => (
+                    <Tooltip key={entry.id} label={entry.label} withinPortal>
+                        <Image
+                            src={entry.icon}
+                            alt={entry.label}
+                            w={14}
+                            h={14}
+                            fit="contain"
+                            className={classes.comingSoonIcon}
+                        />
+                    </Tooltip>
+                ))}
+            </Group>
         </Stack>
     );
 };
@@ -385,16 +330,6 @@ export const DataSourceChooser: FC = () => {
                 )}
             </SimpleGrid>
 
-            <StackCatalog
-                canInstallGithub={
-                    !!organizationUuid &&
-                    user.data?.ability?.can(
-                        'update',
-                        subject('Organization', { organizationUuid }),
-                    ) === true
-                }
-            />
-
             {hasFailed && (
                 <Text size="sm" c="red" role="alert">
                     We couldn't prepare the sample data. Try again, or connect a
@@ -416,6 +351,8 @@ export const DataSourceChooser: FC = () => {
                     onClick={() => setIsInviteOpen(true)}
                 />
             )}
+
+            <LiveSourceCatalog />
 
             {canInvite && (
                 <InviteTeammateModal

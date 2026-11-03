@@ -1,11 +1,22 @@
 import { subject } from '@casl/ability';
 import { ProjectType, WarehouseTypes } from '@lightdash/common';
-import { Anchor, Box, Button, Group, Stack, Text, Title } from '@mantine/core';
-import { IconBrandGit } from '@tabler/icons-react';
+import {
+    Anchor,
+    Box,
+    Button,
+    Group,
+    Radio,
+    SimpleGrid,
+    Stack,
+    Text,
+    Title,
+} from '@mantine/core';
+import { IconBrandGit, IconPlant } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import {
     Navigate,
     useLocation,
+    useNavigate,
     useParams,
     useSearchParams,
 } from 'react-router';
@@ -26,10 +37,7 @@ import {
 import { CreateProjectConnection } from '../components/ProjectConnection';
 import { ConnectionFormSkeleton } from '../components/ProjectConnection/ConnectionFormSkeleton';
 import { type ConnectionFormStep } from '../components/ProjectConnection/CreateProjectconnection';
-import {
-    DataSourceChooser,
-    ShortcutCard,
-} from '../components/ProjectConnection/ProjectConnectFlow/DataSourceChooser';
+import { DataSourceChooser } from '../components/ProjectConnection/ProjectConnectFlow/DataSourceChooser';
 import UnsupportedWarehouse from '../components/ProjectConnection/ProjectConnectFlow/UnsupportedWarehouse';
 import {
     getWarehouseIcon,
@@ -76,75 +84,65 @@ const DataSourcePicker: FC = () => {
 };
 
 const REPO_MODE = 'repo';
-const WAREHOUSE_MODE = 'warehouse';
 
-const RepoQuestion: FC<{ selectedWarehouse: WarehouseTypes }> = ({
-    selectedWarehouse,
-}) => {
-    const onboardingNavigate = useOnboardingNavigate();
-    const goBack = useBackToChooser();
+const SetupChoice: FC<{
+    selectedWarehouse: WarehouseTypes;
+    withRepo: boolean;
+}> = ({ selectedWarehouse, withRepo }) => {
+    const navigate = useNavigate();
     const { search } = useLocation();
-    const toMode = (mode: string) =>
-        onboardingNavigate(
-            `/onboarding/data-source/${selectedWarehouse}/${mode}${search}`,
-        );
+    const options = [
+        {
+            value: 'fresh',
+            icon: <MantineIcon icon={IconPlant} size={18} />,
+            title: 'Start fresh',
+            description: 'Aurora builds your models and metrics',
+        },
+        {
+            value: REPO_MODE,
+            icon: <MantineIcon icon={IconBrandGit} size={18} />,
+            title: 'Use my repo',
+            description: 'A dbt project or Lightdash YAML',
+        },
+    ];
 
     return (
-        <Stack gap="lg">
-            <Group gap="sm" wrap="nowrap">
-                <Box className={classes.logo}>
-                    {getWarehouseIcon(selectedWarehouse, 'sm')}
-                </Box>
-                <Stack gap={0}>
-                    <Title order={2}>
-                        Where should your analytics code live?
-                    </Title>
-                    <Text c="dimmed" size="sm">
-                        Lightdash keeps your metrics, charts and dashboards as
-                        code.
-                    </Text>
-                </Stack>
-            </Group>
-            <Stack gap="xs">
-                <ShortcutCard
-                    icon={getWarehouseIcon(selectedWarehouse, 'sm')}
-                    title="Start fresh"
-                    description={`Aurora builds your models and metrics from ${getWarehouseLabel(selectedWarehouse)}. Add a repo any time.`}
-                    onClick={() => toMode(WAREHOUSE_MODE)}
-                    primary
-                />
-                <ShortcutCard
-                    icon={
-                        <MantineIcon
-                            icon={IconBrandGit}
-                            size={16}
-                            color="ldGray.7"
-                        />
-                    }
-                    title="Connect an existing repo"
-                    description="Your dbt project or Lightdash YAML, from GitHub, GitLab or Bitbucket"
-                    onClick={() => toMode(REPO_MODE)}
-                />
-            </Stack>
-            <Group justify="space-between">
-                <Button
-                    variant="transparent"
-                    color="gray"
-                    px={0}
-                    onClick={goBack}
-                >
-                    Back
-                </Button>
-                <Anchor
-                    component="button"
-                    size="sm"
-                    c="dimmed"
-                    onClick={() => onboardingNavigate('/onboarding/dbt/cli')}
-                >
-                    Deploying from your machine? Use the CLI
-                </Anchor>
-            </Group>
-        </Stack>
+        <Radio.Group
+            value={withRepo ? REPO_MODE : 'fresh'}
+            onChange={(value) =>
+                withViewTransition(() =>
+                    navigate(
+                        `/onboarding/data-source/${selectedWarehouse}${
+                            value === REPO_MODE ? `/${REPO_MODE}` : ''
+                        }${search}`,
+                        { replace: true },
+                    ),
+                )
+            }
+        >
+            <SimpleGrid cols={2} spacing="xs">
+                {options.map((option) => (
+                    <Radio.Card
+                        key={option.value}
+                        value={option.value}
+                        className={classes.choiceCard}
+                    >
+                        <Group justify="space-between" align="flex-start">
+                            <Box className={classes.choiceIcon}>
+                                {option.icon}
+                            </Box>
+                            <Radio.Indicator size="xs" />
+                        </Group>
+                        <Text fw={500} size="sm" mt="sm">
+                            {option.title}
+                        </Text>
+                        <Text c="dimmed" size="xs">
+                            {option.description}
+                        </Text>
+                    </Radio.Card>
+                ))}
+            </SimpleGrid>
+        </Radio.Group>
     );
 };
 
@@ -153,6 +151,7 @@ const WarehouseConnect: FC<{
     withDbt: boolean;
 }> = ({ selectedWarehouse, withDbt }) => {
     const goBack = useBackToChooser();
+    const onboardingNavigate = useOnboardingNavigate();
     const [step, setStep] = useState<ConnectionFormStep>('warehouse');
     const isDbtStep = withDbt && step === 'dbt';
     const [searchParams] = useSearchParams();
@@ -192,13 +191,38 @@ const WarehouseConnect: FC<{
                             getWarehouseIcon(selectedWarehouse, 'sm')
                         )}
                     </Box>
-                    <Title order={2}>
-                        {isDbtStep
-                            ? 'Connect your repo'
-                            : `Create a ${getWarehouseLabel(selectedWarehouse)} connection`}
-                    </Title>
+                    <Stack gap={0}>
+                        <Title order={2}>
+                            {isDbtStep
+                                ? 'Connect your repo'
+                                : `Create a ${getWarehouseLabel(selectedWarehouse)} connection`}
+                        </Title>
+                        {isDbtStep && (
+                            <Text c="dimmed" size="sm">
+                                Deploying from your machine?{' '}
+                                <Anchor
+                                    component="button"
+                                    type="button"
+                                    inherit
+                                    onClick={() =>
+                                        onboardingNavigate(
+                                            '/onboarding/dbt/cli',
+                                        )
+                                    }
+                                >
+                                    Use the CLI
+                                </Anchor>
+                            </Text>
+                        )}
+                    </Stack>
                 </Group>
-                <ProjectFormProvider>
+                {!isDbtStep && (
+                    <SetupChoice
+                        selectedWarehouse={selectedWarehouse}
+                        withRepo={withDbt}
+                    />
+                )}
+                <ProjectFormProvider key={withDbt ? REPO_MODE : 'fresh'}>
                     <CreateProjectConnection
                         isCreatingFirstProject={!hasRealProject}
                         selectedWarehouse={selectedWarehouse}
@@ -264,10 +288,7 @@ const OnboardingDataSourceContent: FC = () => {
         return <Navigate to="/onboarding/data-source" replace />;
     }
 
-    if (
-        mode &&
-        (!selectedWarehouse || (mode !== REPO_MODE && mode !== WAREHOUSE_MODE))
-    ) {
+    if (mode && (!selectedWarehouse || mode !== REPO_MODE)) {
         return <Navigate to="/onboarding/data-source" replace />;
     }
 
@@ -288,17 +309,15 @@ const OnboardingDataSourceContent: FC = () => {
         <OnboardingLayout
             screen={warehouse ? 'warehouse_form' : 'choose_source'}
             journey={{ currentStep: 1, steps: ONBOARDING_DATA_STEPS }}
-            stackDepth={mode ? 2 : warehouse ? 1 : 0}
+            stackDepth={warehouse ? 1 : 0}
             aside={<StepVisual step="warehouse" />}
         >
             <DocumentTitle title="Add a data source" />
-            {selectedWarehouse && mode ? (
+            {selectedWarehouse ? (
                 <WarehouseConnect
                     selectedWarehouse={selectedWarehouse}
                     withDbt={mode === REPO_MODE}
                 />
-            ) : selectedWarehouse ? (
-                <RepoQuestion selectedWarehouse={selectedWarehouse} />
             ) : warehouse === OTHER_ROUTE_PARAM ? (
                 <OtherWarehouseConnect />
             ) : (
