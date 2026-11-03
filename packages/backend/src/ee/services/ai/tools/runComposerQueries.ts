@@ -1,23 +1,23 @@
 import {
     COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
     createToolComposerQueriesArgsSchema,
-    getSourceQueryResultReferences,
     getSqlApprovalSql,
     getToolComposerQueriesDescription,
-    QuerySourceType,
     queryToolDefinition,
     toComposerNodeColumns,
     WarehouseQueryError,
     type ComposerApiConnection,
     type ParameterDefinitions,
     type SemanticLayerSourceQuery,
-    type SourceQuery,
     type ToolComposerQueriesStructuredContent,
     type ToolComposerQueriesSuccessMetadata,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import { type AiDecisionClient } from '../decisions/AiDecisionClient';
-import { getEmptyFilterHints } from '../decisions/queryChecks';
+import {
+    getEmptyFilterHints,
+    getSemanticLayerAncestors,
+} from '../decisions/queryChecks';
 import {
     preferFilterValueHints,
     type QueryReviewer,
@@ -126,26 +126,6 @@ const failure = (
     metadata: { status },
     structuredContent: { error: result },
 });
-
-/** Semantic layer nodes the terminal node reads from, itself included. */
-const getSemanticLayerAncestors = (
-    pipeline: SourceQuery[],
-    terminalNodeId: string,
-): SemanticLayerSourceQuery[] => {
-    const byId = new Map(pipeline.map((node) => [node.nodeId, node]));
-    const visited = new Set<string>();
-    const visit = (nodeId: string): SemanticLayerSourceQuery[] => {
-        const node = byId.get(nodeId);
-        if (!node || visited.has(nodeId)) return [];
-        visited.add(nodeId);
-        return node.sourceType === QuerySourceType.SEMANTIC_LAYER
-            ? [node]
-            : Object.values(getSourceQueryResultReferences(node)).flatMap(
-                  visit,
-              );
-    };
-    return visit(terminalNodeId);
-};
 
 const getComposerEmptyFilterHints = async (
     { decisions, searchFieldValues }: FilterValueHintDependencies,

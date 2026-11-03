@@ -14,6 +14,7 @@ import { diagnoseEmptyResult } from './emptyResults';
 import {
     checkQueryIntent,
     describeSemanticQuery,
+    prepareComposerDateChecks,
     QUERY_INTENT_ADVICE_THRESHOLD,
     QUERY_INTENT_CHECKS,
     queryReviewNote,
@@ -131,20 +132,32 @@ export const createQueryReviewer =
                         ],
                     ),
                 );
+            const dateChecks =
+                plan.kind === 'composer'
+                    ? prepareComposerDateChecks({
+                          question,
+                          conversation,
+                          explores,
+                          queries: plan.queries,
+                          terminalNodeId: plan.terminalNodeId,
+                      })
+                    : null;
             const answers = await decisions.evaluate({
                 operation: 'query-plan-intent',
                 state: { question, conversation, plan, semanticSources },
-                questions,
+                questions: { ...questions, ...dateChecks?.questions },
             });
             if (!answers) return '';
-            return queryReviewNote(
-                Object.entries(QUERY_INTENT_CHECKS).flatMap(([key, [, hint]]) =>
-                    (decisionProbability(answers[key]) ?? 0) >=
-                    QUERY_INTENT_ADVICE_THRESHOLD
-                        ? [hint]
-                        : [],
+            return queryReviewNote([
+                ...Object.entries(QUERY_INTENT_CHECKS).flatMap(
+                    ([key, [, hint]]) =>
+                        (decisionProbability(answers[key]) ?? 0) >=
+                        QUERY_INTENT_ADVICE_THRESHOLD
+                            ? [hint]
+                            : [],
                 ),
-            );
+                ...(dateChecks?.advice(answers) ?? []),
+            ]);
         } catch {
             return '';
         }

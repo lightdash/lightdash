@@ -1,10 +1,17 @@
-import { QuerySourceType, type SourceQuery } from '@lightdash/common';
+import {
+    DimensionType,
+    FilterOperator,
+    QuerySourceType,
+    type Explore,
+    type Filters,
+    type SourceQuery,
+} from '@lightdash/common';
 import { describe, expect, it, vi } from 'vitest';
 import {
     metricQueryMock,
     validExplore,
 } from '../../../../services/ProjectService/ProjectService.mock';
-import { AiDecisionClient } from './AiDecisionClient';
+import { AiDecisionClient, type DecisionAnswers } from './AiDecisionClient';
 import { createQueryReviewer, type QueryReviewPlan } from './queryReview';
 
 const makeReviewer = () => {
@@ -174,6 +181,104 @@ describe('reviewing an executed query plan', () => {
         evaluate.mockRejectedValue(new Error('provider offline'));
         expect(await review({ kind: 'sql', sql: 'SELECT 1', limit: 10 })).toBe(
             '',
+        );
+    });
+});
+
+describe('composer date checks', () => {
+    const explore: Explore = {
+        ...validExplore,
+        tables: {
+            ...validExplore.tables,
+            a: {
+                ...validExplore.tables.a,
+                dimensions: {
+                    ...validExplore.tables.a.dimensions,
+                    order_date: {
+                        ...validExplore.tables.a.dimensions.dim1,
+                        name: 'order_date',
+                        label: 'Order date',
+                        type: DimensionType.DATE,
+                    },
+                },
+            },
+        },
+    };
+    const choice = (value: string): DecisionAnswers[string] => ({
+        type: 'choice',
+        choice: value,
+        confidence: 0.99,
+        probabilities: { [value]: 1 },
+    });
+    const composerPlan = (filters: Filters): QueryReviewPlan => ({
+        kind: 'composer',
+        queries: [
+            {
+                ...metricQuery,
+                filters,
+                sourceType: QuerySourceType.SEMANTIC_LAYER,
+                nodeId: 'orders',
+            },
+            {
+                sourceType: QuerySourceType.DUCKDB,
+                nodeId: 'weekly',
+                sql: 'SELECT * FROM orders',
+                references: ['orders'],
+                limit: 50,
+            },
+        ],
+        terminalNodeId: 'weekly',
+    });
+    const dateFilter = (end: string): Filters => ({
+        dimensions: {
+            id: 'root',
+            and: [
+                {
+                    id: 'date',
+                    target: { fieldId: 'a_order_date' },
+                    operator: FilterOperator.IN_BETWEEN,
+                    values: ['2024-02-01', end],
+                },
+            ],
+        },
+    });
+    const setup = () => {
+        const evaluate = vi.fn().mockResolvedValue({
+            datePeriod: choice('0'),
+            orders_dateField: choice('a_order_date'),
+            orders_dateScopeInDefinitions: { type: 'noul', noul: 0 },
+        });
+        return {
+            evaluate,
+            review: createQueryReviewer({
+                decisions: { evaluate },
+                question: 'Orders in February 2024',
+                explores: [explore],
+            }),
+        };
+    };
+
+    it('flags a code-computed date mismatch on a terminal-read source', async () => {
+        const { evaluate, review } = setup();
+        const note = await review(composerPlan(dateFilter('2024-02-28')));
+        expect(Object.keys(evaluate.mock.calls[0][0].questions)).toEqual(
+            expect.arrayContaining([
+                'datePeriod',
+                'orders_dateField',
+                'orders_dateScopeInDefinitions',
+            ]),
+        );
+        expect(note).toContain('Semantic source "orders"');
+        expect(note).toContain('compared in code');
+        expect(note).toContain('a later node may apply the requested period');
+        expect(await review(composerPlan(dateFilter('2024-02-29')))).toBe('');
+    });
+
+    it('skips sources whose own filters carry no date rule', async () => {
+        const { evaluate, review } = setup();
+        expect(await review(composerPlan({}))).toBe('');
+        expect(Object.keys(evaluate.mock.calls[0][0].questions)).not.toContain(
+            'datePeriod',
         );
     });
 });

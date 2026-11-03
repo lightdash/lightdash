@@ -17,6 +17,22 @@ import {
 } from './AiDecisionClient';
 import { compareDatePeriod, getDatePeriodCandidates } from './dateRanges';
 
+/** True when a filter rule targets one of the explore's date fields. */
+export const hasDateFilterRule = (explore: Explore, filters: Filters) => {
+    const dateIds = new Set(
+        getFields(explore)
+            .filter(
+                (field) =>
+                    field.type === DimensionType.DATE ||
+                    field.type === DimensionType.TIMESTAMP,
+            )
+            .map(getItemId),
+    );
+    return getTotalFilterRules(filters).some(
+        (rule) => !rule.disabled && dateIds.has(rule.target.fieldId),
+    );
+};
+
 export const prepareDateCheck = ({
     question,
     conversation,

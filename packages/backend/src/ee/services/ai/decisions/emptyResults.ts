@@ -2,6 +2,7 @@ import {
     DimensionType,
     getFields,
     getItemId,
+    getSourceQueryResultReferences,
     getTotalFilterRules,
     QuerySourceType,
     type Explore,
@@ -12,9 +13,10 @@ import {
     confidentChoice,
     decisionProbability,
 } from './AiDecisionClient';
-import { prepareDateCheck } from './dateChecks';
+import { hasDateFilterRule, prepareDateCheck } from './dateChecks';
 import {
     describeSemanticQuery,
+    getSemanticLayerAncestors,
     type ReviewableMetricQuery,
 } from './queryChecks';
 import type { QueryReviewPlan } from './queryReview';
@@ -109,13 +111,31 @@ export const diagnoseEmptyResult = async ({
             );
             return explore ? [describeSemanticQuery(query, explore)] : [];
         });
-        const explore =
-            plan.kind === 'semantic'
-                ? explores.find((item) => item.name === plan.query.exploreName)
-                : undefined;
-        const dateCheck = explore
-            ? prepareDateCheck({ question, conversation, explore })
-            : null;
+        // A composer plan is checked only when its terminal reads exactly one semantic source.
+        const terminalSources =
+            plan.kind === 'composer'
+                ? getSemanticLayerAncestors(plan.queries, plan.terminalNodeId)
+                : [];
+        const [source, ...otherSources] = terminalSources;
+        let scoped: ReviewableMetricQuery | null = null;
+        if (plan.kind === 'semantic') scoped = queries[0] ?? null;
+        else if (source && otherSources.length === 0)
+            scoped = {
+                ...source,
+                filters: source.filters ?? {},
+                sorts: source.sorts ?? [],
+                limit: source.limit ?? null,
+            };
+        const explore = scoped
+            ? explores.find((item) => item.name === scoped?.exploreName)
+            : undefined;
+        const dateCheck =
+            scoped &&
+            explore &&
+            (plan.kind === 'semantic' ||
+                hasDateFilterRule(explore, scoped.filters))
+                ? prepareDateCheck({ question, conversation, explore })
+                : null;
         const answers = await decisions.evaluate({
             operation: 'empty-result-diagnosis',
             state: {
@@ -152,10 +172,9 @@ export const diagnoseEmptyResult = async ({
             },
         });
         if (!answers) return fallback;
-        const dateResult =
-            plan.kind === 'semantic'
-                ? dateCheck?.compare(answers, plan.query.filters)
-                : null;
+        const dateResult = scoped
+            ? dateCheck?.compare(answers, scoped.filters)
+            : null;
         // The selector's period/field gates already passed. A code-proven date
         // mismatch does not need a second model to agree with arithmetic.
         if (dateResult?.outcome === 'mismatch')
@@ -182,14 +201,32 @@ export const diagnoseEmptyResult = async ({
             const knownIds = new Set(
                 explore ? getFields(explore).map(getItemId) : [],
             );
+            const nodeIds = new Set(
+                plan.kind === 'composer'
+                    ? plan.queries.map((node) => node.nodeId)
+                    : [],
+            );
+            const transparent =
+                plan.kind === 'semantic' ||
+                (plan.kind === 'composer' &&
+                    plan.queries.every(
+                        (node) =>
+                            node.sourceType ===
+                                QuerySourceType.SEMANTIC_LAYER ||
+                            (node.sourceType === QuerySourceType.DUCKDB &&
+                                Object.values(
+                                    getSourceQueryResultReferences(node),
+                                ).every((ref) => nodeIds.has(ref))),
+                    ));
             const knownScope =
-                plan.kind === 'semantic' &&
+                transparent &&
+                !!scoped &&
                 !!explore &&
-                plan.query.metrics.length + plan.query.dimensions.length > 0 &&
+                scoped.metrics.length + scoped.dimensions.length > 0 &&
                 [
-                    ...plan.query.metrics,
-                    ...plan.query.dimensions,
-                    ...getTotalFilterRules(plan.query.filters).map(
+                    ...scoped.metrics,
+                    ...scoped.dimensions,
+                    ...getTotalFilterRules(scoped.filters).map(
                         (filter) => filter.target.fieldId,
                     ),
                 ].every((id) => knownIds.has(id));
@@ -205,8 +242,8 @@ export const diagnoseEmptyResult = async ({
                     : [],
             );
             const hasDateFilters =
-                plan.kind === 'semantic' &&
-                getTotalFilterRules(plan.query.filters).some((filter) =>
+                !!scoped &&
+                getTotalFilterRules(scoped.filters).some((filter) =>
                     dateIds.has(filter.target.fieldId),
                 );
             const verifiedTime =

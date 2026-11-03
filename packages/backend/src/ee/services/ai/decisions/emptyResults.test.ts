@@ -1,4 +1,10 @@
-import { DimensionType, FilterOperator, type Explore } from '@lightdash/common';
+import {
+    DimensionType,
+    FilterOperator,
+    QuerySourceType,
+    type Explore,
+    type SourceQuery,
+} from '@lightdash/common';
 import {
     metricQueryMock,
     validExplore,
@@ -333,5 +339,91 @@ describe('evidence-supported empty query diagnosis', () => {
             JSON.parse(String(request.mock.calls[0][1]?.body)).state
                 .executedPlan.parameters,
         ).toEqual({ region: 'APAC' });
+    });
+});
+
+describe('composer empty results with one terminal-read semantic source', () => {
+    const dateFilters = (end: string) => {
+        const semantic = datePlan(end);
+        return semantic.kind === 'semantic' ? semantic.query.filters : {};
+    };
+    const source = (
+        nodeId: string,
+        filters = dateFilters('2024-02-29'),
+    ): SourceQuery => ({
+        ...metricQueryMock,
+        dimensions: ['a_order_date'],
+        filters,
+        sourceType: QuerySourceType.SEMANTIC_LAYER,
+        nodeId,
+    });
+    const duckdb = (references: string[]): SourceQuery => ({
+        sourceType: QuerySourceType.DUCKDB,
+        nodeId: 'final',
+        sql: 'SELECT * FROM orders',
+        references,
+        limit: 50,
+    });
+    const composer = (queries: SourceQuery[]): QueryReviewPlan => ({
+        kind: 'composer',
+        queries,
+        terminalNodeId: 'final',
+    });
+    const question = 'Orders in February 2024';
+
+    it('concludes empty_scope once code matches the source date bounds', async () => {
+        const { args } = setup('empty_scope', dateAnswers);
+        expect(
+            await diagnoseEmptyResult({
+                ...args,
+                question,
+                plan: composer([source('orders'), duckdb(['orders'])]),
+            }),
+        ).toContain('No rows matched the requested scope.');
+    });
+    it('reports a code-proven date mismatch on the source', async () => {
+        const { args } = setup('unknown', dateAnswers);
+        expect(
+            await diagnoseEmptyResult({
+                ...args,
+                question,
+                plan: composer([
+                    source('orders', dateFilters('2024-02-28')),
+                    duckdb(['orders']),
+                ]),
+            }),
+        ).toContain('compared in code');
+    });
+    it('abstains with several sources, opaque nodes or prior results', async () => {
+        const { args } = setup('empty_scope', dateAnswers);
+        const sql: SourceQuery = {
+            sourceType: QuerySourceType.SQL,
+            nodeId: 'raw',
+            sql: 'select 1',
+        };
+        const plans = [
+            composer([source('a'), source('b'), duckdb(['a', 'b'])]),
+            composer([source('orders'), sql, duckdb(['orders', 'raw'])]),
+            composer([source('orders'), duckdb(['orders', 'prior_result'])]),
+        ];
+        const results = await Promise.all(
+            plans.map((composerPlan) =>
+                diagnoseEmptyResult({ ...args, question, plan: composerPlan }),
+            ),
+        );
+        expect(results).toEqual(plans.map(() => EMPTY_QUERY_GUIDANCE));
+    });
+    it('skips the date check when the period may be applied downstream', async () => {
+        const { args, request } = setup('unknown', dateAnswers);
+        expect(
+            await diagnoseEmptyResult({
+                ...args,
+                question,
+                plan: composer([source('orders', {}), duckdb(['orders'])]),
+            }),
+        ).toBe(EMPTY_QUERY_GUIDANCE);
+        expect(
+            JSON.parse(String(request.mock.calls[0][1]?.body)).questions,
+        ).not.toHaveProperty('datePeriod');
     });
 });

@@ -2,10 +2,14 @@ import {
     FilterOperator,
     getFields,
     getItemId,
+    getSourceQueryResultReferences,
     getTotalFilterRules,
+    QuerySourceType,
     type Explore,
     type MetricQuery,
     type ParametersValuesMap,
+    type SemanticLayerSourceQuery,
+    type SourceQuery,
     type ToolRunQueryArgsTransformed,
 } from '@lightdash/common';
 import type { SearchFieldValuesFn } from '../types/aiAgentDependencies';
@@ -13,9 +17,10 @@ import type { AgentDecisionContext } from './agentQuestion';
 import {
     AiDecisionClient,
     decisionProbability,
+    type DecisionAnswers,
     type DecisionQuestion,
 } from './AiDecisionClient';
-import { prepareDateCheck } from './dateChecks';
+import { hasDateFilterRule, prepareDateCheck } from './dateChecks';
 import { resolveFieldValue } from './fieldValues';
 import { prepareRankingCheck } from './rankingChecks';
 
@@ -97,6 +102,94 @@ export const describeSemanticQuery = (
         tableSqlFilters: Object.values(explore.tables).flatMap((table) =>
             table.sqlWhere ? [{ table: table.name, sql: table.sqlWhere }] : [],
         ),
+    };
+};
+
+/** Semantic layer nodes the terminal node reads from, itself included. */
+export const getSemanticLayerAncestors = (
+    pipeline: SourceQuery[],
+    terminalNodeId: string,
+): SemanticLayerSourceQuery[] => {
+    const byId = new Map(pipeline.map((node) => [node.nodeId, node]));
+    const visited = new Set<string>();
+    const visit = (nodeId: string): SemanticLayerSourceQuery[] => {
+        const node = byId.get(nodeId);
+        if (!node || visited.has(nodeId)) return [];
+        visited.add(nodeId);
+        return node.sourceType === QuerySourceType.SEMANTIC_LAYER
+            ? [node]
+            : Object.values(getSourceQueryResultReferences(node)).flatMap(
+                  visit,
+              );
+    };
+    return visit(terminalNodeId);
+};
+
+/** Date checks for the semantic sources a composer terminal reads; one shared period question. */
+export const prepareComposerDateChecks = ({
+    question,
+    conversation,
+    explores,
+    queries,
+    terminalNodeId,
+}: {
+    question: string;
+    conversation?: AgentDecisionContext;
+    explores: Explore[];
+    queries: SourceQuery[];
+    terminalNodeId: string;
+}) => {
+    // A source without its own date rule may leave the period to a later node.
+    const checks = getSemanticLayerAncestors(queries, terminalNodeId).flatMap(
+        (source, index) => {
+            const explore = explores.find(
+                (candidate) => candidate.name === source.exploreName,
+            );
+            const filters = source.filters ?? {};
+            const check =
+                explore && hasDateFilterRule(explore, filters)
+                    ? prepareDateCheck({ question, conversation, explore })
+                    : null;
+            return check
+                ? [{ id: source.nodeId ?? `source_${index}`, filters, check }]
+                : [];
+        },
+    );
+    if (!checks.length) return null;
+    const key = (id: string, name: string) =>
+        name === 'datePeriod' ? name : `${id}_${name}`;
+    const questions: Record<string, DecisionQuestion> = Object.fromEntries(
+        checks.flatMap(({ id, check }) =>
+            Object.entries(check.questions).map(([name, entry]) => [
+                key(id, name),
+                name === 'datePeriod'
+                    ? entry
+                    : {
+                          ...entry,
+                          instructions: `For semantic source "${id}": ${entry.instructions}`,
+                      },
+            ]),
+        ),
+    );
+    return {
+        questions,
+        advice: (answers: DecisionAnswers): string[] =>
+            checks.flatMap(({ id, filters, check }) =>
+                check
+                    .advice(
+                        Object.fromEntries(
+                            Object.keys(check.questions).flatMap((name) => {
+                                const answer = answers[key(id, name)];
+                                return answer ? [[name, answer]] : [];
+                            }),
+                        ),
+                        filters,
+                    )
+                    .map(
+                        (text) =>
+                            `Semantic source "${id}": ${text} Only sources with their own date filters were compared; a later node may apply the requested period instead.`,
+                    ),
+            ),
     };
 };
 
