@@ -3,6 +3,7 @@ import { Box, Button, Group, Image, Stack, Text, Title } from '@mantine/core';
 import { IconArrowRight, IconCheck } from '@tabler/icons-react';
 import { Fragment, useEffect, type FC } from 'react';
 import { Link } from 'react-router';
+import { AI_NAME } from '../../../components/common/aiName';
 import { DocumentTitle } from '../../../components/common/DocumentTitle';
 import MantineIcon from '../../../components/common/MantineIcon';
 import OnboardingLayout from '../../../components/common/OnboardingLayout';
@@ -67,7 +68,7 @@ const SetupRecap: FC<{ projectUuid: string; toolCount: number }> = ({
             ? {
                   key: 'aurora',
                   state: 'live',
-                  text: 'Aurora is still learning your data. Home shows when it finishes.',
+                  text: `${AI_NAME} is still drafting your metrics. Home shows when it finishes.`,
               }
             : semanticLayer?.status === 'done'
               ? {
@@ -75,12 +76,12 @@ const SetupRecap: FC<{ projectUuid: string; toolCount: number }> = ({
                     state: 'done',
                     text:
                         semanticLayer.evidence?.text ??
-                        'Aurora finished learning your data',
+                        'Your metrics are ready',
                 }
               : {
                     key: 'aurora',
                     state: 'todo',
-                    text: "Aurora hasn't looked at your data yet. You can start it from home.",
+                    text: 'No metrics drafted yet. You can start from home.',
                 },
     ];
     return (
@@ -144,25 +145,21 @@ export const OnboardingDoneStep: FC<{ projectUuid: string }> = ({
             <Stack className={classes.column} gap="xl">
                 <Stack gap={4} align="center">
                     <Title order={1}>You're all set</Title>
-                    <Text c="dimmed" className={classes.subtitle}>
-                        {sources.length === 0 ? (
-                            'Your data is connected and ready for questions.'
-                        ) : (
-                            <>
-                                Your data from{' '}
-                                {sources.map((source, index) => (
-                                    <Fragment key={source.key}>
-                                        {index > 0 &&
-                                            (index === sources.length - 1
-                                                ? ' and '
-                                                : ', ')}
-                                        <SourceName source={source} />
-                                    </Fragment>
-                                ))}{' '}
-                                is ready for questions.
-                            </>
-                        )}
-                    </Text>
+                    {sources.length > 0 && (
+                        <Text c="dimmed" className={classes.subtitle}>
+                            Your data from{' '}
+                            {sources.map((source, index) => (
+                                <Fragment key={source.key}>
+                                    {index > 0 &&
+                                        (index === sources.length - 1
+                                            ? ' and '
+                                            : ', ')}
+                                    <SourceName source={source} />
+                                </Fragment>
+                            ))}{' '}
+                            is ready for questions.
+                        </Text>
+                    )}
                 </Stack>
 
                 {variant === 'b' && (

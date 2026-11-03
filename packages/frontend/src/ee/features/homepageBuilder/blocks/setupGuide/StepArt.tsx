@@ -6,6 +6,7 @@ import {
     IconPlus,
 } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
+import { AI_NAME } from '../../../../../components/common/aiName';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { LiveSourceIcon } from '../../../../../features/externalConnections/liveSources/LiveSourceIcon';
 import SlackSvg from '../../../../../svgs/slack.svg?react';
@@ -104,7 +105,7 @@ const SCENES: Record<SetupGuideRowId, () => ReactNode> = {
             <Box className={classes.bubble}>
                 <SlackSvg width={12} height={12} />
                 <Box component="span" className={classes.mention}>
-                    @Aurora
+                    @{AI_NAME}
                 </Box>
                 how did revenue do?
             </Box>

@@ -15,17 +15,17 @@ const PLAN: { icon: Icon; title: string; body: string }[] = [
     {
         icon: IconDatabase,
         title: 'Connect your warehouse',
-        body: 'Aurora runs real queries against it, so you can check any number.',
+        body: 'Every answer is a real query you can check.',
     },
     {
         icon: IconLayersLinked,
-        title: 'Aurora learns your data',
+        title: 'Draft your metrics',
         body: 'It reads your tables in the background, so revenue means the same thing in every answer.',
     },
     {
         icon: IconUsers,
         title: 'Bring in your tools and team',
-        body: 'Tool data in your answers, Aurora in Slack, and pull requests on GitHub when it improves your metrics.',
+        body: 'Answers in Slack and metric changes as pull requests on GitHub.',
     },
 ];
 
@@ -34,11 +34,8 @@ export const MeetAurora: FC = () => {
     return (
         <Stack gap="xl" className={classes.column}>
             <Stack gap={4}>
-                <Title order={1}>Meet Aurora</Title>
-                <Text c="dimmed">
-                    Aurora is an AI data analyst that works on your own data.
-                    Here is what we'll set up together.
-                </Text>
+                <Title order={1}>Your AI analyst</Title>
+                <Text c="dimmed">Three steps to answers you can trust.</Text>
             </Stack>
             <Box component="ol" className={classes.plan}>
                 {PLAN.map(({ icon, title, body }, index) => (

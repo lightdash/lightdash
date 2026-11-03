@@ -35,6 +35,7 @@ import {
 import { useEffect, useState, type FC, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router';
+import { AI_NAME } from '../../../../../components/common/aiName';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
@@ -60,13 +61,13 @@ const ROW_COPY: Record<
 > = {
     warehouse: {
         short: 'warehouse',
-        pitch: 'Aurora answers by querying your warehouse.',
+        pitch: `${AI_NAME} answers by querying your warehouse.`,
         icon: IconDatabase,
         time: '3 min',
     },
     'app-data': {
         short: 'more sources',
-        pitch: 'Connect tools like PostHog or Google Analytics so Aurora can answer across them.',
+        pitch: 'Ask AI can combine PostHog or Google Analytics with your metrics.',
         icon: IconPlugConnected,
         time: '2 min',
     },
@@ -96,7 +97,7 @@ const ROW_COPY: Record<
     },
     slack: {
         short: 'Slack',
-        pitch: 'Tag Aurora in any channel and get answers in the thread.',
+        pitch: `Tag @${AI_NAME} in any channel and get answers in the thread.`,
         icon: IconBrandSlack,
         time: '1 min',
     },
@@ -279,7 +280,7 @@ const AuroraLiveCard: FC<{ rows: SetupGuideRow[] }> = ({ rows }) => {
                 <Box className={classes.liveDot} aria-hidden />
                 <Box className={classes.grow}>
                     <Text fz="sm" fw={500}>
-                        Aurora is drafting your {drafting}
+                        {AI_NAME} is drafting your {drafting}
                     </Text>
                     <Text fz="xs" c="dimmed">
                         Reading your tables and writing the YAML. Keep going,

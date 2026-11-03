@@ -71,7 +71,7 @@ describe('AiAgentService.provisionDefaultAgent', () => {
         expect(createAgent).not.toHaveBeenCalled();
     });
 
-    it('creates Aurora with the starter configuration', async () => {
+    it('creates the default agent with the starter configuration', async () => {
         const { service, findAllAgents, getIsCopilotEnabled, createAgent } =
             buildService();
         getIsCopilotEnabled.mockResolvedValue(true);
@@ -85,13 +85,13 @@ describe('AiAgentService.provisionDefaultAgent', () => {
         expect(createAgent).toHaveBeenCalledWith(
             user,
             {
-                name: 'Aurora',
+                name: 'Lightdash',
                 projectUuid: PROJECT_UUID,
                 description: null,
                 integrations: [],
                 tags: null,
                 instruction:
-                    "You are Aurora, this organization's analytics agent. Help people explore and understand their data, and answer questions with clear, concise analysis. If no explores are available yet, use your warehouse tools to discover the schema and answer with SQL.",
+                    "You are this organization's analytics agent. Help people explore and understand their data, and answer questions with clear, concise analysis. If no explores are available yet, use your warehouse tools to discover the schema and answer with SQL.",
                 imageUrl: null,
                 groupAccess: [],
                 userAccess: [],

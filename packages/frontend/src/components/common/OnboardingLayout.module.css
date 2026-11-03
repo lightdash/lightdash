@@ -483,8 +483,7 @@
     flex: 1;
     min-width: 0;
     justify-content: center;
-    padding: var(--mantine-spacing-xl);
-    padding-top: rem(56px);
+    padding: rem(48px) var(--mantine-spacing-xl);
     view-transition-name: onboarding-card;
 }
 
@@ -496,15 +495,25 @@
     max-width: rem(560px);
 }
 
-.splitContent > .accountSwitch {
-    margin-top: auto;
-    padding-bottom: rem(48px);
-}
-
-.splitContent > .wordmark {
-    align-self: flex-start;
+.splitHeader .wordmark {
+    flex-shrink: 0;
     width: auto;
     height: rem(22px);
+}
+
+.account {
+    min-width: 0;
+}
+
+/* Centered in the column so the form sits level with the visual beside it */
+.splitBody {
+    margin-block: auto;
+}
+
+/* Mirrors the header so the body centers on the viewport, not below the header */
+.splitContent::after {
+    content: '';
+    flex: 0 0 rem(22px);
 }
 
 .splitForm h1 {

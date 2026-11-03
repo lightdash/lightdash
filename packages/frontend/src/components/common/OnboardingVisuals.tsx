@@ -9,6 +9,7 @@ import { type FC, type ReactNode } from 'react';
 import { LiveSourceIcon } from '../../features/externalConnections/liveSources/LiveSourceIcon';
 import SlackSvg from '../../svgs/slack.svg?react';
 import { WarehouseTypeLabels } from '../ProjectConnection/ProjectConnectFlow/utils';
+import { AI_NAME } from './aiName';
 import MantineIcon from './MantineIcon';
 import classes from './OnboardingVisuals.module.css';
 
@@ -87,7 +88,7 @@ const TABLES: [string, string][] = [
 const WarehouseVisual: FC = () => (
     <Figure
         title="Build anything on your own tables"
-        body="Charts, dashboards and answers from Aurora all run on your warehouse, so every number traces back to the source."
+        body="Every chart, dashboard and answer runs on your warehouse."
     >
         <Box className={classes.card} __vars={{ '--i': '0' }}>
             <Group gap={8} wrap="nowrap" className={classes.cardHeader}>
@@ -160,7 +161,7 @@ export const ToolsVisual: FC<{ warehouse: WarehouseTypes | null }> = ({
     return (
         <Figure
             title="Add what your warehouse is missing"
-            body="Product events, traffic and search data sit next to your tables, so Aurora can explain why a number moved."
+            body="Ask AI can combine product events and traffic with your tables."
         >
             <Box className={classes.sourcePair}>
                 <Box className={classes.card} __vars={{ '--i': '0' }}>
@@ -268,7 +269,7 @@ const TeamVisual: FC = () => (
                     <b>Sam</b>{' '}
                     <Box component="span" className={classes.mention}>
                         <Box component="span" className={classes.auroraDot} />
-                        Aurora
+                        {AI_NAME}
                     </Box>{' '}
                     how did signups do last week?
                 </Text>
@@ -276,7 +277,7 @@ const TeamVisual: FC = () => (
             <Box className={classes.message} data-reply __vars={{ '--i': '2' }}>
                 <Box className={classes.grow}>
                     <Text fz="xs">
-                        <b>Aurora</b> Up 18% to 2,740, mostly from the spring
+                        <b>{AI_NAME}</b> Up 18% to 2,740, mostly from the spring
                         launch.
                     </Text>
                     <Bars heights={[40, 55, 48, 70, 88]} delay={3} />
@@ -289,7 +290,7 @@ const TeamVisual: FC = () => (
             className={classes.cardNote}
             __vars={{ '--i': '1' }}
         >
-            Mention Aurora in any channel and it replies in the thread.
+            Mention {AI_NAME} in any channel and it replies in the thread.
         </Text>
         <Box className={classes.card} __vars={{ '--i': '5' }}>
             <Group gap={6} wrap="nowrap" className={classes.cardHeader}>
@@ -317,7 +318,7 @@ const TeamVisual: FC = () => (
             className={classes.cardNote}
             __vars={{ '--i': '6' }}
         >
-            Aurora proposes model changes as pull requests you review.
+            Metric changes arrive as pull requests you review.
         </Text>
     </Figure>
 );
@@ -325,7 +326,7 @@ const TeamVisual: FC = () => (
 const WelcomeVisual: FC = () => (
     <Figure
         title="Ask in plain English"
-        body="Aurora writes the query, picks the chart and tells you what it found, with the definitions it used."
+        body="You get a chart, the query and the definitions it used."
     >
         <Box className={classes.question} __vars={{ '--i': '0' }}>
             What drove revenue last quarter?
@@ -334,7 +335,7 @@ const WelcomeVisual: FC = () => (
             <Group gap={6} wrap="nowrap">
                 <AuroraMark />
                 <Text fz="xs" fw={500}>
-                    Aurora
+                    {AI_NAME}
                 </Text>
             </Group>
             <Text fz="xs" mt={6}>

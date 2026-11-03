@@ -283,7 +283,7 @@ const TeamStep: FC<{
             <Stack className={classes.column} gap="xl">
                 <Stack gap={4}>
                     <Title order={1}>{copy.title}</Title>
-                    <Text c="dimmed">{copy.subtitle}</Text>
+                    {copy.subtitle && <Text c="dimmed">{copy.subtitle}</Text>}
                 </Stack>
 
                 <ToolGroup title={null}>
@@ -405,7 +405,6 @@ const OnboardingToolsContent: FC<{
 
     const donePath = `/onboarding/tools/${projectUuid}?step=done`;
     const teamStepPath = `/onboarding/tools/${projectUuid}?step=team`;
-    const toolsPath = `/onboarding/tools/${projectUuid}`;
 
     const isTeamStep = searchParams.get('step') === 'team';
 
@@ -429,12 +428,7 @@ const OnboardingToolsContent: FC<{
     }
 
     if (isTeamStep) {
-        return (
-            <TeamStep
-                nextPath={donePath}
-                backPath={showLiveSources ? toolsPath : null}
-            />
-        );
+        return <TeamStep nextPath={donePath} backPath={null} />;
     }
 
     if (!showLiveSources) {
@@ -466,7 +460,7 @@ const OnboardingToolsContent: FC<{
             <Stack className={classes.column} gap="xl">
                 <Stack gap={4}>
                     <Title order={1}>{copy.title}</Title>
-                    <Text c="dimmed">{copy.subtitle}</Text>
+                    {copy.subtitle && <Text c="dimmed">{copy.subtitle}</Text>}
                 </Stack>
 
                 {showLiveSources && (

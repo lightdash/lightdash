@@ -1,4 +1,4 @@
-import { Box, Button, Paper } from '@mantine/core';
+import { Box, Button, Group, Paper, Text } from '@mantine/core';
 import { useQueryClient } from '@tanstack/react-query';
 import {
     useEffect,
@@ -11,6 +11,7 @@ import {
 } from 'react';
 import { useNavigate } from 'react-router';
 import useLogoutMutation from '../../hooks/user/useUserLogoutMutation';
+import useApp from '../../providers/App/useApp';
 import { type OnboardingScreen } from '../../providers/Tracking/types';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
@@ -24,6 +25,8 @@ import { PixelField } from './PixelField';
 const SwitchAccountButton: FC = () => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
+    const { user } = useApp();
+    const email = user.data?.email ?? null;
     const logout = useLogoutMutation({
         onSuccess: () => {
             queryClient.clear();
@@ -31,16 +34,23 @@ const SwitchAccountButton: FC = () => {
         },
     });
     return (
-        <Button
-            variant="subtle"
-            color="gray"
-            size="compact-xs"
-            fw={400}
-            loading={logout.isLoading}
-            onClick={() => logout.mutate()}
-        >
-            Use another account
-        </Button>
+        <Group gap={4} wrap="nowrap" className={classes.account}>
+            {email && (
+                <Text fz="xs" c="dimmed" truncate>
+                    {email}
+                </Text>
+            )}
+            <Button
+                variant="subtle"
+                color="gray"
+                size="compact-xs"
+                fw={400}
+                loading={logout.isLoading}
+                onClick={() => logout.mutate()}
+            >
+                Switch account
+            </Button>
+        </Group>
     );
 };
 
@@ -154,14 +164,16 @@ const OnboardingLayout: FC<Props> = ({
             <Box component="main" className={classes.splitRoot}>
                 <Box className={classes.splitForm} data-onboarding-card>
                     <Box id={cardId} className={classes.splitContent}>
-                        <LightdashWordmark className={classes.wordmark} />
+                        <Group
+                            justify="space-between"
+                            wrap="nowrap"
+                            className={classes.splitHeader}
+                        >
+                            <LightdashWordmark className={classes.wordmark} />
+                            {withAccountSwitch && <SwitchAccountButton />}
+                        </Group>
                         {journey && <JourneySteps {...journey} />}
-                        {children}
-                        {withAccountSwitch && (
-                            <Box className={classes.accountSwitch}>
-                                <SwitchAccountButton />
-                            </Box>
-                        )}
+                        <Box className={classes.splitBody}>{children}</Box>
                     </Box>
                 </Box>
                 <Box className={classes.splitVisual}>

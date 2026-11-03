@@ -14,7 +14,7 @@ const HOMEPAGE_TOUR_STEPS: HomepageTourStep[] = [
     {
         target: '[data-tour="home-ask"]',
         title: 'Ask anything',
-        body: 'Type a question in plain English. Aurora writes the query, picks the chart and explains what it found.',
+        body: 'Type a question in plain English. You get a chart and the query behind it.',
         position: 'bottom',
     },
     {
@@ -26,7 +26,7 @@ const HOMEPAGE_TOUR_STEPS: HomepageTourStep[] = [
     {
         target: '[data-tour="home-setup"]',
         title: 'Finish setting up',
-        body: 'Each step gives Aurora more to work with: more data, defined metrics or your team.',
+        body: 'More data, metrics and teammates make every answer better.',
         position: 'top',
     },
     {

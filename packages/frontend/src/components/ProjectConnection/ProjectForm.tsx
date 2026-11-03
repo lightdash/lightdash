@@ -20,6 +20,7 @@ interface Props {
     defaultType?: DbtProjectType;
     isProjectUpdate?: boolean;
     warehouseOnly?: boolean;
+    dbtTypePicker?: 'select' | 'tiles';
 }
 
 export const ProjectForm: FC<Props> = ({
@@ -28,6 +29,7 @@ export const ProjectForm: FC<Props> = ({
     defaultType,
     isProjectUpdate,
     warehouseOnly = false,
+    dbtTypePicker = 'select',
 }) => {
     const form = useFormContext();
     const { savedProject } = useProjectFormContext();
@@ -113,6 +115,7 @@ export const ProjectForm: FC<Props> = ({
                         <DbtSettingsForm
                             disabled={disabled}
                             defaultType={defaultType}
+                            typePicker={dbtTypePicker}
                         />
                     </div>
                 </SettingsGridCard>

@@ -403,17 +403,9 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                     <form onSubmit={handleSubmit} noValidate>
                         {isWorkspaceStep ? (
                             <Stack key="workspace" gap="lg">
-                                <Stack gap="xs">
-                                    <Title
-                                        order={1}
-                                        className={classes.heading}
-                                    >
-                                        Name your organization
-                                    </Title>
-                                    <Text c="dimmed" size="sm">
-                                        Use your company or team name.
-                                    </Text>
-                                </Stack>
+                                <Title order={1} className={classes.heading}>
+                                    Name your organization
+                                </Title>
 
                                 <TextInput
                                     label="Organization name"
@@ -541,17 +533,9 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                             </Stack>
                         ) : (
                             <Stack key="about-you" gap="lg">
-                                <Stack gap="xs">
-                                    <Title
-                                        order={1}
-                                        className={classes.heading}
-                                    >
-                                        Tell us about you
-                                    </Title>
-                                    <Text c="dimmed" size="sm">
-                                        This helps us set things up for you.
-                                    </Text>
-                                </Stack>
+                                <Title order={1} className={classes.heading}>
+                                    Tell us about you
+                                </Title>
 
                                 <Select
                                     label="What's your role?"

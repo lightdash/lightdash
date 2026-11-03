@@ -103,9 +103,6 @@ const DbtMethodPicker: FC = () => {
                 <Title order={1} ta="center">
                     Connect your dbt project
                 </Title>
-                <Text size="md" c="dimmed" ta="center">
-                    We'll read the models and metrics you already have.
-                </Text>
             </Stack>
 
             <Stack gap="md">

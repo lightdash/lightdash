@@ -73,7 +73,7 @@ describe('NoProjectHomepage', () => {
         renderHomepage();
 
         expect(
-            screen.getByRole('heading', { name: 'Where does your data live?' }),
+            screen.getByRole('heading', { name: 'Connect your data' }),
         ).toBeInTheDocument();
         expect(screen.getByTestId('data-source-chooser')).toBeInTheDocument();
     });

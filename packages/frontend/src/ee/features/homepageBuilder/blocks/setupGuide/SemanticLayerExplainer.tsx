@@ -79,7 +79,7 @@ const Diagram: FC = () => (
             />
             <Consumer
                 icon={<Box className={classes.auroraDot} />}
-                label="Aurora"
+                label="Ask AI"
                 index={2}
             />
         </Box>
@@ -120,8 +120,8 @@ export const SemanticLayerExplainer: FC = () => (
         <Diagram />
         <Text fz="sm" c="dimmed" ta="center">
             Your metrics are defined once on top of your tables. Every chart,
-            dashboard and Aurora answer uses those definitions, so the same
-            question always gets the same number.
+            dashboard and AI answer uses those definitions, so the same question
+            always gets the same number.
         </Text>
         <Box className={classes.parts}>
             <Part

@@ -409,8 +409,7 @@ const OnboardingInviteExpert: FC = () => {
                         Invite someone to set this up
                     </Title>
                     <Text size="md" c="dimmed" ta="center">
-                        Connecting the warehouse is usually a data-team job —
-                        we'll take them straight to warehouse setup.
+                        They'll go straight to warehouse setup.
                     </Text>
                 </Stack>
 

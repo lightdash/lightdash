@@ -1,22 +1,11 @@
 import { subject } from '@casl/ability';
 import { ProjectType, WarehouseTypes } from '@lightdash/common';
-import {
-    Anchor,
-    Box,
-    Button,
-    Group,
-    Radio,
-    SimpleGrid,
-    Stack,
-    Text,
-    Title,
-} from '@mantine/core';
-import { IconBrandGit, IconPlant } from '@tabler/icons-react';
+import { Anchor, Box, Button, Group, Stack, Text, Title } from '@mantine/core';
+import { IconBrandGit } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import {
     Navigate,
     useLocation,
-    useNavigate,
     useParams,
     useSearchParams,
 } from 'react-router';
@@ -74,9 +63,11 @@ const DataSourcePicker: FC = () => {
         <Stack gap="lg">
             <Stack gap="xs">
                 <Title order={1}>{copy.title}</Title>
-                <Text c="dimmed" size="sm">
-                    {copy.subtitle}
-                </Text>
+                {copy.subtitle && (
+                    <Text c="dimmed" size="sm">
+                        {copy.subtitle}
+                    </Text>
+                )}
             </Stack>
             <DataSourceChooser />
         </Stack>
@@ -84,67 +75,6 @@ const DataSourcePicker: FC = () => {
 };
 
 const REPO_MODE = 'repo';
-
-const SetupChoice: FC<{
-    selectedWarehouse: WarehouseTypes;
-    withRepo: boolean;
-}> = ({ selectedWarehouse, withRepo }) => {
-    const navigate = useNavigate();
-    const { search } = useLocation();
-    const options = [
-        {
-            value: 'fresh',
-            icon: <MantineIcon icon={IconPlant} size={18} />,
-            title: 'Start fresh',
-            description: 'Aurora builds your models and metrics',
-        },
-        {
-            value: REPO_MODE,
-            icon: <MantineIcon icon={IconBrandGit} size={18} />,
-            title: 'Use my repo',
-            description: 'A dbt project or Lightdash YAML',
-        },
-    ];
-
-    return (
-        <Radio.Group
-            value={withRepo ? REPO_MODE : 'fresh'}
-            onChange={(value) =>
-                withViewTransition(() =>
-                    navigate(
-                        `/onboarding/data-source/${selectedWarehouse}${
-                            value === REPO_MODE ? `/${REPO_MODE}` : ''
-                        }${search}`,
-                        { replace: true },
-                    ),
-                )
-            }
-        >
-            <SimpleGrid cols={2} spacing="xs">
-                {options.map((option) => (
-                    <Radio.Card
-                        key={option.value}
-                        value={option.value}
-                        className={classes.choiceCard}
-                    >
-                        <Group justify="space-between" align="flex-start">
-                            <Box className={classes.choiceIcon}>
-                                {option.icon}
-                            </Box>
-                            <Radio.Indicator size="xs" />
-                        </Group>
-                        <Text fw={500} size="sm" mt="sm">
-                            {option.title}
-                        </Text>
-                        <Text c="dimmed" size="xs">
-                            {option.description}
-                        </Text>
-                    </Radio.Card>
-                ))}
-            </SimpleGrid>
-        </Radio.Group>
-    );
-};
 
 const WarehouseConnect: FC<{
     selectedWarehouse: WarehouseTypes;
@@ -154,8 +84,6 @@ const WarehouseConnect: FC<{
     const onboardingNavigate = useOnboardingNavigate();
     const [step, setStep] = useState<ConnectionFormStep>('warehouse');
     const isDbtStep = withDbt && step === 'dbt';
-    const [searchParams] = useSearchParams();
-    const then = searchParams.get('then');
     const {
         isInitialLoading: isLoadingOrganization,
         data: organization,
@@ -216,12 +144,6 @@ const WarehouseConnect: FC<{
                         )}
                     </Stack>
                 </Group>
-                {!isDbtStep && (
-                    <SetupChoice
-                        selectedWarehouse={selectedWarehouse}
-                        withRepo={withDbt}
-                    />
-                )}
                 <ProjectFormProvider key={withDbt ? REPO_MODE : 'fresh'}>
                     <CreateProjectConnection
                         isCreatingFirstProject={!hasRealProject}
@@ -240,11 +162,7 @@ const WarehouseConnect: FC<{
                         }
                         alwaysShowProjectName
                         successRedirect={(projectUuid) =>
-                            `/onboarding/tools/${projectUuid}${
-                                then
-                                    ? `?connect=${encodeURIComponent(then)}`
-                                    : ''
-                            }`
+                            `/onboarding/tools/${projectUuid}?step=team`
                         }
                         footerStart={
                             <Button
@@ -299,7 +217,7 @@ const OnboardingDataSourceContent: FC = () => {
                 journey={{ currentStep: 1, steps: ONBOARDING_DATA_STEPS }}
                 aside={<StepVisual step="welcome" />}
             >
-                <DocumentTitle title="Meet Aurora" />
+                <DocumentTitle title="Your AI analyst" />
                 <MeetAurora />
             </OnboardingLayout>
         );

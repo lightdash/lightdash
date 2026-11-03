@@ -24,7 +24,7 @@ import classes from './OnboardingControlPanel.module.css';
 import { ONBOARDING_VARIANTS, useOnboardingVariant } from './onboardingVariant';
 
 const screensFor = (projectUuid: string | null) => [
-    { value: '/onboarding/data-source', label: 'Start (Meet Aurora in B)' },
+    { value: '/onboarding/data-source', label: 'Start (intro in B)' },
     { value: '/onboarding/data-source?intro=done', label: 'Choose a source' },
     { value: '/onboarding/data-source/postgres', label: 'Warehouse form' },
     ...(projectUuid

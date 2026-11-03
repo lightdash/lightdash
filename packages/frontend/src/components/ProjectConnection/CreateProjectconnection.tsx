@@ -355,6 +355,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                                         health.data?.defaultProject?.type
                                     }
                                     warehouseOnly={warehouseOnly}
+                                    dbtTypePicker={steps ? 'tiles' : 'select'}
                                 />
 
                                 {footerStart ? (

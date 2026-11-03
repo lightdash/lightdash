@@ -6016,13 +6016,13 @@ export class AiAgentService extends BaseService {
             await this.createAgent(
                 user,
                 {
-                    name: 'Aurora',
+                    name: 'Lightdash',
                     projectUuid,
                     description: null,
                     integrations: [],
                     tags: null,
                     instruction:
-                        "You are Aurora, this organization's analytics agent. Help people explore and understand their data, and answer questions with clear, concise analysis. If no explores are available yet, use your warehouse tools to discover the schema and answer with SQL.",
+                        "You are this organization's analytics agent. Help people explore and understand their data, and answer questions with clear, concise analysis. If no explores are available yet, use your warehouse tools to discover the schema and answer with SQL.",
                     imageUrl: null,
                     groupAccess: [],
                     userAccess: [],

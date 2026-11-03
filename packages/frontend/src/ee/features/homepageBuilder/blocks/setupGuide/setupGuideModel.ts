@@ -6,6 +6,7 @@ import {
     type OrganizationBrand,
 } from '@lightdash/common';
 import { type ReactNode } from 'react';
+import { AI_NAME } from '../../../../../components/common/aiName';
 import { type ActionStatus } from '../useRecommendedActions';
 
 /** The homepage corner toolbar slot a hidden guide portals its popover button into */
@@ -48,7 +49,7 @@ export type SetupGuideRow = {
 };
 
 export type SetupGuideSection = {
-    id: 'data' | 'semantic-layer' | 'starter-content' | 'team';
+    id: 'data' | 'semantic-layer' | 'starter-content' | 'team' | 'more-data';
     title: string;
     why: string;
     rows: SetupGuideRow[];
@@ -301,8 +302,8 @@ export const buildSetupGuide = (
         {
             id: 'data',
             title: 'Your data',
-            why: 'Aurora answers by querying your warehouse.',
-            rows: [warehouseRow(facts), appDataRow(facts)],
+            why: `${AI_NAME} answers by querying your warehouse.`,
+            rows: [warehouseRow(facts)],
         },
         {
             id: 'semantic-layer',
@@ -345,6 +346,12 @@ export const buildSetupGuide = (
                       ]
                     : []),
             ],
+        },
+        {
+            id: 'more-data',
+            title: 'More data',
+            why: 'Live sources can be combined with your metrics in Ask AI.',
+            rows: [appDataRow(facts)],
         },
     ];
     return sections;

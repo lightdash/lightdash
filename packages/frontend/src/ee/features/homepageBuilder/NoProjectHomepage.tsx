@@ -1,5 +1,5 @@
 import { FeatureFlags, ProjectType } from '@lightdash/common';
-import { Stack, Text, Title } from '@mantine/core';
+import { Stack, Title } from '@mantine/core';
 import { useRef, type FC } from 'react';
 import { Navigate } from 'react-router';
 import { DocumentTitle } from '../../../components/common/DocumentTitle';
@@ -57,12 +57,7 @@ const NoProjectHomepage: FC = () => {
         >
             <DocumentTitle title="Get started" />
             <Stack gap="lg">
-                <Stack gap="xs">
-                    <Title order={1}>Where does your data live?</Title>
-                    <Text c="dimmed" size="sm">
-                        Connect it and you can start asking questions.
-                    </Text>
-                </Stack>
+                <Title order={1}>Connect your data</Title>
                 <DataSourceChooser />
             </Stack>
         </OnboardingLayout>
