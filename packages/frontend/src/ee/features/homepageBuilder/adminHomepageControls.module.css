@@ -8,13 +8,22 @@
     gap: 8px;
 }
 
-/* Crops the opt-in preset miniature to its greeting and hero */
+/* Shows the preset miniature's greeting and hero, without its meta row or cards */
 .noticePreview {
-    height: 110px;
-    overflow: hidden;
     border-radius: 10px;
+    overflow: hidden;
     display: flex;
     pointer-events: none;
+}
+
+.noticePreview > * > :last-child,
+.noticePreview > * > :first-child > :last-child {
+    display: none;
+}
+
+.noticePreview > * > :first-child {
+    min-height: 0;
+    padding: 16px 12px;
 }
 
 .noticePreview > * {

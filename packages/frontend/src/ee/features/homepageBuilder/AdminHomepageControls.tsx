@@ -200,14 +200,13 @@ const OpeningMenu: FC<{
                             />
                         </Box>
                         <Text size="sm" c="var(--mantine-color-ldGray-3)">
-                            Everyone in your organization now lands here. Pick
-                            how it opens, or switch back to the classic homepage
-                            any time.
+                            Everyone in your organization now starts here. You
+                            can customize it or switch back any time.
                         </Text>
                         <Group gap="xs" justify="flex-end">
                             <Button
                                 size="xs"
-                                variant="subtle"
+                                variant="transparent"
                                 c="var(--mantine-color-body)"
                                 onClick={closeNotice}
                             >
@@ -221,7 +220,7 @@ const OpeningMenu: FC<{
                                     setPickerOpened(true);
                                 }}
                             >
-                                Choose opening
+                                Customize
                             </Button>
                         </Group>
                     </Stack>
