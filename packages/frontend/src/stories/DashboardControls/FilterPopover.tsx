@@ -678,7 +678,12 @@ export const FilterPopover: FC<Props> = ({
                     <NameInput
                         initial={rule.label ?? ''}
                         placeholder={
-                            field ? `Label for ${field.label}` : 'Filter label'
+                            field
+                                ? interpolateUiString(
+                                      CONTROL_STRINGS.labelForField,
+                                      { field: field.label },
+                                  )
+                                : CONTROL_STRINGS.filterLabel
                         }
                         onCommit={(text) =>
                             onChange(

@@ -16,6 +16,7 @@
 // Editor-only, literal for now; if they ever get keys:
 //   kindFilter, kindFilterHelper, kindParameter, kindParameterHelper,
 //   projectGroup, allowMultipleValues, multipleValuesHelper, oneValueHelper,
+//   labelForField, filterLabel (the name input's placeholder),
 //   notAppliedToAnyTiles     -> controls.parameter.notAppliedToAnyTiles
 //                               (twin of filters.notAppliedToAnyTiles)
 //   searchParameters         -> controls.searchParameters
@@ -40,6 +41,8 @@ export const CONTROL_STRINGS = {
     notAppliedToAnyTiles: 'This parameter is not applied to any tiles',
     setsNoTiles: 'Sets no tiles',
     projectGroup: 'Project',
+    labelForField: 'Label for {field}',
+    filterLabel: 'Filter label',
     clearedUsesDefault: 'If cleared, tiles use the default, {value}.',
     clearedUsesOwnValue: 'If cleared, each tile uses its own value.',
 } as const;

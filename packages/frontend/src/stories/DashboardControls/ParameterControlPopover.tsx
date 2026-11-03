@@ -179,7 +179,8 @@ export const ParameterControlPopover: FC<Props> = ({
             : isViewer
               ? CONTROL_STRINGS.setsNoTiles
               : CONTROL_STRINGS.notAppliedToAnyTiles;
-    // Always there for editors: with no sections it still holds the moves
+    // Always there for editors; with no sections it holds the section select
+    // at "No section"
     const hasSettings = !isViewer;
 
     const valueView = (
