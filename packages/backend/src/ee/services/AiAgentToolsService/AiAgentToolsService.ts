@@ -4242,6 +4242,11 @@ export class AiAgentToolsService extends BaseService {
         context: AiAgentToolsRuntimeContext,
         args: Parameters<UpdateUserNameFn>[0],
     ): ReturnType<UpdateUserNameFn> {
+        if (context.user.serviceAccount) {
+            throw new ForbiddenError(
+                'A service account name cannot be changed from an agent session',
+            );
+        }
         await this.userService.updateUser(context.user, {
             firstName: args.firstName.trim(),
             lastName: args.lastName.trim(),

@@ -248,7 +248,12 @@ const buildAgentTools = (overrides: Partial<AiAgentArgs>) => {
         messageHistory: [{ role: 'user', content: 'Question' }],
         composerApiConnections: [],
         mcpServers: [],
-        requestingUser: { name: 'User', role: null, groups: [] },
+        requestingUser: {
+            name: 'User',
+            role: null,
+            groups: [],
+            isServiceAccount: false,
+        },
         maxQueryLimit: 5000,
         runSqlMaxLimit: 5000,
         getDashboardChartsPageSize: 10,
