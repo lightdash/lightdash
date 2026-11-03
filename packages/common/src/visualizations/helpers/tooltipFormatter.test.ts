@@ -6,6 +6,7 @@ import {
     type ItemsMap,
     type Metric,
 } from '../../types/field';
+import { type ParametersValuesMap } from '../../types/parameters';
 import { VizAggregationOptions, type EChartsSeries } from '../types';
 import {
     buildCartesianTooltipFormatter,
@@ -91,7 +92,7 @@ describe('buildCartesianTooltipFormatter with a table calculation x-axis', () =>
 describe('buildCartesianTooltipFormatter custom pivot references', () => {
     const metricId = 'orders_total_amount';
     const pivotColumnName = 'orders_total_amount_any_region';
-    const itemsMap: ItemsMap = {
+    const itemsMap = {
         row_num: {
             name: 'row_num',
             displayName: 'Row Num',
@@ -111,18 +112,28 @@ describe('buildCartesianTooltipFormatter custom pivot references', () => {
                 currency: Format.USD,
             },
         },
-    };
+    } satisfies ItemsMap;
 
     describe.each(['dataset', 'tuple'] as const)('%s mode', (dataMode) => {
         const renderTooltip = (
             pivotValue: string,
             template: string,
-            extraValues: Record<string, string> = {},
+            extraValues: Record<string, unknown> = {},
+            formatting?: { format: string; parameters: ParametersValuesMap },
         ) => {
             const row = { row_num: 1, [pivotColumnName]: 1234, ...extraValues };
             const value = dataMode === 'tuple' ? [1, 1234] : row;
             const formatter = buildCartesianTooltipFormatter({
-                itemsMap,
+                itemsMap: formatting
+                    ? {
+                          ...itemsMap,
+                          [metricId]: {
+                              ...itemsMap[metricId],
+                              format: formatting.format,
+                          },
+                      }
+                    : itemsMap,
+                parameters: formatting?.parameters,
                 stackValue: dataMode === 'tuple' ? 'stack' : undefined,
                 flipAxes: false,
                 xFieldId: 'row_num',
@@ -193,6 +204,76 @@ describe('buildCartesianTooltipFormatter custom pivot references', () => {
                     '<b>First: $1,234.00</b> &amp; Second: $1,234.00; missing: ',
                 );
                 expect(html).not.toContain('${');
+            },
+        );
+
+        it.each([
+            ['A & B', 'A &amp; B'],
+            ['A < B', 'A &lt; B'],
+            ['&amp;', '&amp;'],
+            ['&lt;b&gt;bold&lt;/b&gt;', '&lt;b&gt;bold&lt;/b&gt;'],
+            ['<b>bold</b>', '<b>bold</b>'],
+            [
+                '<span style="color:red">red</span>',
+                '<span style="color:red">red</span>',
+            ],
+        ])(
+            'preserves interpolated text and allowed markup %s',
+            (value, expected) => {
+                const html = renderTooltip('Region B', '<p>${value}</p>', {
+                    value,
+                });
+
+                expect(html).toContain(`<p>${expected}</p>`);
+            },
+        );
+
+        it.each([
+            [0, '0'],
+            [null, '∅'],
+            [false, 'false'],
+            ['', ''],
+        ])('preserves interpolated scalar %s', (value, expected) => {
+            const html = renderTooltip('Region B', '<p>${value}</p>', {
+                value,
+            });
+
+            expect(html).toContain(`<p>${expected}</p>`);
+        });
+
+        it('preserves interpolated values in safe attributes', () => {
+            const html = renderTooltip(
+                'Region B',
+                '<a target="${target}" href="${url}">${value}</a>',
+                {
+                    target: '_blank',
+                    url: 'https://example.com/?a=1&b=2',
+                    value: 'Open & inspect',
+                },
+            );
+
+            expect(html).toContain(
+                '<a target="_blank" href="https://example.com/?a=1&amp;b=2">Open &amp; inspect</a>',
+            );
+        });
+
+        it.each([
+            ['USD', '$1,234.00'],
+            ['EUR', '€1,234.00'],
+        ])(
+            'preserves parameter-driven formatting for %s',
+            (currency, expected) => {
+                const html = renderTooltip(
+                    'Region B',
+                    '<b>${orders_total_amount.orders_region.Region B}</b>',
+                    {},
+                    {
+                        format: '${ld.parameters.currency=="USD"?"$":"€"}0,0.00',
+                        parameters: { currency },
+                    },
+                );
+
+                expect(html).toContain(`<b>${expected}</b>`);
             },
         );
 
