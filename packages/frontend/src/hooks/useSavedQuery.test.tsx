@@ -35,13 +35,14 @@ import { sharedLightdashApi } from '../api';
 import { mockedLightdashApi } from '../testing/mockedLightdashApi';
 import { useAddVersionMutation, useCreateMutation } from './useSavedQuery';
 
-const createWrapper = () => {
-    const queryClient = new QueryClient({
+const createWrapper = (
+    queryClient = new QueryClient({
         defaultOptions: {
             queries: { retry: false },
             mutations: { retry: false },
         },
-    });
+    }),
+) => {
     return ({ children }: PropsWithChildren) => (
         <QueryClientProvider client={queryClient}>
             <ProjectRouteContext.Provider
@@ -85,6 +86,28 @@ describe('useAddVersionMutation', () => {
         expect(navigate).toHaveBeenCalledWith(
             '/projects/jaffle-shop/saved/legacy-chart/view',
         );
+    });
+
+    it("refreshes the dashboard's listed tile parameters", async () => {
+        const queryClient = new QueryClient();
+        const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries');
+        const { result } = renderHook(() => useAddVersionMutation(), {
+            wrapper: createWrapper(queryClient),
+        });
+
+        await act(() =>
+            result.current.mutateAsync({
+                uuid: 'chart-uuid',
+                payload: {
+                    metricQuery: { filters: {} },
+                } as CreateSavedChartVersion,
+            }),
+        );
+
+        expect(invalidateQueries).toHaveBeenCalledWith([
+            'dashboards',
+            'tileParameterReferences',
+        ]);
     });
 });
 

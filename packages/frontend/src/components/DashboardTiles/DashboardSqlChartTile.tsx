@@ -229,7 +229,10 @@ const SqlChartTile: FC<Props> = ({
     // controls for them. Derived from the SQL rather than the query response,
     // so the controls appear before the first (otherwise failing) run.
     const parameterReferences = useMemo(
-        () => getParameterReferences(chartData?.sql),
+        () =>
+            chartData?.sql === undefined
+                ? null
+                : getParameterReferences(chartData.sql),
         [chartData?.sql],
     );
 

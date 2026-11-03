@@ -7,7 +7,6 @@ import {
 } from '@lightdash/common';
 import { createAction, type UnknownAction } from '@reduxjs/toolkit';
 import isEqual from 'lodash/isEqual';
-import union from 'lodash/union';
 import { reconcileDashboardParameters } from '../../../providers/Dashboard/dashboardParametersUrl';
 
 export type DashboardParametersState = {
@@ -23,10 +22,10 @@ export type DashboardParametersState = {
     hasParameterOrderChanged: boolean;
     parameterDefinitions: ParameterDefinitions;
     parameterLabelOverrides: LanguageMap['parameters'];
-    /** Each tile's references: the union of the two sources below */
+    /** Each tile's references: its query's once it reports them, else the listed ones */
     tileParameterReferences: Record<string, string[]>;
-    /** From each tile's own query response */
-    tileQueryParameterReferences: Record<string, string[]>;
+    /** From each tile's own query response; null when it ran without reporting any (an error) */
+    tileQueryParameterReferences: Record<string, string[] | null>;
     /** From the dashboard's list of tile references, before tiles run */
     tileListedParameterReferences: Record<string, string[]>;
     tileChartSavedParameters: Record<string, ParametersValuesMap>;
@@ -90,11 +89,12 @@ export const dashboardParametersActions = {
     setParameterLabelOverrides: createAction<LanguageMap['parameters']>(
         'dashboardParameters/setParameterLabelOverrides',
     ),
+    /** Null: the tile ran but has no references to report, so the listed ones stay */
     addParameterReferences: createAction<{
         tileUuid: string;
-        references: string[];
+        references: string[] | null;
     }>('dashboardParameters/addParameterReferences'),
-    /** References listed for a tile before it runs; kept alongside its query's */
+    /** References listed for a tile before it runs; its query's replace them */
     addListedParameterReferences: createAction<{
         tileUuid: string;
         references: string[];
@@ -282,10 +282,10 @@ export const dashboardParametersReducer = (
             },
             tileParameterReferences: {
                 ...state.tileParameterReferences,
-                [tileUuid]: union(
-                    state.tileListedParameterReferences[tileUuid] ?? [],
-                    references,
-                ),
+                [tileUuid]:
+                    references ??
+                    state.tileListedParameterReferences[tileUuid] ??
+                    [],
             },
         };
     }
@@ -299,10 +299,8 @@ export const dashboardParametersReducer = (
             },
             tileParameterReferences: {
                 ...state.tileParameterReferences,
-                [tileUuid]: union(
-                    references,
-                    state.tileQueryParameterReferences[tileUuid] ?? [],
-                ),
+                [tileUuid]:
+                    state.tileQueryParameterReferences[tileUuid] ?? references,
             },
         };
     }

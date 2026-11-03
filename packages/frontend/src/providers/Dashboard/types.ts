@@ -125,7 +125,10 @@ export type DashboardContextType = {
     setSavedParameters: Dispatch<SetStateAction<DashboardParameters>>;
     clearAllParameters: () => void;
     setParameter: (key: string, value: ParameterValue | null) => void;
-    addParameterReferences: (tileUuid: string, references: string[]) => void;
+    addParameterReferences: (
+        tileUuid: string,
+        references: string[] | null,
+    ) => void;
     setTileChartSavedParameters: (
         tileUuid: string,
         values: ParametersValuesMap,

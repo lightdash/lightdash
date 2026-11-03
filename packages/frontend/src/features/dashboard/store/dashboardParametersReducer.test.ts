@@ -352,7 +352,7 @@ describe('dashboardParametersReducer', () => {
             ['listed first', ['listed', 'query']],
             ['query first', ['query', 'listed']],
         ] as const)(
-            'keeps the union of listed and query references (%s)',
+            "uses the tile's query references over the listed ones (%s)",
             (_name, order) => {
                 const byOrigin = {
                     listed: actions.addListedParameterReferences({
@@ -368,13 +368,14 @@ describe('dashboardParametersReducer', () => {
                     (state, origin) => reducer(state, byOrigin[origin]),
                     stateWith(),
                 );
-                expect(
-                    [...next.tileParameterReferences['tile-1']].sort(),
-                ).toEqual(['region', 'status', 'week_start']);
+                expect(next.tileParameterReferences['tile-1']).toEqual([
+                    'status',
+                    'week_start',
+                ]);
             },
         );
 
-        it('replaces only the source that reports again', () => {
+        it('drops a listed reference the current query no longer uses', () => {
             const next = [
                 actions.addListedParameterReferences({
                     tileUuid: 'tile-1',
@@ -382,15 +383,28 @@ describe('dashboardParametersReducer', () => {
                 }),
                 actions.addParameterReferences({
                     tileUuid: 'tile-1',
-                    references: ['status'],
+                    references: [],
+                }),
+            ].reduce(reducer, stateWith());
+            expect(next.tileParameterReferences).toEqual({ 'tile-1': [] });
+        });
+
+        it('keeps the listed references while the query has none to report', () => {
+            const next = [
+                actions.addListedParameterReferences({
+                    tileUuid: 'tile-1',
+                    references: ['region'],
                 }),
                 actions.addParameterReferences({
                     tileUuid: 'tile-1',
-                    references: ['week_start'],
+                    references: null,
                 }),
             ].reduce(reducer, stateWith());
             expect(next.tileParameterReferences).toEqual({
-                'tile-1': ['region', 'week_start'],
+                'tile-1': ['region'],
+            });
+            expect(next.tileQueryParameterReferences).toEqual({
+                'tile-1': null,
             });
         });
 
