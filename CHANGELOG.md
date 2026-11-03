@@ -1,3 +1,10 @@
+# [3.129.0](https://github.com/lightdash/lightdash/compare/3.128.7...3.129.0) (2026-11-03)
+
+
+### Features
+
+* show organization analytics processing status ([#31851](https://github.com/lightdash/lightdash/issues/31851)) ([c73b722](https://github.com/lightdash/lightdash/commit/c73b722bf951ccacb92dc8eb5fe5c5755ccf75a1))
+
 ## [3.128.7](https://github.com/lightdash/lightdash/compare/3.128.6...3.128.7) (2026-11-03)
 
 
