@@ -1,4 +1,3 @@
-import { arrayMove } from '@dnd-kit/sortable';
 import {
     DateGranularity,
     EMPTY_DATE_ZOOM_CONFIG,
@@ -168,10 +167,6 @@ export const dashboardEditActions = {
     ),
     removeControlSection: createAction<string>(
         'dashboardEdit/removeControlSection',
-    ),
-    /** Puts the section `id` where `overId` is */
-    moveControlSection: createAction<{ id: string; overId: string }>(
-        'dashboardEdit/moveControlSection',
     ),
     /** The sections in a new order and lines (a drag or a keyboard move on the bar) */
     arrangeControlSections: createAction<DashboardControlSection[]>(
@@ -353,16 +348,6 @@ export const dashboardEditReducer = (
         return action.payload === state.controlSections
             ? state
             : withControlSections(state, action.payload);
-    }
-    if (dashboardEditActions.moveControlSection.match(action)) {
-        const { id, overId } = action.payload;
-        const from = state.controlSections.findIndex((s) => s.id === id);
-        const to = state.controlSections.findIndex((s) => s.id === overId);
-        if (from === -1 || to === -1 || from === to) return state;
-        return withControlSections(
-            state,
-            arrayMove(state.controlSections, from, to),
-        );
     }
     return state;
 };
