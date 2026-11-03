@@ -13,6 +13,7 @@ import {
 } from '../utils/filterDateUtils';
 import InvalidDateInput from './InvalidDateInput';
 import { formatMantineDate, parseMantineDate } from './mantineDateAdapter';
+import { useDateInputEscape } from './useDateInputEscape';
 
 interface Props extends Omit<
     DateInputProps,
@@ -41,6 +42,7 @@ const FilterWeekPicker: FC<Props> = ({
     maxDate,
     ...rest
 }) => {
+    const escapeProps = useDateInputEscape(rest.popoverProps, rest.onKeyDown);
     const [hoveredDate, setHoveredDate] = useState<Date | null>(null);
     const getDayProps = (mantineValue: string) => {
         const date = parseMantineDate(mantineValue);
@@ -105,7 +107,8 @@ const FilterWeekPicker: FC<Props> = ({
             w="100%"
             size="xs"
             {...rest}
-            popoverProps={{ shadow: 'sm', ...rest.popoverProps }}
+            {...escapeProps}
+            popoverProps={{ shadow: 'sm', ...escapeProps.popoverProps }}
             getDayProps={getDayProps}
             firstDayOfWeek={firstDayOfWeek}
             minDate={formatMantineDate(minDate ?? null) ?? undefined}

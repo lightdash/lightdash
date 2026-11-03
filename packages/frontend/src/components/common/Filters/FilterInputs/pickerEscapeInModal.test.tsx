@@ -59,6 +59,21 @@ describe.each([
         rule(FilterOperator.LESS_THAN, ['2026-01-01']),
     ],
     [
+        'the day calendar',
+        dimension(),
+        rule(FilterOperator.LESS_THAN, ['2026-01-15']),
+    ],
+    [
+        'the week calendar',
+        dimension(TimeFrames.WEEK),
+        rule(FilterOperator.LESS_THAN, ['2026-01-12']),
+    ],
+    [
+        'the range calendar',
+        dimension(),
+        rule(FilterOperator.IN_BETWEEN, ['2026-01-05', '2026-01-28']),
+    ],
+    [
         'the invalid-value popover',
         dimension(),
         rule(FilterOperator.LESS_THAN, ['not a date']),

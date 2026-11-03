@@ -7,6 +7,7 @@ import {
 import { type FC } from 'react';
 import InvalidDateInput from './InvalidDateInput';
 import { formatMantineDate, parseMantineDate } from './mantineDateAdapter';
+import { useDateInputEscape } from './useDateInputEscape';
 
 interface Props extends Omit<
     DateInputProps,
@@ -35,6 +36,7 @@ const FilterDatePicker: FC<Props> = ({
     maxDate,
     ...rest
 }) => {
+    const escapeProps = useDateInputEscape(rest.popoverProps, rest.onKeyDown);
     if (invalidValue) {
         return (
             <InvalidDateInput
@@ -71,7 +73,8 @@ const FilterDatePicker: FC<Props> = ({
             w="100%"
             size="xs"
             {...rest}
-            popoverProps={{ shadow: 'sm', ...rest.popoverProps }}
+            {...escapeProps}
+            popoverProps={{ shadow: 'sm', ...escapeProps.popoverProps }}
             firstDayOfWeek={firstDayOfWeek}
             minDate={formatMantineDate(minDate ?? null) ?? undefined}
             maxDate={formatMantineDate(maxDate ?? null) ?? undefined}
