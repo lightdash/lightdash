@@ -44,6 +44,9 @@ const InvalidDateInput: FC<Props> = ({
                     readOnly
                     classNames={{ input: classes.input }}
                     onClick={openPopover}
+                    onKeyDown={(event) => {
+                        if (event.key === 'Escape' && opened) closePopover();
+                    }}
                 />
             </Popover.Target>
             <Popover.Dropdown>

@@ -115,8 +115,8 @@ focus to it once the popover is placed.
 
 One capture listener on `document` while a filter is edited, so one press
 does one thing, in order: an open layer (`hasOpenLayer`: `aria-expanded` or
-Mantine `data-expanded`, or a modal) owns it, and so does an open date
-input calendar (`[data-dates-dropdown]`, closed by its own input); an element in
+Mantine `data-expanded`, a modal, or a date calendar's `[data-dates-dropdown]`,
+since Mantine's `DateInput` drops its roles) owns it; an element in
 `[data-own-escape]` owns it; a clicked field is unclicked; else, with focus
 in the editor or lost to the page (`body`), blur (commits the label) then
 withdraw a pending question or cancel. From elsewhere on the page Escape
@@ -124,11 +124,14 @@ never cancels; while the prompt asks, Escape withdraws it wherever focus is.
 A withdrawn question hands focus back to the editor (Apply, else its first
 enabled control) once it has left.
 
+So every open layer closes itself on Escape, a value input whose popover
+keeps focus on the input (multi-date, quarter, invalid date, paste prompt)
+closes it from the input's own Escape: Mantine's popover only hears Escape
+from inside its dropdown.
+
 A `pointerdown` outside the editor and the pills acts as a click outside a
-popover. A press on a date input's calendar (`[data-dates-dropdown]`,
-portalled, and not seen by `hasOpenLayer` because Mantine's `DateInput`
-drops its roles) is inside the editor. Otherwise: nothing while a list is
-open (the press closes it), else
+popover: nothing while a layer is open (the press closes it, or acts
+inside it), else
 `requestClose` cancels the edit, unapplied changes included, and never asks
 (only a pill or Add asks); its `mousedown` is left alone. A new
 filter with nothing picked has nothing to lose: a press outside dismisses it

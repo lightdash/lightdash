@@ -41,6 +41,7 @@ const dimension = (
 
 const dateField = dimension(DimensionType.DATE);
 const weekField = dimension(DimensionType.DATE, TimeFrames.WEEK);
+const quarterField = dimension(DimensionType.DATE, TimeFrames.QUARTER);
 const timestampField = dimension(DimensionType.TIMESTAMP);
 // A metric filter on a date-typed metric renders the same date inputs
 const dateMetric: Metric = {
@@ -284,9 +285,8 @@ describe('date filter calendar inside the dashboard filter editor', () => {
         expect(screen.queryByTestId('editor')).not.toBeInTheDocument();
     });
 
-    // Escape with a calendar open closes the calendar only; the next one
-    // cancels the edit
-    describe.each([
+    // Each case opens the calendar of a portalled date input
+    const calendarCases: [string, FilterableItem, FilterOperator, number][] = [
         ['"is before" on a date field', dateField, FilterOperator.LESS_THAN, 0],
         [
             '"is after" on a week field',
@@ -318,40 +318,141 @@ describe('date filter calendar inside the dashboard filter editor', () => {
             FilterOperator.LESS_THAN,
             0,
         ],
-    ])('Escape with the calendar of %s open', (_, field, operator, index) => {
-        it('closes the calendar and keeps the editor, then cancels on the next press', async () => {
-            const user = userEvent.setup();
-            const values =
-                field === timestampField
-                    ? ['2026-01-05T00:00:00Z', '2026-01-28T00:00:00Z']
-                    : ['2026-01-05', '2026-01-28'];
-            const { onDismiss, onDismissOutside } = renderEditor(
-                field,
-                makeRule(operator, values),
-            );
+    ];
 
-            await user.click(valueInputs()[index]);
-            await screen.findByRole('button', {
-                name: '20 January 2026',
-                hidden: true,
+    const openCalendar = async (
+        user: ReturnType<typeof userEvent.setup>,
+        index: number,
+    ) => {
+        await user.click(valueInputs()[index]);
+        await screen.findByRole('button', {
+            name: '20 January 2026',
+            hidden: true,
+        });
+    };
+
+    const calendarValues = (field: FilterableItem) =>
+        field === timestampField
+            ? ['2026-01-05T00:00:00Z', '2026-01-28T00:00:00Z']
+            : ['2026-01-05', '2026-01-28'];
+
+    const expectCalendarClosed = () =>
+        waitFor(() =>
+            expect(
+                screen.queryByRole('button', {
+                    name: '20 January 2026',
+                    hidden: true,
+                }),
+            ).not.toBeInTheDocument(),
+        );
+
+    // Escape with a calendar open closes the calendar only; the next one
+    // cancels the edit
+    describe.each(calendarCases)(
+        'Escape with the calendar of %s open',
+        (_, field, operator, index) => {
+            it('closes the calendar and keeps the editor, then cancels on the next press', async () => {
+                const user = userEvent.setup();
+                const values =
+                    field === timestampField
+                        ? ['2026-01-05T00:00:00Z', '2026-01-28T00:00:00Z']
+                        : ['2026-01-05', '2026-01-28'];
+                const { onDismiss, onDismissOutside } = renderEditor(
+                    field,
+                    makeRule(operator, values),
+                );
+
+                await user.click(valueInputs()[index]);
+                await screen.findByRole('button', {
+                    name: '20 January 2026',
+                    hidden: true,
+                });
+                await user.keyboard('{Escape}');
+
+                await waitFor(() =>
+                    expect(
+                        screen.queryByRole('button', {
+                            name: '20 January 2026',
+                            hidden: true,
+                        }),
+                    ).not.toBeInTheDocument(),
+                );
+                expect(onDismiss).not.toHaveBeenCalled();
+                expectEditorOpen(onDismissOutside);
+
+                await user.keyboard('{Escape}');
+
+                expect(onDismiss).toHaveBeenCalledTimes(1);
+                expect(screen.queryByTestId('editor')).not.toBeInTheDocument();
             });
+        },
+    );
+
+    // A press outside with a calendar open closes the calendar only, as with
+    // any open list; the next one cancels the edit
+    describe.each(calendarCases)(
+        'A press outside with the calendar of %s open',
+        (_, field, operator, index) => {
+            it('closes the calendar and keeps the editor, then cancels on the next press', async () => {
+                const user = userEvent.setup();
+                const { onDismissOutside } = renderEditor(
+                    field,
+                    makeRule(operator, calendarValues(field)),
+                );
+
+                await openCalendar(user, index);
+                await user.click(document.body);
+
+                await expectCalendarClosed();
+                expectEditorOpen(onDismissOutside);
+
+                await user.click(document.body);
+
+                expect(onDismissOutside).toHaveBeenCalledTimes(1);
+                expect(screen.queryByTestId('editor')).not.toBeInTheDocument();
+            });
+        },
+    );
+
+    // Popovers whose focus stays on their input close themselves on Escape
+    describe.each([
+        [
+            '"is" on a date field (multi-date picker)',
+            dateField,
+            makeRule(FilterOperator.EQUALS, ['2026-01-15']),
+        ],
+        [
+            '"is before" on a quarter field',
+            quarterField,
+            makeRule(FilterOperator.LESS_THAN, ['2026-01-01']),
+        ],
+        [
+            '"is before" with a value that is not a date',
+            dateField,
+            makeRule(FilterOperator.LESS_THAN, ['not a date']),
+        ],
+    ])('Escape with the popover of %s open', (_, field, rule) => {
+        it('closes the popover and keeps the editor, then cancels on the next press', async () => {
+            const user = userEvent.setup();
+            const { onDismiss, onDismissOutside } = renderEditor(field, rule);
+            const openPopovers = () =>
+                [
+                    ...document.querySelectorAll('.mantine-Popover-dropdown'),
+                ].filter(
+                    (dropdown) => !dropdown.closest('[data-testid="editor"]'),
+                );
+
+            await user.click(valueInputs()[0]);
+            await waitFor(() => expect(openPopovers()).toHaveLength(1));
             await user.keyboard('{Escape}');
 
-            await waitFor(() =>
-                expect(
-                    screen.queryByRole('button', {
-                        name: '20 January 2026',
-                        hidden: true,
-                    }),
-                ).not.toBeInTheDocument(),
-            );
+            await waitFor(() => expect(openPopovers()).toHaveLength(0));
             expect(onDismiss).not.toHaveBeenCalled();
             expectEditorOpen(onDismissOutside);
 
             await user.keyboard('{Escape}');
 
             expect(onDismiss).toHaveBeenCalledTimes(1);
-            expect(screen.queryByTestId('editor')).not.toBeInTheDocument();
         });
     });
 });

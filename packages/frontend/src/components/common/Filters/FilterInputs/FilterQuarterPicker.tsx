@@ -122,6 +122,9 @@ const FilterQuarterPicker: FC<Props> = ({
                     size="xs"
                     data-autofocus={autoFocus || undefined}
                     onClick={disabled ? undefined : open}
+                    onKeyDown={(event) => {
+                        if (event.key === 'Escape' && opened) close();
+                    }}
                     placeholder={
                         placeholder ??
                         getUiString('filters.inputs.selectQuarter')

@@ -1,4 +1,5 @@
 import { Button, Flex, Popover, Text } from '@mantine/core';
+import { useWindowEvent } from '@mantine/hooks';
 import { useCallback, type FC, type PropsWithChildren } from 'react';
 import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
 
@@ -17,6 +18,11 @@ const MultiValuePastePopUp: FC<PropsWithChildren<Props>> = ({
     children,
 }) => {
     const getUiString = useUiStrings();
+    // Focus stays in the caller's input, so the dropdown's own Escape never fires
+    useWindowEvent('keydown', (event) => {
+        if (opened && event.key === 'Escape' && !event.defaultPrevented)
+            onClose();
+    });
     const onSingleValueClick = useCallback(() => {
         onSingleValue();
         onClose();
