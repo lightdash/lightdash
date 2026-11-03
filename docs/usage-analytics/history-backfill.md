@@ -163,9 +163,13 @@ worker slot cannot run both jobs concurrently.
 
 DB exports use 1,000-row keyset pages and read-only transactions with 10-second
 statement/one-second lock timeouts. Connections are released between pages.
+An index on organization, creation time and query UUID lets query history pages
+read the organization's rows in pagination order.
 Sources run serially; temp files are cleaned up. Storage limits fail closed.
 Jobs have one execution attempt; failures require a manual retry rather than
 automatically repeating the import or waiting for the nightly schedule.
+Failures identify the dataset and whether reading the database, checking storage,
+reconciling history, publishing history or publishing completion failed.
 
 Each source atomically publishes queryable Parquet at
 `events/compacted/org_id=<org>/history=<stream>/history.parquet`. No additional
@@ -204,8 +208,8 @@ Remove the Settings component/hooks and backfill API/status type, automatic
 schedule call, scheduler task/client methods, `UsageHistoryBackfill`,
 `UsageQueryHistoryBackfill`, the four `Usage*HistoryModel` classes and their DI
 wiring/tests. Stop accepting new jobs and drain queued backfills before removing
-the handler. There is no database migration, recurring schedule or compactor
-branch to undo.
+the handler. There is no recurring schedule or compactor branch to undo. The
+query history pagination index can remain after the importer is retired.
 
 Keep published history objects and their read support: `usageHistorySources`,
 `queryHistoryBackfill`, the Historical Activity Explore, S3 history discovery and
