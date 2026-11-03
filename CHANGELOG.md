@@ -1,3 +1,10 @@
+## [3.128.4](https://github.com/lightdash/lightdash/compare/3.128.3...3.128.4) (2026-11-03)
+
+
+### Bug Fixes
+
+* resolve special characters in custom tooltip references ([#31965](https://github.com/lightdash/lightdash/issues/31965)) ([ae3acf4](https://github.com/lightdash/lightdash/commit/ae3acf468a0cd46a9a86c5ba878a47a8f78ab2c6))
+
 ## [3.128.3](https://github.com/lightdash/lightdash/compare/3.128.2...3.128.3) (2026-11-03)
 
 
