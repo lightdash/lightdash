@@ -2,21 +2,21 @@ import { WarehouseTypes, type AgentSqlScope } from '@lightdash/common';
 
 const WAREHOUSE_HINTS: Record<WarehouseTypes, string> = {
     [WarehouseTypes.POSTGRES]:
-        'PostgreSQL dialect. Use generate_series for date spines, UNNEST for arrays, regex with ~ / ~*, PERCENTILE_CONT for medians.',
+        'PostgreSQL dialect. Use generate_series for date spines, UNNEST for arrays, regex with ~ / ~*, PERCENTILE_CONT for medians. `int / int` truncates to an integer: cast one side to numeric for a ratio.',
     [WarehouseTypes.BIGQUERY]:
         'BigQuery Standard SQL dialect. Backtick fully-qualified identifiers (`project.dataset.table`). Use UNNEST for arrays, GENERATE_DATE_ARRAY for date spines, APPROX_QUANTILES for percentiles, EXTRACT for date parts.',
     [WarehouseTypes.SNOWFLAKE]:
         'Snowflake SQL dialect. Identifiers are case-folded to UPPERCASE by default; quote with double quotes if you need exact case. Use LATERAL FLATTEN for arrays, GENERATOR for date spines, PERCENTILE_CONT for medians.',
     [WarehouseTypes.REDSHIFT]:
-        'Redshift SQL dialect (Postgres-like with caveats). Some window functions and CTEs behave differently than Postgres. PERCENTILE_CONT requires WITHIN GROUP. Avoid lateral joins on user tables.',
+        'Redshift SQL dialect (Postgres-like with caveats). Some window functions and CTEs behave differently than Postgres. PERCENTILE_CONT requires WITHIN GROUP. Avoid lateral joins on user tables. `int / int` truncates to an integer: cast one side to numeric for a ratio.',
     [WarehouseTypes.DATABRICKS]:
         'Databricks SQL / Spark SQL dialect. Use backtick identifiers when needed, sequence(start, stop, step) for date spines, percentile_approx for percentiles, LATERAL VIEW EXPLODE for arrays.',
     [WarehouseTypes.TRINO]:
-        'Trino SQL dialect. Use SEQUENCE() for date arrays + UNNEST, approx_percentile for percentiles, regexp_like for regex.',
+        'Trino SQL dialect. Use SEQUENCE() for date arrays + UNNEST, approx_percentile for percentiles, regexp_like for regex. `int / int` truncates to an integer: cast one side to double for a ratio.',
     [WarehouseTypes.CLICKHOUSE]:
         'ClickHouse SQL dialect. Use arrayJoin for arrays, quantile() / quantileExact() for percentiles, range() for sequences. Identifiers are case-sensitive.',
     [WarehouseTypes.ATHENA]:
-        'Athena SQL dialect (Presto-compatible). Use SEQUENCE() + UNNEST for arrays, approx_percentile for percentiles, regexp_like for regex.',
+        'Athena SQL dialect (Presto-compatible). Use SEQUENCE() + UNNEST for arrays, approx_percentile for percentiles, regexp_like for regex. `int / int` truncates to an integer: cast one side to double for a ratio.',
     [WarehouseTypes.DUCKDB]:
         'DuckDB SQL dialect (Postgres-compatible). Use generate_series, UNNEST for arrays, quantile_cont for medians, regexp_matches for regex. DuckLake-configured projects expose tables under an attached catalog and follow the project schema.',
 };
@@ -140,6 +140,7 @@ ${
 - After a "column does not exist" or "relation not found" error, describe the offending table and rewrite the SQL once from its real columns. When those columns lack the relationship you need (no foreign key, no junction table), tell the user what you expected and what the table has, then offer a proxy or ask for the right table.
 - Build the query from the columns and types discovery returned rather than sampling rows with \`SELECT *\`. To inspect specific values (e.g. enum cardinality), select those columns with \`DISTINCT\` and a tight limit.
 - Compose multi-step logic into one query with CTEs and joins. Add another ${words.sqlUnit} only when you need real warehouse values to recover or validate. When several ${words.sqlUnits} lead to the answer, make the final one the composed query and rest the answer on it, unless the final result genuinely came from an intermediate table.
+- In a ranking (top-N, bottom-N, highest, lowest), exclude nulls of the ranked column with \`IS NOT NULL\`: depending on the warehouse and sort direction, nulls sort first.
 - ${scopeLine ? `${schemaLine} ${scopeLine}` : schemaLine}
 - When you are unsure whether to proceed (e.g. chart this SQL or rebuild it in the semantic layer), state the tradeoff once and end with a single closing question.
 

@@ -2464,7 +2464,13 @@ describe('semanticLayer node custom metrics', () => {
                     ],
                 },
             },
-            sorts: [{ fieldId: 'orders_buyers', descending: true }],
+            sorts: [
+                {
+                    fieldId: 'orders_buyers',
+                    descending: true,
+                    nullsFirst: false,
+                },
+            ],
         });
     });
 

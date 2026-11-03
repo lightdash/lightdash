@@ -344,7 +344,7 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
             .nullish()
             .default(null)
             .describe(
-                'Sorts by fields this node also selects in dimensions or metrics, e.g. [{"fieldId": "orders_order_date", "descending": true}].',
+                'Sorts by fields this node also selects in dimensions or metrics, e.g. [{"fieldId": "orders_order_date", "descending": true}]. Nulls sort last in either direction; for a lowest or bottom-N ranking, also add a notNull filter on the ranked field, since a missing value is not the lowest one.',
             ),
         customMetrics: z
             .array(composerCustomMetricSchema)
@@ -386,7 +386,7 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
         sql: z
             .string()
             .describe(
-                `DuckDB SQL over the tables "references" exposes. ${DUCKDB_ALIAS_GUIDANCE}`,
+                `DuckDB SQL over the tables "references" exposes. Compute a ratio of totals as SUM(a) / SUM(b) over the rows that share the denominator, not as AVG of per-row ratios, and return a share as a 0–1 fraction unless the user asks for a percentage. ${DUCKDB_ALIAS_GUIDANCE}`,
             ),
         references: referencesSchema.describe(
             'Which nodes the SQL reads, by node id: an array (each exposed as a table named by its node id), or a map of {tableName: nodeId} to alias them.',
@@ -582,7 +582,11 @@ export const toolComposerQueryNodeToSourceQuery = (
         case QuerySourceType.SEMANTIC_LAYER: {
             const filters: MetricQueryRequest['filters'] | undefined =
                 node.filters ?? undefined;
-            const sorts: SortField[] | undefined = node.sorts ?? undefined;
+            // Nulls rank last in either direction, whatever the warehouse default.
+            const sorts: SortField[] | undefined = node.sorts?.map((sort) => ({
+                ...sort,
+                nullsFirst: false,
+            }));
             const parameters: ParametersValuesMap | undefined =
                 node.parameters && Object.keys(node.parameters).length > 0
                     ? node.parameters

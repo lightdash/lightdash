@@ -672,6 +672,34 @@ describe('semanticLayer node parameters', () => {
         });
     });
 
+    it('sorts nulls last in either direction', () => {
+        expect(
+            toolComposerQueryNodeToSourceQuery({
+                ...semanticNode,
+                sorts: [
+                    { fieldId: 'orders_count', descending: true },
+                    { fieldId: 'orders_status', descending: false },
+                ],
+            }),
+        ).toMatchObject({
+            sorts: [
+                {
+                    fieldId: 'orders_count',
+                    descending: true,
+                    nullsFirst: false,
+                },
+                {
+                    fieldId: 'orders_status',
+                    descending: false,
+                    nullsFirst: false,
+                },
+            ],
+        });
+        expect(toolComposerQueryNodeToSourceQuery(semanticNode)).toMatchObject({
+            sorts: undefined,
+        });
+    });
+
     it('carries parameter values to the source query, and none when null or empty', () => {
         expect(
             toolComposerQueryNodeToSourceQuery({

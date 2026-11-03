@@ -1,0 +1,19 @@
+name: cartwheel_care
+version: '1.0.0'
+config-version: 2
+profile: cartwheel_care
+model-paths: [models]
+seed-paths: [seeds]
+test-paths: [tests]
+vars:
+  as_of_date: '2026-10-16'
+models:
+  cartwheel_care:
+    +materialized: table
+    staging:
+      +materialized: view
+      +meta:
+        hidden: true
+seeds:
+  cartwheel_care:
+    +quote_columns: false

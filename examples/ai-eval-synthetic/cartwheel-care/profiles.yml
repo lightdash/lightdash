@@ -1,0 +1,13 @@
+cartwheel_care:
+  target: postgres
+  outputs:
+    postgres:
+      type: postgres
+      host: "{{ env_var('PGHOST', 'localhost') }}"
+      port: "{{ env_var('PGPORT', '5432') | as_number }}"
+      user: "{{ env_var('PGUSER', 'postgres') }}"
+      password: "{{ env_var('PGPASSWORD') }}"
+      dbname: "{{ env_var('PGDATABASE', 'postgres') }}"
+      schema: ai_eval_cartwheel_care
+      sslmode: "{{ env_var('PGSSLMODE', 'disable') }}"
+      threads: "{{ env_var('DBT_THREADS', '4') | as_number }}"

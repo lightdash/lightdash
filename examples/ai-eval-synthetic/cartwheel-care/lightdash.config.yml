@@ -1,0 +1,15 @@
+spotlight:
+  default_visibility: show
+  categories:
+    access:
+      label: Access to Care
+      color: green
+    engagement:
+      label: Engagement
+      color: blue
+    outcomes:
+      label: Outcomes
+      color: violet
+    operations:
+      label: Operations
+      color: orange

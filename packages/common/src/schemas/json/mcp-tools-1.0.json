@@ -3437,7 +3437,7 @@
                                                 }
                                             ],
                                             "default": null,
-                                            "description": "Sorts by fields this node also selects in dimensions or metrics, e.g. [{\"fieldId\": \"orders_order_date\", \"descending\": true}]."
+                                            "description": "Sorts by fields this node also selects in dimensions or metrics, e.g. [{\"fieldId\": \"orders_order_date\", \"descending\": true}]. Nulls sort last in either direction; for a lowest or bottom-N ranking, also add a notNull filter on the ranked field, since a missing value is not the lowest one."
                                         },
                                         "sourceType": {
                                             "const": "semanticLayer",
@@ -3544,7 +3544,7 @@
                                             "type": "string"
                                         },
                                         "sql": {
-                                            "description": "DuckDB SQL over the tables \"references\" exposes. Write each column alias with AS, because DuckDB rejects many keywords as bare aliases: `SUM(v) AS value`, `d AS day` and `fam AS label` work, `SUM(v) value` does not. Double-quote a column named after a reserved word, such as `\"order\"`.",
+                                            "description": "DuckDB SQL over the tables \"references\" exposes. Compute a ratio of totals as SUM(a) / SUM(b) over the rows that share the denominator, not as AVG of per-row ratios, and return a share as a 0–1 fraction unless the user asks for a percentage. Write each column alias with AS, because DuckDB rejects many keywords as bare aliases: `SUM(v) AS value`, `d AS day` and `fam AS label` work, `SUM(v) value` does not. Double-quote a column named after a reserved word, such as `\"order\"`.",
                                             "type": "string"
                                         },
                                         "title": {

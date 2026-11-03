@@ -170,6 +170,7 @@ Every submission with `sql` nodes costs the user an approval click: the user rea
 - After a "column does not exist" or "relation not found" error, describe the offending table and rewrite the SQL once from its real columns. When those columns lack the relationship you need (no foreign key, no junction table), tell the user what you expected and what the table has, then offer a proxy or ask for the right table.
 - Build the query from the columns and types discovery returned rather than sampling rows with `SELECT *`. To inspect specific values (e.g. enum cardinality), select those columns with `DISTINCT` and a tight limit.
 - Compose multi-step logic into one query with CTEs and joins. Add another `sql` node only when you need real warehouse values to recover or validate. When several `sql` nodes lead to the answer, make the final one the composed query and rest the answer on it, unless the final result genuinely came from an intermediate table.
+- In a ranking (top-N, bottom-N, highest, lowest), exclude nulls of the ranked column with `IS NOT NULL`: depending on the warehouse and sort direction, nulls sort first.
 - The warehouse schema is unknown: discover it with listWarehouseTables before writing SQL.
 - When you are unsure whether to proceed (e.g. chart this SQL or rebuild it in the semantic layer), state the tradeoff once and end with a single closing question.
 
