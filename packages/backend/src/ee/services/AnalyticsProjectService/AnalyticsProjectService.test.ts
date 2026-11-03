@@ -71,7 +71,10 @@ describe('AnalyticsProjectService', () => {
     const findSessionUserAndOrgByUuid = vi.fn();
     const getFeatureFlag = vi.fn();
     const getOrganizations = vi.fn();
-    const hash = getAnalyticsContentHash(analyticsExplores.createAnalyticsExplores(), analyticsContentAsCode);
+    const hash = getAnalyticsContentHash(
+        analyticsExplores.createAnalyticsExplores(),
+        analyticsContentAsCode,
+    );
     const service = new AnalyticsProjectService({
         lightdashConfig: {
             usageEvents: {
@@ -121,8 +124,14 @@ describe('AnalyticsProjectService', () => {
         vi.resetAllMocks();
         getSnapshot.mockResolvedValue({ snapshotHash: hash });
         getFeatureFlag.mockResolvedValue({ enabled: true });
-        getOrganizationAdmins.mockResolvedValue([{ userUuid: user.userUuid, isActive: true, isPending: false }]);
-        findSessionUserAndOrgByUuid.mockResolvedValue({ ...user, isActive: true, isPending: false });
+        getOrganizationAdmins.mockResolvedValue([
+            { userUuid: user.userUuid, isActive: true, isPending: false },
+        ]);
+        findSessionUserAndOrgByUuid.mockResolvedValue({
+            ...user,
+            isActive: true,
+            isPending: false,
+        });
         findDashboard.mockResolvedValue([
             { uuid: 'existing-dashboard', spaceUuid: 'existing-space' },
         ]);
@@ -151,69 +160,113 @@ describe('AnalyticsProjectService', () => {
     });
 
     describe('automatic synchronization', () => {
-        const configured = () => new AnalyticsProjectService({
-            ...service['dependencies'],
-            lightdashConfig: { usageEvents: {
-                ...service['dependencies'].lightdashConfig.usageEvents,
-                enabled: true,
-                s3: { bucket: 'test', region: 'test', accessKey: 'test', secretKey: 'test', endpoint: 'http://localhost:9000' },
-            } },
-        });
+        const configured = () =>
+            new AnalyticsProjectService({
+                ...service['dependencies'],
+                lightdashConfig: {
+                    usageEvents: {
+                        ...service['dependencies'].lightdashConfig.usageEvents,
+                        enabled: true,
+                        s3: {
+                            bucket: 'test',
+                            region: 'test',
+                            accessKey: 'test',
+                            secretKey: 'test',
+                            endpoint: 'http://localhost:9000',
+                        },
+                    },
+                },
+            });
 
         it('queues independent jobs from the existing organization iterator', async () => {
-            getOrganizations.mockImplementation(async function* () {
+            getOrganizations.mockImplementation(async function* organizations() {
                 yield { organization_uuid: 'one' };
                 yield { organization_uuid: 'two' };
             });
             await service.reconcileContent({ organizationUuid: null });
             expect(scheduleAnalyticsContentSync.mock.calls).toEqual([
-                [{ organizationUuid: 'one' }], [{ organizationUuid: 'two' }],
+                [{ organizationUuid: 'one' }],
+                [{ organizationUuid: 'two' }],
             ]);
             expect(upsertDashboard).not.toHaveBeenCalled();
         });
 
         it('calls the existing sync method with a freshly authorized admin', async () => {
             const background = configured();
-            const install = vi.spyOn(background, 'installSampleContent').mockResolvedValue();
+            const install = vi
+                .spyOn(background, 'installSampleContent')
+                .mockResolvedValue();
             await background.syncContent({ organizationUuid: 'org' });
-            expect(findSessionUserAndOrgByUuid).toHaveBeenCalledWith(user.userUuid, 'org');
-            expect(install).toHaveBeenCalledWith(expect.objectContaining({ userUuid: user.userUuid }));
+            expect(findSessionUserAndOrgByUuid).toHaveBeenCalledWith(
+                user.userUuid,
+                'org',
+            );
+            expect(install).toHaveBeenCalledWith(
+                expect.objectContaining({ userUuid: user.userUuid }),
+            );
             expect(assertAnalyticsProjectAdministration).toHaveBeenCalled();
         });
 
         it('skips unchanged content and still detects definition-only changes', async () => {
-            findDashboard.mockResolvedValue(analyticsContentAsCode.map(({ dashboard }) => ({ uuid: dashboard.slug })));
+            findDashboard.mockResolvedValue(
+                analyticsContentAsCode.map(({ dashboard }) => ({
+                    uuid: dashboard.slug,
+                })),
+            );
             await configured().syncContent({ organizationUuid: 'org' });
             expect(upsertDashboard).not.toHaveBeenCalled();
             getSnapshot.mockResolvedValue({ snapshotHash: 'old-definition' });
             await configured().syncContent({ organizationUuid: 'org' });
-            expect(upsertDashboard).toHaveBeenCalledTimes(analyticsContentAsCode.length);
-            expect(saveSnapshot).toHaveBeenCalledWith(expect.objectContaining({ snapshotHash: hash, appliedByUserUuid: user.userUuid }));
+            expect(upsertDashboard).toHaveBeenCalledTimes(
+                analyticsContentAsCode.length,
+            );
+            expect(saveSnapshot).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    snapshotHash: hash,
+                    appliedByUserUuid: user.userUuid,
+                }),
+            );
         });
 
         it('leaves failed sync retryable without marking the bundle complete', async () => {
             upsertChart.mockRejectedValueOnce(new Error('upload failed'));
-            await expect(configured().syncContent({ organizationUuid: 'org' })).rejects.toThrow('upload failed');
+            await expect(
+                configured().syncContent({ organizationUuid: 'org' }),
+            ).rejects.toThrow('upload failed');
             expect(saveSnapshot).not.toHaveBeenCalled();
             await configured().syncContent({ organizationUuid: 'org' });
             expect(saveSnapshot).toHaveBeenCalledOnce();
         });
 
-        it.each([{ isActive: false, isPending: false }, { isActive: true, isPending: true }])('rechecks admin eligibility: %j', async (status) => {
-            findSessionUserAndOrgByUuid.mockResolvedValue({ ...user, ...status });
-            await expect(configured().syncContent({ organizationUuid: 'org' })).rejects.toThrow('no longer active');
+        it.each([
+            { isActive: false, isPending: false },
+            { isActive: true, isPending: true },
+        ])('rechecks admin eligibility: %j', async (status) => {
+            findSessionUserAndOrgByUuid.mockResolvedValue({
+                ...user,
+                ...status,
+            });
+            await expect(
+                configured().syncContent({ organizationUuid: 'org' }),
+            ).rejects.toThrow('no longer active');
             expect(upsertDashboard).not.toHaveBeenCalled();
         });
 
         it('does no writes for disabled, unprovisioned or unauthorized organizations', async () => {
             getFeatureFlag.mockResolvedValueOnce({ enabled: false });
             await configured().syncContent({ organizationUuid: 'org' });
-            assertAnalyticsProjectAdministration.mockRejectedValueOnce(new ForbiddenError('Not allowed'));
-            await expect(configured().syncContent({ organizationUuid: 'org' })).rejects.toThrow('Not allowed');
+            assertAnalyticsProjectAdministration.mockRejectedValueOnce(
+                new ForbiddenError('Not allowed'),
+            );
+            await expect(
+                configured().syncContent({ organizationUuid: 'org' }),
+            ).rejects.toThrow('Not allowed');
             getAllByOrganizationUuid.mockResolvedValue([]);
             await configured().syncContent({ organizationUuid: 'org' });
             getOrganizationAdmins.mockResolvedValue([]);
-            await expect(configured().syncContent({ organizationUuid: 'org' })).rejects.toThrow('No active organization administrator');
+            await expect(
+                configured().syncContent({ organizationUuid: 'org' }),
+            ).rejects.toThrow('No active organization administrator');
             expect(upsertDashboard).not.toHaveBeenCalled();
         });
     });

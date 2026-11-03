@@ -50,9 +50,15 @@ type Dependencies = {
         | 'scheduleUsageHistoryBackfill'
         | 'scheduleAnalyticsContentSync'
     >;
-    contentAsCodeSnapshotModel: Pick<ContentAsCodeSnapshotModel, 'get' | 'upsert'>;
+    contentAsCodeSnapshotModel: Pick<
+        ContentAsCodeSnapshotModel,
+        'get' | 'upsert'
+    >;
     featureFlagModel: Pick<FeatureFlagModel, 'get'>;
-    organizationMemberProfileModel: Pick<OrganizationMemberProfileModel, 'getOrganizationAdmins'>;
+    organizationMemberProfileModel: Pick<
+        OrganizationMemberProfileModel,
+        'getOrganizationAdmins'
+    >;
     usageDimensionsModel: Pick<UsageDimensionsModel, 'getOrganizations'>;
     coderService: Pick<CoderService, 'upsertChart' | 'upsertDashboard'>;
     contentVerificationModel: Pick<
@@ -75,7 +81,10 @@ type Dependencies = {
         | 'ensureAnalyticsProject'
         | 'delete'
     >;
-    userModel: Pick<UserModel, 'invalidateSessionUserCache' | 'findSessionUserAndOrgByUuid'>;
+    userModel: Pick<
+        UserModel,
+        'invalidateSessionUserCache' | 'findSessionUserAndOrgByUuid'
+    >;
 };
 
 // Definitions are static for the running release; compile once, not per status request.
@@ -434,21 +443,52 @@ export class AnalyticsProjectService extends BaseService {
         );
     }
 
-    async reconcileContent({ organizationUuid }: { organizationUuid: string | null }): Promise<void> {
-        for await (const organization of this.dependencies.usageDimensionsModel.getOrganizations(organizationUuid ?? undefined)) {
-            await this.dependencies.schedulerClient.scheduleAnalyticsContentSync({ organizationUuid: organization.organization_uuid });
+    async reconcileContent({
+        organizationUuid,
+    }: {
+        organizationUuid: string | null;
+    }): Promise<void> {
+        for await (const organization of this.dependencies.usageDimensionsModel.getOrganizations(
+            organizationUuid ?? undefined,
+        )) {
+            await this.dependencies.schedulerClient.scheduleAnalyticsContentSync(
+                { organizationUuid: organization.organization_uuid },
+            );
         }
     }
 
-    async syncContent({ organizationUuid }: { organizationUuid: string }): Promise<void> {
-        if (!this.dependencies.lightdashConfig.usageEvents.enabled ||
+    async syncContent({
+        organizationUuid,
+    }: {
+        organizationUuid: string;
+    }): Promise<void> {
+        if (
+            !this.dependencies.lightdashConfig.usageEvents.enabled ||
             !this.dependencies.lightdashConfig.usageEvents.s3 ||
-            !(await isAnalyticsProjectEnabled(this.dependencies.featureFlagModel, organizationUuid))) return;
-        const admins = await this.dependencies.organizationMemberProfileModel.getOrganizationAdmins(organizationUuid);
-        const admin = admins.find(({ isActive, isPending }) => isActive && !isPending);
-        if (!admin) throw new NotFoundError('No active organization administrator is available to synchronize analytics');
-        const user = await this.dependencies.userModel.findSessionUserAndOrgByUuid(admin.userUuid, organizationUuid);
-        if (!user.isActive || user.isPending) throw new ForbiddenError('Administrator is no longer active');
+            !(await isAnalyticsProjectEnabled(
+                this.dependencies.featureFlagModel,
+                organizationUuid,
+            ))
+        )
+            return;
+        const admins =
+            await this.dependencies.organizationMemberProfileModel.getOrganizationAdmins(
+                organizationUuid,
+            );
+        const admin = admins.find(
+            ({ isActive, isPending }) => isActive && !isPending,
+        );
+        if (!admin)
+            throw new NotFoundError(
+                'No active organization administrator is available to synchronize analytics',
+            );
+        const user =
+            await this.dependencies.userModel.findSessionUserAndOrgByUuid(
+                admin.userUuid,
+                organizationUuid,
+            );
+        if (!user.isActive || user.isPending)
+            throw new ForbiddenError('Administrator is no longer active');
         const { project } = await this.getStatus(user);
         if (project?.hasContentUpdates) await this.installSampleContent(user);
     }
