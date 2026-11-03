@@ -1,3 +1,10 @@
+## [3.128.5](https://github.com/lightdash/lightdash/compare/3.128.4...3.128.5) (2026-11-03)
+
+
+### Bug Fixes
+
+* process analytics nightly only after project creation ([#31971](https://github.com/lightdash/lightdash/issues/31971)) ([8d94bc5](https://github.com/lightdash/lightdash/commit/8d94bc5ddc144eaa70c80de688f7df218dee0031))
+
 ## [3.128.4](https://github.com/lightdash/lightdash/compare/3.128.3...3.128.4) (2026-11-03)
 
 
