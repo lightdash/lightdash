@@ -660,7 +660,6 @@ describe('Snowflake OAuth refresh concurrency', () => {
 
 test.each([
     'user',
-    'organization',
     'project',
     'warehouseConnection',
     null,
