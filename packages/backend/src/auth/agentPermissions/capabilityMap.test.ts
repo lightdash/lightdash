@@ -226,6 +226,7 @@ const buildAgentTools = (overrides: Partial<AiAgentArgs>) => {
         builtInSkills: [],
         customSkills: [{ name: 'test-skill' }],
         canCreateDashboards: true,
+        canCreateScheduledDeliveries: true,
         canRunSql: true,
         enableAiWriteback: true,
         enableContentTools: true,

@@ -16762,6 +16762,15 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                           projectUuid: promptProject.projectUuid,
                       })
                     : false;
+                const canCreateScheduledDeliveries =
+                    hasTrustedPromptUserIdentity &&
+                    this.createAuditedAbility(user).can(
+                        'create',
+                        subject('ScheduledDeliveries', {
+                            organizationUuid: promptProject.organizationUuid,
+                            projectUuid: promptProject.projectUuid,
+                        }),
+                    );
 
                 const warehouseCredentials = canRunSql
                     ? await this.projectModel.getWarehouseCredentialsForBinding(
@@ -17357,6 +17366,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     enableComposerQueries,
                     composerApiConnections,
                     canCreateDashboards,
+                    canCreateScheduledDeliveries,
                     autoApproveSql:
                         (options.autoApproveSql ?? false) ||
                         agentSettings.enableSqlAutoApproval,
