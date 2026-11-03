@@ -8,6 +8,11 @@ import {
 import { type Knex } from 'knex';
 import { UserTableName } from '../../database/entities/users';
 import {
+    pauseBetweenBatchesMs,
+    type RetentionCleanupOptions,
+    type RetentionCleanupResult,
+} from '../../models/retentionCleanup';
+import {
     AppSharedStateHistoryTableName,
     AppSharedStateTableName,
     AppUserStateTableName,
@@ -349,6 +354,68 @@ export class AppStateModel {
         await this.database(AppSharedStateTableName)
             .where({ app_uuid: appUuid, key })
             .delete();
+    }
+
+    /**
+     * Deletes history rows older than the cutoff while always keeping each
+     * key's newest `keepVersions` versions regardless of age. Each batch is
+     * ordered by (app_uuid, key, version) to walk the unique index.
+     */
+    async cleanupHistoryBatch(
+        cutoffDate: Date,
+        keepVersions: number,
+        options: RetentionCleanupOptions,
+    ): Promise<RetentionCleanupResult> {
+        let totalDeleted = 0;
+        let batchCount = 0;
+        while (batchCount < options.maxBatches) {
+            const batchStartedAt = Date.now();
+            // eslint-disable-next-line no-await-in-loop
+            const result = await this.database.raw<{ rowCount: number }>(
+                `
+                DELETE FROM :table: WHERE app_shared_state_history_uuid IN (
+                    SELECT app_shared_state_history_uuid FROM (
+                        SELECT
+                            app_shared_state_history_uuid,
+                            app_uuid,
+                            key,
+                            version,
+                            created_at,
+                            row_number() OVER (
+                                PARTITION BY app_uuid, key
+                                ORDER BY version DESC
+                            ) AS newest_rank
+                        FROM :table:
+                    ) ranked
+                    WHERE created_at < :cutoff AND newest_rank > :keep
+                    ORDER BY app_uuid, key, version
+                    LIMIT :batchSize
+                )
+                `,
+                {
+                    table: AppSharedStateHistoryTableName,
+                    cutoff: cutoffDate,
+                    keep: keepVersions,
+                    batchSize: options.batchSize,
+                },
+            );
+            const deletedCount = result.rowCount;
+            if (deletedCount === 0) break;
+            totalDeleted += deletedCount;
+            batchCount += 1;
+            if (deletedCount < options.batchSize) break;
+            if (batchCount >= options.maxBatches) {
+                return { totalDeleted, batchCount, completed: false };
+            }
+            // eslint-disable-next-line no-await-in-loop
+            await new Promise<void>((resolve) => {
+                setTimeout(
+                    resolve,
+                    pauseBetweenBatchesMs(options, Date.now() - batchStartedAt),
+                );
+            });
+        }
+        return { totalDeleted, batchCount, completed: true };
     }
 
     async getSharedHistory(

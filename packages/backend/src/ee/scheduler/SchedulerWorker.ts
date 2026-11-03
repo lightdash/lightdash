@@ -29,6 +29,7 @@ import { type LinearAppService } from '../../services/LinearAppService/LinearApp
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
 import { type AiAgentReviewNotificationModel } from '../models/AiAgentReviewNotificationModel';
 import { type AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
+import { type AppStateModel } from '../models/AppStateModel';
 import { type ExternalConnectionModel } from '../models/ExternalConnectionModel';
 import { type McpToolCallModel } from '../models/McpToolCallModel';
 import { type ScimRequestLogModel } from '../models/ScimRequestLogModel';
@@ -148,6 +149,7 @@ type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
     mcpToolCallModel: McpToolCallModel;
     externalConnectionModel: ExternalConnectionModel;
     scimRequestLogModel: ScimRequestLogModel;
+    appStateModel: AppStateModel;
     projectHomepageService: Pick<
         ProjectHomepageService,
         'publishScheduledAnnouncement' | 'sweepDueAnnouncements'
@@ -219,6 +221,8 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
 
     protected readonly scimRequestLogModel: ScimRequestLogModel;
 
+    protected readonly appStateModel: AppStateModel;
+
     protected readonly projectHomepageService: CommercialSchedulerWorkerArguments['projectHomepageService'];
 
     protected readonly externalSourceService: CommercialSchedulerWorkerArguments['externalSourceService'];
@@ -268,6 +272,7 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
         this.mcpToolCallModel = args.mcpToolCallModel;
         this.externalConnectionModel = args.externalConnectionModel;
         this.scimRequestLogModel = args.scimRequestLogModel;
+        this.appStateModel = args.appStateModel;
         this.projectHomepageService = args.projectHomepageService;
         this.externalSourceService = args.externalSourceService;
         this.aiThreadFileService = args.aiThreadFileService;
@@ -426,6 +431,14 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
             {
                 task: EE_SCHEDULER_TASKS.CLEAN_SCIM_REQUEST_LOGS,
                 pattern: '10 2 * * *', // 02:10 UTC daily
+                options: {
+                    backfillPeriod: 24 * 3600 * 1000, // 24 hours in ms
+                    maxAttempts: 3,
+                },
+            },
+            {
+                task: EE_SCHEDULER_TASKS.CLEAN_APP_STATE_HISTORY,
+                pattern: '20 2 * * *', // 02:20 UTC daily
                 options: {
                     backfillPeriod: 24 * 3600 * 1000, // 24 hours in ms
                     maxAttempts: 3,
@@ -594,6 +607,36 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 Logger.info(
                     `SCIM request log cleanup completed. Records deleted: ${totalDeleted} in ${batchCount} batches`,
                 );
+            },
+            [EE_SCHEDULER_TASKS.CLEAN_APP_STATE_HISTORY]: async () => {
+                const cleanupConfig =
+                    this.lightdashConfig.scheduler.appStateHistory.cleanup;
+                if (!cleanupConfig.enabled) {
+                    Logger.info('App state history cleanup job is disabled');
+                    return;
+                }
+                Logger.info('Starting app state history cleanup job');
+                const cutoffDate = new Date(
+                    Date.now() - cleanupConfig.retentionDays * 24 * 3600 * 1000,
+                );
+                const { totalDeleted, batchCount, completed } =
+                    await this.appStateModel.cleanupHistoryBatch(
+                        cutoffDate,
+                        cleanupConfig.keepVersions,
+                        {
+                            batchSize: cleanupConfig.batchSize,
+                            delayMs: cleanupConfig.delayMs,
+                            maxBatches: cleanupConfig.maxBatches,
+                        },
+                    );
+                Logger.info(
+                    `App state history cleanup completed. Records deleted: ${totalDeleted} in ${batchCount} batches`,
+                );
+                if (!completed) {
+                    Logger.warn(
+                        `App state history cleanup stopped at the batch cap with rows older than ${cutoffDate.toISOString()} remaining`,
+                    );
+                }
             },
             [EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_PREVIEW]: async (
                 payload,
