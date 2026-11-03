@@ -106,6 +106,45 @@ describe('initial usage processing', () => {
     });
 });
 
+test('schedules deferred history on the existing serial queue and permits continuation of a running job', async () => {
+    graphileAddJob.mockClear();
+    const before = Date.now();
+    await makeClient(true).scheduleUsageEventHistory(traceProperties);
+    expect(graphileAddJob).toHaveBeenCalledExactlyOnceWith(
+        SCHEDULER_TASKS.COMPACT_USAGE_EVENTS,
+        { ...traceProperties, includeHistory: true },
+        {
+            queueName: 'usage-events-compaction',
+            jobKey: `usage-event-history:${ORG_UUID}`,
+            jobKeyMode: 'preserve_run_at',
+            runAt: expect.any(Date),
+            maxAttempts: 3,
+            priority: JobPriority.LOW,
+        },
+    );
+    expect(
+        graphileAddJob.mock.calls[0][2].runAt.getTime(),
+    ).toBeGreaterThanOrEqual(before + 60_000);
+});
+
+test('revives exhausted history jobs through the queue SQL API', async () => {
+    const client = makeClient(true);
+    const query = vi.fn().mockResolvedValue({ rows: [] });
+    client.graphileUtils = Promise.resolve({
+        withPgClient: async (
+            callback: (pg: { query: typeof query }) => unknown,
+        ) => callback({ query }),
+    } as unknown as Awaited<typeof client.graphileUtils>);
+    await client.retryFailedUsageEventHistory();
+    expect(query).toHaveBeenCalledWith(
+        expect.stringContaining(
+            'attempts >= max_attempts AND locked_at IS NULL',
+        ),
+        [SCHEDULER_TASKS.COMPACT_USAGE_EVENTS],
+    );
+    expect(query.mock.calls[0][0]).toContain('attempts := 0');
+});
+
 describe('analytics content scheduling', () => {
     beforeEach(() => graphileAddJob.mockClear());
 

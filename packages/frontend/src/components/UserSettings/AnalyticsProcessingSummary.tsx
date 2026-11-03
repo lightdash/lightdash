@@ -1,5 +1,5 @@
 import { type AnalyticsProcessingStatus } from '@lightdash/common';
-import { Badge, Group, Text, Tooltip } from '@mantine/core';
+import { Badge, Group, Stack, Text, Tooltip } from '@mantine/core';
 
 const statusPresentation: Record<
     AnalyticsProcessingStatus['status'],
@@ -36,10 +36,17 @@ const AnalyticsProcessingSummary = ({
         processing.status === 'running' &&
         Date.now() - new Date(processing.startedAt).getTime() >
             4 * 60 * 60 * 1000;
+    const { stats } = processing;
+    const historyPending =
+        processing.status === 'partial' &&
+        stats.partitionsFailed === 0 &&
+        stats.dimensionsFailed === 0 &&
+        stats.userPartitionsFailed === 0;
     const presentation = stale
         ? { label: 'Status unavailable', color: 'gray' }
-        : statusPresentation[processing.status];
-    const { stats } = processing;
+        : historyPending
+          ? { label: 'More data pending', color: 'blue' }
+          : statusPresentation[processing.status];
     const details = [
         stats.partitionsCompacted > 0 &&
             `Compacted partitions: ${stats.partitionsCompacted}.`,
@@ -73,28 +80,36 @@ const AnalyticsProcessingSummary = ({
               .join(' ');
 
     return (
-        <Group gap="sm" role="status" aria-label="Analytics processing status">
-            <Text fz="xs" c="dimmed">
-                Last success:{' '}
-                {processing.lastSuccessfulAt
-                    ? formatTime(processing.lastSuccessfulAt)
-                    : 'No successful refresh yet'}
-            </Text>
-            <Tooltip
-                label={tooltip}
-                disabled={!tooltip}
-                multiline
-                maw={360}
-                events={{ hover: true, focus: true, touch: true }}
-            >
-                <Badge
-                    color={presentation.color}
-                    tabIndex={tooltip ? 0 : undefined}
+        <Stack gap="xs" role="status" aria-label="Analytics processing status">
+            <Group gap="sm">
+                <Text fz="xs" c="dimmed">
+                    Last success:{' '}
+                    {processing.lastSuccessfulAt
+                        ? formatTime(processing.lastSuccessfulAt)
+                        : 'No successful refresh yet'}
+                </Text>
+                <Tooltip
+                    label={tooltip}
+                    disabled={!tooltip}
+                    multiline
+                    maw={360}
+                    events={{ hover: true, focus: true, touch: true }}
                 >
-                    Latest run: {presentation.label}
-                </Badge>
-            </Tooltip>
-        </Group>
+                    <Badge
+                        color={presentation.color}
+                        tabIndex={tooltip ? 0 : undefined}
+                    >
+                        Latest run: {presentation.label}
+                    </Badge>
+                </Tooltip>
+            </Group>
+            {(processing.status === 'running' || historyPending) && !stale && (
+                <Text fz="sm" c="dimmed">
+                    Recent activity is prepared first. You can explore available
+                    data while older history is added in background batches.
+                </Text>
+            )}
+        </Stack>
     );
 };
 

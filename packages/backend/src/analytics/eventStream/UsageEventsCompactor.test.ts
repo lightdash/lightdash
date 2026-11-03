@@ -21,6 +21,11 @@ vi.mock('./usageProcessingLimits', async (importOriginal) => {
     const original =
         await importOriginal<typeof import('./usageProcessingLimits')>();
     return {
+        get MAX_HISTORY_PARTITIONS_PER_RUN() {
+            return (
+                workLimit.override ?? original.MAX_HISTORY_PARTITIONS_PER_RUN
+            );
+        },
         get MAX_PARTITIONS_PER_RUN() {
             return workLimit.override ?? original.MAX_PARTITIONS_PER_RUN;
         },
@@ -372,9 +377,61 @@ describe('UsageEventsCompactor.run', () => {
             NOW,
             ['org-2'],
             expect.any(Function),
+            false,
         );
         const refresher = vi.spyOn(UsageDimensionsRefresher.prototype, 'run');
         expect(refresher).toHaveBeenCalledOnce();
+    });
+
+    it('prepares recent data first, then catches up older closed events in bounded batches', async () => {
+        workLimit.override = 1;
+        const old = rawKey('org-1', 'query_events', '2026-06-01');
+        const recent = rawKey('org-1', 'query_events', '2026-07-01');
+        const today = rawKey('org-1', 'query_events', '2026-07-02');
+        mockListedKeys([old, recent, today]);
+        const first = await createCompactor(metrics).run(NOW, 'org-1');
+        expect(first).toMatchObject({
+            partitionsDiscovered: 2,
+            partitionsCompacted: 1,
+            partitionsDeferred: 1,
+        });
+        expect(duckdbMocks.runSqlWithMetrics).toHaveBeenLastCalledWith(
+            expect.stringContaining(recent),
+        );
+        const lateRecent = rawKey(
+            'org-1',
+            'query_events',
+            '2026-07-01',
+            'late.jsonl.gz',
+        );
+        mockListedKeys([old, lateRecent, today]);
+        const batch = await createCompactor(metrics).run(NOW, 'org-1', true);
+        expect(batch).toMatchObject({
+            partitionsDiscovered: 2,
+            partitionsCompacted: 1,
+            partitionsDeferred: 1,
+        });
+        expect(duckdbMocks.runSqlWithMetrics).toHaveBeenLastCalledWith(
+            expect.stringContaining(lateRecent),
+        );
+        mockListedKeys([old, today]);
+        const history = await createCompactor(metrics).run(NOW, 'org-1', true);
+        expect(history).toMatchObject({
+            partitionsDiscovered: 1,
+            partitionsCompacted: 1,
+            partitionsDeferred: 0,
+        });
+        expect(duckdbMocks.runSqlWithMetrics).toHaveBeenLastCalledWith(
+            expect.stringContaining(old),
+        );
+        expect(s3Mocks.deleteObjects).not.toHaveBeenCalledWith(
+            expect.objectContaining({
+                Delete: { Objects: [{ Key: today }], Quiet: true },
+            }),
+        );
+        expect(
+            UsageUserActivityBuilder.prototype.runAll,
+        ).toHaveBeenLastCalledWith(NOW, ['org-1'], expect.any(Function), true);
     });
 
     it('rechecks eligibility and leaves all storage untouched if the scoped org is disabled', async () => {
@@ -400,6 +457,7 @@ describe('UsageEventsCompactor.run', () => {
             NOW,
             [],
             expect.any(Function),
+            false,
         );
     });
 
@@ -702,6 +760,7 @@ describe('UsageEventsCompactor.run', () => {
             NOW,
             ['org-1', 'org-2'],
             expect.any(Function),
+            false,
         );
         expect(metrics.usageProcessing.finish).toHaveBeenCalledWith(
             'users',

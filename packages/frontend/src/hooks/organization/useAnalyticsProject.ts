@@ -22,7 +22,9 @@ export const useAnalyticsProject = () => {
         retry: false,
         refetchInterval: (data) => {
             const processing = data?.project?.processing;
-            return processing?.status === 'running' &&
+            if (data?.project && processing === null) return 30_000;
+            return (processing?.status === 'running' ||
+                processing?.status === 'partial') &&
                 Date.now() - new Date(processing.startedAt).getTime() <=
                     4 * 60 * 60 * 1000
                 ? 30_000

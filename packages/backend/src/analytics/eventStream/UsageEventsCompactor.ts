@@ -22,7 +22,10 @@ import {
     UsageDimensionsRefresher,
     type DimensionRefreshSummary,
 } from './UsageDimensionsRefresher';
-import { MAX_PARTITIONS_PER_RUN } from './usageProcessingLimits';
+import {
+    MAX_HISTORY_PARTITIONS_PER_RUN,
+    MAX_PARTITIONS_PER_RUN,
+} from './usageProcessingLimits';
 import { UsageProcessingRun } from './UsageProcessingRun';
 import { usageProcessingStartDate } from './usageProcessingWindow';
 import {
@@ -154,6 +157,7 @@ export const buildCompactionSql = ({
 export type CompactionRunSummary = {
     partitionsDiscovered: number;
     partitionsCompacted: number;
+    partitionsDeferred: number;
     partitionsFailed: number;
     partitionsSkippedUnknownStream: number;
     rawObjectsDeleted: number;
@@ -208,6 +212,7 @@ export class UsageEventsCompactor extends S3BaseClient {
     async run(
         now: Date = new Date(),
         organizationUuid?: string,
+        includeHistory = false,
     ): Promise<
         CompactionRunSummary & {
             dimensions: DimensionRefreshSummary;
@@ -247,7 +252,13 @@ export class UsageEventsCompactor extends S3BaseClient {
                     const summary = await this.monitorStage(
                         runId,
                         'compaction',
-                        () => this.compactEvents(now, orgIds, processing),
+                        () =>
+                            this.compactEvents(
+                                now,
+                                orgIds,
+                                processing,
+                                includeHistory,
+                            ),
                         UsageEventsCompactor.compactionOutcome,
                     );
                     processing.compactionFinished();
@@ -289,6 +300,7 @@ export class UsageEventsCompactor extends S3BaseClient {
                                         result,
                                         completed,
                                     ),
+                                includeHistory,
                             ),
                         UsageEventsCompactor.usersOutcome,
                     );
@@ -339,7 +351,7 @@ export class UsageEventsCompactor extends S3BaseClient {
             failed: summary.partitionsFailed,
             // Includes unknown streams, which must not count as complete catch-up.
             remaining,
-            limitReached: summary.partitionsDiscovered > MAX_PARTITIONS_PER_RUN,
+            limitReached: summary.partitionsDeferred > 0,
         };
     }
 
@@ -405,27 +417,37 @@ export class UsageEventsCompactor extends S3BaseClient {
         now: Date,
         orgIds: string[],
         processing: UsageProcessingRun,
+        includeHistory: boolean,
     ): Promise<CompactionRunSummary> {
         const runStart = Date.now();
         const todayUtc = now.toISOString().slice(0, 10);
         const { keys: rawKeys, bytesByKey } = await this.listRawKeys(orgIds);
-        let partitions = groupRawKeysIntoPartitions(rawKeys, todayUtc).filter(
-            (partition) => partition.dt >= usageProcessingStartDate(now),
-        );
+        const start = usageProcessingStartDate(now);
+        const closedPartitions = groupRawKeysIntoPartitions(rawKeys, todayUtc);
+        let partitions = closedPartitions
+            .filter((partition) => includeHistory || partition.dt >= start)
+            .sort(
+                (a, b) =>
+                    Number(b.dt >= start) - Number(a.dt >= start) ||
+                    a.dt.localeCompare(b.dt),
+            );
         const summary: CompactionRunSummary = {
-            partitionsDiscovered: partitions.length,
+            partitionsDiscovered: closedPartitions.length,
             partitionsCompacted: 0,
+            partitionsDeferred: closedPartitions.length - partitions.length,
             partitionsFailed: 0,
             partitionsSkippedUnknownStream: 0,
             rawObjectsDeleted: 0,
         };
-        for (const partition of partitions) {
+        for (const partition of closedPartitions) {
             const stats = processing.stats(partition.orgId);
             stats.partitionsDiscovered += 1;
         }
         if (partitions.length === 0) {
             this.recordMetrics(() => {
-                this.prometheusMetrics?.setUsageEventsCompactionBacklog(0);
+                this.prometheusMetrics?.setUsageEventsCompactionBacklog(
+                    summary.partitionsDiscovered,
+                );
                 this.prometheusMetrics?.setUsageEventsRawObjects(
                     rawKeys.length,
                 );
@@ -434,18 +456,24 @@ export class UsageEventsCompactor extends S3BaseClient {
                     'success',
                 );
             });
-            Logger.info('Usage events compaction: no closed partitions found');
+            Logger.info(
+                'Usage events compaction: no selected closed partitions found',
+            );
             return summary;
         }
-        if (partitions.length > MAX_PARTITIONS_PER_RUN) {
-            for (const partition of partitions.slice(MAX_PARTITIONS_PER_RUN)) {
+        const limit = includeHistory
+            ? MAX_HISTORY_PARTITIONS_PER_RUN
+            : MAX_PARTITIONS_PER_RUN;
+        if (partitions.length > limit) {
+            summary.partitionsDeferred += partitions.length - limit;
+            for (const partition of partitions.slice(limit)) {
                 const stats = processing.stats(partition.orgId);
                 stats.limitReached = true;
             }
             Logger.warn(
-                `Usage events compaction: capping run to ${MAX_PARTITIONS_PER_RUN} of ${partitions.length} closed partitions`,
+                `Usage events compaction: capping run to ${limit} of ${partitions.length} closed partitions`,
             );
-            partitions = partitions.slice(0, MAX_PARTITIONS_PER_RUN);
+            partitions = partitions.slice(0, limit);
         }
 
         const duckdb = this.createDuckdbClient();
@@ -476,6 +504,8 @@ export class UsageEventsCompactor extends S3BaseClient {
                     const stats = processing.stats(partition.orgId);
                     if (deleted === partition.keys.length) {
                         stats.partitionsCompacted += 1;
+                    } else {
+                        summary.partitionsDeferred += 1;
                     }
                     stats.rawObjectsDeleted += deleted;
                     this.recordMetrics(() => {

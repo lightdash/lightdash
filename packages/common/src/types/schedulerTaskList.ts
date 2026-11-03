@@ -188,6 +188,10 @@ export type LearnSandboxCommandPayload = TraceTaskBase & {
     userUuid: string;
 };
 
+export type CompactUsageEventsPayload = TraceTaskBase & {
+    includeHistory?: boolean;
+};
+
 export type ReconcileAnalyticsContentPayload = Partial<TraceTaskBase>;
 
 export type SyncAnalyticsContentPayload = Partial<TraceTaskBase> & {
@@ -346,7 +350,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.MANAGED_AGENT_HEARTBEAT]: ManagedAgentHeartbeatPayload;
     [SCHEDULER_TASKS.CLEAN_EXPIRED_PREVIEWS]: TraceTaskBase;
     [SCHEDULER_TASKS.INGEST_PROJECT_CONTEXT]: TraceTaskBase;
-    [SCHEDULER_TASKS.COMPACT_USAGE_EVENTS]: TraceTaskBase;
+    [SCHEDULER_TASKS.COMPACT_USAGE_EVENTS]: CompactUsageEventsPayload;
     [SCHEDULER_TASKS.BACKFILL_USAGE_QUERY_HISTORY]: TraceTaskBase;
     [SCHEDULER_TASKS.POLL_EMAIL_WHITELABEL]: TraceTaskBase;
     [SCHEDULER_TASKS.CLEAN_WAREHOUSE_CONNECT_CODES]: TraceTaskBase;

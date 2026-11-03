@@ -87,11 +87,12 @@ const LightdashAnalyticsPanel = ({
                                     : 'Create a dedicated project with built-in AI usage and query event models. No connection setup is needed.'}
                             </Text>
                             <Text fz="sm" c="dimmed">
-                                After creation, we prepare data snapshots for
-                                your dashboards and import available history in
-                                the background. This can take a few minutes, or
-                                longer for larger histories. You can leave this
-                                page once the project has been created.
+                                We prepare dashboard data for the last seven
+                                complete days first, then add all older events
+                                still stored in the background. This can take a
+                                few minutes, or longer for larger histories.
+                                Once created, you can explore available data or
+                                leave this page while history continues loading.
                             </Text>
                         </Stack>
                         {createProject.isError && (

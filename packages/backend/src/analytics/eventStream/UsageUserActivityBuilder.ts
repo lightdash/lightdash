@@ -11,7 +11,10 @@ import Logger from '../../logging/logger';
 import { getDuckdbRuntimeConfig } from '../../utils/duckdb/getDuckdbRuntimeConfig';
 import type { StreamName } from './projection';
 import { compactedStreamSchemas } from './registry';
-import { MAX_PARTITIONS_PER_RUN } from './usageProcessingLimits';
+import {
+    MAX_HISTORY_PARTITIONS_PER_RUN,
+    MAX_PARTITIONS_PER_RUN,
+} from './usageProcessingLimits';
 import { usageProcessingStartDate } from './usageProcessingWindow';
 import { analyticsStreams, userActivityKey } from './userActivity';
 
@@ -170,8 +173,12 @@ export class UsageUserActivityBuilder extends S3BaseClient {
             summary: UserActivitySummary,
             completed: boolean,
         ) => void,
+        includeHistory = false,
     ): Promise<UserActivitySummary> {
         const summary = emptySummary();
+        const limit = includeHistory
+            ? MAX_HISTORY_PARTITIONS_PER_RUN
+            : MAX_PARTITIONS_PER_RUN;
         try {
             for (const orgId of orgIds) {
                 const organizationSummary = emptySummary();
@@ -184,13 +191,14 @@ export class UsageUserActivityBuilder extends S3BaseClient {
                         for await (const {
                             stream,
                             date,
-                        } of this.closedPartitions(now, [orgId])) {
-                            if (
-                                summary.published + summary.failed >=
-                                MAX_PARTITIONS_PER_RUN
-                            ) {
+                        } of this.closedPartitions(
+                            now,
+                            [orgId],
+                            includeHistory,
+                        )) {
+                            if (summary.published + summary.failed >= limit) {
                                 Logger.warn(
-                                    `User activity refresh reached its ${MAX_PARTITIONS_PER_RUN}-partition work limit; remaining partitions will be retried on the next run`,
+                                    `User activity refresh reached its ${limit}-partition work limit; remaining partitions will be retried on the next run`,
                                 );
                                 summary.limitReached = true;
                                 organizationSummary.limitReached = true;
@@ -231,7 +239,11 @@ export class UsageUserActivityBuilder extends S3BaseClient {
         }
     }
 
-    private async *closedPartitions(now: Date, orgIds: string[]) {
+    private async *closedPartitions(
+        now: Date,
+        orgIds: string[],
+        includeHistory: boolean,
+    ) {
         const today = now.toISOString().slice(0, 10);
         const start = usageProcessingStartDate(now);
         for (const orgId of orgIds) {
@@ -246,7 +258,9 @@ export class UsageUserActivityBuilder extends S3BaseClient {
                     const page = await this.s3!.listObjectsV2({
                         Bucket: this.storage.bucket,
                         Prefix: prefix,
-                        StartAfter: `${prefix}dt=${start}/`,
+                        StartAfter: includeHistory
+                            ? undefined
+                            : `${prefix}dt=${start}/`,
                         MaxKeys: 1000,
                         ContinuationToken: token,
                     });
@@ -261,7 +275,7 @@ export class UsageUserActivityBuilder extends S3BaseClient {
                             );
                         if (
                             match &&
-                            match[1] >= start &&
+                            (includeHistory || match[1] >= start) &&
                             match[1] < today &&
                             match[1] !== previousDate
                         ) {
