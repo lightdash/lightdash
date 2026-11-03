@@ -57,6 +57,7 @@ import {
     type PreAggregateSchedulerDetails,
     type SchedulerCreateProjectWithCompilePayload,
     type SchedulerIndexCatalogJobPayload,
+    type SyncAnalyticsContentPayload,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { getSchedule, stringToArray } from 'cron-converter';
@@ -1796,6 +1797,42 @@ export class SchedulerClient {
                 jobKey: `initial-usage-processing:${payload.organizationUuid}`,
                 jobKeyMode: 'unsafe_dedupe',
                 maxAttempts: 1,
+                priority: JobPriority.LOW,
+            },
+        );
+    }
+
+    async scheduleAnalyticsContentReconciliation(
+        organizationUuid: string | null,
+    ): Promise<void> {
+        const graphileClient = await this.graphileUtils;
+        await graphileClient.addJob(
+            SCHEDULER_TASKS.RECONCILE_ANALYTICS_CONTENT,
+            { organizationUuid: organizationUuid ?? undefined },
+            {
+                queueName: 'analytics-content-reconciliation',
+                jobKey: `analytics-content-reconciliation:${organizationUuid ?? 'all'}`,
+                // Allow the next processing run to revive exhausted retries.
+                jobKeyMode: 'preserve_run_at',
+                maxAttempts: 3,
+                priority: JobPriority.LOW,
+            },
+        );
+    }
+
+    async scheduleAnalyticsContentSync(
+        payload: SyncAnalyticsContentPayload,
+    ): Promise<void> {
+        const graphileClient = await this.graphileUtils;
+        await graphileClient.addJob(
+            SCHEDULER_TASKS.SYNC_ANALYTICS_CONTENT,
+            payload,
+            {
+                queueName: 'analytics-content-sync',
+                jobKey: `analytics-content-sync:${payload.organizationUuid}`,
+                // Allow the next processing run to revive exhausted retries.
+                jobKeyMode: 'preserve_run_at',
+                maxAttempts: 3,
                 priority: JobPriority.LOW,
             },
         );

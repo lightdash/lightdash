@@ -95,6 +95,7 @@ import {
     KnexPaginateArgs,
     KnexPaginatedData,
     LightdashError,
+    MAX_RESULTS_CACHE_INVALIDATION_EXPLORES,
     MAX_RESULTS_CACHE_TTL_SECONDS,
     MergeQuery,
     MetricQuery,
@@ -164,8 +165,10 @@ import {
     type ExecuteAsyncQueryRequestParams,
     type ExecuteAsyncSavedChartRequestParams,
     type ExecuteAsyncUnderlyingDataRequestParams,
+    type ExploresResultsCacheInvalidation,
     type ExternalSourceTableReference,
     type Filters,
+    type InvalidateExploresResultsCache,
     type MergeQueryChart,
     type MergeQueryExecutionMode,
     type Organization,
@@ -6879,6 +6882,14 @@ export class AsyncQueryService extends ProjectService {
                                 account.user.id,
                                 resultsCache.resultProducer,
                             );
+                        // Before results land, so the row is never a live hit
+                        if (resultsCache.queryUuid) {
+                            await this.queryHistoryModel.inheritCacheInvalidation(
+                                queryHistoryUuid,
+                                resultsCache.queryUuid,
+                                projectUuid,
+                            );
+                        }
                         trackQueryExecuted();
                         if (this.lightdashConfig.natsWorker.enabled) {
                             await this.queryHistoryModel.updateStatusToExecuting(
@@ -8702,6 +8713,88 @@ export class AsyncQueryService extends ProjectService {
         });
     }
 
+    async invalidateExploresResultsCache(
+        user: SessionUser,
+        projectUuid: string,
+        {
+            exploreNames,
+            includeJoinedExplores = false,
+        }: InvalidateExploresResultsCache,
+    ): Promise<ExploresResultsCacheInvalidation> {
+        const { organizationUuid } = await this.assertCanInvalidateResultsCache(
+            user,
+            projectUuid,
+        );
+        const uniqueExploreNames = [...new Set(exploreNames)];
+        if (uniqueExploreNames.length === 0) {
+            throw new ParameterError('Provide at least one explore name');
+        }
+        if (
+            uniqueExploreNames.length > MAX_RESULTS_CACHE_INVALIDATION_EXPLORES
+        ) {
+            throw new ParameterError(
+                `Provide at most ${MAX_RESULTS_CACHE_INVALIDATION_EXPLORES} explore names`,
+            );
+        }
+        const knownExploreNames = new Set(
+            await this.projectModel.findExistingExploreNames(
+                projectUuid,
+                uniqueExploreNames,
+            ),
+        );
+        const unknownExploreNames = uniqueExploreNames.filter(
+            (exploreName) => !knownExploreNames.has(exploreName),
+        );
+        if (unknownExploreNames.length > 0) {
+            throw new NotFoundError(
+                `Explores not found: ${unknownExploreNames.join(', ')}`,
+                { exploreNames: unknownExploreNames },
+            );
+        }
+        const exploreNamesToInvalidate = includeJoinedExplores
+            ? [
+                  ...new Set([
+                      ...uniqueExploreNames,
+                      ...(await this.projectModel.findExploreNamesReadingBaseTables(
+                          projectUuid,
+                          uniqueExploreNames,
+                      )),
+                  ]),
+              ]
+            : uniqueExploreNames;
+        const invalidatedAt = new Date();
+        await this.queryHistoryModel.invalidateCachedResultsForExplores(
+            projectUuid,
+            exploreNamesToInvalidate,
+            this.getResultsCacheInvalidationWindowStart(invalidatedAt),
+        );
+        this.analytics.track({
+            event: 'results_cache.invalidated',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                scope: 'explores',
+                contentUuid: null,
+                exploreNames: exploreNamesToInvalidate,
+            },
+        });
+        return {
+            projectUuid,
+            invalidatedAt,
+            exploreNames: exploreNamesToInvalidate,
+        };
+    }
+
+    // Wide enough that a later TTL increase cannot revive older results
+    private getResultsCacheInvalidationWindowStart(invalidatedAt: Date): Date {
+        const maxTtlSeconds = Math.max(
+            this.lightdashConfig.results.cacheStateTimeSeconds,
+            MAX_RESULTS_CACHE_TTL_SECONDS,
+        );
+        return new Date(invalidatedAt.getTime() - maxTtlSeconds * 1000);
+    }
+
     private async invalidateContentResultsCache(
         user: SessionUser,
         {
@@ -8717,15 +8810,10 @@ export class AsyncQueryService extends ProjectService {
         },
     ): Promise<ResultsCacheInvalidation> {
         const invalidatedAt = new Date();
-        // Wide enough that a later TTL increase cannot revive older results
-        const maxTtlSeconds = Math.max(
-            this.lightdashConfig.results.cacheStateTimeSeconds,
-            MAX_RESULTS_CACHE_TTL_SECONDS,
-        );
         await this.queryHistoryModel.invalidateCachedResultsForContent(
             projectUuid,
             content,
-            new Date(invalidatedAt.getTime() - maxTtlSeconds * 1000),
+            this.getResultsCacheInvalidationWindowStart(invalidatedAt),
         );
         this.analytics.track({
             event: 'results_cache.invalidated',

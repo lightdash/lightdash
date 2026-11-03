@@ -23,6 +23,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -40,7 +41,13 @@ export class OrganizationBrandController extends BaseController {
      * @summary Get organization brand
      * @param req express request
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'OrganizationBrandController.getOrganizationBrand',
+        ),
+    ])
     @Get('/brand')
     @OperationId('GetOrganizationBrand')
     async getOrganizationBrand(
@@ -153,7 +160,13 @@ export class OrganizationBrandController extends BaseController {
      * @param req express request
      * @param logoUuid the uuid of the uploaded logo
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'OrganizationBrandController.getOrganizationBrandLogo',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/brand/logos/{logoUuid}')
     @OperationId('GetOrganizationBrandLogo')

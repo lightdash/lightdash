@@ -680,3 +680,42 @@ describe('Snowflake OAuth refresh concurrency', () => {
         expect(f.transaction).toHaveBeenCalledTimes(2);
     });
 });
+
+test.each([
+    'user',
+    'organization',
+    'project',
+    'warehouseConnection',
+    null,
+] as const)(
+    'marks reauthentication only for a personal credential owner (%s)',
+    async (kind) => {
+        const f = setup();
+        f.exchange.mockRejectedValue({
+            data: JSON.stringify({ message: 'invalid_grant' }),
+        });
+        const getOwner = (): CredentialOwner | null => {
+            if (kind === null) {
+                return null;
+            }
+            if (kind === 'user') {
+                return {
+                    kind,
+                    uuid: 'row',
+                    purpose: UserWarehouseCredentialPurpose.DEFAULT,
+                };
+            }
+            return { kind, uuid: 'row' };
+        };
+        const owner = getOwner();
+        const error = await f.resolver
+            .resolve({ ...selection(), owner })
+            .catch((caught: unknown) => caught);
+        if (!(error instanceof SnowflakeTokenError)) {
+            throw new Error('Expected a Snowflake token failure');
+        }
+        expect(error.data.requiresUserReauthentication).toBe(
+            kind === 'user' ? true : undefined,
+        );
+    },
+);

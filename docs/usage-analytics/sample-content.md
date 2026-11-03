@@ -2,13 +2,14 @@
 
 The backend-owned bundle in `packages/backend/src/analytics/systemExplores/sampleContent.ts`
 defines managed dashboards using system explores, including AI usage, Query activity
-and AI tokens and billing coverage. It is compiled with the backend: no CLI upload, migration,
-installation table, or version tracking is required.
+and AI tokens and billing coverage. It is compiled with the backend. A dedicated
+analytics content worker installs new model and dashboard definitions after nightly
+processing; see [automatic content updates](content-sync.md).
 
 New built-in dashboards are created together in the **Default dashboards** space.
 Create and Sync content automatically apply the existing **Verified** badge after
 each dashboard's charts and layout are installed. Verification is attributed to
-the admin performing the action; it identifies the supplied content, not the health
+the applying administrator for manual and automatic installation; it identifies the supplied content, not the health
 or completeness of that organization's captured data. Normal sync preserves an
 existing verification; restoration re-verifies after the layout is installed.
 Custom dashboards and copies are not automatically verified.
@@ -54,8 +55,9 @@ place, retaining their UUIDs, slugs, field IDs and existing filter targets. Exis
 charts remain available. Sync does not refresh inventory data or alter capture,
 history or compaction.
 
-Project creation and **Sync content** in organization analytics settings both install
-the current definitions: system explores first, then managed charts and dashboards.
+Project creation, automatic content updates and **Sync content** in organization
+analytics settings all install the current definitions: system explores first,
+then managed charts and dashboards.
 This makes newly shipped explores, dimensions and metrics available in existing
 analytics projects without recreating the project. After creation, settings stays open and shows dashboard
 shortcuts and the **Explore** button; it does not redirect automatically. Sync calls
@@ -95,8 +97,10 @@ moving or overwriting those charts. Resolve that conflict before retrying.
 
 Sync overwrites the managed dashboard's name, description, layout, filters,
 and sample chart definitions using the existing versioned models. Existing UUIDs
-and slugs remain unchanged. Customizations to the managed sample can be lost: duplicate it first
-to keep them. Other dashboards and their charts are untouched. Removed chart
+and slugs remain unchanged. Built-in dashboards are managed and automatically
+receive shipped updates.
+Customizations to them are replaced on update: duplicate a dashboard first to
+keep your own version. Other dashboards and their charts are untouched. Removed chart
 definitions are no longer included in the dashboard layout; their saved rows and
 historical versions are retained rather than hard-deleted.
 
@@ -187,12 +191,11 @@ latency; missing cache flags remain unknown. This dashboard does not infer tenan
 from user attributes, reconcile invoices or provide a complete embed dependency
 inventory. Absence of observed usage is not evidence that content is safe to delete.
 
-## Future work
+## Version tracking
 
-There is no out-of-date detection or installed version in this PR. Every Sync
-applies the definitions shipped with the current backend. Version detection and
-broader content synchronization are tracked in PROD-11152. Creation timestamps
-alone would not indicate the version after an in-place sync.
+The installed definition hash includes models, chart definitions and dashboard
+layouts, so formula and label changes are detected even when field and chart
+counts are unchanged. The installed hash is recorded only after a complete successful sync. Existing UUIDs and saved versions remain stable.
 
 Keep bundle/chart keys stable when changing metrics or dimensions. The system
 explores now expose a joined Users table with **User name**; Query Events also

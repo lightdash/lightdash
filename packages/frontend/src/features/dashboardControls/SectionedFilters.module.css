@@ -34,9 +34,50 @@
     min-width: 0;
 }
 
-/* A saved-open capsule takes a line of its own, so a short one is not
-   missed at the end of another's line; saved-folded ones stay inline in
-   saved order. A fold in view moves neither */
+/* A bar line of sections: a section starts one unless it is saved
+   `inline`, then it sits beside the section before it. Lines never change
+   with a fold: an open section that shares its line stacks its filters
+   instead of widening it */
+.sectionLine {
+    position: relative;
+    display: flex;
+    flex: 0 0 100%;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: inherit;
+    min-width: 0;
+}
+
+/* The gap above a line (and below the last one) takes a dragged capsule
+   onto a line of its own: a full-width 2px line in the gap, so nothing
+   moves. Hit-tested by its box, never by the pointer, so it blocks nothing */
+.lineGap {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -12px;
+    height: 12px;
+    pointer-events: none;
+}
+
+.lineGap[data-end] {
+    top: auto;
+    bottom: -14px;
+}
+
+.lineGap[data-over]::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 5px;
+    height: 2px;
+    border-radius: 1px;
+    background-color: var(--mantine-color-blue-4);
+}
+
+/* The New section entry and a section being named sit on their own line
+   below the sections, or inline after the filters when there are none */
 .line {
     display: contents;
 }
@@ -49,6 +90,10 @@
 
 /* A narrow bar: every capsule, and New section, on a line of its own */
 @container (width < 720px) {
+    .sectionLine {
+        flex-direction: column;
+    }
+
     .line {
         display: flex;
         flex: 0 0 100%;
@@ -183,6 +228,24 @@
    pointer drags the capsule by */
 .head {
     touch-action: none;
+}
+
+/* A folded capsule's count: an editor's handle too, never a text selection */
+.summary {
+    user-select: none;
+}
+
+/* The open hand on the parts that drag the capsule (the head's gaps and the
+   count; the chevron folds and the name renames), closed while it moves */
+.capsule[data-can-drag] .head,
+.capsule[data-can-drag] .summary {
+    cursor: grab;
+    touch-action: none;
+}
+
+.capsule[data-dragging] .head,
+.capsule[data-dragging] .summary {
+    cursor: grabbing;
 }
 
 /* The name renames on a click: a text cursor and 6px side padding */

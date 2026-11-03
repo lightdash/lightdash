@@ -3133,6 +3133,49 @@ export class ProjectModel {
         };
     }
 
+    async findExistingExploreNames(
+        projectUuid: string,
+        exploreNames: string[],
+    ): Promise<string[]> {
+        return this.database(CachedExploreTableName)
+            .where('project_uuid', projectUuid)
+            .whereIn('name', exploreNames)
+            .distinct('name')
+            .pluck('name');
+    }
+
+    /**
+     * Matches on sqlTable because a join can alias the table, which makes it
+     * invisible to table_names.
+     */
+    async findExploreNamesReadingBaseTables(
+        projectUuid: string,
+        exploreNames: string[],
+    ): Promise<string[]> {
+        const { rows } = await this.database.raw<{
+            rows: { name: string }[];
+        }>(
+            `SELECT DISTINCT reader.name
+             FROM ${CachedExploreTableName} reader
+             CROSS JOIN LATERAL jsonb_each(
+                 CASE WHEN jsonb_typeof(reader.explore->'tables') = 'object'
+                      THEN reader.explore->'tables'
+                      ELSE '{}'::jsonb
+                 END
+             ) AS reader_table
+             WHERE reader.project_uuid = ?
+               AND reader.explore->>'type' IS DISTINCT FROM 'pre_aggregate'
+               AND reader_table.value->>'sqlTable' IN (
+                   SELECT listed.explore->'tables'->(listed.explore->>'baseTable')->>'sqlTable'
+                   FROM ${CachedExploreTableName} listed
+                   WHERE listed.project_uuid = ?
+                     AND listed.name = ANY(?)
+               )`,
+            [projectUuid, projectUuid, exploreNames],
+        );
+        return rows.map(({ name }) => name);
+    }
+
     async findExploreTableSummariesFromCache(
         projectUuid: string,
         exploreNamesWithDuplicates?: string[],

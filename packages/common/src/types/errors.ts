@@ -912,7 +912,10 @@ export class AiAgentValidatorError extends LightdashError {
     }
 }
 
-export type WarehouseTokenErrorData = { sharedSignIn?: SharedSignInExpiry };
+export type WarehouseTokenErrorData = {
+    sharedSignIn?: SharedSignInExpiry;
+    requiresUserReauthentication?: true;
+};
 
 /* This specific error will be used in the frontend
 to show a "reauthenticate" button in the UI
