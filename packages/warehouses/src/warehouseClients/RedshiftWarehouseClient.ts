@@ -88,6 +88,11 @@ const getSSLConfigFromMode = (mode: string): PoolConfig['ssl'] => {
     }
 };
 
+export type RedshiftLogger = {
+    info: (message: string, metadata?: Record<string, unknown>) => void;
+    warn?: (message: string, metadata?: Record<string, unknown>) => void;
+};
+
 export class RedshiftSqlBuilder extends PostgresSqlBuilder {
     type = WarehouseTypes.REDSHIFT;
 
@@ -101,13 +106,19 @@ export class RedshiftWarehouseClient extends PostgresClient<CreateRedshiftCreden
 
     private readonly agentJobControls: boolean;
 
+    private readonly logger: Required<RedshiftLogger>;
+
     private cachedIamPoolConfig:
         | { config: PoolConfig; expiresAt: number }
         | undefined;
 
     constructor(
         credentials: CreateRedshiftCredentials,
-        options?: { agentSession?: boolean; agentJobControls?: boolean },
+        options?: {
+            agentSession?: boolean;
+            agentJobControls?: boolean;
+            logger?: RedshiftLogger;
+        },
     ) {
         const sslmode = credentials.sslmode || 'prefer';
         const ssl = getSSLConfigFromMode(sslmode);
@@ -138,6 +149,13 @@ export class RedshiftWarehouseClient extends PostgresClient<CreateRedshiftCreden
         );
         this.ssl = ssl;
         this.agentJobControls = options?.agentJobControls ?? false;
+        const logger = options?.logger;
+        this.logger = logger
+            ? {
+                  info: logger.info.bind(logger),
+                  warn: (logger.warn ?? logger.info).bind(logger),
+              }
+            : console;
         // Override the sqlBuilder with RedshiftSqlBuilder
         this.sqlBuilder = new RedshiftSqlBuilder(credentials.startOfWeek);
     }
@@ -195,7 +213,8 @@ export class RedshiftWarehouseClient extends PostgresClient<CreateRedshiftCreden
         streamCallback: (data: WarehouseResults) => void | Promise<void>,
         options: PostgresStreamQueryOptions,
     ): Promise<void> {
-        const queryUuid = options.tags?.query_uuid ?? 'unknown';
+        const queryUuid = options.tags?.query_uuid ?? null;
+        const startedAt = Date.now();
         for (let retry = 0; retry < MAX_STALL_RETRIES; retry += 1) {
             const stallError = new WarehouseQueryError(
                 'Warehouse query stalled before reaching the warehouse',
@@ -205,21 +224,28 @@ export class RedshiftWarehouseClient extends PostgresClient<CreateRedshiftCreden
             const stallCheck = setTimeout(() => {
                 if (!attempt || attempt.hasReceivedRow()) return;
                 const watched = attempt;
+                const lookupStart = Date.now();
                 void this.getStallVerdict(watched).then((verdict) => {
                     if (settled) return;
+                    const metadata = {
+                        queryUuid,
+                        pid: watched.getBackendPid(),
+                        reason: verdict.reason,
+                        retry,
+                        maxRetries: MAX_STALL_RETRIES,
+                        stallCheckDelayMs: STALL_CHECK_DELAY_MS,
+                        lookupMs: Date.now() - lookupStart,
+                        elapsedMs: Date.now() - startedAt,
+                    };
                     if (verdict.stalled && watched.abort(stallError)) {
-                        console.warn(
-                            `Redshift query ${queryUuid} stalled with no first row after ${
-                                STALL_CHECK_DELAY_MS / 1000
-                            }s (${verdict.reason}, pid ${watched.getBackendPid()}). Retrying on a new connection (retry ${
-                                retry + 1
-                            } of ${MAX_STALL_RETRIES})`,
+                        this.logger.warn(
+                            'Redshift query stalled with no first row, retrying on a new connection',
+                            metadata,
                         );
                     } else {
-                        console.info(
-                            `Redshift query ${queryUuid} has no first row after ${
-                                STALL_CHECK_DELAY_MS / 1000
-                            }s, still waiting (${verdict.reason}, pid ${watched.getBackendPid()})`,
+                        this.logger.info(
+                            'Redshift query has no first row yet, still waiting',
+                            metadata,
                         );
                     }
                 });
@@ -234,6 +260,16 @@ export class RedshiftWarehouseClient extends PostgresClient<CreateRedshiftCreden
                         attempt = started;
                     },
                 );
+                if (retry > 0) {
+                    this.logger.info(
+                        'Redshift query recovered after stall retry',
+                        {
+                            queryUuid,
+                            retry,
+                            elapsedMs: Date.now() - startedAt,
+                        },
+                    );
+                }
                 return;
             } catch (error) {
                 if (error !== stallError) throw error;
@@ -242,6 +278,14 @@ export class RedshiftWarehouseClient extends PostgresClient<CreateRedshiftCreden
                 clearTimeout(stallCheck);
             }
         }
+        this.logger.warn(
+            'Redshift query stalled on every retry, running the final attempt unwatched',
+            {
+                queryUuid,
+                retries: MAX_STALL_RETRIES,
+                elapsedMs: Date.now() - startedAt,
+            },
+        );
         await this.streamQueryAttempt(sql, streamCallback, options, null);
     }
 
@@ -264,9 +308,10 @@ export class RedshiftWarehouseClient extends PostgresClient<CreateRedshiftCreden
                 query_timeout: STALL_LOOKUP_TIMEOUT_MS,
             });
             client.on('error', (error) => {
-                console.warn(
-                    `Redshift stall lookup connection error: ${getErrorMessage(error)}`,
-                );
+                this.logger.warn('Redshift stall lookup connection error', {
+                    pid,
+                    error: getErrorMessage(error),
+                });
             });
             await client.connect();
             const { rows } = await client.query<{
@@ -280,9 +325,10 @@ export class RedshiftWarehouseClient extends PostgresClient<CreateRedshiftCreden
                 ? { stalled: true, reason: 'no_query_record' }
                 : { stalled: false, reason: 'query_recorded' };
         } catch (error) {
-            console.warn(
-                `Redshift stall lookup failed: ${getErrorMessage(error)}`,
-            );
+            this.logger.warn('Redshift stall lookup failed', {
+                pid,
+                error: getErrorMessage(error),
+            });
             return { stalled: false, reason: 'lookup_failed' };
         } finally {
             await client?.end().catch(() => undefined);
