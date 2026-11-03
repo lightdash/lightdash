@@ -7489,7 +7489,9 @@ export class ProjectService
             const dbtTargetPolicy = await this.getDbtTargetPolicy(
                 projectOrganizationUuid ?? user.organizationUuid,
             );
-            const gitCheckout = 'full';
+            const gitCheckout = await this.getGitCheckoutMode(
+                projectOrganizationUuid ?? user.organizationUuid,
+            );
             const resolvedLease = lease;
             adapter = await projectAdapterFromConfig(
                 dbtConnection,
@@ -8319,7 +8321,9 @@ export class ProjectService
         const dbtTargetPolicy = await this.getDbtTargetPolicy(
             project.organizationUuid,
         );
-        const gitCheckout = 'full';
+        const gitCheckout = await this.getGitCheckoutMode(
+            project.organizationUuid,
+        );
         if (agentExecutionContext.getStore()?.agentConnectionExecution)
             await this.assertAgentConnectionEffect(
                 projectUuid,
@@ -8446,6 +8450,21 @@ export class ProjectService
             this.analytics,
             { gitCheckout },
         );
+    }
+
+    private async getGitCheckoutMode(
+        organizationUuid: string | undefined,
+    ): Promise<GitCheckoutMode> {
+        if (organizationUuid === undefined) {
+            throw new ForbiddenError(
+                'Project organization is required to run dbt.',
+            );
+        }
+        const { enabled } = await this.featureFlagModel.get({
+            user: { organizationUuid },
+            featureFlagId: FeatureFlags.DbtSparseGitCheckout,
+        });
+        return enabled ? 'sparse' : 'full';
     }
 
     private async getDbtTargetPolicy(

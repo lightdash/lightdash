@@ -159,6 +159,7 @@ describe('FeatureFlagModel', () => {
         FeatureFlags.DbtPartialParse,
         FeatureFlags.AgentIdentity,
         FeatureFlags.BigqueryWorkloadIdentityAuth,
+        FeatureFlags.DbtSparseGitCheckout,
     ])('%s production rollout', (featureFlagId) => {
         const config = {
             previewFeatureFlags: { enabled: false },
@@ -211,7 +212,10 @@ describe('FeatureFlagModel', () => {
                             disable ? [featureFlagId] : [],
                         ),
                     },
-                    buildFakeDatabase({ orgOverride: { enabled: true } }),
+                    buildFakeDatabase({
+                        flag: { default_enabled: false },
+                        orgOverride: { enabled: true },
+                    }),
                 );
                 expect(
                     (await model.get({ featureFlagId, user: dbUser })).enabled,
@@ -393,18 +397,56 @@ describe('FeatureFlagModel', () => {
             expect(result.enabled).toBe(true);
         });
 
-        it('leaves excluded flags to the normal resolution order', async () => {
+        it.each([
+            FeatureFlags.OrganizationTrialBlock,
+            FeatureFlags.DbtSparseGitCheckout,
+        ])(
+            'leaves excluded flag %s to the normal resolution order',
+            async (featureFlagId) => {
+                const model = buildModel(
+                    previewConfig,
+                    buildFakeDatabase({ flag: { default_enabled: false } }),
+                );
+
+                const result = await model.get({
+                    featureFlagId,
+                    user: dbUser,
+                });
+
+                expect(result.enabled).toBe(false);
+            },
+        );
+
+        it('supports organization-only sparse-checkout opt-in in previews without ENV enablement', async () => {
             const model = buildModel(
                 previewConfig,
-                buildFakeDatabase({ flag: { default_enabled: false } }),
+                buildFakeDatabase({
+                    flag: { default_enabled: false },
+                    userOverride: { enabled: true },
+                    orgOverride: {
+                        organization_uuid: dbUser.organizationUuid,
+                        enabled: true,
+                    },
+                }),
             );
-
-            const result = await model.get({
-                featureFlagId: FeatureFlags.OrganizationTrialBlock,
-                user: dbUser,
+            await expect(
+                model.get({
+                    featureFlagId: FeatureFlags.DbtSparseGitCheckout,
+                    user: { organizationUuid: dbUser.organizationUuid },
+                }),
+            ).resolves.toEqual({
+                id: FeatureFlags.DbtSparseGitCheckout,
+                enabled: true,
             });
-
-            expect(result.enabled).toBe(false);
+            await expect(
+                model.get({
+                    featureFlagId: FeatureFlags.DbtSparseGitCheckout,
+                    user: { organizationUuid: 'other-org' },
+                }),
+            ).resolves.toEqual({
+                id: FeatureFlags.DbtSparseGitCheckout,
+                enabled: false,
+            });
         });
 
         it('respects the disable-allowlist over the preview default', async () => {
