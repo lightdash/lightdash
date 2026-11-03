@@ -27,7 +27,7 @@ import {
     IconPencil,
     IconSettings,
 } from '@tabler/icons-react';
-import isEqual from 'lodash/isEqual';
+import { isEqual } from 'es-toolkit/compat';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import TruncatedText from '../../components/common/TruncatedText';
