@@ -21,6 +21,10 @@ import {
     AiAgentReasoningTableName,
 } from '../database/entities/aiAgentReasoning';
 import {
+    AiAgentWarehouseTableListsTable,
+    AiAgentWarehouseTableListsTableName,
+} from '../database/entities/aiAgentWarehouseTableLists';
+import {
     AiServiceAccountCredentialsTable,
     AiServiceAccountCredentialsTableName,
 } from '../database/entities/aiServiceAccountCredentials';
@@ -815,6 +819,7 @@ declare module 'knex/types/tables' {
         [CredentialsTableName]: CredentialsTable;
         [OrganizationAgentIdentityRulesTableName]: OrganizationAgentIdentityRulesTable;
         [AiServiceAccountCredentialsTableName]: AiServiceAccountCredentialsTable;
+        [AiAgentWarehouseTableListsTableName]: AiAgentWarehouseTableListsTable;
         [OrganizationSnowflakeAgentClientsTableName]: OrganizationSnowflakeAgentClientsTable;
         [DocumentsTableName]: DocumentsTable;
         [DocumentVersionsTableName]: DocumentVersionsTable;

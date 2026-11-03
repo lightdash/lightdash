@@ -126,6 +126,7 @@ import {
     type WarehouseConnection,
     type WarehouseLocation,
     type WarehouseTables,
+    type WarehouseTablesCatalog,
     type WarehouseTableSchema,
 } from '@lightdash/common';
 import {
@@ -200,7 +201,10 @@ import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { UserModel } from '../../models/UserModel';
 import { UserOAuthGrantsModel } from '../../models/UserOAuthGrantsModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
-import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
+import {
+    WarehouseAvailableTablesModel,
+    type AgentTableListKey,
+} from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { type WarehouseConnectionCompileModel } from '../../models/WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
 import { type WarehouseConnectionIdentityModel } from '../../models/WarehouseConnectionIdentityModel/WarehouseConnectionIdentityModel';
 import { WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
@@ -264,6 +268,7 @@ import {
     type WarehouseClientFactory,
     type WarehouseConnectionLease,
 } from '../WarehouseClientFactory/WarehouseClientFactory';
+import { getAgentTableListScopeFingerprint } from './agentTableList';
 import * as analyticsClient from './analyticsProject/analyticsProjectClient';
 import { clearSecretsFromCredentials } from './personalWarehouseCredentials';
 import { type CheckGoogleRefreshToken } from './previewBigquerySsoCredentials';
@@ -21926,6 +21931,13 @@ describe('AI principal credential routing', () => {
         const configured = getMockedProjectService(
             lightdashConfigWithGoogleOAuthMock,
         );
+        const savedLists = {
+            getTablesForProjectWarehouseCredentials: vi.fn(),
+            getTablesForUserWarehouseCredentials: vi.fn(),
+            getAgentTableList: vi.fn(async () => null),
+            saveAgentTableList: vi.fn(async () => 'saved' as const),
+        };
+        Object.assign(configured.warehouseAvailableTablesModel, savedLists);
         vi.mocked(
             projectModel.getWarehouseCredentialsForProject,
         ).mockResolvedValueOnce(credentials);
@@ -21956,6 +21968,22 @@ describe('AI principal credential routing', () => {
         );
         expect(getAllTables).toHaveBeenCalledOnce();
         expect(disconnect).toHaveBeenCalledOnce();
+        expect(
+            savedLists.getTablesForProjectWarehouseCredentials,
+        ).not.toHaveBeenCalled();
+        expect(
+            savedLists.getTablesForUserWarehouseCredentials,
+        ).not.toHaveBeenCalled();
+        expect(savedLists.getAgentTableList).toHaveBeenCalledExactlyOnceWith({
+            owner: {
+                kind: 'agent_sign_in',
+                userUuid: plan.audit.personUuid,
+                userWarehouseCredentialsUuid: plan.identityUuid,
+            },
+            projectUuid,
+            scopeFingerprint: expect.stringMatching(/^[0-9a-f]{64}$/),
+        });
+        expect(savedLists.saveAgentTableList).not.toHaveBeenCalled();
     });
     test('uses the AI credentials before looking up personal credentials', async () => {
         const configured = getMockedProjectService(
@@ -23496,5 +23524,534 @@ describe('ProjectService.replaceProjectContextFromFile', () => {
             }),
         ).rejects.toThrow(ParseError);
         expect(replaceEntriesForProject).not.toHaveBeenCalled();
+    });
+});
+
+describe('agent saved table lists', () => {
+    const ids = {
+        projectA: '0a000000-0000-4000-8000-000000000001',
+        projectB: '0a000000-0000-4000-8000-000000000002',
+        parentProject: '0a000000-0000-4000-8000-000000000003',
+        previewProject: '0a000000-0000-4000-8000-000000000004',
+        person: '0b000000-0000-4000-8000-000000000001',
+        otherPerson: '0b000000-0000-4000-8000-000000000002',
+        signInOne: '0c000000-0000-4000-8000-000000000001',
+        signInTwo: '0c000000-0000-4000-8000-000000000002',
+        slotOne: '0d000000-0000-4000-8000-000000000001',
+        slotTwo: '0d000000-0000-4000-8000-000000000002',
+        generationOne: '0e000000-0000-4000-8000-000000000001',
+        generationTwo: '0e000000-0000-4000-8000-000000000002',
+    };
+    const signInPlan = (
+        identityUuid: string,
+        credentials: Partial<CreatePostgresCredentials> = {},
+        personUuid: string = ids.person,
+    ): Extract<AiExecutionPlan, { identity: 'connected_person' }> => ({
+        ...aiExecutionPlanMock,
+        identityUuid,
+        credentials: {
+            ...(aiExecutionPlanMock.credentials as CreatePostgresCredentials),
+            ...credentials,
+        },
+        audit: { ...aiExecutionPlanMock.audit, personUuid },
+    });
+    const serviceAccountPlan = (
+        credentialUuid: string,
+        identityUuid: string,
+        overrides: Partial<
+            Extract<AiExecutionPlan, { identity: 'ai_service_account' }>
+        > = {},
+    ): Extract<AiExecutionPlan, { identity: 'ai_service_account' }> => ({
+        ...aiServiceAccountPlanMock,
+        credentialUuid,
+        identityUuid,
+        ...overrides,
+    });
+    const tablesFor = (name: string): WarehouseTables => [
+        {
+            database: 'warehouse',
+            schema: 'public',
+            table: name,
+            tableType: WarehouseTableType.TABLE,
+        },
+    ];
+    const catalogFor = (name: string) => ({
+        warehouse: {
+            public: {
+                [name]: {
+                    partitionColumn: undefined,
+                    tableType: WarehouseTableType.TABLE,
+                },
+            },
+        },
+    });
+
+    const createSavedLists = () => {
+        const lists = new Map<
+            string,
+            { generation: string; tables: WarehouseTablesCatalog }
+        >();
+        const slot = (key: AgentTableListKey) =>
+            [
+                key.owner.kind,
+                key.owner.kind === 'agent_sign_in'
+                    ? key.owner.userUuid
+                    : key.owner.slotUuid,
+                key.projectUuid,
+                key.scopeFingerprint,
+            ].join('|');
+        const generation = (key: AgentTableListKey) =>
+            key.owner.kind === 'agent_sign_in'
+                ? key.owner.userWarehouseCredentialsUuid
+                : key.owner.identityUuid;
+        const model = {
+            getTablesForProjectWarehouseCredentials: vi.fn(
+                async () => ({}) as WarehouseTablesCatalog,
+            ),
+            getTablesForUserWarehouseCredentials: vi.fn(),
+            createAvailableTablesForProjectWarehouseCredentials: vi.fn(
+                async () => undefined,
+            ),
+            createAvailableTablesForUserWarehouseCredentials: vi.fn(),
+            getAgentTableList: vi.fn(async (key: AgentTableListKey) => {
+                const list = lists.get(slot(key));
+                return list?.generation === generation(key)
+                    ? list.tables
+                    : null;
+            }),
+            saveAgentTableList: vi.fn(
+                async (
+                    key: AgentTableListKey,
+                    tables: WarehouseTablesCatalog,
+                ) => {
+                    lists.set(slot(key), {
+                        generation: generation(key),
+                        tables,
+                    });
+                    return 'saved' as const;
+                },
+            ),
+        };
+        return { model, lists };
+    };
+
+    const setup = () => {
+        vi.mocked(projectModel.getWarehouseCredentialsForProject).mockReset();
+        vi.mocked(
+            projectModel.getWarehouseCredentialsForProject,
+        ).mockImplementation(async () => warehouseClientMock.credentials);
+        const configured = getMockedProjectService(
+            lightdashConfigWithGoogleOAuthMock,
+        );
+        const saved = createSavedLists();
+        Object.assign(configured.warehouseAvailableTablesModel, saved.model);
+        const resolvePlan = vi.spyOn(configured.aiAccessService, 'resolvePlan');
+        const getAllTables = vi.fn<WarehouseClient['getAllTables']>();
+        const acquire = vi
+            .spyOn(configured.warehouseClientFactory, 'acquireUnscoped')
+            .mockResolvedValue({
+                warehouseClient: { getAllTables } as unknown as WarehouseClient,
+                sshTunnel: {
+                    disconnect: vi.fn(),
+                } as unknown as SshTunnel<CreateWarehouseCredentials>,
+                tunnelConnectMs: null,
+            });
+        const list = (
+            context?: QueryExecutionContext,
+            project: string = ids.projectA,
+        ) => configured.getWarehouseTables(user, project, context);
+        return { saved, resolvePlan, getAllTables, acquire, list };
+    };
+
+    test.each([
+        { name: 'agent sign-in', plan: signInPlan(ids.signInOne) },
+        {
+            name: 'shared agent account',
+            plan: serviceAccountPlan(ids.slotOne, ids.generationOne),
+        },
+    ])(
+        'repeated calls as $name run table discovery once and resolve the plan every time',
+        async ({ plan }) => {
+            const { resolvePlan, getAllTables, acquire, list } = setup();
+            resolvePlan.mockResolvedValue(plan);
+            getAllTables.mockResolvedValue(tablesFor('orders'));
+
+            await expect(list(QueryExecutionContext.AI)).resolves.toEqual(
+                catalogFor('orders'),
+            );
+            await expect(list(QueryExecutionContext.AI)).resolves.toEqual(
+                catalogFor('orders'),
+            );
+            await expect(
+                list(QueryExecutionContext.MCP_RUN_SQL),
+            ).resolves.toEqual(catalogFor('orders'));
+
+            expect(getAllTables).toHaveBeenCalledOnce();
+            expect(acquire).toHaveBeenCalledOnce();
+            expect(resolvePlan).toHaveBeenCalledTimes(3);
+        },
+    );
+
+    test.each([
+        { name: 'agent sign-in', plan: signInPlan(ids.signInOne) },
+        {
+            name: 'shared agent account',
+            plan: serviceAccountPlan(ids.slotOne, ids.generationOne),
+        },
+    ])(
+        'the same $name in two projects gets one list per project',
+        async ({ plan }) => {
+            const { resolvePlan, getAllTables, list } = setup();
+            resolvePlan.mockResolvedValue(plan);
+            getAllTables
+                .mockResolvedValueOnce(tablesFor('project_a'))
+                .mockResolvedValueOnce(tablesFor('project_b'));
+
+            await expect(
+                list(QueryExecutionContext.AI, ids.projectA),
+            ).resolves.toEqual(catalogFor('project_a'));
+            await expect(
+                list(QueryExecutionContext.AI, ids.projectB),
+            ).resolves.toEqual(catalogFor('project_b'));
+            await expect(
+                list(QueryExecutionContext.AI, ids.projectA),
+            ).resolves.toEqual(catalogFor('project_a'));
+            await expect(
+                list(QueryExecutionContext.AI, ids.projectB),
+            ).resolves.toEqual(catalogFor('project_b'));
+
+            expect(getAllTables).toHaveBeenCalledTimes(2);
+        },
+    );
+
+    test.each([
+        {
+            name: 'agent sign-in database',
+            before: signInPlan(ids.signInOne, { dbname: 'analytics' }),
+            after: signInPlan(ids.signInOne, { dbname: 'finance' }),
+        },
+        {
+            name: 'agent sign-in role',
+            before: signInPlan(ids.signInOne, { role: 'reader' }),
+            after: signInPlan(ids.signInOne, { role: 'admin' }),
+        },
+        {
+            name: 'shared agent account project',
+            before: serviceAccountPlan(ids.slotOne, ids.generationOne),
+            after: serviceAccountPlan(ids.slotOne, ids.generationOne, {
+                credentials: {
+                    ...aiServiceAccountPlanMock.credentials,
+                    project: 'other-warehouse-project',
+                } as CreateWarehouseCredentials,
+            }),
+        },
+    ])(
+        'a $name change with the same credential lists again',
+        async ({ before, after }) => {
+            const { resolvePlan, getAllTables, list } = setup();
+            getAllTables
+                .mockResolvedValueOnce(tablesFor('before_change'))
+                .mockResolvedValueOnce(tablesFor('after_change'));
+            resolvePlan.mockResolvedValueOnce(before);
+            await list(QueryExecutionContext.AI);
+
+            resolvePlan.mockResolvedValue(after);
+            await expect(list(QueryExecutionContext.AI)).resolves.toEqual(
+                catalogFor('after_change'),
+            );
+            await expect(list(QueryExecutionContext.AI)).resolves.toEqual(
+                catalogFor('after_change'),
+            );
+
+            expect(getAllTables).toHaveBeenCalledTimes(2);
+        },
+    );
+
+    test('a rotated secret with the same identity and routing keeps the list', async () => {
+        const { resolvePlan, getAllTables, list } = setup();
+        getAllTables.mockResolvedValue(tablesFor('orders'));
+        resolvePlan.mockResolvedValueOnce(
+            signInPlan(ids.signInOne, { password: 'first-secret' }),
+        );
+        await list(QueryExecutionContext.AI);
+        resolvePlan.mockResolvedValueOnce(
+            signInPlan(ids.signInOne, { password: 'rotated-secret' }),
+        );
+
+        await expect(list(QueryExecutionContext.AI)).resolves.toEqual(
+            catalogFor('orders'),
+        );
+        expect(getAllTables).toHaveBeenCalledOnce();
+    });
+
+    test('a preview project that inherits the parent shared account keeps its own list', async () => {
+        const { resolvePlan, getAllTables, list } = setup();
+        resolvePlan.mockImplementation(async (args) =>
+            serviceAccountPlan(ids.slotOne, ids.generationOne, {
+                sourceProjectUuid: ids.parentProject,
+                inheritedFromProjectUuid:
+                    args.projectUuid === ids.previewProject
+                        ? ids.parentProject
+                        : null,
+            }),
+        );
+        getAllTables
+            .mockResolvedValueOnce(tablesFor('parent'))
+            .mockResolvedValueOnce(tablesFor('preview'));
+
+        await expect(
+            list(QueryExecutionContext.AI, ids.parentProject),
+        ).resolves.toEqual(catalogFor('parent'));
+        await expect(
+            list(QueryExecutionContext.AI, ids.previewProject),
+        ).resolves.toEqual(catalogFor('preview'));
+        await expect(
+            list(QueryExecutionContext.AI, ids.previewProject),
+        ).resolves.toEqual(catalogFor('preview'));
+
+        expect(getAllTables).toHaveBeenCalledTimes(2);
+    });
+
+    test('each identity gets its own list and person lists are not used', async () => {
+        const { saved, resolvePlan, getAllTables, list } = setup();
+        const identities = [
+            { plan: signInPlan(ids.signInOne), table: 'sign_in_one' },
+            {
+                plan: signInPlan(ids.signInTwo, {}, ids.otherPerson),
+                table: 'sign_in_two',
+            },
+            {
+                plan: serviceAccountPlan(ids.slotOne, ids.generationOne),
+                table: 'slot_one',
+            },
+            {
+                plan: serviceAccountPlan(ids.slotTwo, ids.generationOne),
+                table: 'slot_two',
+            },
+        ];
+        for (const { plan, table } of identities) {
+            resolvePlan.mockResolvedValueOnce(plan);
+            getAllTables.mockResolvedValueOnce(tablesFor(table));
+            // eslint-disable-next-line no-await-in-loop
+            await expect(list(QueryExecutionContext.AI)).resolves.toEqual(
+                catalogFor(table),
+            );
+        }
+        for (const { plan, table } of identities) {
+            resolvePlan.mockResolvedValueOnce(plan);
+            // eslint-disable-next-line no-await-in-loop
+            await expect(list(QueryExecutionContext.AI)).resolves.toEqual(
+                catalogFor(table),
+            );
+        }
+
+        expect(getAllTables).toHaveBeenCalledTimes(identities.length);
+        expect(
+            saved.model.getTablesForProjectWarehouseCredentials,
+        ).not.toHaveBeenCalled();
+        expect(
+            saved.model.getTablesForUserWarehouseCredentials,
+        ).not.toHaveBeenCalled();
+        expect(
+            saved.model.createAvailableTablesForProjectWarehouseCredentials,
+        ).not.toHaveBeenCalled();
+        expect(
+            saved.model.createAvailableTablesForUserWarehouseCredentials,
+        ).not.toHaveBeenCalled();
+    });
+
+    test.each([
+        {
+            name: 'a replaced shared agent account credential',
+            before: serviceAccountPlan(ids.slotOne, ids.generationOne),
+            after: serviceAccountPlan(ids.slotOne, ids.generationTwo),
+        },
+        {
+            name: 'a new agent sign-in',
+            before: signInPlan(ids.signInOne),
+            after: signInPlan(ids.signInTwo),
+        },
+    ])('$name starts with an empty list', async ({ before, after }) => {
+        const { resolvePlan, getAllTables, list } = setup();
+        resolvePlan.mockResolvedValueOnce(before);
+        getAllTables.mockResolvedValueOnce(tablesFor('before'));
+        await list(QueryExecutionContext.AI);
+
+        resolvePlan.mockResolvedValue(after);
+        getAllTables.mockResolvedValueOnce(tablesFor('after'));
+        await expect(list(QueryExecutionContext.AI)).resolves.toEqual(
+            catalogFor('after'),
+        );
+        await expect(list(QueryExecutionContext.AI)).resolves.toEqual(
+            catalogFor('after'),
+        );
+
+        expect(getAllTables).toHaveBeenCalledTimes(2);
+    });
+
+    test('an empty list is not saved and is fetched again, like the SQL runner list', async () => {
+        const { saved, resolvePlan, getAllTables, list } = setup();
+        resolvePlan.mockResolvedValue(signInPlan(ids.signInOne));
+        getAllTables.mockResolvedValue([]);
+
+        await expect(list(QueryExecutionContext.AI)).resolves.toEqual({});
+        await expect(list(QueryExecutionContext.AI)).resolves.toEqual({});
+
+        expect(getAllTables).toHaveBeenCalledTimes(2);
+        expect(saved.model.saveAgentTableList).not.toHaveBeenCalled();
+    });
+
+    test.each([
+        {
+            name: 'rejected',
+            fail: (save: ReturnType<typeof vi.fn>) =>
+                save.mockRejectedValueOnce(new Error('project deleted')),
+        },
+        {
+            name: 'skipped as stale',
+            fail: (save: ReturnType<typeof vi.fn>) =>
+                save.mockResolvedValueOnce('stale'),
+        },
+    ])('a save that is $name still returns the live list', async ({ fail }) => {
+        const { saved, resolvePlan, getAllTables, list } = setup();
+        resolvePlan.mockResolvedValue(
+            serviceAccountPlan(ids.slotOne, ids.generationOne),
+        );
+        getAllTables.mockResolvedValue(tablesFor('orders'));
+        fail(saved.model.saveAgentTableList);
+
+        await expect(list(QueryExecutionContext.AI)).resolves.toEqual(
+            catalogFor('orders'),
+        );
+        await expect(list(QueryExecutionContext.AI)).resolves.toEqual(
+            catalogFor('orders'),
+        );
+        expect(getAllTables).toHaveBeenCalledTimes(2);
+    });
+
+    test('a refused plan stops a saved list from being served', async () => {
+        const { resolvePlan, getAllTables, list } = setup();
+        resolvePlan.mockResolvedValueOnce(
+            serviceAccountPlan(ids.slotOne, ids.generationOne),
+        );
+        getAllTables.mockResolvedValue(tablesFor('orders'));
+        await list(QueryExecutionContext.AI);
+        const refusal = new AiAccessRefusedError(
+            AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+        );
+        resolvePlan.mockRejectedValueOnce(refusal);
+
+        await expect(list(QueryExecutionContext.AI)).rejects.toBe(refusal);
+        expect(getAllTables).toHaveBeenCalledOnce();
+    });
+
+    test.each([
+        { name: 'agent-identity flag off', plan: null },
+        { name: 'agent runs as the person', plan: markedPersonPlanMock },
+    ])(
+        '$name keeps the person saved list and never touches agent lists',
+        async ({ plan }) => {
+            const { saved, resolvePlan, getAllTables, list } = setup();
+            resolvePlan.mockResolvedValue(plan);
+            getAllTables.mockResolvedValue(tablesFor('orders'));
+            saved.model.getTablesForProjectWarehouseCredentials
+                .mockResolvedValueOnce({})
+                .mockResolvedValueOnce(catalogFor('orders'));
+
+            await expect(list(QueryExecutionContext.AI)).resolves.toEqual(
+                catalogFor('orders'),
+            );
+            await expect(list(QueryExecutionContext.AI)).resolves.toEqual(
+                catalogFor('orders'),
+            );
+
+            expect(getAllTables).toHaveBeenCalledOnce();
+            expect(
+                saved.model.createAvailableTablesForProjectWarehouseCredentials,
+            ).toHaveBeenCalledExactlyOnceWith(
+                ids.projectA,
+                tablesFor('orders'),
+            );
+            expect(saved.model.getAgentTableList).not.toHaveBeenCalled();
+            expect(saved.model.saveAgentTableList).not.toHaveBeenCalled();
+        },
+    );
+
+    test('the person SQL runner list is read and written as before', async () => {
+        const { saved, resolvePlan, getAllTables, list } = setup();
+        getAllTables.mockResolvedValue(tablesFor('person_table'));
+        saved.model.getTablesForProjectWarehouseCredentials
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce(catalogFor('person_table'));
+
+        await expect(list()).resolves.toEqual(catalogFor('person_table'));
+        await expect(list()).resolves.toEqual(catalogFor('person_table'));
+
+        expect(getAllTables).toHaveBeenCalledOnce();
+        expect(resolvePlan).not.toHaveBeenCalled();
+        expect(
+            saved.model.createAvailableTablesForProjectWarehouseCredentials,
+        ).toHaveBeenCalledExactlyOnceWith(
+            ids.projectA,
+            tablesFor('person_table'),
+        );
+        expect(saved.model.getAgentTableList).not.toHaveBeenCalled();
+        expect(saved.model.saveAgentTableList).not.toHaveBeenCalled();
+    });
+});
+
+describe('getAgentTableListScopeFingerprint', () => {
+    const snowflake: CreateSnowflakeCredentials = {
+        type: WarehouseTypes.SNOWFLAKE,
+        account: 'account',
+        user: 'agent',
+        database: 'analytics',
+        warehouse: 'compute',
+        schema: 'public',
+        role: 'reader',
+        refreshToken: 'refresh-one',
+        token: 'access-one',
+    };
+    const fingerprint = (
+        credentials: CreateWarehouseCredentials,
+        warehouseConnectionUuid: string | null = null,
+    ) =>
+        getAgentTableListScopeFingerprint({
+            warehouseConnectionUuid,
+            credentials,
+        });
+
+    test('ignores secrets and field order', () => {
+        const { account: accountName, ...rest } = snowflake;
+        expect(
+            fingerprint({
+                ...rest,
+                account: accountName,
+                user: 'other-user',
+                refreshToken: 'refresh-two',
+                token: 'access-two',
+                password: 'secret',
+                privateKey: 'key',
+            } as CreateSnowflakeCredentials),
+        ).toBe(fingerprint(snowflake));
+        expect(fingerprint(snowflake)).toMatch(/^[0-9a-f]{64}$/);
+    });
+
+    test.each([
+        { field: 'database', value: 'finance' },
+        { field: 'warehouse', value: 'large' },
+        { field: 'role', value: 'admin' },
+        { field: 'schema', value: 'other' },
+        { field: 'account', value: 'other-account' },
+    ])('changes when $field changes', ({ field, value }) => {
+        expect(fingerprint({ ...snowflake, [field]: value })).not.toBe(
+            fingerprint(snowflake),
+        );
+    });
+
+    test('changes with the warehouse connection', () => {
+        expect(
+            fingerprint(snowflake, '0f000000-0000-4000-8000-000000000001'),
+        ).not.toBe(fingerprint(snowflake));
     });
 });
