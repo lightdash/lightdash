@@ -32,7 +32,9 @@ const CREDENTIALS_FALLBACK_LIFETIME_MS = 14 * 60 * 1000;
 // Tile queries on a healthy workgroup return a first row well within this.
 const STALL_CHECK_DELAY_MS = 30 * 1000;
 const MAX_STALL_RETRIES = 2;
-const STALL_LOOKUP_TIMEOUT_MS = 15 * 1000;
+// The lookup may itself have to wake a paused workgroup (~15s measured, up
+// to 90s reported), so it needs longer than a warm system-view query.
+const STALL_LOOKUP_TIMEOUT_MS = 60 * 1000;
 
 // The lookup must see its own running query, otherwise an empty result for
 // the stalled session proves nothing and we keep waiting.
