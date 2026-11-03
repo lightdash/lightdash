@@ -24,6 +24,10 @@ export const hasOpenLayer = () =>
 const PILL_SELECTOR = '[data-controls-pill]';
 // An open list's own dropdown, portalled out of the editor
 const LIST_SELECTOR = '.mantine-Popover-dropdown, [role="listbox"]';
+// A date input's calendar, portalled out of the editor. Mantine's DateInput
+// does not mark its input as expanded, so `hasOpenLayer` cannot see it: a day
+// picked there would read as a press outside and cancel the edit (PROD-12817)
+const DATES_DROPDOWN_SELECTOR = '[data-dates-dropdown]';
 
 type Args = {
     isOpen: boolean;
@@ -57,7 +61,11 @@ export const useEditorDismiss = ({
         const handlePointerDown = (event: PointerEvent) => {
             const target =
                 event.target instanceof Element ? event.target : null;
-            if (target?.closest(`[${EDITOR_ATTRIBUTE}], ${PILL_SELECTOR}`))
+            if (
+                target?.closest(
+                    `[${EDITOR_ATTRIBUTE}], ${PILL_SELECTOR}, ${DATES_DROPDOWN_SELECTOR}`,
+                )
+            )
                 return;
             // The press closes the open list, and only that; a new filter
             // with nothing picked has nothing to lose, unless the press is
