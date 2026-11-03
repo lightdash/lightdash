@@ -31,10 +31,10 @@ import { type Layout } from 'react-grid-layout';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import {
+    DASHBOARD_HEADER_HEIGHT,
     SCROLL_TO_TOP_BOTTOM,
     SCROLL_TO_TOP_BOTTOM_WITH_LAUNCHER,
 } from '../../components/common/Dashboard/dashboard.constants';
-import { useDashboardManageAccess } from '../../components/common/Dashboard/useDashboardManageAccess';
 import MantineIcon from '../../components/common/MantineIcon';
 import { ScrollToTop } from '../../components/common/ScrollToTop';
 import { StickyWithDetection } from '../../components/common/StickyWithDetection';
@@ -63,7 +63,6 @@ import {
     useDashboardUnmetFilterRequirements,
 } from '../dashboard/store';
 import { ControlsBar } from '../dashboardControls/ControlsBar';
-import { getTabsStickyOffset } from '../dashboardControls/editBand';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
 import { DashboardFiltersBarSummary } from '../dashboardFilters/DashboardFiltersBarSummary';
 import { doesFilterApplyToTile } from '../dashboardFilters/FilterConfiguration/utils';
@@ -351,7 +350,6 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const { search } = useLocation();
     const navigate = useNavigate();
     const dashboard = useDashboardContext((c) => c.dashboard);
-    const { userCanManageDashboard } = useDashboardManageAccess(dashboard);
     const dashboardUuid = dashboard?.uuid;
     const { dashboardUuid: routeDashboardUuidOrSlug } = useParams<{
         dashboardUuid: string;
@@ -1018,11 +1016,9 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                             >
                                 <StickyWithDetection
                                     // Header that includes dashboard title is sticky during editing
-                                    offset={getTabsStickyOffset(
-                                        isEditMode,
-                                        isDashboardControlsEnabled,
-                                        userCanManageDashboard,
-                                    )}
+                                    offset={
+                                        isEditMode ? DASHBOARD_HEADER_HEIGHT : 0
+                                    }
                                     onStuckChange={setIsHeaderStuck}
                                 >
                                     <div

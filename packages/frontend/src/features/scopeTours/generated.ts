@@ -154,7 +154,6 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
         sources: [
             'packages/frontend/src/components/DashboardTiles/TileBase/index.tsx',
             'packages/frontend/src/components/common/Dashboard/DashboardHeader.tsx',
-            'packages/frontend/src/features/dashboardControls/DashboardHeaderGuard.tsx',
         ],
         steps: [
             {
