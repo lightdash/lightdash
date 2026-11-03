@@ -40,6 +40,8 @@ export const nodeTypeLabelOf = (query: SourceQuery): string => {
             return 'Live data source';
         case QuerySourceType.DUCKDB:
             return 'DuckDB';
+        case QuerySourceType.FUNNEL:
+            return 'Funnel';
         default:
             return assertUnreachable(query, 'Unknown source type');
     }

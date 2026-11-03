@@ -4,7 +4,11 @@ import { MemoryRouter } from 'react-router';
 import { createQueryClient } from '../../providers/ReactQuery/createQueryClient';
 import TrackingProvider from '../../providers/Tracking/TrackingProvider';
 import AppProviderMock from '../../testing/__mocks__/providers/AppProvider.mock';
-import { ordersExplore, STORY_PROJECT_UUID } from './semanticQueryStoryData';
+import {
+    ordersExplore,
+    productEventsExplore,
+    STORY_PROJECT_UUID,
+} from './semanticQueryStoryData';
 
 const createStoryQueryClient = () => {
     const client = createQueryClient({
@@ -19,10 +23,14 @@ const createStoryQueryClient = () => {
         ['tables', 'orders', STORY_PROJECT_UUID],
         ordersExplore,
     );
+    client.setQueryData(
+        ['tables', 'product_events', STORY_PROJECT_UUID],
+        productEventsExplore,
+    );
     return client;
 };
 
-/** Query cache with the orders explore, router, app and tracking context. */
+/** Query cache with the orders and product events explores, router, app and tracking context. */
 const SemanticQueryStoryProviders: FC<PropsWithChildren> = ({ children }) => {
     const [client] = useState(createStoryQueryClient);
     return (

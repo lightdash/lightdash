@@ -1,11 +1,11 @@
 import {
     assertUnreachable,
     formatSql,
-    friendlyName,
     getItemMap,
     metricQueryOfSemanticNode,
     QuerySourceType,
     WarehouseTypes,
+    type FunnelSourceQuery,
     type SemanticLayerSourceQuery,
     type SourceQuery,
 } from '@lightdash/common';
@@ -14,32 +14,25 @@ import {
     Box,
     Collapse,
     Group,
-    HoverCard,
     Loader,
-    ScrollArea,
     Text,
     Tooltip,
 } from '@mantine/core';
-import {
-    createReactComponent,
-    IconCode,
-    IconTable,
-    type Icon,
-} from '@tabler/icons-react';
+import { createReactComponent, IconCode, type Icon } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import CodeBlock from '../../../../../../../components/common/CodeBlock/CodeBlock';
 import InlineErrorState from '../../../../../../../components/common/InlineErrorState';
 import MantineIcon from '../../../../../../../components/common/MantineIcon';
-import { ItemDetailMarkdown } from '../../../../../../../components/Explorer/ExploreTree/TableTree/ItemDetailPreview';
 import { useCompiledSqlFromMetricQuery } from '../../../../../../../hooks/useCompiledSql';
-import { useExploreByProjectUuid } from '../../../../../../../hooks/useExplore';
 import { useUiStrings } from '../../../../../../providers/Embed/useUiStrings';
+import { FunnelNodeDetails } from '../FunnelNodeDetails';
 import { SemanticNodeDetails } from '../SemanticNodeDetails';
 import styles from './PipelineNotebook.module.css';
 import { hasQueryDetails, type QueryPanel } from './semanticQueryOf';
+import { useNodeExplore } from './useNodeExplore';
 
 const codeOf = (
-    query: Exclude<SourceQuery, SemanticLayerSourceQuery>,
+    query: Exclude<SourceQuery, SemanticLayerSourceQuery | FunnelSourceQuery>,
 ): { code: string; language: 'sql' | 'python' } => {
     switch (query.sourceType) {
         case QuerySourceType.SQL:
@@ -134,45 +127,6 @@ type CellQueryProps = {
     openPanels: ReadonlySet<QueryPanel>;
 };
 
-// Labels fall back to field ids, so a failed explore load stays silent.
-const useNodeExplore = (query: SemanticLayerSourceQuery, projectUuid: string) =>
-    useExploreByProjectUuid(query.exploreName, projectUuid, {
-        onError: () => {},
-    }).data;
-
-/** The explore a semantic cell reads, with its description on hover. */
-export const ExploreSource: FC<{
-    query: SemanticLayerSourceQuery;
-    projectUuid: string;
-}> = ({ query, projectUuid }) => {
-    const explore = useNodeExplore(query, projectUuid);
-    const label = explore?.label ?? friendlyName(query.exploreName);
-    const description = explore?.tables[explore.baseTable]?.description;
-    return (
-        <HoverCard
-            openDelay={300}
-            keepMounted={false}
-            withArrow
-            disabled={!description}
-            position="top"
-        >
-            <HoverCard.Target>
-                <Group gap={4} wrap="nowrap" miw={0} className={styles.source}>
-                    <MantineIcon icon={IconTable} size={14} stroke={1.5} />
-                    <Text fz="xs" fw={500} truncate>
-                        {label}
-                    </Text>
-                </Group>
-            </HoverCard.Target>
-            <HoverCard.Dropdown p="xs" miw={300} maw={400}>
-                <ScrollArea.Autosize mah={300}>
-                    {description && <ItemDetailMarkdown source={description} />}
-                </ScrollArea.Autosize>
-            </HoverCard.Dropdown>
-        </HoverCard>
-    );
-};
-
 /** Toggles for a semantic cell's query views. */
 export const CellQueryToggles: FC<{
     query: SemanticLayerSourceQuery;
@@ -208,7 +162,7 @@ export const CellQueryToggles: FC<{
 const SemanticPanels: FC<
     Omit<CellQueryProps, 'query'> & { query: SemanticLayerSourceQuery }
 > = ({ query, projectUuid, canViewSql, openPanels }) => {
-    const explore = useNodeExplore(query, projectUuid);
+    const explore = useNodeExplore(query.exploreName, projectUuid);
     const fieldsMap = useMemo(
         () =>
             explore
@@ -245,17 +199,49 @@ const SemanticPanels: FC<
     );
 };
 
-/** Semantic query views when toggled open; a code cell's code, always. */
-export const CellQueryPanels: FC<CellQueryProps> = ({ query, ...props }) => (
-    <Box className={styles.panels}>
-        {query.sourceType === QuerySourceType.SEMANTIC_LAYER ? (
-            <SemanticPanels query={query} {...props} />
-        ) : (
-            props.canViewSql && (
-                <Box className={styles.codePanel}>
-                    <CodeBlock {...codeOf(query)} />
-                </Box>
-            )
-        )}
-    </Box>
-);
+// A funnel carries no code: its details are the query, so they stay open.
+const FunnelPanel: FC<{ query: FunnelSourceQuery; projectUuid: string }> = ({
+    query,
+    projectUuid,
+}) => {
+    const explore = useNodeExplore(query.exploreName, projectUuid);
+    const fieldsMap = useMemo(
+        () => (explore ? getItemMap(explore) : {}),
+        [explore],
+    );
+    return (
+        <Box className={styles.panel}>
+            <FunnelNodeDetails
+                query={query}
+                fieldsMap={fieldsMap}
+                projectUuid={projectUuid}
+            />
+        </Box>
+    );
+};
+
+/** Semantic query views when toggled open; a funnel's details and a code cell's code, always. */
+export const CellQueryPanels: FC<CellQueryProps> = ({ query, ...props }) => {
+    const panel = (() => {
+        switch (query.sourceType) {
+            case QuerySourceType.SEMANTIC_LAYER:
+                return <SemanticPanels query={query} {...props} />;
+            case QuerySourceType.FUNNEL:
+                return (
+                    <FunnelPanel
+                        query={query}
+                        projectUuid={props.projectUuid}
+                    />
+                );
+            default:
+                return (
+                    props.canViewSql && (
+                        <Box className={styles.codePanel}>
+                            <CodeBlock {...codeOf(query)} />
+                        </Box>
+                    )
+                );
+        }
+    })();
+    return <Box className={styles.panels}>{panel}</Box>;
+};

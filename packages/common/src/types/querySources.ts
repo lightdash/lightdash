@@ -8,6 +8,11 @@ import {
     type TableCalculation,
 } from './field';
 import {
+    type FunnelConversionWindowUnit,
+    type FunnelDateRange,
+    type FunnelStep,
+} from './funnel';
+import {
     type AdditionalMetric,
     type DimensionOverrides,
     type MetricOverrides,
@@ -50,6 +55,12 @@ export enum QuerySourceType {
     PYTHON = 'python',
     /** A query sent live to an external API, such as HogQL to PostHog. */
     API = 'api',
+    /**
+     * A declarative conversion funnel over an explore's event rows: who did
+     * these events, in this order, within a window. Compiled to warehouse
+     * SQL by the server; the node carries no SQL.
+     */
+    FUNNEL = 'funnel',
 }
 
 /** The external APIs an api query source can call live. */
@@ -288,6 +299,51 @@ export type ApiSourceQuery = {
 };
 
 /**
+ * A conversion funnel as a source query. Declarative like a metric query:
+ * an explore, the three event fields (who, when, what), the ordered steps
+ * and the window a user has to reach the next step. The server compiles it
+ * to warehouse SQL through the explore, so the node never carries SQL.
+ *
+ * Result columns are fixed, one row per step (per breakdown value when a
+ * breakdown is set): step_order, step_name, total_users, conversion_rate
+ * (% of step 1), step_conversion_rate (% of the previous step),
+ * median_time_to_convert (seconds from the previous step; null on step 1)
+ * and breakdown_value when a breakdown is set.
+ */
+export type FunnelSourceQuery = {
+    sourceType: QuerySourceType.FUNNEL;
+    /** Names this query so other queries in the same submission can reference its results. */
+    nodeId?: QueryNodeId;
+    /** Plain-language label shown to users instead of the node id. */
+    title?: string;
+    /** One-line note on what this query does, shown under the title. */
+    description?: string;
+    /** The explore whose rows are the events; its base table is scanned. */
+    exploreName: string;
+    /** Dimension field id identifying who moves through the funnel, e.g. "product_events_user_id". */
+    userIdFieldId: FieldId;
+    /** Timestamp dimension field id ordering a user's events. */
+    timestampFieldId: FieldId;
+    /** Dimension field id whose values are the event names the steps match. */
+    eventNameFieldId: FieldId;
+    /** Ordered steps, at least two; a user counts in a step only after completing every earlier step. */
+    steps: FunnelStep[];
+    /** Rows outside this range are not scanned. */
+    dateRange: FunnelDateRange;
+    /** How long after the previous step the next one must happen. Defaults to 30 days. */
+    conversionWindow?: {
+        value: number;
+        unit: FunnelConversionWindowUnit;
+    };
+    /** Dimension field id to split every step by; a user converts only within the same value. */
+    breakdownDimensionId?: FieldId;
+    /** Max rows to return; funnels return one row per step per breakdown value. */
+    limit?: number;
+    /** Funnel queries refuse a pivot; pivot in a referencing duckdb query. */
+    pivotConfiguration?: PivotConfiguration;
+};
+
+/**
  * The tagged union every submit endpoint takes: one shape per source,
  * discriminated by sourceType. New sources add a member here — this union is
  * the extension point, not new WarehouseTypes values.
@@ -298,7 +354,8 @@ export type SourceQuery =
     | DuckdbSourceQuery
     | ExternalSourceQuery
     | PythonSourceQuery
-    | ApiSourceQuery;
+    | ApiSourceQuery
+    | FunnelSourceQuery;
 
 /** A column in a source schema, aligned with ResultColumns' {reference, type}. */
 export type QuerySourceSchemaColumn = {
@@ -435,6 +492,7 @@ export const getSourceQueryResultReferences = (
         case QuerySourceType.SQL:
         case QuerySourceType.EXTERNAL:
         case QuerySourceType.API:
+        case QuerySourceType.FUNNEL:
             return {};
         default:
             return assertUnreachable(query, 'Unknown source type');

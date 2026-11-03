@@ -557,6 +557,7 @@ export class QuerySourceService extends BaseService {
                 externalNodeCount: count(QuerySourceType.EXTERNAL),
                 pythonNodeCount: count(QuerySourceType.PYTHON),
                 apiNodeCount: count(QuerySourceType.API),
+                funnelNodeCount: count(QuerySourceType.FUNNEL),
             },
         });
     }

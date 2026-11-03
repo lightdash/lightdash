@@ -3,9 +3,11 @@ import {
     UnexpectedServerError,
     type QuerySourceType,
 } from '@lightdash/common';
+import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type { AsyncQueryService } from '../AsyncQueryService/AsyncQueryService';
 import type { ProjectService } from '../ProjectService/ProjectService';
 import { DuckdbQuerySource } from './sources/DuckdbQuerySource';
+import { FunnelQuerySource } from './sources/FunnelQuerySource';
 import { PythonQuerySource } from './sources/PythonQuerySource';
 import { SemanticLayerQuerySource } from './sources/SemanticLayerQuerySource';
 import { SqlQuerySource } from './sources/SqlQuerySource';
@@ -24,9 +26,14 @@ export class QuerySourceRegistry {
     static withBuiltInSources({
         asyncQueryService,
         projectService,
+        projectModel,
+        funnelBuilderEnabled,
     }: {
         asyncQueryService: AsyncQueryService;
         projectService: ProjectService;
+        projectModel: ProjectModel;
+        /** lightdashConfig.funnelBuilder.enabled, the funnel builder's ENV gate. */
+        funnelBuilderEnabled: boolean;
     }): QuerySourceRegistry {
         const registry = new QuerySourceRegistry();
         registry.register(
@@ -43,6 +50,15 @@ export class QuerySourceRegistry {
         );
         registry.register(new DuckdbQuerySource({ asyncQueryService }));
         registry.register(new PythonQuerySource({ asyncQueryService }));
+        if (funnelBuilderEnabled) {
+            registry.register(
+                new FunnelQuerySource({
+                    asyncQueryService,
+                    projectService,
+                    projectModel,
+                }),
+            );
+        }
         return registry;
     }
 

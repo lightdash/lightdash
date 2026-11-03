@@ -335,6 +335,7 @@ describe('QuerySourceService', () => {
                     sqlNodeCount: 1,
                     duckdbNodeCount: 1,
                     apiNodeCount: 0,
+                    funnelNodeCount: 0,
                 }),
             });
             trackAccount.mockRestore();

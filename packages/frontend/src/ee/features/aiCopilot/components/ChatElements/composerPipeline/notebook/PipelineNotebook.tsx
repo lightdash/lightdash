@@ -35,9 +35,11 @@ import { NodeStatusIndicator } from '../../ComposerNodeStatusIndicator';
 import { type ComposerRunNodeStatus } from '../../useComposerRunNodeStatuses';
 import { ComposerNodeIcon } from '../ComposerNodeIcon';
 import { nodeTypeLabelOf, type PipelineNode } from '../groupPipeline';
-import { CellQueryPanels, CellQueryToggles, ExploreSource } from './NodeQuery';
+import { ExploreSource } from './ExploreSource';
+import { CellQueryPanels, CellQueryToggles } from './NodeQuery';
 import styles from './PipelineNotebook.module.css';
 import {
+    funnelQueryOf,
     hasQueryDetails,
     semanticQueryOf,
     type QueryPanel,
@@ -120,6 +122,8 @@ const NotebookCell: FC<CellProps> = ({
     const [resultsOpen, setResultsOpen] = useState(false);
     const status = nodeStatuses[node.nodeId];
     const semanticQuery = semanticQueryOf(node.query);
+    const exploreName =
+        (semanticQuery ?? funnelQueryOf(node.query))?.exploreName ?? null;
     const hasResult =
         displayableNodeIds.has(node.nodeId) &&
         (status === undefined || status.status === 'success');
@@ -223,29 +227,31 @@ const NotebookCell: FC<CellProps> = ({
                     className={styles.cellFrame}
                     data-flash={flashing}
                     data-empty={
-                        !semanticQuery &&
+                        exploreName === null &&
                         !canViewSql &&
                         !hasError &&
                         !hasResult &&
                         !summary
                     }
                 >
-                    {semanticQuery && (
+                    {exploreName !== null && (
                         <Group
                             justify="space-between"
                             wrap="nowrap"
                             className={styles.toolbar}
                         >
                             <ExploreSource
-                                query={semanticQuery}
+                                exploreName={exploreName}
                                 projectUuid={projectUuid}
                             />
-                            <CellQueryToggles
-                                query={semanticQuery}
-                                canViewSql={canViewSql}
-                                openPanels={openPanels}
-                                onTogglePanel={togglePanel}
-                            />
+                            {semanticQuery && (
+                                <CellQueryToggles
+                                    query={semanticQuery}
+                                    canViewSql={canViewSql}
+                                    openPanels={openPanels}
+                                    onTogglePanel={togglePanel}
+                                />
+                            )}
                         </Group>
                     )}
                     <CellQueryPanels

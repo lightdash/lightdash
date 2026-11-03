@@ -9,6 +9,9 @@ import { getVisualizationFiltersCount } from '../../AiVisualizationRenderer.util
 export const semanticQueryOf = (query: SourceQuery) =>
     query.sourceType === QuerySourceType.SEMANTIC_LAYER ? query : null;
 
+export const funnelQueryOf = (query: SourceQuery) =>
+    query.sourceType === QuerySourceType.FUNNEL ? query : null;
+
 export const hasQueryDetails = (query: SemanticLayerSourceQuery) => {
     const { dimensions, metrics, filters, sorts } =
         metricQueryOfSemanticNode(query);

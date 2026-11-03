@@ -11,6 +11,7 @@ import {
     type QuerySourceDefinition,
     type QuerySourceSchema,
     type QuerySourceSchemaColumn,
+    type QuerySourceSchemaTable,
     type SemanticLayerSourceQuery,
     type SourceQuery,
 } from '@lightdash/common';
@@ -25,6 +26,71 @@ import type {
 type SemanticLayerQuerySourceArguments = {
     asyncQueryService: AsyncQueryService;
     projectService: ProjectService;
+};
+
+/**
+ * Explores as schema tables, their visible fields as columns. Applies the
+ * same view-project and user-attribute filtering as the explore endpoints.
+ */
+export const scanExploreTables = async ({
+    projectService,
+    account,
+    projectUuid,
+    includeMetrics,
+}: ScanSchemaArgs & {
+    projectService: Pick<
+        ProjectService,
+        'getAllExploresSummary' | 'findExplores'
+    >;
+    includeMetrics: boolean;
+}): Promise<QuerySourceSchemaTable[]> => {
+    const summaries = await projectService.getAllExploresSummary(
+        account,
+        projectUuid,
+        true,
+        false,
+    );
+
+    // findExplores applies field-level user attributes: dimensions, metrics
+    // and joined tables with required attributes the user lacks are removed
+    const explores = await projectService.findExplores({
+        account,
+        projectUuid,
+        exploreNames: summaries.map((summary) => summary.name),
+    });
+
+    return summaries.map((summary) => {
+        const explore = explores[summary.name];
+        const columns: QuerySourceSchemaColumn[] =
+            explore === undefined || isExploreError(explore)
+                ? []
+                : [
+                      ...getDimensions(explore)
+                          .filter((dimension) => !dimension.hidden)
+                          .map((dimension) => ({
+                              reference: getItemId(dimension),
+                              type: dimension.type,
+                              label: dimension.label ?? null,
+                              description: dimension.description ?? null,
+                          })),
+                      // Metrics are aggregations, so they surface as numbers
+                      ...(includeMetrics ? getMetrics(explore) : [])
+                          .filter((metric) => !metric.hidden)
+                          .map((metric) => ({
+                              reference: getItemId(metric),
+                              type: DimensionType.NUMBER,
+                              label: metric.label ?? null,
+                              description: metric.description ?? null,
+                          })),
+                  ];
+
+        return {
+            reference: summary.name,
+            label: summary.label ?? null,
+            description: summary.description ?? null,
+            columns,
+        };
+    });
 };
 
 /**
@@ -68,60 +134,14 @@ export class SemanticLayerQuerySource implements QuerySourceClient {
         account,
         projectUuid,
     }: ScanSchemaArgs): Promise<QuerySourceSchema> {
-        // Applies view-project authorization and explore-level user-attribute
-        // filtering
-        const summaries = await this.projectService.getAllExploresSummary(
-            account,
-            projectUuid,
-            true,
-            false,
-        );
-
-        // findExplores applies field-level user attributes: dimensions,
-        // metrics and joined tables with required attributes the user lacks
-        // are removed, matching what the explore endpoint returns
-        const explores = await this.projectService.findExplores({
-            account,
-            projectUuid,
-            exploreNames: summaries.map((summary) => summary.name),
-        });
-
-        const tables = summaries.map((summary) => {
-            const explore = explores[summary.name];
-            const columns: QuerySourceSchemaColumn[] =
-                explore === undefined || isExploreError(explore)
-                    ? []
-                    : [
-                          ...getDimensions(explore)
-                              .filter((dimension) => !dimension.hidden)
-                              .map((dimension) => ({
-                                  reference: getItemId(dimension),
-                                  type: dimension.type,
-                                  label: dimension.label ?? null,
-                                  description: dimension.description ?? null,
-                              })),
-                          // Metrics are aggregations, so they surface as numbers
-                          ...getMetrics(explore)
-                              .filter((metric) => !metric.hidden)
-                              .map((metric) => ({
-                                  reference: getItemId(metric),
-                                  type: DimensionType.NUMBER,
-                                  label: metric.label ?? null,
-                                  description: metric.description ?? null,
-                              })),
-                      ];
-
-            return {
-                reference: summary.name,
-                label: summary.label ?? null,
-                description: summary.description ?? null,
-                columns,
-            };
-        });
-
         return {
             sourceType: QuerySourceType.SEMANTIC_LAYER,
-            tables,
+            tables: await scanExploreTables({
+                projectService: this.projectService,
+                account,
+                projectUuid,
+                includeMetrics: true,
+            }),
         };
     }
 

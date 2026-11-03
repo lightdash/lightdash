@@ -473,3 +473,47 @@ describe('AiComposerLineage python nodes', () => {
         ).toBeInTheDocument();
     });
 });
+
+describe('AiComposerLineage funnel nodes', () => {
+    const funnelQueries: SourceQuery[] = [
+        {
+            sourceType: QuerySourceType.FUNNEL,
+            nodeId: 'checkout',
+            title: 'Checkout funnel',
+            exploreName: 'product_events',
+            userIdFieldId: 'product_events_user_id',
+            timestampFieldId: 'product_events_event_timestamp',
+            eventNameFieldId: 'product_events_event_name',
+            steps: [
+                { stepOrder: 1, eventName: 'page_view' },
+                { stepOrder: 2, eventName: 'checkout_completed' },
+            ],
+            dateRange: { type: 'preset', preset: 'last_7_days' },
+        },
+        {
+            sourceType: QuerySourceType.DUCKDB,
+            nodeId: 'joined',
+            title: 'Drop-off',
+            sql: 'select * from checkout',
+            references: ['checkout'],
+        },
+    ];
+
+    it('labels a funnel node and shows its steps and source in its cell', () => {
+        renderPanel({ queries: funnelQueries });
+        expect(
+            within(nodeButton('Checkout funnel')).getByText('Funnel'),
+        ).toBeInTheDocument();
+        expect(
+            cell('checkout')
+                .getAllByTestId('funnel-node-step')
+                .map((step) => step.textContent),
+        ).toEqual(['1Page view', '2Checkout completed']);
+        expect(
+            cell('checkout').getAllByText('Product events').length,
+        ).toBeGreaterThan(0);
+        expect(
+            cell('checkout').queryByRole('button', { name: 'SQL query' }),
+        ).toBeNull();
+    });
+});

@@ -560,6 +560,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 const registry = QuerySourceRegistry.withBuiltInSources({
                     asyncQueryService: repository.getAsyncQueryService(),
                     projectService: repository.getProjectService(),
+                    projectModel: models.getProjectModel(),
+                    funnelBuilderEnabled:
+                        context.lightdashConfig.funnelBuilder.enabled,
                 });
                 registry.register(
                     new ApiQuerySource({

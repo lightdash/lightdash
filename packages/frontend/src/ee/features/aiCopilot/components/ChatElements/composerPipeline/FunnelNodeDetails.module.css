@@ -1,0 +1,8 @@
+/* Sits on the chips' line so plain text centres with the row icon. */
+.rowText {
+    line-height: 22px;
+}
+
+.stepNumber {
+    font-variant-numeric: tabular-nums;
+}

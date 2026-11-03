@@ -1406,6 +1406,9 @@ export class ServiceRepository
             const registry = QuerySourceRegistry.withBuiltInSources({
                 asyncQueryService: this.getAsyncQueryService(),
                 projectService: this.getProjectService(),
+                projectModel: this.models.getProjectModel(),
+                funnelBuilderEnabled:
+                    this.context.lightdashConfig.funnelBuilder.enabled,
             });
 
             return new QuerySourceService({

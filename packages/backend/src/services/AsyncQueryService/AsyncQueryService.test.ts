@@ -575,6 +575,8 @@ const getMockedAsyncQueryService = (
                 registry: QuerySourceRegistry.withBuiltInSources({
                     asyncQueryService: service,
                     projectService: service,
+                    projectModel: (service as AnyType).projectModel,
+                    funnelBuilderEnabled: false,
                 }),
             });
             return querySourceService;

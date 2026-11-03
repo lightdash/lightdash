@@ -31,16 +31,20 @@ const dimension = (
     label: string,
     type: DimensionType,
     timeInterval?: TimeFrames,
+    table: { name: string; label: string } = {
+        name: 'orders',
+        label: 'Orders',
+    },
 ): CompiledDimension => ({
     fieldType: FieldType.DIMENSION,
     type,
     name,
     label,
-    table: 'orders',
-    tableLabel: 'Orders',
+    table: table.name,
+    tableLabel: table.label,
     sql: `\${TABLE}.${name}`,
-    compiledSql: `"orders".${name}`,
-    tablesReferences: ['orders'],
+    compiledSql: `"${table.name}".${name}`,
+    tablesReferences: [table.name],
     source,
     hidden: false,
     groups: [],
@@ -51,16 +55,20 @@ const metric = (
     name: string,
     label: string,
     type: MetricType,
+    table: { name: string; label: string } = {
+        name: 'orders',
+        label: 'Orders',
+    },
 ): CompiledMetric => ({
     fieldType: FieldType.METRIC,
     type,
     name,
     label,
-    table: 'orders',
-    tableLabel: 'Orders',
+    table: table.name,
+    tableLabel: table.label,
     sql: `\${TABLE}.${name}`,
-    compiledSql: `"orders".${name}`,
-    tablesReferences: ['orders'],
+    compiledSql: `"${table.name}".${name}`,
+    tablesReferences: [table.name],
     source,
     hidden: false,
     groups: [],
@@ -122,6 +130,78 @@ export const ordersExplore: Explore = {
 };
 
 export const ordersFieldsMap = getItemMap(ordersExplore);
+
+const productEvents = { name: 'product_events', label: 'Product events' };
+
+/** Event rows a funnel reads: who, when and which event. */
+export const productEventsExplore: Explore = {
+    targetDatabase: SupportedDbtAdapter.POSTGRES,
+    name: 'product_events',
+    label: 'Product events',
+    tags: [],
+    baseTable: 'product_events',
+    joinedTables: [],
+    groupLabel: undefined,
+    tables: {
+        product_events: {
+            name: 'product_events',
+            label: 'Product events',
+            description: 'One row per tracked product event.',
+            database: 'postgres',
+            schema: 'analytics',
+            sqlTable: 'analytics.product_events',
+            sqlWhere: undefined,
+            dimensions: {
+                user_id: dimension(
+                    'user_id',
+                    'User ID',
+                    DimensionType.STRING,
+                    undefined,
+                    productEvents,
+                ),
+                event_timestamp: dimension(
+                    'event_timestamp',
+                    'Event timestamp',
+                    DimensionType.TIMESTAMP,
+                    undefined,
+                    productEvents,
+                ),
+                event_name: dimension(
+                    'event_name',
+                    'Event name',
+                    DimensionType.STRING,
+                    undefined,
+                    productEvents,
+                ),
+                device_type: dimension(
+                    'device_type',
+                    'Device type',
+                    DimensionType.STRING,
+                    undefined,
+                    productEvents,
+                ),
+                session_id: dimension(
+                    'session_id',
+                    'Session ID',
+                    DimensionType.STRING,
+                    undefined,
+                    productEvents,
+                ),
+            },
+            metrics: {
+                unique_users: metric(
+                    'unique_users',
+                    'Unique users',
+                    MetricType.COUNT_DISTINCT,
+                    productEvents,
+                ),
+            },
+            lineageGraph: {},
+            groupLabel: undefined,
+            source,
+        },
+    },
+};
 
 /** Filters, two sorts, a limit and a parameter: everything the summary shows. */
 export const ordersSemanticNode: SemanticLayerSourceQuery = {

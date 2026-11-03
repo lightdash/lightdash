@@ -1,4 +1,8 @@
-import { QuerySourceType, type SourceQuery } from '@lightdash/common';
+import {
+    QuerySourceType,
+    type FunnelSourceQuery,
+    type SourceQuery,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -136,6 +140,68 @@ const allNodeTypesQueries: SourceQuery[] = [
     },
 ];
 
+const checkoutFunnel: FunnelSourceQuery = {
+    sourceType: QuerySourceType.FUNNEL,
+    nodeId: 'checkout_funnel',
+    title: 'Checkout funnel',
+    description:
+        'Users who went from a page view to a completed checkout, by device.',
+    exploreName: 'product_events',
+    userIdFieldId: 'product_events_user_id',
+    timestampFieldId: 'product_events_event_timestamp',
+    eventNameFieldId: 'product_events_event_name',
+    steps: [
+        { stepOrder: 1, eventName: 'page_view' },
+        { stepOrder: 2, eventName: 'product_viewed' },
+        { stepOrder: 3, eventName: 'add_to_cart' },
+        { stepOrder: 4, eventName: 'checkout_completed' },
+    ],
+    dateRange: { type: 'preset', preset: 'last_30_days' },
+    conversionWindow: { value: 7, unit: 'days' },
+    breakdownDimensionId: 'product_events_device_type',
+};
+
+/** A funnel and a semantic node, joined by a duckdb node. */
+const funnelQueries: SourceQuery[] = [
+    checkoutFunnel,
+    ordersSemanticNode,
+    {
+        sourceType: QuerySourceType.DUCKDB,
+        nodeId: 'drop_off_by_device',
+        title: 'Drop-off by device',
+        description: 'Where each device loses users, next to weekly revenue.',
+        sql: 'SELECT f.breakdown_value AS device_type, f.step_name, f.total_users, 100 - f.step_conversion_rate AS drop_off_pct, r.revenue FROM checkout_funnel AS f CROSS JOIN (SELECT SUM(orders_total_order_amount) AS revenue FROM weekly_orders) AS r WHERE f.step_order > 1 ORDER BY drop_off_pct DESC',
+        references: ['checkout_funnel', 'weekly_orders'],
+    },
+];
+
+const minimalFunnel: FunnelSourceQuery = {
+    sourceType: QuerySourceType.FUNNEL,
+    nodeId: 'signup_funnel',
+    title: 'Sign-up activation',
+    description: 'Users who signed up and went on to create a project.',
+    exploreName: 'product_events',
+    userIdFieldId: 'product_events_user_id',
+    timestampFieldId: 'product_events_event_timestamp',
+    eventNameFieldId: 'product_events_event_name',
+    steps: [
+        { stepOrder: 1, eventName: 'signed_up' },
+        { stepOrder: 2, eventName: 'project_created' },
+    ],
+    dateRange: {
+        type: 'custom',
+        start: '2026-01-01T00:00:00Z',
+        end: '2026-03-31T00:00:00Z',
+    },
+};
+
+const success = (totalRowCount: number, durationMs: number) => ({
+    status: 'success' as const,
+    error: null,
+    totalRowCount,
+    durationMs,
+});
+
 type ResultTable = {
     title: string;
     description: string;
@@ -187,7 +253,7 @@ const ResultsTable = ({
             </Table.Thead>
             <Table.Tbody>
                 {result.rows.map((row) => (
-                    <Table.Tr key={String(row[0])}>
+                    <Table.Tr key={row.join('|')}>
                         {row.map((cell, index) => (
                             <Table.Td
                                 key={result.columns[index]}
@@ -397,6 +463,63 @@ export const SemanticNodeDetails: Story = {
         await userEvent.click(
             canvas.getByRole('button', { name: /View metric query/ }),
         );
+    },
+};
+
+const FUNNEL_COLUMNS = [
+    'step_order',
+    'step_name',
+    'total_users',
+    'conversion_rate',
+    'step_conversion_rate',
+    'median_time_to_convert',
+];
+
+/** A funnel with a breakdown, a semantic node and a duckdb node reading both. */
+export const FunnelPipelineLineage: Story = {
+    args: {
+        queries: funnelQueries,
+        terminalNodeId: 'drop_off_by_device',
+        lineage: true,
+        nodeStatuses: {
+            checkout_funnel: success(8, 1840),
+            weekly_orders: success(52, 620),
+            drop_off_by_device: success(6, 45),
+        },
+        result: {
+            title: 'Checkout funnel',
+            description: 'One row per step and device, last 30 days.',
+            columns: [...FUNNEL_COLUMNS, 'breakdown_value'],
+            rows: [
+                [1, 'page_view', 12480, 100, 100, '—', 'desktop'],
+                [2, 'product_viewed', 7612, 61, 61, 184, 'desktop'],
+                [3, 'add_to_cart', 2740, 22, 36, 412, 'desktop'],
+                [4, 'checkout_completed', 1726, 13.8, 63, 905, 'desktop'],
+                [1, 'page_view', 18930, 100, 100, '—', 'mobile'],
+                [2, 'product_viewed', 9844, 52, 52, 210, 'mobile'],
+                [3, 'add_to_cart', 2658, 14, 27, 498, 'mobile'],
+                [4, 'checkout_completed', 1302, 6.9, 49, 1260, 'mobile'],
+            ],
+        },
+    },
+};
+
+/** Two steps, the default window, a custom range and no breakdown. */
+export const FunnelMinimalLineage: Story = {
+    args: {
+        queries: [minimalFunnel],
+        terminalNodeId: 'signup_funnel',
+        lineage: true,
+        nodeStatuses: { signup_funnel: success(2, 930) },
+        result: {
+            title: 'Sign-up activation',
+            description: 'Sign-ups that created a project, Q1 2026.',
+            columns: FUNNEL_COLUMNS,
+            rows: [
+                [1, 'signed_up', 4210, 100, 100, '—'],
+                [2, 'project_created', 2694, 64, 64, 86400],
+            ],
+        },
     },
 };
 

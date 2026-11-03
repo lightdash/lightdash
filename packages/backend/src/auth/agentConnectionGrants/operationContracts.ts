@@ -254,7 +254,9 @@ export const sourceRequiresRawSql = (sourceType: QuerySourceType): boolean =>
     sourceType === QuerySourceType.SQL ||
     sourceType === QuerySourceType.DUCKDB ||
     sourceType === QuerySourceType.EXTERNAL ||
-    sourceType === QuerySourceType.PYTHON;
+    sourceType === QuerySourceType.PYTHON ||
+    // Compiled by the server, but runs through the SQL runner unscoped by field access
+    sourceType === QuerySourceType.FUNNEL;
 export const sourceEffectCapabilities = (
     sources: QuerySourceType[],
 ): AgentCapability[] =>

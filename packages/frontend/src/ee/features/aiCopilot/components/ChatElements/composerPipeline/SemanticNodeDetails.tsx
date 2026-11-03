@@ -1,11 +1,9 @@
 import {
-    friendlyName,
-    getItemLabelWithoutTableName,
     type ItemsMap,
     type MetricQuery,
     type ParametersValuesMap,
 } from '@lightdash/common';
-import { Box, Group, Stack, Text, Tooltip } from '@mantine/core';
+import { Box, Group, Stack, Text } from '@mantine/core';
 import {
     IconArrowDown,
     IconArrowsSort,
@@ -13,79 +11,22 @@ import {
     IconColumns3,
     IconFilter,
     IconVariable,
-    type Icon,
 } from '@tabler/icons-react';
-import { type FC, type ReactNode } from 'react';
-import FieldIcon from '../../../../../../components/common/Filters/FieldIcon';
+import { type FC } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import ErrorBoundary from '../../../../../../features/errorBoundary/ErrorBoundary';
-import { getFieldColors } from '../../../../../../utils/fieldColors';
 import { useUiStrings } from '../../../../../providers/Embed/useUiStrings';
 import AgentVisualizationFilters from '../AgentVisualizationFilters';
-import { FieldDetailHoverCard } from '../AgentVisualizationMetricsAndDimensions';
 import AgentVisualizationParameters from '../AgentVisualizationParameters';
 import { getVisualizationFiltersCount } from '../AiVisualizationRenderer.utils';
 import chipClasses from '../QueryChip.module.css';
-import styles from './SemanticNodeDetails.module.css';
+import { DetailsRow, FieldChip } from './NodeDetailsRow';
+import { nodeFieldLabel } from './nodeFieldLabel';
 
 export type SemanticNodeQuery = Pick<
     MetricQuery,
     'dimensions' | 'metrics' | 'filters' | 'sorts'
 >;
-
-const semanticItemLabel = (fieldsMap: ItemsMap, fieldId: string) => {
-    const item = fieldsMap[fieldId];
-    return item ? getItemLabelWithoutTableName(item) : friendlyName(fieldId);
-};
-
-const DetailsRow: FC<{ icon: Icon; label: string; children: ReactNode }> = ({
-    icon,
-    label,
-    children,
-}) => (
-    <Group gap="xs" wrap="nowrap" align="flex-start">
-        <Tooltip label={label} position="left">
-            <Box className={styles.rowIcon}>
-                <MantineIcon
-                    icon={icon}
-                    size={13}
-                    color="ldGray.5"
-                    aria-label={label}
-                />
-            </Box>
-        </Tooltip>
-        <Box flex={1} miw={0}>
-            {children}
-        </Box>
-    </Group>
-);
-
-const FieldChip: FC<{ fieldId: string; fieldsMap: ItemsMap }> = ({
-    fieldId,
-    fieldsMap,
-}) => {
-    const item = fieldsMap[fieldId];
-    return (
-        <FieldDetailHoverCard field={item}>
-            <Box
-                component="span"
-                className={chipClasses.chip}
-                data-testid="semantic-node-field"
-            >
-                {item && (
-                    <FieldIcon
-                        item={item}
-                        color={getFieldColors(item).color}
-                        size={12}
-                    />
-                )}
-                <Text fz="xs" fw={600} truncate>
-                    {semanticItemLabel(fieldsMap, fieldId)}
-                </Text>
-            </Box>
-        </FieldDetailHoverCard>
-    );
-};
 
 const Sorts: FC<{
     sorts: SemanticNodeQuery['sorts'];
@@ -112,7 +53,7 @@ const Sorts: FC<{
                         color="ldGray.6"
                     />
                     <Text fz="xs" fw={600} truncate>
-                        {semanticItemLabel(fieldsMap, sort.fieldId)}
+                        {nodeFieldLabel(fieldsMap, sort.fieldId)}
                     </Text>
                 </Box>
             ))}
