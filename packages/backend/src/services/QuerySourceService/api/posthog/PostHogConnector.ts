@@ -42,6 +42,11 @@ export type PostHogConnectorArgs = {
 export const getPostHogQueryPath = (projectId: string) =>
     `/api/projects/${projectId}/query/`;
 
+export const getPostHogPropertyDefinitionsPath = (
+    projectId: string,
+    type: 'event' | 'person',
+) => `/api/projects/${projectId}/property_definitions/?type=${type}&limit=500`;
+
 const successSchema = z.object({
     columns: z.array(z.string()),
     types: z.array(z.tuple([z.string(), z.string()])),
@@ -104,6 +109,19 @@ export class PostHogConnector implements ApiConnector {
             timeoutMs: POSTHOG_TIMEOUT_MS,
             limits: POSTHOG_LIMITS,
         };
+    }
+
+    /** The event or person properties PostHog has seen in the project. */
+    async getPropertyDefinitions(type: 'event' | 'person'): Promise<unknown> {
+        const response = await this.send({
+            method: 'GET',
+            path: getPostHogPropertyDefinitionsPath(this.projectId, type),
+            body: null,
+        });
+        if (response.status < 200 || response.status >= 300) {
+            throw this.toError(response);
+        }
+        return response.body;
     }
 
     async execute({
