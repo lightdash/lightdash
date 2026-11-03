@@ -121,6 +121,7 @@ const setup = ({ dashboardControlsEnabled = true } = {}) => {
         ),
         compileMergeQuery: vi.fn(async () => ({
             parameterReferences: ['orders.region', 'payments.region'],
+            errors: [] as { message: string }[],
         })),
     };
     const dashboardModel = {
@@ -155,13 +156,22 @@ const setup = ({ dashboardControlsEnabled = true } = {}) => {
     };
 };
 
-const embedAccount = (content: Record<string, unknown>) =>
+const embedAccount = (
+    content: Record<string, unknown>,
+    embed: Record<string, unknown> = {},
+) =>
     ({
         isJwtUser: () => true,
         isRegisteredUser: () => false,
         user: { id: 'embed-user' },
         organization: { organizationUuid: user.organizationUuid },
         access: { content },
+        embed: {
+            projectUuid,
+            allowAllDashboards: false,
+            dashboardUuids: ['embedded-dashboard'],
+            ...embed,
+        },
     }) as unknown as Account;
 const dashboardEmbed = embedAccount({
     type: 'dashboard',
@@ -402,6 +412,26 @@ describe('DashboardService.getTileParameterReferences', () => {
         );
     });
 
+    it('reports a merged chart that fails to compile as a failed tile', async () => {
+        const { service, projectService } = setup();
+        projectService.compileMergeQuery.mockResolvedValueOnce({
+            parameterReferences: [],
+            errors: [{ message: 'Query "orders" cannot back a merge' }],
+        });
+
+        await expect(
+            service.getTileParameterReferences(account, projectUuid, [
+                chartTile('tile-1', 'merged'),
+            ]),
+        ).resolves.toEqual([
+            {
+                tileUuid: 'tile-1',
+                parameterReferences: null,
+                error: 'Query "orders" cannot back a merge',
+            },
+        ]);
+    });
+
     it('reads a SQL chart from its SQL', async () => {
         const { service, projectService } = setup();
 
@@ -493,8 +523,8 @@ describe('DashboardService.getTileParameterReferences', () => {
                 },
                 {
                     tileUuid: 'embed-hidden-tile',
-                    parameterReferences: null,
-                    error: "You don't have access to view this chart",
+                    parameterReferences: ['orders.region'],
+                    error: null,
                 },
             ]);
             expect(savedChartModel.get).not.toHaveBeenCalledWith(
@@ -502,12 +532,67 @@ describe('DashboardService.getTileParameterReferences', () => {
                 undefined,
                 expect.anything(),
             );
+            // Every chart comes from the token's dashboard: one dashboard check, none per chart
             expect(
                 permissionsService.checkEmbedPermissions,
-            ).toHaveBeenCalledWith(dashboardEmbed, 'plain');
+            ).not.toHaveBeenCalled();
             expect(
                 permissionsService.checkEmbedSqlChartPermissions,
-            ).toHaveBeenCalledWith(dashboardEmbed, 'sql');
+            ).not.toHaveBeenCalled();
+        });
+
+        it.each([
+            [
+                'a dashboard the embed does not allow',
+                { dashboardUuids: ['other-dashboard'] },
+            ],
+            ['a token for another project', { projectUuid: 'other-project' }],
+        ])('refuses %s before loading anything', async (_name, embed) => {
+            const { service, savedChartModel, dashboardModel } = setup();
+
+            await expect(
+                service.getTileParameterReferences(
+                    embedAccount(
+                        {
+                            type: 'dashboard',
+                            dashboardUuid: 'embedded-dashboard',
+                            chartUuids: [],
+                            explores: [],
+                        },
+                        embed,
+                    ),
+                    projectUuid,
+                    [chartTile('embed-chart-tile', 'plain')],
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(dashboardModel.getByIdOrSlug).not.toHaveBeenCalled();
+            expect(savedChartModel.get).not.toHaveBeenCalled();
+        });
+
+        it('allows any dashboard when the embed allows all', async () => {
+            const { service } = setup();
+
+            await expect(
+                service.getTileParameterReferences(
+                    embedAccount(
+                        {
+                            type: 'dashboard',
+                            dashboardUuid: 'embedded-dashboard',
+                            chartUuids: [],
+                            explores: [],
+                        },
+                        { allowAllDashboards: true, dashboardUuids: [] },
+                    ),
+                    projectUuid,
+                    [chartTile('embed-chart-tile', 'plain')],
+                ),
+            ).resolves.toEqual([
+                {
+                    tileUuid: 'embed-chart-tile',
+                    parameterReferences: ['orders.region'],
+                    error: null,
+                },
+            ]);
         });
 
         it('refuses a tile that is not on the token dashboard', async () => {

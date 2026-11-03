@@ -1043,6 +1043,20 @@ export class DashboardService
                 'Embed token does not allow listing tile parameters outside a dashboard',
             );
         }
+        // The one check the per-chart embed checks share; each chart then
+        // comes from this dashboard's own tiles, so it belongs to it
+        const { embed } = account;
+        if (embed.projectUuid !== projectUuid) {
+            throw new ForbiddenError('Embed token does not allow this project');
+        }
+        if (
+            !embed.allowAllDashboards &&
+            !embed.dashboardUuids.includes(content.dashboardUuid)
+        ) {
+            throw new ForbiddenError(
+                `Dashboard ${content.dashboardUuid} is not embedded`,
+            );
+        }
         const dashboard = await this.dashboardModel.getByIdOrSlug(
             content.dashboardUuid,
             { projectUuid },
@@ -1075,6 +1089,7 @@ export class DashboardService
         const limitLoad = pLimit(TILE_LOAD_CONCURRENCY);
         const loaded = await Promise.all(
             savedChartUuids.map((uuid) =>
+                // Published version: a tile running a viewer's draft replaces these once it runs
                 limitLoad(() =>
                     this.savedChartModel.get(uuid, undefined, { projectUuid }),
                 ).catch((e) => {
@@ -1089,15 +1104,9 @@ export class DashboardService
         if (charts.length === 0) return results;
 
         const [viewableChartUuids, explores] = await Promise.all([
+            // Embed charts come from the token's dashboard, checked once above
             isJwtUser(account)
-                ? this.getEmbedViewableUuids(
-                      charts.map(({ uuid }) => uuid),
-                      (uuid) =>
-                          this.permissionsService.checkEmbedPermissions(
-                              account,
-                              uuid,
-                          ),
-                  )
+                ? new Set(charts.map(({ uuid }) => uuid))
                 : this.getViewableChartUuids(account, charts),
             this.findTileExplores(
                 account,
@@ -1239,23 +1248,6 @@ export class DashboardService
         );
     }
 
-    /** Embed viewers see what the tile queries allow: the check throws when they can't */
-    // eslint-disable-next-line class-methods-use-this
-    private async getEmbedViewableUuids(
-        uuids: string[],
-        check: (uuid: string) => Promise<unknown>,
-    ): Promise<Set<string>> {
-        const allowed = await Promise.all(
-            uuids.map((uuid) =>
-                check(uuid).then(
-                    () => true,
-                    () => false,
-                ),
-            ),
-        );
-        return new Set(uuids.filter((_uuid, index) => allowed[index]));
-    }
-
     private async compileChartParameterReferences(
         account: Account,
         projectUuid: string,
@@ -1272,6 +1264,9 @@ export class DashboardService
                 ),
                 parameters: chart.parameters,
             });
+            if (compiled.errors.length > 0) {
+                throw new ParameterError(compiled.errors[0].message);
+            }
             return compiled.parameterReferences;
         }
         if (!explore || isExploreError(explore)) {
@@ -1313,14 +1308,7 @@ export class DashboardService
         if (sqlCharts.length === 0) return results;
 
         const viewableSqlUuids = isJwtUser(account)
-            ? await this.getEmbedViewableUuids(
-                  sqlCharts.map(({ savedSqlUuid }) => savedSqlUuid),
-                  (uuid) =>
-                      this.permissionsService.checkEmbedSqlChartPermissions(
-                          account,
-                          uuid,
-                      ),
-              )
+            ? new Set(sqlCharts.map(({ savedSqlUuid }) => savedSqlUuid))
             : await this.getViewableSqlChartUuids(account, sqlCharts);
         sqlCharts.forEach((sqlChart) => {
             const canView = viewableSqlUuids.has(sqlChart.savedSqlUuid);
