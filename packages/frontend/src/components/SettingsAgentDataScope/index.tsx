@@ -12,7 +12,7 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconLock } from '@tabler/icons-react';
-import isEqual from 'lodash/isEqual';
+import { isEqual } from 'es-toolkit/compat';
 import { useCallback, useMemo, type FC } from 'react';
 import { useTables } from '../../features/sqlRunner/hooks/useTables';
 import useToaster from '../../hooks/toaster/useToaster';

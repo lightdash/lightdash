@@ -40,8 +40,8 @@ import {
     WebClient,
     type FilesUploadV2Arguments,
 } from '@slack/web-api';
+import { throttle, without } from 'es-toolkit/compat';
 import { Express } from 'express';
-import { throttle, without } from 'lodash';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig, LoggingLevel } from '../../config/parseConfig';
 import { SlackChannelType } from '../../database/entities/slackChannels';

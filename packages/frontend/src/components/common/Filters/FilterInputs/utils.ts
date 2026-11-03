@@ -5,8 +5,7 @@ import {
     type BaseFilterRule,
     type DashboardFilterableField,
 } from '@lightdash/common';
-import isEmpty from 'lodash/isEmpty';
-import uniq from 'lodash/uniq';
+import { isEmpty, uniq } from 'es-toolkit/compat';
 
 export {
     getConditionalRuleLabel,

@@ -1,4 +1,4 @@
-import words from 'lodash/words';
+import { words } from 'es-toolkit/compat';
 import type {
     AdditionalMetric,
     currencies,

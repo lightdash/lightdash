@@ -3,8 +3,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 
-import isObject from 'lodash/isObject';
-import transform from 'lodash/transform';
+import { isObject, transform } from 'es-toolkit/compat';
 
 export const mergeExisting = (left: any, right: any) =>
     transform(

@@ -5,9 +5,7 @@ import {
     type Explore,
 } from '@lightdash/common';
 import { type LanguageModel } from 'ai';
-import clamp from 'lodash/clamp';
-import mean from 'lodash/mean';
-import sumBy from 'lodash/sumBy';
+import { clamp, mean, sumBy } from 'es-toolkit/compat';
 import { AiDecisionClient } from '../decisions/AiDecisionClient';
 import { evaluateExploreAnalysis } from './scorers/exploreAnalysisScorer';
 import { evaluateInstructionQuality } from './scorers/instructionQualityScorer';

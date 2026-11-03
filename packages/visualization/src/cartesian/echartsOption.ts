@@ -91,9 +91,7 @@ import {
     type TooltipComponentFormatterCallback,
     type TooltipComponentOption,
 } from 'echarts';
-import groupBy from 'lodash/groupBy';
-import toNumber from 'lodash/toNumber';
-import uniq from 'lodash/uniq';
+import { groupBy, toNumber, uniq } from 'es-toolkit/compat';
 import { type SeriesLike } from '../colors/series';
 import { sanitizeEchartsFontFamily } from '../fonts';
 import {

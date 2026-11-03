@@ -1,6 +1,4 @@
-import camelCase from 'lodash/camelCase';
-import flow from 'lodash/flow';
-import upperFirst from 'lodash/upperFirst';
+import { camelCase, flow, upperFirst } from 'es-toolkit/compat';
 import { ProjectType } from '../types/projects';
 import type { RoleLevel } from '../types/roles';
 import {

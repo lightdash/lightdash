@@ -9,8 +9,7 @@ import {
     type DateZoomConfig,
 } from '@lightdash/common';
 import { createAction, type UnknownAction } from '@reduxjs/toolkit';
-import isEqual from 'lodash/isEqual';
-import sortBy from 'lodash/sortBy';
+import { isEqual, sortBy } from 'es-toolkit/compat';
 import { removeSectionKeepingLines } from '../../dashboardControls/sections';
 
 /**

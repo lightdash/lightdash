@@ -5,7 +5,7 @@ import {
     type LineSeriesOption,
     type TooltipComponentFormatterCallback,
 } from 'echarts';
-import toNumber from 'lodash/toNumber';
+import { toNumber } from 'es-toolkit/compat';
 import {
     isField,
     isTableCalculation,

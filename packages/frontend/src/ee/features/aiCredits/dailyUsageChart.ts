@@ -1,7 +1,7 @@
 import { type AiCreditDailyUsage } from '@lightdash/common';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
-import escape from 'lodash/escape';
+import { escape } from 'es-toolkit/compat';
 
 dayjs.extend(utc);
 

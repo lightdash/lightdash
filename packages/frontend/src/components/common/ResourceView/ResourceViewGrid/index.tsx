@@ -26,8 +26,8 @@ import {
 import { Box, SimpleGrid, Stack, Text } from '@mantine/core';
 import { mergeRefs, useHover } from '@mantine/hooks';
 import { IconGripVertical } from '@tabler/icons-react';
+import { orderBy } from 'es-toolkit/compat';
 import { produce } from 'immer';
-import orderBy from 'lodash/orderBy';
 import {
     useCallback,
     useEffect,

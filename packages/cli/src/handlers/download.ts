@@ -62,10 +62,10 @@ import {
     type LightdashProjectConfig,
     type SpaceAsCode,
 } from '@lightdash/common';
+import { groupBy } from 'es-toolkit/compat';
 import { Dirent, promises as fs, type Stats } from 'fs';
 import inquirer from 'inquirer';
 import * as yaml from 'js-yaml';
-import groupBy from 'lodash/groupBy';
 import pLimit from 'p-limit';
 import * as path from 'path';
 import { validate as isUuid } from 'uuid';

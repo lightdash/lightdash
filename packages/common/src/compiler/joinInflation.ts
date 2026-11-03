@@ -1,4 +1,4 @@
-import intersection from 'lodash/intersection';
+import { intersection } from 'es-toolkit/compat';
 import { CompileError } from '../types/errors';
 import {
     InlineErrorType,
