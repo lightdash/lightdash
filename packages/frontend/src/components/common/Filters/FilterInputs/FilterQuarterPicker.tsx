@@ -124,11 +124,10 @@ const FilterQuarterPicker: FC<Props> = ({
                     size="xs"
                     data-autofocus={autoFocus || undefined}
                     onClick={disabled ? undefined : open}
-                    // As Mantine's own lists do: a host Modal leaves this Escape
+                    // Keeps a host modal open while this popover is open
                     data-mantine-stop-propagation={opened || undefined}
                     onKeyDown={(event) => {
                         if (event.key !== 'Escape' || !opened) return;
-                        // Consumed, so a host modal stays open
                         event.preventDefault();
                         close();
                     }}
@@ -150,6 +149,7 @@ const FilterQuarterPicker: FC<Props> = ({
             <Popover.Dropdown>
                 <Stack gap="xs">
                     <MonthPicker
+                        __stopPropagation
                         date={
                             formatMantineDate(new Date(selectedYear, 0)) ??
                             undefined

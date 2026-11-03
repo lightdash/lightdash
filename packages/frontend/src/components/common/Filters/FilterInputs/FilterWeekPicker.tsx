@@ -80,6 +80,7 @@ const FilterWeekPicker: FC<Props> = ({
             >
                 {({ close }) => (
                     <DatePicker
+                        __stopPropagation
                         firstDayOfWeek={firstDayOfWeek}
                         minDate={
                             formatMantineDate(minDate ?? null) ?? undefined

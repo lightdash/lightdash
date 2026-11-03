@@ -130,3 +130,34 @@ describe.each([
         expect(onModalClose).not.toHaveBeenCalled();
     });
 });
+
+it("keeps Mantine's Modal open on Escape after a day is picked in the multi-date picker", async () => {
+    const user = userEvent.setup();
+    const onModalClose = vi.fn();
+    renderWithProviders(
+        <MantineProvider env="default">
+            <Modal opened onClose={onModalClose} title="Delivery">
+                <FiltersProvider itemsMap={{}}>
+                    <DateFilterInputs
+                        filterType={FilterType.DATE}
+                        field={dimension()}
+                        rule={rule(FilterOperator.EQUALS, ['2026-01-15'])}
+                        onChange={() => {}}
+                    />
+                </FiltersProvider>
+            </Modal>
+        </MantineProvider>,
+    );
+
+    await user.click(screen.getAllByRole('textbox').at(-1)!);
+    // The picked day keeps focus, inside the calendar
+    await user.click(
+        await screen.findByRole('button', {
+            name: '20 January 2026',
+            hidden: true,
+        }),
+    );
+    await user.keyboard('{Escape}');
+
+    expect(onModalClose).not.toHaveBeenCalled();
+});

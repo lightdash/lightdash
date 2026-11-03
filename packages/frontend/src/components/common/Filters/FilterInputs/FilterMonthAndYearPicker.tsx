@@ -44,6 +44,7 @@ const FilterMonthAndYearPicker: FC<Props> = ({
             >
                 {({ close: closeInvalidInput }) => (
                     <MonthPicker
+                        __stopPropagation
                         value={null}
                         minDate="1000-01-01"
                         maxDate="9999-12-31"
