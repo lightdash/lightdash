@@ -124,6 +124,8 @@ const FilterQuarterPicker: FC<Props> = ({
                     size="xs"
                     data-autofocus={autoFocus || undefined}
                     onClick={disabled ? undefined : open}
+                    // As Mantine's own lists do: a host Modal leaves this Escape
+                    data-mantine-stop-propagation={opened || undefined}
                     onKeyDown={(event) => {
                         if (event.key !== 'Escape' || !opened) return;
                         // Consumed, so a host modal stays open

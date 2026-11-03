@@ -7,6 +7,7 @@ import {
     type DateFilterRule,
     type FilterableDimension,
 } from '@lightdash/common';
+import { Modal } from '@mantine/core';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -93,6 +94,39 @@ describe.each([
         await waitFor(() => expect(pickerDropdowns()).toHaveLength(0));
         expect(windowEscapes).toHaveLength(1);
         expect(windowEscapes[0].defaultPrevented).toBe(true);
+        expect(onModalClose).not.toHaveBeenCalled();
+    });
+
+    // Mantine's own Modal (the scheduled delivery form) ignores a prevented
+    // Escape and skips one whose target is marked data-mantine-stop-propagation
+    it("closes the picker and leaves Mantine's Modal open", async () => {
+        const user = userEvent.setup();
+        const onModalClose = vi.fn();
+        renderWithProviders(
+            <MantineProvider env="default">
+                <Modal opened onClose={onModalClose} title="Delivery">
+                    <FiltersProvider itemsMap={{}}>
+                        <DateFilterInputs
+                            filterType={FilterType.DATE}
+                            field={field}
+                            rule={initialRule}
+                            onChange={() => {}}
+                        />
+                    </FiltersProvider>
+                </Modal>
+            </MantineProvider>,
+        );
+
+        await user.click(screen.getAllByRole('textbox').at(-1)!);
+        await waitFor(() =>
+            expect(
+                document.querySelectorAll(
+                    '.mantine-Popover-dropdown:not(.mantine-Modal-content *)',
+                ).length,
+            ).toBeGreaterThan(0),
+        );
+        await user.keyboard('{Escape}');
+
         expect(onModalClose).not.toHaveBeenCalled();
     });
 });

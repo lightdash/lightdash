@@ -199,6 +199,9 @@ const FilterMultiDatePicker: FC<Props> = ({
                             onFocus={openPopover}
                             onBlur={commitSearch}
                             onKeyDown={handleKeyDown}
+                            // As Mantine's own lists do: a host Modal leaves
+                            // this Escape
+                            data-mantine-stop-propagation={opened || undefined}
                         />
                     </Pill.Group>
                 </PillsInput>
