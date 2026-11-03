@@ -1,3 +1,10 @@
+# [3.142.0](https://github.com/lightdash/lightdash/compare/3.141.0...3.142.0) (2026-11-03)
+
+
+### Features
+
+* **frontend:** show live data source explores and semantic layers ([#32012](https://github.com/lightdash/lightdash/issues/32012)) ([8e96f2b](https://github.com/lightdash/lightdash/commit/8e96f2b5f4fa59ce3dec06b7fa080da3153d0296)), closes [#32011](https://github.com/lightdash/lightdash/issues/32011)
+
 # [3.141.0](https://github.com/lightdash/lightdash/compare/3.140.0...3.141.0) (2026-11-03)
 
 
