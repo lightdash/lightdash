@@ -44,6 +44,12 @@ export const QUERY_INTENT_CHECKS = {
 
 export const QUERY_INTENT_ADVICE_THRESHOLD = 0.9;
 
+// Needs the executed result, so it runs apart from the plan-only checks.
+export const QUERY_SHAPE_CHECK = [
+    "Does the terminal result's row count or columns contradict the requested answer shape (a single value, one row per requested group, top N)? rowCount is the full row count; sampleRows shows at most the first 10 rows. Extra descriptive columns beside the requested values are not a contradiction.",
+    'Check the row count and columns against the requested answer shape: a single value, one row per requested group, or top N.',
+] as const;
+
 export type ReviewableMetricQuery = Pick<
     MetricQuery,
     'exploreName' | 'metrics' | 'dimensions' | 'filters'

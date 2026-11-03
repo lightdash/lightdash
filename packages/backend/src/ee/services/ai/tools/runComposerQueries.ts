@@ -20,9 +20,11 @@ import { type AiDecisionClient } from '../decisions/AiDecisionClient';
 import { getEmptyFilterHints } from '../decisions/queryChecks';
 import {
     preferFilterValueHints,
+    type QueryResultShape,
     type QueryReviewer,
 } from '../decisions/queryReview';
 import type {
+    ComposerRunOutcome,
     GetPromptFn,
     IsThreadSqlAutoApprovedFn,
     ListSqlApprovalDecisionsFn,
@@ -146,6 +148,17 @@ const getSemanticLayerAncestors = (
     };
     return visit(terminalNodeId);
 };
+
+const toResultShape = (outcome: ComposerRunOutcome): QueryResultShape | null =>
+    outcome.status === 'success'
+        ? {
+              rowCount: outcome.terminal.rowCount,
+              columns: Object.values(outcome.terminal.columns).map(
+                  ({ reference }) => reference,
+              ),
+              rows: outcome.terminal.rows,
+          }
+        : null;
 
 const getComposerEmptyFilterHints = async (
     { decisions, searchFieldValues }: FilterValueHintDependencies,
@@ -302,51 +315,60 @@ export const getRunComposerQueries = ({
 
                 await updateProgress('Running composer queries...');
 
+                const running = runComposerQueries({
+                    queries,
+                    terminalNodeId: resolvedTerminalNodeId,
+                    sampleNodeIds: enableDataAccess
+                        ? [...submittedNodeIds].filter(
+                              (nodeId) => nodeId !== resolvedTerminalNodeId,
+                          )
+                        : [],
+                    // Per-node lifecycle → transient step-progress events the
+                    // web stream renders as live statuses on the pipeline.
+                    // progressId carries `${toolCallId}:${nodeId}` so the
+                    // client can key events to the right call and node.
+                    // Fire-and-forget: status delivery must never block or
+                    // fail the query.
+                    onNodeStatus: ({ nodeId, status, errorMessage }) => {
+                        let message: string;
+                        let progressStatus:
+                            | 'in_progress'
+                            | 'complete'
+                            | 'error';
+                        if (status === 'running') {
+                            message = `Running query "${nodeId}"...`;
+                            progressStatus = 'in_progress';
+                        } else if (status === 'success') {
+                            message = `Query "${nodeId}" complete`;
+                            progressStatus = 'complete';
+                        } else {
+                            message = `Query "${nodeId}" failed${errorMessage ? `: ${errorMessage}` : ''}`;
+                            progressStatus = 'error';
+                        }
+                        void updateProgress(
+                            message,
+                            'query',
+                            `${toolCallId}:${nodeId}`,
+                            progressStatus,
+                        ).catch(() => {});
+                    },
+                });
                 const [run, review] = await Promise.all([
-                    runComposerQueries({
-                        queries,
-                        terminalNodeId: resolvedTerminalNodeId,
-                        sampleNodeIds: enableDataAccess
-                            ? [...submittedNodeIds].filter(
-                                  (nodeId) => nodeId !== resolvedTerminalNodeId,
-                              )
-                            : [],
-                        // Per-node lifecycle → transient step-progress events the
-                        // web stream renders as live statuses on the pipeline.
-                        // progressId carries `${toolCallId}:${nodeId}` so the
-                        // client can key events to the right call and node.
-                        // Fire-and-forget: status delivery must never block or
-                        // fail the query.
-                        onNodeStatus: ({ nodeId, status, errorMessage }) => {
-                            let message: string;
-                            let progressStatus:
-                                | 'in_progress'
-                                | 'complete'
-                                | 'error';
-                            if (status === 'running') {
-                                message = `Running query "${nodeId}"...`;
-                                progressStatus = 'in_progress';
-                            } else if (status === 'success') {
-                                message = `Query "${nodeId}" complete`;
-                                progressStatus = 'complete';
-                            } else {
-                                message = `Query "${nodeId}" failed${errorMessage ? `: ${errorMessage}` : ''}`;
-                                progressStatus = 'error';
-                            }
-                            void updateProgress(
-                                message,
-                                'query',
-                                `${toolCallId}:${nodeId}`,
-                                progressStatus,
-                            ).catch(() => {});
-                        },
-                    }),
+                    running,
                     enableDataAccess
-                        ? (reviewQuery?.({
-                              kind: 'composer',
-                              queries,
-                              terminalNodeId: resolvedTerminalNodeId,
-                          }) ?? '')
+                        ? (reviewQuery?.(
+                              {
+                                  kind: 'composer',
+                                  queries,
+                                  terminalNodeId: resolvedTerminalNodeId,
+                              },
+                              {
+                                  terminal: running.then(
+                                      toResultShape,
+                                      () => null,
+                                  ),
+                              },
+                          ) ?? '')
                         : '',
                 ]);
 

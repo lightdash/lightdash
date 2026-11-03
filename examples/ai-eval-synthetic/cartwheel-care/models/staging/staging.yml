@@ -1,0 +1,83 @@
+version: 2
+models:
+  - name: stg_districts
+    description: "Partner school districts with funding model and partnership start date."
+    config:
+      meta:
+        hidden: true
+        primary_key: district_id
+    columns:
+      - name: district_id
+        data_tests: [unique, not_null]
+  - name: stg_schools
+    description: "Schools within partner districts with level and enrollment."
+    config:
+      meta:
+        hidden: true
+        primary_key: school_id
+    columns:
+      - name: school_id
+        data_tests: [unique, not_null]
+  - name: stg_care_team
+    description: "Cartwheel clinicians and care coordinators with credentials, languages, and licensure."
+    config:
+      meta:
+        hidden: true
+        primary_key: care_team_member_id
+    columns:
+      - name: care_team_member_id
+        data_tests: [unique, not_null]
+  - name: stg_students
+    description: "De-identified students referred to Cartwheel, one row per student."
+    config:
+      meta:
+        hidden: true
+        primary_key: student_id
+    columns:
+      - name: student_id
+        data_tests: [unique, not_null]
+  - name: stg_referrals
+    description: "Portal referrals from school staff with outreach, consent, and intake milestones."
+    config:
+      meta:
+        hidden: true
+        primary_key: referral_id
+    columns:
+      - name: referral_id
+        data_tests: [unique, not_null]
+  - name: stg_care_episodes
+    description: "Episodes of care by program from intake to discharge."
+    config:
+      meta:
+        hidden: true
+        primary_key: episode_id
+    columns:
+      - name: episode_id
+        data_tests: [unique, not_null]
+  - name: stg_appointments
+    description: "Scheduled virtual appointments with attendance status."
+    config:
+      meta:
+        hidden: true
+        primary_key: appointment_id
+    columns:
+      - name: appointment_id
+        data_tests: [unique, not_null]
+  - name: stg_outcome_assessments
+    description: "Measurement-based care scores at intake, progress checks, and discharge."
+    config:
+      meta:
+        hidden: true
+        primary_key: assessment_id
+    columns:
+      - name: assessment_id
+        data_tests: [unique, not_null]
+  - name: stg_student_terms
+    description: "District SIS attendance and discipline per referred student per term."
+    config:
+      meta:
+        hidden: true
+        primary_key: student_term_id
+    columns:
+      - name: student_term_id
+        data_tests: [unique, not_null]

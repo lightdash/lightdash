@@ -16,6 +16,7 @@ import {
     describeSemanticQuery,
     QUERY_INTENT_ADVICE_THRESHOLD,
     QUERY_INTENT_CHECKS,
+    QUERY_SHAPE_CHECK,
     queryReviewNote,
     type ReviewableMetricQuery,
 } from './queryChecks';
@@ -32,10 +33,74 @@ export type QueryReviewPlan =
     | { kind: 'sql'; sql: string; limit: number }
     | { kind: 'composer'; queries: SourceQuery[]; terminalNodeId: string };
 
+export type QueryResultShape = {
+    rowCount: number;
+    columns: string[];
+    rows: Record<string, unknown>[];
+};
+
 export type QueryReviewer = (
     plan: QueryReviewPlan,
-    result?: { emptyResult: true; review: string },
+    result?:
+        | { emptyResult: true; review: string }
+        // Settles when execution does; null when there is no result to judge.
+        | { terminal: Promise<QueryResultShape | null> },
 ) => Promise<string>;
+
+const SHAPE_SAMPLE_ROWS = 10;
+const SHAPE_CELL_CHARS = 100;
+const SHAPE_TIMEOUT_MS = 2_000;
+
+const truncateCell = (value: unknown): unknown =>
+    typeof value === 'string' && value.length > SHAPE_CELL_CHARS
+        ? `${value.slice(0, SHAPE_CELL_CHARS)}…`
+        : value;
+
+const checkResultShape = async ({
+    decisions,
+    question,
+    conversation,
+    plan,
+    terminal,
+}: {
+    decisions: Pick<AiDecisionClient, 'evaluate'>;
+    question: string;
+    conversation?: AgentDecisionContext;
+    plan: QueryReviewPlan;
+    terminal: Promise<QueryResultShape | null>;
+}): Promise<string[]> => {
+    const shape = await terminal.catch(() => null);
+    if (!shape || shape.rowCount === 0) return [];
+    const [instructions, hint] = QUERY_SHAPE_CHECK;
+    const answers = await decisions.evaluate({
+        operation: 'query-result-shape',
+        state: {
+            question,
+            conversation,
+            plan,
+            result: {
+                rowCount: shape.rowCount,
+                columns: shape.columns,
+                sampleRows: shape.rows
+                    .slice(0, SHAPE_SAMPLE_ROWS)
+                    .map((row) =>
+                        Object.fromEntries(
+                            shape.columns.map((column) => [
+                                column,
+                                truncateCell(row[column]),
+                            ]),
+                        ),
+                    ),
+            },
+        },
+        questions: { shape: { type: 'noul', instructions } },
+        timeoutMs: SHAPE_TIMEOUT_MS,
+    });
+    return (decisionProbability(answers?.shape) ?? 0) >=
+        QUERY_INTENT_ADVICE_THRESHOLD
+        ? [hint]
+        : [];
+};
 
 export const createQueryReviewer =
     ({
@@ -50,7 +115,7 @@ export const createQueryReviewer =
         explores: Explore[];
     }): QueryReviewer =>
     async (plan, result) => {
-        if (result?.emptyResult)
+        if (result && 'emptyResult' in result)
             return diagnoseEmptyResult({
                 decisions,
                 question,
@@ -131,20 +196,32 @@ export const createQueryReviewer =
                         ],
                     ),
                 );
-            const answers = await decisions.evaluate({
-                operation: 'query-plan-intent',
-                state: { question, conversation, plan, semanticSources },
-                questions,
-            });
-            if (!answers) return '';
-            return queryReviewNote(
-                Object.entries(QUERY_INTENT_CHECKS).flatMap(([key, [, hint]]) =>
-                    (decisionProbability(answers[key]) ?? 0) >=
-                    QUERY_INTENT_ADVICE_THRESHOLD
-                        ? [hint]
-                        : [],
+            const [answers, shapeIssues] = await Promise.all([
+                decisions.evaluate({
+                    operation: 'query-plan-intent',
+                    state: { question, conversation, plan, semanticSources },
+                    questions,
+                }),
+                plan.kind === 'composer' && result && 'terminal' in result
+                    ? checkResultShape({
+                          decisions,
+                          question,
+                          conversation,
+                          plan,
+                          terminal: result.terminal,
+                      }).catch(() => [])
+                    : [],
+            ]);
+            return queryReviewNote([
+                ...Object.entries(QUERY_INTENT_CHECKS).flatMap(
+                    ([key, [, hint]]) =>
+                        (decisionProbability(answers?.[key]) ?? 0) >=
+                        QUERY_INTENT_ADVICE_THRESHOLD
+                            ? [hint]
+                            : [],
                 ),
-            );
+                ...shapeIssues,
+            ]);
         } catch {
             return '';
         }

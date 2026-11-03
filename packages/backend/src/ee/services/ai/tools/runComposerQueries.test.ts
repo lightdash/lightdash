@@ -1552,10 +1552,19 @@ describe('composer query review', () => {
         expect(output.metadata?.status).toBe('success');
         expect(output.result).toContain('check grain');
         expect(dependencies.runComposerQueries).toHaveBeenCalledOnce();
-        expect(reviewQuery).toHaveBeenCalledExactlyOnceWith({
-            kind: 'composer',
-            queries: dependencies.runComposerQueries.mock.calls[0][0].queries,
-            terminalNodeId: 'joined',
+        expect(reviewQuery).toHaveBeenCalledExactlyOnceWith(
+            {
+                kind: 'composer',
+                queries:
+                    dependencies.runComposerQueries.mock.calls[0][0].queries,
+                terminalNodeId: 'joined',
+            },
+            { terminal: expect.any(Promise) },
+        );
+        await expect(reviewQuery.mock.calls[0][1].terminal).resolves.toEqual({
+            rowCount: 1,
+            columns: ['month', 'signups'],
+            rows: [{ month: '2026-01', signups: 12 }],
         });
         expect(args).toEqual(before);
     });
@@ -1934,7 +1943,7 @@ describe('semanticLayer node filters', () => {
             queries: ComposerNode[] = [filteredNode],
         ) => {
             const reviewQuery = vi.fn<QueryReviewer>(async (_plan, result) =>
-                result?.emptyResult
+                result && 'emptyResult' in result
                     ? EMPTY_DIAGNOSIS
                     : ' Query/question review: check conditions.',
             );

@@ -1,0 +1,125 @@
+version: 2
+seeds:
+  - name: raw_districts
+    config:
+      column_types:
+        district_id: text
+        district_name: text
+        state: text
+        funding_model: text
+        partnership_start_date: date
+        enrollment: integer
+        clinical_program_director: text
+  - name: raw_schools
+    config:
+      column_types:
+        school_id: text
+        district_id: text
+        school_name: text
+        school_level: text
+        enrollment: integer
+        is_title_i: boolean
+  - name: raw_care_team
+    config:
+      column_types:
+        care_team_member_id: text
+        full_name: text
+        role: text
+        credential: text
+        languages: text
+        is_bilingual: boolean
+        licensed_states: text
+        hire_date: date
+        weekly_session_capacity: integer
+        employment_type: text
+  - name: raw_students
+    config:
+      column_types:
+        student_id: text
+        school_id: text
+        district_id: text
+        grade_at_referral: text
+        gender: text
+        primary_home_language: text
+        coverage_type: text
+        has_iep_or_504: boolean
+        first_referral_date: date
+  - name: raw_referrals
+    config:
+      column_types:
+        referral_id: text
+        student_id: text
+        school_id: text
+        district_id: text
+        care_coordinator_id: text
+        referred_at: timestamp
+        referral_source: text
+        referral_reason: text
+        tier: text
+        urgency: text
+        first_outreach_at: timestamp
+        consent_signed_on: date
+        intake_completed_on: date
+        status: text
+        is_re_referral: boolean
+  - name: raw_care_episodes
+    config:
+      column_types:
+        episode_id: text
+        referral_id: text
+        student_id: text
+        school_id: text
+        district_id: text
+        clinician_id: text
+        program: text
+        presenting_concern: text
+        tier: text
+        started_on: date
+        ended_on: date
+        status: text
+        discharge_reason: text
+        planned_sessions: integer
+  - name: raw_appointments
+    config:
+      column_types:
+        appointment_id: text
+        episode_id: text
+        student_id: text
+        school_id: text
+        district_id: text
+        clinician_id: text
+        scheduled_at: timestamp
+        appointment_type: text
+        program: text
+        modality: text
+        status: text
+        duration_minutes: integer
+        is_during_school_day: boolean
+  - name: raw_outcome_assessments
+    config:
+      column_types:
+        assessment_id: text
+        episode_id: text
+        student_id: text
+        administered_on: date
+        instrument: text
+        assessment_point: text
+        sequence: integer
+        score: integer
+        max_score: integer
+        clinical_cutoff: integer
+  - name: raw_student_terms
+    config:
+      column_types:
+        student_term_id: text
+        student_id: text
+        school_id: text
+        district_id: text
+        term: text
+        school_year: text
+        term_start_date: date
+        term_end_date: date
+        days_enrolled: integer
+        days_absent: integer
+        suspensions: integer
+        office_referrals: integer

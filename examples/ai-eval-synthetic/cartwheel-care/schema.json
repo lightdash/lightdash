@@ -1,0 +1,454 @@
+{
+  "company": "Cartwheel Care",
+  "as_of": "2026-10-16",
+  "seed": 20261016,
+  "tables": [
+    {
+      "name": "raw_districts",
+      "description": "Partner school districts with funding model and partnership start date.",
+      "row_count": 19,
+      "columns": [
+        {
+          "name": "district_id",
+          "type": "string"
+        },
+        {
+          "name": "district_name",
+          "type": "string"
+        },
+        {
+          "name": "state",
+          "type": "string"
+        },
+        {
+          "name": "funding_model",
+          "type": "string"
+        },
+        {
+          "name": "partnership_start_date",
+          "type": "date"
+        },
+        {
+          "name": "enrollment",
+          "type": "integer"
+        },
+        {
+          "name": "clinical_program_director",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "raw_schools",
+      "description": "Schools within partner districts with level and enrollment.",
+      "row_count": 134,
+      "columns": [
+        {
+          "name": "school_id",
+          "type": "string"
+        },
+        {
+          "name": "district_id",
+          "type": "string"
+        },
+        {
+          "name": "school_name",
+          "type": "string"
+        },
+        {
+          "name": "school_level",
+          "type": "string"
+        },
+        {
+          "name": "enrollment",
+          "type": "integer"
+        },
+        {
+          "name": "is_title_i",
+          "type": "boolean"
+        }
+      ]
+    },
+    {
+      "name": "raw_care_team",
+      "description": "Cartwheel clinicians and care coordinators with credentials, languages, and licensure.",
+      "row_count": 53,
+      "columns": [
+        {
+          "name": "care_team_member_id",
+          "type": "string"
+        },
+        {
+          "name": "full_name",
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "type": "string"
+        },
+        {
+          "name": "credential",
+          "type": "string"
+        },
+        {
+          "name": "languages",
+          "type": "string"
+        },
+        {
+          "name": "is_bilingual",
+          "type": "boolean"
+        },
+        {
+          "name": "licensed_states",
+          "type": "string"
+        },
+        {
+          "name": "hire_date",
+          "type": "date"
+        },
+        {
+          "name": "weekly_session_capacity",
+          "type": "integer"
+        },
+        {
+          "name": "employment_type",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "raw_students",
+      "description": "De-identified students referred to Cartwheel, one row per student.",
+      "row_count": 6610,
+      "columns": [
+        {
+          "name": "student_id",
+          "type": "string"
+        },
+        {
+          "name": "school_id",
+          "type": "string"
+        },
+        {
+          "name": "district_id",
+          "type": "string"
+        },
+        {
+          "name": "grade_at_referral",
+          "type": "string"
+        },
+        {
+          "name": "gender",
+          "type": "string"
+        },
+        {
+          "name": "primary_home_language",
+          "type": "string"
+        },
+        {
+          "name": "coverage_type",
+          "type": "string"
+        },
+        {
+          "name": "has_iep_or_504",
+          "type": "boolean"
+        },
+        {
+          "name": "first_referral_date",
+          "type": "date"
+        }
+      ]
+    },
+    {
+      "name": "raw_referrals",
+      "description": "Portal referrals from school staff with outreach, consent, and intake milestones.",
+      "row_count": 7929,
+      "columns": [
+        {
+          "name": "referral_id",
+          "type": "string"
+        },
+        {
+          "name": "student_id",
+          "type": "string"
+        },
+        {
+          "name": "school_id",
+          "type": "string"
+        },
+        {
+          "name": "district_id",
+          "type": "string"
+        },
+        {
+          "name": "care_coordinator_id",
+          "type": "string"
+        },
+        {
+          "name": "referred_at",
+          "type": "timestamp"
+        },
+        {
+          "name": "referral_source",
+          "type": "string"
+        },
+        {
+          "name": "referral_reason",
+          "type": "string"
+        },
+        {
+          "name": "tier",
+          "type": "string"
+        },
+        {
+          "name": "urgency",
+          "type": "string"
+        },
+        {
+          "name": "first_outreach_at",
+          "type": "timestamp"
+        },
+        {
+          "name": "consent_signed_on",
+          "type": "date"
+        },
+        {
+          "name": "intake_completed_on",
+          "type": "date"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "is_re_referral",
+          "type": "boolean"
+        }
+      ]
+    },
+    {
+      "name": "raw_care_episodes",
+      "description": "Episodes of care by program from intake to discharge.",
+      "row_count": 5640,
+      "columns": [
+        {
+          "name": "episode_id",
+          "type": "string"
+        },
+        {
+          "name": "referral_id",
+          "type": "string"
+        },
+        {
+          "name": "student_id",
+          "type": "string"
+        },
+        {
+          "name": "school_id",
+          "type": "string"
+        },
+        {
+          "name": "district_id",
+          "type": "string"
+        },
+        {
+          "name": "clinician_id",
+          "type": "string"
+        },
+        {
+          "name": "program",
+          "type": "string"
+        },
+        {
+          "name": "presenting_concern",
+          "type": "string"
+        },
+        {
+          "name": "tier",
+          "type": "string"
+        },
+        {
+          "name": "started_on",
+          "type": "date"
+        },
+        {
+          "name": "ended_on",
+          "type": "date"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "discharge_reason",
+          "type": "string"
+        },
+        {
+          "name": "planned_sessions",
+          "type": "integer"
+        }
+      ]
+    },
+    {
+      "name": "raw_appointments",
+      "description": "Scheduled virtual appointments with attendance status.",
+      "row_count": 62055,
+      "columns": [
+        {
+          "name": "appointment_id",
+          "type": "string"
+        },
+        {
+          "name": "episode_id",
+          "type": "string"
+        },
+        {
+          "name": "student_id",
+          "type": "string"
+        },
+        {
+          "name": "school_id",
+          "type": "string"
+        },
+        {
+          "name": "district_id",
+          "type": "string"
+        },
+        {
+          "name": "clinician_id",
+          "type": "string"
+        },
+        {
+          "name": "scheduled_at",
+          "type": "timestamp"
+        },
+        {
+          "name": "appointment_type",
+          "type": "string"
+        },
+        {
+          "name": "program",
+          "type": "string"
+        },
+        {
+          "name": "modality",
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "duration_minutes",
+          "type": "integer"
+        },
+        {
+          "name": "is_during_school_day",
+          "type": "boolean"
+        }
+      ]
+    },
+    {
+      "name": "raw_outcome_assessments",
+      "description": "Measurement-based care scores at intake, progress checks, and discharge.",
+      "row_count": 17900,
+      "columns": [
+        {
+          "name": "assessment_id",
+          "type": "string"
+        },
+        {
+          "name": "episode_id",
+          "type": "string"
+        },
+        {
+          "name": "student_id",
+          "type": "string"
+        },
+        {
+          "name": "administered_on",
+          "type": "date"
+        },
+        {
+          "name": "instrument",
+          "type": "string"
+        },
+        {
+          "name": "assessment_point",
+          "type": "string"
+        },
+        {
+          "name": "sequence",
+          "type": "integer"
+        },
+        {
+          "name": "score",
+          "type": "integer"
+        },
+        {
+          "name": "max_score",
+          "type": "integer"
+        },
+        {
+          "name": "clinical_cutoff",
+          "type": "integer"
+        }
+      ]
+    },
+    {
+      "name": "raw_student_terms",
+      "description": "District SIS attendance and discipline per referred student per term.",
+      "row_count": 25122,
+      "columns": [
+        {
+          "name": "student_term_id",
+          "type": "string"
+        },
+        {
+          "name": "student_id",
+          "type": "string"
+        },
+        {
+          "name": "school_id",
+          "type": "string"
+        },
+        {
+          "name": "district_id",
+          "type": "string"
+        },
+        {
+          "name": "term",
+          "type": "string"
+        },
+        {
+          "name": "school_year",
+          "type": "string"
+        },
+        {
+          "name": "term_start_date",
+          "type": "date"
+        },
+        {
+          "name": "term_end_date",
+          "type": "date"
+        },
+        {
+          "name": "days_enrolled",
+          "type": "integer"
+        },
+        {
+          "name": "days_absent",
+          "type": "integer"
+        },
+        {
+          "name": "suspensions",
+          "type": "integer"
+        },
+        {
+          "name": "office_referrals",
+          "type": "integer"
+        }
+      ]
+    }
+  ]
+}
