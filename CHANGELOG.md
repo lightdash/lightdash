@@ -1,3 +1,22 @@
+## [3.133.1](https://github.com/lightdash/lightdash/compare/3.133.0...3.133.1) (2026-11-03)
+
+
+### Bug Fixes
+
+* **ai:** use claude-haiku-5-5 as anthropic fast model ([#31993](https://github.com/lightdash/lightdash/issues/31993)) ([26174dc](https://github.com/lightdash/lightdash/commit/26174dc677a2688f8e30348af9a62f4ac5be3784))
+* **auth:** fill blank profile names from Google on sign-in and linking ([#31987](https://github.com/lightdash/lightdash/issues/31987)) ([2496597](https://github.com/lightdash/lightdash/commit/2496597a2a15fde5f4ce38565806a2d779139461))
+* **bigquery:** SQL Runner lists tables from the dbt project ([#31989](https://github.com/lightdash/lightdash/issues/31989)) ([7e8a630](https://github.com/lightdash/lightdash/commit/7e8a630b123d366766104bedf1658a89cfd4494c))
+* bound retained query history imports by time window ([#31966](https://github.com/lightdash/lightdash/issues/31966)) ([d06509e](https://github.com/lightdash/lightdash/commit/d06509ea493aa83e3cdd1952f5fd99f33a82e660))
+* **dashboard-controls:** edit mode keeps the header, with an Editing badge ([#31990](https://github.com/lightdash/lightdash/issues/31990)) ([f397a2d](https://github.com/lightdash/lightdash/commit/f397a2dd60403149c69ed34046f6c9e92e39b6fe))
+* **dashboard-controls:** same Escape and press-outside rules for every filter popup ([#31976](https://github.com/lightdash/lightdash/issues/31976)) ([3cc14c8](https://github.com/lightdash/lightdash/commit/3cc14c878e2cd696ec4096c77617c3cce0b12b15))
+* keep development inspectors on localhost by default ([#31970](https://github.com/lightdash/lightdash/issues/31970)) ([0ad655e](https://github.com/lightdash/lightdash/commit/0ad655eda0f601644f3c2db66cf2fccb28035ec7))
+
+
+### Performance Improvements
+
+* simplify content health query attribution joins ([#31875](https://github.com/lightdash/lightdash/issues/31875)) ([5b35626](https://github.com/lightdash/lightdash/commit/5b35626f8579291b2331eb3fd69bd7a5de73f25d))
+* use request starts for Ask AI adoption charts ([#31903](https://github.com/lightdash/lightdash/issues/31903)) ([74ba71e](https://github.com/lightdash/lightdash/commit/74ba71ec9b3fb74d4c43852e5f8444a7f9ece98c))
+
 # [3.133.0](https://github.com/lightdash/lightdash/compare/3.132.0...3.133.0) (2026-11-03)
 
 

@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "3.133.0",
-  "previousVersion": "3.132.0",
-  "releaseDate": "2026-11-03T12:50:14.113Z",
+  "version": "3.133.1",
+  "previousVersion": "3.133.0",
+  "releaseDate": "2026-11-03T13:35:32.571Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -11,15 +11,21 @@
     "files": []
   },
   "compatibility": {
-    "rollingUpdateSafe": true,
-    "recommendedStrategy": "RollingUpdate"
+    "rollingUpdateSafe": false,
+    "recommendedStrategy": "Recreate"
   },
   "api": {
     "rest": {
       "checked": true,
-      "breaking": false,
-      "changes": [],
-      "breakingCount": 0,
+      "breaking": true,
+      "changes": [
+        "GET /api/v1/org/warehouse-credentials — api path removed without deprecation",
+        "POST /api/v1/org/warehouse-credentials — api path removed without deprecation",
+        "DELETE /api/v1/org/warehouse-credentials/{credentialsUuid} — api path removed without deprecation",
+        "GET /api/v1/org/warehouse-credentials/{credentialsUuid} — api path removed without deprecation",
+        "PATCH /api/v1/org/warehouse-credentials/{credentialsUuid} — api path removed without deprecation"
+      ],
+      "breakingCount": 5,
       "advisories": [],
       "advisoryCount": 0
     },
@@ -41,6 +47,12 @@
     "minPreviousVersion": "2.497.1",
     "requiredStops": []
   },
-  "declaredBreaks": [],
+  "declaredBreaks": [
+    {
+      "id": "organization-warehouse-credentials-api-retired",
+      "reason": "The deprecated organization warehouse credential REST endpoints and CLI organization-credentials option are removed. Callers of those endpoints receive 404 and older CLI commands using that option must configure warehouse credentials on the project instead. Existing project credentials, personal sign-ins and service accounts retain their current behavior. Legacy storage and shared compatibility types remain unchanged.",
+      "requiredStop": false
+    }
+  ],
   "declaredAdvisories": []
 }
