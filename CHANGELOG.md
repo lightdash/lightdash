@@ -1,3 +1,10 @@
+## [3.128.2](https://github.com/lightdash/lightdash/compare/3.128.1...3.128.2) (2026-11-03)
+
+
+### Performance Improvements
+
+* query content inventory for creation and ownership charts ([#31898](https://github.com/lightdash/lightdash/issues/31898)) ([2c65eb6](https://github.com/lightdash/lightdash/commit/2c65eb672c054216fbf73842e75e1b2a8f1455a9))
+
 ## [3.128.1](https://github.com/lightdash/lightdash/compare/3.128.0...3.128.1) (2026-11-03)
 
 
