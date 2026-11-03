@@ -6949,6 +6949,29 @@ describe.each(agentActionTestCases)(
                 'secret-name',
             );
         });
+        test('user name is refused for a service account', async () => {
+            const service = makeService();
+            const updateUser = vi.fn().mockResolvedValue(undefined);
+            Object.assign(service['userService'], { updateUser });
+            await expect(
+                withAgentActionScope(user, surface, enabled, () =>
+                    service
+                        .createRuntime(
+                            makeRuntimeContext({
+                                user: {
+                                    ...user,
+                                    serviceAccount: { uuid: 'service-account' },
+                                },
+                            }),
+                        )
+                        .updateUserName({
+                            firstName: 'Sam',
+                            lastName: 'Viewer',
+                        }),
+                ),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(updateUser).not.toHaveBeenCalled();
+        });
         test.each(['chart', 'dashboard'] as const)(
             'scheduled %s records before augmentation failure',
             async (resourceType) => {

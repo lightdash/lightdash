@@ -194,7 +194,8 @@ export const ADD_ONS: Record<AddOnName, AddOnDefinition> = {
     userIdentity: {
         description:
             'Tell the agent who it is talking to and let it fix their name',
-        when: (input) => !!input.requestingUser,
+        when: (input) =>
+            !!input.requestingUser && !input.requestingUser.isServiceAccount,
         tools: ['updateUserName'],
         section: { id: 'requestingUser', documents: ['updateUserName'] },
         skills: [],

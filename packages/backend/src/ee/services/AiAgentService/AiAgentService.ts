@@ -17246,6 +17246,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                             .join(' '),
                         role,
                         groups: userGroups.map((group) => group.name),
+                        isServiceAccount: !!user.serviceAccount,
                     };
                 }
 
