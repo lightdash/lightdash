@@ -5970,6 +5970,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                inline: { dataType: 'boolean' },
                 collapsed: { dataType: 'boolean' },
                 name: { dataType: 'string', required: true },
                 id: { dataType: 'string', required: true },
@@ -48579,6 +48580,8 @@ const models: TsoaRoute.Models = {
                 },
                 role: { ref: 'UserAsCodeRole', required: true },
                 disabled: { dataType: 'boolean', required: true },
+                lastName: { dataType: 'string' },
+                firstName: { dataType: 'string' },
                 email: { dataType: 'string', required: true },
                 version: { dataType: 'enum', enums: [1], required: true },
             },
@@ -62755,6 +62758,8 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'union',
             subSchemas: [
+                { dataType: 'enum', enums: ['reconcileAnalyticsContent'] },
+                { dataType: 'enum', enums: ['syncAnalyticsContent'] },
                 { dataType: 'enum', enums: ['slackAiPrompt'] },
                 { dataType: 'enum', enums: ['slackAiArtifactImages'] },
                 { dataType: 'enum', enums: ['sweepSlackAiArtifactImages'] },
@@ -66527,6 +66532,66 @@ const models: TsoaRoute.Models = {
     ApiResultsCacheInvalidationResponse: {
         dataType: 'refAlias',
         type: { ref: 'ApiSuccess_ResultsCacheInvalidation_', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ExploresResultsCacheInvalidation: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'ResultsCacheInvalidation' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        exploreNames: {
+                            dataType: 'array',
+                            array: { dataType: 'string' },
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSuccess_ExploresResultsCacheInvalidation_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    ref: 'ExploresResultsCacheInvalidation',
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiExploresResultsCacheInvalidationResponse: {
+        dataType: 'refAlias',
+        type: {
+            ref: 'ApiSuccess_ExploresResultsCacheInvalidation_',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    InvalidateExploresResultsCache: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                includeJoinedExplores: { dataType: 'boolean' },
+                exploreNames: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+            },
+            validators: {},
+        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     PreviewExpiresAt: {
@@ -129667,6 +129732,71 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'invalidateProjectResultsCache',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectController_invalidateExploresResultsCache: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'InvalidateExploresResultsCache',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.post(
+        '/api/v1/projects/:projectUuid/results-cache/invalidate/explores',
+        ...fetchMiddlewares<RequestHandler>(ProjectController),
+        ...fetchMiddlewares<RequestHandler>(
+            ProjectController.prototype.invalidateExploresResultsCache,
+        ),
+
+        async function ProjectController_invalidateExploresResultsCache(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsProjectController_invalidateExploresResultsCache,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<ProjectController>(ProjectController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'invalidateExploresResultsCache',
                     controller,
                     response,
                     next,

@@ -55,8 +55,18 @@ export const contentHealthSql = `(WITH views AS (
         COUNT(q.warehouse_execution_time_ms)::BIGINT AS queries_with_execution_time
     FROM lightdash_content i JOIN queries q
         ON i.org_id = q.org_id AND i.project_id = q.project_id
-        AND ((i.content_type IN ('saved_chart', 'sql_chart') AND i.content_id = q.chart_id)
-          OR (i.content_type = 'dashboard' AND i.content_id = q.dashboard_id))
+        AND i.content_id = q.chart_id
+    WHERE i.content_type IN ('saved_chart', 'sql_chart')
+    GROUP BY i.org_id, i.project_id, i.content_type, i.content_id
+    UNION ALL
+    SELECT i.org_id, i.project_id, i.content_type, i.content_id,
+        COUNT(*)::BIGINT AS observed_queries, MAX(q.event_ts) AS last_query_at,
+        SUM(q.warehouse_execution_time_ms)::BIGINT AS warehouse_execution_time_ms,
+        COUNT(q.warehouse_execution_time_ms)::BIGINT AS queries_with_execution_time
+    FROM lightdash_content i JOIN queries q
+        ON i.org_id = q.org_id AND i.project_id = q.project_id
+        AND i.content_id = q.dashboard_id
+    WHERE i.content_type = 'dashboard'
     GROUP BY i.org_id, i.project_id, i.content_type, i.content_id
 ), app_loads AS (
     SELECT org_id, project_id, app_id,

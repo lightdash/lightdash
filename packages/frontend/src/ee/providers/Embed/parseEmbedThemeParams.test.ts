@@ -1,6 +1,44 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { parseEmbedThemeParams } from './parseEmbedThemeParams';
 
+describe('iframe theme', () => {
+    afterEach(() => {
+        window.history.replaceState(null, '', '/');
+    });
+
+    it.each(['light', 'dark', 'system'] as const)(
+        'accepts theme=%s',
+        (value) => {
+            window.history.replaceState(null, '', `/?theme=${value}`);
+
+            expect(parseEmbedThemeParams().theme).toBe(value);
+        },
+    );
+
+    it.each(['', 'auto', 'DARK', 'blue'])(
+        'falls back to light for theme=%s',
+        (value) => {
+            window.history.replaceState(null, '', `/?theme=${value}`);
+
+            expect(parseEmbedThemeParams().theme).toBe('light');
+        },
+    );
+
+    it('defaults to light without a theme param', () => {
+        expect(parseEmbedThemeParams().theme).toBe('light');
+    });
+
+    it('follows the system when the SDK flags it alongside a resolved theme', () => {
+        window.history.replaceState(
+            null,
+            '',
+            '/?theme=dark&followSystemTheme=true',
+        );
+
+        expect(parseEmbedThemeParams().theme).toBe('system');
+    });
+});
+
 describe('iframe background colors', () => {
     afterEach(() => {
         window.history.replaceState(null, '', '/');

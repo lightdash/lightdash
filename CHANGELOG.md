@@ -1,3 +1,50 @@
+# [3.133.0](https://github.com/lightdash/lightdash/compare/3.132.0...3.133.0) (2026-11-03)
+
+
+### Features
+
+* follow the system colour scheme as a theme option ([#31846](https://github.com/lightdash/lightdash/issues/31846)) ([c83cf5a](https://github.com/lightdash/lightdash/commit/c83cf5a3f283ab9d65a1c451c49dc37f608074f2))
+
+# [3.132.0](https://github.com/lightdash/lightdash/compare/3.131.1...3.132.0) (2026-11-03)
+
+
+### Bug Fixes
+
+* preserve user names in organization content as code ([#31986](https://github.com/lightdash/lightdash/issues/31986)) ([6dc889e](https://github.com/lightdash/lightdash/commit/6dc889ea94338f5bd91c08e97f89b2c73d634d7a))
+
+
+### Features
+
+* automatically sync managed analytics content after compaction ([#31974](https://github.com/lightdash/lightdash/issues/31974)) ([4a7617a](https://github.com/lightdash/lightdash/commit/4a7617a7c59189e4dab17ffbf320d15c0e3029b4))
+
+## [3.131.1](https://github.com/lightdash/lightdash/compare/3.131.0...3.131.1) (2026-11-03)
+
+
+### Bug Fixes
+
+* AI agent reads saved table list when running as the person ([#31975](https://github.com/lightdash/lightdash/issues/31975)) ([8ec8f24](https://github.com/lightdash/lightdash/commit/8ec8f2470d3f4c8f84168e3a8cec584f108d8259))
+
+# [3.131.0](https://github.com/lightdash/lightdash/compare/3.130.1...3.131.0) (2026-11-03)
+
+
+### Features
+
+* **dashboard:** arrange filter sections on lines, with drag, rename … ([#31943](https://github.com/lightdash/lightdash/issues/31943)) ([43c0790](https://github.com/lightdash/lightdash/commit/43c0790add210347040f7ffa9148c009118989d1))
+
+## [3.130.1](https://github.com/lightdash/lightdash/compare/3.130.0...3.130.1) (2026-11-03)
+
+
+### Bug Fixes
+
+* show BigQuery native temporal types in agent describeWarehouseTable ([#31977](https://github.com/lightdash/lightdash/issues/31977)) ([e689669](https://github.com/lightdash/lightdash/commit/e689669b9be9ecc028e9e808ed19f94e605446e3))
+
+# [3.130.0](https://github.com/lightdash/lightdash/compare/3.129.0...3.130.0) (2026-11-03)
+
+
+### Features
+
+* **results-cache:** invalidate cached results for a list of explores ([#31946](https://github.com/lightdash/lightdash/issues/31946)) ([d5de31a](https://github.com/lightdash/lightdash/commit/d5de31ae03773842c805fd4cb3c325f786ce987c))
+
 # [3.129.0](https://github.com/lightdash/lightdash/compare/3.128.7...3.129.0) (2026-11-03)
 
 

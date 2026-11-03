@@ -831,7 +831,7 @@ export type DescribeWarehouseTableFn = (args: {
     schema?: string;
     database?: string;
 }) => Promise<{
-    columns: Array<{ name: string; type: string }>;
+    columns: Array<{ name: string; type: string; nativeType: string | null }>;
     resolvedSchema: string | null;
     resolvedDatabase: string | null;
 }>;

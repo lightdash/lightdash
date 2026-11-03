@@ -1,6 +1,6 @@
 {
     "name": "backend",
-    "version": "3.129.0",
+    "version": "3.133.0",
     "private": true,
     "license": "MIT",
     "main": "dist/index",
@@ -9,7 +9,7 @@
         "generate:filter-expression-skill": "tsx --tsconfig tsconfig.scripts.json src/scripts/generate-filter-expression-skill.ts && oxfmt --write src/ee/services/ai/skills/builtInSkills/filter-expressions/SKILL.md",
         "generate-api:build": "pnpm run generate-api && pnpm run formatter --write ./src/generated",
         "generate-api-dev": "pnpm run generate-api:build && chokidar './src/**/controllers/**/*.ts' -c 'pnpm run generate-api:build'",
-        "dev": "LIGHTDASH_MODE=${LIGHTDASH_MODE:-development} HEADLESS=true tsx watch --clear-screen=false --inspect=0.0.0.0:9229 src/index.ts",
+        "dev": "LIGHTDASH_MODE=${LIGHTDASH_MODE:-development} HEADLESS=true tsx watch --clear-screen=false --inspect=\"${DEBUG_HOST:-127.0.0.1}:${DEBUG_PORT:-9229}\" src/index.ts",
         "build": "pnpm run generate-api:build && tsc --build tsconfig.build.json",
         "build:mcp-app": "pnpm -F @lightdash/mcp-chart-app build",
         "build-sourcemaps": "pnpm run generate-api:build && tsc --build tsconfig.sentry.json",

@@ -127,7 +127,6 @@ import { McpService } from './services/McpService/McpService';
 import { MobilePushNotificationReconciler } from './services/MobilePushNotificationService/MobilePushNotificationReconciler';
 import { MobilePushNotificationService } from './services/MobilePushNotificationService/MobilePushNotificationService';
 import { OnboardingAgentService } from './services/OnboardingAgentService/OnboardingAgentService';
-import { OrganizationWarehouseCredentialsService } from './services/OrganizationWarehouseCredentialsService';
 import { ProjectContextService } from './services/ProjectContextService/ProjectContextService';
 import { ProjectHomepageService } from './services/ProjectHomepageService';
 import { createPlaygroundAppFileStore } from './services/ProjectService/playgroundAppFiles';
@@ -199,6 +198,12 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new AnalyticsProjectService({
                     lightdashConfig: context.lightdashConfig,
                     schedulerClient: clients.getSchedulerClient(),
+                    contentAsCodeSnapshotModel:
+                        models.getContentAsCodeSnapshotModel(),
+                    featureFlagModel: models.getFeatureFlagModel(),
+                    organizationMemberProfileModel:
+                        models.getOrganizationMemberProfileModel(),
+                    usageDimensionsModel: models.getUsageDimensionsModel(),
                     coderService: repository.getCoderService(),
                     contentVerificationModel:
                         models.getContentVerificationModel(),
@@ -1244,13 +1249,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     organizationSettingsModel:
                         models.getOrganizationSettingsModel(),
                 }),
-            organizationWarehouseCredentialsService: ({ models, context }) =>
-                new OrganizationWarehouseCredentialsService({
-                    analytics: context.lightdashAnalytics,
-                    organizationWarehouseCredentialsModel:
-                        models.getOrganizationWarehouseCredentialsModel(),
-                    userOAuthGrantsModel: models.getUserOAuthGrantsModel(),
-                }),
             projectService: ({ models, context, clients, utils, repository }) =>
                 new ProjectService({
                     dbtSourceRefCatalogModel:
@@ -1301,8 +1299,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     userOAuthGrantsModel: models.getUserOAuthGrantsModel(),
                     featureFlagModel: models.getFeatureFlagModel(),
                     projectParametersModel: models.getProjectParametersModel(),
-                    organizationWarehouseCredentialsModel:
-                        models.getOrganizationWarehouseCredentialsModel(),
                     organizationModel: models.getOrganizationModel(),
                     projectCompileLogModel: models.getProjectCompileLogModel(),
                     adminNotificationService:
@@ -1550,8 +1546,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getQuerySourceService(),
                     featureFlagModel: models.getFeatureFlagModel(),
                     projectParametersModel: models.getProjectParametersModel(),
-                    organizationWarehouseCredentialsModel:
-                        models.getOrganizationWarehouseCredentialsModel(),
                     organizationModel: models.getOrganizationModel(),
                     pivotTableService: repository.getPivotTableService(),
                     prometheusMetrics,
@@ -1839,6 +1833,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
         ],
         schedulerWorkerFactory: (context) =>
             new CommercialSchedulerWorker({
+                analyticsProjectService:
+                    context.serviceRepository.getAnalyticsProjectService<AnalyticsProjectService>(),
                 getAgentConnectionGrantService: () =>
                     context.serviceRepository.getAgentConnectionGrantService(),
                 agentActionLogModel: context.models.getAgentActionLogModel(),

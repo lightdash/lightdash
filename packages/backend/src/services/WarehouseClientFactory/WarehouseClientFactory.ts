@@ -349,7 +349,6 @@ export class WarehouseClientFactory {
         credentials: ResolvedWarehouseConnection['warehouseCredentials'],
         projectUuid: string | null,
         warehouseConnectionUuid: string | null,
-        organizationCredentialUuid: string | null,
         aiPlan: AiExecutionPlan | null,
     ): CredentialOwner | null {
         if (credentials.userWarehouseCredentialsUuid) {
@@ -374,8 +373,6 @@ export class WarehouseClientFactory {
                 purpose: UserWarehouseCredentialPurpose.AI,
             };
         }
-        if (organizationCredentialUuid)
-            return { kind: 'organization', uuid: organizationCredentialUuid };
         if (warehouseConnectionUuid)
             return {
                 kind: 'warehouseConnection',
@@ -443,9 +440,6 @@ export class WarehouseClientFactory {
             credentials,
             base.projectUuid,
             base.warehouseConnectionUuid,
-            base.kind === 'final'
-                ? null
-                : base.organizationWarehouseCredentialsUuid,
             aiPlan,
         );
         const materialized = await this.materializeResolvedCredentials(
@@ -792,7 +786,6 @@ export class WarehouseClientFactory {
                 warehouseCredentials,
                 ref.projectUuid,
                 warehouseConnectionUuid,
-                null,
                 aiPlan,
             ),
             aiPlan,

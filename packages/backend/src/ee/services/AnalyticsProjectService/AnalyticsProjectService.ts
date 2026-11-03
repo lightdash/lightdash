@@ -18,28 +18,49 @@ import {
     analyticsDefaultSpace,
 } from '../../../analytics/systemExplores/sampleContent';
 import type { LightdashConfig } from '../../../config/parseConfig';
+import {
+    ANALYTICS_BUNDLE_SNAPSHOT_TYPE,
+    type ContentAsCodeSnapshotModel,
+} from '../../../models/ContentAsCodeSnapshotModel';
 import { type ContentVerificationModel } from '../../../models/ContentVerificationModel';
 import { type DashboardModel } from '../../../models/DashboardModel/DashboardModel';
+import type { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
+import type { OrganizationMemberProfileModel } from '../../../models/OrganizationMemberProfileModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { type SavedChartModel } from '../../../models/SavedChartModel';
 import { type SpaceModel } from '../../../models/SpaceModel';
+import type { UsageDimensionsModel } from '../../../models/UsageDimensionsModel';
 import type { UsageProcessingModel } from '../../../models/UsageProcessingModel';
 import { UserModel } from '../../../models/UserModel';
 import type { SchedulerClient } from '../../../scheduler/SchedulerClient';
 import { BaseService } from '../../../services/BaseService';
 import { type CoderService } from '../../../services/CoderService/CoderService';
+import { isAnalyticsProjectEnabled } from '../../../services/ProjectService/analyticsProject/analyticsProjectClient';
 import {
     analyticsExploreNames,
     createAnalyticsExplores,
 } from '../../../services/ProjectService/analyticsProject/createAnalyticsExplores';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
+import { getAnalyticsContentHash } from './analyticsContentHash';
 
 type Dependencies = {
     lightdashConfig: Pick<LightdashConfig, 'usageEvents'>;
     schedulerClient: Pick<
         SchedulerClient,
-        'getUsageHistoryBackfillJob' | 'scheduleUsageHistoryBackfill'
+        | 'getUsageHistoryBackfillJob'
+        | 'scheduleUsageHistoryBackfill'
+        | 'scheduleAnalyticsContentSync'
     >;
+    contentAsCodeSnapshotModel: Pick<
+        ContentAsCodeSnapshotModel,
+        'get' | 'upsert'
+    >;
+    featureFlagModel: Pick<FeatureFlagModel, 'get'>;
+    organizationMemberProfileModel: Pick<
+        OrganizationMemberProfileModel,
+        'getOrganizationAdmins'
+    >;
+    usageDimensionsModel: Pick<UsageDimensionsModel, 'getOrganizations'>;
     coderService: Pick<CoderService, 'upsertChart' | 'upsertDashboard'>;
     contentVerificationModel: Pick<
         ContentVerificationModel,
@@ -61,7 +82,10 @@ type Dependencies = {
         | 'ensureAnalyticsProject'
         | 'delete'
     >;
-    userModel: Pick<UserModel, 'invalidateSessionUserCache'>;
+    userModel: Pick<
+        UserModel,
+        'invalidateSessionUserCache' | 'findSessionUserAndOrgByUuid'
+    >;
     usageProcessingModel: Pick<UsageProcessingModel, 'find'>;
 };
 
@@ -78,6 +102,11 @@ const expectedModelCounts = memoize(() =>
         ),
         hiddenJoins: explore.joinedTables.filter((join) => join.hidden).length,
     })),
+);
+
+const bundleSnapshotSlug = 'managed-content';
+const contentHash = memoize(() =>
+    getAnalyticsContentHash(createAnalyticsExplores(), analyticsContentAsCode),
 );
 
 export class AnalyticsProjectService extends BaseService {
@@ -187,21 +216,27 @@ export class AnalyticsProjectService extends BaseService {
         const chartSlugs = analyticsContentAsCode.flatMap(({ charts }) =>
             charts.map(({ slug }) => slug),
         );
-        const [models, dashboards, charts, processing] = await Promise.all([
-            this.dependencies.projectModel.getAnalyticsModelCounts(
-                project.projectUuid,
-                analyticsExploreNames,
-            ),
-            this.dependencies.dashboardModel.find({
-                projectUuid: project.projectUuid,
-                slugs: dashboardSlugs,
-            }),
-            this.dependencies.savedChartModel.find({
-                projectUuid: project.projectUuid,
-                slugs: chartSlugs,
-            }),
-            this.dependencies.usageProcessingModel.find(organizationUuid),
-        ]);
+        const [models, dashboards, charts, snapshot, processing] =
+            await Promise.all([
+                this.dependencies.projectModel.getAnalyticsModelCounts(
+                    project.projectUuid,
+                    analyticsExploreNames,
+                ),
+                this.dependencies.dashboardModel.find({
+                    projectUuid: project.projectUuid,
+                    slugs: dashboardSlugs,
+                }),
+                this.dependencies.savedChartModel.find({
+                    projectUuid: project.projectUuid,
+                    slugs: chartSlugs,
+                }),
+                this.dependencies.contentAsCodeSnapshotModel.get(
+                    project.projectUuid,
+                    ANALYTICS_BUNDLE_SNAPSHOT_TYPE,
+                    bundleSnapshotSlug,
+                ),
+                this.dependencies.usageProcessingModel.find(organizationUuid),
+            ]);
         const verifications =
             await this.dependencies.contentVerificationModel.getByContentUuids(
                 ContentType.DASHBOARD,
@@ -224,6 +259,7 @@ export class AnalyticsProjectService extends BaseService {
                 url: `/projects/${project.slug ?? project.projectUuid}/tables`,
                 createdAt: new Date(project.createdAt).toISOString(),
                 hasContentUpdates:
+                    snapshot?.snapshotHash !== contentHash() ||
                     !modelsAreCurrent ||
                     dashboards.length !== dashboardSlugs.length ||
                     charts.length !== chartSlugs.length ||
@@ -399,8 +435,67 @@ export class AnalyticsProjectService extends BaseService {
                     );
                 }
                 /* eslint-enable no-await-in-loop */
+                await this.dependencies.contentAsCodeSnapshotModel.upsert({
+                    projectUuid: project.projectUuid,
+                    contentType: ANALYTICS_BUNDLE_SNAPSHOT_TYPE,
+                    slug: bundleSnapshotSlug,
+                    snapshot: {},
+                    snapshotHash: contentHash(),
+                    appliedByUserUuid: user.userUuid,
+                    filePath: null,
+                });
             },
         );
+    }
+
+    async reconcileContent({
+        organizationUuid,
+    }: {
+        organizationUuid: string | null;
+    }): Promise<void> {
+        for await (const organization of this.dependencies.usageDimensionsModel.getOrganizations(
+            organizationUuid ?? undefined,
+        )) {
+            await this.dependencies.schedulerClient.scheduleAnalyticsContentSync(
+                { organizationUuid: organization.organization_uuid },
+            );
+        }
+    }
+
+    async syncContent({
+        organizationUuid,
+    }: {
+        organizationUuid: string;
+    }): Promise<void> {
+        if (
+            !this.dependencies.lightdashConfig.usageEvents.enabled ||
+            !this.dependencies.lightdashConfig.usageEvents.s3 ||
+            !(await isAnalyticsProjectEnabled(
+                this.dependencies.featureFlagModel,
+                organizationUuid,
+            ))
+        )
+            return;
+        const admins =
+            await this.dependencies.organizationMemberProfileModel.getOrganizationAdmins(
+                organizationUuid,
+            );
+        const admin = admins.find(
+            ({ isActive, isPending }) => isActive && !isPending,
+        );
+        if (!admin)
+            throw new NotFoundError(
+                'No active organization administrator is available to synchronize analytics',
+            );
+        const user =
+            await this.dependencies.userModel.findSessionUserAndOrgByUuid(
+                admin.userUuid,
+                organizationUuid,
+            );
+        if (!user.isActive || user.isPending)
+            throw new ForbiddenError('Administrator is no longer active');
+        const { project } = await this.getStatus(user);
+        if (project?.hasContentUpdates) await this.installSampleContent(user);
     }
 
     async delete(user: SessionUser, projectUuid: string): Promise<void> {

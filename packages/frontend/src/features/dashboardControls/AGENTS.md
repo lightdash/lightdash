@@ -41,14 +41,15 @@ is untouched and removing the flag is deleting these lines.
 Gated on the flag:
 
 - `pages/Dashboard.tsx`: `ControlsSidebarPage` instead of `Page`; the header
-  through `DashboardHeaderGuard`; while the band shows (`isEditBandShown`:
-  edit mode and manage access) `bandScope` on the header and
-  tabs wrapper (`--dashboard-header-height` set to `--dashboard-edit-band-height`, `DASHBOARD_EDIT_BAND_HEIGHT`); `PageSpinner` until the flag's
+  through `DashboardHeaderGuard`; `PageSpinner` until the flag's
   `isInitialLoading` ends, so `Page` is never swapped for
   `ControlsSidebarPage` (that remounts the grid).
 - `features/dashboardTabs/index.tsx`: `ControlsBar` instead of
-  `DashboardFiltersBar`; `hasQuietActions` on each `DraggableTab`; the tabs' stuck detector offset
-  from `getTabsStickyOffset` (`editBand.ts`, the band's height while it shows).
+  `DashboardFiltersBar`; `hasQuietActions` on each `DraggableTab`.
+- `components/common/Dashboard/DashboardHeader.tsx`: the indigo "Editing"
+  badge before the name in edit mode, for users who can manage the dashboard;
+  the `save` class, outlined by `DashboardHeader.module.css` under the guard's
+  `[data-dashboard-header-guard][inert]`.
 - `ee/features/embed/EmbedDashboard/components/EmbedDashboard.tsx`:
   `isEmbedFilterRailEnabled` (flag on, and not an embed editor in edit mode)
   turns on `isControlsEnabled` for the header and filter bar, and
@@ -126,7 +127,7 @@ Fix behaviour in the shared piece, once, never in a copy.
 | `SectionedFilters.tsx`, `SectionMenu.tsx`, `SectionNameInput.tsx`, `sections.ts`, `nameFocus.ts` | Sections bar, drag and drop, naming (focus after naming, shared with the editor's name); pure section helpers |
 | `SelectionBar.tsx`, `SelectionActions.tsx`, `barSelection.ts` | Multi-select on the sectioned bar |
 | `sectionVersionChanges.ts` | Section rows for the version comparison page |
-| `DashboardHeaderGuard.tsx` | Edit mode band (Editing, name; Add tile, Save dashboard, Cancel, "...") in place of the header for users who can manage the dashboard (`useDashboardManageAccess`, else the shipped header); inert while an editor's filter is edited |
+| `DashboardHeaderGuard.tsx` | Wraps the shipped header; inert while an editor's filter is edited |
 | `useEditorDismiss.ts` | Escape handling while a filter is edited |
 | `DropdownClass.tsx`, `railContractClasses.ts` | Embed class contract on the editor popover and portalled lists |
 | `requirements.ts`, `fieldLabels.ts` | Requirement rules, count copy |
@@ -137,7 +138,7 @@ Each one has broken before or would break silently.
 
 - **One filled button.** While a filter is edited the editor's Apply (the
   mapping row's in mapping) is the only filled button on screen: the inert
-  band draws Save dashboard as an outline, and the selection bar never uses
+  header draws Save changes as an outline, and the selection bar never uses
   `filled`. The one exception is the field bar's Undo right after "Add a
   field", or its Filter right after a tile card's pick (a design decision).
 - **No state reset in an effect.** Open/closed, mapping, highlighted field,
@@ -245,7 +246,7 @@ Every flag-on pill is the default white pill; only these change it, all in
   yet" is the first line of the tooltip the pill already has: the select
   hint, else the tables tooltip (`tablesTooltipNote`).
 - Picked (edit mode): blue fill and a check, the only blue.
-- Required, locked and "changed since save" have no cue; Save in the band is
+- Required, locked and "changed since save" have no cue; Save in the header is
   the one unsaved signal.
 
 Apply in the editor is disabled for an editor's required filter with no value

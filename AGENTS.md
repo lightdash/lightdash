@@ -28,6 +28,7 @@ These live next to the code and load when Claude works there. Read the linked fi
 - **Warehouse credentials**: new sensitive credential fields go in `sensitiveCredentialsFieldNames`; see `packages/common/src/types/AGENTS.md`.
 - **LIGHTDASH_SECRET-derived state** must register for rotation; see `packages/backend/AGENTS.md`.
 - **Slugs and uuid-or-slug params**: rules in `packages/backend/AGENTS.md`.
+- **Native warehouse types** that `DimensionType` collapses (e.g. BigQuery `DATETIME` vs `TIMESTAMP`): see `packages/warehouses/src/warehouseClients/AGENTS.md`.
 
 ## Architecture
 

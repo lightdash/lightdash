@@ -145,6 +145,47 @@ test('revives exhausted history jobs through the queue SQL API', async () => {
     expect(query.mock.calls[0][0]).toContain('attempts := 0');
 });
 
+describe('analytics content scheduling', () => {
+    beforeEach(() => graphileAddJob.mockClear());
+
+    it.each([null, ORG_UUID])(
+        'allows reconciliation for scope %s to recover on the next processing run',
+        async (organizationUuid) => {
+            await makeClient(true).scheduleAnalyticsContentReconciliation(
+                organizationUuid,
+            );
+            expect(graphileAddJob).toHaveBeenCalledExactlyOnceWith(
+                SCHEDULER_TASKS.RECONCILE_ANALYTICS_CONTENT,
+                { organizationUuid: organizationUuid ?? undefined },
+                {
+                    queueName: 'analytics-content-reconciliation',
+                    jobKey: `analytics-content-reconciliation:${organizationUuid ?? 'all'}`,
+                    jobKeyMode: 'preserve_run_at',
+                    maxAttempts: 3,
+                    priority: JobPriority.LOW,
+                },
+            );
+        },
+    );
+
+    it('queues one retryable content update per organization', async () => {
+        await makeClient(true).scheduleAnalyticsContentSync({
+            organizationUuid: ORG_UUID,
+        });
+        expect(graphileAddJob).toHaveBeenCalledExactlyOnceWith(
+            SCHEDULER_TASKS.SYNC_ANALYTICS_CONTENT,
+            { organizationUuid: ORG_UUID },
+            {
+                queueName: 'analytics-content-sync',
+                jobKey: `analytics-content-sync:${ORG_UUID}`,
+                jobKeyMode: 'preserve_run_at',
+                maxAttempts: 3,
+                priority: JobPriority.LOW,
+            },
+        );
+    });
+});
+
 describe('query history backfill scheduling', () => {
     afterEach(() => vi.restoreAllMocks());
 
