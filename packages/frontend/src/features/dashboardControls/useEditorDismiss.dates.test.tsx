@@ -3,9 +3,12 @@ import {
     FieldType,
     FilterOperator,
     FilterType,
+    MetricType,
     TimeFrames,
     type DateFilterRule,
     type FilterableDimension,
+    type FilterableItem,
+    type Metric,
 } from '@lightdash/common';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -38,13 +41,26 @@ const dimension = (
 
 const dateField = dimension(DimensionType.DATE);
 const weekField = dimension(DimensionType.DATE, TimeFrames.WEEK);
+const quarterField = dimension(DimensionType.DATE, TimeFrames.QUARTER);
 const timestampField = dimension(DimensionType.TIMESTAMP);
+// A metric filter on a date-typed metric renders the same date inputs
+const dateMetric: Metric = {
+    fieldType: FieldType.METRIC,
+    type: MetricType.DATE,
+    name: 'latest_order_date',
+    label: 'Latest order date',
+    table: 'orders',
+    tableLabel: 'Orders',
+    sql: 'MAX(${TABLE}.order_date)',
+    hidden: false,
+};
 
 type Props = {
-    field: FilterableDimension;
+    field: FilterableItem;
     initialRule: DateFilterRule;
     onChange: (rule: DateFilterRule) => void;
     onDismissOutside: () => void;
+    onDismiss: () => void;
 };
 
 // The editor's dismiss rules around the real date inputs, as the dashboard
@@ -56,6 +72,7 @@ const Editor: FC<Props> = ({
     initialRule,
     onChange,
     onDismissOutside,
+    onDismiss,
 }) => {
     const [isOpen, setIsOpen] = useState(true);
     const [rule, setRule] = useState(initialRule);
@@ -65,7 +82,10 @@ const Editor: FC<Props> = ({
         isAsking: false,
         isPristineNew: false,
         clearField: () => {},
-        dismiss: () => {},
+        dismiss: () => {
+            onDismiss();
+            setIsOpen(false);
+        },
         dismissOutside: () => {
             onDismissOutside();
             setIsOpen(false);
@@ -90,9 +110,10 @@ const Editor: FC<Props> = ({
     );
 };
 
-const renderEditor = (field: FilterableDimension, rule: DateFilterRule) => {
+const renderEditor = (field: FilterableItem, rule: DateFilterRule) => {
     const onChange = vi.fn<(rule: DateFilterRule) => void>();
     const onDismissOutside = vi.fn();
+    const onDismiss = vi.fn();
     renderWithProviders(
         // The shared providers set Mantine's test env, which renders dropdowns
         // in place; the bug needs them portalled to the body, as in the browser
@@ -102,11 +123,13 @@ const renderEditor = (field: FilterableDimension, rule: DateFilterRule) => {
                 initialRule={rule}
                 onChange={onChange}
                 onDismissOutside={onDismissOutside}
+                onDismiss={onDismiss}
             />
         </MantineProvider>,
     );
     return {
         onDismissOutside,
+        onDismiss,
         lastValues: () => onChange.mock.calls.at(-1)?.[0].values,
     };
 };
@@ -187,6 +210,19 @@ describe('date filter calendar inside the dashboard filter editor', () => {
             expect(lastValues()).toStrictEqual(['2026-01-18']);
             expectEditorOpen(onDismissOutside);
         });
+
+        it('on a date metric: sets the clicked day and keeps the editor open', async () => {
+            const user = userEvent.setup();
+            const { onDismissOutside, lastValues } = renderEditor(
+                dateMetric,
+                makeRule(operator, ['2026-01-15']),
+            );
+
+            await pickDay(user, valueInputs()[0], '20 January 2026');
+
+            expect(lastValues()).toStrictEqual(['2026-01-20']);
+            expectEditorOpen(onDismissOutside);
+        });
     });
 
     it('"is between" on a date field: sets both clicked days and keeps the editor open', async () => {
@@ -247,5 +283,198 @@ describe('date filter calendar inside the dashboard filter editor', () => {
 
         expect(onDismissOutside).toHaveBeenCalledTimes(1);
         expect(screen.queryByTestId('editor')).not.toBeInTheDocument();
+    });
+
+    // Each case opens the calendar of a portalled date input
+    const calendarCases: [string, FilterableItem, FilterOperator, number][] = [
+        ['"is before" on a date field', dateField, FilterOperator.LESS_THAN, 0],
+        [
+            '"is after" on a week field',
+            weekField,
+            FilterOperator.GREATER_THAN,
+            0,
+        ],
+        [
+            '"is before" on a date metric',
+            dateMetric,
+            FilterOperator.LESS_THAN,
+            0,
+        ],
+        [
+            '"is between" start on a date field',
+            dateField,
+            FilterOperator.IN_BETWEEN,
+            0,
+        ],
+        [
+            '"is between" end on a date field',
+            dateField,
+            FilterOperator.IN_BETWEEN,
+            1,
+        ],
+        [
+            '"is before" on a timestamp field',
+            timestampField,
+            FilterOperator.LESS_THAN,
+            0,
+        ],
+    ];
+
+    const openCalendar = async (
+        user: ReturnType<typeof userEvent.setup>,
+        index: number,
+    ) => {
+        await user.click(valueInputs()[index]);
+        await screen.findByRole('button', {
+            name: '20 January 2026',
+            hidden: true,
+        });
+    };
+
+    const calendarValues = (field: FilterableItem) =>
+        field === timestampField
+            ? ['2026-01-05T00:00:00Z', '2026-01-28T00:00:00Z']
+            : ['2026-01-05', '2026-01-28'];
+
+    const expectCalendarClosed = () =>
+        waitFor(() =>
+            expect(
+                screen.queryByRole('button', {
+                    name: '20 January 2026',
+                    hidden: true,
+                }),
+            ).not.toBeInTheDocument(),
+        );
+
+    // Escape with a calendar open closes the calendar only; the next one
+    // cancels the edit
+    describe.each(calendarCases)(
+        'Escape with the calendar of %s open',
+        (_, field, operator, index) => {
+            it('closes the calendar and keeps the editor, then cancels on the next press', async () => {
+                const user = userEvent.setup();
+                const values =
+                    field === timestampField
+                        ? ['2026-01-05T00:00:00Z', '2026-01-28T00:00:00Z']
+                        : ['2026-01-05', '2026-01-28'];
+                const { onDismiss, onDismissOutside } = renderEditor(
+                    field,
+                    makeRule(operator, values),
+                );
+
+                await user.click(valueInputs()[index]);
+                await screen.findByRole('button', {
+                    name: '20 January 2026',
+                    hidden: true,
+                });
+                await user.keyboard('{Escape}');
+
+                await waitFor(() =>
+                    expect(
+                        screen.queryByRole('button', {
+                            name: '20 January 2026',
+                            hidden: true,
+                        }),
+                    ).not.toBeInTheDocument(),
+                );
+                expect(onDismiss).not.toHaveBeenCalled();
+                expectEditorOpen(onDismissOutside);
+
+                await user.keyboard('{Escape}');
+
+                expect(onDismiss).toHaveBeenCalledTimes(1);
+                expect(screen.queryByTestId('editor')).not.toBeInTheDocument();
+            });
+        },
+    );
+
+    // A press outside with a calendar open closes the calendar only, as with
+    // any open list; the next one cancels the edit
+    describe.each(calendarCases)(
+        'A press outside with the calendar of %s open',
+        (_, field, operator, index) => {
+            it('closes the calendar and keeps the editor, then cancels on the next press', async () => {
+                const user = userEvent.setup();
+                const { onDismissOutside } = renderEditor(
+                    field,
+                    makeRule(operator, calendarValues(field)),
+                );
+
+                await openCalendar(user, index);
+                await user.click(document.body);
+
+                await expectCalendarClosed();
+                expectEditorOpen(onDismissOutside);
+
+                await user.click(document.body);
+
+                expect(onDismissOutside).toHaveBeenCalledTimes(1);
+                expect(screen.queryByTestId('editor')).not.toBeInTheDocument();
+            });
+        },
+    );
+
+    // Popovers whose focus stays on their input close themselves on Escape
+    describe.each([
+        [
+            '"is" on a date field (multi-date picker)',
+            dateField,
+            makeRule(FilterOperator.EQUALS, ['2026-01-15']),
+        ],
+        [
+            '"is before" on a quarter field',
+            quarterField,
+            makeRule(FilterOperator.LESS_THAN, ['2026-01-01']),
+        ],
+        [
+            '"is before" with a value that is not a date',
+            dateField,
+            makeRule(FilterOperator.LESS_THAN, ['not a date']),
+        ],
+    ])('The popover of %s', (_, field, rule) => {
+        it('closes the popover and keeps the editor, then cancels on the next press', async () => {
+            const user = userEvent.setup();
+            const { onDismiss, onDismissOutside } = renderEditor(field, rule);
+            const openPopovers = () =>
+                [
+                    ...document.querySelectorAll('.mantine-Popover-dropdown'),
+                ].filter(
+                    (dropdown) => !dropdown.closest('[data-testid="editor"]'),
+                );
+
+            await user.click(valueInputs()[0]);
+            await waitFor(() => expect(openPopovers()).toHaveLength(1));
+            await user.keyboard('{Escape}');
+
+            await waitFor(() => expect(openPopovers()).toHaveLength(0));
+            expect(onDismiss).not.toHaveBeenCalled();
+            expectEditorOpen(onDismissOutside);
+
+            await user.keyboard('{Escape}');
+
+            expect(onDismiss).toHaveBeenCalledTimes(1);
+        });
+
+        it('closes the popover on a press outside and keeps the editor, then cancels on the next press', async () => {
+            const user = userEvent.setup();
+            const { onDismissOutside } = renderEditor(field, rule);
+            const openPopovers = () =>
+                [
+                    ...document.querySelectorAll('.mantine-Popover-dropdown'),
+                ].filter(
+                    (dropdown) => !dropdown.closest('[data-testid="editor"]'),
+                );
+
+            await user.click(valueInputs()[0]);
+            await waitFor(() => expect(openPopovers()).toHaveLength(1));
+            await user.click(document.body);
+
+            await waitFor(() => expect(openPopovers()).toHaveLength(0));
+            expectEditorOpen(onDismissOutside);
+
+            await user.click(document.body);
+
+            expect(onDismissOutside).toHaveBeenCalledTimes(1);
+        });
     });
 });

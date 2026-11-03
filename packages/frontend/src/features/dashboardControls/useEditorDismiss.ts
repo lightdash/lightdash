@@ -6,12 +6,15 @@ const EDITOR_ATTRIBUTE = 'data-controls-editor';
 const OWN_ESCAPE_ATTRIBUTE = 'data-own-escape';
 
 // An open list, menu or popover owns Escape; so does a modal. A Mantine
-// combobox target is marked `data-expanded` while its list is open
+// combobox target is marked `data-expanded` while its list is open. A
+// DateInput's calendar marks only itself (`data-dates-dropdown`): its input
+// gets no roles
 const OPEN_LAYER_SELECTOR = [
     '[aria-expanded="true"][aria-haspopup]',
     '[data-expanded][aria-haspopup]',
     '[aria-expanded="true"][role="combobox"]',
     '[aria-modal="true"]',
+    '[data-dates-dropdown]',
 ].join(',');
 
 // The query devtools of a dev build always report an open panel
@@ -24,10 +27,6 @@ export const hasOpenLayer = () =>
 const PILL_SELECTOR = '[data-controls-pill]';
 // An open list's own dropdown, portalled out of the editor
 const LIST_SELECTOR = '.mantine-Popover-dropdown, [role="listbox"]';
-// A date input's calendar, portalled out of the editor. Mantine's DateInput
-// does not mark its input as expanded, so `hasOpenLayer` cannot see it: a day
-// picked there would read as a press outside and cancel the edit (PROD-12817)
-const DATES_DROPDOWN_SELECTOR = '[data-dates-dropdown]';
 
 type Args = {
     isOpen: boolean;
@@ -61,11 +60,7 @@ export const useEditorDismiss = ({
         const handlePointerDown = (event: PointerEvent) => {
             const target =
                 event.target instanceof Element ? event.target : null;
-            if (
-                target?.closest(
-                    `[${EDITOR_ATTRIBUTE}], ${PILL_SELECTOR}, ${DATES_DROPDOWN_SELECTOR}`,
-                )
-            )
+            if (target?.closest(`[${EDITOR_ATTRIBUTE}], ${PILL_SELECTOR}`))
                 return;
             // The press closes the open list, and only that; a new filter
             // with nothing picked has nothing to lose, unless the press is
