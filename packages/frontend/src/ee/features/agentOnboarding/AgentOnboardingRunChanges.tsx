@@ -156,7 +156,11 @@ const rehypeRewrite: React.ComponentProps<
 };
 
 /** What the run added to the project, named the way a person would say it */
-export const RunChanges: FC<{ run: AgentOnboardingRun }> = ({ run }) => {
+export const RunChanges: FC<{
+    run: AgentOnboardingRun;
+    // Off where the semantic layer has its own section
+    withModels: boolean;
+}> = ({ run, withModels }) => {
     const { colorScheme } = useMantineColorScheme();
     const { tables, models, charts } = useMemo(
         () => collectAgentOnboardingArtifacts(run.events),
@@ -168,19 +172,21 @@ export const RunChanges: FC<{ run: AgentOnboardingRun }> = ({ run }) => {
 
     return (
         <Stack gap="md">
-            <ChangeRow
-                label="Metrics on"
-                items={models}
-                waiting="Once the tables are read"
-                isLive={isLive}
-                hrefFor={
-                    isDone
-                        ? (model) =>
-                              `/projects/${run.projectUuid}/tables/${model}`
-                        : null
-                }
-                countLabel={null}
-            />
+            {withModels && (
+                <ChangeRow
+                    label="Metrics on"
+                    items={models}
+                    waiting="Once the tables are read"
+                    isLive={isLive}
+                    hrefFor={
+                        isDone
+                            ? (model) =>
+                                  `/projects/${run.projectUuid}/tables/${model}`
+                            : null
+                    }
+                    countLabel={null}
+                />
+            )}
             <ChangeRow
                 label="Charts"
                 items={charts}

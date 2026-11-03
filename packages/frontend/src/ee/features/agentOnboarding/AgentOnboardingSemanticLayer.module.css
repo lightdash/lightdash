@@ -1,0 +1,109 @@
+.tabular {
+    font-variant-numeric: tabular-nums;
+}
+
+.empty {
+    padding: var(--mantine-spacing-lg);
+    border: 1px dashed var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-lg);
+    text-align: center;
+}
+
+.model {
+    display: flex;
+    flex-direction: column;
+    gap: var(--mantine-spacing-md);
+    padding: var(--mantine-spacing-md);
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-lg);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .model {
+        animation: arrive 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+}
+
+@keyframes arrive {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+}
+
+.modelIcon {
+    display: grid;
+    flex: 0 0 auto;
+    place-items: center;
+    width: rem(32px);
+    height: rem(32px);
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    background: var(--ld-color-page);
+    color: var(--mantine-color-dimmed);
+}
+
+.columns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--mantine-spacing-lg);
+
+    @media (max-width: $mantine-breakpoint-sm) {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.fieldColumn {
+    min-width: 0;
+}
+
+.fields {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.field {
+    display: flex;
+    gap: var(--mantine-spacing-xs);
+    align-items: flex-start;
+    min-width: 0;
+    padding: 8px 0;
+}
+
+.field + .field {
+    border-top: 1px solid var(--mantine-color-default-border);
+    border-radius: 0;
+}
+
+.fieldIcon {
+    flex: 0 0 auto;
+    margin-top: 3px;
+}
+
+.fieldColumn[data-kind='metric'] .fieldIcon {
+    color: var(--ld-field-metric-color);
+}
+
+.fieldColumn[data-kind='dimension'] .fieldIcon {
+    color: var(--ld-field-dimension-color);
+}
+
+.fieldText {
+    flex: 1;
+    min-width: 0;
+}
+
+.fieldType {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
+.code {
+    max-height: rem(420px);
+    overflow: auto;
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+}

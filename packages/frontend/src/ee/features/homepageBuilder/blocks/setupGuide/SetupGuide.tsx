@@ -348,7 +348,7 @@ const AuroraLiveCard: FC<{ rows: SetupGuideRow[] }> = ({ rows }) => {
                         <AgentOnboardingProgress run={run} />
                         <RunRecentSteps run={run} />
                         <Divider />
-                        <RunChanges run={run} />
+                        <RunChanges run={run} withModels />
                     </Stack>
                 </MantineModal>
             )}

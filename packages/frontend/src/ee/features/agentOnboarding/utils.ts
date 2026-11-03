@@ -430,3 +430,72 @@ export const summarizeAgentOnboardingEvents = (
         charts: charts.length,
     };
 };
+
+export type SemanticLayerField = {
+    name: string;
+    label: string;
+    type: string | null;
+    description: string | null;
+};
+
+export type SemanticLayerModel = {
+    name: string;
+    label: string;
+    description: string | null;
+    source: string | null;
+    dimensions: SemanticLayerField[];
+    metrics: SemanticLayerField[];
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const asText = (value: unknown): string | null =>
+    typeof value === 'string' && value.trim() !== '' ? value : null;
+
+const toField = (
+    name: string,
+    raw: Record<string, unknown>,
+): SemanticLayerField => ({
+    name,
+    label: asText(raw.label) ?? humanizeSlug(name),
+    type: asText(raw.type),
+    description: asText(raw.description),
+});
+
+// Fields come as a list of `{ name }` or a map keyed by name; hidden ones are plumbing
+const toFields = (raw: unknown): SemanticLayerField[] => {
+    const entries: [string, Record<string, unknown>][] = Array.isArray(raw)
+        ? raw.flatMap((item) => {
+              const name = isRecord(item) ? asText(item.name) : null;
+              return isRecord(item) && name ? [[name, item]] : [];
+          })
+        : isRecord(raw)
+          ? Object.entries(raw).flatMap(([name, item]) =>
+                isRecord(item) ? [[name, item]] : [],
+            )
+          : [];
+    return entries
+        .filter(([, item]) => item.hidden !== true)
+        .map(([name, item]) => toField(name, item));
+};
+
+/** Reads a parsed Lightdash model YAML, or null when it isn't one (yet) */
+export const toSemanticLayerModel = (
+    path: string,
+    parsed: unknown,
+): SemanticLayerModel | null => {
+    if (!isRecord(parsed)) return null;
+    const name = asText(parsed.name) ?? fileName(path);
+    return {
+        name,
+        label: asText(parsed.label) ?? humanizeSlug(name),
+        description: asText(parsed.description),
+        source: asText(parsed.sql_from)?.replace(/"/g, '') ?? null,
+        dimensions: toFields(parsed.dimensions),
+        metrics: toFields(parsed.metrics),
+    };
+};
+
+export const isSemanticLayerModelFile = ({ path }: AgentOnboardingFile) =>
+    /(^|\/)models\/[^/]+\.ya?ml$/i.test(path);

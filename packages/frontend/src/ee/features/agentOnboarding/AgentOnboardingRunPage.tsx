@@ -41,6 +41,7 @@ import { AgentOnboardingFileBrowser } from './AgentOnboardingFileBrowser';
 import { RunChanges } from './AgentOnboardingRunChanges';
 import { RunJourney } from './AgentOnboardingRunOverview';
 import classes from './AgentOnboardingRunPage.module.css';
+import { RunSemanticLayer } from './AgentOnboardingSemanticLayer';
 import {
     useAgentOnboardingRun,
     useCancelAgentOnboardingRun,
@@ -447,16 +448,16 @@ const AgentOnboardingRunPage: FC = () => {
 
                     <RunJourney run={run} now={now} />
 
+                    <RunSemanticLayer run={run} />
+
                     <Stack gap="sm">
                         <Text fz="sm" fw={500}>
                             {run.status === 'completed'
-                                ? 'What was built'
-                                : isLive
-                                  ? 'Built so far'
-                                  : 'What changed'}
+                                ? 'Charts and notes'
+                                : 'Charts and tables'}
                         </Text>
                         <Paper className={classes.changes}>
-                            <RunChanges run={run} />
+                            <RunChanges run={run} withModels={false} />
                         </Paper>
                     </Stack>
 

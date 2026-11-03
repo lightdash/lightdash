@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
     describeAgentOnboardingEvent,
     summarizeAgentOnboardingEvents,
+    toSemanticLayerModel,
 } from './utils';
 
 const event = (message: string) => ({
@@ -61,5 +62,45 @@ describe('summarizeAgentOnboardingEvents', () => {
                 event('Write: lightdash/charts/y.yml'),
             ]),
         ).toEqual({ tables: 2, models: 1, charts: 2 });
+    });
+});
+
+describe('toSemanticLayerModel', () => {
+    it('reads list dimensions and keyed metrics, skipping hidden fields', () => {
+        const model = toSemanticLayerModel('lightdash/models/orders.yml', {
+            name: 'orders',
+            sql_from: '"jaffle"."orders"',
+            dimensions: [
+                { name: 'order_id', hidden: true, type: 'number' },
+                { name: 'order_date', label: 'Order date', type: 'date' },
+            ],
+            metrics: { total_order_value: { type: 'sum' } },
+        });
+        expect(model).toEqual({
+            name: 'orders',
+            label: 'Orders',
+            description: null,
+            source: 'jaffle.orders',
+            dimensions: [
+                {
+                    name: 'order_date',
+                    label: 'Order date',
+                    type: 'date',
+                    description: null,
+                },
+            ],
+            metrics: [
+                {
+                    name: 'total_order_value',
+                    label: 'Total order value',
+                    type: 'sum',
+                    description: null,
+                },
+            ],
+        });
+    });
+
+    it('returns null for content that is not a model yet', () => {
+        expect(toSemanticLayerModel('models/x.yml', 'partial')).toBeNull();
     });
 });

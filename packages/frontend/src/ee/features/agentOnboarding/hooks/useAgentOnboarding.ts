@@ -10,6 +10,7 @@ import {
 } from '@lightdash/common';
 import {
     useMutation,
+    useQueries,
     useQuery,
     useQueryClient,
     type UseQueryOptions,
@@ -137,6 +138,40 @@ export const useAgentOnboardingFile = (
             getFile(lightdashApi, projectUuid!, runUuid!, file!.path),
         enabled: !!projectUuid && !!runUuid && !!file,
         keepPreviousData: true,
+    });
+};
+
+/** Several run files at once, sharing the single-file cache */
+export const useAgentOnboardingFiles = (
+    projectUuid: string,
+    runUuid: string,
+    files: AgentOnboardingFile[],
+) => {
+    const lightdashApi = useLightdashApi();
+    const queryClient = useQueryClient();
+    return useQueries({
+        queries: files.map((file) => ({
+            queryKey: [
+                'agent-onboarding-file',
+                projectUuid,
+                runUuid,
+                file.path,
+                file.updatedAt,
+            ],
+            queryFn: () =>
+                getFile(lightdashApi, projectUuid, runUuid, file.path),
+            // Show the last version while a rewritten file loads
+            placeholderData: () =>
+                queryClient
+                    .getQueriesData<AgentOnboardingFileContent>([
+                        'agent-onboarding-file',
+                        projectUuid,
+                        runUuid,
+                        file.path,
+                    ])
+                    .map(([, data]) => data)
+                    .findLast((data) => data !== undefined),
+        })),
     });
 };
 
