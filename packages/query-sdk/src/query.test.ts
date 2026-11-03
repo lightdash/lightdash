@@ -34,6 +34,131 @@ const executeAndGetBody = async (
 };
 
 describe('query execution', () => {
+    it('fetches result pages in bounded parallel batches while preserving order', async () => {
+        let activeRequests = 0;
+        let maxActiveRequests = 0;
+        const requestedPages: number[] = [];
+        const adapter: FetchAdapter = async <T>(
+            method: string,
+            path: string,
+        ): Promise<T> => {
+            if (method === 'POST') {
+                return {
+                    queryUuid: 'q-1',
+                    fields: {},
+                } as T;
+            }
+
+            const page = Number(
+                new URL(`https://lightdash.test${path}`).searchParams.get(
+                    'page',
+                ),
+            );
+            requestedPages.push(page);
+            activeRequests += 1;
+            maxActiveRequests = Math.max(maxActiveRequests, activeRequests);
+            await new Promise((resolve) =>
+                setTimeout(resolve, page === 2 ? 10 : 0),
+            );
+            activeRequests -= 1;
+
+            if (page === 1) {
+                return {
+                    status: 'ready',
+                    columns: { orders_status: { type: 'number' } },
+                    rows: [
+                        {
+                            orders_status: {
+                                value: { raw: 1, formatted: '1' },
+                            },
+                        },
+                    ],
+                    totalResults: 4500,
+                    nextPage: 2,
+                } as T;
+            }
+
+            return {
+                status: 'ready',
+                columns: { orders_status: { type: 'number' } },
+                rows: [
+                    {
+                        orders_status: {
+                            value: { raw: page, formatted: String(page) },
+                        },
+                    },
+                ],
+                totalResults: 4500,
+                nextPage: page === 9 ? undefined : page + 1,
+            } as T;
+        };
+        const transport = createApiTransport(
+            { apiKey: '', baseUrl: '', projectUuid: 'p-1' },
+            adapter,
+        );
+
+        const result = await transport.executeQuery(
+            query('orders').dimensions(['status']).build(),
+        );
+
+        expect(result.rows).toEqual(
+            Array.from({ length: 9 }, (_, index) => ({ status: index + 1 })),
+        );
+        expect(requestedPages).toContain(1);
+        expect(requestedPages.slice(1)).toEqual([2, 3, 4, 5, 6, 7, 8, 9]);
+        expect(maxActiveRequests).toBeLessThanOrEqual(8);
+    });
+
+    it('propagates pagination failures instead of returning partial results', async () => {
+        const adapter: FetchAdapter = async <T>(
+            method: string,
+            path: string,
+        ): Promise<T> => {
+            if (method === 'POST') {
+                return {
+                    queryUuid: 'q-1',
+                    fields: {},
+                } as T;
+            }
+
+            const page = Number(
+                new URL(`https://lightdash.test${path}`).searchParams.get(
+                    'page',
+                ),
+            );
+            if (page === 1) {
+                return {
+                    status: 'ready',
+                    columns: { orders_status: { type: 'string' } },
+                    rows: [
+                        {
+                            orders_status: {
+                                value: { raw: 'first', formatted: 'first' },
+                            },
+                        },
+                    ],
+                    totalResults: 1000,
+                    nextPage: 2,
+                } as T;
+            }
+
+            return {
+                status: 'error',
+                error: 'page unavailable',
+            } as T;
+        };
+        const transport = createApiTransport(
+            { apiKey: '', baseUrl: '', projectUuid: 'p-1' },
+            adapter,
+        );
+
+        await expect(
+            transport.executeQuery(
+                query('orders').dimensions(['status']).build(),
+            ),
+        ).rejects.toThrow('Unexpected status while paginating results: error');
+    });
+
     it('returns table calculation values, columns, and formatting without qualifying their names', async () => {
         const adapter: FetchAdapter = async <T>(method: string): Promise<T> => {
             if (method === 'POST') {

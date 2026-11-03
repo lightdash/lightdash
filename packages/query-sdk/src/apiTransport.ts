@@ -68,6 +68,7 @@ const MAX_BACKOFF_MS = 1000;
 const MAX_POLL_DURATION_MS = 5 * 60 * 1000; // 5 minutes
 const MAX_DOWNLOAD_POLL_DURATION_MS = 10 * 60 * 1000; // 10 minutes
 const ALL_RESULTS_LIMIT = Number.MAX_SAFE_INTEGER;
+const MAX_PARALLEL_RESULT_PAGE_REQUESTS = 8;
 
 type ApiResponse<T> = {
     status: 'ok';
@@ -964,24 +965,53 @@ async function pollQueryRows(
     );
     const apiRows: ResultRow[] = [...firstReadyPage.rows];
 
-    // Drain remaining pages. The backend already streamed results to S3 by
-    // the time the first page is ready, so subsequent pages resolve quickly.
-    let { nextPage } = firstReadyPage;
-    const { totalResults } = firstReadyPage;
-    while (nextPage !== undefined && apiRows.length < totalResults) {
-        const pageResult = await fetchFn<PollResponse>(
-            'GET',
-            pollUrl(nextPage),
+    // The backend has materialised all rows by the time the first page is
+    // ready. Fetch the remaining pages in bounded parallel batches, then
+    // concatenate them in page order so callers see the same result ordering
+    // as the sequential implementation.
+    if (
+        firstReadyPage.nextPage !== undefined &&
+        apiRows.length < firstReadyPage.totalResults
+    ) {
+        const totalPages = Math.ceil(firstReadyPage.totalResults / PAGE_SIZE);
+        const firstPageToFetch = firstReadyPage.nextPage;
+        const pages = Array.from(
+            { length: totalPages - firstPageToFetch + 1 },
+            (_, index) => firstPageToFetch + index,
         );
+        const pageResults: ResultRow[][] = [];
 
-        if (pageResult.status !== 'ready') {
-            throw new Error(
-                `Unexpected status while paginating results: ${pageResult.status}`,
+        for (
+            let batchStart = 0;
+            batchStart < pages.length;
+            batchStart += MAX_PARALLEL_RESULT_PAGE_REQUESTS
+        ) {
+            const batch = pages.slice(
+                batchStart,
+                batchStart + MAX_PARALLEL_RESULT_PAGE_REQUESTS,
             );
+            const results = await Promise.all(
+                batch.map(async (page) => {
+                    const pageResult = await fetchFn<PollResponse>(
+                        'GET',
+                        pollUrl(page),
+                    );
+
+                    if (pageResult.status !== 'ready') {
+                        throw new Error(
+                            `Unexpected status while paginating results: ${pageResult.status}`,
+                        );
+                    }
+
+                    return pageResult.rows;
+                }),
+            );
+            pageResults.push(...results);
         }
 
-        apiRows.push(...pageResult.rows);
-        nextPage = pageResult.nextPage;
+        for (const rows of pageResults) {
+            apiRows.push(...rows);
+        }
     }
 
     return { firstReadyPage, apiRows };
