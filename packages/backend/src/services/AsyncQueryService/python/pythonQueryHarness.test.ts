@@ -122,7 +122,7 @@ describe.skipIf(!hasPythonDependencies)(
 describe.skipIf(!hasPythonDependencies)(
     'Python harness datetime round-trip',
     () => {
-        it('loads date columns tz-naive at midnight and timestamp columns tz-aware UTC', () => {
+        it('loads date and timestamp columns tz-naive UTC', () => {
             const { meta, rows } = runHarness({
                 columns: { d: 'date', t: 'timestamp' },
                 rows: [
@@ -138,8 +138,9 @@ import pandas as pd
 def run(inputs, params):
     frame = inputs["orders"]
     assert pd.api.types.is_datetime64_dtype(frame["d"]) and frame["d"].dt.tz is None, frame["d"].dtype
-    assert str(frame["t"].dt.tz) == "UTC", frame["t"].dtype
+    assert pd.api.types.is_datetime64_dtype(frame["t"]) and frame["t"].dt.tz is None, frame["t"].dtype
     assert frame["d"].iloc[0] == pd.Timestamp("2026-04-27")
+    assert frame["t"].iloc[0] == pd.Timestamp("2026-04-27 10:30")
     assert (frame["d"] >= pd.Timestamp("2026-01-01")).sum() == 1
     daily = frame.dropna().set_index("d")["t"]
     assert daily.reindex(pd.date_range("2026-04-27", periods=1)).notna().all()
@@ -161,6 +162,83 @@ def run(inputs, params):
                     t: '2026-04-27T10:30:00+00:00',
                 },
                 { d: null, t: null },
+            ]);
+        });
+
+        it('filters a timestamp column with a naive literal', () => {
+            const { rows } = runHarness({
+                columns: { t: 'timestamp' },
+                rows: [
+                    { t: '2025-12-31T23:59:59.000Z' },
+                    { t: '2026-01-01T00:00:00.000Z' },
+                ],
+                code: `
+import pandas as pd
+
+def run(inputs, params):
+    df = inputs["orders"]
+    return df[df["t"] >= pd.Timestamp("2026-01-01")]
+`,
+            });
+            expect(rows).toEqual([{ t: '2026-01-01T00:00:00+00:00' }]);
+        });
+
+        it('keeps a passthrough timestamp column a timestamp when every value is midnight', () => {
+            const { meta, rows } = runHarness({
+                columns: { t: 'timestamp' },
+                rows: [{ t: '2026-04-27T00:00:00.000Z' }, { t: null }],
+                code: validCode,
+            });
+            expect(meta.columns).toEqual([{ name: 't', type: 'timestamp' }]);
+            expect(rows).toEqual([
+                { t: '2026-04-27T00:00:00+00:00' },
+                { t: null },
+            ]);
+        });
+
+        it('types a column floored to the day as a date', () => {
+            const { meta, rows } = runHarness({
+                columns: { t: 'timestamp' },
+                rows: [{ t: '2026-04-27T10:30:00.000Z' }],
+                code: `
+def run(inputs, params):
+    df = inputs["orders"]
+    df["day"] = df["t"].dt.floor("D")
+    return df
+`,
+            });
+            expect(meta.columns).toEqual([
+                { name: 't', type: 'timestamp' },
+                { name: 'day', type: 'date' },
+            ]);
+            expect(rows).toEqual([
+                {
+                    t: '2026-04-27T10:30:00+00:00',
+                    day: '2026-04-27T00:00:00+00:00',
+                },
+            ]);
+        });
+
+        it('returns a tz-aware column as a UTC timestamp', () => {
+            const { meta, rows } = runHarness({
+                columns: { t: 'timestamp' },
+                rows: [{ t: '2026-07-01T12:00:00.000Z' }],
+                code: `
+def run(inputs, params):
+    df = inputs["orders"]
+    df["local"] = df["t"].dt.tz_localize("UTC").dt.tz_convert("Europe/London")
+    return df
+`,
+            });
+            expect(meta.columns).toEqual([
+                { name: 't', type: 'timestamp' },
+                { name: 'local', type: 'timestamp' },
+            ]);
+            expect(rows).toEqual([
+                {
+                    t: '2026-07-01T12:00:00+00:00',
+                    local: '2026-07-01T12:00:00+00:00',
+                },
             ]);
         });
 
