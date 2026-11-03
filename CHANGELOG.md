@@ -1,3 +1,11 @@
+## [3.128.6](https://github.com/lightdash/lightdash/compare/3.128.5...3.128.6) (2026-11-03)
+
+
+### Bug Fixes
+
+* **branding:** show the organization brand to every org member ([#31973](https://github.com/lightdash/lightdash/issues/31973)) ([e59e316](https://github.com/lightdash/lightdash/commit/e59e316d94cc77f5a98b53bb1872d1166ab68445))
+* **dashboard-controls:** keep the filter editor open when a day is picked in a date calendar ([#31972](https://github.com/lightdash/lightdash/issues/31972)) ([6af1306](https://github.com/lightdash/lightdash/commit/6af1306a5fc9430c7c11fa8830241d47ed567d3a))
+
 ## [3.128.5](https://github.com/lightdash/lightdash/compare/3.128.4...3.128.5) (2026-11-03)
 
 
