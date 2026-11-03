@@ -1021,7 +1021,8 @@ describe('AiAgentToolsService', () => {
 
         it('describes a table in an explicitly allowed database', async () => {
             const getWarehouseFields = vi.fn().mockResolvedValue({
-                customer_id: DimensionType.STRING,
+                fields: { customer_id: DimensionType.STRING },
+                nativeTypes: {},
             });
             const service = makeService({
                 projectService: { getWarehouseFields },
@@ -1042,7 +1043,13 @@ describe('AiAgentToolsService', () => {
                     database: 'analytics',
                 }),
             ).resolves.toEqual({
-                columns: [{ name: 'customer_id', type: DimensionType.STRING }],
+                columns: [
+                    {
+                        name: 'customer_id',
+                        type: DimensionType.STRING,
+                        nativeType: null,
+                    },
+                ],
                 resolvedSchema: 'jaffle',
                 resolvedDatabase: 'analytics',
             });
@@ -1064,7 +1071,8 @@ describe('AiAgentToolsService', () => {
             'treats a $label optional database as the default database',
             async ({ database }) => {
                 const getWarehouseFields = vi.fn().mockResolvedValue({
-                    customer_id: DimensionType.STRING,
+                    fields: { customer_id: DimensionType.STRING },
+                    nativeTypes: {},
                 });
                 const service = makeService({
                     projectModel: {
@@ -1101,7 +1109,8 @@ describe('AiAgentToolsService', () => {
 
         it('uses the Databricks catalog and schema defaults', async () => {
             const getWarehouseFields = vi.fn().mockResolvedValue({
-                customer_id: DimensionType.STRING,
+                fields: { customer_id: DimensionType.STRING },
+                nativeTypes: {},
             });
             const service = makeService({
                 projectModel: {

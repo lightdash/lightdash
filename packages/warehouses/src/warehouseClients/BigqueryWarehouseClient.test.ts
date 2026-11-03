@@ -10,6 +10,7 @@ import {
     DimensionType,
     getBigqueryWorkloadIdentityStsAudience,
     getCatalogNestedColumnShape,
+    getCatalogTableNativeTypes,
     setCatalogNestedColumnShape,
     setCatalogTimestampDomain,
     WarehouseConnectionError,
@@ -308,6 +309,38 @@ describe('BigqueryWarehouseClient', () => {
                 'myStringColumn',
             ),
         ).toBeUndefined();
+    });
+    it('expect getFields to record native types that collapse into timestamp', async () => {
+        const schemaFields = [
+            { name: 'created_at_local', type: 'DATETIME' },
+            { name: 'departure_at', type: 'TIMESTAMP' },
+            { name: 'pickup_time', type: 'TIME' },
+            { name: 'trip_date', type: 'DATE' },
+            { name: 'name', type: 'STRING' },
+        ];
+        Dataset.prototype.table = vi.fn(() => ({
+            id: 'trips',
+            bigQuery: { projectId: 'myDatabase' },
+            getMetadata: vi.fn(() => [{ schema: { fields: schemaFields } }]),
+        })) as never;
+        const warehouse = new BigqueryWarehouseClient(credentials);
+        const fields = await warehouse.getFields(
+            'trips',
+            'mySchema',
+            'myDatabase',
+        );
+        expect(
+            getCatalogTableNativeTypes(
+                fields,
+                'myDatabase',
+                'mySchema',
+                'trips',
+            ),
+        ).toEqual({
+            created_at_local: 'DATETIME',
+            departure_at: 'TIMESTAMP',
+            pickup_time: 'TIME',
+        });
     });
 });
 

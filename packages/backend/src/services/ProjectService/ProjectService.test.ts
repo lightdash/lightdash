@@ -71,6 +71,7 @@ import {
     RedshiftAuthenticationType,
     RequestMethod,
     SessionUser,
+    setCatalogNativeType,
     SignInSubjectBasis,
     SnowflakeAuthenticationType,
     SnowflakeTokenError,
@@ -5134,7 +5135,10 @@ describe('ProjectService', () => {
                 },
             },
         };
-        const fields = { order_id: DimensionType.NUMBER };
+        const fields = {
+            order_id: DimensionType.NUMBER,
+            created_at: DimensionType.TIMESTAMP,
+        };
         const cases = [
             {
                 name: 'populateWarehouseTablesCache',
@@ -5174,7 +5178,7 @@ describe('ProjectService', () => {
                         'public',
                         'catalog_database',
                     ),
-                expected: fields,
+                expected: { fields, nativeTypes: { created_at: 'DATETIME' } },
                 method: 'getFields' as const,
                 queryContext: QueryExecutionContext.AI,
                 binding: { kind: 'connection', warehouseConnectionUuid: null },
@@ -5350,9 +5354,20 @@ describe('ProjectService', () => {
                 getAllTables: vi.fn<WarehouseClient['getAllTables']>(
                     async () => warehouseTables,
                 ),
-                getFields: vi.fn<WarehouseClient['getFields']>(async () => ({
-                    catalog_database: { public: { orders: fields } },
-                })),
+                getFields: vi.fn<WarehouseClient['getFields']>(async () => {
+                    const catalog = {
+                        catalog_database: { public: { orders: fields } },
+                    };
+                    setCatalogNativeType(
+                        catalog,
+                        'catalog_database',
+                        'public',
+                        'orders',
+                        'created_at',
+                        'DATETIME',
+                    );
+                    return catalog;
+                }),
 
                 runQuery: vi.fn(async () => resultsWith1Row),
                 streamQuery: vi.fn<WarehouseClient['streamQuery']>(
@@ -10523,7 +10538,10 @@ describe('ProjectService', () => {
                 const result = await f.run(kind);
                 expect(result).toEqual(
                     kind === 'fields'
-                        ? { secret_column: { type: 'string' } }
+                        ? {
+                              fields: { secret_column: { type: 'string' } },
+                              nativeTypes: {},
+                          }
                         : {
                               agent_db: {
                                   agent_schema: {

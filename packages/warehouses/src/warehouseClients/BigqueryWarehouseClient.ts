@@ -34,6 +34,7 @@ import {
     PartitionType,
     sanitizeQueryTagKey,
     sanitizeQueryTagValue,
+    setCatalogNativeType,
     setCatalogNestedColumnShape,
     setCatalogTimestampDomain,
     SupportedDbtAdapter,
@@ -1026,7 +1027,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             mapFieldType,
             getBigqueryTimestampDomain,
         );
-        flattenedFields.forEach(({ path, shape }) =>
+        flattenedFields.forEach(({ path, type, shape }) => {
             setCatalogNestedColumnShape(
                 catalog,
                 tableCatalog,
@@ -1034,8 +1035,18 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 table,
                 path,
                 shape,
-            ),
-        );
+            );
+            if (type && mapFieldType(type) === DimensionType.TIMESTAMP) {
+                setCatalogNativeType(
+                    catalog,
+                    tableCatalog,
+                    tableSchema,
+                    table,
+                    path,
+                    type,
+                );
+            }
+        });
         return catalog;
     }
 
