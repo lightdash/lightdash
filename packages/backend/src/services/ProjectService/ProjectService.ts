@@ -255,6 +255,7 @@ import {
     SummaryExplore,
     SupportedDbtAdapter,
     supportsConnectionDatabaseListing,
+    TablePartitioning,
     TablesConfiguration,
     TimeFrames,
     TooManyRequestsError,
@@ -863,6 +864,11 @@ type PreparedExploreStream = {
 };
 
 type PreparedMultiConnectionSave = MultiConnectionSave & { warnings: string[] };
+
+type WarehouseTableFields = {
+    fields: WarehouseTableSchema;
+    nativeTypes: Record<string, string>;
+};
 
 export class ProjectService
     extends BaseService
@@ -15081,10 +15087,129 @@ export class ProjectService
         schemaName?: string,
         databaseName?: string,
         querySurface?: QuerySurface,
-    ): Promise<{
-        fields: WarehouseTableSchema;
-        nativeTypes: Record<string, string>;
-    }> {
+    ): Promise<WarehouseTableFields> {
+        return this.withWarehouseTable(
+            user,
+            projectUuid,
+            queryContext,
+            { tableName, schemaName, databaseName },
+            querySurface,
+            ({ warehouseClient, table, queryTags }) =>
+                this.getTableFields(warehouseClient, table, queryTags),
+        );
+    }
+
+    async describeWarehouseTable(
+        user: SessionUser,
+        projectUuid: string,
+        queryContext: QueryExecutionContext,
+        table: {
+            tableName: string;
+            schemaName?: string;
+            databaseName?: string;
+        },
+        querySurface?: QuerySurface,
+    ): Promise<
+        WarehouseTableFields & {
+            partitioning: TablePartitioning | null;
+            warehouseType: WarehouseTypes;
+        }
+    > {
+        return this.withWarehouseTable(
+            user,
+            projectUuid,
+            queryContext,
+            table,
+            querySurface,
+            async ({
+                warehouseClient,
+                warehouseType,
+                table: resolved,
+                queryTags,
+            }) => {
+                const [fields, partitioning] = await Promise.all([
+                    this.getTableFields(warehouseClient, resolved, queryTags),
+                    warehouseClient
+                        .getTablePartitioning(
+                            resolved.tableName,
+                            resolved.schemaName,
+                            resolved.database,
+                        )
+                        .catch((error: unknown) => {
+                            this.logger.warn(
+                                'Error fetching warehouse table partitioning',
+                                { error },
+                            );
+                            return null;
+                        }),
+                ]);
+                return { ...fields, partitioning, warehouseType };
+            },
+        );
+    }
+
+    private async getTableFields(
+        warehouseClient: WarehouseClient,
+        {
+            tableName,
+            schemaName,
+            database,
+        }: { tableName: string; schemaName: string; database: string },
+        queryTags: RunQueryTags,
+    ): Promise<WarehouseTableFields> {
+        try {
+            const warehouseCatalog = await warehouseClient.getFields(
+                tableName,
+                schemaName,
+                database,
+                queryTags,
+            );
+            return {
+                fields: warehouseCatalog[database][schemaName][tableName],
+                nativeTypes: getCatalogTableNativeTypes(
+                    warehouseCatalog,
+                    database,
+                    schemaName,
+                    tableName,
+                ),
+            };
+        } catch (error) {
+            this.logger.error('Error fetching warehouse fields', {
+                error,
+            });
+            if (
+                error instanceof AiAccessRefusedError ||
+                (error instanceof ForbiddenError &&
+                    agentExecutionContext.getStore()?.agentConnectionExecution)
+            ) {
+                throw error;
+            }
+            if (error instanceof WarehouseConnectionError) {
+                throw error;
+            }
+            throw new NotFoundError(
+                `Could not find table "${tableName}" in schema "${schemaName}" of database "${database}". Please verify the table exists and you have access to it.`,
+            );
+        }
+    }
+
+    private async withWarehouseTable<T>(
+        user: SessionUser,
+        projectUuid: string,
+        queryContext: QueryExecutionContext,
+        {
+            tableName,
+            schemaName,
+            databaseName,
+        }: { tableName?: string; schemaName?: string; databaseName?: string },
+        querySurface: QuerySurface | undefined,
+        fn: (args: {
+            warehouseClient: WarehouseClient;
+            warehouseType: WarehouseTypes;
+            table: { tableName: string; schemaName: string; database: string };
+            queryTags: RunQueryTags;
+        }) => Promise<T>,
+    ): Promise<T> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
@@ -15154,49 +15279,15 @@ export class ProjectService
                     throw new ParameterError('Table name is required');
                 }
 
-                try {
-                    const warehouseCatalog = await warehouseClient.getFields(
-                        tableName,
-                        schemaName,
-                        database,
-                        queryTags,
-                    );
-
-                    if (
-                        agentExecutionContext.getStore()
-                            ?.agentConnectionExecution
-                    )
-                        await this.assertConnectionDiscovery(user, projectUuid);
-                    return {
-                        fields: warehouseCatalog[database][schemaName][
-                            tableName
-                        ],
-                        nativeTypes: getCatalogTableNativeTypes(
-                            warehouseCatalog,
-                            database,
-                            schemaName,
-                            tableName,
-                        ),
-                    };
-                } catch (error) {
-                    this.logger.error('Error fetching warehouse fields', {
-                        error,
-                    });
-                    if (
-                        error instanceof AiAccessRefusedError ||
-                        (error instanceof ForbiddenError &&
-                            agentExecutionContext.getStore()
-                                ?.agentConnectionExecution)
-                    ) {
-                        throw error;
-                    }
-                    if (error instanceof WarehouseConnectionError) {
-                        throw error;
-                    }
-                    throw new NotFoundError(
-                        `Could not find table "${tableName}" in schema "${schemaName}" of database "${database}". Please verify the table exists and you have access to it.`,
-                    );
-                }
+                const result = await fn({
+                    warehouseClient,
+                    warehouseType: credentials.type,
+                    table: { tableName, schemaName, database },
+                    queryTags,
+                });
+                if (agentExecutionContext.getStore()?.agentConnectionExecution)
+                    await this.assertConnectionDiscovery(user, projectUuid);
+                return result;
             },
         );
     }

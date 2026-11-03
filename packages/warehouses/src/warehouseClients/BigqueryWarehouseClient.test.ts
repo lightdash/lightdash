@@ -12,6 +12,7 @@ import {
     getBigqueryWorkloadIdentityStsAudience,
     getCatalogNestedColumnShape,
     getCatalogTableNativeTypes,
+    PartitionGranularity,
     PartitionType,
     setCatalogNestedColumnShape,
     setCatalogTimestampDomain,
@@ -1431,5 +1432,73 @@ describe('BigQuery execution stats', () => {
             executionTimeMs: null,
             cacheHit: true,
         });
+    });
+});
+
+describe('BigqueryWarehouseClient.getTablePartitioning', () => {
+    const partitioningFor = async (metadata: Record<string, unknown>) => {
+        Dataset.prototype.table = vi.fn().mockImplementationOnce(() => ({
+            getMetadata: async () => [metadata],
+        }));
+        return new BigqueryWarehouseClient(credentials).getTablePartitioning(
+            'analytics',
+            'analytics',
+            'example-project',
+        );
+    };
+
+    it('reads a time-unit column partition and its granularity', async () => {
+        await expect(
+            partitioningFor({
+                timePartitioning: { type: 'DAY', field: 'created_at' },
+            }),
+        ).resolves.toEqual({
+            partitionColumn: {
+                field: 'created_at',
+                partitionType: PartitionType.DATE,
+            },
+            granularity: PartitionGranularity.DAY,
+            requiresPartitionFilter: false,
+        });
+    });
+
+    it('uses _PARTITIONTIME for ingestion-time partitions and reads the required filter flag', async () => {
+        await expect(
+            partitioningFor({
+                timePartitioning: { type: 'HOUR' },
+                requirePartitionFilter: true,
+            }),
+        ).resolves.toEqual({
+            partitionColumn: {
+                field: '_PARTITIONTIME',
+                partitionType: PartitionType.DATE,
+            },
+            granularity: PartitionGranularity.HOUR,
+            requiresPartitionFilter: true,
+        });
+    });
+
+    it('reads an integer-range partition without a granularity', async () => {
+        await expect(
+            partitioningFor({
+                rangePartitioning: {
+                    field: 'customer_id',
+                    range: { start: '0', end: '1000', interval: '10' },
+                },
+            }),
+        ).resolves.toEqual({
+            partitionColumn: {
+                field: 'customer_id',
+                partitionType: PartitionType.RANGE,
+            },
+            granularity: null,
+            requiresPartitionFilter: false,
+        });
+    });
+
+    it('returns null for an unpartitioned table', async () => {
+        await expect(partitioningFor({ schema: { fields: [] } })).resolves.toBe(
+            null,
+        );
     });
 });

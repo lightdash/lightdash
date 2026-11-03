@@ -5,6 +5,7 @@ import {
     Metric,
     setCatalogTimestampDomain,
     SupportedDbtAdapter,
+    TablePartitioning,
     TimeIntervalUnit,
     UnnestSql,
     UnnestSqlArgs,
@@ -210,6 +211,14 @@ export default abstract class WarehouseBaseClient<
         database?: string,
         tags?: Record<string, string>,
     ): Promise<WarehouseCatalog>;
+
+    async getTablePartitioning(
+        _tableName: string,
+        _schema: string,
+        _database: string,
+    ): Promise<TablePartitioning | null> {
+        return null;
+    }
 
     async listDatabases(
         _tags?: Record<string, string>,

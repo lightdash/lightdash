@@ -121,6 +121,43 @@ const renderParameter = (parameter: GetMetadataParameter): string => {
     return parts.join('  ') + description;
 };
 
+// sqlTable is a quoted relation name or, with `sql_from`, arbitrary SQL.
+const IDENTIFIER_PART = /^(?:"(?:[^"]|"")+"|`[^`]+`|\[[^\]]+\]|[\w$-]+)/;
+
+const toWarehouseTableName = (sqlTable: string): string | null => {
+    const parts: string[] = [];
+    let rest = sqlTable.trim();
+    while (rest) {
+        const match = IDENTIFIER_PART.exec(rest);
+        if (!match) return null;
+        const part = match[0];
+        parts.push(
+            /^["`[]/.test(part)
+                ? part.slice(1, -1).replaceAll('""', '"')
+                : part,
+        );
+        rest = rest.slice(part.length);
+        if (rest && !rest.startsWith('.')) return null;
+        rest = rest.slice(1);
+    }
+    return parts.length > 0 && parts.length <= 3 ? parts.join('.') : null;
+};
+
+const getWarehouseTables = (explore: Explore) =>
+    [explore.baseTable, ...explore.joinedTables.map((join) => join.table)].map(
+        (table) => {
+            const sqlTable = explore.tables[table]?.sqlTable;
+            return {
+                table,
+                warehouseTable: sqlTable
+                    ? toWarehouseTableName(sqlTable)
+                    : null,
+            };
+        },
+    );
+
+const CUSTOM_SQL_SOURCE = 'custom SQL source';
+
 const renderExplore = (
     explore: Explore,
     parameters: GetMetadataParameter[],
@@ -134,13 +171,19 @@ const renderExplore = (
     }
     const hint = flattenAiHints(explore.aiHint);
     if (hint) lines.push(`  hint: ${collapse(hint)}`);
-    lines.push(`  base table: ${explore.baseTable}`);
-    const joined = explore.joinedTables.map((join) => join.table);
+    const [base, ...joined] = getWarehouseTables(explore);
+    lines.push(
+        `  base table: ${base.table}`,
+        `  warehouse table: ${base.warehouseTable ?? `none (${CUSTOM_SQL_SOURCE})`}`,
+    );
     if (joined.length > 0) {
         lines.push(
-            `  joined tables (usable in queries, grep with exploreName="${explore.name}" to list their fields): ${joined.join(
-                ', ',
-            )}`,
+            `  joined tables (usable in queries, grep with exploreName="${explore.name}" to list their fields): ${joined
+                .map(
+                    ({ table, warehouseTable }) =>
+                        `${table} (${warehouseTable ?? CUSTOM_SQL_SOURCE})`,
+                )
+                .join(', ')}`,
         );
     }
     if (includeSourceDetails) {
@@ -283,6 +326,7 @@ const buildExploreStructuredResult = (
         hint: hint ? collapse(hint) : null,
         baseTable: explore.baseTable,
         joinedTables: explore.joinedTables.map((join) => join.table),
+        warehouseTables: getWarehouseTables(explore),
         requiredFilters: getExploreRequiredFilters(explore),
         parameters,
         baseDimensions: {

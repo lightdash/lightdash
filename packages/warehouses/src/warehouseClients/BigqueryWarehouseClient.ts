@@ -31,6 +31,7 @@ import {
     Metric,
     MetricType,
     PartitionColumn,
+    PartitionGranularity,
     PartitionType,
     sanitizeQueryTagKey,
     sanitizeQueryTagValue,
@@ -46,6 +47,7 @@ import {
     WarehouseResults,
     WarehouseTypes,
     type ResultNumericKind,
+    type TablePartitioning,
     type TimestampDomain,
     type WarehouseExecutionStats,
     type WarehouseNestedColumnShape,
@@ -448,6 +450,44 @@ export type BigqueryWarehouseClientOptions = {
     bigqueryExternalAccount?: BigqueryExternalAccountCredentials;
     agentSession?: boolean;
     agentJobControls?: boolean;
+};
+
+const isPartitionGranularity = (
+    value: string | undefined,
+): value is PartitionGranularity =>
+    Object.values<string | undefined>(PartitionGranularity).includes(value);
+
+const getTablePartitioningFromMetadata = (
+    metadata: bigquery.ITable,
+): TablePartitioning | null => {
+    const requiresPartitionFilter = Boolean(
+        metadata.requirePartitionFilter ??
+        metadata.timePartitioning?.requirePartitionFilter,
+    );
+    if (metadata.timePartitioning) {
+        return {
+            partitionColumn: {
+                // No field means ingestion-time partitioning.
+                field: metadata.timePartitioning.field ?? '_PARTITIONTIME',
+                partitionType: PartitionType.DATE,
+            },
+            granularity: isPartitionGranularity(metadata.timePartitioning.type)
+                ? metadata.timePartitioning.type
+                : null,
+            requiresPartitionFilter,
+        };
+    }
+    if (metadata.rangePartitioning?.field) {
+        return {
+            partitionColumn: {
+                field: metadata.rangePartitioning.field,
+                partitionType: PartitionType.RANGE,
+            },
+            granularity: null,
+            requiresPartitionFilter,
+        };
+    }
+    return null;
 };
 
 export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryCredentials> {
@@ -1001,6 +1041,23 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 };
             }),
         );
+    }
+
+    async getTablePartitioning(
+        tableName: string,
+        schema: string,
+        database: string,
+    ): Promise<TablePartitioning | null> {
+        const dataset = new Dataset(this.client, schema, {
+            projectId: database,
+        });
+        try {
+            const [metadata] = await dataset.table(tableName).getMetadata();
+            return getTablePartitioningFromMetadata(metadata);
+        } catch (e: unknown) {
+            this.throwIfGoogleOauthTokenError(e);
+            throw e;
+        }
     }
 
     async getFields(

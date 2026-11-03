@@ -202,6 +202,7 @@ export const createTemporaryVirtualView = (
     // Create a fake warehouseClient for compilation purposes
     const fakeWarehouseClient: WarehouseClient = {
         getSessionTimezone: async () => null,
+        getTablePartitioning: async () => null,
         credentials: {
             type: WarehouseTypes.BIGQUERY,
             project: '',

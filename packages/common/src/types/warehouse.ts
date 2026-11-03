@@ -679,6 +679,13 @@ export interface WarehouseClient extends WarehouseSqlBuilder {
         tags?: Record<string, string>,
     ): Promise<WarehouseCatalog>;
 
+    // null when the table has no partitions or the warehouse does not report them
+    getTablePartitioning(
+        tableName: string,
+        schema: string,
+        database: string,
+    ): Promise<TablePartitioning | null>;
+
     parseWarehouseCatalog(
         rows: Record<string, AnyType>[],
         mapFieldType: (type: string) => DimensionType,
@@ -713,4 +720,17 @@ export enum PartitionType {
 export type PartitionColumn = {
     partitionType: PartitionType;
     field: string;
+};
+
+export enum PartitionGranularity {
+    HOUR = 'HOUR',
+    DAY = 'DAY',
+    MONTH = 'MONTH',
+    YEAR = 'YEAR',
+}
+
+export type TablePartitioning = {
+    partitionColumn: PartitionColumn;
+    granularity: PartitionGranularity | null;
+    requiresPartitionFilter: boolean;
 };

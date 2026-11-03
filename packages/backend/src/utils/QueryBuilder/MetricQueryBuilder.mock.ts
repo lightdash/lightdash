@@ -31,6 +31,7 @@ import { withWarehouseCredentialVersion } from '../warehouseCredentialVersion';
 
 export const warehouseClientMock: WarehouseClient = {
     getSessionTimezone: async () => null,
+    getTablePartitioning: async () => null,
     credentials: withWarehouseCredentialVersion(
         {
             type: WarehouseTypes.POSTGRES,
@@ -153,6 +154,7 @@ export const warehouseClientMock: WarehouseClient = {
 
 export const bigqueryClientMock: WarehouseClient = {
     getSessionTimezone: async () => null,
+    getTablePartitioning: async () => null,
     getUnnestSql: getBigqueryUnnestSql,
     credentials: {
         type: WarehouseTypes.BIGQUERY,

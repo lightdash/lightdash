@@ -844,6 +844,64 @@ For explore-backed tables use grepFields and getMetadata; to find a table's name
                   },
                   "type": "array",
                 },
+                "partitioning": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "granularity": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "HOUR",
+                                "DAY",
+                                "MONTH",
+                                "YEAR",
+                              ],
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "partitionColumn": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "field": {
+                              "type": "string",
+                            },
+                            "partitionType": {
+                              "enum": [
+                                "DATE",
+                                "RANGE",
+                              ],
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "field",
+                            "partitionType",
+                          ],
+                          "type": "object",
+                        },
+                        "requiresPartitionFilter": {
+                          "type": "boolean",
+                        },
+                      },
+                      "required": [
+                        "partitionColumn",
+                        "granularity",
+                        "requiresPartitionFilter",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                  "description": "Partition column of the table; null when it has none or the warehouse does not report one.",
+                },
                 "qualifiedName": {
                   "description": "Table name as resolved in the warehouse, e.g. "database.schema.table"; the schema part is "(default schema)" when none was given or resolved.",
                   "type": "string",
@@ -853,6 +911,7 @@ For explore-backed tables use grepFields and getMetadata; to find a table's name
                 "qualifiedName",
                 "columnCount",
                 "columns",
+                "partitioning",
               ],
               "type": "object",
             },
@@ -9366,6 +9425,13 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
                           "database": {
                             "type": "string",
                           },
+                          "partitionColumn": {
+                            "description": "Column the table is partitioned on; null when it has none or the warehouse does not report one.",
+                            "type": [
+                              "string",
+                              "null",
+                            ],
+                          },
                           "qualifiedName": {
                             "description": ""database.schema.table", ready to use in SQL.",
                             "type": "string",
@@ -9382,6 +9448,7 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
                           "schema",
                           "table",
                           "qualifiedName",
+                          "partitionColumn",
                         ],
                         "type": "object",
                       },
@@ -9414,6 +9481,13 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
                           "database": {
                             "type": "string",
                           },
+                          "partitionColumn": {
+                            "description": "Column the table is partitioned on; null when it has none or the warehouse does not report one.",
+                            "type": [
+                              "string",
+                              "null",
+                            ],
+                          },
                           "qualifiedName": {
                             "description": ""database.schema.table", ready to use in SQL.",
                             "type": "string",
@@ -9430,6 +9504,7 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
                           "schema",
                           "table",
                           "qualifiedName",
+                          "partitionColumn",
                         ],
                         "type": "object",
                       },
@@ -22687,6 +22762,29 @@ Use a metric's default time dimension unless the user asks for a different one.
                             "const": "found",
                             "type": "string",
                           },
+                          "warehouseTables": {
+                            "description": "Warehouse table behind the base table and each joined table, as "database.schema.table"; null when the table reads custom SQL.",
+                            "items": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "table": {
+                                  "type": "string",
+                                },
+                                "warehouseTable": {
+                                  "type": [
+                                    "string",
+                                    "null",
+                                  ],
+                                },
+                              },
+                              "required": [
+                                "table",
+                                "warehouseTable",
+                              ],
+                              "type": "object",
+                            },
+                            "type": "array",
+                          },
                         },
                         "required": [
                           "exploreId",
@@ -22696,6 +22794,7 @@ Use a metric's default time dimension unless the user asks for a different one.
                           "hint",
                           "baseTable",
                           "joinedTables",
+                          "warehouseTables",
                           "requiredFilters",
                           "parameters",
                           "baseDimensions",
