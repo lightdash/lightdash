@@ -175,13 +175,13 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             'UserController.getAuthenticatedUser',
         ]),
         external(
-            'analytics/analytics.ts:628',
+            'analytics/analytics.ts:629',
             'POST',
             "'https://analytics.lightdash.com/v1/track'",
             'External fetch or API transport delegates authorization to the inventoried Lightdash caller.',
         ),
         external(
-            'analytics/analytics.ts:654',
+            'analytics/analytics.ts:655',
             'POST',
             "'https://analytics.lightdash.com/v1/identify'",
             'External fetch or API transport delegates authorization to the inventoried Lightdash caller.',
