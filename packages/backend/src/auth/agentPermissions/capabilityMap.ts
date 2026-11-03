@@ -762,6 +762,7 @@ export const REST_OPERATION_CAPABILITIES = {
     'DataAppAnalysisController.detect': [AgentCapability.Query],
     'DataAppAnalysisController.getAnalysis': [AgentCapability.ReadDiscover],
     'DataAppAnalysisController.investigate': [AgentCapability.Query],
+    'DataAppAnalysisController.investigateInstruction': [AgentCapability.Query],
     'DataAppAnalysisController.lookup': [AgentCapability.ReadDiscover],
     'DataAppAnalysisController.prompt': [AgentCapability.Query],
     'DashboardAnalysisController.detect': [AgentCapability.Query],
