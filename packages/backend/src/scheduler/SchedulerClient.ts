@@ -1829,7 +1829,7 @@ export class SchedulerClient {
             payload,
             {
                 queueName: 'analytics-content-sync',
-                jobKey: `analytics-content-sync:${payload.projectUuid}`,
+                jobKey: `analytics-content-sync:${payload.organizationUuid}`,
                 // Allow the next processing run to revive exhausted retries.
                 jobKeyMode: 'preserve_run_at',
                 maxAttempts: 3,

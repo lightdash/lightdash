@@ -397,7 +397,6 @@ const getTagsForTask: {
     },
     [SCHEDULER_TASKS.SYNC_ANALYTICS_CONTENT]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
-        'project.uuid': payload.projectUuid,
     }),
     [SCHEDULER_TASKS.BACKFILL_USAGE_QUERY_HISTORY]: (payload) => ({
         'organization.uuid': payload.organizationUuid,

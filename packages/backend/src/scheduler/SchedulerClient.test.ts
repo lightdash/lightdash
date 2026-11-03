@@ -129,30 +129,20 @@ describe('analytics content scheduling', () => {
         },
     );
 
-    it('keeps per-project content sync retryable after an earlier job exhausts attempts', async () => {
-        const client = makeClient(true);
-        const payload = {
+    it('queues one retryable content update per organization', async () => {
+        await makeClient(true).scheduleAnalyticsContentSync({
             organizationUuid: ORG_UUID,
-            projectUuid: 'project-1',
-        };
-        await client.scheduleAnalyticsContentSync(payload);
-        expect(graphileAddJob).toHaveBeenCalledWith(
+        });
+        expect(graphileAddJob).toHaveBeenCalledExactlyOnceWith(
             SCHEDULER_TASKS.SYNC_ANALYTICS_CONTENT,
-            payload,
+            { organizationUuid: ORG_UUID },
             {
                 queueName: 'analytics-content-sync',
-                jobKey: 'analytics-content-sync:project-1',
+                jobKey: `analytics-content-sync:${ORG_UUID}`,
                 jobKeyMode: 'preserve_run_at',
                 maxAttempts: 3,
                 priority: JobPriority.LOW,
             },
-        );
-        await client.scheduleAnalyticsContentSync({
-            ...payload,
-            projectUuid: 'project-2',
-        });
-        expect(graphileAddJob.mock.calls[1][2].jobKey).toBe(
-            'analytics-content-sync:project-2',
         );
     });
 });

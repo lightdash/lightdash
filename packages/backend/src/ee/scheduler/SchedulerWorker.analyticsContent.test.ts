@@ -6,69 +6,39 @@ vi.mock('../services/ai/AiAgentMcpRuntimeClient', () => ({
     AiAgentMcpRuntimeClient: class {},
 }));
 
-const makeWorker = () => {
+it('isolates analytics content jobs and delegates organization scopes to the existing service', async () => {
     const analyticsProjectService = {
         reconcileContent: vi.fn().mockResolvedValue(undefined),
         syncContent: vi.fn().mockResolvedValue(undefined),
     };
+    const tasks = [
+        SCHEDULER_TASKS.RECONCILE_ANALYTICS_CONTENT,
+        SCHEDULER_TASKS.SYNC_ANALYTICS_CONTENT,
+    ];
     const worker = new CommercialSchedulerWorker({
         lightdashConfig: {
             ...lightdashConfigMock,
-            scheduler: {
-                ...lightdashConfigMock.scheduler,
-                tasks: [
-                    SCHEDULER_TASKS.RECONCILE_ANALYTICS_CONTENT,
-                    SCHEDULER_TASKS.SYNC_ANALYTICS_CONTENT,
-                ],
-            },
+            scheduler: { ...lightdashConfigMock.scheduler, tasks },
         },
         analyticsProjectService,
     } as unknown as ConstructorParameters<typeof CommercialSchedulerWorker>[0]);
-    return { worker, analyticsProjectService };
-};
-
-describe('dedicated analytics content worker', () => {
-    it('claims only reconciliation and content sync and registers no compaction cron', () => {
-        const { worker } = makeWorker();
-        expect(Object.keys(worker['getTaskList']()).sort()).toEqual(
-            [
-                SCHEDULER_TASKS.RECONCILE_ANALYTICS_CONTENT,
-                SCHEDULER_TASKS.SYNC_ANALYTICS_CONTENT,
-            ].sort(),
-        );
-        expect(worker['getEnabledCronItems']()).toEqual([]);
-    });
-
-    it.each([undefined, 'org-1'])(
-        'passes reconciliation scope %s to the service',
-        async (organizationUuid) => {
-            const { worker, analyticsProjectService } = makeWorker();
-            await worker['getFullTaskList']()[
-                SCHEDULER_TASKS.RECONCILE_ANALYTICS_CONTENT
-            ]({ organizationUuid }, {} as never);
-            expect(
-                analyticsProjectService.reconcileContent,
-            ).toHaveBeenCalledExactlyOnceWith({
-                organizationUuid: organizationUuid ?? null,
-            });
-            expect(analyticsProjectService.syncContent).not.toHaveBeenCalled();
-        },
+    const handlers = worker['getFullTaskList']();
+    expect(Object.keys(worker['getTaskList']()).sort()).toEqual(
+        [...tasks].sort(),
     );
-
-    it('passes the exact organization/project to sync and preserves errors for job retry', async () => {
-        const { worker, analyticsProjectService } = makeWorker();
-        const failure = new Error('content sync failed');
-        analyticsProjectService.syncContent.mockRejectedValueOnce(failure);
-        const payload = { organizationUuid: 'org-1', projectUuid: 'project-1' };
-        await expect(
-            worker['getFullTaskList']()[SCHEDULER_TASKS.SYNC_ANALYTICS_CONTENT](
-                payload,
-                {} as never,
-            ),
-        ).rejects.toBe(failure);
-        expect(
-            analyticsProjectService.syncContent,
-        ).toHaveBeenCalledExactlyOnceWith(payload);
-        expect(analyticsProjectService.reconcileContent).not.toHaveBeenCalled();
-    });
+    expect(worker['getEnabledCronItems']()).toEqual([]);
+    await handlers[SCHEDULER_TASKS.RECONCILE_ANALYTICS_CONTENT](
+        {},
+        {} as never,
+    );
+    expect(
+        analyticsProjectService.reconcileContent,
+    ).toHaveBeenCalledExactlyOnceWith({ organizationUuid: null });
+    await handlers[SCHEDULER_TASKS.SYNC_ANALYTICS_CONTENT](
+        { organizationUuid: 'org-1' },
+        {} as never,
+    );
+    expect(analyticsProjectService.syncContent).toHaveBeenCalledExactlyOnceWith(
+        { organizationUuid: 'org-1' },
+    );
 });

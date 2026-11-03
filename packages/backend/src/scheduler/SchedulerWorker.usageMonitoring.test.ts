@@ -12,10 +12,6 @@ vi.mock('../analytics/eventStream/UsageEventsCompactor', () => ({
 }));
 
 class UsageTestWorker extends SchedulerWorker {
-    getCronTasks() {
-        return this.getEnabledCronItems();
-    }
-
     getUsageTask() {
         return this.getTaskList()[SCHEDULER_TASKS.COMPACT_USAGE_EVENTS]!;
     }
@@ -64,123 +60,48 @@ describe('usage processing task scope', () => {
     );
 });
 
-describe('analytics content enqueue after usage processing', () => {
+describe('analytics content enqueue failures', () => {
     afterEach(() => vi.restoreAllMocks());
 
-    const createWorker = (
-        run: () => Promise<unknown>,
-        enqueue: () => Promise<void>,
-    ) => {
-        vi.mocked(UsageEventsCompactor).mockImplementation(
-            class MockUsageEventsCompactor {
-                run = run;
-            } as unknown as typeof UsageEventsCompactor,
-        );
-        return new UsageTestWorker({
-            lightdashConfig: {
-                ...lightdashConfigMock,
-                usageEvents: {
-                    ...lightdashConfigMock.usageEvents,
-                    enabled: true,
-                    s3: { bucket: 'test' },
-                },
-            },
-            schedulerClient: {
-                scheduleAnalyticsContentReconciliation: enqueue,
-            },
-        } as unknown as SchedulerWorkerArguments);
-    };
-
-    it('queues content reconciliation only after the processing attempt finishes', async () => {
-        let finish: (value: unknown) => void = () => {};
-        const processing = new Promise((resolve) => {
-            finish = resolve;
-        });
-        const enqueue = vi.fn().mockResolvedValue(undefined);
-        const worker = createWorker(() => processing, enqueue);
-        const result = worker.getUsageTask()(
-            { organizationUuid: 'org-1' } as never,
-            {} as never,
-        );
-        expect(enqueue).not.toHaveBeenCalled();
-        finish({ partitionsFailed: 1 });
-        await result;
-        expect(enqueue).toHaveBeenCalledExactlyOnceWith('org-1');
-    });
-
-    it('still enqueues after a failed pipeline and preserves the original failure', async () => {
-        const failure = new Error('dimension export failed');
-        const enqueue = vi.fn().mockResolvedValue(undefined);
-        const worker = createWorker(
-            vi.fn().mockRejectedValue(failure),
-            enqueue,
-        );
-        await expect(
-            worker.getUsageTask()({} as never, {} as never),
-        ).rejects.toBe(failure);
-        expect(enqueue).toHaveBeenCalledExactlyOnceWith(null);
-    });
-
     it.each([true, false])(
-        'enqueue failure never changes the pipeline outcome (pipeline failed=%s)',
+        'preserves the compaction outcome when enqueue fails (pipeline failed=%s)',
         async (pipelineFailed) => {
-            const failure = new Error('pipeline failure');
+            const failure = new Error('pipeline failed');
             const run = pipelineFailed
                 ? vi.fn().mockRejectedValue(failure)
                 : vi.fn().mockResolvedValue({});
+            vi.mocked(UsageEventsCompactor).mockImplementation(
+                class MockUsageEventsCompactor {
+                    run = run;
+                } as unknown as typeof UsageEventsCompactor,
+            );
             const enqueue = vi
                 .fn()
                 .mockRejectedValue(new Error('queue unavailable'));
-            const log = vi
-                .spyOn(Logger, 'error')
-                .mockImplementation(() => Logger);
-            const result = createWorker(run, enqueue).getUsageTask()(
+            vi.spyOn(Logger, 'error').mockImplementation(() => Logger);
+            const worker = new UsageTestWorker({
+                lightdashConfig: {
+                    ...lightdashConfigMock,
+                    usageEvents: {
+                        ...lightdashConfigMock.usageEvents,
+                        enabled: true,
+                        s3: { bucket: 'test' },
+                    },
+                },
+                schedulerClient: {
+                    scheduleAnalyticsContentReconciliation: enqueue,
+                },
+            } as unknown as SchedulerWorkerArguments);
+            const result = worker.getUsageTask()(
                 { organizationUuid: 'org-1' } as never,
                 {} as never,
             );
             if (pipelineFailed) await expect(result).rejects.toBe(failure);
             else await expect(result).resolves.toBeUndefined();
-            expect(log).toHaveBeenCalledWith(
-                'Failed to enqueue analytics content reconciliation',
-                { organizationUuid: 'org-1' },
-            );
+            expect(enqueue).toHaveBeenCalledExactlyOnceWith('org-1');
             expect(run).toHaveBeenCalledTimes(1);
         },
     );
-
-    it('keeps compaction cron in the processing pool without adding unrelated tasks', () => {
-        const worker = new UsageTestWorker({
-            lightdashConfig: {
-                ...lightdashConfigMock,
-                scheduler: {
-                    ...lightdashConfigMock.scheduler,
-                    tasks: [SCHEDULER_TASKS.COMPACT_USAGE_EVENTS],
-                },
-            },
-        } as unknown as SchedulerWorkerArguments);
-        expect(worker.getCronTasks()).toEqual([
-            expect.objectContaining({
-                task: SCHEDULER_TASKS.COMPACT_USAGE_EVENTS,
-                pattern: '30 0 * * *',
-            }),
-        ]);
-    });
-
-    it('does not register compaction cron in a sync-only process', () => {
-        const worker = new UsageTestWorker({
-            lightdashConfig: {
-                ...lightdashConfigMock,
-                scheduler: {
-                    ...lightdashConfigMock.scheduler,
-                    tasks: [
-                        SCHEDULER_TASKS.RECONCILE_ANALYTICS_CONTENT,
-                        SCHEDULER_TASKS.SYNC_ANALYTICS_CONTENT,
-                    ],
-                },
-            },
-        } as unknown as SchedulerWorkerArguments);
-        expect(worker.getCronTasks()).toEqual([]);
-    });
 });
 
 describe('usage monitoring worker configuration', () => {

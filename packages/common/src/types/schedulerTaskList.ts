@@ -192,7 +192,6 @@ export type ReconcileAnalyticsContentPayload = Partial<TraceTaskBase>;
 
 export type SyncAnalyticsContentPayload = Partial<TraceTaskBase> & {
     organizationUuid: string;
-    projectUuid: string;
 };
 
 export const EE_SCHEDULER_TASKS = {
