@@ -103,6 +103,8 @@ bar whose lighter remainder is the drop-off, that share as a number, and
 stay available in the full results view. Median time to convert is not
 aggregated across breakdown values, so the strip omits it.
 
+![A. Rows with the result strip](images/funnel-node-spike/a-rows-results-strip.png)
+
 ![B. Spine with the result strip](images/funnel-node-spike/b-spine-results-strip.png)
 
 ![C. Sentence with the result strip](images/funnel-node-spike/c-sentence-results-strip.png)
