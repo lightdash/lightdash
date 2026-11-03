@@ -21,6 +21,7 @@ import {
     IconPencil,
     IconPlus,
     IconRefresh,
+    IconStack2,
     IconTrash,
 } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
@@ -44,6 +45,7 @@ import { GoogleConnectionModal } from './GoogleConnectionModal';
 import { GoogleSourcePickerModal } from './GoogleSourcePickerModal';
 import { getPostHogSignInUrl, toPostHogFormValues } from './postHogConnection';
 import { PostHogConnectionModal } from './PostHogConnectionModal';
+import { SemanticLayerModal } from './SemanticLayerModal';
 
 type Props = {
     projectUuid: string;
@@ -62,9 +64,17 @@ const SourceRow: FC<{
     connection: ExternalConnection;
     usage: ExternalConnectionApiUsage | null;
     onEdit: () => void;
+    onViewSemanticLayer: () => void;
     onReconnect: (() => void) | null;
     onDelete: () => void;
-}> = ({ connection, usage, onEdit, onReconnect, onDelete }) => (
+}> = ({
+    connection,
+    usage,
+    onEdit,
+    onViewSemanticLayer,
+    onReconnect,
+    onDelete,
+}) => (
     <Table.Tr>
         <Table.Td>
             {connection.apiSource ? (
@@ -120,6 +130,12 @@ const SourceRow: FC<{
                     >
                         Edit
                     </Menu.Item>
+                    <Menu.Item
+                        leftSection={<MantineIcon icon={IconStack2} />}
+                        onClick={onViewSemanticLayer}
+                    >
+                        Semantic layer
+                    </Menu.Item>
                     {onReconnect && (
                         <Menu.Item
                             leftSection={<MantineIcon icon={IconRefresh} />}
@@ -146,6 +162,7 @@ type ModalState =
     | { kind: 'pick' }
     | { kind: 'create'; connector: ApiConnectorType }
     | { kind: 'edit'; connection: ExternalConnection }
+    | { kind: 'semanticLayer'; connection: ExternalConnection }
     | { kind: 'delete'; connection: ExternalConnection };
 
 const modalConnector = (modal: ModalState): ApiConnectorType | null => {
@@ -293,6 +310,12 @@ const LiveDataSourcesPanel: FC<Props> = ({ projectUuid }) => {
                                                 connection,
                                             })
                                         }
+                                        onViewSemanticLayer={() =>
+                                            setModal({
+                                                kind: 'semanticLayer',
+                                                connection,
+                                            })
+                                        }
                                         onReconnect={getReconnect(connection)}
                                         onDelete={() =>
                                             setModal({
@@ -346,6 +369,14 @@ const LiveDataSourcesPanel: FC<Props> = ({ projectUuid }) => {
                 <GoogleSourcePickerModal
                     projectUuid={projectUuid}
                     onClose={closeGoogleSourcePicker}
+                />
+            )}
+
+            {modal.kind === 'semanticLayer' && (
+                <SemanticLayerModal
+                    projectUuid={projectUuid}
+                    connection={modal.connection}
+                    onClose={closeModal}
                 />
             )}
 

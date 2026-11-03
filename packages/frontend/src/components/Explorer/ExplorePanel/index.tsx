@@ -34,6 +34,7 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import { LiveSourceExploreBadge } from '../../../features/externalConnections/liveSources/LiveSourceExploreBadge';
 import { ExternalSourceBadge } from '../../../features/externalSources/components/ExternalSourceBadge';
 import { ExternalSourceExploreMenu } from '../../../features/externalSources/components/ExternalSourceExploreMenu';
 import { JoinWithWarehouseHint } from '../../../features/externalSources/components/JoinWithWarehouseHint';
@@ -268,6 +269,9 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                     sourceRef={explore.externalSource}
                                 />
                             )}
+                        {explore.type === ExploreType.API_SOURCE && (
+                            <LiveSourceExploreBadge explore={explore} />
+                        )}
                         {explore.warnings && explore.warnings.length > 0 && (
                             <HoverCard position="right" withArrow>
                                 <HoverCard.Target>

@@ -6,6 +6,10 @@ import {
 import { Box, Checkbox, Stack, Switch, Tooltip } from '@mantine/core';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import {
+    NOT_ON_LIVE_SOURCES,
+    useApiSourceExplore,
+} from '../../../features/externalConnections/liveSources/apiSourceExplore';
+import {
     selectTableColumnProperties,
     selectTableEditor,
     selectTableIsPivotTableEnabled,
@@ -59,6 +63,8 @@ const usePivotLayout = () => {
 const PivotLayout: FC = () => {
     const { setPivotDimensions, setPivotRows } = useVisualizationServices();
     const { resultsData } = useVisualizationInputs();
+    const isLiveSource =
+        useApiSourceExplore(resultsData?.metricQuery?.exploreName) !== null;
     const isPivotTableEnabled = useVisualizationInputSelector(
         selectTableIsPivotTableEnabled,
     );
@@ -95,6 +101,12 @@ const PivotLayout: FC = () => {
                     source.droppableId === DroppableIds.ROWS &&
                     dimensions.includes(fieldId)
                 ) {
+                    if (isLiveSource) {
+                        showToastError({
+                            title: `Pivots: ${NOT_ON_LIVE_SOURCES.toLowerCase()}`,
+                        });
+                        return;
+                    }
                     if (columns.length >= MAX_PIVOTS) {
                         showToastError({
                             title: 'Maximum number of pivots reached',
@@ -182,6 +194,7 @@ const PivotLayout: FC = () => {
             showToastError,
             dimensions,
             resultsData?.fields,
+            isLiveSource,
         ],
     );
 
