@@ -207,7 +207,7 @@ jobs:
   # Runs in parallel so it doesn't extend the critical Build & Lint path.
   sdk-csp-check:
     name: SDK CSP Guard
-    runs-on: depot-ubuntu-24.04-8
+    runs-on: depot-ubuntu-24.04-4
     env:
       NODE_OPTIONS: "--max-old-space-size=8192"
     steps:
@@ -232,7 +232,7 @@ jobs:
   # and checks the DOM ECharts produces. Runs in parallel with Build & Lint.
   visualization-browser:
     name: Visualization in Chromium
-    runs-on: depot-ubuntu-24.04-8
+    runs-on: depot-ubuntu-24.04-4
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
