@@ -28,7 +28,9 @@ export const AthenaSchemaInput: FC<{
         <TextInput
             name="warehouse.schema"
             label="Schema"
-            description={description ?? 'The schema name (database in Athena).'}
+            description={
+                description ?? 'This is the schema name (database in Athena).'
+            }
             required
             {...form.getInputProps('warehouse.schema')}
             disabled={disabled}
@@ -186,7 +188,7 @@ const AthenaForm: FC<{
                 <TextInput
                     name="warehouse.database"
                     label="Catalog"
-                    description="The Athena data catalog name (typically 'AwsDataCatalog')."
+                    description="This is the Athena data catalog name (typically 'AwsDataCatalog')."
                     required
                     {...form.getInputProps('warehouse.database')}
                     placeholder="AwsDataCatalog"
@@ -195,7 +197,7 @@ const AthenaForm: FC<{
                 <TextInput
                     name="warehouse.schema"
                     label="Database"
-                    description="The Athena database name (also known as schema)."
+                    description="This is the Athena database name (also known as schema)."
                     required
                     {...form.getInputProps('warehouse.schema')}
                     disabled={disabled}

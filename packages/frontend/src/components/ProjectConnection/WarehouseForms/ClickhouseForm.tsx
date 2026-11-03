@@ -11,18 +11,20 @@ import StartOfWeekSelect from '../Inputs/StartOfWeekSelect';
 import { useProjectFormContext } from '../useProjectFormContext';
 import DataTimezoneField from './DataTimezoneField';
 import { ClickhouseDefaultValues } from './defaultValues';
+import { useFieldHint } from './useFieldHint';
 
 export const ClickhouseSchemaInput: FC<{
     disabled: boolean;
     description?: ReactNode;
 }> = ({ disabled, description }) => {
+    const fieldHint = useFieldHint();
     const form = useFormContext();
 
     return (
         <TextInput
             name="warehouse.schema"
             label="Schema"
-            description={description}
+            description={description ?? fieldHint('This is the schema name.')}
             required
             {...form.getInputProps('warehouse.schema')}
             disabled={disabled}
@@ -33,6 +35,7 @@ export const ClickhouseSchemaInput: FC<{
 const ClickhouseForm: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
+    const fieldHint = useFieldHint();
     const [isOpen, toggleOpen] = useToggle(false);
     const { savedProject } = useProjectFormContext();
     const requireSecrets: boolean =
@@ -49,6 +52,9 @@ const ClickhouseForm: FC<{
                 <TextInput
                     name="warehouse.host"
                     label="Host"
+                    description={fieldHint(
+                        'This is the host where the database is running.',
+                    )}
                     required
                     {...form.getInputProps('warehouse.host')}
                     disabled={disabled}
@@ -57,6 +63,7 @@ const ClickhouseForm: FC<{
                 <TextInput
                     name="warehouse.user"
                     label="User"
+                    description={fieldHint('This is the database user name.')}
                     required={requireSecrets}
                     {...form.getInputProps('warehouse.user')}
                     placeholder={
@@ -69,6 +76,9 @@ const ClickhouseForm: FC<{
                 <PasswordInput
                     name="warehouse.password"
                     label="Password"
+                    description={fieldHint(
+                        'This is the database user password.',
+                    )}
                     required={requireSecrets}
                     placeholder={
                         disabled || !requireSecrets
@@ -99,6 +109,9 @@ const ClickhouseForm: FC<{
                             {...form.getInputProps('warehouse.port')}
                             defaultValue={ClickhouseDefaultValues.port}
                             label="Port"
+                            description={fieldHint(
+                                'This is the port where the database is running.',
+                            )}
                             required
                             disabled={disabled}
                         />
