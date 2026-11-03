@@ -45,9 +45,9 @@ const tiles = [
     tile('tile-sql', 'tab-2', DashboardTileTypes.SQL_CHART, 'sql-1'),
 ];
 
-const setup = (embedApi?: LightdashApi) => {
+const setup = (embedApi?: LightdashApi, dashboardTiles = tiles) => {
     const store = createDashboardTestStore();
-    store.dispatch(dashboardEditActions.setTiles(tiles));
+    store.dispatch(dashboardEditActions.setTiles(dashboardTiles));
     const queryClient = new QueryClient({
         defaultOptions: { queries: { retry: false } },
     });
@@ -128,6 +128,43 @@ describe('useDashboardTileParameterReferences', () => {
                 },
             ],
         });
+    });
+
+    it('sends a large dashboard in requests of at most 200 tiles', async () => {
+        const manyTiles = Array.from({ length: 450 }, (_, index) =>
+            tile(
+                `tile-${index}`,
+                'tab-1',
+                DashboardTileTypes.SAVED_CHART,
+                `chart-${index}`,
+            ),
+        );
+        mockApi.mockImplementation(async ({ body }: { body: string }) =>
+            (
+                JSON.parse(body) as {
+                    tiles: { tileUuid: string }[];
+                }
+            ).tiles.map(({ tileUuid }) => ({
+                tileUuid,
+                parameterReferences: ['orders.region'],
+                error: null,
+            })),
+        );
+
+        const store = setup(undefined, manyTiles);
+
+        await waitFor(() =>
+            expect(
+                Object.keys(
+                    store.getState().parameters.tileParameterReferences,
+                ),
+            ).toHaveLength(450),
+        );
+        expect(
+            mockApi.mock.calls.map(
+                ([{ body }]) => JSON.parse(body).tiles.length,
+            ),
+        ).toEqual([200, 200, 50]);
     });
 
     it("requests through the embed's API client, which sends its token", async () => {

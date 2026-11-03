@@ -5,6 +5,7 @@ import {
     type DashboardTileParameterReferencesTile,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
+import chunk from 'lodash/chunk';
 import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import {
     dashboardParametersActions,
@@ -14,6 +15,8 @@ import {
 } from '../../features/dashboard/store';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import { useServerFeatureFlag } from '../useServerOrClientFeatureFlag';
+
+const TILES_PER_REQUEST = 200;
 
 /**
  * Registers the parameters every tile uses, on every tab, before any tile
@@ -50,27 +53,40 @@ export const useDashboardTileParameterReferences = ({
             projectUuid,
             tilesKey,
         ],
+        // The endpoint takes at most 200 tiles a request; larger dashboards go in turns
         queryFn: () =>
-            lightdashApi<DashboardTileParameterReferences[]>({
-                url: `/projects/${projectUuid}/dashboards/tile-parameter-references`,
-                version: 'v2',
-                method: 'POST',
-                body: JSON.stringify({ tiles }),
-            }),
+            chunk(tiles, TILES_PER_REQUEST).reduce<
+                Promise<DashboardTileParameterReferences[]>
+            >(
+                async (previous, batch) => [
+                    ...(await previous),
+                    ...(await lightdashApi<DashboardTileParameterReferences[]>({
+                        url: `/projects/${projectUuid}/dashboards/tile-parameter-references`,
+                        version: 'v2',
+                        method: 'POST',
+                        body: JSON.stringify({ tiles: batch }),
+                    })),
+                ],
+                Promise.resolve([]),
+            ),
         enabled: isEnabled,
     });
 
     useEffect(() => {
         if (!isEnabled || !data) return;
-        data.forEach((result) => {
-            // A failed tile keeps what its own query response registers
-            if (result.error !== null) return;
-            store.dispatch(
-                dashboardParametersActions.addListedParameterReferences({
-                    tileUuid: result.tileUuid,
-                    references: result.parameterReferences,
-                }),
-            );
-        });
+        // A failed tile keeps what its own query response registers
+        const listedByTile = Object.fromEntries(
+            data.flatMap((result) =>
+                result.error === null
+                    ? [[result.tileUuid, result.parameterReferences]]
+                    : [],
+            ),
+        );
+        if (Object.keys(listedByTile).length === 0) return;
+        store.dispatch(
+            dashboardParametersActions.addListedParameterReferencesByTile(
+                listedByTile,
+            ),
+        );
     }, [data, isEnabled, store]);
 };

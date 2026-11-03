@@ -375,6 +375,27 @@ describe('dashboardParametersReducer', () => {
             },
         );
 
+        it('lists many tiles in one action, keeping query references that already arrived', () => {
+            const next = [
+                actions.addParameterReferences({
+                    tileUuid: 'tile-1',
+                    references: ['status'],
+                }),
+                actions.addListedParameterReferencesByTile({
+                    'tile-1': ['region'],
+                    'tile-2': ['week_start'],
+                }),
+            ].reduce(reducer, stateWith());
+            expect(next.tileListedParameterReferences).toEqual({
+                'tile-1': ['region'],
+                'tile-2': ['week_start'],
+            });
+            expect(next.tileParameterReferences).toEqual({
+                'tile-1': ['status'],
+                'tile-2': ['week_start'],
+            });
+        });
+
         it('drops a listed reference the current query no longer uses', () => {
             const next = [
                 actions.addListedParameterReferences({

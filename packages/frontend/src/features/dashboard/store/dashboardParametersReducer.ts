@@ -99,6 +99,10 @@ export const dashboardParametersActions = {
         tileUuid: string;
         references: string[];
     }>('dashboardParameters/addListedParameterReferences'),
+    /** Many tiles' listed references in one update */
+    addListedParameterReferencesByTile: createAction<Record<string, string[]>>(
+        'dashboardParameters/addListedParameterReferencesByTile',
+    ),
     setTileChartSavedParameters: createAction<{
         tileUuid: string;
         values: ParametersValuesMap;
@@ -145,6 +149,27 @@ export const keepTiles = <T>(
                   tileUuids.has(tileUuid),
               ),
           );
+
+// A tile's own query references, once reported, win over listed ones
+const withListedReferences = (
+    state: DashboardParametersState,
+    listedByTile: Record<string, string[]>,
+): DashboardParametersState => ({
+    ...state,
+    tileListedParameterReferences: {
+        ...state.tileListedParameterReferences,
+        ...listedByTile,
+    },
+    tileParameterReferences: {
+        ...state.tileParameterReferences,
+        ...Object.fromEntries(
+            Object.entries(listedByTile).map(([tileUuid, references]) => [
+                tileUuid,
+                state.tileQueryParameterReferences[tileUuid] ?? references,
+            ]),
+        ),
+    },
+});
 
 // Plain reducer rather than createSlice: Immer would deep-freeze the react-query
 // dashboard objects stored here and break any code that still mutates them.
@@ -291,18 +316,14 @@ export const dashboardParametersReducer = (
     }
     if (dashboardParametersActions.addListedParameterReferences.match(action)) {
         const { tileUuid, references } = action.payload;
-        return {
-            ...state,
-            tileListedParameterReferences: {
-                ...state.tileListedParameterReferences,
-                [tileUuid]: references,
-            },
-            tileParameterReferences: {
-                ...state.tileParameterReferences,
-                [tileUuid]:
-                    state.tileQueryParameterReferences[tileUuid] ?? references,
-            },
-        };
+        return withListedReferences(state, { [tileUuid]: references });
+    }
+    if (
+        dashboardParametersActions.addListedParameterReferencesByTile.match(
+            action,
+        )
+    ) {
+        return withListedReferences(state, action.payload);
     }
     if (dashboardParametersActions.setTileChartSavedParameters.match(action)) {
         const { tileUuid, values } = action.payload;

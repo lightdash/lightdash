@@ -118,14 +118,17 @@ export const selectTileQuerySources = createSelector(
 );
 
 /** Changes only with the tile-to-query mapping, not when tiles move */
-export const selectTileQuerySourcesKey = (state: DashboardStoreState) =>
-    selectTileQuerySources(state)
-        .map(
-            ({ tileUuid, savedChartUuid, savedSqlUuid }) =>
-                `${tileUuid}:${savedChartUuid ?? ''}:${savedSqlUuid ?? ''}`,
-        )
-        .sort()
-        .join(',');
+export const selectTileQuerySourcesKey = createSelector(
+    [selectTileQuerySources],
+    (sources) =>
+        sources
+            .map(
+                ({ tileUuid, savedChartUuid, savedSqlUuid }) =>
+                    `${tileUuid}:${savedChartUuid ?? ''}:${savedSqlUuid ?? ''}`,
+            )
+            .sort()
+            .join(','),
+);
 
 // Editor-authored date zoom settings resolve against the saved config
 export const selectDateZoomConfig = (
