@@ -73,11 +73,10 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
             expect(
                 (await read()).some((org) => org.organization_id === 1),
             ).toBe(false);
-            await db('projects').insert({
-                project_id: 3002,
-                organization_id: 1,
-                project_type: ProjectType.DEFAULT,
-            });
+            await db.raw(
+                'INSERT INTO projects (project_id, organization_id, project_type) VALUES (?, ?, ?)',
+                [3002, 1, ProjectType.DEFAULT],
+            );
             expect(
                 (await read()).some((org) => org.organization_id === 1),
             ).toBe(true);
