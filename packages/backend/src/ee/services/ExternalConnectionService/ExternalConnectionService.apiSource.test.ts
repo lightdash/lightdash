@@ -67,6 +67,7 @@ const buildService = ({
     liveSourcesEnabled = true,
     deletedSources = [],
     takenExploreNames = [],
+    namesHeldAtClaim = [],
     hasExplores = false,
 }: {
     connections?: ExternalConnection[];
@@ -74,6 +75,8 @@ const buildService = ({
     liveSourcesEnabled?: boolean;
     deletedSources?: DeletedLiveSource[];
     takenExploreNames?: string[];
+    /** Names other sources store between the list and the claim. */
+    namesHeldAtClaim?: string[];
     hasExplores?: boolean;
 } = {}) => {
     let fieldState: LiveSourceFieldState = { lastScan: null, fields: null };
@@ -97,9 +100,29 @@ const buildService = ({
         insertApiSourceCall: vi.fn().mockResolvedValue(undefined),
         getApiSourceUsage: vi.fn().mockResolvedValue([]),
         listDeletedLiveSources: vi.fn().mockResolvedValue(deletedSources),
-        setLiveSourceName: vi
+        claimLiveSourceName: vi
             .fn()
-            .mockImplementation(async (_uuid: string, name: string) => name),
+            .mockImplementation(
+                async (
+                    _project: string,
+                    uuid: string,
+                    candidates: string[],
+                ) => {
+                    const held = new Set([
+                        ...namesHeldAtClaim,
+                        ...connections.flatMap((connection) =>
+                            connection.externalConnectionUuid !== uuid &&
+                            connection.liveSourceName
+                                ? [connection.liveSourceName]
+                                : [],
+                        ),
+                    ]);
+                    return (
+                        candidates.find((candidate) => !held.has(candidate)) ??
+                        null
+                    );
+                },
+            ),
         getLiveSourceFieldState: vi
             .fn()
             .mockImplementation(async () => fieldState),
@@ -684,9 +707,75 @@ describe('ExternalConnectionService live source explores', () => {
         const { service, externalConnectionModel } = buildService();
         await service.create(account, 'proj-1', postHogSource);
 
-        expect(externalConnectionModel.setLiveSourceName).toHaveBeenCalledWith(
-            'conn-1',
-            'product_analytics',
+        const [[projectUuid, uuid, candidates]] =
+            externalConnectionModel.claimLiveSourceName.mock.calls;
+        expect({ projectUuid, uuid, first: candidates[0] }).toEqual({
+            projectUuid: 'proj-1',
+            uuid: 'conn-1',
+            first: 'product_analytics',
+        });
+    });
+
+    it('takes the next name when another source claims the same one first', async () => {
+        respondToScan('ok');
+        const { service, projectModel } = buildService({
+            namesHeldAtClaim: ['product_analytics'],
+        });
+        await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
+
+        expect(savedExploreName(projectModel)).toBe(
+            'product_analytics_2_events',
+        );
+    });
+
+    const deletedTwin = (
+        overrides: Partial<DeletedLiveSource>,
+    ): DeletedLiveSource => ({
+        externalConnectionUuid: 'old-conn',
+        origin: 'https://eu.posthog.com',
+        apiSource: { connector: ApiConnectorType.POSTHOG, projectId: '303731' },
+        sourceName: 'posthog',
+        fieldEdits: null,
+        ...overrides,
+    });
+
+    it("gives a new source a deleted twin's field edits, so its property charts work again", async () => {
+        respondToScan('ok');
+        const { service, projectModel } = buildService({
+            deletedSources: [
+                deletedTwin({
+                    fieldEdits: {
+                        property_plan: {
+                            inUse: true,
+                            label: 'Plan',
+                            lastEdit: null,
+                        },
+                    },
+                }),
+            ],
+        });
+        await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
+
+        expect(savedFieldIds(projectModel)).toContain(
+            'posthog_events_property_plan',
+        );
+    });
+
+    it('keeps every scanned field in use for a twin deleted before fields were curated', async () => {
+        respondToScan('ok');
+        const { service, projectModel } = buildService({
+            deletedSources: [
+                deletedTwin({
+                    externalConnectionUuid:
+                        'd85fea83-0000-0000-0000-000000000000',
+                    sourceName: null,
+                }),
+            ],
+        });
+        await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
+
+        expect(savedFieldIds(projectModel)).toContain(
+            'posthog_d85fea83_events_property_plan',
         );
     });
 
@@ -720,6 +809,7 @@ describe('ExternalConnectionService live source explores', () => {
                         projectId: '999',
                     },
                     sourceName: 'other_project',
+                    fieldEdits: null,
                 },
                 {
                     externalConnectionUuid: 'old-conn',
@@ -729,6 +819,7 @@ describe('ExternalConnectionService live source explores', () => {
                         projectId: '303731',
                     },
                     sourceName: 'posthog',
+                    fieldEdits: null,
                 },
             ],
         });
@@ -750,6 +841,7 @@ describe('ExternalConnectionService live source explores', () => {
                         projectId: '303731',
                     },
                     sourceName: null,
+                    fieldEdits: null,
                 },
             ],
         });

@@ -89,7 +89,10 @@ import {
     SecureFetchError,
     type AllowedPrivateHostCidrs,
 } from '../../../utils/secureFetch/secureFetch';
-import { type ExternalConnectionModel } from '../../models/ExternalConnectionModel';
+import {
+    type DeletedLiveSource,
+    type ExternalConnectionModel,
+} from '../../models/ExternalConnectionModel';
 import { generateExternalConnectionConfigProposal } from '../ai/agents/externalConnectionConfigGenerator';
 import { getModel } from '../ai/models';
 import { type GeneratorModelOptions } from '../ai/models/types';
@@ -1153,6 +1156,10 @@ export class ExternalConnectionService extends BaseService {
                 return null;
             }
         };
+        const { sourceName, deletedTwin } = await this.claimLiveSourceName(
+            connection,
+            apiSource,
+        );
         const scan = await getScan();
         if (scan) {
             const { externalConnectionUuid, projectUuid } = connection;
@@ -1169,14 +1176,18 @@ export class ExternalConnectionService extends BaseService {
                 getInitialLiveSourceFieldEdits({
                     scannedFields,
                     isExistingSource:
-                        await this.projectModel.hasApiSourceExplores(
+                        deletedTwin !== null ||
+                        (await this.projectModel.hasApiSourceExplores(
                             projectUuid,
                             externalConnectionUuid,
-                        ),
+                        )),
                 }),
             );
         }
-        await this.rebuildApiSourceExplores(connection, apiSource);
+        await this.rebuildApiSourceExplores(
+            { ...connection, liveSourceName: sourceName },
+            apiSource,
+        );
     }
 
     /** Rebuilds the source's explores from its stored scan and field edits, without calling the integration. */
@@ -1355,66 +1366,56 @@ export class ExternalConnectionService extends BaseService {
         };
     }
 
-    /**
-     * The source's stable explore-name prefix, stored on first build. Sources
-     * built before names were stored keep their id-based name; a new source
-     * for the same target as a deleted one takes the deleted one's name, so
-     * its charts work again; anything else gets a free name from its own.
-     */
     private async resolveLiveSourceName(
         connection: ExternalConnection,
         apiSource: ExternalConnectionApiSource,
     ): Promise<string> {
+        const { sourceName } = await this.claimLiveSourceName(
+            connection,
+            apiSource,
+        );
+        return sourceName;
+    }
+
+    /**
+     * The source's stable explore-name prefix, stored on first build. Sources
+     * built before names were stored keep their id-based name. A new source
+     * for the same target as a deleted one takes the deleted one's name and
+     * field edits, so its charts work again; anything else gets a free name
+     * from its own. Returns the deleted source it took over, if any.
+     */
+    private async claimLiveSourceName(
+        connection: ExternalConnection,
+        apiSource: ExternalConnectionApiSource,
+    ): Promise<{
+        sourceName: string;
+        deletedTwin: DeletedLiveSource | null;
+    }> {
         if (connection.liveSourceName) {
-            return connection.liveSourceName;
+            return { sourceName: connection.liveSourceName, deletedTwin: null };
         }
         const { projectUuid, externalConnectionUuid } = connection;
         const legacyName = getLegacyLiveSourceName(
             apiSource.connector,
             externalConnectionUuid,
         );
-        const getName = async (): Promise<string> => {
-            if (
-                await this.projectModel.hasApiSourceExplores(
-                    projectUuid,
-                    externalConnectionUuid,
-                )
-            ) {
-                return legacyName;
-            }
-            const activeSources = await this.externalConnectionModel.list(
+        const claim = async (candidates: string[]) =>
+            (await this.externalConnectionModel.claimLiveSourceName(
                 projectUuid,
-                connection.organizationUuid,
-                { kind: 'live_source' },
-            );
-            const namesInUse = new Set(
-                activeSources.flatMap((source) =>
-                    source.externalConnectionUuid !== externalConnectionUuid &&
-                    source.apiSource
-                        ? [
-                              source.liveSourceName ??
-                                  getLegacyLiveSourceName(
-                                      source.apiSource.connector,
-                                      source.externalConnectionUuid,
-                                  ),
-                          ]
-                        : [],
-                ),
-            );
-            const isFree = async (sourceName: string) =>
-                !namesInUse.has(sourceName) &&
-                (
-                    await this.projectModel.findExploreNamesTakenByOthers(
-                        projectUuid,
-                        externalConnectionUuid,
-                        getApiSourceExploreNames(
-                            apiSource.connector,
-                            sourceName,
-                        ),
-                    )
-                ).length === 0;
+                externalConnectionUuid,
+                candidates,
+            )) ?? legacyName;
 
-            const deletedTwin = (
+        if (
+            await this.projectModel.hasApiSourceExplores(
+                projectUuid,
+                externalConnectionUuid,
+            )
+        ) {
+            return { sourceName: await claim([legacyName]), deletedTwin: null };
+        }
+        const deletedTwin =
+            (
                 await this.externalConnectionModel.listDeletedLiveSources(
                     projectUuid,
                 )
@@ -1422,41 +1423,88 @@ export class ExternalConnectionService extends BaseService {
                 (deleted) =>
                     deleted.origin === connection.origin &&
                     isEqual(deleted.apiSource, apiSource),
+            ) ?? null;
+        const deletedTwinName =
+            deletedTwin &&
+            (deletedTwin.sourceName ??
+                getLegacyLiveSourceName(
+                    deletedTwin.apiSource.connector,
+                    deletedTwin.externalConnectionUuid,
+                ));
+        const base = getLiveSourceNameBase(
+            apiSource.connector,
+            connection.name,
+        );
+        const candidates = [
+            ...(deletedTwinName ? [deletedTwinName] : []),
+            base,
+            ...Array.from(
+                { length: MAX_LIVE_SOURCE_NAME_SUFFIX - 1 },
+                (_, index) => `${base}_${index + 2}`,
+            ),
+        ];
+        const freeCandidates = await this.getFreeLiveSourceNames(
+            connection,
+            apiSource,
+            candidates,
+        );
+        const sourceName = await claim([...freeCandidates, legacyName]);
+        const tookOverTwin =
+            deletedTwin !== null && sourceName === deletedTwinName;
+        if (tookOverTwin && deletedTwin.fieldEdits) {
+            await this.externalConnectionModel.initLiveSourceFieldEdits(
+                externalConnectionUuid,
+                deletedTwin.fieldEdits,
             );
-            const deletedTwinName =
-                deletedTwin &&
-                (deletedTwin.sourceName ??
-                    getLegacyLiveSourceName(
-                        deletedTwin.apiSource.connector,
-                        deletedTwin.externalConnectionUuid,
-                    ));
-            if (deletedTwinName && (await isFree(deletedTwinName))) {
-                return deletedTwinName;
-            }
+        }
+        return { sourceName, deletedTwin: tookOverTwin ? deletedTwin : null };
+    }
 
-            const base = getLiveSourceNameBase(
-                apiSource.connector,
-                connection.name,
-            );
-            const candidates = [
-                base,
-                ...Array.from(
-                    { length: MAX_LIVE_SOURCE_NAME_SUFFIX - 1 },
-                    (_, index) => `${base}_${index + 2}`,
+    /**
+     * The candidates whose explore names no other explore of the project has
+     * and that no source built before names were stored holds. Names stored
+     * by other sources are checked when the name is claimed.
+     */
+    private async getFreeLiveSourceNames(
+        connection: ExternalConnection,
+        apiSource: ExternalConnectionApiSource,
+        candidates: string[],
+    ): Promise<string[]> {
+        const { projectUuid, externalConnectionUuid } = connection;
+        const activeSources = await this.externalConnectionModel.list(
+            projectUuid,
+            connection.organizationUuid,
+            { kind: 'live_source' },
+        );
+        const legacyNamesInUse = new Set(
+            activeSources.flatMap((source) =>
+                source.externalConnectionUuid !== externalConnectionUuid &&
+                source.apiSource &&
+                !source.liveSourceName
+                    ? [
+                          getLegacyLiveSourceName(
+                              source.apiSource.connector,
+                              source.externalConnectionUuid,
+                          ),
+                      ]
+                    : [],
+            ),
+        );
+        const takenExploreNames = new Set(
+            await this.projectModel.findExploreNamesTakenByOthers(
+                projectUuid,
+                externalConnectionUuid,
+                candidates.flatMap((candidate) =>
+                    getApiSourceExploreNames(apiSource.connector, candidate),
                 ),
-            ];
-            // eslint-disable-next-line no-restricted-syntax
-            for (const candidate of candidates) {
-                // eslint-disable-next-line no-await-in-loop
-                if (await isFree(candidate)) {
-                    return candidate;
-                }
-            }
-            return legacyName;
-        };
-        return this.externalConnectionModel.setLiveSourceName(
-            externalConnectionUuid,
-            await getName(),
+            ),
+        );
+        return candidates.filter(
+            (candidate) =>
+                !legacyNamesInUse.has(candidate) &&
+                getApiSourceExploreNames(apiSource.connector, candidate).every(
+                    (exploreName) => !takenExploreNames.has(exploreName),
+                ),
         );
     }
 
