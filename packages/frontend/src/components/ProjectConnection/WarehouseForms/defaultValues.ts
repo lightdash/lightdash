@@ -47,7 +47,7 @@ export const BigQueryDefaultValues: CreateBigqueryCredentials = {
 
 export const DatabricksDefaultValues: CreateDatabricksCredentials = {
     type: WarehouseTypes.DATABRICKS,
-    database: '',
+    database: 'default',
     serverHostName: '',
     httpPath: '',
     authenticationType: DatabricksAuthenticationType.PERSONAL_ACCESS_TOKEN,
@@ -61,7 +61,7 @@ export const DatabricksDefaultValues: CreateDatabricksCredentials = {
 
 export const PostgresDefaultValues: CreatePostgresCredentials = {
     type: WarehouseTypes.POSTGRES,
-    schema: '',
+    schema: 'public',
     host: '',
     user: '',
     password: '',
@@ -90,7 +90,7 @@ export const PostgresDefaultValues: CreatePostgresCredentials = {
 
 export const RedshiftDefaultValues: CreateRedshiftCredentials = {
     type: WarehouseTypes.REDSHIFT,
-    schema: '',
+    schema: 'public',
     host: '',
     user: '',
     password: '',
@@ -126,7 +126,7 @@ export const RedshiftDefaultValues: CreateRedshiftCredentials = {
 
 export const SnowflakeDefaultValues: CreateSnowflakeCredentials = {
     type: WarehouseTypes.SNOWFLAKE,
-    schema: '',
+    schema: 'PUBLIC',
     account: '',
     user: '',
     password: '',
@@ -162,7 +162,7 @@ export const TrinoDefaultValues: CreateTrinoCredentials = {
 
 export const ClickhouseDefaultValues: CreateClickhouseCredentials = {
     type: WarehouseTypes.CLICKHOUSE,
-    schema: '',
+    schema: 'default',
     host: '',
     user: '',
     password: '',
@@ -179,7 +179,7 @@ export const AthenaDefaultValues: CreateAthenaCredentials = {
     authenticationType: AthenaAuthenticationType.ACCESS_KEY,
     region: '',
     database: 'AwsDataCatalog',
-    schema: '',
+    schema: 'default',
     s3StagingDir: '',
     accessKeyId: '',
     secretAccessKey: '',

@@ -7,7 +7,7 @@ import {
     WarehouseTypes,
     type CreateWarehouseCredentials,
 } from '@lightdash/common';
-import { Button, Group } from '@mantine/core';
+import { Box, Button, Group } from '@mantine/core';
 import {
     useCallback,
     useEffect,
@@ -62,7 +62,9 @@ interface CreateProjectConnectionProps {
     } | null;
 }
 
-const isDbtField = (path: string) => path.startsWith('dbt');
+// The schema input is rendered with the dbt settings, so it belongs to the dbt step
+const isDbtField = (path: string) =>
+    path.startsWith('dbt') || path === 'warehouse.schema';
 
 const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
     isCreatingFirstProject,
@@ -194,6 +196,17 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         }
     };
 
+    // Creates the project from the warehouse alone; the repo can be connected later from home
+    const skipDbt = () => {
+        const { errors } = form.validate();
+        if (Object.keys(errors).some((path) => !path.startsWith('dbt'))) {
+            handleError(errors);
+            return;
+        }
+        form.clearErrors();
+        void handleSubmit({ ...form.values, dbt: noneDefaultValues });
+    };
+
     const handleError = (errors: typeof form.errors) => {
         if (steps && Object.keys(errors).some((path) => !isDbtField(path))) {
             steps.onChange('warehouse');
@@ -296,14 +309,16 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         ) {
             return;
         }
-        withViewTransition(() =>
-            setShown({ jobUuid: latestJobUuid, hidesForm: latestHidesForm }),
-        );
-    }, [latestJobUuid, latestHidesForm, shown]);
+        const next = { jobUuid: latestJobUuid, hidesForm: latestHidesForm };
+        // Onboarding keeps the form in place, so there is no layout swap to animate
+        if (steps) setShown(next);
+        else withViewTransition(() => setShown(next));
+    }, [latestJobUuid, latestHidesForm, shown, steps]);
     const thisJob =
         latestJob?.jobUuid === shown?.jobUuid ? latestJob : undefined;
 
-    const hideForm = !!thisJob && !!shown?.hidesForm;
+    const lockForm = !!thisJob && !!shown?.hidesForm;
+    const hideForm = lockForm && !steps;
 
     if (isCheckingInFlightJob) {
         return <ConnectionFormSkeleton />;
@@ -334,7 +349,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                 onSubmit={form.onSubmit(handleSubmit, handleError)}
             >
                 <FormContainer>
-                    <ProjectFormProvider>
+                    <ProjectFormProvider revealAfterSignIn={!!steps}>
                         {thisJob && (
                             <CreateProjectJobProgress
                                 job={thisJob}
@@ -347,7 +362,11 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                         )}
 
                         {!hideForm && (
-                            <>
+                            <Box
+                                className={classes.formBody}
+                                data-locked={lockForm}
+                                inert={lockForm}
+                            >
                                 <ProjectForm
                                     showGeneralSettings={showsProjectName}
                                     disabled={isSavingProject}
@@ -377,12 +396,26 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                                         ) : (
                                             footerStart
                                         )}
-                                        {submitButton}
+                                        {steps && !isWarehouseStep ? (
+                                            <Group gap="xs">
+                                                <Button
+                                                    variant="subtle"
+                                                    color="gray"
+                                                    onClick={skipDbt}
+                                                    disabled={isSavingProject}
+                                                >
+                                                    Skip for now
+                                                </Button>
+                                                {submitButton}
+                                            </Group>
+                                        ) : (
+                                            submitButton
+                                        )}
                                     </Group>
                                 ) : (
                                     submitButton
                                 )}
-                            </>
+                            </Box>
                         )}
                     </ProjectFormProvider>
                 </FormContainer>

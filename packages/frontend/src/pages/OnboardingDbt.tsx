@@ -46,7 +46,6 @@ import classes from './OnboardingDbt.module.css';
 const DOCS_URL =
     'https://docs.lightdash.com/get-started/setup-lightdash/get-project-lightdash-ready';
 const INTEGRATIONS_ROUTE = '/generalSettings/integrations';
-const GET_STARTED_ROUTE = '/get-started';
 const CLI_ROUTE_PARAM = 'cli';
 const DETECTION_POLL_INTERVAL_MS = 3000;
 
@@ -159,7 +158,15 @@ const useDbtSetupDetection = (isEnabled: boolean) => {
     );
 
     const baselineProjectUuids = useRef<string[] | null>(null);
-    const [isDetected, setIsDetected] = useState(false);
+    const [detectedProjectUuid, setDetectedProjectUuid] = useState<
+        string | null
+    >(null);
+
+    // The demo project already has dbt and explores, so it never counts as a deploy
+    const deployTargetUuid =
+        project && !isPlaygroundProvisioningSource(project.provisioningSource)
+            ? project.projectUuid
+            : null;
 
     useEffect(() => {
         if (!projects) return;
@@ -170,32 +177,26 @@ const useDbtSetupDetection = (isEnabled: boolean) => {
             baselineProjectUuids.current = uuids;
             return;
         }
-        if (
-            uuids.some((uuid) => !baselineProjectUuids.current?.includes(uuid))
-        ) {
-            setIsDetected(true);
-        }
+        const created = uuids.find(
+            (uuid) => !baselineProjectUuids.current?.includes(uuid),
+        );
+        if (created) setDetectedProjectUuid(created);
     }, [projects]);
 
     useEffect(() => {
         const dbtType = project?.dbtConnection?.type;
-        if (dbtType && dbtType !== DbtProjectType.NONE) {
-            setIsDetected(true);
+        if (deployTargetUuid && dbtType && dbtType !== DbtProjectType.NONE) {
+            setDetectedProjectUuid(deployTargetUuid);
         }
-    }, [project]);
+    }, [project, deployTargetUuid]);
 
     useEffect(() => {
-        if (explores && hasSemanticLayerExplore(explores)) {
-            setIsDetected(true);
+        if (deployTargetUuid && explores && hasSemanticLayerExplore(explores)) {
+            setDetectedProjectUuid(deployTargetUuid);
         }
-    }, [explores]);
+    }, [explores, deployTargetUuid]);
 
-    const deployTargetUuid =
-        project && !isPlaygroundProvisioningSource(project.provisioningSource)
-            ? project.projectUuid
-            : null;
-
-    return { isDetected, deployTargetUuid };
+    return { detectedProjectUuid, deployTargetUuid };
 };
 
 const DbtCliWaiting: FC = () => {
@@ -209,11 +210,12 @@ const DbtCliWaiting: FC = () => {
     const siteUrl = health.data?.siteUrl ?? '';
     const version = health.data?.version ?? '';
 
-    const { isDetected, deployTargetUuid } = useDbtSetupDetection(true);
+    const { detectedProjectUuid, deployTargetUuid } =
+        useDbtSetupDetection(true);
     const hasCompletedRef = useRef(false);
 
     useEffect(() => {
-        if (!isDetected || hasCompletedRef.current) return;
+        if (!detectedProjectUuid || hasCompletedRef.current) return;
         hasCompletedRef.current = true;
 
         void (async () => {
@@ -236,9 +238,11 @@ const DbtCliWaiting: FC = () => {
                 // The destination reads these itself if priming failed
             }
             showToastSuccess({ title: 'Your dbt project is connected!' });
-            void navigate(GET_STARTED_ROUTE, { replace: true });
+            void navigate(`/onboarding/tools/${detectedProjectUuid}`, {
+                replace: true,
+            });
         })();
-    }, [isDetected, navigate, queryClient, showToastSuccess]);
+    }, [detectedProjectUuid, navigate, queryClient, showToastSuccess]);
 
     const handleCopy = useCallback(() => {
         track({ name: EventName.COPY_CREATE_PROJECT_CODE_BUTTON_CLICKED });

@@ -33,6 +33,7 @@ import DbtNoneForm from './DbtForms/DbtNoneForm';
 import { dbtDefaults } from './DbtForms/defaultValues';
 import GithubForm from './DbtForms/GithubForm';
 import GitlabForm from './DbtForms/GitlabForm';
+import { useAwaitingGithubSignIn } from './DbtForms/useAwaitingGithubSignIn';
 import classes from './DbtSettingsForm.module.css';
 import FormCollapseButton from './FormCollapseButton';
 import { useFormContext } from './formContext';
@@ -164,6 +165,8 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
         }
     }, [type]);
 
+    const awaitingSignIn = useAwaitingGithubSignIn();
+
     const changeType = (dbtType: DbtProjectType) => {
         form.getInputProps('dbt.type').onChange(dbtType);
         form.setValues({ dbt: dbtDefaults.formValues[dbtType] });
@@ -239,91 +242,108 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
 
                 <DbtForm disabled={disabled} />
 
-                {type !== DbtProjectType.NONE && !isNative && (
-                    <>
-                        <FormSection name="target">
-                            <Stack mt="xs">
-                                <TextInput
-                                    name="dbt.target"
-                                    {...form.getInputProps('dbt.target')}
-                                    label="Target name"
-                                    description={
-                                        <p>
-                                            The name Lightdash gives the dbt
-                                            target it compiles with. Set it to
-                                            match the target your dbt code
-                                            branches on. It does not change
-                                            which database or schema your models
-                                            are read from.
-                                        </p>
-                                    }
-                                    disabled={disabled}
-                                    placeholder="prod"
-                                />
-                                {/* A source shares the project's warehouse but
-                                not necessarily the same location inside it, so
-                                it sets its own here. Hidden on the project form
-                                when org warehouse credentials provide it. */}
-                                {isDbtSource && projectUuid ? (
-                                    <WarehouseLocationInputs
-                                        projectUuid={projectUuid}
-                                    />
-                                ) : null}
-                                {isDbtSource ? null : (
-                                    <WarehouseSchemaInput
-                                        warehouseType={warehouseType}
-                                        disabled={disabled}
-                                    />
-                                )}
-                            </Stack>
-                        </FormSection>
-                        <FormSection
-                            name="Advanced"
-                            isOpen={isAdvancedSettingsOpen}
-                        >
-                            <Stack mt="xs">
-                                {type !== DbtProjectType.DBT_CLOUD_IDE && (
+                {/* Skipping still needs a schema, so surface it when the target section does not */}
+                {(awaitingSignIn ||
+                    isNative ||
+                    isDbtSource ||
+                    type === DbtProjectType.NONE) &&
+                    form.errors['warehouse.schema'] && (
+                        <WarehouseSchemaInput
+                            warehouseType={warehouseType}
+                            disabled={disabled}
+                        />
+                    )}
+
+                {type !== DbtProjectType.NONE &&
+                    !isNative &&
+                    !awaitingSignIn && (
+                        <>
+                            <FormSection name="target">
+                                <Stack mt="xs">
                                     <TextInput
-                                        name="dbt.selector"
-                                        {...form.getInputProps('dbt.selector')}
-                                        label="dbt selector"
+                                        name="dbt.target"
+                                        {...form.getInputProps('dbt.target')}
+                                        label="Target name"
                                         description={
                                             <p>
-                                                Add dbt selectors to filter out
-                                                models from your dbt project.
-                                                You can see more details in{' '}
-                                                <Anchor
-                                                    inherit
-                                                    href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project/#dbt-selector"
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                >
-                                                    our docs
-                                                </Anchor>
-                                                .
+                                                The name Lightdash gives the dbt
+                                                target it compiles with. Set it
+                                                to match the target your dbt
+                                                code branches on. It does not
+                                                change which database or schema
+                                                your models are read from.
                                             </p>
                                         }
                                         disabled={disabled}
-                                        placeholder="tag:lightdash"
+                                        placeholder="prod"
                                     />
-                                )}
+                                    {/* A source shares the project's warehouse but
+                                not necessarily the same location inside it, so
+                                it sets its own here. Hidden on the project form
+                                when org warehouse credentials provide it. */}
+                                    {isDbtSource && projectUuid ? (
+                                        <WarehouseLocationInputs
+                                            projectUuid={projectUuid}
+                                        />
+                                    ) : null}
+                                    {isDbtSource ? null : (
+                                        <WarehouseSchemaInput
+                                            warehouseType={warehouseType}
+                                            disabled={disabled}
+                                        />
+                                    )}
+                                </Stack>
+                            </FormSection>
+                            <FormSection
+                                name="Advanced"
+                                isOpen={isAdvancedSettingsOpen}
+                            >
+                                <Stack mt="xs">
+                                    {type !== DbtProjectType.DBT_CLOUD_IDE && (
+                                        <TextInput
+                                            name="dbt.selector"
+                                            {...form.getInputProps(
+                                                'dbt.selector',
+                                            )}
+                                            label="dbt selector"
+                                            description={
+                                                <p>
+                                                    Add dbt selectors to filter
+                                                    out models from your dbt
+                                                    project. You can see more
+                                                    details in{' '}
+                                                    <Anchor
+                                                        inherit
+                                                        href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project/#dbt-selector"
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                    >
+                                                        our docs
+                                                    </Anchor>
+                                                    .
+                                                </p>
+                                            }
+                                            disabled={disabled}
+                                            placeholder="tag:lightdash"
+                                        />
+                                    )}
 
-                                <MultiKeyValuePairsInput
-                                    name="dbt.environment"
-                                    label="Environment variables"
-                                    documentationUrl={`${baseDocUrl}${typeDocUrls[type].env}`}
-                                    disabled={disabled}
-                                />
-                            </Stack>
-                        </FormSection>
-                        <FormCollapseButton
-                            isSectionOpen={isAdvancedSettingsOpen}
-                            onClick={toggleAdvancedSettingsOpen}
-                        >
-                            Advanced configuration options
-                        </FormCollapseButton>
-                    </>
-                )}
+                                    <MultiKeyValuePairsInput
+                                        name="dbt.environment"
+                                        label="Environment variables"
+                                        documentationUrl={`${baseDocUrl}${typeDocUrls[type].env}`}
+                                        disabled={disabled}
+                                    />
+                                </Stack>
+                            </FormSection>
+                            <FormCollapseButton
+                                isSectionOpen={isAdvancedSettingsOpen}
+                                onClick={toggleAdvancedSettingsOpen}
+                            >
+                                Advanced configuration options
+                            </FormCollapseButton>
+                        </>
+                    )}
             </Stack>
         </div>
     );

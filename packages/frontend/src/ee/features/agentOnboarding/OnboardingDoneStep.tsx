@@ -18,6 +18,7 @@ import { markHomepageTourSeen } from '../homepageBuilder/onboarding';
 import { useAuroraRun } from './hooks/useAuroraRun';
 import { useAskAurora } from './hooks/useFirstQuestions';
 import classes from './OnboardingDoneStep.module.css';
+import { OnboardingRunActivity } from './OnboardingRunActivity';
 
 type Source = {
     key: string;
@@ -172,16 +173,22 @@ export const OnboardingDoneStep: FC<{ projectUuid: string }> = ({
                     />
                 )}
 
-                <Stack gap="xs">
-                    <Button
-                        size="md"
-                        fullWidth
-                        onClick={() => ask(FIRST_QUESTION)}
-                        rightSection={<MantineIcon icon={IconArrowRight} />}
-                        className={classes.primary}
-                    >
-                        Ask your first question
-                    </Button>
+                <Stack gap="md">
+                    <Box className={classes.askGroup}>
+                        <OnboardingRunActivity
+                            projectUuid={projectUuid}
+                            variant="grouped"
+                        />
+                        <Button
+                            size="md"
+                            fullWidth
+                            onClick={() => ask(FIRST_QUESTION)}
+                            rightSection={<MantineIcon icon={IconArrowRight} />}
+                            className={classes.primary}
+                        >
+                            Ask your first question
+                        </Button>
+                    </Box>
                     <Button
                         size="md"
                         fullWidth

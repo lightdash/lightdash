@@ -408,7 +408,7 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                 </Title>
 
                                 <TextInput
-                                    label="Organization name"
+                                    aria-label="Organization name"
                                     placeholder="Acme Analytics"
                                     size="md"
                                     required
@@ -602,7 +602,7 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                         loading={completeMutation.isLoading}
                                         disabled={!form.values.jobTitle}
                                     >
-                                        Finish
+                                        Continue
                                     </Button>
                                 </Group>
                             </Stack>

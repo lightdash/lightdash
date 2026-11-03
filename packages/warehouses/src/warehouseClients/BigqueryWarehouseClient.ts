@@ -1211,6 +1211,23 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         });
     }
 
+    /** Lists datasets with a service account key; a metadata call, no queries run */
+    static async getDatasetsWithKeyfile(
+        keyfileContents: Record<string, string>,
+    ): Promise<BigqueryDataset[]> {
+        const projectId = keyfileContents.project_id;
+        const [datasets] = await new BigQuery({
+            projectId,
+            credentials: keyfileContents,
+        }).getDatasets({ autoPaginate: false, maxResults: 1000 });
+        return datasets.map((dataset) => ({
+            projectId: dataset.projectId ?? projectId,
+            location: dataset.location,
+            datasetId: dataset.id!,
+            sizeBytes: null,
+        }));
+    }
+
     static async getDatabases(
         projectId: string,
         refresh_token: string,

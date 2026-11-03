@@ -1,0 +1,240 @@
+import {
+    isAgentOnboardingRunTerminal,
+    type AgentOnboardingRun,
+} from '@lightdash/common';
+import {
+    Box,
+    Group,
+    Loader,
+    ScrollArea,
+    Text,
+    UnstyledButton,
+} from '@mantine/core';
+import {
+    IconAlertTriangle,
+    IconCheck,
+    IconChevronDown,
+} from '@tabler/icons-react';
+import { useEffect, useId, useRef, useState, type FC } from 'react';
+import { AI_NAME } from '../../../components/common/aiName';
+import MantineIcon from '../../../components/common/MantineIcon';
+import { useAuroraRun } from './hooks/useAuroraRun';
+import classes from './OnboardingRunActivity.module.css';
+import {
+    AGENT_ONBOARDING_PROGRESS_STAGES,
+    AGENT_ONBOARDING_STAGE_ACTIVE_LABELS,
+    describeAgentOnboardingEvent,
+    formatStageDuration,
+    getAgentOnboardingProgressStageTimings,
+    sanitizeTerminalText,
+    summarizeAgentOnboardingEvents,
+} from './utils';
+
+const RECENT_STEPS = 3;
+
+const useNow = (isLive: boolean) => {
+    const [now, setNow] = useState(Date.now());
+    useEffect(() => {
+        if (!isLive) return;
+        const timer = window.setInterval(() => setNow(Date.now()), 1_000);
+        return () => window.clearInterval(timer);
+    }, [isLive]);
+    return now;
+};
+
+const plural = (count: number, word: string) =>
+    `${count} ${word}${count === 1 ? '' : 's'}`;
+
+type Step = { label: string; message: string; createdAt: string };
+
+const getSteps = (run: AgentOnboardingRun): Step[] =>
+    run.events.flatMap(({ message, createdAt }) => {
+        const label = describeAgentOnboardingEvent(message);
+        return label ? [{ label, message, createdAt }] : [];
+    });
+
+const StepList: FC<{
+    steps: Step[];
+    isLive: boolean;
+    withCommands: boolean;
+}> = ({ steps, isLive, withCommands }) => (
+    <Box component="ol" className={classes.steps}>
+        {steps.map(({ label, message, createdAt }, index) => {
+            const isCurrent = isLive && index === steps.length - 1;
+            return (
+                <Box
+                    component="li"
+                    key={`${createdAt}-${label}`}
+                    className={classes.step}
+                    data-current={isCurrent}
+                >
+                    <Box className={classes.stepGlyph} aria-hidden>
+                        {isCurrent ? (
+                            <Box className={classes.pulse} />
+                        ) : (
+                            <MantineIcon icon={IconCheck} size={12} />
+                        )}
+                    </Box>
+                    <Box miw={0}>
+                        <Text fz="xs" truncate>
+                            {label}
+                        </Text>
+                        {withCommands && (
+                            <Text fz={11} c="dimmed" ff="monospace" truncate>
+                                {sanitizeTerminalText(message)}
+                            </Text>
+                        )}
+                    </Box>
+                </Box>
+            );
+        })}
+    </Box>
+);
+
+const InspectFeed: FC<{ steps: Step[]; isLive: boolean; id: string }> = ({
+    steps,
+    isLive,
+    id,
+}) => {
+    const viewportRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        viewportRef.current?.scrollTo({
+            top: viewportRef.current.scrollHeight,
+        });
+    }, [steps.length]);
+    return (
+        <ScrollArea.Autosize
+            id={id}
+            viewportRef={viewportRef}
+            className={classes.feed}
+        >
+            <StepList steps={steps} isLive={isLive} withCommands />
+        </ScrollArea.Autosize>
+    );
+};
+
+type Variant = 'dock' | 'grouped';
+
+/** The drafting run, shown inside the setup steps so nobody leaves them to watch it */
+export const OnboardingRunActivity: FC<{
+    projectUuid: string;
+    variant?: Variant;
+}> = ({ projectUuid, variant = 'dock' }) => {
+    const { run, isLive } = useAuroraRun(projectUuid);
+    const now = useNow(isLive);
+    const [isInspecting, setIsInspecting] = useState(false);
+    const feedId = useId();
+    if (!run || run.status === 'cancelled') return null;
+
+    const isDone = run.status === 'completed';
+    const isFailed = run.status === 'failed';
+    const timings = getAgentOnboardingProgressStageTimings(run, now);
+    const activeIndex = Math.max(
+        timings.findIndex(({ state }) => state === 'active'),
+        0,
+    );
+    const activeStage = AGENT_ONBOARDING_PROGRESS_STAGES[activeIndex].stage;
+    const summary = summarizeAgentOnboardingEvents(run.events);
+    const steps = getSteps(run);
+    const startedAt = Date.parse(run.startedAt ?? run.createdAt);
+    const endedAt = run.completedAt ? Date.parse(run.completedAt) : now;
+
+    const title = isDone
+        ? 'Your metrics and starter dashboard are ready'
+        : isFailed
+          ? `${AI_NAME} couldn't finish drafting`
+          : `${AI_NAME} is drafting your metrics`;
+    const counts = [
+        summary.tables > 0 && plural(summary.tables, 'table'),
+        summary.models > 0 && plural(summary.models, 'model'),
+        summary.charts > 0 && plural(summary.charts, 'chart'),
+    ].filter((count): count is string => !!count);
+    const stageLine = isFailed
+        ? 'You can try again from home.'
+        : isDone
+          ? counts.join(' · ')
+          : `${AGENT_ONBOARDING_STAGE_ACTIVE_LABELS[activeStage]}, ${activeIndex + 1} of ${timings.length}`;
+
+    return (
+        <Box
+            className={classes.root}
+            data-variant={variant}
+            data-state={run.status}
+            data-inspecting={isInspecting}
+            data-run-activity
+        >
+            <Group gap="sm" wrap="nowrap" align="flex-start">
+                <Box className={classes.glyph} aria-hidden>
+                    {isDone ? (
+                        <MantineIcon icon={IconCheck} size={16} color="green" />
+                    ) : isFailed ? (
+                        <MantineIcon
+                            icon={IconAlertTriangle}
+                            size={16}
+                            color="orange"
+                        />
+                    ) : (
+                        <Loader size={14} />
+                    )}
+                </Box>
+                <Box
+                    className={classes.heading}
+                    role="status"
+                    aria-live="polite"
+                >
+                    <Text fz="sm" fw={500}>
+                        {title}
+                    </Text>
+                    <Text fz="xs" c="dimmed" truncate>
+                        {stageLine}
+                    </Text>
+                </Box>
+                <Text fz="xs" c="dimmed" className={classes.elapsed}>
+                    {formatStageDuration(endedAt - startedAt)}
+                </Text>
+            </Group>
+
+            {!isAgentOnboardingRunTerminal(run.status) && (
+                <Box component="ol" className={classes.bar} aria-hidden>
+                    {timings.map(({ stage, state }) => (
+                        <Box
+                            component="li"
+                            key={stage}
+                            className={classes.segment}
+                            data-state={state}
+                        />
+                    ))}
+                </Box>
+            )}
+
+            {isInspecting ? (
+                <InspectFeed steps={steps} isLive={isLive} id={feedId} />
+            ) : (
+                variant === 'dock' &&
+                steps.length > 0 && (
+                    <StepList
+                        steps={steps.slice(-RECENT_STEPS)}
+                        isLive={isLive}
+                        withCommands={false}
+                    />
+                )
+            )}
+
+            <UnstyledButton
+                className={classes.inspect}
+                aria-expanded={isInspecting}
+                aria-controls={feedId}
+                onClick={() => setIsInspecting((open) => !open)}
+            >
+                {isInspecting
+                    ? 'Hide steps'
+                    : `Inspect all ${steps.length} steps`}
+                <MantineIcon
+                    icon={IconChevronDown}
+                    size={12}
+                    className={classes.chevron}
+                />
+            </UnstyledButton>
+        </Box>
+    );
+};

@@ -23,7 +23,9 @@ export const useAuroraRun = (projectUuid: string) => {
         projectUuid,
         activeRunUuid ?? lastRunUuid ?? undefined,
     );
-    const run = watchedRun.data ?? activeRun.data ?? null;
+    // A deleted run keeps its last data in the cache, so a failed refetch drops it
+    const run =
+        (watchedRun.isError ? null : watchedRun.data) ?? activeRun.data ?? null;
     return {
         run,
         isLive: !!run && !isAgentOnboardingRunTerminal(run.status),

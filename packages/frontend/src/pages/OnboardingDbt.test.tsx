@@ -56,7 +56,10 @@ const renderAt = (path: string, healthOverrides?: Partial<HealthState>) =>
                     path="/onboarding/dbt/:method?"
                     element={<OnboardingDbt />}
                 />
-                <Route path="/get-started" element={<LocationProbe />} />
+                <Route
+                    path="/onboarding/tools/:projectUuid"
+                    element={<LocationProbe />}
+                />
                 <Route
                     path="/generalSettings/integrations"
                     element={<LocationProbe />}
@@ -150,7 +153,7 @@ describe('OnboardingDbt', () => {
         ).toBeInTheDocument();
     });
 
-    it('redirects to get-started once the existing project has explores', async () => {
+    it('moves on to the tools step once the existing project has explores', async () => {
         mockWarehouseProject(null);
         mockExplores([
             {
@@ -164,12 +167,12 @@ describe('OnboardingDbt', () => {
 
         await waitFor(() =>
             expect(screen.getByTestId('location')).toHaveTextContent(
-                '/get-started',
+                '/onboarding/tools/project-1',
             ),
         );
     });
 
-    it('redirects to get-started once a new project is detected', async () => {
+    it('moves on to the tools step once a new project is detected', async () => {
         const { rerender } = renderAt('/onboarding/dbt/cli');
 
         expect(await screen.findByText('Waiting for data')).toBeInTheDocument();
@@ -182,14 +185,17 @@ describe('OnboardingDbt', () => {
                         path="/onboarding/dbt/:method?"
                         element={<OnboardingDbt />}
                     />
-                    <Route path="/get-started" element={<LocationProbe />} />
+                    <Route
+                        path="/onboarding/tools/:projectUuid"
+                        element={<LocationProbe />}
+                    />
                 </Routes>
             </MemoryRouter>,
         );
 
         await waitFor(() =>
             expect(screen.getByTestId('location')).toHaveTextContent(
-                '/get-started',
+                '/onboarding/tools/project-2',
             ),
         );
     });

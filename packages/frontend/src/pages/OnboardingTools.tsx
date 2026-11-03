@@ -52,7 +52,9 @@ import {
 } from '../components/Settings/LiveDataSourcesPanel/postHogConnection';
 import { PostHogConnectionStep } from '../components/Settings/LiveDataSourcesPanel/PostHogConnectionStep';
 import { useLiveSourceSignInResult } from '../components/Settings/LiveDataSourcesPanel/useLiveSourceSignInResult';
+import { useWatchActiveAgentOnboardingRun } from '../ee/features/agentOnboarding/hooks/useWatchActiveAgentOnboardingRun';
 import { OnboardingDoneStep } from '../ee/features/agentOnboarding/OnboardingDoneStep';
+import { OnboardingRunActivity } from '../ee/features/agentOnboarding/OnboardingRunActivity';
 import { useCreateExternalConnection } from '../features/externalConnections/hooks/useCreateExternalConnection';
 import { useExternalConnections } from '../features/externalConnections/hooks/useExternalConnections';
 import { getLiveSource } from '../features/externalConnections/liveSources/liveSourceCatalog';
@@ -217,9 +219,10 @@ const PostHogInlineConnect: FC<{
 };
 
 const TeamStep: FC<{
+    projectUuid: string;
     nextPath: string;
     backPath: string | null;
-}> = ({ nextPath, backPath }) => {
+}> = ({ projectUuid, nextPath, backPath }) => {
     const onboardingNavigate = useOnboardingNavigate();
     const copy = useStepCopy('team');
     const { health } = useApp();
@@ -278,6 +281,7 @@ const TeamStep: FC<{
             journey={{ currentStep: 2, steps: ONBOARDING_DATA_STEPS }}
             stackDepth={3}
             aside={<StepVisual step="team" />}
+            activity={<OnboardingRunActivity projectUuid={projectUuid} />}
         >
             <DocumentTitle title="Connect Slack and GitHub" />
             <Stack className={classes.column} gap="xl">
@@ -428,7 +432,15 @@ const OnboardingToolsContent: FC<{
     }
 
     if (isTeamStep) {
-        return <TeamStep nextPath={donePath} backPath={null} />;
+        return (
+            <TeamStep
+                projectUuid={projectUuid}
+                nextPath={donePath}
+                backPath={
+                    showLiveSources ? `/onboarding/tools/${projectUuid}` : null
+                }
+            />
+        );
     }
 
     if (!showLiveSources) {
@@ -450,6 +462,7 @@ const OnboardingToolsContent: FC<{
             screen="tools"
             journey={{ currentStep: 2, steps: ONBOARDING_DATA_STEPS }}
             stackDepth={2}
+            activity={<OnboardingRunActivity projectUuid={projectUuid} />}
             aside={
                 <ToolsVisual
                     warehouse={project?.warehouseConnection?.type ?? null}
@@ -594,6 +607,7 @@ const OnboardingToolsContent: FC<{
 const OnboardingTools: FC = () => {
     const guard = useOnboardingPageGuard();
     const { projectUuid } = useParams<{ projectUuid: string }>();
+    useWatchActiveAgentOnboardingRun(projectUuid);
 
     if (guard.status === 'blocked') {
         return guard.element;

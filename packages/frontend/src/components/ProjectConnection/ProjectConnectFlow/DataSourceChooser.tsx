@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
-import { WarehouseTypes } from '@lightdash/common';
+import { ProjectType, WarehouseTypes } from '@lightdash/common';
 import {
+    Anchor,
     Box,
     Group,
     Image,
@@ -12,8 +13,8 @@ import {
     UnstyledButton,
 } from '@mantine/core';
 import { captureException } from '@sentry/react';
-import { IconChevronRight, IconTable, IconUserPlus } from '@tabler/icons-react';
-import { useState, type FC, type ReactNode } from 'react';
+import { IconChevronRight, IconTable } from '@tabler/icons-react';
+import { useState, type FC } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useEnsurePlaygroundProject } from '../../../hooks/useEnsurePlaygroundProject';
@@ -27,8 +28,10 @@ import {
     withViewTransition,
 } from '../../common/viewTransition';
 import DbtLogo from './Assets/dbt.svg';
+import { DbtAnswerSummary, type DbtAnswer } from './ChoiceSummary';
 import classes from './DataSourceChooser.module.css';
 import { InviteTeammateModal } from './InviteTeammateModal';
+import { LiveSourcesCard } from './LiveSourcesTeaser';
 import { getPlaygroundSetupFailure } from './playgroundSetupFailure';
 import { OtherWarehouse, type SelectedWarehouse } from './types';
 import {
@@ -51,32 +54,6 @@ const WAREHOUSES: SelectedWarehouse[] = [
 
 const POPULAR = new Set<SelectedWarehouse>(WAREHOUSES.slice(0, 4));
 
-const ShortcutCard: FC<{
-    icon: ReactNode;
-    title: string;
-    description: string;
-    onClick: () => void;
-    primary?: boolean;
-}> = ({ icon, title, description, onClick, primary = false }) => (
-    <UnstyledButton
-        className={classes.shortcut}
-        data-primary={primary}
-        onClick={onClick}
-    >
-        <Box className={classes.shortcutIcon}>{icon}</Box>
-        <Stack gap={0} className={classes.shortcutText}>
-            <Text fw={500} size="sm">
-                {title}
-            </Text>
-            <Text size="xs" className={classes.shortcutDescription}>
-                {description}
-            </Text>
-        </Stack>
-        <MantineIcon icon={IconChevronRight} size={14} color="ldGray.5" />
-    </UnstyledButton>
-);
-
-type DbtAnswer = 'yes' | 'no';
 const DBT_PARAM = 'dbt';
 
 const DbtQuestion: FC<{
@@ -138,13 +115,28 @@ export const DataSourceChooser: FC = () => {
     const [hasFailed, setHasFailed] = useState(false);
     const [isInviteOpen, setIsInviteOpen] = useState(false);
 
+    const setDbtAnswer = (value: DbtAnswer | null) =>
+        withViewTransition(() =>
+            setSearchParams(
+                (params) => {
+                    if (value) params.set(DBT_PARAM, value);
+                    else params.delete(DBT_PARAM);
+                    return params;
+                },
+                { replace: true },
+            ),
+        );
+
     const organizationUuid = organization?.organizationUuid;
     const canUseSampleWorkspace =
         health.data?.hasPlaygroundProjects === true &&
         !!organizationUuid &&
         user.data?.ability?.can(
             'create',
-            subject('InviteLink', { organizationUuid }),
+            subject('Project', {
+                organizationUuid,
+                type: ProjectType.DEFAULT,
+            }),
         ) === true;
     const canInvite =
         !!organizationUuid &&
@@ -204,20 +196,14 @@ export const DataSourceChooser: FC = () => {
 
     return (
         <Stack gap="xl">
-            <DbtQuestion
-                value={usesDbt}
-                onChange={(value) =>
-                    withViewTransition(() =>
-                        setSearchParams(
-                            (params) => {
-                                params.set(DBT_PARAM, value);
-                                return params;
-                            },
-                            { replace: true },
-                        ),
-                    )
-                }
-            />
+            {usesDbt ? (
+                <DbtAnswerSummary
+                    value={usesDbt}
+                    onChange={() => setDbtAnswer(null)}
+                />
+            ) : (
+                <DbtQuestion value={usesDbt} onChange={setDbtAnswer} />
+            )}
             {usesDbt && (
                 <Stack gap="xs">
                     <Text size="sm" fw={500}>
@@ -311,20 +297,35 @@ export const DataSourceChooser: FC = () => {
                 </Text>
             )}
 
-            {canInvite && (
-                <ShortcutCard
-                    icon={
-                        <MantineIcon
-                            icon={IconUserPlus}
-                            size={16}
-                            color="ldGray.7"
-                        />
-                    }
-                    title="Don't have the warehouse details?"
-                    description="Invite your data engineer or analyst to connect it"
-                    onClick={() => setIsInviteOpen(true)}
-                />
+            {usesDbt && canUseSampleWorkspace && (
+                <Text size="sm" c="dimmed">
+                    Using something else?{' '}
+                    <Anchor
+                        component="button"
+                        type="button"
+                        inherit
+                        onClick={() => selectWarehouse(OtherWarehouse.Other)}
+                    >
+                        Tell us your warehouse
+                    </Anchor>
+                </Text>
             )}
+
+            {canInvite && (
+                <Text size="sm" c="dimmed">
+                    Don't have the warehouse details?{' '}
+                    <Anchor
+                        component="button"
+                        type="button"
+                        inherit
+                        onClick={() => setIsInviteOpen(true)}
+                    >
+                        Invite a teammate to connect it
+                    </Anchor>
+                </Text>
+            )}
+
+            {usesDbt && <LiveSourcesCard />}
 
             {canInvite && (
                 <InviteTeammateModal

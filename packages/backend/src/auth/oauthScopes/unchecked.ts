@@ -279,6 +279,7 @@ export const OAUTH_UNCHECKED_OPERATIONS = {
     'SlackController.get': 'read',
     'SlackController.getChannelById': 'read',
     'SlackController.updateCustomSettings': 'write',
+    'BigqueryController.getBigQueryDatasetsFromKeyfile': 'read',
     'BigquerySSOController.getBigQueryDatabases': 'read',
     'BigquerySSOController.getBigQueryProjects': 'read',
     'BigquerySSOController.getBigQueryProjectRecommendation': 'read',

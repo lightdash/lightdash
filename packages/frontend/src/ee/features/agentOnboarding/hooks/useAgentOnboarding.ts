@@ -104,7 +104,7 @@ export const useActiveAgentOnboardingRun = (
     projectUuid: string | undefined,
     options?: Pick<
         UseQueryOptions<AgentOnboardingRun | null, ApiError>,
-        'enabled'
+        'enabled' | 'refetchInterval'
     >,
 ) => {
     const lightdashApi = useLightdashApi();
@@ -112,6 +112,7 @@ export const useActiveAgentOnboardingRun = (
         queryKey: agentOnboardingActiveRunQueryKey(projectUuid),
         queryFn: () => getActiveRun(lightdashApi, projectUuid!),
         enabled: !!projectUuid && (options?.enabled ?? true),
+        refetchInterval: options?.refetchInterval,
         // A run can start or finish elsewhere in the app, so this must not be
         // served stale on remount (e.g. after a back navigation)
         staleTime: 0,

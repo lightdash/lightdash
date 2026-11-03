@@ -20,6 +20,28 @@ import useActiveJob from '../../providers/ActiveJob/useActiveJob';
 import MantineIcon from '../common/MantineIcon';
 import classes from './CreateProjectJobProgress.module.css';
 
+// Driver errors are cryptic, so name the field most likely to fix them
+const getConnectionErrorHint = (error: string | undefined): string | null => {
+    if (!error) return null;
+    if (/\bssl\b|certificate|self[- ]signed/i.test(error))
+        return 'The server rejected the SSL setting. Open Advanced, set SSL mode to disable or no-verify, and try again.';
+    if (
+        /password|authentication failed|incorrect username|access denied/i.test(
+            error,
+        )
+    )
+        return 'Check the user and password.';
+    if (
+        /enotfound|getaddrinfo|econnrefused|timed? ?out|could not connect/i.test(
+            error,
+        )
+    )
+        return "We couldn't reach the host. Check the host and port, and that the database accepts outside connections.";
+    if (/does not exist|not found|unknown database/i.test(error))
+        return 'Check the database and schema names.';
+    return null;
+};
+
 const STEP_LABELS: Record<JobStepType, string> = {
     [JobStepType.TESTING_ADAPTOR]: 'Testing the connection',
     [JobStepType.COMPILING]: 'Reading your models',
@@ -77,6 +99,7 @@ const CreateProjectJobProgress: FC<{
     const failedStep = job.steps.find(
         (step) => step.stepStatus === JobStepStatusType.ERROR,
     );
+    const errorHint = getConnectionErrorHint(failedStep?.stepError);
 
     const heading = {
         loading: {
@@ -132,6 +155,7 @@ const CreateProjectJobProgress: FC<{
 
             {status === 'error' && (
                 <Stack gap={4} className={classes.indented}>
+                    {errorHint && <Text size="sm">{errorHint}</Text>}
                     <Code block className={classes.errorMessage}>
                         {failedStep?.stepError ??
                             'The connection failed without an error message.'}

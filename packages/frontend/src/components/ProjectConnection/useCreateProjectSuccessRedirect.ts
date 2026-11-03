@@ -47,10 +47,7 @@ export const useCreateProjectSuccessRedirect = ({
         if (!celebrateOnSuccess) {
             if (hasScheduledRedirectRef.current) return;
             hasScheduledRedirectRef.current = true;
-            setTimeout(
-                () => onboardingNavigate({ pathname: redirectTo }),
-                successHoldMs,
-            );
+            setTimeout(() => onboardingNavigate(redirectTo), successHoldMs);
             return;
         }
 

@@ -19485,6 +19485,39 @@ export class ProjectService
         }
     }
 
+    async getBigqueryDatasetsFromKeyfile(
+        user: SessionUser,
+        keyfileContents: Record<string, string>,
+    ) {
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'create',
+                subject('Project', {
+                    organizationUuid: user.organizationUuid,
+                    type: ProjectType.DEFAULT,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        if (typeof keyfileContents.project_id !== 'string') {
+            throw new ParameterError('The key file has no project_id');
+        }
+        try {
+            return await BigqueryWarehouseClient.getDatasetsWithKeyfile(
+                keyfileContents,
+            );
+        } catch (error) {
+            this.logger.warn(
+                `getBigqueryDatasetsFromKeyfile error: ${getErrorMessage(error)}`,
+            );
+            throw new WarehouseConnectionError(
+                'Could not list datasets with this key file',
+            );
+        }
+    }
+
     async getBigqueryProjects(user: SessionUser) {
         // At this point, there might not be any projects
         // so we can't check any permissions here.

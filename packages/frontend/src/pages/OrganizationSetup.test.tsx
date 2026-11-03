@@ -150,7 +150,7 @@ describe('OrganizationSetup', () => {
         ).not.toBeInTheDocument();
 
         const submitButton = await screen.findByRole('button', {
-            name: 'Finish',
+            name: 'Continue',
         });
         expect(submitButton).toBeDisabled();
 
@@ -219,7 +219,9 @@ describe('OrganizationSetup', () => {
             .put('/api/v1/org/brand', () => true)
             .reply(200, { status: 'ok', results: null });
 
-        await user.click(await screen.findByRole('button', { name: 'Finish' }));
+        await user.click(
+            await screen.findByRole('button', { name: 'Continue' }),
+        );
 
         await waitFor(() => expect(scope.isDone()).toBe(true));
         await waitFor(() => expect(brandScope.isDone()).toBe(true));
@@ -263,7 +265,9 @@ describe('OrganizationSetup', () => {
             }),
         ).not.toBeInTheDocument();
 
-        await user.click(await screen.findByRole('button', { name: 'Finish' }));
+        await user.click(
+            await screen.findByRole('button', { name: 'Continue' }),
+        );
 
         await waitFor(() => expect(scope.isDone()).toBe(true));
     });
@@ -301,7 +305,7 @@ describe('OrganizationSetup', () => {
         await user.type(referralInput, '   ');
 
         const submitButton = await screen.findByRole('button', {
-            name: 'Finish',
+            name: 'Continue',
         });
         expect(submitButton).toBeEnabled();
 
@@ -550,7 +554,7 @@ describe('OrganizationSetup', () => {
                 'A colleague',
             );
             await user.click(
-                await screen.findByRole('button', { name: 'Finish' }),
+                await screen.findByRole('button', { name: 'Continue' }),
             );
             await screen.findByText('Home page');
             expect(complete.isDone()).toBe(true);
@@ -616,7 +620,9 @@ describe('OrganizationSetup', () => {
             .put('/api/v1/org/brand', () => true)
             .reply(200, { status: 'ok', results: null });
 
-        await user.click(await screen.findByRole('button', { name: 'Finish' }));
+        await user.click(
+            await screen.findByRole('button', { name: 'Continue' }),
+        );
 
         await waitFor(() => expect(scope.isDone()).toBe(true));
         await waitFor(() => expect(brandScope.isDone()).toBe(true));
@@ -695,7 +701,9 @@ describe('OrganizationSetup', () => {
             .put('/api/v1/org/brand', () => true)
             .reply(200, { status: 'ok', results: null });
 
-        await user.click(await screen.findByRole('button', { name: 'Finish' }));
+        await user.click(
+            await screen.findByRole('button', { name: 'Continue' }),
+        );
 
         await waitFor(() => expect(scope.isDone()).toBe(true));
         await waitFor(() => expect(brandScope.isDone()).toBe(true));
@@ -769,7 +777,9 @@ describe('OrganizationSetup', () => {
             .optionally()
             .reply(200, { status: 'ok', results: null });
 
-        await user.click(await screen.findByRole('button', { name: 'Finish' }));
+        await user.click(
+            await screen.findByRole('button', { name: 'Continue' }),
+        );
 
         await waitFor(() => expect(scope.isDone()).toBe(true));
         await waitFor(() =>

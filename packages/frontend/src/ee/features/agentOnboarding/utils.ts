@@ -3,6 +3,7 @@ import {
     isAgentOnboardingRunTerminal,
     type AgentOnboardingFile,
     type AgentOnboardingRun,
+    type AgentOnboardingRunEvent,
     type AgentOnboardingStage,
 } from '@lightdash/common';
 
@@ -293,3 +294,73 @@ const AGENT_ONBOARDING_DASHBOARD_SLUG = 'agent-starter-dashboard';
 
 export const getAgentOnboardingDashboardUrl = (projectUuid: string): string =>
     `/projects/${encodeURIComponent(projectUuid)}/dashboards/${AGENT_ONBOARDING_DASHBOARD_SLUG}/view`;
+
+export const AGENT_ONBOARDING_STAGE_ACTIVE_LABELS: Record<
+    AgentOnboardingProgressStage,
+    string
+> = {
+    explore: 'Exploring your warehouse',
+    semantic_layer: 'Building the semantic layer',
+    dashboard: 'Creating a starter dashboard',
+    ready: 'Verifying and handing off',
+};
+
+const humanizeSlug = (slug: string): string => {
+    const words = slug.replace(/^agent-starter-/, '').replace(/[-_]+/g, ' ');
+    return words.charAt(0).toUpperCase() + words.slice(1);
+};
+
+const fileName = (path: string): string =>
+    path
+        .split('/')
+        .pop()
+        ?.replace(/\.ya?ml$/, '') ?? path;
+
+/** Plain-language line for a run event, or null for housekeeping the user doesn't need */
+export const describeAgentOnboardingEvent = (
+    message: string,
+): string | null => {
+    const text = message.trim();
+    const table = text.match(/warehouse-catalog.*--table\s+(\S+)/)?.[1];
+    if (table) return `Read the ${table} table`;
+    const schema = text.match(/warehouse-catalog.*--schema\s+(\S+)/)?.[1];
+    if (schema) return `Listed the tables in ${schema}`;
+    if (/^lightdash sql\b/.test(text)) return 'Profiled the data with a query';
+    const model = text.match(/^Write: \S*models\/(\S+)$/)?.[1];
+    if (model) return `Wrote the ${fileName(model)} model`;
+    const chart = text.match(/^Write: \S*charts\/(\S+)$/)?.[1];
+    if (chart) return `Drafted ${humanizeSlug(fileName(chart))}`;
+    if (/^Write: \S*dashboards\//.test(text))
+        return 'Laid out the starter dashboard';
+    const checked = text.match(/run-chart.*charts\/(\S+)/)?.[1];
+    if (checked) return `Checked ${humanizeSlug(fileName(checked))}`;
+    if (/^lightdash deploy\b/.test(text)) return 'Deployed the semantic layer';
+    if (/^lightdash upload\b/.test(text))
+        return 'Uploaded the charts and dashboard';
+    if (/^lightdash validate\b/.test(text)) return 'Validated the project';
+    if (/^lightdash lint\b/.test(text)) return 'Checked the YAML';
+    if (/^Preparing\b/.test(text)) return 'Getting ready';
+    return null;
+};
+
+export type AgentOnboardingRunSummary = {
+    tables: number;
+    models: number;
+    charts: number;
+};
+
+export const summarizeAgentOnboardingEvents = (
+    events: AgentOnboardingRunEvent[],
+): AgentOnboardingRunSummary => {
+    const collect = (pattern: RegExp) =>
+        new Set(
+            events
+                .map(({ message }) => message.match(pattern)?.[1])
+                .filter((match): match is string => !!match),
+        ).size;
+    return {
+        tables: collect(/warehouse-catalog.*--table\s+(\S+)/),
+        models: collect(/^Write: \S*models\/(\S+)$/),
+        charts: collect(/^Write: \S*charts\/(\S+)$/),
+    };
+};

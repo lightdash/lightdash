@@ -15,6 +15,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import classes from './AgentOnboardingRunPage.module.css';
 import {
     AGENT_ONBOARDING_PROGRESS_STAGES,
+    AGENT_ONBOARDING_STAGE_ACTIVE_LABELS,
     formatStageDuration,
     getAgentOnboardingProgressStageTimings,
     type AgentOnboardingProgressStage,
@@ -23,29 +24,25 @@ import {
 
 const STAGE_CONFIG: Record<
     AgentOnboardingProgressStage,
-    { label: string; activeLabel: string; description: string; icon: Icon }
+    { label: string; description: string; icon: Icon }
 > = {
     explore: {
         label: 'Explore your warehouse',
-        activeLabel: 'Exploring your warehouse',
         description: 'Reads your tables to find a useful starting point.',
         icon: IconDatabaseSearch,
     },
     semantic_layer: {
         label: 'Build the semantic layer',
-        activeLabel: 'Building the semantic layer',
         description: 'Turns your data into reusable metrics and dimensions.',
         icon: IconLayersLinked,
     },
     dashboard: {
         label: 'Create a starter dashboard',
-        activeLabel: 'Creating a starter dashboard',
         description: 'Puts the first charts and filters together for you.',
         icon: IconChartBar,
     },
     ready: {
         label: 'Verify and hand off',
-        activeLabel: 'Verifying and handing off',
         description: 'Checks everything works and opens the project.',
         icon: IconCheck,
     },
@@ -131,7 +128,9 @@ export const AgentOnboardingProgress: FC<{ run?: AgentOnboardingRun }> = ({
                                 className={classes.stageLabel}
                             >
                                 {state === 'active'
-                                    ? config.activeLabel
+                                    ? AGENT_ONBOARDING_STAGE_ACTIVE_LABELS[
+                                          stage
+                                      ]
                                     : config.label}
                             </Text>
                             <Text fz="xs" c="dimmed">

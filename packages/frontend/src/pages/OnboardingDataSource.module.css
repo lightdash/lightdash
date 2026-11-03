@@ -245,3 +245,45 @@
         min-height: 44px;
     }
 }
+
+/* Onboarding keeps the repo step to what a first connection needs; defaults cover the rest */
+.connectColumn
+    :global(
+        .mantine-Select-root:has(
+            + input[name='dbt.semanticLayer'],
+            + input[name='dbtVersion']
+        )
+    ) {
+    display: none;
+}
+
+.connectColumn
+    :global(
+        .mantine-InputWrapper-root:has(input[name='dbt.branch'])
+            > .mantine-InputWrapper-description
+    ) {
+    display: none;
+}
+
+.connectColumn
+    :global(
+        .mantine-InputWrapper-root:has(
+                input[name='dbt.project_sub_path'],
+                input[name='dbt.host_domain'],
+                input[name='dbt.discovery_api_endpoint']
+            )
+            > .mantine-InputWrapper-description
+    ) {
+    display: none;
+}
+
+/* Optional dbt Cloud extras that only matter once the project is running */
+.connectColumn
+    :global(
+        .mantine-InputWrapper-root:has(
+            input[name='dbt.webhook_hmac_secret'],
+            input[name='dbt.tags']
+        )
+    ) {
+    display: none;
+}

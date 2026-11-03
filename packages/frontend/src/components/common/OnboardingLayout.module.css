@@ -478,13 +478,46 @@
     max-width: rem(440px);
 }
 
+/* Background work docks to the bottom of the visual, at the visual's width */
+.splitVisual[data-with-dock='true'] {
+    flex-direction: column;
+    padding-bottom: rem(64px);
+}
+
+.splitVisual[data-with-dock='true'] .splitVisualInner {
+    margin-block: auto;
+}
+
+.splitDock {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: rem(400px);
+    margin-top: var(--mantine-spacing-xl);
+}
+
+/* Inspecting the run takes the whole panel */
+.splitVisual:has([data-inspecting='true']) .splitVisualInner {
+    display: none;
+}
+
+.splitVisual:has([data-inspecting='true']) .splitDock {
+    margin-block: auto;
+}
+
+/* The visual panel carries the activity on wide screens */
+@media (min-width: $mantine-breakpoint-md) {
+    .splitActivityInline {
+        display: none;
+    }
+}
+
 .splitForm {
     display: flex;
     flex: 1;
     min-width: 0;
     justify-content: center;
     padding: rem(48px) var(--mantine-spacing-xl);
-    view-transition-name: onboarding-card;
 }
 
 .splitContent {
@@ -505,15 +538,9 @@
     min-width: 0;
 }
 
-/* Centered in the column so the form sits level with the visual beside it */
+/* A fixed drop, not centering, so the title stays put when the form swaps for progress */
 .splitBody {
-    margin-block: auto;
-}
-
-/* Mirrors the header so the body centers on the viewport, not below the header */
-.splitContent::after {
-    content: '';
-    flex: 0 0 rem(22px);
+    margin-top: clamp(0px, calc(20dvh - 6rem), 4rem);
 }
 
 .splitForm h1 {
@@ -527,5 +554,26 @@
 @media (max-width: $mantine-breakpoint-md) {
     .splitVisual {
         display: none;
+    }
+}
+
+/* The page scrolls here, not a padded card, so the form footer pins flush to the viewport */
+.splitForm .splitContent :global([data-form-footer]) {
+    bottom: 0;
+    margin-inline: 0;
+    margin-bottom: 0;
+    padding-inline: 0;
+}
+
+/* Desktop keeps the page in view: only the form column scrolls, under its pinned footer */
+@media (min-width: $mantine-breakpoint-md) {
+    .splitRoot {
+        height: 100dvh;
+        overflow: hidden;
+    }
+
+    .splitForm {
+        overflow-y: auto;
+        padding-bottom: 0;
     }
 }

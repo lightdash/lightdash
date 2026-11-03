@@ -136,6 +136,8 @@ type Props = PropsWithChildren<{
     stackDepth?: number;
     celebrate?: boolean;
     centered?: boolean;
+    /** Background work that should stay visible next to the step */
+    activity?: ReactNode;
 }>;
 
 const OnboardingLayout: FC<Props> = ({
@@ -150,6 +152,7 @@ const OnboardingLayout: FC<Props> = ({
     stackDepth = 0,
     celebrate = false,
     centered = false,
+    activity = null,
 }) => {
     useStackDirection(stackDepth);
     useTrackScreen(screen);
@@ -173,12 +176,23 @@ const OnboardingLayout: FC<Props> = ({
                             {withAccountSwitch && <SwitchAccountButton />}
                         </Group>
                         {journey && <JourneySteps {...journey} />}
+                        {activity && (
+                            <Box className={classes.splitActivityInline}>
+                                {activity}
+                            </Box>
+                        )}
                         <Box className={classes.splitBody}>{children}</Box>
                     </Box>
                 </Box>
-                <Box className={classes.splitVisual}>
+                <Box
+                    className={classes.splitVisual}
+                    data-with-dock={!!activity}
+                >
                     <PixelField celebrate={celebrate} />
                     <Box className={classes.splitVisualInner}>{aside}</Box>
+                    {activity && (
+                        <Box className={classes.splitDock}>{activity}</Box>
+                    )}
                 </Box>
                 {controlPanel}
             </Box>
@@ -239,6 +253,7 @@ const OnboardingLayout: FC<Props> = ({
                                 )}
                             </Box>
                             {children}
+                            {activity}
                         </Box>
                         {aside && (
                             <Box className={classes.aside}>

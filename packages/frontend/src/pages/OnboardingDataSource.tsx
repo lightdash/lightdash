@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
 import { ProjectType, WarehouseTypes } from '@lightdash/common';
 import { Anchor, Box, Button, Group, Stack, Text, Title } from '@mantine/core';
-import { IconBrandGit } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import {
     Navigate,
@@ -11,7 +10,6 @@ import {
 } from 'react-router';
 import { DocumentTitle } from '../components/common/DocumentTitle';
 import ErrorState from '../components/common/ErrorState';
-import MantineIcon from '../components/common/MantineIcon';
 import OnboardingLayout from '../components/common/OnboardingLayout';
 import { ONBOARDING_DATA_STEPS } from '../components/common/onboardingSteps';
 import {
@@ -27,7 +25,7 @@ import { CreateProjectConnection } from '../components/ProjectConnection';
 import { ConnectionFormSkeleton } from '../components/ProjectConnection/ConnectionFormSkeleton';
 import { type ConnectionFormStep } from '../components/ProjectConnection/CreateProjectconnection';
 import { DataSourceChooser } from '../components/ProjectConnection/ProjectConnectFlow/DataSourceChooser';
-import UnsupportedWarehouse from '../components/ProjectConnection/ProjectConnectFlow/UnsupportedWarehouse';
+import { LiveSourcesNote } from '../components/ProjectConnection/ProjectConnectFlow/LiveSourcesTeaser';
 import {
     getWarehouseIcon,
     getWarehouseLabel,
@@ -112,19 +110,18 @@ const WarehouseConnect: FC<{
         <Box className={classes.connectColumn}>
             <Stack gap="lg">
                 <Group gap="sm" wrap="nowrap">
-                    <Box className={classes.logo}>
-                        {isDbtStep ? (
-                            <MantineIcon icon={IconBrandGit} size={24} />
-                        ) : (
-                            getWarehouseIcon(selectedWarehouse, 'sm')
-                        )}
-                    </Box>
-                    <Stack gap={0}>
+                    {!isDbtStep && (
+                        <Box className={classes.logo}>
+                            {getWarehouseIcon(selectedWarehouse, 'sm')}
+                        </Box>
+                    )}
+                    <Stack gap={4}>
                         <Title order={2}>
                             {isDbtStep
                                 ? 'Connect your repo'
                                 : `Create a ${getWarehouseLabel(selectedWarehouse)} connection`}
                         </Title>
+                        {!isDbtStep && <LiveSourcesNote />}
                         {isDbtStep && (
                             <Text c="dimmed" size="sm">
                                 Deploying from your machine?{' '}
@@ -162,7 +159,7 @@ const WarehouseConnect: FC<{
                         }
                         alwaysShowProjectName
                         successRedirect={(projectUuid) =>
-                            `/onboarding/tools/${projectUuid}?step=team`
+                            `/onboarding/tools/${projectUuid}`
                         }
                         footerStart={
                             <Button
@@ -181,12 +178,42 @@ const WarehouseConnect: FC<{
     );
 };
 
+const SUPPORTED_WAREHOUSES = Object.values(WarehouseTypes)
+    .map((type) => getWarehouseLabel(type))
+    .filter((label): label is string => !!label)
+    .join(', ');
+
 const OtherWarehouseConnect: FC = () => {
     const goBack = useBackToChooser();
 
     return (
         <Box className={classes.connectColumn}>
-            <UnsupportedWarehouse onBack={goBack} />
+            <Stack gap="lg">
+                <Stack gap="xs">
+                    <Title order={2}>We don't connect to that one yet</Title>
+                    <Text c="dimmed" size="sm">
+                        Today we support {SUPPORTED_WAREHOUSES}.
+                    </Text>
+                    <Text c="dimmed" size="sm">
+                        Tell us which warehouse you use on{' '}
+                        <Anchor
+                            href="https://github.com/lightdash/lightdash/issues"
+                            target="_blank"
+                            rel="noreferrer noopener"
+                            inherit
+                        >
+                            GitHub
+                        </Anchor>{' '}
+                        so we can prioritize it. Meanwhile, the demo project on
+                        the previous screen shows what you'd get.
+                    </Text>
+                </Stack>
+                <Group>
+                    <Button variant="default" onClick={goBack}>
+                        Back
+                    </Button>
+                </Group>
+            </Stack>
         </Box>
     );
 };

@@ -24,35 +24,6 @@
     text-overflow: ellipsis;
 }
 
-.shortcut {
-    display: flex;
-    align-items: center;
-    gap: var(--mantine-spacing-sm);
-    padding: var(--mantine-spacing-sm);
-    border-radius: var(--mantine-radius-md);
-    background: var(--ld-color-page);
-    transition: background-color 100ms ease;
-}
-
-.shortcut:hover:not(:disabled) {
-    background: var(--mantine-color-ldGray-1);
-}
-
-.shortcut:disabled {
-    cursor: progress;
-}
-
-.shortcutIcon {
-    display: grid;
-    place-items: center;
-    flex-shrink: 0;
-    width: 32px;
-    height: 32px;
-    border-radius: var(--mantine-radius-sm);
-    background: var(--mantine-color-body);
-    border: 1px solid var(--mantine-color-default-border);
-}
-
 .shortcutText {
     flex: 1;
     min-width: 0;
@@ -81,29 +52,6 @@
     object-fit: contain;
 }
 
-.shortcutDescription {
-    color: var(--mantine-color-dimmed);
-}
-
-.shortcut[data-primary='true'] {
-    background: var(--mantine-color-text);
-    color: var(--mantine-color-body);
-}
-
-.shortcut[data-primary='true']:hover:not(:disabled) {
-    background: var(--mantine-color-text);
-    opacity: 0.9;
-}
-
-.shortcut[data-primary='true'] .shortcutDescription {
-    color: inherit;
-    opacity: 0.7;
-}
-
-.shortcut[data-primary='true'] .shortcutIcon {
-    border-color: transparent;
-}
-
 .questionLabel {
     margin-bottom: var(--mantine-spacing-xs);
     font-weight: 500;
@@ -122,4 +70,30 @@
 
 .choiceCard[data-checked] {
     border-color: var(--mantine-color-text);
+}
+
+.infoCard {
+    padding: var(--mantine-spacing-sm);
+    border-radius: var(--mantine-radius-md);
+    background: var(--ld-color-page);
+}
+
+.teaserIcons {
+    display: flex;
+    flex-shrink: 0;
+}
+
+.teaserIcon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: 50%;
+    background: var(--mantine-color-body);
+}
+
+.teaserIcon + .teaserIcon {
+    margin-left: -8px;
 }
