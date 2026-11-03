@@ -1,24 +1,20 @@
 import {
+    friendlyName,
     isAgentOnboardingRunTerminal,
     type AgentOnboardingRun,
 } from '@lightdash/common';
+import { Box, Stack, Text, UnstyledButton } from '@mantine/core';
 import {
-    Box,
-    Stack,
-    Text,
-    UnstyledButton,
-    useMantineColorScheme,
-} from '@mantine/core';
-import { IconCheck, IconChevronDown } from '@tabler/icons-react';
-import MarkdownPreview from '@uiw/react-markdown-preview';
+    IconChartBar,
+    IconCheck,
+    IconChevronDown,
+    IconTable,
+    type Icon as TablerIcon,
+} from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import { AI_NAME } from '../../../components/common/aiName';
 import MantineIcon from '../../../components/common/MantineIcon';
-import {
-    markdownSanitizeRehypePlugins,
-    rehypeRemoveHeaderLinks,
-} from '../../../utils/markdownUtils';
 import classes from './AgentOnboardingRunChanges.module.css';
 import {
     collectAgentOnboardingArtifacts,
@@ -83,9 +79,10 @@ const ChangeRow: FC<{
     waiting: string;
     isLive: boolean;
     hrefFor: ((item: string) => string) | null;
+    icon: TablerIcon;
     // Long lists start folded behind a count, opened on demand
     countLabel: ((count: number) => string) | null;
-}> = ({ label, items, waiting, isLive, hrefFor, countLabel }) => {
+}> = ({ label, items, waiting, isLive, hrefFor, icon, countLabel }) => {
     const [isOpen, setIsOpen] = useState(false);
     if (items.length === 0 && !isLive) return null;
     const extra = items.length - MAX_CHIPS;
@@ -105,6 +102,7 @@ const ChangeRow: FC<{
                     aria-expanded={false}
                     onClick={() => setIsOpen(true)}
                 >
+                    <MantineIcon icon={icon} size={12} />
                     {countLabel(items.length)}
                     <MantineIcon icon={IconChevronDown} size={12} />
                 </UnstyledButton>
@@ -119,10 +117,12 @@ const ChangeRow: FC<{
                                 className={classes.chip}
                                 data-link
                             >
+                                <MantineIcon icon={icon} size={12} />
                                 {item}
                             </Box>
                         ) : (
                             <Box key={item} className={classes.chip}>
+                                <MantineIcon icon={icon} size={12} />
                                 {item}
                             </Box>
                         ),
@@ -138,39 +138,20 @@ const ChangeRow: FC<{
     );
 };
 
-const isInAppHref = (href: string) => /^(https?:|mailto:|\/|#)/.test(href);
-
-// The agent links its own report by relative path, which has no page here
-const rehypeRewrite: React.ComponentProps<
-    typeof MarkdownPreview
->['rehypeRewrite'] = (node, index, parent) => {
-    rehypeRemoveHeaderLinks?.(node, index, parent);
-    if (
-        node.type === 'element' &&
-        node.tagName === 'a' &&
-        !isInAppHref(String(node.properties?.href ?? ''))
-    ) {
-        node.tagName = 'span';
-        node.properties = {};
-    }
-};
-
 /** What the run added to the project, named the way a person would say it */
 export const RunChanges: FC<{
     run: AgentOnboardingRun;
     // Off where the semantic layer has its own section
     withModels: boolean;
 }> = ({ run, withModels }) => {
-    const { colorScheme } = useMantineColorScheme();
     const { tables, models, charts } = useMemo(
         () => collectAgentOnboardingArtifacts(run.events),
         [run.events],
     );
     const isLive = !isAgentOnboardingRunTerminal(run.status);
     const isDone = run.status === 'completed';
-    const summary = isDone ? (run.handoff?.summary ?? null) : null;
 
-    return (
+    const rows = (
         <Stack gap="md">
             {withModels && (
                 <ChangeRow
@@ -184,6 +165,7 @@ export const RunChanges: FC<{
                                   `/projects/${run.projectUuid}/tables/${model}`
                             : null
                     }
+                    icon={IconTable}
                     countLabel={null}
                 />
             )}
@@ -193,33 +175,22 @@ export const RunChanges: FC<{
                 waiting="Once the metrics are live"
                 isLive={isLive}
                 hrefFor={null}
+                icon={IconChartBar}
                 countLabel={(count) =>
                     count === 1 ? '1 chart' : `${count} charts`
                 }
             />
             <ChangeRow
                 label="Tables read"
-                items={tables}
+                items={tables.map(friendlyName)}
                 waiting={`${AI_NAME} starts by reading your tables`}
                 isLive={isLive}
                 hrefFor={null}
+                icon={IconTable}
                 countLabel={null}
             />
-            {summary && (
-                <Box className={classes.notes}>
-                    <Text fz="xs" c="dimmed" mb={4}>
-                        Notes from {AI_NAME}
-                    </Text>
-                    <Box data-color-mode={colorScheme}>
-                        <MarkdownPreview
-                            source={summary}
-                            rehypePlugins={markdownSanitizeRehypePlugins}
-                            rehypeRewrite={rehypeRewrite}
-                            className={classes.notesMarkdown}
-                        />
-                    </Box>
-                </Box>
-            )}
         </Stack>
     );
+
+    return rows;
 };

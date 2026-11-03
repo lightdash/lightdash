@@ -15,22 +15,21 @@ import {
     Stack,
     Text,
     Title,
-    UnstyledButton,
 } from '@mantine/core';
 import {
     IconAlertCircle,
     IconAlertTriangle,
     IconArrowRight,
-    IconChevronRight,
+    IconCode,
     IconDots,
     IconPlayerStop,
     IconRefresh,
 } from '@tabler/icons-react';
-import { useEffect, useId, useState, type FC } from 'react';
+import { useEffect, useState, type FC } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { AI_NAME } from '../../../components/common/aiName';
 import ErrorState from '../../../components/common/ErrorState';
 import MantineIcon from '../../../components/common/MantineIcon';
+import MantineModal from '../../../components/common/MantineModal';
 import Page from '../../../components/common/Page/Page';
 import PageBreadcrumbs from '../../../components/common/PageBreadcrumbs';
 import PageSpinner from '../../../components/PageSpinner';
@@ -41,6 +40,7 @@ import { AgentOnboardingFileBrowser } from './AgentOnboardingFileBrowser';
 import { RunChanges } from './AgentOnboardingRunChanges';
 import { RunJourney } from './AgentOnboardingRunOverview';
 import classes from './AgentOnboardingRunPage.module.css';
+import { RunSummary } from './AgentOnboardingRunSummary';
 import { RunSemanticLayer } from './AgentOnboardingSemanticLayer';
 import {
     useAgentOnboardingRun,
@@ -50,7 +50,6 @@ import {
 import { useNow } from './hooks/useNow';
 import {
     formatStageDuration,
-    getActiveStageLabel,
     getAgentOnboardingDashboardUrl,
     getAgentOnboardingRunUrl,
 } from './utils';
@@ -58,36 +57,32 @@ import { setWatchedAgentOnboardingRun } from './watchedRunStore';
 
 const RUN_COPY: Record<
     AgentOnboardingRunStatus,
-    { pill: string; title: string; subtitle: string }
+    { elapsed: string | null; title: string; subtitle: string | null }
 > = {
     queued: {
-        pill: 'Queued',
+        elapsed: null,
         title: 'Getting ready to build your project',
-        subtitle: `${AI_NAME} will start in a moment. You can leave this page, setup keeps going and home shows its progress.`,
+        subtitle: 'Starting in a moment.',
     },
     running: {
-        pill: 'Building',
+        elapsed: '',
         title: 'Building your project',
-        subtitle:
-            'This usually takes a few minutes. You can leave this page, setup keeps going and home shows its progress.',
+        subtitle: 'Takes a few minutes. It keeps going if you leave.',
     },
     completed: {
-        pill: 'Ready',
+        elapsed: 'Built in ',
         title: 'Your project is ready',
-        subtitle:
-            'Metrics, charts and a starter dashboard are live. Everything below is yours to edit.',
+        subtitle: null,
     },
     failed: {
-        pill: 'Stopped',
+        elapsed: 'Stopped after ',
         title: 'Setup stopped',
-        subtitle:
-            'Anything already built is kept. Try again and it starts from the top.',
+        subtitle: 'What was built is kept. Try again to start over.',
     },
     cancelled: {
-        pill: 'Cancelled',
+        elapsed: 'Cancelled after ',
         title: 'Setup cancelled',
-        subtitle:
-            'Nothing else will run. Anything already built is kept, and you can start again anytime.',
+        subtitle: 'What was built is kept.',
     },
 };
 
@@ -98,29 +93,18 @@ const getElapsedMs = (run: AgentOnboardingRun, now: number): number | null => {
     return (Number.isFinite(endedAt) ? endedAt : now) - startedAt;
 };
 
-const RunPill: FC<{
-    run: AgentOnboardingRun;
-    now: number;
-    isStopping: boolean;
-}> = ({ run, now, isStopping }) => {
+const RunElapsed: FC<{ run: AgentOnboardingRun; now: number }> = ({
+    run,
+    now,
+}) => {
     const elapsedMs = getElapsedMs(run, now);
-    const label = isStopping
-        ? 'Stopping'
-        : run.status === 'running'
-          ? (getActiveStageLabel(run, now) ?? RUN_COPY.running.pill)
-          : RUN_COPY[run.status].pill;
+    const prefix = RUN_COPY[run.status].elapsed;
+    if (elapsedMs === null || prefix === null) return null;
     return (
-        <Group gap={8} wrap="nowrap" className={classes.pill}>
-            <span className={classes.statusDot} data-status={run.status} />
-            <Text fz="xs" fw={500}>
-                {label}
-            </Text>
-            {elapsedMs !== null && (
-                <Text fz="xs" c="dimmed" className={classes.tabular}>
-                    {formatStageDuration(elapsedMs)}
-                </Text>
-            )}
-        </Group>
+        <Text fz="sm" c="dimmed" className={classes.tabular}>
+            {prefix}
+            {formatStageDuration(elapsedMs)}
+        </Text>
     );
 };
 
@@ -130,6 +114,7 @@ const RunActions: FC<{
     onSkip: () => Promise<void>;
     onRetry: () => Promise<void>;
     onOpenProject: () => void;
+    onViewCode: () => void;
     isCancelling: boolean;
     isRetrying: boolean;
 }> = ({
@@ -138,32 +123,36 @@ const RunActions: FC<{
     onSkip,
     onRetry,
     onOpenProject,
+    onViewCode,
     isCancelling,
     isRetrying,
 }) => {
-    if (!isAgentOnboardingRunTerminal(run.status)) {
-        return (
-            <Group gap="xs" wrap="nowrap">
-                <Button
+    const isLive = !isAgentOnboardingRunTerminal(run.status);
+    const menu = (
+        <Menu position="bottom-end" withinPortal>
+            <Menu.Target>
+                <ActionIcon
                     variant="default"
-                    component={Link}
-                    to={`/projects/${run.projectUuid}/home`}
+                    size="input-sm"
+                    aria-label="More setup options"
+                    loading={isCancelling}
                 >
-                    Back to home
-                </Button>
-                <Menu position="bottom-end" withinPortal>
-                    <Menu.Target>
-                        <ActionIcon
-                            variant="default"
-                            size="lg"
-                            aria-label="More setup options"
-                            loading={isCancelling}
+                    <MantineIcon icon={IconDots} />
+                </ActionIcon>
+            </Menu.Target>
+            <Menu.Dropdown>
+                <Menu.Item
+                    leftSection={<MantineIcon icon={IconCode} />}
+                    onClick={onViewCode}
+                >
+                    View code
+                </Menu.Item>
+                {isLive && (
+                    <>
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconArrowRight} />}
+                            onClick={() => void onSkip()}
                         >
-                            <MantineIcon icon={IconDots} />
-                        </ActionIcon>
-                    </Menu.Target>
-                    <Menu.Dropdown>
-                        <Menu.Item onClick={() => void onSkip()}>
                             Stop and open the project
                         </Menu.Item>
                         <Menu.Item
@@ -173,22 +162,17 @@ const RunActions: FC<{
                         >
                             Cancel setup
                         </Menu.Item>
-                    </Menu.Dropdown>
-                </Menu>
-            </Group>
-        );
-    }
+                    </>
+                )}
+            </Menu.Dropdown>
+        </Menu>
+    );
+
+    if (isLive) return menu;
 
     if (run.status === 'completed') {
         return (
             <Group gap="xs" wrap="nowrap">
-                <Button
-                    variant="default"
-                    component={Link}
-                    to={`/projects/${run.projectUuid}/tables`}
-                >
-                    Explore metrics
-                </Button>
                 <Button
                     component={Link}
                     to={getAgentOnboardingDashboardUrl(run.projectUuid)}
@@ -196,6 +180,7 @@ const RunActions: FC<{
                 >
                     Open starter dashboard
                 </Button>
+                {menu}
             </Group>
         );
     }
@@ -212,82 +197,60 @@ const RunActions: FC<{
             >
                 {run.status === 'failed' ? 'Try again' : 'Start again'}
             </Button>
+            {menu}
         </Group>
     );
 };
 
-const TechnicalDetails: FC<{ run: AgentOnboardingRun }> = ({ run }) => {
-    const [isOpen, setIsOpen] = useState(false);
+const RunFilesModal: FC<{
+    run: AgentOnboardingRun;
+    opened: boolean;
+    onClose: () => void;
+}> = ({ run, opened, onClose }) => {
     const [view, setView] = useState<'files' | 'log'>('files');
-    const panelId = useId();
     return (
-        <Box>
-            <UnstyledButton
-                className={classes.detailsToggle}
-                aria-expanded={isOpen}
-                aria-controls={panelId}
-                onClick={() => setIsOpen((value) => !value)}
-            >
-                <MantineIcon
-                    icon={IconChevronRight}
-                    size={14}
-                    className={classes.detailsChevron}
-                    data-open={isOpen}
+        <MantineModal
+            opened={opened}
+            onClose={onClose}
+            title="Project code"
+            icon={IconCode}
+            size="90%"
+            cancelLabel="Close"
+            headerActions={
+                <SegmentedControl
+                    size="xs"
+                    value={view}
+                    onChange={(value) =>
+                        setView(value === 'log' ? 'log' : 'files')
+                    }
+                    data={[
+                        {
+                            value: 'files',
+                            label: `Files (${run.files.length})`,
+                        },
+                        { value: 'log', label: 'Log' },
+                    ]}
                 />
-                <Text fz="sm" fw={500}>
-                    Files and log
-                </Text>
-                <Text fz="xs" c="dimmed">
-                    {run.files.length === 1
-                        ? '1 file'
-                        : `${run.files.length} files`}
-                    {' · '}
-                    {run.events.length === 1
-                        ? '1 event'
-                        : `${run.events.length} events`}
-                </Text>
-            </UnstyledButton>
-            {isOpen && (
-                <Paper id={panelId} className={classes.details}>
-                    <Box className={classes.detailsHeader}>
-                        <SegmentedControl
-                            size="xs"
-                            value={view}
-                            onChange={(value) =>
-                                setView(value === 'log' ? 'log' : 'files')
-                            }
-                            data={[
-                                {
-                                    value: 'files',
-                                    label: `Files (${run.files.length})`,
-                                },
-                                { value: 'log', label: 'Log' },
-                            ]}
-                        />
-                    </Box>
-                    <Box className={classes.detailsBody}>
-                        {view === 'files' ? (
-                            <AgentOnboardingFileBrowser
-                                projectUuid={run.projectUuid}
-                                runUuid={run.agentOnboardingRunUuid}
-                                files={run.files}
-                                isLive={
-                                    !isAgentOnboardingRunTerminal(run.status)
-                                }
-                                latestActivity={
-                                    run.events.at(-1)?.message ?? null
-                                }
-                            />
-                        ) : (
-                            <AgentOnboardingActivityPanel
-                                key={run.agentOnboardingRunUuid}
-                                events={run.events}
-                            />
-                        )}
-                    </Box>
-                </Paper>
-            )}
-        </Box>
+            }
+            modalBodyProps={{ p: 0 }}
+        >
+            <Box className={classes.detailsBody}>
+                {view === 'files' ? (
+                    <AgentOnboardingFileBrowser
+                        projectUuid={run.projectUuid}
+                        runUuid={run.agentOnboardingRunUuid}
+                        files={run.files}
+                        isLive={!isAgentOnboardingRunTerminal(run.status)}
+                        latestActivity={run.events.at(-1)?.message ?? null}
+                    />
+                ) : (
+                    <AgentOnboardingActivityPanel
+                        key={run.agentOnboardingRunUuid}
+                        events={run.events}
+                    />
+                )}
+            </Box>
+        </MantineModal>
     );
 };
 
@@ -297,6 +260,7 @@ const AgentOnboardingRunPage: FC = () => {
     const navigate = useNavigate();
     const [isCancellationRequested, setIsCancellationRequested] =
         useState(false);
+    const [isFilesOpen, setIsFilesOpen] = useState(false);
     const runQuery = useAgentOnboardingRun(projectUuid, agentOnboardingRunUuid);
     const cancelMutation = useCancelAgentOnboardingRun();
     const startMutation = useStartAgentOnboardingRun();
@@ -398,26 +362,28 @@ const AgentOnboardingRunPage: FC = () => {
                     />
 
                     <Box className={classes.header}>
-                        <Stack gap="sm" className={classes.headerText}>
-                            <RunPill
-                                run={run}
-                                now={now}
-                                isStopping={isStopping}
-                            />
-                            <Title order={2} className={classes.title}>
-                                {copy.title}
-                            </Title>
-                            <Text c="dimmed" fz="sm" maw={560}>
-                                {isStopping
-                                    ? 'Stopping the setup run…'
-                                    : copy.subtitle}
-                                {isLive && !isStopping && (
-                                    <>
-                                        {' '}
-                                        <AgentOnboardingDemoOffer run={run} />
-                                    </>
-                                )}
-                            </Text>
+                        <Stack gap={4} className={classes.headerText}>
+                            <Group gap="sm" wrap="wrap">
+                                <Title order={2} className={classes.title}>
+                                    {copy.title}
+                                </Title>
+                                <RunElapsed run={run} now={now} />
+                            </Group>
+                            {(isStopping || copy.subtitle) && (
+                                <Text c="dimmed" fz="sm" maw={560}>
+                                    {isStopping
+                                        ? 'Stopping the setup run…'
+                                        : copy.subtitle}
+                                    {isLive && !isStopping && (
+                                        <>
+                                            {' '}
+                                            <AgentOnboardingDemoOffer
+                                                run={run}
+                                            />
+                                        </>
+                                    )}
+                                </Text>
+                            )}
                         </Stack>
                         <RunActions
                             run={run}
@@ -429,6 +395,7 @@ const AgentOnboardingRunPage: FC = () => {
                                 cancelMutation.isLoading || isStopping
                             }
                             isRetrying={startMutation.isLoading}
+                            onViewCode={() => setIsFilesOpen(true)}
                         />
                     </Box>
 
@@ -448,20 +415,26 @@ const AgentOnboardingRunPage: FC = () => {
 
                     <RunJourney run={run} now={now} />
 
+                    {run.status === 'completed' ? (
+                        <RunSummary run={run} />
+                    ) : (
+                        <Stack gap="sm">
+                            <Text fz="sm" fw={500}>
+                                Charts and tables
+                            </Text>
+                            <Paper className={classes.changes}>
+                                <RunChanges run={run} withModels={false} />
+                            </Paper>
+                        </Stack>
+                    )}
+
                     <RunSemanticLayer run={run} />
 
-                    <Stack gap="sm">
-                        <Text fz="sm" fw={500}>
-                            {run.status === 'completed'
-                                ? 'Charts and notes'
-                                : 'Charts and tables'}
-                        </Text>
-                        <Paper className={classes.changes}>
-                            <RunChanges run={run} withModels={false} />
-                        </Paper>
-                    </Stack>
-
-                    <TechnicalDetails run={run} />
+                    <RunFilesModal
+                        run={run}
+                        opened={isFilesOpen}
+                        onClose={() => setIsFilesOpen(false)}
+                    />
                 </Box>
             </Box>
         </Page>

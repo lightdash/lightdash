@@ -18,6 +18,7 @@ import {
 import { type LightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
+import { isSemanticLayerModelFile, parseSemanticLayerModel } from '../utils';
 
 const POLL_INTERVAL_MS = 2_000;
 
@@ -142,7 +143,7 @@ export const useAgentOnboardingFile = (
 };
 
 /** Several run files at once, sharing the single-file cache */
-export const useAgentOnboardingFiles = (
+const useAgentOnboardingFiles = (
     projectUuid: string,
     runUuid: string,
     files: AgentOnboardingFile[],
@@ -173,6 +174,34 @@ export const useAgentOnboardingFiles = (
                     .findLast((data) => data !== undefined),
         })),
     });
+};
+
+/** The model files a run wrote, with their content and what they define */
+export const useRunSemanticLayer = (run: AgentOnboardingRun) => {
+    const files = run.files.filter(isSemanticLayerModelFile);
+    const queries = useAgentOnboardingFiles(
+        run.projectUuid,
+        run.agentOnboardingRunUuid,
+        files,
+    );
+    const contents = queries.map(({ data }) =>
+        data?.encoding === 'utf8' ? data.content : null,
+    );
+    const models = files.map((file, index) => {
+        const content = contents[index];
+        return content === null
+            ? null
+            : parseSemanticLayerModel(file.path, content);
+    });
+    const count = (pick: 'metrics' | 'dimensions') =>
+        models.reduce((sum, model) => sum + (model?.[pick].length ?? 0), 0);
+    return {
+        files,
+        contents,
+        models,
+        metricCount: count('metrics'),
+        dimensionCount: count('dimensions'),
+    };
 };
 
 export const useStartAgentOnboardingRun = () => {

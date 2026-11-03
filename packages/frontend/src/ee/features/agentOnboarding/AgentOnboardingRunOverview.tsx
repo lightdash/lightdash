@@ -2,7 +2,7 @@ import {
     isAgentOnboardingRunTerminal,
     type AgentOnboardingRun,
 } from '@lightdash/common';
-import { Box, Group, Paper, Text } from '@mantine/core';
+import { Box, Group, Text } from '@mantine/core';
 import { type FC } from 'react';
 import { RunRecentSteps } from './AgentOnboardingRunChanges';
 import classes from './AgentOnboardingRunPage.module.css';
@@ -23,7 +23,7 @@ export const RunJourney: FC<{ run: AgentOnboardingRun; now: number }> = ({
     const states = getStageStates(run, timings);
 
     return (
-        <Paper className={classes.journey}>
+        <Box>
             <Box component="ol" className={classes.track}>
                 {AGENT_ONBOARDING_PROGRESS_STAGES.map(({ stage }, index) => {
                     const state = states[index];
@@ -47,7 +47,7 @@ export const RunJourney: FC<{ run: AgentOnboardingRun; now: number }> = ({
                                 wrap="nowrap"
                                 justify="space-between"
                             >
-                                <Text fz="sm" fw={500} truncate>
+                                <Text fz="xs" fw={500} truncate>
                                     {AGENT_ONBOARDING_STAGE_LABELS[stage]}
                                 </Text>
                                 {durationMs !== null && (
@@ -69,6 +69,6 @@ export const RunJourney: FC<{ run: AgentOnboardingRun; now: number }> = ({
                     <RunRecentSteps run={run} />
                 </Box>
             )}
-        </Paper>
+        </Box>
     );
 };

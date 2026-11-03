@@ -1,11 +1,14 @@
 import {
     AGENT_ONBOARDING_STAGES,
+    DimensionType,
+    MetricType,
     isAgentOnboardingRunTerminal,
     type AgentOnboardingFile,
     type AgentOnboardingRun,
     type AgentOnboardingRunEvent,
     type AgentOnboardingStage,
 } from '@lightdash/common';
+import { load } from 'js-yaml';
 
 export type AgentOnboardingStageTiming = {
     stage: AgentOnboardingStage;
@@ -340,16 +343,6 @@ export const AGENT_ONBOARDING_STAGE_ACTIVE_LABELS: Record<
     ready: 'Verifying and handing off',
 };
 
-export const getActiveStageLabel = (
-    run: AgentOnboardingRun,
-    now: number,
-): string | null => {
-    const active = getAgentOnboardingProgressStageTimings(run, now).find(
-        ({ state }) => state === 'active',
-    );
-    return active ? AGENT_ONBOARDING_STAGE_ACTIVE_LABELS[active.stage] : null;
-};
-
 const humanizeSlug = (slug: string): string => {
     const words = slug.replace(/^agent-starter-/, '').replace(/[-_]+/g, ' ');
     return words.charAt(0).toUpperCase() + words.slice(1);
@@ -434,15 +427,13 @@ export const summarizeAgentOnboardingEvents = (
 export type SemanticLayerField = {
     name: string;
     label: string;
-    type: string | null;
+    type: DimensionType | MetricType | null;
     description: string | null;
 };
 
 export type SemanticLayerModel = {
     name: string;
     label: string;
-    description: string | null;
-    source: string | null;
     dimensions: SemanticLayerField[];
     metrics: SemanticLayerField[];
 };
@@ -453,13 +444,21 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const asText = (value: unknown): string | null =>
     typeof value === 'string' && value.trim() !== '' ? value : null;
 
+const FIELD_TYPES: ReadonlyArray<string> = [
+    ...Object.values(DimensionType),
+    ...Object.values(MetricType),
+];
+
+const isFieldType = (value: unknown): value is DimensionType | MetricType =>
+    typeof value === 'string' && FIELD_TYPES.includes(value);
+
 const toField = (
     name: string,
     raw: Record<string, unknown>,
 ): SemanticLayerField => ({
     name,
     label: asText(raw.label) ?? humanizeSlug(name),
-    type: asText(raw.type),
+    type: isFieldType(raw.type) ? raw.type : null,
     description: asText(raw.description),
 });
 
@@ -490,11 +489,21 @@ export const toSemanticLayerModel = (
     return {
         name,
         label: asText(parsed.label) ?? humanizeSlug(name),
-        description: asText(parsed.description),
-        source: asText(parsed.sql_from)?.replace(/"/g, '') ?? null,
         dimensions: toFields(parsed.dimensions),
         metrics: toFields(parsed.metrics),
     };
+};
+
+export const parseSemanticLayerModel = (
+    path: string,
+    content: string,
+): SemanticLayerModel | null => {
+    try {
+        return toSemanticLayerModel(path, load(content));
+    } catch {
+        // A file mid-write is not valid YAML yet
+        return null;
+    }
 };
 
 export const isSemanticLayerModelFile = ({ path }: AgentOnboardingFile) =>

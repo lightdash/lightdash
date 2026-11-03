@@ -8,7 +8,7 @@
 .column {
     display: flex;
     flex-direction: column;
-    gap: var(--mantine-spacing-xl);
+    gap: var(--mantine-spacing-lg);
     width: 100%;
     max-width: rem(880px);
     margin: 0 auto;
@@ -17,31 +17,21 @@
 .header {
     display: flex;
     flex-wrap: wrap;
-    align-items: flex-end;
+    align-items: center;
     justify-content: space-between;
-    gap: var(--mantine-spacing-lg);
-    padding-top: var(--mantine-spacing-md);
+    gap: var(--mantine-spacing-sm) var(--mantine-spacing-md);
 }
 
 .headerText {
-    flex: 1 1 rem(420px);
+    flex: 1 1 auto;
     min-width: 0;
 }
 
 .title {
-    font-size: rem(30px);
+    font-size: rem(22px);
     font-weight: 600;
     letter-spacing: -0.02em;
     line-height: 1.15;
-}
-
-.pill {
-    align-self: flex-start;
-    height: rem(26px);
-    padding: 0 rem(10px);
-    border: 1px solid var(--mantine-color-default-border);
-    border-radius: 999px;
-    background: var(--mantine-color-body);
 }
 
 .tabular {
@@ -63,25 +53,24 @@
     color: var(--mantine-color-orange-6);
 }
 
-.journey {
-    padding: var(--mantine-spacing-lg);
-    border: 1px solid var(--mantine-color-default-border);
-    border-radius: var(--mantine-radius-lg);
-}
-
 .track {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: var(--mantine-spacing-md);
+    gap: var(--mantine-spacing-xs);
     margin: 0;
     padding: 0;
     list-style: none;
+
+    @media (max-width: $mantine-breakpoint-sm) {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        row-gap: var(--mantine-spacing-sm);
+    }
 }
 
 .trackStep {
     display: flex;
     flex-direction: column;
-    gap: var(--mantine-spacing-xs);
+    gap: 6px;
     min-width: 0;
 }
 
@@ -97,7 +86,7 @@
 
 .trackBar {
     position: relative;
-    height: 4px;
+    height: 3px;
     overflow: hidden;
     border-radius: 2px;
     background: var(--mantine-color-default-border);
@@ -111,10 +100,6 @@
     background: var(--mantine-color-orange-5);
 }
 
-.trackStep[data-state='active'] .trackBar {
-    background: var(--mantine-color-ldGray-2);
-}
-
 .trackStep[data-state='active'] .trackBar::after {
     position: absolute;
     inset: 0;
@@ -123,42 +108,6 @@
     background: var(--mantine-color-text);
     animation: sweep 1.8s cubic-bezier(0.65, 0, 0.35, 1) infinite;
     content: '';
-}
-
-.detailsToggle {
-    display: flex;
-    gap: var(--mantine-spacing-xs);
-    align-items: center;
-    padding: var(--mantine-spacing-xs) 0;
-}
-
-.detailsChevron {
-    transition: transform 160ms ease;
-}
-
-.detailsChevron[data-open='true'] {
-    transform: rotate(90deg);
-}
-
-.statusDot {
-    flex: 0 0 auto;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--mantine-color-ldGray-4);
-}
-
-.statusDot[data-status='running'] {
-    background: var(--mantine-color-text);
-    animation: pulse 1.6s ease-in-out infinite;
-}
-
-.statusDot[data-status='completed'] {
-    background: var(--mantine-color-green-filled);
-}
-
-.statusDot[data-status='failed'] {
-    background: var(--mantine-color-orange-filled);
 }
 
 .stages {
@@ -506,7 +455,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .statusDot[data-status='running'],
     .stage[data-state='active'] .stageGlyph,
     .fileTreeItem[data-recent='true'],
     .trackStep[data-state='active'] .trackBar::after,
@@ -517,17 +465,8 @@
     }
 }
 
-@media (max-width: 900px) {
-    .track,
-    .outcomes {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-}
-
 .journeySteps {
-    margin-top: var(--mantine-spacing-lg);
-    padding-top: var(--mantine-spacing-md);
-    border-top: 1px solid var(--mantine-color-default-border);
+    margin-top: var(--mantine-spacing-md);
 }
 
 .changes {
@@ -536,27 +475,9 @@
     border-radius: var(--mantine-radius-lg);
 }
 
-.details {
-    display: flex;
-    flex-direction: column;
-    height: rem(520px);
-    margin-top: var(--mantine-spacing-sm);
-    overflow: hidden;
-    border: 1px solid var(--mantine-color-default-border);
-    border-radius: var(--mantine-radius-lg);
-}
-
-.detailsHeader {
-    display: flex;
-    flex: 0 0 auto;
-    align-items: center;
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
-    border-bottom: 1px solid var(--mantine-color-default-border);
-}
-
 .detailsBody {
     display: flex;
-    flex: 1;
     flex-direction: column;
+    height: 70vh;
     min-height: 0;
 }

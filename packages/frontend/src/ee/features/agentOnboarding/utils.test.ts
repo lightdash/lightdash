@@ -79,8 +79,6 @@ describe('toSemanticLayerModel', () => {
         expect(model).toEqual({
             name: 'orders',
             label: 'Orders',
-            description: null,
-            source: 'jaffle.orders',
             dimensions: [
                 {
                     name: 'order_date',
