@@ -286,6 +286,7 @@ import {
     WarehouseConnectionTestResults,
     WarehouseCredentials,
     WarehouseDatabaseListing,
+    WarehouseTables,
     WarehouseTablesCatalog,
     WarehouseTableSchema,
     WarehouseTypes,
@@ -15140,17 +15141,11 @@ export class ProjectService
                         })),
                     );
 
-                if (credentials.userWarehouseCredentialsUuid) {
-                    await this.warehouseAvailableTablesModel.createAvailableTablesForUserWarehouseCredentials(
-                        credentials.userWarehouseCredentialsUuid,
-                        warehouseTables,
-                    );
-                } else {
-                    await this.warehouseAvailableTablesModel.createAvailableTablesForProjectWarehouseCredentials(
-                        projectUuid,
-                        warehouseTables,
-                    );
-                }
+                await this.saveWarehouseTables(
+                    projectUuid,
+                    credentials.userWarehouseCredentialsUuid ?? null,
+                    warehouseTables,
+                );
 
                 return catalog;
             },
@@ -15182,37 +15177,66 @@ export class ProjectService
         );
         if (agentExecutionContext.getStore()?.agentConnectionExecution)
             await this.assertConnectionDiscovery(user, projectUuid);
-        if (
-            bound ||
-            isAiAccessQueryContext(context ?? QueryExecutionContext.SQL_RUNNER)
-        ) {
-            return this.warehouseClientFactory.withWarehouseClient(
+        const queryContext = context ?? QueryExecutionContext.SQL_RUNNER;
+        if (bound || isAiAccessQueryContext(queryContext)) {
+            const bindingRef = {
+                kind: 'binding',
+                projectUuid,
+                binding: { kind: 'connection', warehouseConnectionUuid: null },
+            } as const;
+            const connectionContext = connectionContextFromUser(
+                { userUuid: user.userUuid, isRegisteredUser: true },
                 {
-                    kind: 'binding',
-                    projectUuid,
-                    binding: {
-                        kind: 'connection',
-                        warehouseConnectionUuid: null,
-                    },
+                    organizationUuid,
+                    queryContext,
+                    surface:
+                        querySurface === undefined
+                            ? undefined
+                            : connectionSurfaceFromQuerySurface(
+                                  querySurface,
+                                  context ?? null,
+                              ),
                 },
-                connectionContextFromUser(
-                    { userUuid: user.userUuid, isRegisteredUser: true },
-                    {
-                        organizationUuid,
-                        queryContext:
-                            context ?? QueryExecutionContext.SQL_RUNNER,
-                        surface:
-                            querySurface === undefined
-                                ? undefined
-                                : connectionSurfaceFromQuerySurface(
-                                      querySurface,
-                                      context ?? null,
-                                  ),
-                    },
-                ),
+            );
+            let liveRef: WarehouseClientRef = bindingRef;
+            let savedList: {
+                userWarehouseCredentialsUuid: string | null;
+            } | null = null;
+            if (!bound) {
+                const resolution =
+                    await this.warehouseClientFactory.resolveWarehouseCredentials(
+                        bindingRef,
+                        connectionContext,
+                    );
+                // Agents running as the person see what the SQL runner sees
+                if (
+                    resolution.aiPlan === null ||
+                    resolution.aiPlan.identity === 'marked_person'
+                ) {
+                    savedList = {
+                        userWarehouseCredentialsUuid:
+                            resolution.warehouseCredentials
+                                .userWarehouseCredentialsUuid ?? null,
+                    };
+                    const saved = await this.getSavedWarehouseTables(
+                        projectUuid,
+                        savedList.userWarehouseCredentialsUuid,
+                    );
+                    if (saved) return saved;
+                }
+                liveRef = {
+                    kind: 'resolved',
+                    projectUuid,
+                    credentials: resolution.warehouseCredentials,
+                    aiPlan: resolution.aiPlan,
+                    warehouseConnectionUuid: resolution.warehouseConnectionUuid,
+                    connectionRoute: resolution.connectionRoute,
+                };
+            }
+            return this.warehouseClientFactory.withWarehouseClient(
+                liveRef,
+                connectionContext,
                 async ({ warehouseClient }) => {
-                    const queryContext =
-                        context ?? QueryExecutionContext.SQL_RUNNER;
                     const tables = await warehouseClient.getAllTables(
                         undefined,
                         withAgentMarkerTag({ query_context: queryContext }),
@@ -15222,6 +15246,12 @@ export class ProjectService
                             ?.agentConnectionExecution
                     )
                         await this.assertConnectionDiscovery(user, projectUuid);
+                    if (savedList)
+                        await this.saveWarehouseTables(
+                            projectUuid,
+                            savedList.userWarehouseCredentialsUuid,
+                            tables,
+                        );
                     return WarehouseAvailableTablesModel.toWarehouseCatalog(
                         tables.map((table) => ({
                             ...table,
@@ -15241,32 +15271,44 @@ export class ProjectService
                 isRegisteredUser: true,
             });
 
-        let catalog: WarehouseTablesCatalog | null = null;
-        // Check the cache for catalog
-        if (credentials.userWarehouseCredentialsUuid) {
-            catalog =
-                await this.warehouseAvailableTablesModel.getTablesForUserWarehouseCredentials(
-                    credentials.userWarehouseCredentialsUuid,
-                );
-        } else {
-            catalog =
-                await this.warehouseAvailableTablesModel.getTablesForProjectWarehouseCredentials(
-                    projectUuid,
-                );
-        }
-
-        // If there was no cached catalog, generate it
-        if (!catalog || Object.keys(catalog).length === 0) {
-            catalog = await this.populateWarehouseTablesCache(
-                user,
+        return (
+            (await this.getSavedWarehouseTables(
                 projectUuid,
+                credentials.userWarehouseCredentialsUuid ?? null,
+            )) ?? this.populateWarehouseTablesCache(user, projectUuid)
+        );
+    }
+
+    private async getSavedWarehouseTables(
+        projectUuid: string,
+        userWarehouseCredentialsUuid: string | null,
+    ): Promise<WarehouseTablesCatalog | null> {
+        const catalog = userWarehouseCredentialsUuid
+            ? await this.warehouseAvailableTablesModel.getTablesForUserWarehouseCredentials(
+                  userWarehouseCredentialsUuid,
+              )
+            : await this.warehouseAvailableTablesModel.getTablesForProjectWarehouseCredentials(
+                  projectUuid,
+              );
+        return catalog && Object.keys(catalog).length > 0 ? catalog : null;
+    }
+
+    private async saveWarehouseTables(
+        projectUuid: string,
+        userWarehouseCredentialsUuid: string | null,
+        tables: WarehouseTables,
+    ): Promise<void> {
+        if (userWarehouseCredentialsUuid) {
+            await this.warehouseAvailableTablesModel.createAvailableTablesForUserWarehouseCredentials(
+                userWarehouseCredentialsUuid,
+                tables,
+            );
+        } else {
+            await this.warehouseAvailableTablesModel.createAvailableTablesForProjectWarehouseCredentials(
+                projectUuid,
+                tables,
             );
         }
-
-        if (!catalog) {
-            throw new NotFoundError('Warehouse tables not found');
-        }
-        return catalog;
     }
 
     async getWarehouseFields(
