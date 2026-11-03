@@ -94,7 +94,22 @@ describe('TimeFrames', () => {
                     WeekDay.WEDNESDAY,
                 ),
             ).toEqual(
-                '(toStartOfWeek(${TABLE}.created - INTERVAL 2 DAY, 1) + INTERVAL 2 DAY)',
+                '(toStartOfWeek((${TABLE}.created) - INTERVAL 2 DAY, 1) + INTERVAL 2 DAY)',
+            );
+        });
+
+        test('ClickHouse week shift applies to the whole dimension SQL', () => {
+            // Unwrapped, `cond ? a : b - INTERVAL` would shift only `b`
+            expect(
+                timeFrameConfigs[TimeFrames.WEEK].getSql(
+                    SupportedDbtAdapter.CLICKHOUSE,
+                    TimeFrames.WEEK,
+                    '${TABLE}.is_paid ? ${TABLE}.paid_at : ${TABLE}.created',
+                    DimensionType.TIMESTAMP,
+                    WeekDay.WEDNESDAY,
+                ),
+            ).toEqual(
+                '(toStartOfWeek((${TABLE}.is_paid ? ${TABLE}.paid_at : ${TABLE}.created) - INTERVAL 2 DAY, 1) + INTERVAL 2 DAY)',
             );
         });
 

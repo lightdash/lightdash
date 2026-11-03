@@ -931,7 +931,8 @@ const clickhouseConfig: WarehouseConfig = {
         if (timeFrame === TimeFrames.WEEK && isWeekDay(startOfWeek)) {
             // Mode 1 starts weeks on Monday, mode 0 on Sunday. Other days
             // shift with INTERVAL arithmetic: ClickHouse can't use addDays()
-            // for primary key pruning.
+            // for primary key pruning. The SQL is parenthesised so the shift
+            // applies to the whole expression, not just its last operand.
             if (startOfWeek === WeekDay.MONDAY) {
                 return `toStartOfWeek(${originalSql}, 1)`;
             }
@@ -939,7 +940,7 @@ const clickhouseConfig: WarehouseConfig = {
                 return `toStartOfWeek(${originalSql}, 0)`;
             }
             const intervalDiff = `INTERVAL ${startOfWeek} DAY`;
-            return `(toStartOfWeek(${originalSql} - ${intervalDiff}, 1) + ${intervalDiff})`;
+            return `(toStartOfWeek((${originalSql}) - ${intervalDiff}, 1) + ${intervalDiff})`;
         }
 
         switch (timeFrame) {
