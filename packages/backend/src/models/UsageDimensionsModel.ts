@@ -50,6 +50,15 @@ export class UsageDimensionsModel {
                     .modify((query) => {
                         if (organizationUuid)
                             query.where('organization_uuid', organizationUuid);
+                        else
+                            query.whereExists(
+                                this.database('projects')
+                                    .select(this.database.raw('1'))
+                                    .whereColumn(
+                                        'projects.organization_id',
+                                        'organizations.organization_id',
+                                    ),
+                            );
                     })
                     .orderBy('organization_id')
                     .limit(USAGE_DIMENSION_PAGE_SIZE),
