@@ -45,6 +45,7 @@ type Props = {
     initialRule: DateFilterRule;
     onChange: (rule: DateFilterRule) => void;
     onDismissOutside: () => void;
+    onDismiss: () => void;
 };
 
 // The editor's dismiss rules around the real date inputs, as the dashboard
@@ -56,6 +57,7 @@ const Editor: FC<Props> = ({
     initialRule,
     onChange,
     onDismissOutside,
+    onDismiss,
 }) => {
     const [isOpen, setIsOpen] = useState(true);
     const [rule, setRule] = useState(initialRule);
@@ -65,7 +67,10 @@ const Editor: FC<Props> = ({
         isAsking: false,
         isPristineNew: false,
         clearField: () => {},
-        dismiss: () => {},
+        dismiss: () => {
+            onDismiss();
+            setIsOpen(false);
+        },
         dismissOutside: () => {
             onDismissOutside();
             setIsOpen(false);
@@ -93,6 +98,7 @@ const Editor: FC<Props> = ({
 const renderEditor = (field: FilterableDimension, rule: DateFilterRule) => {
     const onChange = vi.fn<(rule: DateFilterRule) => void>();
     const onDismissOutside = vi.fn();
+    const onDismiss = vi.fn();
     renderWithProviders(
         // The shared providers set Mantine's test env, which renders dropdowns
         // in place; the bug needs them portalled to the body, as in the browser
@@ -102,11 +108,13 @@ const renderEditor = (field: FilterableDimension, rule: DateFilterRule) => {
                 initialRule={rule}
                 onChange={onChange}
                 onDismissOutside={onDismissOutside}
+                onDismiss={onDismiss}
             />
         </MantineProvider>,
     );
     return {
         onDismissOutside,
+        onDismiss,
         lastValues: () => onChange.mock.calls.at(-1)?.[0].values,
     };
 };
@@ -247,5 +255,70 @@ describe('date filter calendar inside the dashboard filter editor', () => {
 
         expect(onDismissOutside).toHaveBeenCalledTimes(1);
         expect(screen.queryByTestId('editor')).not.toBeInTheDocument();
+    });
+
+    // Escape with a calendar open closes the calendar only; the next one
+    // cancels the edit
+    describe.each([
+        ['"is before" on a date field', dateField, FilterOperator.LESS_THAN, 0],
+        [
+            '"is after" on a week field',
+            weekField,
+            FilterOperator.GREATER_THAN,
+            0,
+        ],
+        [
+            '"is between" start on a date field',
+            dateField,
+            FilterOperator.IN_BETWEEN,
+            0,
+        ],
+        [
+            '"is between" end on a date field',
+            dateField,
+            FilterOperator.IN_BETWEEN,
+            1,
+        ],
+        [
+            '"is before" on a timestamp field',
+            timestampField,
+            FilterOperator.LESS_THAN,
+            0,
+        ],
+    ])('Escape with the calendar of %s open', (_, field, operator, index) => {
+        it('closes the calendar and keeps the editor, then cancels on the next press', async () => {
+            const user = userEvent.setup();
+            const values =
+                field === timestampField
+                    ? ['2026-01-05T00:00:00Z', '2026-01-28T00:00:00Z']
+                    : ['2026-01-05', '2026-01-28'];
+            const { onDismiss, onDismissOutside } = renderEditor(
+                field,
+                makeRule(operator, values),
+            );
+
+            await user.click(valueInputs()[index]);
+            await screen.findByRole('button', {
+                name: '20 January 2026',
+                hidden: true,
+            });
+            await user.keyboard('{Escape}');
+
+            await waitFor(() =>
+                expect(
+                    screen.queryByRole('button', {
+                        name: '20 January 2026',
+                        hidden: true,
+                    }),
+                ).not.toBeInTheDocument(),
+            );
+            expect(onDismiss).not.toHaveBeenCalled();
+            expectEditorOpen(onDismissOutside);
+
+            await user.keyboard('{Escape}');
+
+            expect(onDismiss).toHaveBeenCalledTimes(1);
+            expect(screen.queryByTestId('editor')).not.toBeInTheDocument();
+        });
     });
 });

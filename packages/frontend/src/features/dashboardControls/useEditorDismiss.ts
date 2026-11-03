@@ -26,7 +26,7 @@ const PILL_SELECTOR = '[data-controls-pill]';
 const LIST_SELECTOR = '.mantine-Popover-dropdown, [role="listbox"]';
 // A date input's calendar, portalled out of the editor. Mantine's DateInput
 // does not mark its input as expanded, so `hasOpenLayer` cannot see it: a day
-// picked there would read as a press outside and cancel the edit (PROD-12817)
+// picked there would read as a press outside and Escape would cancel the edit
 const DATES_DROPDOWN_SELECTOR = '[data-dates-dropdown]';
 
 type Args = {
@@ -95,7 +95,12 @@ export const useEditorDismiss = ({
             const target =
                 event.target instanceof Element ? event.target : null;
             if (target?.closest(`[${OWN_ESCAPE_ATTRIBUTE}]`)) return;
-            if (hasOpenLayer()) return;
+            // A date input's calendar closes itself on Escape
+            if (
+                hasOpenLayer() ||
+                document.querySelector(DATES_DROPDOWN_SELECTOR)
+            )
+                return;
             if (isFieldClicked) {
                 clearField();
                 return;

@@ -115,7 +115,8 @@ focus to it once the popover is placed.
 
 One capture listener on `document` while a filter is edited, so one press
 does one thing, in order: an open layer (`hasOpenLayer`: `aria-expanded` or
-Mantine `data-expanded`, or a modal) owns it; an element in
+Mantine `data-expanded`, or a modal) owns it, and so does an open date
+input calendar (`[data-dates-dropdown]`, closed by its own input); an element in
 `[data-own-escape]` owns it; a clicked field is unclicked; else, with focus
 in the editor or lost to the page (`body`), blur (commits the label) then
 withdraw a pending question or cancel. From elsewhere on the page Escape
