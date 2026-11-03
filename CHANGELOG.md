@@ -1,3 +1,10 @@
+## [3.137.1](https://github.com/lightdash/lightdash/compare/3.137.0...3.137.1) (2026-11-03)
+
+
+### Bug Fixes
+
+* **homepage:** tidy the new-homepage notice preview, copy and hover ([#32018](https://github.com/lightdash/lightdash/issues/32018)) ([82328c3](https://github.com/lightdash/lightdash/commit/82328c395dccbe919b5f929bb4994d4c3afa606f))
+
 # [3.137.0](https://github.com/lightdash/lightdash/compare/3.136.2...3.137.0) (2026-11-03)
 
 
