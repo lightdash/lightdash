@@ -407,6 +407,7 @@ export const OAUTH_CASL_CHECKED_ROUTES: readonly string[] = [
     'ProjectController.getUpstreamDiff',
     'ProjectController.getUserWarehouseCredentialsPreference',
     'ProjectController.grantProjectAccessToUser',
+    'ProjectController.invalidateExploresResultsCache',
     'ProjectController.invalidateProjectResultsCache',
     'ProjectController.listVerifiedContent',
     'ProjectController.previewDataTimezone',
