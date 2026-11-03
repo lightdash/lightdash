@@ -1,3 +1,4 @@
+import { ProjectType } from '@lightdash/common';
 import { randomUUID } from 'crypto';
 import knex, { Knex } from 'knex';
 import { UsageDimensionsModel } from './UsageDimensionsModel';
@@ -61,6 +62,7 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
             const organization = await db('organizations')
                 .where('organization_id', 1)
                 .first();
+            if (!organization) throw new Error('Expected seeded organization');
             expect(await read(organization.organization_uuid)).toEqual([
                 organization,
             ]);
@@ -74,7 +76,7 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
             await db('projects').insert({
                 project_id: 3002,
                 organization_id: 1,
-                project_type: 'DEFAULT',
+                project_type: ProjectType.DEFAULT,
             });
             expect(
                 (await read()).some((org) => org.organization_id === 1),
