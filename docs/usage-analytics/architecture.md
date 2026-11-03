@@ -139,13 +139,14 @@ engine limit, and streams uploads with one 8 MB part in flight. See
 for resource limits, retries and operational caveats. Reader resource settings
 below apply to interactive queries, not this background export.
 
-Scheduled processing skips organizations with no projects. Any project qualifies,
-including preview, playground and managed Analytics projects; feature-flag checks
-still apply. This avoids storage listings and empty snapshots for unprovisioned
-organizations. Raw event capture is unchanged, but captured events for projectless
-organizations are not processed by scheduled runs. Explicit organization-scoped
-runs remain available, and creating a project makes the organization eligible for
-the next scheduled run within the existing processing window.
+Scheduled processing includes only organizations with a managed Analytics project
+(`provisioning_source = 'analytics'); feature-flag checks still apply. Regular,
+preview and playground projects alone do not qualify. Raw event capture continues
+for other organizations, but their events are not processed by scheduled runs.
+Creating Analytics still queues explicit organization-scoped initial processing
+and makes the organization eligible for future nightly runs. Explicit recovery
+runs remain available. Initial and nightly processing retain the seven-day window;
+older raw events are not automatically backfilled on activation.
 
 ### Project creation and models
 

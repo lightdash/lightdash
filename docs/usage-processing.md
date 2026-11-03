@@ -32,8 +32,11 @@ applies. Other analytics destinations and AI billing/usage tracking are unchange
 ## Nightly and manual processing
 
 The existing serial `usage-events-compaction` scheduler queue runs at 00:30 UTC,
-with no whole-job retries. At the start of every run, eligibility is resolved
-through the standard flag model for each organization. Only eligible orgs enter
+with no whole-job retries. Nightly runs select only organizations with a managed
+Analytics project (`projects.provisioning_source = 'analytics'). Regular, preview
+and playground projects alone do not qualify. Explicit organization-scoped runs,
+including initial processing on project creation, retain their existing scope.
+Eligibility is then resolved through the standard flag model. Only eligible orgs enter
 raw compaction, dimension export and user-summary generation. Eligibility is a
 run snapshot; changing a flag does not cancel a running pipeline. Access checks
 for subsequent user queries continue to evaluate their own flag and permissions.
@@ -54,9 +57,13 @@ rollout cohorts so that scheduled and initial processing jobs do not overlap.
 
 The explicit `build-usage-user-activity` command also checks the organization flag
 and rejects dates older than this window. It remains a privileged maintenance
-script, using the configured production database/usage storage. A newly enabled
-organization can receive the existing no-data error until a successful nightly
-run. Project creation does not enable capture or run a backfill.
+script, using the configured production database/usage storage. Creating Analytics
+queues initial processing on the same serial queue and a separate
+[retained-database history import](usage-analytics/history-backfill.md). Creation
+returns before either completes, so data may be unavailable until processing
+finishes. Initial processing uses the same seven-day window; the history import
+does not replay older raw events or reconstruct historical People membership.
+Project creation does not control capture.
 
 ## Recovery and retention
 
@@ -72,7 +79,8 @@ until pending cleanup has completed.
 
 This prevents new partial-cleanup duplication; it does not identify or repair
 already duplicated parts from older releases. Raw objects whose dates leave the
-window will no longer be processed. Raw data for flag-disabled organizations is not compacted or cleaned up by this
+window will no longer be processed. Raw data for flag-disabled organizations or
+organizations without Analytics projects is not compacted or cleaned up by this
 pipeline and accumulates under the existing bucket retention policy. Retaining
 months of raw data does not enable historical catch-up beyond seven days. This
 change adds no expiry policy, archive, or historical backfill; successful
