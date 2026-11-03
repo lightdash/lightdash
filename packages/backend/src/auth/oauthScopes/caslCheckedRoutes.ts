@@ -311,8 +311,6 @@ export const OAUTH_CASL_CHECKED_ROUTES: readonly string[] = [
     'OrganizationController.enableLearn',
     'OrganizationController.ensurePlaygroundProject',
     'OrganizationBrandController.fetchOrganizationBrand',
-    'OrganizationBrandController.getOrganizationBrand',
-    'OrganizationBrandController.getOrganizationBrandLogo',
     'OrganizationController.getOrganizationMemberByEmail',
     'OrganizationController.getOrganizationMemberByUuid',
     'OrganizationController.getOrganizationMembers',
