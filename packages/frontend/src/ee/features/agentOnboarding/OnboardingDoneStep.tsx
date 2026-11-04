@@ -146,7 +146,7 @@ export const OnboardingDoneStep: FC<{ projectUuid: string }> = ({
                             to={`/projects/${projectUuid}/home`}
                             viewTransition
                         >
-                            Go to home
+                            I'll look around first
                         </Button>
                     )}
                 </Stack>
