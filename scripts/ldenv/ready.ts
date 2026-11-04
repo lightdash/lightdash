@@ -10,11 +10,13 @@ import {
     foregroundWork,
     git,
     home,
+    pidRecordAlive,
     readJson,
     runner,
     saveInstance,
     withLock,
     writeJson,
+    type PidRecord,
 } from './io';
 import { instances } from './lifecycle';
 import { instanceId, pm2Inventory, type Instance } from './model';
@@ -477,14 +479,14 @@ export async function monitorReadyPool(root: string): Promise<never> {
                 ).length;
                 const refillFile = path.join(home, 'pool-refill.json');
                 const refill = existsSync(refillFile)
-                    ? await readJson<{ pid: number }>(refillFile)
+                    ? await readJson<PidRecord>(refillFile)
                     : null;
                 const fillLockFile = path.join(
                     home,
                     'locks/pool-fill/owner.json',
                 );
                 const fillOwner = existsSync(fillLockFile)
-                    ? await readJson<{ pid: number }>(fillLockFile).catch(
+                    ? await readJson<PidRecord>(fillLockFile).catch(
                           (error: NodeJS.ErrnoException) => {
                               if (error.code === 'ENOENT') return null;
                               throw error;
@@ -493,8 +495,8 @@ export async function monitorReadyPool(root: string): Promise<never> {
                     : null;
                 if (
                     capacity < settings.size &&
-                    !alive(refill?.pid ?? null) &&
-                    !alive(fillOwner?.pid ?? null)
+                    !(await pidRecordAlive(refill)) &&
+                    !(await pidRecordAlive(fillOwner))
                 )
                     await queuePoolRefill(settings.source);
             }
