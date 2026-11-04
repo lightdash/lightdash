@@ -24,7 +24,7 @@ const SupportImpersonationPanel: FC = () => {
             description="Allow the Lightdash support team to impersonate users in your organization while helping with a support request, so they can reproduce issues from your perspective without asking for permission each time. You can turn this off at any time."
             control={
                 <Switch
-                    aria-label="Allow Lightdash support to impersonate users"
+                    aria-label="Lightdash support access"
                     size="md"
                     checked={supportImpersonationEnabled}
                     disabled={isLoading || update.isLoading}

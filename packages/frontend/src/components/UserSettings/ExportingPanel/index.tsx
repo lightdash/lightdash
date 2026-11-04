@@ -153,7 +153,7 @@ const ExportingForm: FC<{
                                 description="Set a different expiry for specific channels. When off, every channel uses the expiry above."
                                 control={
                                     <Switch
-                                        aria-label="Set a different expiry for specific channels"
+                                        aria-label="Per-channel expiry"
                                         size="md"
                                         {...form.getInputProps(
                                             'perChannelEnabled',
