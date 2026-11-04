@@ -2,7 +2,6 @@ import { type HomepageRecommendedActionKey } from '@lightdash/common';
 import { Container, Stack, Title } from '@mantine/core';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
-import { userEvent, within } from 'storybook/test';
 import { SetupGuideView } from '../../ee/features/homepageBuilder/blocks/setupGuide/SetupGuide';
 import {
     buildSetupGuide,
@@ -78,9 +77,8 @@ const Guide = ({ state }: { state: GuideState }) => {
                 <Title order={2}>Welcome, Maya</Title>
                 <SetupGuideView
                     sections={buildSetupGuide(facts)}
-                    isDismissed={isDismissed}
-                    onDismissedChange={setIsDismissed}
-                    highlight={[]}
+                    isMinimized={isDismissed}
+                    onMinimizedChange={setIsDismissed}
                     onSkip={(key) =>
                         setSkippedActions((keys) => [...keys, key])
                     }
@@ -110,13 +108,6 @@ export const Fresh: StoryObj = { ...guideStory('fresh') };
 export const Building: StoryObj = {
     name: 'Warehouse connected, semantic layer building',
     ...guideStory('building'),
-    play: async ({ canvasElement }) => {
-        await userEvent.click(
-            await within(canvasElement).findByRole('button', {
-                name: 'Watch',
-            }),
-        );
-    },
 };
 export const MostlyDone: StoryObj = {
     name: 'Mostly done with skipped steps',

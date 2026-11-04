@@ -4,7 +4,7 @@ import {
     type OrganizationBrand,
 } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { type ActionStatus } from '../useRecommendedActions';
@@ -125,8 +125,8 @@ const renderGuide = (
     handlers: {
         onSkip?: (key: HomepageRecommendedActionKey) => void;
         onRestore?: (key: HomepageRecommendedActionKey) => void;
-        onDismissedChange?: (isDismissed: boolean) => void;
-        isDismissed?: boolean;
+        onMinimizedChange?: (isMinimized: boolean) => void;
+        isMinimized?: boolean;
     } = {},
 ) =>
     render(
@@ -134,11 +134,10 @@ const renderGuide = (
             <MemoryRouter>
                 <SetupGuideView
                     sections={buildSetupGuide(facts)}
-                    isDismissed={handlers.isDismissed ?? false}
-                    onDismissedChange={handlers.onDismissedChange ?? vi.fn()}
+                    isMinimized={handlers.isMinimized ?? false}
+                    onMinimizedChange={handlers.onMinimizedChange ?? vi.fn()}
                     onSkip={handlers.onSkip ?? vi.fn()}
                     onRestore={handlers.onRestore ?? vi.fn()}
-                    highlight={[]}
                 />
             </MemoryRouter>
         </MantineProvider>,
@@ -251,46 +250,30 @@ describe('buildSetupGuide', () => {
 });
 
 describe('SetupGuideView', () => {
-    it('leads with one next step and lists the rest as cards', () => {
+    it('lists every step with progress and links the open ones', () => {
         renderGuide(fresh);
-        expect(screen.getByText('Set up your workspace')).toBeInTheDocument();
-        expect(screen.getByText('0 of 7 done')).toBeInTheDocument();
-        expect(screen.getByText('Next up, 3 min')).toBeInTheDocument();
         expect(
-            screen.getByText('Connect your warehouse').closest('a'),
-        ).toBeNull();
+            screen.getByRole('region', { name: 'Getting started' }),
+        ).toBeInTheDocument();
+        expect(screen.getByText('0 of 7 steps done')).toBeInTheDocument();
         expect(
             screen.getByRole('link', { name: /Define metrics and dimensions/ }),
         ).toHaveAttribute('href', '/setup');
     });
 
-    it('shows background work as one live card', async () => {
+    it('marks background work as in progress', () => {
         renderGuide(building);
-        expect(
-            screen.getByText(
-                'Lightdash is drafting your metrics and starter dashboard',
-            ),
-        ).toBeInTheDocument();
-        await userEvent.click(screen.getByRole('button', { name: 'Watch' }));
-        expect(
-            await screen.findByRole('list', { name: 'Setup stages' }),
-        ).toBeInTheDocument();
+        expect(screen.getAllByLabelText('In progress')).toHaveLength(2);
     });
 
-    it('shows evidence for finished steps on demand', async () => {
+    it('counts finished steps', () => {
         renderGuide({ ...allDone, teammateCount: 0 });
-        expect(screen.getByText('6 of 7 done')).toBeInTheDocument();
-        expect(screen.queryByText('48 models ready to explore')).toBeNull();
-        await userEvent.click(screen.getByText('6 of 7 done'));
-        expect(
-            screen.getByText('48 models ready to explore'),
-        ).toBeInTheDocument();
-        expect(screen.getByText('PostHog connected')).toBeInTheDocument();
+        expect(screen.getByText('6 of 7 steps done')).toBeInTheDocument();
     });
 
     it('hides once nothing is pending, counting skipped as settled', () => {
         renderGuide(allDone);
-        expect(screen.queryByText('Set up your workspace')).toBeNull();
+        expect(screen.queryByText('Getting started')).toBeNull();
 
         renderGuide(
             {
@@ -298,9 +281,9 @@ describe('SetupGuideView', () => {
                 statuses: { ...allDone.statuses, 'connect-slack': status() },
                 skippedActions: ['connect-slack'],
             },
-            { isDismissed: true },
+            { isMinimized: true },
         );
-        expect(screen.queryByText(/Setup guide/)).toBeNull();
+        expect(screen.queryByText(/Getting started/)).toBeNull();
     });
 
     it('offers restore on skipped rows and skip on skippable suggestions', async () => {
@@ -332,23 +315,24 @@ describe('SetupGuideView', () => {
         expect(onSkip).toHaveBeenCalledWith('connect-slack');
     });
 
-    it('collapses to a quiet entry point when dismissed', async () => {
-        const onDismissedChange = vi.fn();
-        const { unmount } = renderGuide(fresh, { onDismissedChange });
+    it('minimizes to a pill and reopens from it', async () => {
+        const onMinimizedChange = vi.fn();
+        const { unmount } = renderGuide(fresh, { onMinimizedChange });
         await userEvent.click(
-            screen.getByRole('button', { name: 'Hide setup guide' }),
+            screen.getByRole('button', { name: 'Minimize getting started' }),
         );
-        expect(onDismissedChange).toHaveBeenCalledWith(true);
+        expect(onMinimizedChange).toHaveBeenCalledWith(true);
         unmount();
 
-        renderGuide(fresh, { isDismissed: true, onDismissedChange });
-        const reopen = screen.getByRole('button', {
-            name: 'Setup guide, 0 of 7 done',
-        });
+        renderGuide(fresh, { isMinimized: true, onMinimizedChange });
         expect(
-            within(document.body).queryByText('Set up your workspace'),
+            screen.queryByRole('region', { name: 'Getting started' }),
         ).toBeNull();
-        await userEvent.click(reopen);
-        expect(onDismissedChange).toHaveBeenCalledWith(false);
+        await userEvent.click(
+            screen.getByRole('button', {
+                name: 'Getting started, 0 of 7 done',
+            }),
+        );
+        expect(onMinimizedChange).toHaveBeenCalledWith(false);
     });
 });

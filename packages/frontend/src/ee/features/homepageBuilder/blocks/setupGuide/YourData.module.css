@@ -1,0 +1,22 @@
+.panel {
+    width: 100%;
+}
+
+.source {
+    padding-block: var(--mantine-spacing-sm);
+}
+
+.source + .source {
+    border-top: 1px solid var(--mantine-color-default-border);
+}
+
+.sourceIcon {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-sm);
+    color: var(--mantine-color-dimmed);
+}

@@ -1,7 +1,3 @@
-.slot {
-    display: contents;
-}
-
 .corner {
     position: fixed;
     top: calc(var(--navbar-height) + 16px);

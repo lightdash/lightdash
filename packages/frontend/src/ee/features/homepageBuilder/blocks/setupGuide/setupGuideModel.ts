@@ -13,9 +13,6 @@ import {
 } from '../../../agentOnboarding/utils';
 import { type ActionStatus } from '../useRecommendedActions';
 
-/** The homepage corner toolbar slot a hidden guide portals its popover button into */
-export const SETUP_GUIDE_CORNER_SLOT_ID = 'homepage-setup-guide-slot';
-
 export type SetupGuideStatus =
     | 'done'
     | 'ready'

@@ -26,7 +26,6 @@ import { useContentAuthoringEnabled } from '../../../hooks/useContentAuthoringEn
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { Can } from '../../../providers/Ability';
 import classes from './adminHomepageControls.module.css';
-import { SETUP_GUIDE_CORNER_SLOT_ID } from './blocks/setupGuide/setupGuideModel';
 import { getGreeting } from './greeting';
 import {
     useHomepageOpening,
@@ -327,7 +326,6 @@ export const AdminHomepageControls: FC<Props> = ({
 
     return (
         <div className={classes.corner} data-page-scrolled={isPageScrolled}>
-            <div id={SETUP_GUIDE_CORNER_SLOT_ID} className={classes.slot} />
             {contentAuthoringEnabled && (
                 <>
                     <OpeningMenu

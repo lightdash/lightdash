@@ -121,14 +121,20 @@ export const useSetupGuide = (
 
     const completedRun =
         latestRun.data?.status === 'completed' ? latestRun.data : null;
+    const semanticExplores = (explores.data ?? []).filter(
+        isSemanticLayerExplore,
+    );
+    const liveConnections = (connections.data ?? []).filter(
+        ({ kind }) => kind === 'live_source',
+    );
+    const activeRunOrNull = run && !isRunTerminal ? run : null;
     const sections = buildSetupGuide({
         projectUuid,
         statuses: actions.statuses,
         visibleActions: actions.visibleActions,
         skippedActions: actions.skippedActions,
-        semanticModelCount: (explores.data ?? []).filter(isSemanticLayerExplore)
-            .length,
-        activeRun: run && !isRunTerminal ? run : null,
+        semanticModelCount: semanticExplores.length,
+        activeRun: activeRunOrNull,
         completedRun,
         canAddLiveSources:
             liveSourcesFlag.data?.enabled === true &&
@@ -140,9 +146,7 @@ export const useSetupGuide = (
                 }),
             ),
         appSourceNames: [
-            ...(connections.data ?? [])
-                .filter(({ kind }) => kind === 'live_source')
-                .map(({ name }) => name),
+            ...liveConnections.map(({ name }) => name),
             ...(sources.data ?? []).map(({ name }) => name),
         ],
         starterDashboard: starterDashboard(
@@ -159,6 +163,9 @@ export const useSetupGuide = (
         isEligible,
         isLoading,
         sections,
+        semanticExplores,
+        liveConnections,
+        activeRun: activeRunOrNull,
         completedRunUrl: completedRun
             ? getAgentOnboardingRunUrl(
                   completedRun.agentOnboardingRunUuid,

@@ -73,7 +73,7 @@ export const AskAiHero: FC<{
             </Box>
             {showRecommendedActions &&
                 (isNewOnboarding ? (
-                    <Box w="100%" data-tour="home-setup">
+                    <Box w="100%">
                         <SetupGuide
                             projectUuid={projectUuid}
                             actions={actions}
