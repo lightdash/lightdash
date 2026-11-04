@@ -470,6 +470,7 @@ export type UseAppSdkBridgeParams = {
     onElementSelected?: (event: ElementSelectedEvent) => void;
     onInspectorAvailable?: () => void;
     onScreenshotAvailable?: () => void;
+    onPdfExportAvailable?: () => void;
     /**
      * When set, these filters are stamped onto every intercepted metric-query
      * POST before it reaches the backend. Used by dashboard data-app tiles so
@@ -610,6 +611,7 @@ export function useAppSdkBridge({
     onElementSelected,
     onInspectorAvailable,
     onScreenshotAvailable,
+    onPdfExportAvailable,
     dashboardFilters,
     invalidateCache,
     capabilities,
@@ -792,6 +794,11 @@ export function useAppSdkBridge({
 
             if (data?.type === 'lightdash:sdk:screenshot-available') {
                 onScreenshotAvailable?.();
+                return;
+            }
+
+            if (data?.type === 'lightdash:sdk:pdf-export-available') {
+                onPdfExportAvailable?.();
                 return;
             }
 
@@ -1719,6 +1726,7 @@ export function useAppSdkBridge({
             onElementSelected,
             onInspectorAvailable,
             onScreenshotAvailable,
+            onPdfExportAvailable,
             dashboardFilters,
             invalidateCache,
             embedToken,
