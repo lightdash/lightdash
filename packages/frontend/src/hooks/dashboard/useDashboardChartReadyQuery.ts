@@ -449,8 +449,8 @@ export const useDashboardChartReadyQuery = (
             );
             markTileLoaded(tileUuid);
         } else if (queryResult.error) {
-            // On error, there are no references, but we count the tile as loaded
-            addParameterReferences(tileUuid, []);
+            // On error, there are no references to report, but we count the tile as loaded
+            addParameterReferences(tileUuid, null);
             markTileLoaded(tileUuid);
         }
     }, [

@@ -348,6 +348,87 @@ describe('dashboardParametersReducer', () => {
             ).toBe(next);
         });
 
+        it.each([
+            ['listed first', ['listed', 'query']],
+            ['query first', ['query', 'listed']],
+        ] as const)(
+            "uses the tile's query references over the listed ones (%s)",
+            (_name, order) => {
+                const byOrigin = {
+                    listed: actions.addListedParameterReferences({
+                        tileUuid: 'tile-1',
+                        references: ['status', 'region'],
+                    }),
+                    query: actions.addParameterReferences({
+                        tileUuid: 'tile-1',
+                        references: ['status', 'week_start'],
+                    }),
+                };
+                const next = order.reduce(
+                    (state, origin) => reducer(state, byOrigin[origin]),
+                    stateWith(),
+                );
+                expect(next.tileParameterReferences['tile-1']).toEqual([
+                    'status',
+                    'week_start',
+                ]);
+            },
+        );
+
+        it('lists many tiles in one action, keeping query references that already arrived', () => {
+            const next = [
+                actions.addParameterReferences({
+                    tileUuid: 'tile-1',
+                    references: ['status'],
+                }),
+                actions.addListedParameterReferencesByTile({
+                    'tile-1': ['region'],
+                    'tile-2': ['week_start'],
+                }),
+            ].reduce(reducer, stateWith());
+            expect(next.tileListedParameterReferences).toEqual({
+                'tile-1': ['region'],
+                'tile-2': ['week_start'],
+            });
+            expect(next.tileParameterReferences).toEqual({
+                'tile-1': ['status'],
+                'tile-2': ['week_start'],
+            });
+        });
+
+        it('drops a listed reference the current query no longer uses', () => {
+            const next = [
+                actions.addListedParameterReferences({
+                    tileUuid: 'tile-1',
+                    references: ['region'],
+                }),
+                actions.addParameterReferences({
+                    tileUuid: 'tile-1',
+                    references: [],
+                }),
+            ].reduce(reducer, stateWith());
+            expect(next.tileParameterReferences).toEqual({ 'tile-1': [] });
+        });
+
+        it('keeps the listed references while the query has none to report', () => {
+            const next = [
+                actions.addListedParameterReferences({
+                    tileUuid: 'tile-1',
+                    references: ['region'],
+                }),
+                actions.addParameterReferences({
+                    tileUuid: 'tile-1',
+                    references: null,
+                }),
+            ].reduce(reducer, stateWith());
+            expect(next.tileParameterReferences).toEqual({
+                'tile-1': ['region'],
+            });
+            expect(next.tileQueryParameterReferences).toEqual({
+                'tile-1': null,
+            });
+        });
+
         it('setTileChartSavedParameters stores values and no-ops on deep-equal ones', () => {
             const next = reducer(
                 stateWith(),

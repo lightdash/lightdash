@@ -62,6 +62,7 @@ import {
     useDashboardsAvailableFilters,
     useDashboardVersionRefresh,
 } from '../../hooks/dashboard/useDashboard';
+import { useDashboardTileParameterReferences } from '../../hooks/dashboard/useDashboardTileParameterReferences';
 import useToaster from '../../hooks/toaster/useToaster';
 import DashboardDateZoomSync from './DashboardDateZoomSync';
 import DashboardFiltersSync from './DashboardFiltersSync';
@@ -356,6 +357,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         projectUuid,
         embedToken,
     );
+    useDashboardTileParameterReferences({ store, projectUuid, isEditMode });
 
     // Computed here as well as in the store, so the filter sync gets them in
     // the same render as the dashboard, not a commit later

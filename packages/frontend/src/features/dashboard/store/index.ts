@@ -96,6 +96,8 @@ export {
     selectIsDateZoomDisabled,
     selectSavedChartUuidsAndTileUuids,
     selectSavedChartUuidsAndTileUuidsKey,
+    selectTileQuerySources,
+    selectTileQuerySourcesKey,
     selectTileUuidsKey,
 } from './dashboardEditSelectors';
 export * from './editHooks';

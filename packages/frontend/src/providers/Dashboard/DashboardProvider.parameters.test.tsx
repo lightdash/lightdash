@@ -18,6 +18,9 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../../ee/providers/Embed/useEmbed', () => ({
     default: () => ({ mode: mocks.embedMode, dispatchEmbedEvent: vi.fn() }),
 }));
+vi.mock('../../hooks/dashboard/useDashboardTileParameterReferences', () => ({
+    useDashboardTileParameterReferences: () => undefined,
+}));
 vi.mock('../../hooks/dashboard/useDashboard', () => ({
     useDashboardQuery: () => ({ data: undefined }),
     useDashboardVersionRefresh: () => ({ mutateAsync: vi.fn() }),

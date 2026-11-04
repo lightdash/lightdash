@@ -22,7 +22,12 @@ export type DashboardParametersState = {
     hasParameterOrderChanged: boolean;
     parameterDefinitions: ParameterDefinitions;
     parameterLabelOverrides: LanguageMap['parameters'];
+    /** Each tile's references: its query's once it reports them, else the listed ones */
     tileParameterReferences: Record<string, string[]>;
+    /** From each tile's own query response; null when it ran without reporting any (an error) */
+    tileQueryParameterReferences: Record<string, string[] | null>;
+    /** From the dashboard's list of tile references, before tiles run */
+    tileListedParameterReferences: Record<string, string[]>;
     tileChartSavedParameters: Record<string, ParametersValuesMap>;
     tileVirtualViewSavedParameters: Record<string, ParametersValuesMap>;
 };
@@ -39,6 +44,8 @@ export const initialDashboardParametersState: DashboardParametersState = {
     parameterDefinitions: {},
     parameterLabelOverrides: undefined,
     tileParameterReferences: {},
+    tileQueryParameterReferences: {},
+    tileListedParameterReferences: {},
     tileChartSavedParameters: {},
     tileVirtualViewSavedParameters: {},
 };
@@ -82,10 +89,20 @@ export const dashboardParametersActions = {
     setParameterLabelOverrides: createAction<LanguageMap['parameters']>(
         'dashboardParameters/setParameterLabelOverrides',
     ),
+    /** Null: the tile ran but has no references to report, so the listed ones stay */
     addParameterReferences: createAction<{
         tileUuid: string;
-        references: string[];
+        references: string[] | null;
     }>('dashboardParameters/addParameterReferences'),
+    /** References listed for a tile before it runs; its query's replace them */
+    addListedParameterReferences: createAction<{
+        tileUuid: string;
+        references: string[];
+    }>('dashboardParameters/addListedParameterReferences'),
+    /** Many tiles' listed references in one update */
+    addListedParameterReferencesByTile: createAction<Record<string, string[]>>(
+        'dashboardParameters/addListedParameterReferencesByTile',
+    ),
     setTileChartSavedParameters: createAction<{
         tileUuid: string;
         values: ParametersValuesMap;
@@ -132,6 +149,27 @@ export const keepTiles = <T>(
                   tileUuids.has(tileUuid),
               ),
           );
+
+// A tile's own query references, once reported, win over listed ones
+const withListedReferences = (
+    state: DashboardParametersState,
+    listedByTile: Record<string, string[]>,
+): DashboardParametersState => ({
+    ...state,
+    tileListedParameterReferences: {
+        ...state.tileListedParameterReferences,
+        ...listedByTile,
+    },
+    tileParameterReferences: {
+        ...state.tileParameterReferences,
+        ...Object.fromEntries(
+            Object.entries(listedByTile).map(([tileUuid, references]) => [
+                tileUuid,
+                state.tileQueryParameterReferences[tileUuid] ?? references,
+            ]),
+        ),
+    },
+});
 
 // Plain reducer rather than createSlice: Immer would deep-freeze the react-query
 // dashboard objects stored here and break any code that still mutates them.
@@ -263,11 +301,29 @@ export const dashboardParametersReducer = (
         const { tileUuid, references } = action.payload;
         return {
             ...state,
-            tileParameterReferences: {
-                ...state.tileParameterReferences,
+            tileQueryParameterReferences: {
+                ...state.tileQueryParameterReferences,
                 [tileUuid]: references,
             },
+            tileParameterReferences: {
+                ...state.tileParameterReferences,
+                [tileUuid]:
+                    references ??
+                    state.tileListedParameterReferences[tileUuid] ??
+                    [],
+            },
         };
+    }
+    if (dashboardParametersActions.addListedParameterReferences.match(action)) {
+        const { tileUuid, references } = action.payload;
+        return withListedReferences(state, { [tileUuid]: references });
+    }
+    if (
+        dashboardParametersActions.addListedParameterReferencesByTile.match(
+            action,
+        )
+    ) {
+        return withListedReferences(state, action.payload);
     }
     if (dashboardParametersActions.setTileChartSavedParameters.match(action)) {
         const { tileUuid, values } = action.payload;
@@ -305,6 +361,14 @@ export const dashboardParametersReducer = (
             state.tileParameterReferences,
             tileUuids,
         );
+        const tileQueryParameterReferences = keepTiles(
+            state.tileQueryParameterReferences,
+            tileUuids,
+        );
+        const tileListedParameterReferences = keepTiles(
+            state.tileListedParameterReferences,
+            tileUuids,
+        );
         const tileChartSavedParameters = keepTiles(
             state.tileChartSavedParameters,
             tileUuids,
@@ -314,6 +378,10 @@ export const dashboardParametersReducer = (
             tileUuids,
         );
         return tileParameterReferences === state.tileParameterReferences &&
+            tileQueryParameterReferences ===
+                state.tileQueryParameterReferences &&
+            tileListedParameterReferences ===
+                state.tileListedParameterReferences &&
             tileChartSavedParameters === state.tileChartSavedParameters &&
             tileVirtualViewSavedParameters ===
                 state.tileVirtualViewSavedParameters
@@ -321,6 +389,8 @@ export const dashboardParametersReducer = (
             : {
                   ...state,
                   tileParameterReferences,
+                  tileQueryParameterReferences,
+                  tileListedParameterReferences,
                   tileChartSavedParameters,
                   tileVirtualViewSavedParameters,
               };

@@ -124,6 +124,7 @@ describe('parameter selectors', () => {
         const base = {
             parameterDefinitions: { status: { label: 'Status' } },
             tileParameterReferences: { 'tile-1': ['status'] },
+            tileQueryParameterReferences: { 'tile-1': ['status'] },
         };
 
         it('reports a referenced parameter without any value', () => {
@@ -141,6 +142,20 @@ describe('parameter selectors', () => {
                         ...base,
                         tileVirtualViewSavedParameters: {
                             'tile-1': { status: 'Shipped' },
+                        },
+                    }),
+                ),
+            ).toEqual([]);
+        });
+
+        it('skips a tile whose saved values are not known until it runs', () => {
+            expect(
+                selectMissingRequiredParameters(
+                    stateWith({
+                        ...base,
+                        tileQueryParameterReferences: {},
+                        tileListedParameterReferences: {
+                            'tile-1': ['status'],
                         },
                     }),
                 ),
