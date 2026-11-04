@@ -1,8 +1,4 @@
-export const ONBOARDING_DATA_STEPS = [
-    'Connect your data',
-    'Optional extras',
-    'Start exploring',
-];
+export const ONBOARDING_DATA_STEPS = ['Connect your data', 'Optional extras'];
 
 export const ONBOARDING_STEP_COPY = {
     warehouse: { title: 'Connect your data', subtitle: null },
