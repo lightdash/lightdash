@@ -2,13 +2,12 @@
     display: flex;
     align-items: center;
     gap: var(--mantine-spacing-sm);
-    height: 100%;
 }
 
 .logo {
-    height: 100%;
-    max-height: rem(40px);
-    aspect-ratio: 1;
+    flex-shrink: 0;
+    width: rem(32px);
+    height: rem(32px);
     object-fit: contain;
 }
 
