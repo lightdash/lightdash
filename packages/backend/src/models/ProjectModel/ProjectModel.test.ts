@@ -32,10 +32,10 @@ import {
     WarehouseTypes,
 } from '@lightdash/common';
 import { MotherduckInstanceCache } from '@lightdash/warehouses';
+import { isEqual } from 'es-toolkit/compat';
 import knex from 'knex';
 import { getTracker, MockClient, RawQuery, Tracker } from 'knex-mock-client';
 import { FunctionQueryMatcher } from 'knex-mock-client/types/mock-client';
-import isEqual from 'lodash/isEqual';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { DashboardsTableName } from '../../database/entities/dashboards';
 import { DashboardSlugMappingsTableName } from '../../database/entities/dashboardSlugMappings';
@@ -2099,6 +2099,11 @@ describe('ProjectModel', () => {
                     name: 'external',
                     type: ExploreType.EXTERNAL_SOURCE,
                 },
+                {
+                    ...incoming,
+                    name: 'posthog_events',
+                    type: ExploreType.API_SOURCE,
+                },
             ];
             tracker.on
                 .select(({ sql }) => sql.includes('"cached_explores"'))
@@ -2126,6 +2131,50 @@ describe('ProjectModel', () => {
                 projectUuid,
                 'deleted',
             ]);
+        });
+
+        test('a full dbt refresh keeps live data source explores', async () => {
+            const incoming = { ...exploresWithSameName[0], name: 'orders' };
+            const liveExplore = {
+                ...incoming,
+                name: 'posthog_events',
+                type: ExploreType.API_SOURCE,
+            };
+            tracker.on
+                .select(({ sql }) => sql.includes('"cached_explores"'))
+                .response([]);
+            tracker.on
+                .select(({ sql }) => sql.includes('"cached_explore"'))
+                .response([{ explore: liveExplore }]);
+            tracker.on
+                .insert(({ sql }) => sql.includes('"cached_explores"'))
+                .response([]);
+            tracker.on
+                .insert(({ sql }) => sql.includes('"cached_explore"'))
+                .response([
+                    { cached_explore_uuid: 'orders-uuid' },
+                    { cached_explore_uuid: 'posthog-uuid' },
+                ]);
+            tracker.on
+                .delete(({ sql }) => sql.includes('"cached_explore"'))
+                .response(0);
+
+            await model.saveExploresToCache(projectUuid, [incoming], true);
+
+            expect(tracker.history.delete).toHaveLength(1);
+            expect(tracker.history.delete[0].sql).toContain('not in');
+            expect(tracker.history.delete[0].bindings).toEqual(
+                expect.arrayContaining(['orders', 'posthog_events']),
+            );
+            const savedNames = tracker.history.insert
+                .filter(
+                    ({ sql }) =>
+                        sql.includes('"cached_explore"') &&
+                        !sql.includes('"cached_explores"'),
+                )
+                .flatMap(({ bindings }) => bindings)
+                .filter((binding) => binding === 'posthog_events');
+            expect(savedNames.length).toBeGreaterThan(0);
         });
 
         test('preserves cached explores when the payload is not explicitly complete', async () => {
@@ -2678,7 +2727,7 @@ describe('ProjectModel', () => {
                 ...exploreWithMetricFilters,
                 name: 'managed_append',
                 label: 'append',
-                type: ExploreType.VIRTUAL,
+                type: ExploreType.API_SOURCE,
             };
             const incomingOverride = {
                 ...exploreWithMetricFilters,

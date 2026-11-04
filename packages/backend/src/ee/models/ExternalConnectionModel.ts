@@ -29,6 +29,12 @@ import {
 } from '../../database/entities/apps';
 import { SpaceTableName } from '../../database/entities/spaces';
 import {
+    parseLiveSourceFieldState,
+    type LiveSourceFieldEdits,
+    type LiveSourceFieldState,
+    type LiveSourceScan,
+} from '../../services/QuerySourceService/api/liveSourceFields';
+import {
     normalizeCredentialUrlHref,
     normalizeCredentialUrlOrigin,
 } from '../../utils/credentialDestination';
@@ -100,6 +106,35 @@ const parseApiSourceSchemaScan = (
     return parsed.success ? parsed.data : null;
 };
 
+/**
+ * Keys the server keeps inside `api_source` next to the connector settings.
+ * Settings writes replace the settings only, so these survive every update.
+ */
+const SERVER_OWNED_API_SOURCE_KEYS = [
+    'sourceName',
+    'lastScan',
+    'fields',
+] as const;
+
+const readSourceName = (value: unknown): string | null => {
+    const parsed = z.object({ sourceName: z.string() }).safeParse(value);
+    return parsed.success ? parsed.data.sourceName : null;
+};
+
+/** Connector settings only: drops any server-owned key a caller sent. */
+const toApiSourceSettingsJson = (apiSource: ExternalConnectionApiSource) =>
+    JSON.stringify(apiSourceSchema.parse(apiSource));
+
+/** A deleted live source, kept so a new one for the same target can reuse its name. */
+export type DeletedLiveSource = {
+    externalConnectionUuid: string;
+    origin: string;
+    apiSource: ExternalConnectionApiSource;
+    sourceName: string | null;
+    /** Null when the source was deleted before fields could be curated. */
+    fieldEdits: LiveSourceFieldEdits | null;
+};
+
 const kindOf = (
     apiSource: ExternalConnectionApiSource | null | undefined,
 ): ExternalConnectionKind => (apiSource ? 'live_source' : 'data_app');
@@ -161,6 +196,7 @@ export class ExternalConnectionModel {
             customHeaders: row.custom_headers,
             kind: row.connection_kind,
             apiSource: parseApiSource(row.api_source),
+            liveSourceName: readSourceName(row.api_source),
             hasSecret,
             createdByUserUuid: row.created_by_user_uuid,
             updatedByUserUuid: row.updated_by_user_uuid,
@@ -279,7 +315,7 @@ export class ExternalConnectionModel {
                                 ? JSON.stringify(data.customHeaders)
                                 : null,
                         api_source: data.apiSource
-                            ? JSON.stringify(data.apiSource)
+                            ? toApiSourceSettingsJson(data.apiSource)
                             : null,
                         created_by_user_uuid: userUuid,
                         updated_by_user_uuid: userUuid,
@@ -836,7 +872,14 @@ export class ExternalConnectionModel {
                         : null;
             if (data.apiSource !== undefined)
                 updatePayload.api_source = data.apiSource
-                    ? JSON.stringify(data.apiSource)
+                    ? trx.raw(
+                          `?::jsonb || COALESCE((SELECT jsonb_object_agg(key, value) FROM jsonb_each(??) WHERE key = ANY(?::text[])), '{}'::jsonb)`,
+                          [
+                              toApiSourceSettingsJson(data.apiSource),
+                              `${ExternalConnectionsTableName}.api_source`,
+                              [...SERVER_OWNED_API_SOURCE_KEYS],
+                          ],
+                      )
                     : null;
 
             await trx(ExternalConnectionsTableName)
@@ -889,6 +932,155 @@ export class ExternalConnectionModel {
             throw new NotFoundError('External connection not found');
         }
         return updated;
+    }
+
+    /**
+     * Gives a live source the first candidate no other active source of the
+     * project holds, once; a name already set is kept. The project lock makes
+     * two sources named at the same time pick different names. Null when
+     * every candidate is held.
+     */
+    async claimLiveSourceName(
+        projectUuid: string,
+        uuid: string,
+        candidates: string[],
+    ): Promise<string | null> {
+        return this.database.transaction(async (trx) => {
+            await trx.raw('SELECT pg_advisory_xact_lock(hashtext(?))', [
+                `live_source_name:${projectUuid}`,
+            ]);
+            const rows = await trx(ExternalConnectionsTableName)
+                .select('external_connection_uuid', 'api_source')
+                .where('project_uuid', projectUuid)
+                .whereNull('deleted_at')
+                .whereNotNull('api_source');
+            const current = rows.find(
+                (row) => row.external_connection_uuid === uuid,
+            );
+            const currentName = readSourceName(current?.api_source);
+            if (currentName) {
+                return currentName;
+            }
+            const held = new Set(
+                rows.flatMap((row) => {
+                    const name = readSourceName(row.api_source);
+                    return name ? [name] : [];
+                }),
+            );
+            const sourceName =
+                candidates.find((candidate) => !held.has(candidate)) ?? null;
+            if (sourceName) {
+                await trx(ExternalConnectionsTableName)
+                    .where('external_connection_uuid', uuid)
+                    .update({
+                        api_source: trx.raw(
+                            `jsonb_set(api_source, '{sourceName}', to_jsonb(?::text))`,
+                            [sourceName],
+                        ) as unknown as string,
+                    });
+            }
+            return sourceName;
+        });
+    }
+
+    async getLiveSourceFieldState(uuid: string): Promise<LiveSourceFieldState> {
+        const row = await this.database(ExternalConnectionsTableName)
+            .select('api_source')
+            .where('external_connection_uuid', uuid)
+            .first();
+        return parseLiveSourceFieldState(row?.api_source ?? null);
+    }
+
+    async saveLiveSourceScan(
+        uuid: string,
+        scan: LiveSourceScan,
+    ): Promise<void> {
+        await this.database(ExternalConnectionsTableName)
+            .where('external_connection_uuid', uuid)
+            .whereNotNull('api_source')
+            .update({
+                api_source: this.database.raw(
+                    `jsonb_set(api_source, '{lastScan}', ?::jsonb)`,
+                    [JSON.stringify(scan)],
+                ) as unknown as string,
+            });
+    }
+
+    /** Starts curation with these edits; a source already curated keeps its own. */
+    async initLiveSourceFieldEdits(
+        uuid: string,
+        edits: LiveSourceFieldEdits,
+    ): Promise<void> {
+        await this.database(ExternalConnectionsTableName)
+            .where('external_connection_uuid', uuid)
+            .whereNotNull('api_source')
+            .whereRaw("NOT jsonb_exists(api_source, 'fields')")
+            .update({
+                api_source: this.database.raw(
+                    `jsonb_set(api_source, '{fields}', ?::jsonb)`,
+                    [JSON.stringify(edits)],
+                ) as unknown as string,
+            });
+    }
+
+    /**
+     * Applies field edits under a row lock, so two editors never lose each
+     * other's changes. Returns the edits as saved.
+     */
+    async updateLiveSourceFieldEdits(
+        uuid: string,
+        update: (current: LiveSourceFieldEdits) => LiveSourceFieldEdits,
+    ): Promise<LiveSourceFieldEdits> {
+        return this.database.transaction(async (trx) => {
+            const row = await trx(ExternalConnectionsTableName)
+                .select('api_source')
+                .where('external_connection_uuid', uuid)
+                .whereNull('deleted_at')
+                .forUpdate()
+                .first();
+            if (!row?.api_source) {
+                throw new NotFoundError('Live data source not found');
+            }
+            const next = update(
+                parseLiveSourceFieldState(row.api_source).fields ?? {},
+            );
+            await trx(ExternalConnectionsTableName)
+                .where('external_connection_uuid', uuid)
+                .update({
+                    api_source: trx.raw(
+                        `jsonb_set(api_source, '{fields}', ?::jsonb)`,
+                        [JSON.stringify(next)],
+                    ) as unknown as string,
+                });
+            return next;
+        });
+    }
+
+    /** Deleted live sources of a project, most recently deleted first. */
+    async listDeletedLiveSources(
+        projectUuid: string,
+    ): Promise<DeletedLiveSource[]> {
+        const rows = await this.database(ExternalConnectionsTableName)
+            .select('external_connection_uuid', 'origin', 'api_source')
+            .where('project_uuid', projectUuid)
+            .whereNotNull('deleted_at')
+            .whereNotNull('api_source')
+            .orderBy('deleted_at', 'desc');
+        return rows.flatMap((row) => {
+            const apiSource = parseApiSource(row.api_source);
+            return apiSource
+                ? [
+                      {
+                          externalConnectionUuid: row.external_connection_uuid,
+                          origin: row.origin,
+                          apiSource,
+                          sourceName: readSourceName(row.api_source),
+                          fieldEdits: parseLiveSourceFieldState(row.api_source)
+                              .fields,
+                      },
+                  ]
+                : [];
+        });
     }
 
     async softDelete(uuid: string): Promise<void> {

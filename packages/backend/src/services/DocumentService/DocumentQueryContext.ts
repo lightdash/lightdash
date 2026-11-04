@@ -12,7 +12,7 @@ import {
     type ParametersValuesMap,
     type RegisteredAccount,
 } from '@lightdash/common';
-import { isEqual } from 'lodash';
+import { isEqual } from 'es-toolkit/compat';
 import { normalizeFilterIds } from '../CoderService/filterIds';
 import type { DocumentService } from './DocumentService';
 

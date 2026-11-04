@@ -1529,7 +1529,8 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                     chartSavedValues:
                                                                         chart.parameters ??
                                                                         {},
-                                                                    isTargeted: true,
+                                                                    excludedKeys:
+                                                                        [],
                                                                 },
                                                             ),
                                                             getUiString,

@@ -6,7 +6,7 @@ import {
     getErrorMessage,
 } from '@lightdash/common';
 import { generateText, tool } from 'ai';
-import isEqual from 'lodash/isEqual';
+import { isEqual } from 'es-toolkit/compat';
 import { type z } from 'zod';
 import { aiCopilotConfigSchema } from '../../../../config/aiConfigSchema';
 import { getAiConfig } from '../../../../config/parseConfig';

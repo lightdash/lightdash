@@ -1857,9 +1857,11 @@ describe('AsyncQueryService', () => {
         const CONNECTION_UUID = '03386598-7a51-45b2-b1f9-5ef55bd09016';
         const [apiExplore] = buildApiSourceExplores({
             connectionUuid: CONNECTION_UUID,
+            sourceName: 'ga4_03386598',
             name: 'Marketing site',
             apiSource: { connector: ApiConnectorType.GA4, propertyId: '123' },
-            scan: {},
+            scannedFields: [],
+            edits: {},
         });
         const channel = `${apiExplore.name}_session_default_channel_group`;
         const sessions = `${apiExplore.name}_sessions`;
@@ -13203,6 +13205,140 @@ describe('AsyncQueryService', () => {
             });
         });
 
+        describe('column discovery', () => {
+            const limitOneFields = {
+                limit_col: { type: DimensionType.STRING },
+            };
+            const fakeClient = (
+                overrides: Partial<WarehouseClient> = {},
+            ): WarehouseClient => ({
+                ...warehouseClientMock,
+                streamQuery: vi.fn(async (_sql, callback) => {
+                    await callback({ fields: limitOneFields, rows: [] });
+                }),
+                ...overrides,
+            });
+            const run = (warehouseClient: WarehouseClient) => {
+                const service = getMockedAsyncQueryService(lightdashConfigMock);
+                service.findResultsCache = vi.fn().mockResolvedValue({
+                    cacheHit: false,
+                    updatedAt: undefined,
+                    expiresAt: undefined,
+                } satisfies MissCacheResult);
+                vi.mocked(service.queryHistoryModel.create).mockResolvedValue({
+                    queryUuid: 'test-query-uuid',
+                } as Awaited<
+                    ReturnType<typeof service.queryHistoryModel.create>
+                >);
+                vi.spyOn(service, 'runAsyncWarehouseQuery').mockResolvedValue(
+                    undefined,
+                );
+                service.getUserAttributes = vi.fn(async () => ({
+                    userAttributes: {},
+                    intrinsicUserAttributes: { email: 'test@example.com' },
+                }));
+                service.warehouseClientFactory.acquireUnscoped = vi.fn(
+                    async () => ({
+                        warehouseClient,
+                        sshTunnel: mockSshTunnel,
+                        tunnelConnectMs: null,
+                    }),
+                );
+                const recordedColumns = () =>
+                    vi
+                        .mocked(service.queryHistoryModel.create)
+                        .mock.calls.map(
+                            ([, history]) => history.originalColumns,
+                        );
+                const result = service.executeAsyncSqlQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    sql: 'SELECT * FROM orders',
+                    context: QueryExecutionContext.SQL_RUNNER,
+                });
+                return { result, recordedColumns };
+            };
+
+            it('uses the warehouse dry run instead of a LIMIT 1 query', async () => {
+                const client = fakeClient({
+                    getQueryFields: vi.fn(async () => ({
+                        dry_col: { type: DimensionType.NUMBER },
+                    })),
+                });
+
+                const { result, recordedColumns } = run(client);
+                await result;
+
+                expect(client.streamQuery).not.toHaveBeenCalled();
+                expect(recordedColumns()).toEqual([
+                    {
+                        dry_col: {
+                            reference: 'dry_col',
+                            type: DimensionType.NUMBER,
+                        },
+                    },
+                ]);
+            });
+
+            it('falls back to LIMIT 1 when the dry run returns no schema', async () => {
+                // Shape of a CREATE TEMP TABLE script's dry run
+                const client = fakeClient({
+                    getQueryFields: vi.fn(async () => ({})),
+                });
+
+                const { result, recordedColumns } = run(client);
+                await result;
+
+                expect(client.streamQuery).toHaveBeenCalledOnce();
+                expect(vi.mocked(client.streamQuery).mock.calls[0][0]).toMatch(
+                    /limit 1/i,
+                );
+                expect(recordedColumns()).toEqual([
+                    {
+                        limit_col: {
+                            reference: 'limit_col',
+                            type: DimensionType.STRING,
+                        },
+                    },
+                ]);
+            });
+
+            it('runs a LIMIT 1 query when the warehouse has no dry run', async () => {
+                const client = fakeClient();
+
+                const { result, recordedColumns } = run(client);
+                await result;
+
+                expect(client.streamQuery).toHaveBeenCalledOnce();
+                expect(vi.mocked(client.streamQuery).mock.calls[0][0]).toMatch(
+                    /limit 1/i,
+                );
+                expect(recordedColumns()).toEqual([
+                    {
+                        limit_col: {
+                            reference: 'limit_col',
+                            type: DimensionType.STRING,
+                        },
+                    },
+                ]);
+            });
+
+            it('surfaces dry-run errors without running LIMIT 1', async () => {
+                const dryRunError = new Error('Table not found');
+                const client = fakeClient({
+                    getQueryFields: vi.fn(async () => {
+                        throw dryRunError;
+                    }),
+                });
+
+                const { result, recordedColumns } = run(client);
+
+                await expect(result).rejects.toBe(dryRunError);
+                expect(client.streamQuery).not.toHaveBeenCalled();
+                expect(recordedColumns()).toEqual([]);
+            });
+        });
+
         describe('user attributes replacement', () => {
             it('should replace user attributes in SQL queries', async () => {
                 // GIVEN: Service with mocked user attributes
@@ -14779,10 +14915,12 @@ describe('AsyncQueryService', () => {
 
         const buildAiAgentAccount = ({
             spaceUuid = writeSpaceUuid,
+            sourceSpaceUuids,
             embedWriteUser = buildWriteActor(true),
             canUseAiAgent = true,
         }: {
             spaceUuid?: string;
+            sourceSpaceUuids?: string[];
             embedWriteUser?: ReturnType<typeof buildWriteActor> | null;
             canUseAiAgent?: boolean;
         } = {}) =>
@@ -14800,7 +14938,11 @@ describe('AsyncQueryService', () => {
                     type: 'jwt',
                     data: {
                         content: { type: 'aiAgent', agentUuid: 'agent-uuid' },
-                        writeActions: { userUuid: writeActorUuid, spaceUuid },
+                        writeActions: {
+                            userUuid: writeActorUuid,
+                            spaceUuid,
+                            sourceSpaceUuids,
+                        },
                     },
                 },
                 embedWriteUser: embedWriteUser ?? undefined,
@@ -14914,13 +15056,43 @@ describe('AsyncQueryService', () => {
             );
         });
 
-        test('rejects a chart outside the write space', async () => {
+        test('rejects a chart outside the write and source spaces', async () => {
             const { service, prepareSpy } = buildService();
 
             await expect(
-                run(service, buildAiAgentAccount({ spaceUuid: 'other-space' })),
+                run(
+                    service,
+                    buildAiAgentAccount({
+                        spaceUuid: 'other-space',
+                        sourceSpaceUuids: ['another-space'],
+                    }),
+                ),
             ).rejects.toThrow(ForbiddenError);
             expect(prepareSpy).not.toHaveBeenCalled();
+        });
+
+        test('runs a chart from a source space as the write actor', async () => {
+            const {
+                service,
+                prepareSpy,
+                resolveAccess,
+                checkEmbedPermissions,
+            } = buildService();
+
+            await run(
+                service,
+                buildAiAgentAccount({
+                    spaceUuid: 'other-space',
+                    sourceSpaceUuids: [writeSpaceUuid],
+                }),
+            );
+
+            expect(checkEmbedPermissions).not.toHaveBeenCalled();
+            expect(resolveAccess).toHaveBeenCalledWith(
+                writeActorUuid,
+                expect.objectContaining({ spaceUuid: writeSpaceUuid }),
+            );
+            expect(prepareSpy).toHaveBeenCalled();
         });
 
         test('rejects a token without a write actor', async () => {

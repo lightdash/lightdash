@@ -1,7 +1,4 @@
-import {
-    ApiConnectorType,
-    QuerySourceType,
-} from '../../../../types/querySources';
+import { QuerySourceType } from '../../../../types/querySources';
 import { isSameComposerNodeDefinition } from '../../composerArtifact';
 import {
     createToolComposerQueriesArgsSchema,
@@ -11,15 +8,9 @@ import {
     toolComposerQueriesArgsSchema,
     toolComposerQueriesArgsSchemaPersisted,
     toolComposerQueryNodeToSourceQuery,
-    type ComposerApiConnection,
 } from './toolComposerQueryArgs';
 
-const postHogConnection: ComposerApiConnection = {
-    connectionUuid: '22222222-2222-4222-8222-222222222222',
-    name: 'Product analytics',
-    connector: ApiConnectorType.POSTHOG,
-    topEvents: null,
-};
+const postHogConnectionUuid = '22222222-2222-4222-8222-222222222222';
 
 describe('toolComposerQueriesArgsSchema node titles', () => {
     const sqlNode = {
@@ -246,35 +237,13 @@ describe('python composer nodes', () => {
         expect(
             getToolComposerQueriesDescription({
                 enablePythonNodes: false,
-                apiConnections: [],
             }),
         ).not.toContain('"python"');
         expect(
             getToolComposerQueriesDescription({
                 enablePythonNodes: true,
-                apiConnections: [],
             }),
         ).toContain('"python"');
-    });
-
-    it("lists a connection's scanned events", () => {
-        const description = getToolComposerQueriesDescription({
-            enablePythonNodes: false,
-            apiConnections: [
-                { ...postHogConnection, topEvents: ['$pageview', 'signed_up'] },
-            ],
-        });
-        expect(description).toContain(
-            `"${postHogConnection.connectionUuid}" (Product analytics, posthog; busiest events: "$pageview", "signed_up")`,
-        );
-        expect(
-            getToolComposerQueriesDescription({
-                enablePythonNodes: false,
-                apiConnections: [postHogConnection],
-            }),
-        ).toContain(
-            `"${postHogConnection.connectionUuid}" (Product analytics, posthog)`,
-        );
     });
 
     it('converts to a python source query', () => {
@@ -328,7 +297,7 @@ describe('composer api nodes', () => {
         nodeId: 'weekly_active_users',
         title: 'Weekly active users',
         description: 'Counts distinct people per week in PostHog.',
-        connectionUuid: postHogConnection.connectionUuid,
+        connectionUuid: postHogConnectionUuid,
         payload: { kind: 'query', query: hogql },
     };
     const args = {
@@ -355,21 +324,10 @@ describe('composer api nodes', () => {
         ).toBe(true);
     });
 
-    it('describes api nodes and their connections only when there are some', () => {
+    it('never offers api nodes to the agent, which queries live data sources through explores', () => {
         expect(
-            getToolComposerQueriesDescription({
-                enablePythonNodes: false,
-                apiConnections: [],
-            }),
+            getToolComposerQueriesDescription({ enablePythonNodes: true }),
         ).not.toContain('"api"');
-        const description = getToolComposerQueriesDescription({
-            enablePythonNodes: false,
-            apiConnections: [postHogConnection],
-        });
-        expect(description).toContain('"api"');
-        expect(description).toContain(
-            `"${postHogConnection.connectionUuid}" (Product analytics, posthog)`,
-        );
     });
 
     it('converts to an api source query', () => {
@@ -384,7 +342,7 @@ describe('composer api nodes', () => {
             nodeId: 'weekly_active_users',
             title: 'Weekly active users',
             description: 'Counts distinct people per week in PostHog.',
-            connectionUuid: postHogConnection.connectionUuid,
+            connectionUuid: postHogConnectionUuid,
             payload: { kind: 'query', query: hogql },
             limit: DEFAULT_COMPOSER_QUERY_LIMIT,
         });
@@ -407,7 +365,7 @@ describe('composer api nodes', () => {
                     {
                         sourceType: QuerySourceType.API,
                         nodeId: 'weekly_active_users',
-                        connectionUuid: postHogConnection.connectionUuid,
+                        connectionUuid: postHogConnectionUuid,
                         payload: { kind: 'query', query: 'SELECT ev' },
                     },
                 ],
@@ -418,7 +376,7 @@ describe('composer api nodes', () => {
                 nodeId: 'weekly_active_users',
                 title: 'weekly_active_users',
                 description: null,
-                connectionUuid: postHogConnection.connectionUuid,
+                connectionUuid: postHogConnectionUuid,
                 payload: { kind: 'query', query: 'SELECT ev' },
                 limit: DEFAULT_COMPOSER_QUERY_LIMIT,
             },
@@ -467,7 +425,6 @@ describe('composer node references', () => {
         expect(
             getToolComposerQueriesDescription({
                 enablePythonNodes: true,
-                apiConnections: [postHogConnection],
             }),
         ).not.toMatch(/query ?uuid|query id/i);
     });

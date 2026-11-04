@@ -6,9 +6,9 @@ import {
     ParseError,
     SupportedDbtVersions,
 } from '@lightdash/common';
+import { xor } from 'es-toolkit/compat';
 import execa from 'execa';
 import { promises as fs } from 'fs';
-import { xor } from 'lodash';
 import * as path from 'path';
 import {
     getAgentConnectionChildEnvironment,

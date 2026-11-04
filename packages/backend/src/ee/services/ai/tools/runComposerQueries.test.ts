@@ -1,5 +1,4 @@
 import {
-    ApiConnectorType,
     DimensionType,
     FilterOperator,
     getComposerNodeConflictMessage,
@@ -12,7 +11,6 @@ import {
     toolComposerQueriesOutputSchema,
     toolComposerQueryNodeToSourceQuery,
     type AiWebAppPrompt,
-    type ComposerApiConnection,
     type ComposerNodeColumn,
     type Explore,
     type ParameterDefinitions,
@@ -189,19 +187,12 @@ const pythonNode: ComposerNode = {
     limit: 500,
 };
 
-const postHogConnection: ComposerApiConnection = {
-    connectionUuid: '22222222-2222-4222-8222-222222222222',
-    name: 'Product analytics',
-    connector: ApiConnectorType.POSTHOG,
-    topEvents: null,
-};
-
 const apiNode: ComposerNode = {
     sourceType: QuerySourceType.API,
     nodeId: 'weekly_active_users',
     title: 'Weekly active users',
     description: 'Counts distinct people per week in PostHog.',
-    connectionUuid: postHogConnection.connectionUuid,
+    connectionUuid: '22222222-2222-4222-8222-222222222222',
     payload: {
         kind: 'query',
         query: 'SELECT toStartOfWeek(timestamp) AS week, count(DISTINCT person_id) AS wau FROM events GROUP BY week',
@@ -332,7 +323,6 @@ const makeTool = ({
     autoApproveSqlUserUuid = null,
     canRunSql = true,
     enablePythonNodes = false,
-    apiConnections = [],
     enableDataAccess = true,
     waitForSqlApproval = vi.fn().mockResolvedValue('approved'),
     prompt = makePrompt(),
@@ -347,7 +337,6 @@ const makeTool = ({
     autoApproveSqlUserUuid?: string | null;
     canRunSql?: boolean;
     enablePythonNodes?: boolean;
-    apiConnections?: ComposerApiConnection[];
     enableDataAccess?: boolean;
     waitForSqlApproval?: import('vitest').Mock;
     prompt?: AiWebAppPrompt | SlackPrompt;
@@ -401,7 +390,6 @@ const makeTool = ({
         enableDataAccess,
         canRunSql,
         enablePythonNodes,
-        apiConnections,
         autoApproveSql,
         autoApproveSqlUserUuid,
         useSlackStreamCard,
@@ -1727,68 +1715,16 @@ describe('api composer nodes', () => {
         limit: 500,
     };
 
-    it('offers the api node in the input schema only when enabled', () => {
+    it('never offers the api node, since live data sources are explores', () => {
         const args = makeArgs({ queries: [apiNode, joinNode] });
-        const accepts = (apiConnections: ComposerApiConnection[]) =>
-            (
-                makeTool({ apiConnections }).tool.inputSchema as ZodType
-            ).safeParse(args).success;
-        expect(accepts([])).toBe(false);
-        expect(accepts([postHogConnection])).toBe(true);
-        expect(makeTool().tool.description).not.toContain('"api"');
-        expect(
-            makeTool({ apiConnections: [postHogConnection] }).tool.description,
-        ).toContain('"api"');
-    });
-
-    it('runs an api pipeline without SQL approval', async () => {
-        const { tool, dependencies } = makeTool({
-            apiConnections: [postHogConnection],
-        });
-
-        await executeTool(tool, makeArgs({ queries: [apiNode, joinNode] }));
-
-        expect(dependencies.waitForSqlApproval).not.toHaveBeenCalled();
-        expect(dependencies.runComposerQueries).toHaveBeenCalledWith(
-            expect.objectContaining({
-                terminalNodeId: 'usage_vs_orders',
-                queries: [
-                    expect.objectContaining({
-                        sourceType: QuerySourceType.API,
-                        nodeId: 'weekly_active_users',
-                        connectionUuid: postHogConnection.connectionUuid,
-                        payload: apiNode.payload,
-                    }),
-                    expect.objectContaining({ nodeId: 'usage_vs_orders' }),
-                ],
-            }),
+        const { tool } = makeTool();
+        expect((tool.inputSchema as ZodType).safeParse(args).success).toBe(
+            false,
         );
+        expect(tool.description).not.toContain('"api"');
     });
 
-    it('refuses an api node naming a connection that is not offered', async () => {
-        const { tool, dependencies } = makeTool({
-            apiConnections: [postHogConnection],
-        });
-
-        const output = await executeTool(
-            tool,
-            makeArgs({
-                queries: [
-                    {
-                        ...apiNode,
-                        connectionUuid: '33333333-3333-4333-8333-333333333333',
-                    },
-                    joinNode,
-                ],
-            }),
-        );
-
-        expect(output.metadata?.status).toBe('error');
-        expect(output.result).toContain('weekly_active_users');
-        expect(dependencies.runComposerQueries).not.toHaveBeenCalled();
-    });
-
-    it('refuses api nodes when api queries are disabled', async () => {
+    it('refuses an api node replayed from an older thread', async () => {
         const { tool, dependencies } = makeTool();
 
         const output = await executeTool(

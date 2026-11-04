@@ -14,7 +14,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconPencil } from '@tabler/icons-react';
-import omit from 'lodash/omit';
+import { omit } from 'es-toolkit/compat';
 import {
     useCallback,
     useMemo,

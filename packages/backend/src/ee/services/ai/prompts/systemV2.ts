@@ -11,6 +11,7 @@ import moment from 'moment';
 import type { DeferredPromptSection, PromptSection } from '../loadout';
 import { AiAgentSkillReference } from '../skills/types';
 import {
+    AgentLiveSource,
     AiAgentDeepResearchRunContext,
     AiAgentRequestingUser,
     AiAgentThreadBindingContext,
@@ -33,6 +34,7 @@ import { DATA_ACCESS_DISABLED_SECTION } from './systemV2DataAccessDisabled';
 import { DATA_ACCESS_ENABLED_SECTION } from './systemV2DataAccessEnabled';
 import { GENERATE_DATA_APP_SECTION } from './systemV2DataApps';
 import { getKnowledgeDocumentsSection } from './systemV2KnowledgeDocuments';
+import { getLiveSourcesSection } from './systemV2LiveSources';
 import { MEMORIES_SECTION } from './systemV2Memories';
 import {
     getComposerQueryPath,
@@ -185,8 +187,7 @@ export const getSystemPromptV2 = (
         canRunSql?: boolean;
         // Python nodes in query; only meaningful for the composer base.
         enableComposerPythonNodes?: boolean;
-        // Api nodes in query; only meaningful for the composer base.
-        enableComposerApiNodes?: boolean;
+        liveSources?: AgentLiveSource[];
         unauthenticatedMcpServerNames?: string[];
         mcpServers?: Array<{ name: string; toolNames: string[] }>;
     },
@@ -210,7 +211,7 @@ export const getSystemPromptV2 = (
         canRunSql = false,
         canRunQuery = false,
         enableComposerPythonNodes = false,
-        enableComposerApiNodes = false,
+        liveSources = [],
         unauthenticatedMcpServerNames = [],
         deferredSections = new Set<DeferredPromptSection>(),
         mcpServers = [],
@@ -237,7 +238,6 @@ export const getSystemPromptV2 = (
               ...getComposerQueryPath(canRunSql),
               queryLanguageSections: getQueryingComposerSection({
                   enablePythonNodes: enableComposerPythonNodes,
-                  enableApiNodes: enableComposerApiNodes,
                   canRunSql,
                   slackChannelId,
               }),
@@ -363,9 +363,13 @@ export const getSystemPromptV2 = (
         )
         .replace('{{discovery_outcomes}}', () => queryPath.discoveryOutcomes)
         .replace('{{query_step}}', () => queryPath.queryStep)
-        .replace(
-            '{{query_language_sections}}',
-            () => queryPath.queryLanguageSections,
+        .replace('{{query_language_sections}}', () =>
+            [
+                queryPath.queryLanguageSections,
+                getLiveSourcesSection(liveSources),
+            ]
+                .filter(Boolean)
+                .join('\n\n'),
         )
         .replace('{{self_improvement_section}}', '')
         .replace('{{answer_tool_guidance}}', answerToolGuidance)

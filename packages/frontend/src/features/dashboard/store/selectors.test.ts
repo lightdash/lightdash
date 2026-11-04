@@ -134,6 +134,19 @@ describe('parameter selectors', () => {
             );
         });
 
+        it("is satisfied by the tile's virtual-view saved value", () => {
+            expect(
+                selectMissingRequiredParameters(
+                    stateWith({
+                        ...base,
+                        tileVirtualViewSavedParameters: {
+                            'tile-1': { status: 'Shipped' },
+                        },
+                    }),
+                ),
+            ).toEqual([]);
+        });
+
         it('is satisfied by a chart-saved value', () => {
             expect(
                 selectMissingRequiredParameters(

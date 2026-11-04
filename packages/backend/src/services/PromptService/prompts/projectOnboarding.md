@@ -55,7 +55,7 @@ Do not rename the prepared project. Keep its existing name for compatibility wit
     ```
 
 9. Preserve existing semantic content and use only evidenced dimensions, metrics, joins, and filter values.
-    Give every metric a `description`: one short sentence in plain business language that says what it measures, such as "Number of unique orders placed" or "Total order value, after discounts". No SQL, column names, or aggregation jargon.
+   Give every metric a `description`: one short sentence in plain business language that says what it measures, such as "Number of unique orders placed" or "Total order value, after discounts". No SQL, column names, or aggregation jargon.
 10. Run `lightdash lint`, resolve errors, then deploy with `lightdash deploy --project <Prepared project UUID>`.
 11. **Handoff milestone 2 — semantic layer:** Replace the pending semantic-layer section with a model-to-source mapping, grains, generated files, key dimensions, metrics, joins, assumptions, and the verified lint and deploy outcomes.
 

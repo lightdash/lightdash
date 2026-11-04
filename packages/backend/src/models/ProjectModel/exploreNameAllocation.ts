@@ -11,8 +11,8 @@ import {
     type Explore,
     type ExploreError,
 } from '@lightdash/common';
+import { chunk } from 'es-toolkit/compat';
 import { type Knex } from 'knex';
-import { chunk } from 'lodash';
 import { createHash } from 'node:crypto';
 import {
     ExploreNameAllocationsTableName,

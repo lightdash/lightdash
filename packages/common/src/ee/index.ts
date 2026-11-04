@@ -11,6 +11,7 @@ export * from './aiWriteback/types';
 export * from './mcp/tasks';
 export * from './externalConnections/aliasFromName';
 export * from './externalConnections/coder';
+export * from './externalConnections/liveSourceFields';
 export * from './externalConnections/types';
 export * from './AiRouter';
 export * from './apps/analysis';

@@ -1,6 +1,5 @@
 import { type SearchFilters, type SearchResults } from '@lightdash/common';
-import isNil from 'lodash/isNil';
-import omitBy from 'lodash/omitBy';
+import { isNil, omitBy } from 'es-toolkit/compat';
 import { type LightdashApi } from '../../../api';
 
 export const getSearchResults = async (

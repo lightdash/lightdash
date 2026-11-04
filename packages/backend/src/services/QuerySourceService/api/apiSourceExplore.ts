@@ -28,6 +28,9 @@ type ApiSourceFieldDefinition = {
     filterOperators: FilterOperator[];
     /** Defaults to the API name; only SQL APIs need anything else. */
     sql?: string;
+    /** Set from an admin's edits; built-in and scanned fields have none. */
+    aiHint?: string;
+    groups?: string[];
 };
 
 export type ApiSourceDimensionDefinition = ApiSourceFieldDefinition & {
@@ -79,6 +82,10 @@ export const buildApiSourceExplore = ({
     };
     const toSql = (field: ApiSourceFieldDefinition) =>
         field.sql ?? `\${TABLE}.${quote}${field.apiName}${quote}`;
+    const toCuratedProperties = (field: ApiSourceFieldDefinition) => ({
+        ...(field.aiHint ? { aiHint: field.aiHint } : {}),
+        ...(field.groups ? { groups: field.groups } : {}),
+    });
     const dimensions = definition.dimensions.map(
         (dimension): Dimension => ({
             ...base,
@@ -88,6 +95,7 @@ export const buildApiSourceExplore = ({
             description: dimension.description,
             type: dimension.type,
             sql: toSql(dimension),
+            ...toCuratedProperties(dimension),
         }),
     );
     const metrics = definition.metrics.map(
@@ -100,6 +108,7 @@ export const buildApiSourceExplore = ({
             type: metric.type,
             sql: toSql(metric),
             ...(metric.format ? { format: metric.format } : {}),
+            ...toCuratedProperties(metric),
         }),
     );
     const toFieldId = (name: string) => getItemId({ table: exploreName, name });

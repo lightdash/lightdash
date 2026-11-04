@@ -8,7 +8,6 @@ import {
     queryToolDefinition,
     toComposerNodeColumns,
     WarehouseQueryError,
-    type ComposerApiConnection,
     type ParameterDefinitions,
     type SemanticLayerSourceQuery,
     type SourceQuery,
@@ -88,8 +87,6 @@ type Dependencies = {
     enableDataAccess: boolean;
     canRunSql: boolean;
     enablePythonNodes: boolean;
-    // Project API connections api nodes may query; empty disables api nodes.
-    apiConnections: ComposerApiConnection[];
     autoApproveSql?: boolean;
     autoApproveSqlUserUuid?: string | null;
     useSlackStreamCard?: boolean;
@@ -187,7 +184,6 @@ export const getRunComposerQueries = ({
     enableDataAccess,
     canRunSql,
     enablePythonNodes,
-    apiConnections,
     autoApproveSql = false,
     autoApproveSqlUserUuid = null,
     useSlackStreamCard = false,
@@ -213,17 +209,14 @@ export const getRunComposerQueries = ({
         COMPOSER_SQL_APPROVAL_COPY,
     );
 
-    const enableApiNodes = apiConnections.length > 0;
     const inputSchema = createToolComposerQueriesArgsSchema({
         maxLimit: maxQueryLimit,
         enablePythonNodes,
-        enableApiNodes,
     });
 
     return tool({
         description: getToolComposerQueriesDescription({
             enablePythonNodes,
-            apiConnections,
         }),
         inputSchema,
         outputSchema: toolDefinition.outputSchema,
@@ -263,7 +256,6 @@ export const getRunComposerQueries = ({
                     projectParameterDefinitions,
                     reusableNodes: threadNodes,
                     enablePythonNodes,
-                    apiConnections,
                     canRunSql,
                     sqlDisabledMessage:
                         'This pipeline contains "sql" nodes but SQL execution is not enabled for this agent. Rebuild the pipeline without sql nodes (semanticLayer and duckdb nodes are still available).',

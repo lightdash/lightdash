@@ -1,5 +1,4 @@
-import attempt from 'lodash/attempt';
-import isError from 'lodash/isError';
+import { attempt, isError } from 'es-toolkit/compat';
 import type { ExplorePostProcessor } from '../compiler/translator';
 import { InlineErrorType, type ExploreError } from '../types/explore';
 import { parseDbtPreAggregates } from './definition';

@@ -216,7 +216,6 @@ import {
     type ApiAiAgentComposerArtifactVizQuery,
     type ApiGetAsyncQueryResults,
     type AppGeneratePipelineJobPayload,
-    type ComposerApiConnection,
     type ComposerStoredChartVizConfig,
     type DataAppVizChart,
     type DuckdbSourceQuery,
@@ -261,9 +260,9 @@ import {
 import { createCanvas, loadImage } from 'canvas';
 import { randomBytes, randomUUID } from 'crypto';
 import { type EChartsOption } from 'echarts';
+import { isEqual, uniq } from 'es-toolkit/compat';
 import { EventEmitter } from 'events';
 import fs from 'fs/promises';
-import _ from 'lodash';
 import { nanoid as nanoidGenerator } from 'nanoid';
 import pLimit from 'p-limit';
 import slackifyMarkdown from 'slackify-markdown';
@@ -553,6 +552,7 @@ import {
 import {
     AiAgentArgs,
     AiAgentDependencies,
+    type AgentLiveSource,
     type AiAgentDeepResearchRunContext,
     type AiAgentExecutionConfig,
     type AiAgentMcpServer,
@@ -785,7 +785,6 @@ type StaticToolCall = {
 // The fast edit reply waits this long for a one-number result before sending without it.
 const SINGLE_VALUE_TIMEOUT_MS = 3_000;
 const COMPOSER_RUN_SETTLE_TIMEOUT_MS = 3 * 60_000;
-const COMPOSER_TOP_EVENTS = 30;
 
 type ChartIntentApplication =
     | {
@@ -982,7 +981,7 @@ type AiAgentServiceDependencies = {
     querySourceService: Pick<QuerySourceService, 'submitQueries'>;
     externalConnectionService: Pick<
         ExternalConnectionService,
-        'listApiSourceConnectionsWithSchema'
+        'listApiSourceConnections'
     >;
     queryHistoryModel: Pick<QueryHistoryModel, 'pollForQueryCompletion'>;
     catalogService: CatalogService;
@@ -4588,7 +4587,7 @@ export class AiAgentService extends BaseService {
             liveStatuses.map((status) => [status.threadUuid, status]),
         );
 
-        const slackUserIds = _.uniq(
+        const slackUserIds = uniq(
             threads
                 .filter((thread) => thread.createdFrom === 'slack')
                 .filter((thread) => thread.user.slackUserId !== null)
@@ -4703,7 +4702,7 @@ export class AiAgentService extends BaseService {
             liveStatuses.map((status) => [status.threadUuid, status]),
         );
 
-        const slackUserIds = _.uniq(
+        const slackUserIds = uniq(
             threads
                 .filter((thread) => thread.createdFrom === 'slack')
                 .filter((thread) => thread.user.slackUserId !== null)
@@ -4810,7 +4809,7 @@ export class AiAgentService extends BaseService {
 
         const signals = await this.aiAgentModel.findThreadLiveStateSignals({
             organizationUuid,
-            threadUuids: _.uniq(threadUuids),
+            threadUuids: uniq(threadUuids),
             projectUuid,
             userUuid: user.userUuid,
             agentUuids: accessibleAgentUuids,
@@ -4888,7 +4887,7 @@ export class AiAgentService extends BaseService {
             };
         }
 
-        const slackUserIds = _.uniq(
+        const slackUserIds = uniq(
             messages
                 .filter((message) => message.role === 'user')
                 .filter((message) => message.user.slackUserId !== null)
@@ -7685,7 +7684,7 @@ export class AiAgentService extends BaseService {
                 : agent.modelConfig) ?? null;
         const pinOrModelChanged =
             nextProviderCredentialUuid !== agent.providerCredentialUuid ||
-            !_.isEqual(nextModelConfig, agent.modelConfig ?? null);
+            !isEqual(nextModelConfig, agent.modelConfig ?? null);
         if (nextProviderCredentialUuid && pinOrModelChanged) {
             await this.aiOrganizationSettingsService.validateAgentProviderCredential(
                 organizationUuid,
@@ -11748,37 +11747,28 @@ export class AiAgentService extends BaseService {
     }
 
     /** The project's API connections the user may query, offered as composer api nodes. */
-    private async getComposerApiConnections(
+    private async getAgentLiveSources(
         user: SessionUser,
         projectUuid: string,
-    ): Promise<ComposerApiConnection[]> {
+    ): Promise<AgentLiveSource[]> {
         const { enabled } = await this.featureFlagService.get({
             user,
             featureFlagId: FeatureFlags.ApiQuerySources,
         });
         if (!enabled) return [];
-        const sources =
-            await this.externalConnectionService.listApiSourceConnectionsWithSchema(
+        const connections =
+            await this.externalConnectionService.listApiSourceConnections(
                 fromSession(user),
                 projectUuid,
             );
-        return sources.flatMap(
-            ({
-                connection: { externalConnectionUuid, name, apiSource },
-                scan,
-            }) =>
+        return connections.flatMap(
+            ({ externalConnectionUuid, name, apiSource }) =>
                 apiSource
                     ? [
                           {
                               connectionUuid: externalConnectionUuid,
                               name,
                               connector: apiSource.connector,
-                              topEvents:
-                                  scan?.status === 'ready'
-                                      ? scan.events
-                                            .slice(0, COMPOSER_TOP_EVENTS)
-                                            .map(({ name: event }) => event)
-                                      : null,
                           },
                       ]
                     : [],
@@ -15907,6 +15897,13 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         }
     }
 
+    /** The agent offers content reading when the setting is on; each read checks the user's view access. */
+    private static canReadContent(
+        agent: Pick<AiAgent, 'enableContentTools' | 'enableDataAccess'>,
+    ): boolean {
+        return agent.enableContentTools && agent.enableDataAccess;
+    }
+
     /** The agent offers content editing when the setting is on and the user can save content in the project. */
     private async canUseContentTools(
         user: SessionUser,
@@ -15914,8 +15911,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         projectUuid: string,
     ): Promise<boolean> {
         return (
-            agent.enableContentTools &&
-            agent.enableDataAccess &&
+            AiAgentService.canReadContent(agent) &&
             this.aiAgentToolsService.canAuthorContent({ user, projectUuid })
         );
     }
@@ -16891,11 +16887,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                         standardToolAllowlist !== undefined,
                     battleProfile,
                 });
-                const composerApiConnections = enableComposerQueries
-                    ? await this.getComposerApiConnections(
-                          user,
-                          prompt.projectUuid,
-                      )
+                const liveSources = hasTrustedPromptUserIdentity
+                    ? await this.getAgentLiveSources(user, prompt.projectUuid)
                     : [];
                 const { enabled: filterExpressionsEnabled } =
                     await this.featureFlagService.get({
@@ -17004,6 +16997,9 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 const repoFsSupportsCodeSearch =
                     promptProject.dbtConnection.type !== DbtProjectType.GITLAB;
 
+                const canReadContent =
+                    hasTrustedPromptUserIdentity &&
+                    AiAgentService.canReadContent(agentSettings);
                 const canUseContentTools =
                     hasTrustedPromptUserIdentity &&
                     (await this.canUseContentTools(
@@ -17366,6 +17362,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                         this.lightdashConfig.ai.copilot.telemetryEnabled,
                     enableDataAccess: agentSettings.enableDataAccess,
                     enableSelfImprovement: agentSettings.enableSelfImprovement,
+                    enableContentReads: canReadContent,
                     enableContentTools: canUseContentTools,
                     enableDocuments: canUseContentTools,
                     enableGenerateDataApp,
@@ -17379,7 +17376,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     repoFsSupportsCodeSearch,
                     canRunSql,
                     enableComposerQueries,
-                    composerApiConnections,
+                    liveSources,
                     canCreateDashboards,
                     canCreateScheduledDeliveries,
                     autoApproveSql:

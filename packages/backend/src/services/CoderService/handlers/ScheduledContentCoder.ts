@@ -35,7 +35,7 @@ import {
     SessionUser,
     validateEmail,
 } from '@lightdash/common';
-import isEqual from 'lodash/isEqual';
+import { isEqual } from 'es-toolkit/compat';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../../models/SavedChartModel';

@@ -2,6 +2,7 @@ import {
     ApiConnectorType,
     assertUnreachable,
     DimensionType,
+    generateSlug,
     isDimension,
     SupportedDbtAdapter,
     UnexpectedServerError,
@@ -16,6 +17,7 @@ import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { getIsoDateInTimeZone } from './apiDateRange';
 import {
     buildApiSourceExplore,
+    type ApiSourceExploreDefinition,
     type CompiledApiSourceQuery,
 } from './apiSourceExplore';
 import { compileGa4Query } from './google/ga4Compiler';
@@ -30,8 +32,14 @@ import {
     SEARCH_CONSOLE_PERFORMANCE_EXPLORE,
     SEARCH_CONSOLE_SEMANTIC_LAYER_VERSION,
 } from './google/searchConsoleSemanticLayer';
+import {
+    applyLiveSourceFieldEdits,
+    type LiveSourceFieldEdits,
+    type ScannedLiveSourceField,
+} from './liveSourceFields';
 import { compilePostHogQuery } from './posthog/posthogCompiler';
 import {
+    isInternalPostHogProperty,
     POSTHOG_EVENTS_EXPLORE,
     POSTHOG_SEMANTIC_LAYER_VERSION,
     withPostHogPropertyFields,
@@ -56,73 +64,148 @@ const getSqlBuilder = (connector: ApiConnectorType) =>
 
 /** Stable per source: saved charts reference its field ids forever. */
 export const getApiSourceExploreName = (
+    sourceName: string,
+    definitionName: string,
+) => `${sourceName}_${definitionName}`;
+
+/** The source name of sources built before names were stored, from their id. */
+export const getLegacyLiveSourceName = (
     connector: ApiConnectorType,
     connectionUuid: string,
-    definitionName: string,
-) =>
-    `${connector}_${connectionUuid.replace(/-/g, '').slice(0, 8)}_${definitionName}`;
+) => `${connector}_${connectionUuid.replace(/-/g, '').slice(0, 8)}`;
+
+/** A new source's name before any clash suffix: `PostHog` → `posthog`. */
+export const getLiveSourceNameBase = (
+    connector: ApiConnectorType,
+    name: string,
+) => {
+    const base = generateSlug(name).replace(/-/g, '_');
+    return /^[a-z][a-z0-9_]*$/.test(base) ? base : connector;
+};
+
+/** The hand-written explore of an integration, before any scan. */
+export const getApiSourceBaseLayer = (
+    connector: ApiConnectorType,
+): { baseVersion: number; definition: ApiSourceExploreDefinition } => {
+    switch (connector) {
+        case ApiConnectorType.GA4:
+            return {
+                baseVersion: GA4_SEMANTIC_LAYER_VERSION,
+                definition: GA4_REPORT_EXPLORE,
+            };
+        case ApiConnectorType.SEARCH_CONSOLE:
+            return {
+                baseVersion: SEARCH_CONSOLE_SEMANTIC_LAYER_VERSION,
+                definition: SEARCH_CONSOLE_PERFORMANCE_EXPLORE,
+            };
+        case ApiConnectorType.POSTHOG:
+            return {
+                baseVersion: POSTHOG_SEMANTIC_LAYER_VERSION,
+                definition: POSTHOG_EVENTS_EXPLORE,
+            };
+        default:
+            return assertUnreachable(connector, 'Unknown api connector');
+    }
+};
+
+/** The explore names a source with this name would get. */
+export const getApiSourceExploreNames = (
+    connector: ApiConnectorType,
+    sourceName: string,
+): string[] => [
+    getApiSourceExploreName(
+        sourceName,
+        getApiSourceBaseLayer(connector).definition.name,
+    ),
+];
+
+/** The fields a scan found beyond the integration's built-in ones. */
+export const toScannedLiveSourceFields = (
+    connector: ApiConnectorType,
+    scan: ApiSourceScan,
+): ScannedLiveSourceField[] => {
+    const { definition } = getApiSourceBaseLayer(connector);
+    const getScannedDefinition = (): ApiSourceExploreDefinition => {
+        switch (connector) {
+            case ApiConnectorType.GA4:
+                return withGa4MetadataFields(definition, scan.ga4Metadata);
+            case ApiConnectorType.SEARCH_CONSOLE:
+                return definition;
+            case ApiConnectorType.POSTHOG:
+                return scan.posthogProperties
+                    ? withPostHogPropertyFields(
+                          definition,
+                          scan.posthogProperties,
+                      )
+                    : definition;
+            default:
+                return assertUnreachable(connector, 'Unknown api connector');
+        }
+    };
+    const scanned = getScannedDefinition();
+    const builtInNames = new Set([
+        ...definition.dimensions.map(({ name }) => name),
+        ...definition.metrics.map(({ name }) => name),
+    ]);
+    const isInternal = (apiName: string) =>
+        connector === ApiConnectorType.POSTHOG &&
+        isInternalPostHogProperty(apiName);
+    return [
+        ...scanned.dimensions
+            .filter(({ name }) => !builtInNames.has(name))
+            .map(
+                (field): ScannedLiveSourceField => ({
+                    kind: 'dimension',
+                    definition: field,
+                    isInternal: isInternal(field.apiName),
+                }),
+            ),
+        ...scanned.metrics
+            .filter(({ name }) => !builtInNames.has(name))
+            .map(
+                (field): ScannedLiveSourceField => ({
+                    kind: 'metric',
+                    definition: field,
+                    isInternal: isInternal(field.apiName),
+                }),
+            ),
+    ];
+};
 
 /** The explores a live data source answers metric queries with. */
 export const buildApiSourceExplores = ({
     connectionUuid,
+    sourceName,
     name,
     apiSource,
-    scan,
+    scannedFields,
+    edits,
 }: {
     connectionUuid: string;
+    sourceName: string;
     name: string;
     apiSource: ExternalConnectionApiSource;
-    scan: ApiSourceScan;
+    scannedFields: ScannedLiveSourceField[];
+    edits: LiveSourceFieldEdits;
 }): Explore[] => {
-    const getDefinitions = () => {
-        switch (apiSource.connector) {
-            case ApiConnectorType.GA4:
-                return {
-                    baseVersion: GA4_SEMANTIC_LAYER_VERSION,
-                    definitions: [
-                        withGa4MetadataFields(
-                            GA4_REPORT_EXPLORE,
-                            scan.ga4Metadata,
-                        ),
-                    ],
-                };
-            case ApiConnectorType.SEARCH_CONSOLE:
-                return {
-                    baseVersion: SEARCH_CONSOLE_SEMANTIC_LAYER_VERSION,
-                    definitions: [SEARCH_CONSOLE_PERFORMANCE_EXPLORE],
-                };
-            case ApiConnectorType.POSTHOG:
-                return {
-                    baseVersion: POSTHOG_SEMANTIC_LAYER_VERSION,
-                    definitions: [
-                        scan.posthogProperties
-                            ? withPostHogPropertyFields(
-                                  POSTHOG_EVENTS_EXPLORE,
-                                  scan.posthogProperties,
-                              )
-                            : POSTHOG_EVENTS_EXPLORE,
-                    ],
-                };
-            default:
-                return assertUnreachable(apiSource, 'Unknown api connector');
-        }
-    };
-    const { baseVersion, definitions } = getDefinitions();
-    return definitions.map((definition) =>
+    const { baseVersion, definition } = getApiSourceBaseLayer(
+        apiSource.connector,
+    );
+    return [
         buildApiSourceExplore({
-            definition,
-            exploreName: getApiSourceExploreName(
-                apiSource.connector,
-                connectionUuid,
-                definition.name,
-            ),
+            definition: applyLiveSourceFieldEdits({
+                base: definition,
+                scannedFields,
+                edits,
+            }),
+            exploreName: getApiSourceExploreName(sourceName, definition.name),
             label: name,
             connectionUuid,
             integration: apiSource.connector,
             baseVersion,
             warehouseSqlBuilder: getSqlBuilder(apiSource.connector),
         }),
-    );
+    ];
 };
 
 /** Compiles a metric query on a live data source explore into its integration's request. */

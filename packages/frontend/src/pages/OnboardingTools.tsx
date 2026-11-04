@@ -2,7 +2,6 @@ import { subject } from '@casl/ability';
 import {
     ApiConnectorType,
     FeatureFlags,
-    type ApiExploreResults,
     type ExternalConnectionListItem,
     type WarehouseTypes,
 } from '@lightdash/common';
@@ -62,7 +61,7 @@ import { OnboardingDoneStep } from '../ee/features/agentOnboarding/OnboardingDon
 import { OnboardingRunActivity } from '../ee/features/agentOnboarding/OnboardingRunActivity';
 import { useCreateExternalConnection } from '../features/externalConnections/hooks/useCreateExternalConnection';
 import { useExternalConnections } from '../features/externalConnections/hooks/useExternalConnections';
-import { useLiveSourceExplores } from '../features/externalConnections/hooks/useLiveSourceExplores';
+import { useLiveSourceFields } from '../features/externalConnections/hooks/useLiveSourceFields';
 import { getLiveSource } from '../features/externalConnections/liveSources/liveSourceCatalog';
 import { LiveSourceIcon } from '../features/externalConnections/liveSources/LiveSourceIcon';
 import { useGetSlack } from '../hooks/slack/useSlack';
@@ -136,43 +135,25 @@ const ToolRow: FC<{
     </Group>
 );
 
-const visibleFields = (explores: ApiExploreResults[]): PreviewField[] =>
-    explores
-        .flatMap((explore) => Object.values(explore.tables))
-        .flatMap((table) => [
-            ...Object.values(table.metrics).map((field) => ({
-                field,
-                isMetric: true,
-            })),
-            ...Object.values(table.dimensions).map((field) => ({
-                field,
-                isMetric: false,
-            })),
-        ])
-        .filter(({ field }) => !field.hidden)
-        .map(({ field, isMetric }) => ({
-            id: `${field.table}.${field.name}`,
-            label: field.label,
-            isMetric,
+const LiveSourceAside: FC<{
+    projectUuid: string;
+    connection: ExternalConnectionListItem;
+    connector: ApiConnectorType;
+    warehouse: WarehouseTypes | null;
+}> = ({ projectUuid, connection, connector, warehouse }) => {
+    const { data } = useLiveSourceFields({
+        projectUuid,
+        connectionUuid: connection.externalConnectionUuid,
+    });
+    const fields: PreviewField[] = (data?.fields ?? [])
+        .filter(({ inUse, isInternal }) => inUse && !isInternal)
+        .map(({ name, label, kind }) => ({
+            id: name,
+            label,
+            isMetric: kind === 'metric',
         }));
 
-const ToolsAside: FC<{
-    projectUuid: string;
-    connection: ExternalConnectionListItem | null;
-    warehouse: WarehouseTypes | null;
-}> = ({ projectUuid, connection, warehouse }) => {
-    const { data: explores } = useLiveSourceExplores(
-        connection
-            ? {
-                  projectUuid,
-                  connectionUuid: connection.externalConnectionUuid,
-              }
-            : null,
-    );
-    const fields = visibleFields(explores ?? []);
-    const connector = connection?.apiSource?.connector;
-
-    if (!connection || !connector || fields.length === 0) {
+    if (fields.length === 0) {
         return <ToolsVisual warehouse={warehouse} />;
     }
     return (
@@ -183,6 +164,25 @@ const ToolsAside: FC<{
                 describeConnections([connection]) ?? connection.name
             }
             fields={fields}
+        />
+    );
+};
+
+const ToolsAside: FC<{
+    projectUuid: string;
+    connection: ExternalConnectionListItem | null;
+    warehouse: WarehouseTypes | null;
+}> = ({ projectUuid, connection, warehouse }) => {
+    const connector = connection?.apiSource?.connector;
+    if (!connection || !connector) {
+        return <ToolsVisual warehouse={warehouse} />;
+    }
+    return (
+        <LiveSourceAside
+            projectUuid={projectUuid}
+            connection={connection}
+            connector={connector}
+            warehouse={warehouse}
         />
     );
 };
@@ -695,6 +695,7 @@ const OnboardingToolsContent: FC<{
                 <GoogleSourcePickerModal
                     projectUuid={projectUuid}
                     onClose={closeGoogleSourcePicker}
+                    onConnected={closeGoogleSourcePicker}
                 />
             )}
         </OnboardingLayout>

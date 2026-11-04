@@ -91,8 +91,8 @@ import {
     warehouseClientFromCredentials,
     type WarehouseClientOptions,
 } from '@lightdash/warehouses';
+import { isEqual } from 'es-toolkit/compat';
 import { Knex } from 'knex';
-import isEqual from 'lodash/isEqual';
 import NodeCache from 'node-cache';
 import { createHash } from 'node:crypto';
 import { DatabaseError } from 'pg';
@@ -8808,6 +8808,40 @@ export class ProjectModel {
                 );
             }
         });
+    }
+
+    /** Which of these explore names belong to something other than this live source. */
+    async findExploreNamesTakenByOthers(
+        projectUuid: string,
+        connectionUuid: string,
+        names: string[],
+    ): Promise<string[]> {
+        if (names.length === 0) {
+            return [];
+        }
+        return this.database(CachedExploreTableName)
+            .where('project_uuid', projectUuid)
+            .whereIn('name', names)
+            .whereRaw(
+                "(explore->>'type' IS DISTINCT FROM ? OR explore->'apiSource'->>'connectionUuid' IS DISTINCT FROM ?)",
+                [ExploreType.API_SOURCE, connectionUuid],
+            )
+            .pluck('name');
+    }
+
+    async hasApiSourceExplores(
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<boolean> {
+        const row = await this.database(CachedExploreTableName)
+            .select('name')
+            .where('project_uuid', projectUuid)
+            .whereRaw("explore->>'type' = ?", [ExploreType.API_SOURCE])
+            .whereRaw("explore->'apiSource'->>'connectionUuid' = ?", [
+                connectionUuid,
+            ])
+            .first();
+        return row !== undefined;
     }
 
     async deleteApiSourceExplores(

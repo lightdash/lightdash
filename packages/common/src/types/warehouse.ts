@@ -635,6 +635,12 @@ export interface WarehouseClient extends WarehouseSqlBuilder {
         args: WarehouseExecuteAsyncQueryArgs,
     ): Promise<WarehouseQueryEstimate>;
 
+    /** Result fields without running the query; empty when it has no result schema. */
+    getQueryFields?(
+        sql: string,
+        options: { tags: Record<string, string>; values?: AnyType[] },
+    ): Promise<WarehouseResults['fields']>;
+
     /**
      * Runs a query and returns all the results
      * @param sql

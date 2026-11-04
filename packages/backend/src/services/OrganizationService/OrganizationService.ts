@@ -39,7 +39,7 @@ import {
     validateOrganizationNameOrThrow,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
-import { groupBy } from 'lodash';
+import { groupBy } from 'es-toolkit/compat';
 import {
     LightdashAnalytics,
     OnboardingFlow,

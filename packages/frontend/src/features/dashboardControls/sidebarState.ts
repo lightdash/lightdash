@@ -2,10 +2,7 @@ import {
     type DashboardFilterRule,
     type DashboardFilters,
 } from '@lightdash/common';
-import isEqual from 'lodash/isEqual';
-import isUndefined from 'lodash/isUndefined';
-import omit from 'lodash/omit';
-import omitBy from 'lodash/omitBy';
+import { isEqual, isUndefined, omit, omitBy } from 'es-toolkit/compat';
 import { hasFilterValueSet } from '../dashboardFilters/FilterConfiguration/utils';
 import { type ControlsSidebarContextValue } from './useControlsSidebar';
 

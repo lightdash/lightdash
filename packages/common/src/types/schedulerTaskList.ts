@@ -1,4 +1,4 @@
-import includes from 'lodash/includes';
+import { includes } from 'es-toolkit/compat';
 import {
     type AgentOnboardingJobPayload,
     type AiAgentEvalRunJobPayload,

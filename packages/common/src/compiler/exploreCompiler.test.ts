@@ -7,6 +7,7 @@ import {
     friendlyName,
     MetricType,
     type CompiledDimension,
+    type Dimension,
 } from '../types/field';
 import { FilterOperator, UnitOfTime } from '../types/filter';
 import { parseFilters } from '../types/filterGrammar';
@@ -1841,6 +1842,262 @@ describe('Explore compilation with model-level parameters', () => {
             expect(() => compiler.compileExplore(explore)).toThrow(
                 /Set "nonexistent_set" not found/,
             );
+        });
+
+        describe('exclusion-only join.fields', () => {
+            const dimension = (
+                table: string,
+                name: string,
+                extra: Partial<Dimension> = {},
+            ): Dimension => ({
+                fieldType: FieldType.DIMENSION,
+                type: DimensionType.STRING,
+                name,
+                label: name,
+                table,
+                tableLabel: table,
+                sql: `\${TABLE}.${name}`,
+                hidden: false,
+                ...extra,
+            });
+
+            const compileWithJoinFields = (
+                fields: string[],
+                extraFields: Pick<Table, 'dimensions' | 'metrics'> = {
+                    dimensions: {},
+                    metrics: {},
+                },
+            ) =>
+                compiler.compileExplore({
+                    name: 'a',
+                    label: 'a',
+                    tags: [],
+                    baseTable: 'a',
+                    groupLabel: undefined,
+                    joinedTables: [
+                        { table: 'b', sqlOn: '${a.dim1} = ${b.dim1}', fields },
+                    ],
+                    tables: {
+                        a: {
+                            name: 'a',
+                            label: 'a',
+                            database: 'database',
+                            schema: 'schema',
+                            sqlTable: 'test.a',
+                            dimensions: { dim1: dimension('a', 'dim1') },
+                            metrics: {},
+                            lineageGraph: {},
+                        },
+                        b: {
+                            name: 'b',
+                            label: 'b',
+                            database: 'database',
+                            schema: 'schema',
+                            sqlTable: 'test.b',
+                            dimensions: {
+                                dim1: dimension('b', 'dim1'),
+                                name: dimension('b', 'name'),
+                                email: dimension('b', 'email'),
+                                phone: dimension('b', 'phone'),
+                                order_date: dimension('b', 'order_date', {
+                                    type: DimensionType.DATE,
+                                    isIntervalBase: true,
+                                }),
+                                order_date_month: dimension(
+                                    'b',
+                                    'order_date_month',
+                                    {
+                                        type: DimensionType.DATE,
+                                        timeInterval: TimeFrames.MONTH,
+                                        timeIntervalBaseDimensionName:
+                                            'order_date',
+                                    },
+                                ),
+                                ...extraFields.dimensions,
+                            },
+                            metrics: {
+                                count_b: {
+                                    fieldType: FieldType.METRIC,
+                                    type: MetricType.COUNT,
+                                    name: 'count_b',
+                                    label: 'count_b',
+                                    table: 'b',
+                                    tableLabel: 'b',
+                                    sql: '${TABLE}.dim1',
+                                    hidden: false,
+                                },
+                                ...extraFields.metrics,
+                            },
+                            lineageGraph: {},
+                            sets: {
+                                contact_fields: { fields: ['email', 'phone'] },
+                            },
+                        },
+                    },
+                    targetDatabase: SupportedDbtAdapter.POSTGRES,
+                    meta: {},
+                });
+
+            const visibleFields = (fields: string[]) => {
+                const table = compileWithJoinFields(fields).tables.b;
+                return [
+                    ...Object.values(table.dimensions),
+                    ...Object.values(table.metrics),
+                ]
+                    .filter((field) => !field.hidden)
+                    .map((field) => field.name);
+            };
+
+            it('should keep every field except the excluded ones', () => {
+                expect(visibleFields(['-phone', '-email'])).toEqual([
+                    'dim1',
+                    'name',
+                    'order_date',
+                    'order_date_month',
+                    'count_b',
+                ]);
+            });
+
+            it('should exclude every field in an excluded set', () => {
+                expect(visibleFields(['-contact_fields*'])).toEqual([
+                    'dim1',
+                    'name',
+                    'order_date',
+                    'order_date_month',
+                    'count_b',
+                ]);
+            });
+
+            it('should exclude time intervals with their base dimension', () => {
+                expect(visibleFields(['-order_date'])).toEqual([
+                    'dim1',
+                    'name',
+                    'email',
+                    'phone',
+                    'count_b',
+                ]);
+            });
+
+            it('should exclude metrics', () => {
+                const table = compileWithJoinFields(['-count_b']).tables.b;
+                expect(table.metrics).not.toHaveProperty('count_b');
+                expect(table.dimensions).toHaveProperty('name');
+            });
+
+            it('should keep an excluded join key as a hidden dimension', () => {
+                const table = compileWithJoinFields(['-dim1']).tables.b;
+                expect(table.dimensions.dim1.hidden).toBe(true);
+                expect(table.dimensions.name.hidden).toBe(false);
+            });
+
+            it('should warn about excluded fields that do not exist', () => {
+                const explore = compileWithJoinFields(['-emial']);
+                expect(explore.tables.b.dimensions.email.hidden).toBe(false);
+                expect(explore.warnings).toEqual([
+                    {
+                        type: InlineErrorType.FIELD_ERROR,
+                        message:
+                            'Join "b" excludes unknown field "emial" from table "b"',
+                    },
+                ]);
+            });
+
+            it('should still treat lists with inclusions as include lists', () => {
+                expect(
+                    visibleFields(['name', 'email', '-contact_fields*']),
+                ).toEqual(['name']);
+                expect(visibleFields([])).toEqual([]);
+            });
+
+            describe('dependent fields', () => {
+                const dependentFields: Pick<Table, 'dimensions' | 'metrics'> = {
+                    dimensions: {
+                        email_domain: dimension('b', 'email_domain', {
+                            sql: "SPLIT_PART(${email}, '@', 2)",
+                        }),
+                        email_domain_upper: dimension(
+                            'b',
+                            'email_domain_upper',
+                            { sql: 'UPPER(${b.email_domain})' },
+                        ),
+                    },
+                    metrics: {
+                        half_count_b: {
+                            fieldType: FieldType.METRIC,
+                            type: MetricType.NUMBER,
+                            name: 'half_count_b',
+                            label: 'half_count_b',
+                            table: 'b',
+                            tableLabel: 'b',
+                            sql: '${count_b} / 2',
+                            hidden: false,
+                        },
+                        count_with_phone: {
+                            fieldType: FieldType.METRIC,
+                            type: MetricType.COUNT,
+                            name: 'count_with_phone',
+                            label: 'count_with_phone',
+                            table: 'b',
+                            tableLabel: 'b',
+                            sql: '${TABLE}.dim1',
+                            hidden: false,
+                            filters: [
+                                {
+                                    id: 'phone_not_null',
+                                    target: { fieldRef: 'phone' },
+                                    operator: FilterOperator.NOT_NULL,
+                                },
+                            ],
+                        },
+                    },
+                };
+
+                it('should keep excluded fields that kept fields depend on as hidden fields', () => {
+                    const explore = compileWithJoinFields(
+                        ['-email', '-email_domain', '-count_b', '-phone'],
+                        dependentFields,
+                    );
+                    const table = explore.tables.b;
+
+                    expect(explore.warnings).toBeUndefined();
+                    // email_domain_upper -> email_domain -> email
+                    expect(table.dimensions.email_domain_upper.hidden).toBe(
+                        false,
+                    );
+                    expect(table.dimensions.email_domain.hidden).toBe(true);
+                    expect(table.dimensions.email.hidden).toBe(true);
+                    // half_count_b -> count_b
+                    expect(table.metrics.half_count_b.hidden).toBe(false);
+                    expect(table.metrics.count_b.hidden).toBe(true);
+                    // count_with_phone filters on phone
+                    expect(table.metrics.count_with_phone.hidden).toBe(false);
+                    expect(table.dimensions.phone.hidden).toBe(true);
+                });
+
+                it('should keep fields that listed fields depend on in include lists', () => {
+                    const table = compileWithJoinFields(
+                        ['email_domain'],
+                        dependentFields,
+                    ).tables.b;
+
+                    expect(table.dimensions.email_domain.hidden).toBe(false);
+                    expect(table.dimensions.email.hidden).toBe(true);
+                    expect(table.dimensions).not.toHaveProperty('phone');
+                });
+
+                it('should still remove excluded fields nothing depends on', () => {
+                    const table = compileWithJoinFields(
+                        ['-email_domain_upper', '-half_count_b'],
+                        dependentFields,
+                    ).tables.b;
+
+                    expect(table.dimensions).not.toHaveProperty(
+                        'email_domain_upper',
+                    );
+                    expect(table.metrics).not.toHaveProperty('half_count_b');
+                    expect(table.metrics.count_b.hidden).toBe(false);
+                });
+            });
         });
     });
 });

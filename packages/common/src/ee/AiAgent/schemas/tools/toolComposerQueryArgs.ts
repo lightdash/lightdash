@@ -9,7 +9,6 @@ import {
 import { type ParametersValuesMap } from '../../../../types/parameters';
 import {
     QuerySourceType,
-    type ApiConnectorType,
     type ApiSourceQuery,
     type DuckdbSourceQuery,
     type ExternalSourceQuery,
@@ -76,18 +75,8 @@ def run(inputs, params):
 Imports aside, all code inside run(). Read columns as df["col"], never df.col. Check df.dtypes before sum/astype.
 Rows past "limit" are dropped, so aggregate here. Libraries: ${PYTHON_SANDBOX_LIBRARIES_DESCRIPTION}. No network, no installs.`;
 
-/** A project connection an api node can query. */
-export type ComposerApiConnection = {
-    connectionUuid: string;
-    name: string;
-    connector: ApiConnectorType;
-    /** Busiest event names from the connection's last schema scan; null when not scanned. */
-    topEvents: string[] | null;
-};
-
 type ComposerQueriesDescriptionOptions = {
     enablePythonNodes: boolean;
-    apiConnections: ComposerApiConnection[];
 };
 
 const DUCKDB_ALIAS_GUIDANCE =
@@ -95,7 +84,6 @@ const DUCKDB_ALIAS_GUIDANCE =
 
 const getComposerNodeKindsDescription = ({
     enablePythonNodes,
-    apiConnections,
     sqlNote,
 }: ComposerQueriesDescriptionOptions & { sqlNote: string }) => `Node kinds:
 - "semanticLayer": a metric query against an explore. Result columns are the requested field ids.
@@ -106,36 +94,18 @@ const getComposerNodeKindsDescription = ({
         ? `
 - "python": pandas code over other results declared in "references".`
         : ''
-}${
-    apiConnections.length > 0
-        ? `
-- "api": a query sent live to an external API through a project connection, such as HogQL to PostHog, a Search Analytics request to Google Search Console or a report request to Google Analytics 4. It reads no other results; join its rows with a duckdb node. Set "connectionUuid" to one of: ${apiConnections
-              .map(
-                  ({ connectionUuid, name, connector, topEvents }) =>
-                      `"${connectionUuid}" (${name}, ${connector}${
-                          topEvents && topEvents.length > 0
-                              ? `; busiest events: ${topEvents
-                                    .map((event) => JSON.stringify(event))
-                                    .join(', ')}`
-                              : ''
-                      })`,
-              )
-              .join(', ')}.`
-        : ''
 }
 
 A node reads only the rows its references returned, so a referenced result that reached its limit is incomplete: before totalling, averaging or ranking over it, give that node a limit that holds its whole population, or aggregate there.`;
 
 export const getToolComposerQueriesDescription = ({
     enablePythonNodes,
-    apiConnections,
 }: ComposerQueriesDescriptionOptions) => `Run a pipeline: one or more nodes submitted together, where ${
     enablePythonNodes ? 'duckdb and python' : 'duckdb'
 } nodes join or transform other nodes' results. One call returns one node's rows, the terminal node's, so exactly one submitted node may go unread by the others: to get several results, combine them in one duckdb node (UNION ALL or JOIN) or submit them in separate calls. Every other submitted node is listed with its columns and first rows.
 
 ${getComposerNodeKindsDescription({
     enablePythonNodes,
-    apiConnections,
     sqlNote: 'may need user approval',
 })}
 
@@ -147,7 +117,6 @@ One call returns one node's rows, so exactly one submitted node may go unread by
 
 ${getComposerNodeKindsDescription({
     enablePythonNodes: true,
-    apiConnections: [],
     sqlNote: 'available only when run_sql is',
 })}
 
@@ -160,7 +129,6 @@ Returns the terminal node's first rows, other submitted nodes' columns and first
 export const TOOL_COMPOSER_QUERIES_DESCRIPTION =
     getToolComposerQueriesDescription({
         enablePythonNodes: false,
-        apiConnections: [],
     });
 
 const nodeIdSchema = z
@@ -302,7 +270,7 @@ type CreateToolComposerQueriesArgsSchemaOptions = {
     enablePythonNodes?: boolean;
     /** Persisted calls predate the required description; only new input requires it. */
     persisted?: boolean;
-    /** Offers the api node; only when an api connector is enabled and configured. */
+    /** Parses api nodes, which only threads from before live data source explores hold. */
     enableApiNodes?: boolean;
 };
 
