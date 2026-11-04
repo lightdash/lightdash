@@ -73,6 +73,12 @@ const SCENES: Record<SetupGuideRowId, () => ReactNode> = {
             </Box>
         </Box>
     ),
+    'first-chart': () => (
+        <Box className={classes.metricCard}>
+            <Box className={classes.line}>Orders by month</Box>
+            <Bars heights={[30, 46, 40, 62, 58, 84]} />
+        </Box>
+    ),
     'source-control': () => (
         <Box className={classes.sheet}>
             <Box className={classes.line} data-strong>

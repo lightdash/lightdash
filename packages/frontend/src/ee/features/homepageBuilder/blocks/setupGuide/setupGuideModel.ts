@@ -24,6 +24,7 @@ export type SetupGuideRowId =
     | 'warehouse'
     | 'app-data'
     | 'semantic-layer'
+    | 'first-chart'
     | 'source-control'
     | 'brand'
     | 'slack'
@@ -49,7 +50,13 @@ export type SetupGuideRow = {
 };
 
 export type SetupGuideSection = {
-    id: 'data' | 'semantic-layer' | 'brand' | 'team' | 'more-data';
+    id:
+        | 'data'
+        | 'semantic-layer'
+        | 'first-chart'
+        | 'brand'
+        | 'team'
+        | 'more-data';
     title: string;
     why: string;
     rows: SetupGuideRow[];
@@ -62,6 +69,7 @@ export type SetupGuideFacts = {
     visibleActions: HomepageRecommendedActionKey[];
     skippedActions: HomepageRecommendedActionKey[];
     semanticModelCount: number;
+    chartCount: number;
     activeRun: AgentOnboardingRun | null;
     // Its run page shows what was built, so review lands there
     completedRun: AgentOnboardingRun | null;
@@ -228,6 +236,25 @@ const semanticLayerRow = ({
     };
 };
 
+const firstChartRow = ({
+    projectUuid,
+    chartCount,
+}: SetupGuideFacts): SetupGuideRow => ({
+    id: 'first-chart',
+    title: 'Build your first chart',
+    status: chartCount > 0 ? 'done' : 'suggested',
+    evidence: chartCount > 0 ? evidence(plural(chartCount, 'chart')) : null,
+    action: {
+        label: chartCount > 0 ? 'Browse' : 'Build',
+        to:
+            chartCount > 0
+                ? `/projects/${projectUuid}/spaces`
+                : `/projects/${projectUuid}/tables`,
+    },
+    actionKey: null,
+    preview: null,
+});
+
 const MAX_SWATCHES = 4;
 
 const brandRow = ({ brand }: SetupGuideFacts): SetupGuideRow => ({
@@ -283,6 +310,12 @@ export const buildSetupGuide = (
             title: 'Your semantic layer',
             why: 'Define revenue once and reuse it in charts and answers.',
             rows: [semanticLayerRow(facts)],
+        },
+        {
+            id: 'first-chart',
+            title: 'Your first chart',
+            why: `Ask ${AI_NAME}, or pick a table and build it yourself.`,
+            rows: [firstChartRow(facts)],
         },
         {
             id: 'brand',

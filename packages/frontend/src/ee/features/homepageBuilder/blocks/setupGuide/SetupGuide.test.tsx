@@ -75,6 +75,7 @@ const fresh: SetupGuideFacts = {
     ],
     skippedActions: [],
     semanticModelCount: 0,
+    chartCount: 0,
     activeRun: null,
     completedRun: null,
     appSourceNames: [],
@@ -101,6 +102,7 @@ const allDone: SetupGuideFacts = {
         'connect-slack': status({ isComplete: true, annotation: 'Acme HQ' }),
     },
     semanticModelCount: 48,
+    chartCount: 2,
     appSourceNames: ['PostHog'],
     brand,
     teammateCount: 3,
@@ -147,6 +149,7 @@ describe('buildSetupGuide', () => {
         expect(sections.map(({ title }) => title)).toEqual([
             'Your data',
             'Your semantic layer',
+            'Your first chart',
             'Your brand',
             'Your team',
             'More data',
@@ -169,7 +172,7 @@ describe('buildSetupGuide', () => {
         );
         expect(countProgress(rowsOf(fresh))).toEqual({
             completed: 0,
-            total: 6,
+            total: 7,
         });
     });
 
@@ -223,8 +226,8 @@ describe('buildSetupGuide', () => {
 
     it('completes every row once everything exists', () => {
         expect(countProgress(rowsOf(allDone))).toEqual({
-            completed: 6,
-            total: 6,
+            completed: 7,
+            total: 7,
         });
         expect(rowById(allDone, 'brand')?.evidence?.swatches).toEqual([
             '#ff0000',
@@ -237,7 +240,7 @@ describe('buildSetupGuide', () => {
         expect(rowById(someSkipped, 'slack')?.status).toBe('skipped');
         expect(countProgress(rowsOf(someSkipped))).toEqual({
             completed: 1,
-            total: 4,
+            total: 5,
         });
     });
 });
@@ -248,7 +251,7 @@ describe('SetupGuideView', () => {
         expect(
             screen.getByRole('region', { name: 'Getting started' }),
         ).toBeInTheDocument();
-        expect(screen.getByText('0 of 6 steps done')).toBeInTheDocument();
+        expect(screen.getByText('0 of 7 steps done')).toBeInTheDocument();
         expect(
             screen.getByRole('link', { name: /Define metrics and dimensions/ }),
         ).toHaveAttribute('href', '/setup');
@@ -261,7 +264,7 @@ describe('SetupGuideView', () => {
 
     it('counts finished steps', () => {
         renderGuide({ ...allDone, teammateCount: 0 });
-        expect(screen.getByText('5 of 6 steps done')).toBeInTheDocument();
+        expect(screen.getByText('6 of 7 steps done')).toBeInTheDocument();
     });
 
     it('hides once nothing is pending, counting skipped as settled', () => {
@@ -323,7 +326,7 @@ describe('SetupGuideView', () => {
         ).toBeNull();
         await userEvent.click(
             screen.getByRole('button', {
-                name: 'Getting started, 0 of 6 done',
+                name: 'Getting started, 0 of 7 done',
             }),
         );
         expect(onMinimizedChange).toHaveBeenCalledWith(false);

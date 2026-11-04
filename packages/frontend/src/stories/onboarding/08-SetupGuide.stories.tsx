@@ -59,6 +59,7 @@ const Guide = ({ state }: { state: GuideState }) => {
         ],
         skippedActions,
         semanticModelCount: state === 'mostly-done' ? 3 : 0,
+        chartCount: state === 'mostly-done' ? 2 : 0,
         activeRun: state === 'building' ? storyAgentRun(false) : null,
         completedRun: null,
         canAddLiveSources: true,

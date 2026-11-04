@@ -15,6 +15,7 @@ import {
 import {
     IconArrowDownLeft,
     IconBrandSlack,
+    IconChartBar,
     IconCircleCheckFilled,
     IconDatabase,
     IconDots,
@@ -64,6 +65,11 @@ const ROW_COPY: Record<
         icon: IconLayersLinked,
         pitch: 'Define revenue once and reuse it in charts and answers.',
         time: '5 min',
+    },
+    'first-chart': {
+        icon: IconChartBar,
+        pitch: `Ask ${AI_NAME}, or pick a table and build it yourself.`,
+        time: '2 min',
     },
     'source-control': {
         icon: IconGitBranch,

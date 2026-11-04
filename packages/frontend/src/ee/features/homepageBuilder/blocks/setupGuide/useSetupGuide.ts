@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    ContentType,
     FeatureFlags,
     isAgentOnboardingRunTerminal,
     isSemanticLayerExplore,
@@ -10,6 +11,7 @@ import { useLocalStorage } from 'react-use';
 import { useExternalConnections } from '../../../../../features/externalConnections/hooks/useExternalConnections';
 import { useExternalSources } from '../../../../../features/externalSources/hooks/useExternalSources';
 import { useOrganizationBrand } from '../../../../../hooks/organization/useOrganizationBrand';
+import { useInfiniteContent } from '../../../../../hooks/useContent';
 import { useExplores } from '../../../../../hooks/useExplores';
 import { useOrganizationUsers } from '../../../../../hooks/useOrganizationUsers';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
@@ -73,6 +75,14 @@ export const useSetupGuide = (
     const sources = useExternalSources(gatedProjectUuid);
     const brand = useOrganizationBrand(enabled);
     const users = useOrganizationUsers(enabled);
+    const charts = useInfiniteContent(
+        {
+            projectUuids: [projectUuid],
+            contentTypes: [ContentType.CHART],
+            pageSize: 1,
+        },
+        enabled,
+    );
 
     // ponytail: dismissal is per user and project in localStorage, the server skip table only accepts checklist keys
     const [isDismissed, setIsDismissed] = useLocalStorage(
@@ -105,6 +115,7 @@ export const useSetupGuide = (
         visibleActions: actions.visibleActions,
         skippedActions: actions.skippedActions,
         semanticModelCount: semanticExplores.length,
+        chartCount: charts.data?.pages[0]?.pagination?.totalResults ?? 0,
         activeRun: activeRunOrNull,
         completedRun,
         canAddLiveSources:

@@ -2,7 +2,17 @@ import {
     type ExternalConnectionListItem,
     type SummaryExplore,
 } from '@lightdash/common';
-import { Anchor, Box, Button, Group, Loader, Paper, Text } from '@mantine/core';
+import {
+    ActionIcon,
+    Anchor,
+    Box,
+    Button,
+    Group,
+    Loader,
+    Paper,
+    Text,
+    Tooltip,
+} from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconDatabase,
@@ -10,14 +20,17 @@ import {
     IconLayersLinked,
     IconPlugConnected,
     IconTable,
+    IconX,
 } from '@tabler/icons-react';
 import { useState, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
+import { useLocalStorage } from 'react-use';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { useLiveSourceExplores } from '../../../../../features/externalConnections/hooks/useLiveSourceExplores';
 import { getLiveSource } from '../../../../../features/externalConnections/liveSources/liveSourceCatalog';
 import { LiveSourceIcon } from '../../../../../features/externalConnections/liveSources/LiveSourceIcon';
+import useApp from '../../../../../providers/App/useApp';
 import {
     getAgentOnboardingRunUrl,
     plural,
@@ -238,17 +251,35 @@ export const YourData: FC<{
     actions: RecommendedActionsState;
     guide: SetupGuideState;
 }> = ({ projectUuid, actions, guide }) => {
+    const { user } = useApp();
+    const [isDismissed, setIsDismissed] = useLocalStorage(
+        `homepage-your-data-dismissed-${user.data?.userUuid ?? 'anon'}-${projectUuid}`,
+        false,
+    );
     const warehouse = actions.statuses['connect-warehouse'];
-    if (!warehouse.isComplete) return null;
+    if (!warehouse.isComplete || isDismissed) return null;
     return (
         <Paper p="md" className={classes.panel}>
             <Group justify="space-between" wrap="nowrap" mb={4}>
                 <Text fz="sm" fw={500}>
-                    Your data
+                    Explore your data
                 </Text>
-                {guide.semanticExplores.length > 0 && (
-                    <HowItWorks projectUuid={projectUuid} />
-                )}
+                <Group gap="xs" wrap="nowrap">
+                    {guide.semanticExplores.length > 0 && (
+                        <HowItWorks projectUuid={projectUuid} />
+                    )}
+                    <Tooltip label="Hide">
+                        <ActionIcon
+                            size="sm"
+                            variant="subtle"
+                            color="gray"
+                            aria-label="Hide your data"
+                            onClick={() => setIsDismissed(true)}
+                        >
+                            <MantineIcon icon={IconX} />
+                        </ActionIcon>
+                    </Tooltip>
+                </Group>
             </Group>
             <SourceRow
                 icon={warehouse.doneIcon ?? <MantineIcon icon={IconDatabase} />}
