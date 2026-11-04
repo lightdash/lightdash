@@ -54,7 +54,7 @@ const SsoMethodDomainsField: FC<Props> = ({
                         hasVerifiedDomains ? (
                             `Only users whose email domain matches one of these will see ${providerLabel}.`
                         ) : (
-                            <Text span size="xs">
+                            <Text span fz="xs">
                                 {providerLabel} cannot be used until you verify
                                 a domain in {verifiedDomainsLink}.
                             </Text>
@@ -73,18 +73,18 @@ const SsoMethodDomainsField: FC<Props> = ({
                     clearable
                 />
             ) : (
-                <Text size="sm" c="dimmed">
+                <Text fz="sm" c="dimmed">
                     {hasVerifiedDomains ? (
                         <>
                             All of your organization's verified domains route to{' '}
                             {providerLabel}: <b>{options.join(', ')}</b>
                         </>
                     ) : (
-                        <Text span size="sm" c="dimmed">
+                        <>
                             {providerLabel} cannot be used yet. Verify a domain
                             in {verifiedDomainsLink} before users can sign in
                             with this provider.
-                        </Text>
+                        </>
                     )}
                 </Text>
             )}

@@ -1,15 +1,11 @@
 import {
     Alert,
-    Box,
-    Flex,
+    Avatar,
+    Button,
     Group,
-    Loader,
+    ScrollArea,
     Stack,
     Text,
-    Title,
-    Button,
-    Avatar,
-    Tooltip,
 } from '@mantine/core';
 import {
     IconAlertCircle,
@@ -17,19 +13,32 @@ import {
     IconRefresh,
     IconTrash,
 } from '@tabler/icons-react';
-import { useEffect, type FC } from 'react';
+import { useEffect, type FC, type ReactNode } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
 import useSearchParams from '../../../hooks/useSearchParams';
 import githubIcon from '../../../svgs/github-icon.svg';
+import EmptyStateLoader from '../../common/EmptyStateLoader';
 import {
     useDeleteGithubInstallationMutation,
     useGitHubRepositories,
 } from '../../common/GithubIntegration/hooks/useGithubIntegration';
 import MantineIcon from '../../common/MantineIcon';
-import { SettingsGridCard } from '../../common/Settings/SettingsCard';
-import classes from './GithubSettingsPanel.module.css';
+import {
+    SettingRow,
+    SettingsSection,
+} from '../../common/Settings/SettingLayout';
+import { SettingsCard } from '../../common/Settings/SettingsCard';
 
 const GITHUB_INSTALL_URL = `/api/v1/github/install`;
+
+const GithubSection: FC<{ children: ReactNode }> = ({ children }) => (
+    <SettingsSection
+        label="GitHub"
+        description="Install the GitHub App to access your repositories and create pull requests."
+    >
+        <SettingsCard>{children}</SettingsCard>
+    </SettingsSection>
+);
 
 const GithubSettingsPanel: FC = () => {
     const { data, isError, isInitialLoading } = useGitHubRepositories();
@@ -64,58 +73,72 @@ const GithubSettingsPanel: FC = () => {
     ]);
 
     if (isInitialLoading) {
-        return <Loader />;
+        return (
+            <GithubSection>
+                <EmptyStateLoader mih={60} />
+            </GithubSection>
+        );
+    }
+
+    const logo = <Avatar src={githubIcon} size="sm" alt="" />;
+
+    if (!isValidGithubInstallation) {
+        return (
+            <GithubSection>
+                <SettingRow
+                    titlePrefix={logo}
+                    title={
+                        isWaitingForGithubRequest
+                            ? 'Pending approval'
+                            : 'Not connected'
+                    }
+                    description={
+                        isWaitingForGithubRequest
+                            ? 'An admin from your GitHub organization needs to approve this app installation. They should have received an email for a "Request to install lightdash" from GitHub.'
+                            : 'Install the GitHub App on your organization to get started.'
+                    }
+                    control={
+                        isWaitingForGithubRequest ? (
+                            <Button
+                                size="xs"
+                                component="a"
+                                target="_blank"
+                                color="yellow"
+                                variant="outline"
+                                href={GITHUB_INSTALL_URL}
+                                leftSection={<MantineIcon icon={IconClock} />}
+                            >
+                                Pending approval
+                            </Button>
+                        ) : (
+                            <Button
+                                size="xs"
+                                component="a"
+                                target="_blank"
+                                href={GITHUB_INSTALL_URL}
+                            >
+                                Install
+                            </Button>
+                        )
+                    }
+                />
+            </GithubSection>
+        );
     }
 
     return (
-        <SettingsGridCard>
-            <Box>
-                <Group gap="sm">
-                    <Avatar src={githubIcon} size="md" alt="" />
-                    <Title order={5}>GitHub</Title>
-                </Group>
-            </Box>
-
-            <Stack>
-                <Text c="dimmed" fz="xs">
-                    Installing GitHub App allows Lightdash to access your GitHub
-                    repositories and create pull requests.
-                </Text>
-
-                {isValidGithubInstallation && data.length === 0 && (
-                    <Alert
-                        color="blue"
-                        icon={<MantineIcon icon={IconAlertCircle} />}
-                    >
-                        Your GitHub integration doesn't have access to any
-                        repository.
-                    </Alert>
-                )}
-                {isValidGithubInstallation && data && data.length > 0 && (
-                    <Stack gap="xs">
-                        <Text c="dimmed" fz="xs">
-                            Your GitHub integration has access to the following
-                            repositories ({data.length}):
-                        </Text>
-                        <Box mah={200} className={classes.repositoryList}>
-                            <Text
-                                component="ul"
-                                fz="xs"
-                                c="dimmed"
-                                m={0}
-                                pl="md"
-                            >
-                                {data.map((repo) => (
-                                    <li key={repo.fullName}>{repo.fullName}</li>
-                                ))}
-                            </Text>
-                        </Box>
-                    </Stack>
-                )}
-
-                {isValidGithubInstallation ? (
-                    <Stack align="end">
-                        <Group>
+        <GithubSection>
+            <Stack gap="md">
+                <SettingRow
+                    titlePrefix={logo}
+                    title="Connected"
+                    description={
+                        data.length > 0
+                            ? `Your GitHub integration has access to the following repositories (${data.length}):`
+                            : 'The GitHub App is installed.'
+                    }
+                    control={
+                        <Group gap="xs">
                             <Button
                                 size="xs"
                                 component="a"
@@ -141,55 +164,46 @@ const GithubSettingsPanel: FC = () => {
                             </Button>
                             <Button
                                 size="xs"
-                                px="xs"
+                                variant="subtle"
                                 color="red"
-                                variant="outline"
                                 onClick={() =>
                                     deleteGithubInstallationMutation.mutate()
                                 }
                                 leftSection={<MantineIcon icon={IconTrash} />}
                             >
-                                Delete
+                                Disconnect
                             </Button>
                         </Group>
-                    </Stack>
-                ) : (
-                    <Flex justify="end">
-                        {isWaitingForGithubRequest ? (
-                            <Tooltip
-                                maw={400}
-                                label={`
-                                An admin from your GitHub organization needs to approve this app
-                                installation. They should have received an email for a "Request to install lightdash" from GitHub.`}
+                    }
+                >
+                    {data.length > 0 && (
+                        <ScrollArea.Autosize mah={200} mt="xs">
+                            <Text
+                                component="ul"
+                                fz="xs"
+                                c="dimmed"
+                                m={0}
+                                pl="md"
                             >
-                                <Button
-                                    size="xs"
-                                    component="a"
-                                    target="_blank"
-                                    color="yellow"
-                                    variant="outline"
-                                    href={GITHUB_INSTALL_URL}
-                                    leftSection={
-                                        <MantineIcon icon={IconClock} />
-                                    }
-                                >
-                                    Pending approval
-                                </Button>
-                            </Tooltip>
-                        ) : (
-                            <Button
-                                size="xs"
-                                component="a"
-                                target="_blank"
-                                href={GITHUB_INSTALL_URL}
-                            >
-                                Install
-                            </Button>
-                        )}
-                    </Flex>
+                                {data.map((repo) => (
+                                    <li key={repo.fullName}>{repo.fullName}</li>
+                                ))}
+                            </Text>
+                        </ScrollArea.Autosize>
+                    )}
+                </SettingRow>
+
+                {data.length === 0 && (
+                    <Alert
+                        color="blue"
+                        icon={<MantineIcon icon={IconAlertCircle} />}
+                    >
+                        Your GitHub integration doesn't have access to any
+                        repository.
+                    </Alert>
                 )}
             </Stack>
-        </SettingsGridCard>
+        </GithubSection>
     );
 };
 

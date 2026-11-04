@@ -8,7 +8,6 @@ import {
     Stack,
     Switch,
     Text,
-    Title,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import {
@@ -33,6 +32,7 @@ import Callout from '../../common/Callout';
 import EmptyStateLoader from '../../common/EmptyStateLoader';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
+import { SettingRow } from '../../common/Settings/SettingLayout';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
 import { GOOGLE_LOGO } from '../../common/ThirdPartySignInButton/ssoProviderLogos';
 import FormSection from '../../ProjectConnection/Inputs/FormSection';
@@ -130,53 +130,76 @@ const GoogleSsoPanel: FC = () => {
     };
 
     return (
-        <SettingsCard p="lg" pos="relative">
+        <SettingsCard pos="relative">
             {isLoading ? (
                 <EmptyStateLoader mih={80} />
             ) : (
                 <Stack gap="md">
-                    <Group
-                        justify="space-between"
-                        align="flex-start"
-                        wrap="nowrap"
-                    >
-                        <Group gap="sm" wrap="nowrap" align="flex-start">
+                    <SettingRow
+                        titlePrefix={
                             <Image
                                 src={GOOGLE_LOGO}
-                                w={28}
-                                h={28}
-                                mt={2}
+                                w={20}
+                                h={20}
                                 alt="Google logo"
                             />
-                            <Stack gap={2}>
-                                <Title order={5}>Google</Title>
-                                <Text c="dimmed" size="sm" maw={460}>
-                                    Single sign-on with Google using Lightdash's
-                                    shared Google app — no credentials required.
-                                    Users whose email matches the discovery
-                                    whitelist see a "Sign in with Google"
-                                    button.
-                                </Text>
-                            </Stack>
-                        </Group>
-                        {isConfigured ? (
-                            <Switch
-                                label="Enabled"
-                                labelPosition="left"
-                                checked={form.values.enabled}
-                                disabled={upsert.isLoading}
-                                onChange={(event) =>
-                                    handleToggleEnabled(
-                                        event.currentTarget.checked,
+                        }
+                        title="Google"
+                        description={
+                            'Uses the shared Google app, so no credentials are needed. Users matching the discovery whitelist see a "Sign in with Google" button.'
+                        }
+                        control={
+                            <Group gap="sm" wrap="nowrap">
+                                {isConfigured ? (
+                                    <Switch
+                                        label="Enabled"
+                                        labelPosition="left"
+                                        checked={form.values.enabled}
+                                        disabled={upsert.isLoading}
+                                        onChange={(event) =>
+                                            handleToggleEnabled(
+                                                event.currentTarget.checked,
+                                            )
+                                        }
+                                    />
+                                ) : (
+                                    <Badge variant="outline" size="sm">
+                                        Using defaults
+                                    </Badge>
+                                )}
+                                {isConfigured ? (
+                                    <Button
+                                        size="xs"
+                                        variant="default"
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={
+                                                    isOpen
+                                                        ? IconChevronUp
+                                                        : IconChevronDown
+                                                }
+                                            />
+                                        }
+                                        onClick={() => toggleOpen()}
+                                    >
+                                        {isOpen
+                                            ? 'Hide configuration'
+                                            : 'Edit configuration'}
+                                    </Button>
+                                ) : (
+                                    !isOpen && (
+                                        <Button
+                                            size="xs"
+                                            variant="default"
+                                            onClick={() => toggleOpen()}
+                                        >
+                                            Set up Google
+                                        </Button>
                                     )
-                                }
-                            />
-                        ) : (
-                            <Badge variant="outline" size="lg">
-                                Using defaults
-                            </Badge>
-                        )}
-                    </Group>
+                                )}
+                            </Group>
+                        }
+                    />
 
                     {!isConfigured && googleEnabledInstanceWide && (
                         <Callout
@@ -193,81 +216,62 @@ const GoogleSsoPanel: FC = () => {
                         </Callout>
                     )}
 
-                    {isConfigured ? (
-                        <Button
-                            variant="default"
-                            w="fit-content"
-                            leftSection={
-                                <MantineIcon
-                                    icon={
-                                        isOpen ? IconChevronUp : IconChevronDown
-                                    }
-                                />
-                            }
-                            onClick={() => toggleOpen()}
-                        >
-                            {isOpen
-                                ? 'Hide configuration'
-                                : 'Edit configuration'}
-                        </Button>
-                    ) : (
-                        !isOpen && (
-                            <Button
-                                variant="default"
-                                w="fit-content"
-                                onClick={() => toggleOpen()}
-                            >
-                                Set up Google
-                            </Button>
-                        )
-                    )}
-
                     <FormSection isOpen={isOpen} name="google-configuration">
                         <Stack gap="md">
                             <Divider />
                             <form onSubmit={handleSubmit}>
-                                <Stack>
-                                    <Title order={6}>Discovery</Title>
-                                    <SsoMethodDomainsField
-                                        providerLabel="Google"
-                                        override={
-                                            form.values.overrideEmailDomains
+                                <Stack gap="xl">
+                                    <Stack gap="sm">
+                                        <Text fw={600} fz="sm">
+                                            Discovery
+                                        </Text>
+                                        <SsoMethodDomainsField
+                                            providerLabel="Google"
+                                            override={
+                                                form.values.overrideEmailDomains
+                                            }
+                                            onOverrideChange={(value) =>
+                                                form.setFieldValue(
+                                                    'overrideEmailDomains',
+                                                    value,
+                                                )
+                                            }
+                                            domains={form.values.emailDomains}
+                                            onDomainsChange={(domains) =>
+                                                form.setFieldValue(
+                                                    'emailDomains',
+                                                    domains,
+                                                )
+                                            }
+                                            error={form.errors.emailDomains}
+                                        />
+                                    </Stack>
+                                    <Stack gap="sm">
+                                        <Text fw={600} fz="sm">
+                                            Password sign-in
+                                        </Text>
+                                        <Checkbox
+                                            label="Allow password sign-in for users matching this method"
+                                            description="When unchecked, matching users don't see the password input, unless another matching method allows it."
+                                            checked={form.values.allowPassword}
+                                            onChange={(event) =>
+                                                form.setFieldValue(
+                                                    'allowPassword',
+                                                    event.currentTarget.checked,
+                                                )
+                                            }
+                                        />
+                                    </Stack>
+                                    <Group
+                                        justify={
+                                            existing
+                                                ? 'space-between'
+                                                : 'flex-end'
                                         }
-                                        onOverrideChange={(value) =>
-                                            form.setFieldValue(
-                                                'overrideEmailDomains',
-                                                value,
-                                            )
-                                        }
-                                        domains={form.values.emailDomains}
-                                        onDomainsChange={(domains) =>
-                                            form.setFieldValue(
-                                                'emailDomains',
-                                                domains,
-                                            )
-                                        }
-                                        error={form.errors.emailDomains}
-                                    />
-
-                                    <Title order={6} mt="md">
-                                        Password sign-in
-                                    </Title>
-                                    <Checkbox
-                                        label="Allow password sign-in for users matching this method"
-                                        description="When unchecked, users whose email domain matches will not see the password input. Lenient rule: if any matching method allows password, it is shown."
-                                        checked={form.values.allowPassword}
-                                        onChange={(event) =>
-                                            form.setFieldValue(
-                                                'allowPassword',
-                                                event.currentTarget.checked,
-                                            )
-                                        }
-                                    />
-
-                                    <Group justify="space-between" mt="md">
-                                        {existing ? (
+                                    >
+                                        {existing && (
                                             <Button
-                                                variant="outline"
+                                                variant="subtle"
                                                 color="red"
                                                 leftSection={
                                                     <MantineIcon
@@ -280,8 +284,6 @@ const GoogleSsoPanel: FC = () => {
                                             >
                                                 Remove configuration
                                             </Button>
-                                        ) : (
-                                            <div />
                                         )}
                                         <Button
                                             type="submit"

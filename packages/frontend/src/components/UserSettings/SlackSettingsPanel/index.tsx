@@ -3,31 +3,21 @@ import {
     type SlackAppCustomSettings,
 } from '@lightdash/common';
 import {
-    ActionIcon,
     Anchor,
     Avatar,
-    Badge,
     Box,
     Button,
-    Flex,
+    Divider,
     Group,
-    Loader,
     Stack,
     Switch,
     Text,
     TextInput,
-    Title,
-    Tooltip,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import {
-    IconDeviceFloppy,
-    IconHelpCircle,
-    IconRefresh,
-    IconTrash,
-} from '@tabler/icons-react';
+import { IconDeviceFloppy, IconRefresh, IconTrash } from '@tabler/icons-react';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
-import { useEffect, useMemo, type FC } from 'react';
+import { useEffect, useMemo, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { z } from 'zod';
 import { useAiAgentAdminAgents } from '../../../ee/features/aiCopilot/hooks/useAiAgentAdmin';
@@ -43,14 +33,67 @@ import {
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import slackSvg from '../../../svgs/slack.svg';
 import Callout from '../../common/Callout';
+import EmptyStateLoader from '../../common/EmptyStateLoader';
 import { default as MantineIcon } from '../../common/MantineIcon';
-import { SettingsGridCard } from '../../common/Settings/SettingsCard';
+import {
+    SettingRow,
+    SettingsSection,
+} from '../../common/Settings/SettingLayout';
+import { SettingsCard } from '../../common/Settings/SettingsCard';
 import { SlackChannelSelect } from '../../common/SlackChannelSelect';
 import { ProjectSelect } from './ProjectSelect';
 import { SlackMissingScopesAlert } from './SlackMissingScopesAlert';
-import { SlackSettingRow } from './SlackSettingRow';
 
 const SLACK_INSTALL_URL = `/api/v1/slack/install/`;
+
+const SLACK_DOCS_URL =
+    'https://docs.lightdash.com/references/slack-integration';
+
+const SwitchRow: FC<{
+    title: string;
+    description: string;
+    checked: boolean;
+    disabled?: boolean;
+    onChange: (checked: boolean) => void;
+    children?: ReactNode;
+}> = ({
+    title,
+    description,
+    checked,
+    disabled = false,
+    onChange,
+    children,
+}) => (
+    <SettingRow
+        title={title}
+        description={description}
+        control={
+            <Switch
+                aria-label={title}
+                size="md"
+                checked={checked}
+                disabled={disabled}
+                onChange={(event) => onChange(event.currentTarget.checked)}
+            />
+        }
+    >
+        {children}
+    </SettingRow>
+);
+
+const SlackSection: FC<{ children: ReactNode }> = ({ children }) => (
+    <SettingsSection
+        label="Slack"
+        description="Unfurl links and schedule deliveries to people or channels in your Slack workspace."
+        titleAddon={
+            <Anchor href={SLACK_DOCS_URL} fz="xs">
+                View docs
+            </Anchor>
+        }
+    >
+        {children}
+    </SettingsSection>
+);
 
 type SlackSettingsFormValues = SlackAppCustomSettings & {
     requireExplicitSlackChannelLinking: boolean;
@@ -186,7 +229,13 @@ const SlackSettingsPanel: FC = () => {
         aiOrganizationSettingsQuery.isInitialLoading ||
         (organizationHasSlack && !form.initialized)
     ) {
-        return <Loader />;
+        return (
+            <SlackSection>
+                <SettingsCard>
+                    <EmptyStateLoader mih={60} />
+                </SettingsCard>
+            </SlackSection>
+        );
     }
 
     const handleSubmit = onSubmit((args) => {
@@ -208,221 +257,224 @@ const SlackSettingsPanel: FC = () => {
         }
     });
 
-    return (
-        <SettingsGridCard>
-            <Stack gap="sm">
-                <Box>
-                    <Group gap="sm">
-                        <Avatar src={slackSvg} size="md" />
-                        <Title order={5}>Slack</Title>
-                    </Group>
-                </Box>
-            </Stack>
-
-            <Stack>
-                <Stack gap="sm">
-                    {organizationHasSlack && (
-                        <Group gap="xs">
-                            <Text fw={500}>Added to the Slack workspace: </Text>{' '}
-                            <Badge
-                                radius="xs"
-                                size="lg"
-                                color="green"
-                                w="fit-content"
+    if (!organizationHasSlack) {
+        return (
+            <SlackSection>
+                <SettingsCard>
+                    <SettingRow
+                        titlePrefix={<Avatar src={slackSvg} size="sm" alt="" />}
+                        title="Not connected"
+                        description="Add the app to your Slack workspace to get started."
+                        control={
+                            <Button
+                                size="xs"
+                                component="a"
+                                target="_blank"
+                                href={SLACK_INSTALL_URL}
                             >
-                                <Text span fw={500}>
-                                    {slackInstallation.slackTeamName}
-                                </Text>
-                            </Badge>
-                        </Group>
-                    )}
+                                Add to Slack
+                            </Button>
+                        }
+                    />
+                </SettingsCard>
+            </SlackSection>
+        );
+    }
 
-                    <Text c="dimmed" fz="xs">
-                        Sharing in Slack allows you to unfurl Lightdash URLs and
-                        schedule deliveries to specific people or channels
-                        within your Slack workspace.{' '}
-                        <Anchor href="https://docs.lightdash.com/references/slack-integration">
-                            View docs
-                        </Anchor>
-                    </Text>
-                </Stack>
-
-                {organizationHasSlack ? (
-                    <form onSubmit={handleSubmit}>
-                        <Stack gap="sm">
-                            <SlackChannelSelect
-                                label={
-                                    <Group gap="two" mb={2}>
-                                        <Text>
-                                            Select a notification channel
-                                        </Text>
-                                        <Tooltip
-                                            maw={250}
-                                            label="Choose a channel where to send notifications to every time a scheduled delivery fails. You have to add this Slack App to this channel to enable notifications"
-                                        >
-                                            <MantineIcon
-                                                icon={IconHelpCircle}
-                                            />
-                                        </Tooltip>
-                                    </Group>
-                                }
-                                value={form.values.notificationChannel}
-                                onChange={(value) => {
-                                    setFieldValue(
-                                        'notificationChannel',
-                                        value ?? null,
-                                    );
-                                }}
-                                placeholder="Select a channel"
-                            />
-                            <Title order={6} fw={500}>
-                                Slack bot avatar
-                            </Title>
-                            <Group gap="sm">
-                                <Avatar
-                                    size="lg"
-                                    src={form.values?.appProfilePhotoUrl}
-                                    radius="md"
-                                    bg="ldGray.1"
-                                />
-                                <TextInput
-                                    flex={1}
-                                    label="Profile photo URL"
-                                    size="xs"
-                                    placeholder="https://lightdash.cloud/photo.jpg"
-                                    type="url"
-                                    disabled={!organizationHasSlack}
-                                    {...form.getInputProps(
-                                        'appProfilePhotoUrl',
-                                    )}
-                                    value={
-                                        form.values.appProfilePhotoUrl ??
-                                        undefined
-                                    }
-                                />
-                            </Group>
-                            <Stack gap="sm" mt="sm">
-                                <Title order={5}>Configuration</Title>
-                                <Stack gap={0}>
-                                    <SlackSettingRow
-                                        title="Link previews"
-                                        description="Post chart and dashboard previews when Lightdash links are shared. Previews run as the user who installed the app."
-                                        checked={
-                                            form.values.unfurlsEnabled ?? true
+    return (
+        <form onSubmit={handleSubmit}>
+            <SlackSection>
+                <SettingsCard>
+                    <Stack gap="md">
+                        <SettingRow
+                            titlePrefix={
+                                <Avatar src={slackSvg} size="sm" alt="" />
+                            }
+                            title={slackInstallation.slackTeamName}
+                            description="Connected Slack workspace."
+                            control={
+                                <Group gap="xs">
+                                    <Button
+                                        size="xs"
+                                        component="a"
+                                        target="_blank"
+                                        variant="default"
+                                        href={SLACK_INSTALL_URL}
+                                        leftSection={
+                                            <MantineIcon icon={IconRefresh} />
                                         }
-                                        onChange={(checked) =>
+                                    >
+                                        Reinstall
+                                    </Button>
+                                    <Button
+                                        size="xs"
+                                        variant="subtle"
+                                        color="red"
+                                        leftSection={
+                                            <MantineIcon icon={IconTrash} />
+                                        }
+                                        onClick={() => deleteSlack(undefined)}
+                                    >
+                                        Disconnect
+                                    </Button>
+                                </Group>
+                            }
+                        />
+                        <SlackMissingScopesAlert
+                            features={slackInstallation.features}
+                        />
+                        <Divider />
+                        <SettingRow
+                            title="Failure notifications"
+                            description="Channel that gets a message every time a scheduled delivery fails. Add the Slack app to this channel to receive them."
+                            control={
+                                <Box w={{ base: '100%', sm: 260 }}>
+                                    <SlackChannelSelect
+                                        value={form.values.notificationChannel}
+                                        onChange={(value) => {
                                             setFieldValue(
-                                                'unfurlsEnabled',
-                                                checked,
-                                            )
+                                                'notificationChannel',
+                                                value ?? null,
+                                            );
+                                        }}
+                                        placeholder="Select a channel"
+                                    />
+                                </Box>
+                            }
+                        />
+                        <Divider />
+                        <SettingRow
+                            title="Bot avatar"
+                            description="Profile photo shown on messages the Slack app posts."
+                            control={
+                                <Group
+                                    gap="sm"
+                                    wrap="nowrap"
+                                    w={{ base: '100%', sm: 260 }}
+                                >
+                                    <Avatar
+                                        size="md"
+                                        src={form.values?.appProfilePhotoUrl}
+                                        radius="md"
+                                        bg="ldGray.1"
+                                    />
+                                    <TextInput
+                                        flex={1}
+                                        aria-label="Profile photo URL"
+                                        size="xs"
+                                        placeholder="https://lightdash.cloud/photo.jpg"
+                                        type="url"
+                                        disabled={!organizationHasSlack}
+                                        {...form.getInputProps(
+                                            'appProfilePhotoUrl',
+                                        )}
+                                        value={
+                                            form.values.appProfilePhotoUrl ??
+                                            undefined
                                         }
                                     />
-                                    {isAiCopilotEnabledOrTrial && (
-                                        <>
-                                            <SlackSettingRow
-                                                title="AI Agents in Slack"
-                                                description="Let people talk to AI Agents from Slack."
-                                                checked={
-                                                    form.values
-                                                        .aiAgentsEnabled ?? true
-                                                }
-                                                onChange={(checked) =>
-                                                    setFieldValue(
-                                                        'aiAgentsEnabled',
-                                                        checked,
-                                                    )
-                                                }
-                                            />
-                                            <SlackSettingRow
-                                                title="AI Agents thread access consent"
-                                                description="Let agents read earlier messages in a thread when the bot is mentioned there."
-                                                disabled={aiAgentsDisabled}
-                                                checked={
-                                                    form.values
-                                                        .aiThreadAccessConsent ??
-                                                    false
-                                                }
-                                                onChange={(checked) =>
-                                                    setFieldValue(
-                                                        'aiThreadAccessConsent',
-                                                        checked,
-                                                    )
-                                                }
-                                            />
-                                            <SlackSettingRow
-                                                title="AI Agents OAuth requirement"
-                                                description="People must sign in with OAuth first, so requests run with their own permissions."
-                                                disabled={aiAgentsDisabled}
-                                                checked={
-                                                    form.values
-                                                        .aiRequireOAuth ?? false
-                                                }
-                                                onChange={(checked) =>
-                                                    setFieldValue(
-                                                        'aiRequireOAuth',
-                                                        checked,
-                                                    )
-                                                }
-                                            />
-                                            <SlackSettingRow
-                                                title="Links only, no data in Slack"
-                                                description="Never post query results into Slack. People open results in Lightdash."
-                                                disabled={aiAgentsDisabled}
-                                                checked={
-                                                    form.values.aiLinksOnly ??
-                                                    false
-                                                }
-                                                onChange={(checked) =>
-                                                    setFieldValue(
-                                                        'aiLinksOnly',
-                                                        checked,
-                                                    )
-                                                }
-                                            />
-                                            <SlackSettingRow
-                                                title="Automatic channel linking"
-                                                description="Mentioning the bot in a new channel links an agent to it."
-                                                disabled={
-                                                    aiAgentsDisabled ||
-                                                    isUpdatingAiOrganizationSettings
-                                                }
-                                                checked={
-                                                    !form.values
-                                                        .requireExplicitSlackChannelLinking
-                                                }
-                                                onChange={(checked) =>
-                                                    setFieldValue(
-                                                        'requireExplicitSlackChannelLinking',
-                                                        !checked,
-                                                    )
-                                                }
-                                            />
-                                        </>
-                                    )}
-                                </Stack>
+                                </Group>
+                            }
+                        />
+                    </Stack>
+                </SettingsCard>
 
-                                {isAiCopilotEnabledOrTrial && (
-                                    <Stack gap="xs">
-                                        <Group gap="xs">
-                                            <Title order={6} fw={500}>
-                                                Multi-agent channel
-                                            </Title>
+                <SettingsCard>
+                    <Stack gap="md">
+                        <SwitchRow
+                            title="Link previews"
+                            description="Post chart and dashboard previews when links are shared. Previews run as the user who installed the app."
+                            checked={form.values.unfurlsEnabled ?? true}
+                            onChange={(checked) =>
+                                setFieldValue('unfurlsEnabled', checked)
+                            }
+                        />
+                        {isAiCopilotEnabledOrTrial && (
+                            <>
+                                <Divider />
+                                <SwitchRow
+                                    title="AI Agents in Slack"
+                                    description="Let people talk to AI Agents from Slack."
+                                    checked={
+                                        form.values.aiAgentsEnabled ?? true
+                                    }
+                                    onChange={(checked) =>
+                                        setFieldValue(
+                                            'aiAgentsEnabled',
+                                            checked,
+                                        )
+                                    }
+                                />
+                                <Divider />
+                                <SwitchRow
+                                    title="AI Agents thread access consent"
+                                    description="Let agents read earlier messages in a thread when the bot is mentioned there."
+                                    disabled={aiAgentsDisabled}
+                                    checked={
+                                        form.values.aiThreadAccessConsent ??
+                                        false
+                                    }
+                                    onChange={(checked) =>
+                                        setFieldValue(
+                                            'aiThreadAccessConsent',
+                                            checked,
+                                        )
+                                    }
+                                />
+                                <Divider />
+                                <SwitchRow
+                                    title="AI Agents OAuth requirement"
+                                    description="People must sign in with OAuth first, so requests run with their own permissions."
+                                    disabled={aiAgentsDisabled}
+                                    checked={
+                                        form.values.aiRequireOAuth ?? false
+                                    }
+                                    onChange={(checked) =>
+                                        setFieldValue('aiRequireOAuth', checked)
+                                    }
+                                />
+                                <Divider />
+                                <SwitchRow
+                                    title="Links only, no data in Slack"
+                                    description="Never post query results into Slack. People open results in the app instead."
+                                    disabled={aiAgentsDisabled}
+                                    checked={form.values.aiLinksOnly ?? false}
+                                    onChange={(checked) =>
+                                        setFieldValue('aiLinksOnly', checked)
+                                    }
+                                />
+                                <Divider />
+                                <SwitchRow
+                                    title="Automatic channel linking"
+                                    description="Mentioning the bot in a new channel links an agent to it."
+                                    disabled={
+                                        aiAgentsDisabled ||
+                                        isUpdatingAiOrganizationSettings
+                                    }
+                                    checked={
+                                        !form.values
+                                            .requireExplicitSlackChannelLinking
+                                    }
+                                    onChange={(checked) =>
+                                        setFieldValue(
+                                            'requireExplicitSlackChannelLinking',
+                                            !checked,
+                                        )
+                                    }
+                                />
+                            </>
+                        )}
+                    </Stack>
+                </SettingsCard>
 
-                                            <Tooltip
-                                                maw={250}
-                                                label="Select a channel where users can interact with any AI agent (excluding from preview projects). When users start a thread in this channel, they'll see a dropdown to select which agent to use."
-                                            >
-                                                <MantineIcon
-                                                    icon={IconHelpCircle}
-                                                />
-                                            </Tooltip>
-                                        </Group>
-
-                                        <Text c="dimmed" fz="xs">
-                                            Lightdash picks the best agent
-                                            automatically.
-                                        </Text>
-
+                {isAiCopilotEnabledOrTrial && (
+                    <SettingsCard>
+                        <Stack gap="md">
+                            <SettingRow
+                                title="Multi-agent channel"
+                                description="A channel where people can talk to any AI agent outside preview projects. Each new thread shows a picker to choose the agent."
+                                control={
+                                    <Box w={{ base: '100%', sm: 260 }}>
                                         <SlackChannelSelect
                                             includeGroups
                                             disabled={aiAgentsDisabled}
@@ -439,169 +491,119 @@ const SlackSettingsPanel: FC = () => {
                                             }}
                                             placeholder="Select a channel (optional)"
                                         />
+                                    </Box>
+                                }
+                            />
 
-                                        {conflictingAgents.length > 0 && (
-                                            <Callout
-                                                variant="warning"
-                                                title="Channel already in use by an AI agent"
+                            {conflictingAgents.length > 0 && (
+                                <Callout
+                                    variant="warning"
+                                    title="Channel already in use by an AI agent"
+                                >
+                                    <Text fz="xs">
+                                        Setting this as the multi-agent channel
+                                        will override the channel configuration
+                                        on the following{' '}
+                                        {conflictingAgents.length > 1
+                                            ? 'agents'
+                                            : 'agent'}
+                                        :
+                                    </Text>
+                                    <Stack gap="xxs" mt="xs">
+                                        {conflictingAgents.map((agent) => (
+                                            <Anchor
+                                                key={agent.uuid}
+                                                component={Link}
+                                                to={`/projects/${agent.projectUuid}/ai-agents/${agent.uuid}/edit`}
+                                                fz="xs"
                                             >
-                                                <Text fz="xs">
-                                                    Setting this as the
-                                                    multi-agent channel will
-                                                    override the channel
-                                                    configuration on the
-                                                    following{' '}
-                                                    {conflictingAgents.length >
-                                                    1
-                                                        ? 'agents'
-                                                        : 'agent'}
-                                                    :
-                                                </Text>
-                                                <Stack gap={2} mt="xs">
-                                                    {conflictingAgents.map(
-                                                        (agent) => (
-                                                            <Anchor
-                                                                key={agent.uuid}
-                                                                component={Link}
-                                                                to={`/projects/${agent.projectUuid}/ai-agents/${agent.uuid}/edit`}
-                                                                fz="xs"
-                                                            >
-                                                                {agent.name}
-                                                            </Anchor>
-                                                        ),
-                                                    )}
-                                                </Stack>
-                                            </Callout>
-                                        )}
+                                                {agent.name}
+                                            </Anchor>
+                                        ))}
+                                    </Stack>
+                                </Callout>
+                            )}
 
-                                        {form.values.aiMultiAgentChannelId && (
-                                            <Stack gap="xs">
-                                                <Switch
-                                                    label="Only respond when mentioned"
-                                                    description="New messages in this channel are ignored unless they @mention the Lightdash app."
+                            {form.values.aiMultiAgentChannelId && (
+                                <>
+                                    <Divider />
+                                    <SwitchRow
+                                        title="Only respond when mentioned"
+                                        description="New messages in this channel are ignored unless they @mention the Slack app."
+                                        disabled={aiAgentsDisabled}
+                                        checked={
+                                            form.values
+                                                .aiMultiAgentRequireMention ??
+                                            false
+                                        }
+                                        onChange={(checked) =>
+                                            setFieldValue(
+                                                'aiMultiAgentRequireMention',
+                                                checked,
+                                            )
+                                        }
+                                    />
+                                    <Divider />
+                                    <SwitchRow
+                                        title="Allow all project agents to appear"
+                                        description="Turn off to choose which projects' agents appear in the picker."
+                                        disabled={aiAgentsDisabled}
+                                        checked={
+                                            form.values
+                                                .aiMultiAgentProjectUuids ===
+                                            null
+                                        }
+                                        onChange={(checked) =>
+                                            setFieldValue(
+                                                'aiMultiAgentProjectUuids',
+                                                checked ? null : [],
+                                            )
+                                        }
+                                    >
+                                        {form.values
+                                            .aiMultiAgentProjectUuids !==
+                                            null && (
+                                            <Box mt="sm">
+                                                <ProjectSelect
                                                     disabled={aiAgentsDisabled}
-                                                    checked={
+                                                    value={
                                                         form.values
-                                                            .aiMultiAgentRequireMention ??
-                                                        false
+                                                            .aiMultiAgentProjectUuids ??
+                                                        []
                                                     }
-                                                    onChange={(event) =>
-                                                        setFieldValue(
-                                                            'aiMultiAgentRequireMention',
-                                                            event.currentTarget
-                                                                .checked,
-                                                        )
-                                                    }
-                                                />
-                                                <Switch
-                                                    label="Allow all project agents to appear"
-                                                    disabled={aiAgentsDisabled}
-                                                    checked={
-                                                        form.values
-                                                            .aiMultiAgentProjectUuids ===
-                                                        null
-                                                    }
-                                                    onChange={(event) => {
+                                                    onChange={(value) => {
                                                         setFieldValue(
                                                             'aiMultiAgentProjectUuids',
-                                                            event.currentTarget
-                                                                .checked
-                                                                ? null
+                                                            value.length > 0
+                                                                ? value
                                                                 : [],
                                                         );
                                                     }}
                                                 />
-
-                                                {form.values
-                                                    .aiMultiAgentProjectUuids !==
-                                                    null && (
-                                                    <ProjectSelect
-                                                        disabled={
-                                                            aiAgentsDisabled
-                                                        }
-                                                        value={
-                                                            form.values
-                                                                .aiMultiAgentProjectUuids ??
-                                                            []
-                                                        }
-                                                        onChange={(value) => {
-                                                            setFieldValue(
-                                                                'aiMultiAgentProjectUuids',
-                                                                value.length > 0
-                                                                    ? value
-                                                                    : [],
-                                                            );
-                                                        }}
-                                                    />
-                                                )}
-                                            </Stack>
+                                            </Box>
                                         )}
-                                    </Stack>
-                                )}
-                            </Stack>
-                        </Stack>
-                        <Stack align="end" mt="xl">
-                            <Group gap="sm">
-                                <Group gap="xs">
-                                    <ActionIcon
-                                        variant="default"
-                                        size="md"
-                                        onClick={() => deleteSlack(undefined)}
-                                    >
-                                        <MantineIcon
-                                            icon={IconTrash}
-                                            color="red"
-                                        />
-                                    </ActionIcon>
-                                    <Button
-                                        size="xs"
-                                        component="a"
-                                        target="_blank"
-                                        variant="default"
-                                        href={SLACK_INSTALL_URL}
-                                        leftSection={
-                                            <MantineIcon icon={IconRefresh} />
-                                        }
-                                    >
-                                        Reinstall
-                                    </Button>
-                                </Group>
-                                <Button
-                                    size="xs"
-                                    type="submit"
-                                    loading={
-                                        isUpdatingSlackSettings ||
-                                        isUpdatingAiOrganizationSettings
-                                    }
-                                    leftSection={
-                                        <MantineIcon icon={IconDeviceFloppy} />
-                                    }
-                                >
-                                    Save
-                                </Button>
-                            </Group>
-
-                            {organizationHasSlack && (
-                                <SlackMissingScopesAlert
-                                    features={slackInstallation.features}
-                                />
+                                    </SwitchRow>
+                                </>
                             )}
                         </Stack>
-                    </form>
-                ) : (
-                    <Flex justify="end">
-                        <Button
-                            size="xs"
-                            component="a"
-                            target="_blank"
-                            href={SLACK_INSTALL_URL}
-                        >
-                            Add to Slack
-                        </Button>
-                    </Flex>
+                    </SettingsCard>
                 )}
-            </Stack>
-        </SettingsGridCard>
+
+                <Group justify="flex-end">
+                    <Button
+                        size="xs"
+                        type="submit"
+                        loading={
+                            isUpdatingSlackSettings ||
+                            isUpdatingAiOrganizationSettings
+                        }
+                        leftSection={<MantineIcon icon={IconDeviceFloppy} />}
+                    >
+                        Save
+                    </Button>
+                </Group>
+            </SlackSection>
+        </form>
     );
 };
 

@@ -1,4 +1,4 @@
-import { Button, Group, Stack, Text, Tooltip } from '@mantine/core';
+import { Button, Group, Text } from '@mantine/core';
 import { IconArrowRight } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
@@ -20,29 +20,21 @@ const SsoMissingDomainsWarning: FC<Props> = ({ providerLabel }) => {
     return (
         <Callout variant="warning" title={`${providerLabel} is not active yet`}>
             <Group justify="space-between" align="center" gap="md">
-                <Stack gap={2}>
-                    <Text size="sm">
-                        Users cannot sign in with {providerLabel} until this
-                        organization has a verified email domain.
-                    </Text>
-                    <Text size="xs" c="dimmed">
-                        Verify a domain first, then users with matching email
-                        addresses can be routed to this provider.
-                    </Text>
-                </Stack>
-                <Tooltip
-                    label="SSO routing is based on verified email domains."
-                    maw={260}
+                <Text fz="sm">
+                    Users cannot sign in with {providerLabel} until this
+                    organization has a verified email domain. Verify a domain
+                    first, then users with matching email addresses can be
+                    routed to this provider.
+                </Text>
+                <Button
+                    component={Link}
+                    to="/generalSettings/verifiedDomains"
+                    variant="default"
+                    size="xs"
+                    rightSection={<MantineIcon icon={IconArrowRight} />}
                 >
-                    <Button
-                        component={Link}
-                        to="/generalSettings/verifiedDomains"
-                        variant="default"
-                        rightSection={<MantineIcon icon={IconArrowRight} />}
-                    >
-                        Add verified domain
-                    </Button>
-                </Tooltip>
+                    Add verified domain
+                </Button>
             </Group>
         </Callout>
     );

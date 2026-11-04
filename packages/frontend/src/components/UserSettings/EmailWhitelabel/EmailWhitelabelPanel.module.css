@@ -1,3 +1,8 @@
 .recordValue {
     word-break: break-all;
 }
+
+.measure {
+    max-width: 40rem;
+    text-wrap: pretty;
+}

@@ -5,6 +5,7 @@ import {
 import {
     Badge,
     Button,
+    Divider,
     Group,
     Stack,
     Switch,
@@ -26,6 +27,10 @@ import {
 import { CopyActionIcon } from '../../common/CopyActionIcon';
 import EmptyStateLoader from '../../common/EmptyStateLoader';
 import MantineIcon from '../../common/MantineIcon';
+import {
+    SettingRow,
+    SettingsSection,
+} from '../../common/Settings/SettingLayout';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
 import { SettingsPage } from '../../common/Settings/SettingsPage';
 import classes from './EmailWhitelabelPanel.module.css';
@@ -54,7 +59,7 @@ const toZoneRelativeName = (recordName: string, sendingDomain: string) => {
 
 const CopyValue: FC<{ value: string }> = ({ value }) => (
     <Group gap="xs" wrap="nowrap">
-        <Text size="xs" ff="monospace" className={classes.recordValue} flex={1}>
+        <Text fz="xs" ff="monospace" className={classes.recordValue} flex={1}>
             {value}
         </Text>
         <CopyActionIcon value={value} />
@@ -78,10 +83,10 @@ const DnsRecordsTable: FC<{ records: EmailDnsRecord[]; domain: string }> = ({
             {records.map((record) => (
                 <Table.Tr key={`${record.purpose}-${record.name}`}>
                     <Table.Td>
-                        <Text size="xs" fw={500}>
+                        <Text fz="xs" fw={500}>
                             {record.type}
                         </Text>
-                        <Text size="xs" c="dimmed">
+                        <Text fz="xs" c="dimmed">
                             {record.purpose === 'dkim' ? 'DKIM' : 'Return-Path'}
                         </Text>
                     </Table.Td>
@@ -160,7 +165,7 @@ const SetupForm: FC = () => {
                     {...form.getInputProps('fromName')}
                 />
                 <Group justify="flex-end">
-                    <Button type="submit" loading={setup.isLoading}>
+                    <Button size="xs" type="submit" loading={setup.isLoading}>
                         Set up domain
                     </Button>
                 </Group>
@@ -179,77 +184,87 @@ const ConfiguredView: FC<{ config: OrganizationEmailWhitelabel }> = ({
 
     return (
         <Stack gap="md">
-            <Group justify="space-between" align="center">
-                <Group gap="sm">
-                    <Text fw={500}>{config.domain}</Text>
+            <SettingRow
+                title={config.domain}
+                titleAddon={
                     <Badge color={badge.color} size="sm">
                         {badge.label}
                     </Badge>
-                </Group>
-                <Switch
-                    label="Send from this domain"
-                    checked={config.isEnabled}
-                    disabled={!config.isVerified || update.isLoading}
-                    onChange={(event) =>
-                        update.mutate({
-                            isEnabled: event.currentTarget.checked,
-                        })
-                    }
-                />
-            </Group>
-
-            <Text size="sm" c="dimmed">
-                Report emails will send from{' '}
-                <Text span fw={500}>
-                    {config.fromEmail}
-                </Text>
-                . Add the DNS records below at your DNS provider, then verify.
-                Both records must verify before you can enable sending.
-            </Text>
-
-            <Stack gap="xs">
-                <DnsRecordsTable
-                    records={config.dnsRecords}
-                    domain={config.domain}
-                />
-
-                <Tooltip
-                    label="Cloudflare proxies CNAME records by default, which breaks verification. Edit the Return-Path record in Cloudflare and switch the proxy status (orange cloud) to “DNS Only” — it will never verify while proxied."
-                    w={320}
-                >
-                    <Group gap={4} w="fit-content">
-                        <MantineIcon
-                            icon={IconInfoCircle}
-                            size="sm"
-                            color="dimmed"
-                        />
-                        <Text size="xs" c="dimmed">
-                            Using Cloudflare? Set the Return-Path record to DNS
-                            Only.
+                }
+                description={
+                    <>
+                        Report emails send from{' '}
+                        <Text span inherit fw={500}>
+                            {config.fromEmail}
                         </Text>
-                    </Group>
-                </Tooltip>
-            </Stack>
+                        .
+                    </>
+                }
+                control={
+                    <Switch
+                        label="Send from this domain"
+                        labelPosition="left"
+                        checked={config.isEnabled}
+                        disabled={!config.isVerified || update.isLoading}
+                        onChange={(event) =>
+                            update.mutate({
+                                isEnabled: event.currentTarget.checked,
+                            })
+                        }
+                    />
+                }
+            />
 
-            <Group justify="space-between">
-                <Button
-                    variant="subtle"
-                    color="red"
-                    size="compact-sm"
-                    leftSection={<MantineIcon icon={IconTrash} />}
-                    loading={remove.isLoading}
-                    onClick={() => remove.mutate()}
-                >
-                    Remove domain
-                </Button>
-                <Button
-                    loading={verify.isLoading}
-                    disabled={config.isVerified}
-                    onClick={() => verify.mutate()}
-                >
-                    {config.isVerified ? 'Verified' : 'Verify DNS records'}
-                </Button>
+            <Divider />
+
+            <SettingRow
+                title="DNS records"
+                description="Add these records at your DNS provider, then verify. Both records must verify before you can enable sending."
+                control={
+                    <Button
+                        size="xs"
+                        loading={verify.isLoading}
+                        disabled={config.isVerified}
+                        onClick={() => verify.mutate()}
+                    >
+                        {config.isVerified ? 'Verified' : 'Verify DNS records'}
+                    </Button>
+                }
+            />
+
+            <DnsRecordsTable
+                records={config.dnsRecords}
+                domain={config.domain}
+            />
+
+            <Group gap="xs" wrap="nowrap" align="flex-start">
+                <MantineIcon icon={IconInfoCircle} size="sm" color="dimmed" />
+                <Text fz="xs" c="dimmed" className={classes.measure}>
+                    Using Cloudflare? It proxies CNAME records by default, which
+                    breaks verification. Set the Return-Path record&apos;s proxy
+                    status (orange cloud) to “DNS Only”; it will never verify
+                    while proxied.
+                </Text>
             </Group>
+
+            <Divider />
+
+            <SettingRow
+                title="Remove domain"
+                description="Delete this sending domain. Report emails go back to the default sender."
+                control={
+                    <Button
+                        variant="subtle"
+                        color="red"
+                        size="xs"
+                        leftSection={<MantineIcon icon={IconTrash} />}
+                        loading={remove.isLoading}
+                        onClick={() => remove.mutate()}
+                    >
+                        Remove domain
+                    </Button>
+                }
+            />
         </Stack>
     );
 };
@@ -260,23 +275,26 @@ const EmailWhitelabelPanel: FC = () => {
     return (
         <SettingsPage
             title="Email sending domain"
-            description="Send report emails from your own domain instead of a Lightdash address."
+            description="Send report emails from your own domain. Until it is verified and enabled, emails send from the default address with your address as reply-to."
         >
-            <SettingsCard>
-                <Stack gap="md">
-                    <Text c="dimmed" size="sm">
-                        Until your domain is verified and enabled, emails send
-                        from Lightdash with your address as reply-to.
-                    </Text>
-                    {isInitialLoading ? (
-                        <EmptyStateLoader mih={60} />
-                    ) : config ? (
-                        <ConfiguredView config={config} />
-                    ) : (
+            {isInitialLoading ? (
+                <SettingsCard>
+                    <EmptyStateLoader mih={60} />
+                </SettingsCard>
+            ) : config ? (
+                <SettingsCard>
+                    <ConfiguredView config={config} />
+                </SettingsCard>
+            ) : (
+                <SettingsSection
+                    label="Set up a sending domain"
+                    description="Add the domain you want to send from. You'll get DNS records to publish next."
+                >
+                    <SettingsCard>
                         <SetupForm />
-                    )}
-                </Stack>
-            </SettingsCard>
+                    </SettingsCard>
+                </SettingsSection>
+            )}
         </SettingsPage>
     );
 };

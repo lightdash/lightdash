@@ -1,4 +1,4 @@
-import { Badge, Button, Group, Menu, Stack, Text } from '@mantine/core';
+import { Badge, Button, Divider, Menu, Stack, Text } from '@mantine/core';
 import {
     IconCircleCheck,
     IconMail,
@@ -7,7 +7,8 @@ import {
     IconWorld,
     IconWorldCheck,
 } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import dayjs from 'dayjs';
+import { Fragment, useState, type FC } from 'react';
 import {
     useDeleteVerifiedDomain,
     useVerifiedDomains,
@@ -15,6 +16,7 @@ import {
 import EmptyStateLoader from '../../common/EmptyStateLoader';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
+import { SettingRow } from '../../common/Settings/SettingLayout';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
 import { SettingsEmptyState } from '../../common/Settings/SettingsEmptyState';
 import { SettingsPage } from '../../common/Settings/SettingsPage';
@@ -71,35 +73,36 @@ const VerifiedDomainsPanel: FC = () => {
                 />
             ) : (
                 <SettingsCard>
-                    <Stack gap="xs">
-                        {(verifiedDomains ?? []).map((d) => (
-                            <Group
-                                key={d.domain}
-                                justify="space-between"
-                                wrap="nowrap"
-                            >
-                                <Group gap="xs" wrap="nowrap">
-                                    <MantineIcon
-                                        icon={IconCircleCheck}
-                                        color="green"
-                                    />
-                                    <Text fw={500}>{d.domain}</Text>
-                                    <Badge color="green" size="sm">
-                                        Verified
-                                    </Badge>
-                                </Group>
-                                <Button
-                                    variant="subtle"
-                                    color="red"
-                                    size="compact-sm"
-                                    leftSection={
-                                        <MantineIcon icon={IconTrash} />
+                    <Stack gap="md">
+                        {(verifiedDomains ?? []).map((d, index) => (
+                            <Fragment key={d.domain}>
+                                {index > 0 && <Divider />}
+                                <SettingRow
+                                    titlePrefix={
+                                        <MantineIcon
+                                            icon={IconCircleCheck}
+                                            color="green"
+                                        />
                                     }
-                                    onClick={() => setDomainToDelete(d.domain)}
-                                >
-                                    Remove
-                                </Button>
-                            </Group>
+                                    title={d.domain}
+                                    description={`Verified ${dayjs(d.verifiedAt).format('MMM D, YYYY')}`}
+                                    control={
+                                        <Button
+                                            variant="subtle"
+                                            color="red"
+                                            size="xs"
+                                            leftSection={
+                                                <MantineIcon icon={IconTrash} />
+                                            }
+                                            onClick={() =>
+                                                setDomainToDelete(d.domain)
+                                            }
+                                        >
+                                            Remove
+                                        </Button>
+                                    }
+                                />
+                            </Fragment>
                         ))}
                     </Stack>
                 </SettingsCard>

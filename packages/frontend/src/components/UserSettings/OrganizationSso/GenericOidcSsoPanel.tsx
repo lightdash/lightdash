@@ -10,7 +10,6 @@ import {
     Text,
     TextInput,
     ThemeIcon,
-    Title,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import {
@@ -30,6 +29,7 @@ import {
 import EmptyStateLoader from '../../common/EmptyStateLoader';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
+import { SettingRow } from '../../common/Settings/SettingLayout';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
 import FormSection from '../../ProjectConnection/Inputs/FormSection';
 import SsoMethodDomainsField from './SsoMethodDomainsField';
@@ -145,83 +145,78 @@ const GenericOidcSsoPanel: FC = () => {
     };
 
     return (
-        <SettingsCard p="lg" pos="relative">
+        <SettingsCard pos="relative">
             {isLoading ? (
                 <EmptyStateLoader mih={80} />
             ) : (
                 <Stack gap="md">
-                    <Group
-                        justify="space-between"
-                        align="flex-start"
-                        wrap="nowrap"
-                    >
-                        <Group gap="sm" wrap="nowrap" align="flex-start">
+                    <SettingRow
+                        titlePrefix={
                             <ThemeIcon
                                 variant="light"
                                 color="gray"
-                                size="lg"
+                                size="sm"
                                 radius="sm"
                             >
-                                <MantineIcon icon={IconLock} />
+                                <MantineIcon icon={IconLock} size="sm" />
                             </ThemeIcon>
-                            <Stack gap={2}>
-                                <Title order={5}>OpenID Connect</Title>
-                                <Text c="dimmed" size="sm" maw={460}>
-                                    Single sign-on via a generic OpenID Connect
-                                    provider. Users whose email matches the
-                                    discovery whitelist see a "Sign in with
-                                    OpenID Connect" button; instance-level SSO
-                                    is suppressed for matched users.
-                                </Text>
-                            </Stack>
-                        </Group>
-                        {isConfigured ? (
-                            <Switch
-                                label="Enabled"
-                                labelPosition="left"
-                                checked={form.values.enabled}
-                                disabled={upsert.isLoading}
-                                onChange={(event) =>
-                                    handleToggleEnabled(
-                                        event.currentTarget.checked,
+                        }
+                        title="OpenID Connect"
+                        description={
+                            'Any OpenID Connect provider. Users matching the discovery whitelist see a "Sign in with OpenID Connect" button instead of instance-level SSO.'
+                        }
+                        control={
+                            <Group gap="sm" wrap="nowrap">
+                                {isConfigured ? (
+                                    <Switch
+                                        label="Enabled"
+                                        labelPosition="left"
+                                        checked={form.values.enabled}
+                                        disabled={upsert.isLoading}
+                                        onChange={(event) =>
+                                            handleToggleEnabled(
+                                                event.currentTarget.checked,
+                                            )
+                                        }
+                                    />
+                                ) : (
+                                    <Badge variant="outline" size="sm">
+                                        Not configured
+                                    </Badge>
+                                )}
+                                {isConfigured ? (
+                                    <Button
+                                        size="xs"
+                                        variant="default"
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={
+                                                    isOpen
+                                                        ? IconChevronUp
+                                                        : IconChevronDown
+                                                }
+                                            />
+                                        }
+                                        onClick={() => toggleOpen()}
+                                    >
+                                        {isOpen
+                                            ? 'Hide configuration'
+                                            : 'Edit configuration'}
+                                    </Button>
+                                ) : (
+                                    !isOpen && (
+                                        <Button
+                                            size="xs"
+                                            variant="default"
+                                            onClick={() => toggleOpen()}
+                                        >
+                                            Set up OpenID Connect
+                                        </Button>
                                     )
-                                }
-                            />
-                        ) : (
-                            <Badge variant="outline" size="lg">
-                                Not configured
-                            </Badge>
-                        )}
-                    </Group>
-
-                    {isConfigured ? (
-                        <Button
-                            variant="default"
-                            w="fit-content"
-                            leftSection={
-                                <MantineIcon
-                                    icon={
-                                        isOpen ? IconChevronUp : IconChevronDown
-                                    }
-                                />
-                            }
-                            onClick={() => toggleOpen()}
-                        >
-                            {isOpen
-                                ? 'Hide configuration'
-                                : 'Edit configuration'}
-                        </Button>
-                    ) : (
-                        !isOpen && (
-                            <Button
-                                variant="default"
-                                w="fit-content"
-                                onClick={() => toggleOpen()}
-                            >
-                                Set up OpenID Connect
-                            </Button>
-                        )
-                    )}
+                                )}
+                            </Group>
+                        }
+                    />
 
                     {isConfigured && form.values.enabled && !isOpen && (
                         <SsoMissingDomainsWarning providerLabel="OpenID Connect" />
@@ -231,91 +226,103 @@ const GenericOidcSsoPanel: FC = () => {
                         <Stack gap="md">
                             <Divider />
                             <form onSubmit={handleSubmit}>
-                                <Stack>
-                                    <Title order={6}>
-                                        Application credentials
-                                    </Title>
-                                    <TextInput
-                                        label="Discovery document URL"
-                                        placeholder="https://idp.example.com/.well-known/openid-configuration"
-                                        description="The OIDC discovery document URL for your identity provider."
-                                        required
-                                        {...form.getInputProps(
-                                            'metadataDocumentEndpoint',
-                                        )}
-                                    />
-                                    <TextInput
-                                        label="Client ID"
-                                        placeholder="your-oidc-client-id"
-                                        description="From your identity provider's application settings."
-                                        required
-                                        {...form.getInputProps('clientId')}
-                                    />
-                                    <PasswordInput
-                                        label="Client secret"
-                                        placeholder={
+                                <Stack gap="xl">
+                                    <Stack gap="sm">
+                                        <Text fw={600} fz="sm">
+                                            Application credentials
+                                        </Text>
+                                        <TextInput
+                                            label="Discovery document URL"
+                                            placeholder="https://idp.example.com/.well-known/openid-configuration"
+                                            description="The OIDC discovery document URL for your identity provider."
+                                            required
+                                            {...form.getInputProps(
+                                                'metadataDocumentEndpoint',
+                                            )}
+                                        />
+                                        <TextInput
+                                            label="Client ID"
+                                            placeholder="your-oidc-client-id"
+                                            description="From your identity provider's application settings."
+                                            required
+                                            {...form.getInputProps('clientId')}
+                                        />
+                                        <PasswordInput
+                                            label="Client secret"
+                                            placeholder={
+                                                existing
+                                                    ? 'Leave blank to keep the existing secret'
+                                                    : 'OIDC client secret value'
+                                            }
+                                            description="The client secret from your identity provider."
+                                            required={!existing}
+                                            {...form.getInputProps(
+                                                'clientSecret',
+                                            )}
+                                        />
+                                    </Stack>
+                                    <Stack gap="sm">
+                                        <Text fw={600} fz="sm">
+                                            Advanced
+                                        </Text>
+                                        <TextInput
+                                            label="Scopes"
+                                            placeholder="Optional — defaults to openid profile email"
+                                            description="Space-separated OAuth scopes to request."
+                                            {...form.getInputProps('scopes')}
+                                        />
+                                    </Stack>
+                                    <Stack gap="sm">
+                                        <Text fw={600} fz="sm">
+                                            Discovery
+                                        </Text>
+                                        <SsoMethodDomainsField
+                                            providerLabel="OpenID Connect"
+                                            override={
+                                                form.values.overrideEmailDomains
+                                            }
+                                            onOverrideChange={(value) =>
+                                                form.setFieldValue(
+                                                    'overrideEmailDomains',
+                                                    value,
+                                                )
+                                            }
+                                            domains={form.values.emailDomains}
+                                            onDomainsChange={(domains) =>
+                                                form.setFieldValue(
+                                                    'emailDomains',
+                                                    domains,
+                                                )
+                                            }
+                                            error={form.errors.emailDomains}
+                                        />
+                                    </Stack>
+                                    <Stack gap="sm">
+                                        <Text fw={600} fz="sm">
+                                            Password sign-in
+                                        </Text>
+                                        <Checkbox
+                                            label="Allow password sign-in for users matching this method"
+                                            description="When unchecked, users matching OIDC discovery don't see the password input, unless another matching method allows it."
+                                            checked={form.values.allowPassword}
+                                            onChange={(event) =>
+                                                form.setFieldValue(
+                                                    'allowPassword',
+                                                    event.currentTarget.checked,
+                                                )
+                                            }
+                                        />
+                                    </Stack>
+                                    <Group
+                                        justify={
                                             existing
-                                                ? 'Leave blank to keep the existing secret'
-                                                : 'OIDC client secret value'
+                                                ? 'space-between'
+                                                : 'flex-end'
                                         }
-                                        description="The client secret from your identity provider."
-                                        required={!existing}
-                                        {...form.getInputProps('clientSecret')}
-                                    />
-
-                                    <Title order={6} mt="md">
-                                        Advanced
-                                    </Title>
-                                    <TextInput
-                                        label="Scopes"
-                                        placeholder="Optional — defaults to openid profile email"
-                                        description="Space-separated OAuth scopes to request."
-                                        {...form.getInputProps('scopes')}
-                                    />
-
-                                    <Title order={6} mt="md">
-                                        Discovery
-                                    </Title>
-                                    <SsoMethodDomainsField
-                                        providerLabel="OpenID Connect"
-                                        override={
-                                            form.values.overrideEmailDomains
-                                        }
-                                        onOverrideChange={(value) =>
-                                            form.setFieldValue(
-                                                'overrideEmailDomains',
-                                                value,
-                                            )
-                                        }
-                                        domains={form.values.emailDomains}
-                                        onDomainsChange={(domains) =>
-                                            form.setFieldValue(
-                                                'emailDomains',
-                                                domains,
-                                            )
-                                        }
-                                        error={form.errors.emailDomains}
-                                    />
-
-                                    <Title order={6} mt="md">
-                                        Password sign-in
-                                    </Title>
-                                    <Checkbox
-                                        label="Allow password sign-in for users matching this method"
-                                        description="When unchecked, users whose email domain matches OIDC discovery will not see the password input. Lenient rule: if any matching method allows password, it is shown."
-                                        checked={form.values.allowPassword}
-                                        onChange={(event) =>
-                                            form.setFieldValue(
-                                                'allowPassword',
-                                                event.currentTarget.checked,
-                                            )
-                                        }
-                                    />
-
-                                    <Group justify="space-between" mt="md">
-                                        {existing ? (
+                                    >
+                                        {existing && (
                                             <Button
-                                                variant="outline"
+                                                variant="subtle"
                                                 color="red"
                                                 leftSection={
                                                     <MantineIcon
@@ -328,8 +335,6 @@ const GenericOidcSsoPanel: FC = () => {
                                             >
                                                 Remove configuration
                                             </Button>
-                                        ) : (
-                                            <div />
                                         )}
                                         <Button
                                             type="submit"

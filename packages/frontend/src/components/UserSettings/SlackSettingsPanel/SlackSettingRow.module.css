@@ -1,7 +1,0 @@
-.row {
-    padding-block: var(--mantine-spacing-sm);
-}
-
-.row + .row {
-    border-top: 1px solid var(--mantine-color-default-border);
-}
