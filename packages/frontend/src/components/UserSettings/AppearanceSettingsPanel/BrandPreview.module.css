@@ -85,6 +85,14 @@
     background-color: var(--mantine-color-ldGray-0);
 }
 
+.logo {
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    object-fit: contain;
+    border-radius: var(--mantine-radius-sm);
+}
+
 .title {
     line-height: 1.2;
 }

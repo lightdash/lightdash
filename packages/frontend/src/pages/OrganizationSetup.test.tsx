@@ -309,10 +309,10 @@ describe('OrganizationSetup', () => {
             await screen.findByRole('button', { name: 'Continue' }),
         );
 
+        await selectRole(user);
         await screen.findByRole('radiogroup', {
             name: /How did you hear about us/,
         });
-        await selectRole(user);
 
         await pickReferral(user, '   ');
 

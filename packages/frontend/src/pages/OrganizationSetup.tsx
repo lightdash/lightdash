@@ -16,8 +16,10 @@ import {
     Box,
     Button,
     Checkbox,
+    Collapse,
     Group,
     Select,
+    Skeleton,
     Stack,
     Text,
     TextInput,
@@ -230,6 +232,8 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
     ]);
 
     const detectedBrand = canUseBranding ? (brandDetection.data ?? null) : null;
+    // Hold the preview until the lookup settles so it never flips from sample to branded
+    const isBrandPending = brandDetectionEnabled && brandDetection.isLoading;
     const detectedColors = detectedBrand
         ? brandColorsSorted(detectedBrand.colors)
         : [];
@@ -349,26 +353,37 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
     };
 
     const brandPreview = (
-        <Box component="section" aria-label="Brand preview">
-            <BrandPreview
-                compact
-                name={form.values.organizationName || null}
-                logos={detectedBrand?.logos ?? []}
-                colors={buildBrandColors(
-                    selectedColor,
-                    detectedBrand?.colors ?? [],
-                )}
-                titleFont={
-                    detectedBrand?.fonts.find(
-                        (font) => font.type === 'title',
-                    ) ?? null
-                }
-                bodyFont={
-                    detectedBrand?.fonts.find((font) => font.type === 'body') ??
-                    null
-                }
-            />
-            {detectedBrand ? (
+        <Box
+            component="section"
+            aria-label="Brand preview"
+            aria-busy={isBrandPending}
+        >
+            <Skeleton visible={isBrandPending} radius="md">
+                <BrandPreview
+                    compact
+                    name={form.values.organizationName || null}
+                    logos={detectedBrand?.logos ?? []}
+                    colors={buildBrandColors(
+                        selectedColor,
+                        detectedBrand?.colors ?? [],
+                    )}
+                    titleFont={
+                        detectedBrand?.fonts.find(
+                            (font) => font.type === 'title',
+                        ) ?? null
+                    }
+                    bodyFont={
+                        detectedBrand?.fonts.find(
+                            (font) => font.type === 'body',
+                        ) ?? null
+                    }
+                />
+            </Skeleton>
+            {isBrandPending ? (
+                <Text size="xs" c="dimmed" mt="xs">
+                    Looking up your brand…
+                </Text>
+            ) : detectedBrand ? (
                 <Group gap="xs" wrap="nowrap" mt="sm">
                     {detectedColors.length > 0 && (
                         <Group gap={4} wrap="nowrap">
@@ -498,16 +513,22 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                 />
 
                                 {canEnterOrganizationName && (
-                                    <ReferralSourcePicker
-                                        value={form.values.howDidYouHearAboutUs}
-                                        onChange={(value) =>
-                                            form.setFieldValue(
-                                                'howDidYouHearAboutUs',
-                                                value,
-                                            )
-                                        }
-                                        error={form.errors.howDidYouHearAboutUs}
-                                    />
+                                    <Collapse expanded={!!form.values.jobTitle}>
+                                        <ReferralSourcePicker
+                                            value={
+                                                form.values.howDidYouHearAboutUs
+                                            }
+                                            onChange={(value) =>
+                                                form.setFieldValue(
+                                                    'howDidYouHearAboutUs',
+                                                    value,
+                                                )
+                                            }
+                                            error={
+                                                form.errors.howDidYouHearAboutUs
+                                            }
+                                        />
+                                    </Collapse>
                                 )}
 
                                 <Stack gap="xs">

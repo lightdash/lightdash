@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { Box, Group, Paper, Stack, Text, Table } from '@mantine/core';
 import { useEffect, type FC } from 'react';
+import { pickBrandLogo } from '../../../hooks/organization/brandLogos';
 // TODO: re-enable browser chrome + nav header preview
 // import { IconSearch } from '@tabler/icons-react';
 // import MantineIcon from '../../common/MantineIcon';
@@ -125,6 +126,8 @@ type BrandPreviewProps = {
 };
 
 export const BrandPreview: FC<BrandPreviewProps> = ({
+    name,
+    logos,
     colors,
     compact = false,
     titleFont,
@@ -132,6 +135,7 @@ export const BrandPreview: FC<BrandPreviewProps> = ({
     paletteColors,
 }) => {
     const primary = pickPrimaryColor(colors);
+    const logo = pickBrandLogo(logos);
     // TODO: re-enable browser chrome + nav header preview
     // const navLogo = pickNavLogo(logos);
     // const displayName = name ?? 'Your company';
@@ -204,19 +208,28 @@ export const BrandPreview: FC<BrandPreviewProps> = ({
 
             <Box className={classes.body}>
                 <Group justify="space-between" align="flex-start" wrap="nowrap">
-                    <Stack gap={2}>
-                        <Text
-                            fw={600}
-                            fz={compact ? 'sm' : 22}
-                            ff={titleFamily}
-                            className={classes.title}
-                        >
-                            Revenue overview
-                        </Text>
-                        <Text size="xs" c="dimmed" ff={bodyFamily}>
-                            Performance across every channel this quarter.
-                        </Text>
-                    </Stack>
+                    <Group gap="sm" wrap="nowrap">
+                        {logo && (
+                            <img
+                                src={logo.url}
+                                alt={name ? `${name} logo` : 'Logo'}
+                                className={classes.logo}
+                            />
+                        )}
+                        <Stack gap={2}>
+                            <Text
+                                fw={600}
+                                fz={compact ? 'sm' : 22}
+                                ff={titleFamily}
+                                className={classes.title}
+                            >
+                                Revenue overview
+                            </Text>
+                            <Text size="xs" c="dimmed" ff={bodyFamily}>
+                                Performance across every channel this quarter.
+                            </Text>
+                        </Stack>
+                    </Group>
                     {/* TODO: re-enable "+ New chart" button preview
                     <Box className={classes.primaryButton} bg={primary}>
                         <Text size="xs" fw={600} c="white">
