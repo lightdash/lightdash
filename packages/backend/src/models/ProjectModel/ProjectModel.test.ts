@@ -60,6 +60,7 @@ import {
 import { ServiceAccountsTableName } from '../../ee/database/entities/serviceAccounts';
 import { newExploreCacheReadContext } from '../../logging/exploreCacheReadMetrics';
 import {
+    LIVE_SOURCE_ONLY_CREDENTIALS,
     ProjectModel,
     reduceExploreTableSummaryRows,
     toExploreTableSummaryRecord,
@@ -429,6 +430,38 @@ describe('ProjectModel', () => {
         expect(result).toEqual(expectedTablesConfiguration);
         expect(tracker.history.select).toHaveLength(1);
     });
+    describe('live source explores without a warehouse', () => {
+        beforeEach(() => {
+            vi.spyOn(model, 'resolveWarehouseCredentialRead').mockResolvedValue(
+                { kind: 'original' },
+            );
+            vi.spyOn(
+                model,
+                'getWarehouseCredentialsForProject',
+            ).mockRejectedValue(new NotFoundError('No warehouse'));
+        });
+
+        test('shapes the query without a warehouse connection', async () => {
+            vi.spyOn(model, 'isLiveSourceExplore').mockResolvedValue(true);
+            await expect(
+                model.getWarehouseCredentialsForBinding(projectUuid, {
+                    kind: 'explore',
+                    exploreName: 'posthog_events',
+                }),
+            ).resolves.toBe(LIVE_SOURCE_ONLY_CREDENTIALS);
+        });
+
+        test('still fails for a warehouse explore', async () => {
+            vi.spyOn(model, 'isLiveSourceExplore').mockResolvedValue(false);
+            await expect(
+                model.getWarehouseCredentialsForBinding(projectUuid, {
+                    kind: 'explore',
+                    exploreName: 'orders',
+                }),
+            ).rejects.toBeInstanceOf(NotFoundError);
+        });
+    });
+
     describe('getCachedExploreStorageBytes', () => {
         test('returns the matched explore count and stored bytes together', async () => {
             tracker.on
