@@ -1,3 +1,10 @@
+## [3.151.1](https://github.com/lightdash/lightdash/compare/3.151.0...3.151.1) (2026-11-04)
+
+
+### Bug Fixes
+
+* **ai:** read live data source results with agent identity on ([#32080](https://github.com/lightdash/lightdash/issues/32080)) ([6547375](https://github.com/lightdash/lightdash/commit/6547375acd9303fe4bb777b2cec16d2c9f069514))
+
 # [3.151.0](https://github.com/lightdash/lightdash/compare/3.150.0...3.151.0) (2026-11-04)
 
 
