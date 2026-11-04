@@ -649,7 +649,9 @@ describe('AddControl with parameters', () => {
             }),
         );
         const dialog = await screen.findByRole('dialog', { name: 'Region' });
-        await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+        await user.click(
+            within(dialog).getByRole('button', { name: 'Cancel' }),
+        );
         await waitFor(() => expect(sectionAdd).toHaveFocus());
     });
 
