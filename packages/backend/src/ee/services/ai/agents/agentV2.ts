@@ -128,7 +128,7 @@ import { getListWorkstreams } from '../tools/listWorkstreams';
 import { getLoadAgentTools } from '../tools/loadAgentTools';
 import { getLoadMcpTools } from '../tools/loadMcpTools';
 import { getLoadProjectContext } from '../tools/loadProjectContext';
-import { getLoadSkill } from '../tools/loadSkill';
+import { getLoadedSkillKeys, getLoadSkill } from '../tools/loadSkill';
 import { getProjectContextSearchEntries } from '../tools/memoryProjectContext';
 import { getReadAttachments } from '../tools/readAttachments';
 import { getReadContent } from '../tools/readContent';
@@ -2262,6 +2262,7 @@ export const getAgentTools = (
                     listed.has(name.trim().toLowerCase())
                         ? dependencies.loadSkill(name, options)
                         : undefined,
+                loadedSkillKeys: getLoadedSkillKeys(args.messageHistory),
             });
         },
         loadProjectContext: () =>
