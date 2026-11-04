@@ -128,7 +128,6 @@ import { ManagedAgentService } from './services/ManagedAgentService/ManagedAgent
 import { McpService } from './services/McpService/McpService';
 import { MobilePushNotificationReconciler } from './services/MobilePushNotificationService/MobilePushNotificationReconciler';
 import { MobilePushNotificationService } from './services/MobilePushNotificationService/MobilePushNotificationService';
-import { autoStartOnboardingAgentRun } from './services/OnboardingAgentService/autoStartOnboardingAgentRun';
 import { OnboardingAgentService } from './services/OnboardingAgentService/OnboardingAgentService';
 import { ProjectContextService } from './services/ProjectContextService/ProjectContextService';
 import { ProjectHomepageService } from './services/ProjectHomepageService';
@@ -1367,29 +1366,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                             .getCustomSqlProvenance(args),
                     getAiAgentService: () =>
                         repository.getAiAgentService<AiAgentService>(),
-                    onProjectCreated: async ({
-                        user,
-                        projectUuid,
-                        projectType,
-                        dbtProjectType,
-                        method,
-                        provisioningSource,
-                    }) => {
-                        await autoStartOnboardingAgentRun({
-                            user,
-                            projectUuid,
-                            projectType,
-                            dbtProjectType,
-                            method,
-                            provisioningSource,
-                            featureFlagService:
-                                repository.getFeatureFlagService(),
-                            projectModel: models.getProjectModel(),
-                            onboardingAgentService:
-                                repository.getOnboardingAgentService<OnboardingAgentService>(),
-                            analytics: context.lightdashAnalytics,
-                        });
-                    },
                     provisionPlaygroundProject: ({
                         user,
                         projectService,
