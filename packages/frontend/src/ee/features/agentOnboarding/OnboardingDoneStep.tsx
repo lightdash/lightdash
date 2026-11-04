@@ -136,19 +136,17 @@ export const OnboardingDoneStep: FC<{ projectUuid: string }> = ({
                             Ask your first question
                         </Button>
                     </Stack>
-                    {!areMetricsLive && (
-                        <Button
-                            size="md"
-                            fullWidth
-                            variant="subtle"
-                            color="gray"
-                            component={Link}
-                            to={`/projects/${projectUuid}/home`}
-                            viewTransition
-                        >
-                            I'll look around first
-                        </Button>
-                    )}
+                    <Button
+                        size="md"
+                        fullWidth
+                        variant="subtle"
+                        color="gray"
+                        component={Link}
+                        to={`/projects/${projectUuid}/home`}
+                        viewTransition
+                    >
+                        I'll look around first
+                    </Button>
                 </Stack>
             </Stack>
         </OnboardingLayout>
