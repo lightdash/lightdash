@@ -3,6 +3,8 @@ name: PR Checks
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
+  # Merge queue: re-runs the stage-1 checks on the PR combined with the latest main.
+  merge_group:
   workflow_dispatch:
 
 concurrency:
@@ -286,6 +288,8 @@ jobs:
   # ============================================================================
   files-changed:
     name: Select Tests to Run
+    # Preview, E2E and CLI suites need a PR; skipping this skips all of them in the queue.
+    if: github.event_name != 'merge_group'
     runs-on: ubuntu-latest
     outputs:
       # Rainbow builds a preview for same-repo PRs only; forks get no preview

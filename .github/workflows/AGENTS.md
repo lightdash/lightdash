@@ -47,3 +47,12 @@ lockfile change.
 - A job on `ubuntu-latest` uses GitHub's own Actions cache, not Depot Cache, so
   it cannot restore the pnpm store `build-and-lint` saves.
 
+
+## Merge queue
+- `pr.yml` and `release-safety-pr.yml` also run on `merge_group`. A check
+  required on `main` must report on the queue commit, or the queue waits until
+  it times out.
+- Jobs that read the PR (number, body, labels, draft, comments, preview) must
+  skip on `merge_group`; a skipped required job counts as passed.
+- Only the cheap stage-1 jobs run in the queue. `files-changed` is skipped
+  there, so the preview, E2E and CLI suites never start.

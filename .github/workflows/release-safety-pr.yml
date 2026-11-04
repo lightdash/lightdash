@@ -41,11 +41,14 @@ on:
     # `edited` too; the `changes` job short-circuits those via the comment's
     # describes-stamp instead of re-running the heavy jobs.
     types: [opened, synchronize, reopened, ready_for_review, edited]
+  # The verdict is per-PR and already gated at PR time. In the merge queue every
+  # job skips, which reports the required `Release-safety preview` as passed.
+  merge_group:
 
 # Spec generation makes a run long enough that an older run could otherwise
 # finish last and overwrite the sticky comment with a stale verdict.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -56,6 +59,7 @@ permissions:
 jobs:
   changes:
     name: Resolve base and changed surfaces
+    if: github.event_name != 'merge_group'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
