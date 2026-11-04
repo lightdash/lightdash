@@ -17,6 +17,7 @@ import {
 import type * as rudderSDK from 'rudder-sdk-js';
 import { type PlaygroundSetupFailure } from '../../components/ProjectConnection/ProjectConnectFlow/playgroundSetupFailure';
 import { type AgentSuggestionsDisplayedProperties } from '../../ee/features/aiCopilot/hooks/agentSuggestionsTelemetry';
+import { type SetupGuideRowId } from '../../ee/features/homepageBuilder/blocks/setupGuide/setupGuideModel';
 import {
     type CategoryName,
     type EventName,
@@ -239,19 +240,30 @@ export type HomepageOpeningSwappedEvent = {
     };
 };
 
+export type HomepageRecommendedActionSurface =
+    | 'setup_guide'
+    | 'first_chart_banner'
+    | 'checklist';
+
+export type HomepageRecommendedActionProperties = {
+    surface: HomepageRecommendedActionSurface;
+    projectId: string | null;
+    rowId: SetupGuideRowId | null;
+    actionKey: HomepageRecommendedActionKey | null;
+    choice: 'ask' | 'explore' | null;
+};
+
 export type HomepageRecommendedActionClickedEvent = {
     name: EventName.HOMEPAGE_RECOMMENDED_ACTION_CLICKED;
-    properties: {
-        actionKey: HomepageRecommendedActionKey;
-        destination: string;
+    // null when the click fills the composer instead of navigating
+    properties: HomepageRecommendedActionProperties & {
+        destination: string | null;
     };
 };
 
 export type HomepageRecommendedActionSkippedEvent = {
     name: EventName.HOMEPAGE_RECOMMENDED_ACTION_SKIPPED;
-    properties: {
-        actionKey: HomepageRecommendedActionKey;
-    };
+    properties: HomepageRecommendedActionProperties;
 };
 
 export type SetupStepClickedEvent = {
@@ -1035,25 +1047,37 @@ type OnboardingProjectReadyStartExploringClickedEvent = {
 type HomepageAskSubmittedEvent = {
     name: EventName.HOMEPAGE_ASK_SUBMITTED;
     properties: {
-        mode: string;
+        organizationId: string | null;
+        projectId: string | null;
+        mode: 'auto' | 'agent';
         hasProject: boolean;
+        source: 'typed' | 'guide_prefill' | 'starter_chip';
+        prefillEdited: boolean;
     };
 };
 
 type HomepageRecommendedActionImpressionEvent = {
     name: EventName.HOMEPAGE_RECOMMENDED_ACTION_IMPRESSION;
-    properties: {
-        actionKey: HomepageRecommendedActionKey;
-        position: number;
-        trigger: 'initial' | 'auto_rotate' | 'manual';
-    };
+    properties: HomepageRecommendedActionProperties &
+        (
+            | {
+                  surface: 'checklist';
+                  position: number;
+                  trigger: 'initial' | 'auto_rotate' | 'manual';
+              }
+            | {
+                  surface: 'setup_guide';
+                  completedCount: number;
+                  totalCount: number;
+                  isMinimized: boolean;
+              }
+            | { surface: 'first_chart_banner' }
+        );
 };
 
 type HomepageRecommendedActionRestoredEvent = {
     name: EventName.HOMEPAGE_RECOMMENDED_ACTION_RESTORED;
-    properties: {
-        actionKey: HomepageRecommendedActionKey;
-    };
+    properties: HomepageRecommendedActionProperties;
 };
 
 type HomepageStarsMediaCardClickedEvent = {

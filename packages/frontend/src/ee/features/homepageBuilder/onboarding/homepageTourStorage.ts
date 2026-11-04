@@ -1,4 +1,4 @@
-const HOMEPAGE_TOUR_STORAGE_KEY = 'ld.homepage.tour.v1';
+export const HOMEPAGE_TOUR_STORAGE_KEY = 'ld.homepage.tour.v1';
 
 export const markHomepageTourSeen = () => {
     try {
