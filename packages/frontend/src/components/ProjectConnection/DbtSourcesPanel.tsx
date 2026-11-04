@@ -11,7 +11,7 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
-    Badge,
+    Box,
     Button,
     Group,
     Loader,
@@ -40,6 +40,7 @@ import {
     useProjectDbtSources,
     useUpdateProjectDbtSourceMutation,
 } from '../../hooks/useProjectDbtSources';
+import { BetaBadge } from '../common/BetaBadge';
 import InlineErrorState from '../common/InlineErrorState';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
@@ -472,11 +473,7 @@ const DbtSourcesPanel: FC<{
         <SettingsSection
             label="dbt sources"
             description="Merge models from other git-backed dbt projects. They're combined with this project's dbt connection on every deploy. If a model or metric name exists in more than one source, each one is renamed to <source>__<name>."
-            titleAddon={
-                <Badge color="violet" size="sm">
-                    Beta
-                </Badge>
-            }
+            titleAddon={<BetaBadge />}
         >
             <SettingsCard>
                 <Stack gap="md">
@@ -493,7 +490,7 @@ const DbtSourcesPanel: FC<{
                     {!isInitialLoading && !isError && primarySource && (
                         <Stack gap="xs">
                             <Title order={6}>Source name</Title>
-                            <div className={classes.rows}>
+                            <Box className={classes.rows}>
                                 <DbtSourceRow
                                     source={primarySource}
                                     onEdit={setPrimarySourceToRename}
@@ -505,7 +502,7 @@ const DbtSourcesPanel: FC<{
                                         )
                                     }
                                 />
-                            </div>
+                            </Box>
                         </Stack>
                     )}
 
@@ -514,7 +511,7 @@ const DbtSourcesPanel: FC<{
                     {!isInitialLoading &&
                         !isError &&
                         (additionalSources.length > 0 ? (
-                            <div className={classes.rows}>
+                            <Box className={classes.rows}>
                                 {additionalSources.map((source) => (
                                     <DbtSourceRow
                                         key={source.projectDbtSourceUuid}
@@ -533,7 +530,7 @@ const DbtSourcesPanel: FC<{
                                         }
                                     />
                                 ))}
-                            </div>
+                            </Box>
                         ) : (
                             <Text fz="xs" c="dimmed">
                                 No additional sources yet. Add one to combine

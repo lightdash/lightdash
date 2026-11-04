@@ -138,7 +138,7 @@ const TokenAddedCard: FC<{
                         size="lg"
                     />
                     <Box className={classes.tokenText}>
-                        <Text fz="sm" fw={600} c="inherit">
+                        <Text fz="sm" fw={500} c="inherit">
                             Token added as your password
                         </Text>
                         <Text fz="xs" c="inherit">
@@ -255,7 +255,7 @@ const SemanticLayerConnectionPanel: FC<Props> = ({ projectUuid }) => {
         setManualToken('');
     };
 
-    const beforeYouConnect = `Only simple SELECT queries against a single explore are supported (no SQL joins), with a default limit of 500 rows. ${
+    const connectClientDescription = `Only simple SELECT queries against a single explore are supported (no SQL joins), with a default limit of 500 rows. ${
         tlsRequired
             ? 'Connections are encrypted: TLS is required, so use sslmode=require (or verify-full).'
             : 'TLS is disabled on this server, so clients must use sslmode=disable.'
@@ -299,7 +299,7 @@ const SemanticLayerConnectionPanel: FC<Props> = ({ projectUuid }) => {
             {isEnabled && isOrgAdmin && (
                 <SettingsSection
                     label="Connect a client"
-                    description={beforeYouConnect}
+                    description={connectClientDescription}
                 >
                     <SettingsCard>
                         <Step

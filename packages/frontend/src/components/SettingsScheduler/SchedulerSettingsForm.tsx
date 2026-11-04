@@ -55,7 +55,7 @@ export const SchedulerSettingsForm: FC<Props> = ({ project, onChange }) => {
         <Stack gap="md">
             <SettingRow
                 title="Default time zone"
-                description="Time zone the project's scheduled deliveries run in."
+                description="Default time zone for the project's scheduled deliveries."
                 control={
                     <TimeZonePicker
                         aria-label="Default time zone"
