@@ -6380,6 +6380,7 @@ export class McpService extends BaseService {
             this.aiAgentToolsService.canAuthorContent({
                 user,
                 projectUuid: headerProjectUuid,
+                spaceUuids: null,
             })
         );
     }

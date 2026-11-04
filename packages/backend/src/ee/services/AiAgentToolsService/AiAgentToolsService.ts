@@ -2491,12 +2491,14 @@ export class AiAgentToolsService extends BaseService {
     /**
      * Mirrors the app's save button, not the project role: with a project, a space the user can save into
      * (or the right to create one) is enough; without one, only the role is known, as before a project is chosen.
+     * `spaceUuids` limits the check to the spaces the run may write to, such as an embed token's write spaces.
      */
     async canAuthorContent(context: {
         user: SessionUser;
         projectUuid: UUID | undefined;
+        spaceUuids: string[] | null;
     }): Promise<boolean> {
-        const { user, projectUuid } = context;
+        const { user, projectUuid, spaceUuids } = context;
         const { organizationUuid } = user;
         const ability = this.createAuditedAbility(user);
         const roleCanSaveContent =
@@ -2505,6 +2507,11 @@ export class AiAgentToolsService extends BaseService {
                 ability.can('create', 'Dashboard'));
         if (!roleCanSaveContent || projectUuid === undefined) {
             return roleCanSaveContent;
+        }
+        if (spaceUuids !== null) {
+            return (
+                (await this.getEditableSpaceUuids(user, spaceUuids)).size > 0
+            );
         }
         if (
             ability.can(
