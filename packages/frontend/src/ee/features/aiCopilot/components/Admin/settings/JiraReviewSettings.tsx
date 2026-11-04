@@ -34,6 +34,7 @@ import {
     useSelectJiraSite,
 } from '../../../../../../components/common/JiraIntegration/hooks/useJiraIntegration';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
+import { SettingRow } from '../../../../../../components/common/Settings/SettingLayout';
 import { useProjects } from '../../../../../../hooks/useProjects';
 import useApp from '../../../../../../providers/App/useApp';
 import jiraSvg from '../../../../../../svgs/jira.svg';
@@ -43,7 +44,6 @@ import {
     useUpdateReviewJiraRouting,
 } from '../../../hooks/useReviewNotificationSettings';
 import styles from './JiraReviewSettings.module.css';
-import { SettingRow } from '../../../../../../components/common/Settings/SettingLayout';
 
 const ATLASSIAN_DEVELOPER_CONSOLE_URL =
     'https://developer.atlassian.com/console/myapps/';

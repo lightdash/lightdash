@@ -1,4 +1,5 @@
 import { Divider, Loader, Switch } from '@mantine/core';
+import { SettingRow } from '../../../../../../components/common/Settings/SettingLayout';
 import { SlackChannelSelect } from '../../../../../../components/common/SlackChannelSelect';
 import { useGetSlack } from '../../../../../../hooks/slack/useSlack';
 import useApp from '../../../../../../providers/App/useApp';
@@ -8,7 +9,6 @@ import {
 } from '../../../hooks/useReviewNotificationSettings';
 import { JiraReviewSettings } from './JiraReviewSettings';
 import { LinearReviewSettings } from './LinearReviewSettings';
-import { SettingRow } from '../../../../../../components/common/Settings/SettingLayout';
 
 /** Notification and issue destinations shown only while AI agent reviews run. */
 export const ReviewNotificationsSettings = () => {

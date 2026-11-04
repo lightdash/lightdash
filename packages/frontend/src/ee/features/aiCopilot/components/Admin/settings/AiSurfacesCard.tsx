@@ -8,8 +8,8 @@ import {
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
-import { SettingsCard } from '../../../../../../components/common/Settings/SettingsCard';
 import { SettingRow } from '../../../../../../components/common/Settings/SettingLayout';
+import { SettingsCard } from '../../../../../../components/common/Settings/SettingsCard';
 
 const SurfaceRow: FC<{
     icon: Icon;

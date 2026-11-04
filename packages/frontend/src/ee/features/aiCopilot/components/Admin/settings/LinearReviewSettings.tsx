@@ -22,6 +22,7 @@ import {
     useLinearTeams,
 } from '../../../../../../components/common/LinearIntegration/hooks/useLinearIntegration';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
+import { SettingRow } from '../../../../../../components/common/Settings/SettingLayout';
 import { useProjects } from '../../../../../../hooks/useProjects';
 import useApp from '../../../../../../providers/App/useApp';
 import linearSvg from '../../../../../../svgs/linear.svg';
@@ -32,7 +33,6 @@ import {
 } from '../../../hooks/useReviewNotificationSettings';
 import styles from './LinearReviewSettings.module.css';
 import { buildLinearAppSetupUrl } from './linearReviewSettingsUtils';
-import { SettingRow } from '../../../../../../components/common/Settings/SettingLayout';
 
 const selectOptionsWithCurrent = (
     options: Array<{ value: string; label: string }>,

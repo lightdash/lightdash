@@ -1,6 +1,7 @@
 import { Button, Group, Loader, Select, Stack, Text } from '@mantine/core';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import { useBlocker } from 'react-router';
+import { SettingRow } from '../../../../../../components/common/Settings/SettingLayout';
 import { type SuggestionsItem } from '../../../../../../features/comments/types';
 import { useActiveProjectUuid } from '../../../../../../hooks/useActiveProject';
 import { useProjects } from '../../../../../../hooks/useProjects';
@@ -12,7 +13,6 @@ import {
 import { useProjectAiAgents } from '../../../hooks/useProjectAiAgents';
 import { extractTaggedAgentUuids } from '../../../utils/aiRouterInstructions';
 import { AiRouterInstructionsEditor } from './AiRouterInstructionsEditor';
-import { SettingRow } from '../../../../../../components/common/Settings/SettingLayout';
 
 // Split out so the relative-time hook only runs when there is a saved version.
 const SavedAtLabel: FC<{ savedAt: Date | string }> = ({ savedAt }) => {
