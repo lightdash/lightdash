@@ -3,6 +3,7 @@ import { useDisclosure } from '@mantine/hooks';
 import { IconHome, IconMenu2 } from '@tabler/icons-react';
 import { lazy, Suspense, useEffect, type FC } from 'react';
 import { Link, useLocation } from 'react-router';
+import { AgentOnboardingNavIndicator } from '../../ee/features/agentOnboarding/AgentOnboardingNavIndicator';
 import { LearnLink } from '../../features/learn/LearnLink';
 import { useHasMetricsInCatalog } from '../../features/metricsCatalog/hooks/useMetricsCatalog';
 import Omnibar from '../../features/omnibar';
@@ -98,7 +99,10 @@ export const MainNavBarContent: FC<Props> = ({
 
                 {!isLoadingActiveProject && activeProjectUuid && (
                     <>
-                        <NavGroup className={classes.buttonGroup}>
+                        <NavGroup
+                            className={classes.buttonGroup}
+                            data-tour="nav-workspace"
+                        >
                             {compact && (
                                 <>
                                     <Button
@@ -134,6 +138,11 @@ export const MainNavBarContent: FC<Props> = ({
                                 withLabel={compact}
                             />
                         </NavGroup>
+                        {/* The centred search leaves room here only on wide screens */}
+                        <AgentOnboardingNavIndicator
+                            projectUuid={activeProjectUuid}
+                            visibleFrom="xl"
+                        />
                         {!compact && (
                             <Omnibar projectUuid={activeProjectUuid} />
                         )}
@@ -145,6 +154,12 @@ export const MainNavBarContent: FC<Props> = ({
 
             <Group className={classes.rightGroup}>
                 {compact && <Text className={classes.sectionLabel}>More</Text>}
+                {!isLoadingActiveProject && activeProjectUuid && (
+                    <AgentOnboardingNavIndicator
+                        projectUuid={activeProjectUuid}
+                        className={classes.setupIndicatorRight}
+                    />
+                )}
                 <NavGroup className={classes.buttonGroup}>
                     <SettingsMenu withLabel={compact} />
 

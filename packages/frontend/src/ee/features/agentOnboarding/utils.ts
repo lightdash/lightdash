@@ -1,10 +1,14 @@
 import {
     AGENT_ONBOARDING_STAGES,
+    DimensionType,
+    MetricType,
     isAgentOnboardingRunTerminal,
     type AgentOnboardingFile,
     type AgentOnboardingRun,
+    type AgentOnboardingRunEvent,
     type AgentOnboardingStage,
 } from '@lightdash/common';
+import { load } from 'js-yaml';
 
 export type AgentOnboardingStageTiming = {
     stage: AgentOnboardingStage;
@@ -22,7 +26,7 @@ export const AGENT_ONBOARDING_PROGRESS_STAGES = [
         sourceStages: ['deploying_semantic_layer'],
     },
     {
-        stage: 'dashboard',
+        stage: 'questions',
         sourceStages: ['building_dashboard'],
     },
     {
@@ -36,6 +40,16 @@ export const AGENT_ONBOARDING_PROGRESS_STAGES = [
 
 export type AgentOnboardingProgressStage =
     (typeof AGENT_ONBOARDING_PROGRESS_STAGES)[number]['stage'];
+
+export const AGENT_ONBOARDING_STAGE_LABELS: Record<
+    AgentOnboardingProgressStage,
+    string
+> = {
+    explore: 'Explore warehouse',
+    semantic_layer: 'Build semantic layer',
+    questions: 'Write starter questions',
+    ready: 'Verify',
+};
 
 export type AgentOnboardingProgressStageTiming = {
     stage: AgentOnboardingProgressStage;
@@ -206,8 +220,33 @@ export const getAgentOnboardingProgressStageTimings = (
     });
 };
 
+export type StageState =
+    | AgentOnboardingProgressStageTiming['state']
+    | 'stopped';
+
+// A cancelled or failed run leaves its last started stage unfinished
+export const getStageStates = (
+    run: AgentOnboardingRun | undefined,
+    timings: AgentOnboardingProgressStageTiming[] | undefined,
+): StageState[] => {
+    if (!run || !timings || run.status === 'queued') {
+        return AGENT_ONBOARDING_PROGRESS_STAGES.map(() => 'not_started');
+    }
+    if (run.status === 'completed') {
+        return AGENT_ONBOARDING_PROGRESS_STAGES.map(() => 'completed');
+    }
+    const states: StageState[] = timings.map(({ state }) => state);
+    if (run.status === 'cancelled' || run.status === 'failed') {
+        const lastStartedIndex = states.findLastIndex(
+            (state) => state !== 'not_started',
+        );
+        if (lastStartedIndex >= 0) states[lastStartedIndex] = 'stopped';
+    }
+    return states;
+};
+
 export const formatStageDuration = (durationMs: number | null): string => {
-    if (durationMs === null) return '—';
+    if (durationMs === null) return '';
     const totalSeconds = Math.max(0, Math.floor(durationMs / 1_000));
     const hours = Math.floor(totalSeconds / 3_600);
     const minutes = Math.floor((totalSeconds % 3_600) / 60);
@@ -229,6 +268,28 @@ export const sanitizeTerminalText = (value: string): string => {
             return character === '\n' || character === '\t' || code >= 32;
         })
         .join('');
+};
+
+export type AgentOnboardingFileKind = 'model' | 'chart' | 'dashboard' | 'other';
+
+/** Which part of the project a written file is, and what to call it */
+export const describeAgentOnboardingFile = (
+    path: string,
+): { kind: AgentOnboardingFileKind; label: string } => {
+    const kind: AgentOnboardingFileKind = /(^|\/)models\//.test(path)
+        ? 'model'
+        : /(^|\/)charts\//.test(path)
+          ? 'chart'
+          : /(^|\/)dashboards\//.test(path)
+            ? 'dashboard'
+            : 'other';
+    return {
+        kind,
+        label:
+            kind === 'other'
+                ? (path.split('/').pop() ?? path)
+                : humanizeSlug(fileName(path)),
+    };
 };
 
 export type AgentOnboardingFileTreeNode = {
@@ -289,7 +350,167 @@ export const getAgentOnboardingRunUrl = (
 ): string =>
     `/projects/${encodeURIComponent(projectUuid)}/onboarding/runs/${encodeURIComponent(runUuid)}`;
 
-const AGENT_ONBOARDING_DASHBOARD_SLUG = 'agent-starter-dashboard';
+export const AGENT_ONBOARDING_STAGE_ACTIVE_LABELS: Record<
+    AgentOnboardingProgressStage,
+    string
+> = {
+    explore: 'Exploring your warehouse',
+    semantic_layer: 'Building the semantic layer',
+    questions: 'Writing starter questions',
+    ready: 'Verifying and handing off',
+};
 
-export const getAgentOnboardingDashboardUrl = (projectUuid: string): string =>
-    `/projects/${encodeURIComponent(projectUuid)}/dashboards/${AGENT_ONBOARDING_DASHBOARD_SLUG}/view`;
+const humanizeSlug = (slug: string): string => {
+    const words = slug.replace(/^agent-starter-/, '').replace(/[-_]+/g, ' ');
+    return words.charAt(0).toUpperCase() + words.slice(1);
+};
+
+const fileName = (path: string): string =>
+    path
+        .split('/')
+        .pop()
+        ?.replace(/\.ya?ml$/, '') ?? path;
+
+/** Plain-language line for a run event, or null for housekeeping the user doesn't need */
+export const describeAgentOnboardingEvent = (
+    message: string,
+): string | null => {
+    const text = message.trim();
+    const table = text.match(/warehouse-catalog.*--table\s+(\S+)/)?.[1];
+    if (table) return `Read the ${table} table`;
+    const schema = text.match(/warehouse-catalog.*--schema\s+(\S+)/)?.[1];
+    if (schema) return `Listed the tables in ${schema}`;
+    if (/^lightdash sql\b/.test(text)) return 'Profiled the data with a query';
+    const model = text.match(/^Write: \S*models\/(\S+)$/)?.[1];
+    if (model) return `Wrote the ${fileName(model)} model`;
+    if (/^Write: \S*lightdash-starter-questions\.ya?ml$/.test(text))
+        return 'Wrote the starter questions';
+    if (/^Write: \S*tmp\//.test(text)) return 'Drafted a chart for a question';
+    if (/run-chart/.test(text)) return 'Checked a question returns data';
+    if (/^lightdash deploy\b/.test(text)) return 'Deployed the semantic layer';
+    if (/^lightdash validate\b/.test(text)) return 'Validated the project';
+    if (/^lightdash lint\b/.test(text)) return 'Checked the YAML';
+    if (/^Preparing\b/.test(text)) return 'Getting ready';
+    return null;
+};
+
+export type AgentOnboardingRunArtifacts = {
+    tables: string[];
+    models: string[];
+};
+
+/** What the run has produced so far, named the way a person would say it */
+export const collectAgentOnboardingArtifacts = (
+    events: AgentOnboardingRunEvent[],
+): AgentOnboardingRunArtifacts => {
+    const collect = (pattern: RegExp) => [
+        ...new Set(
+            events
+                .map(({ message }) => message.match(pattern)?.[1])
+                .filter((match): match is string => !!match),
+        ),
+    ];
+    return {
+        tables: collect(/warehouse-catalog.*--table\s+(\S+)/),
+        models: collect(/^Write: \S*models\/(\S+)$/).map(fileName),
+    };
+};
+
+export type AgentOnboardingRunSummary = {
+    tables: number;
+    models: number;
+};
+
+export const summarizeAgentOnboardingEvents = (
+    events: AgentOnboardingRunEvent[],
+): AgentOnboardingRunSummary => {
+    const { tables, models } = collectAgentOnboardingArtifacts(events);
+    return { tables: tables.length, models: models.length };
+};
+
+export type SemanticLayerField = {
+    name: string;
+    label: string;
+    type: DimensionType | MetricType | null;
+    description: string | null;
+};
+
+export type SemanticLayerModel = {
+    name: string;
+    label: string;
+    dimensions: SemanticLayerField[];
+    metrics: SemanticLayerField[];
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const asText = (value: unknown): string | null =>
+    typeof value === 'string' && value.trim() !== '' ? value : null;
+
+const FIELD_TYPES: ReadonlyArray<string> = [
+    ...Object.values(DimensionType),
+    ...Object.values(MetricType),
+];
+
+const isFieldType = (value: unknown): value is DimensionType | MetricType =>
+    typeof value === 'string' && FIELD_TYPES.includes(value);
+
+const toField = (
+    name: string,
+    raw: Record<string, unknown>,
+): SemanticLayerField => ({
+    name,
+    label: asText(raw.label) ?? humanizeSlug(name),
+    type: isFieldType(raw.type) ? raw.type : null,
+    description: asText(raw.description),
+});
+
+// Fields come as a list of `{ name }` or a map keyed by name; hidden ones are plumbing
+const toFields = (raw: unknown): SemanticLayerField[] => {
+    const entries: [string, Record<string, unknown>][] = Array.isArray(raw)
+        ? raw.flatMap((item) => {
+              const name = isRecord(item) ? asText(item.name) : null;
+              return isRecord(item) && name ? [[name, item]] : [];
+          })
+        : isRecord(raw)
+          ? Object.entries(raw).flatMap(([name, item]) =>
+                isRecord(item) ? [[name, item]] : [],
+            )
+          : [];
+    return entries
+        .filter(([, item]) => item.hidden !== true)
+        .map(([name, item]) => toField(name, item));
+};
+
+/** Reads a parsed Lightdash model YAML, or null when it isn't one (yet) */
+export const toSemanticLayerModel = (
+    path: string,
+    parsed: unknown,
+): SemanticLayerModel | null => {
+    if (!isRecord(parsed)) return null;
+    const name = asText(parsed.name) ?? fileName(path);
+    return {
+        name,
+        label: asText(parsed.label) ?? humanizeSlug(name),
+        dimensions: toFields(parsed.dimensions),
+        metrics: toFields(parsed.metrics),
+    };
+};
+
+export const parseSemanticLayerModel = (
+    path: string,
+    content: string,
+): SemanticLayerModel | null => {
+    try {
+        return toSemanticLayerModel(path, load(content));
+    } catch {
+        // A file mid-write is not valid YAML yet
+        return null;
+    }
+};
+
+export const isSemanticLayerModelFile = ({ path }: AgentOnboardingFile) =>
+    /(^|\/)models\/[^/]+\.ya?ml$/i.test(path);
+
+export const SEMANTIC_LAYER_ANCHOR = 'semantic-layer';
