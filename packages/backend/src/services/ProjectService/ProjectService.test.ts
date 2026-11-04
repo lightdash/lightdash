@@ -117,6 +117,7 @@ import {
     type PossibleAbilities,
     type Project,
     type ProjectDbtSource,
+    type ProjectSummary,
     type RegisteredAccount,
     type SchedulerIndexCatalogJobPayload,
     type UpdateProject,
@@ -397,10 +398,11 @@ const projectModel = {
         async (_org: string, callback: () => Promise<unknown>) => callback(),
     ),
     getWithSensitiveFields: vi.fn(async () => projectWithSensitiveFields),
+    updateMetadata: vi.fn(async () => undefined),
     get: vi.fn(async () => projectWithSensitiveFields),
     getAllByOrganizationUuid: vi.fn<ProjectModel['getAllByOrganizationUuid']>(),
     updateExpiresAt: vi.fn(async () => undefined),
-    getSummary: vi.fn(async () => projectSummary),
+    getSummary: vi.fn(async (_projectUuid: string) => projectSummary),
     getDbtSourceIdentity: vi.fn(async () => ({
         dbtSourceUuid: 'primary-source-uuid',
         dbtSourceName: 'dbt_project',
@@ -711,6 +713,7 @@ const catalogModel = {
     getCatalogItemsWithIcons: vi.fn(async () => []),
     getAllMetricsTreeEdges: vi.fn(async () => []),
     getAllMetricsTreeNodes: vi.fn(async () => []),
+    getUpstreamDiff: vi.fn(async () => []),
 };
 
 const tagsModel = {
@@ -2681,6 +2684,151 @@ describe('ProjectService', () => {
                 'No merged dbt manifest has been persisted for this project',
             );
         });
+    });
+
+    describe('upstream project link', () => {
+        const preview: ProjectSummary = {
+            ...projectSummary,
+            projectUuid: 'preview-uuid',
+            type: ProjectType.PREVIEW,
+            upstreamProjectUuid: 'upstream-uuid',
+        };
+        const upstream: ProjectSummary = {
+            ...projectSummary,
+            projectUuid: 'upstream-uuid',
+        };
+        const hidden: ProjectSummary = {
+            ...projectSummary,
+            projectUuid: 'hidden-uuid',
+        };
+        const otherOrganization: ProjectSummary = {
+            ...projectSummary,
+            organizationUuid: 'other-organization-uuid',
+            projectUuid: 'other-organization-project-uuid',
+        };
+        const training: ProjectSummary = {
+            ...projectSummary,
+            projectUuid: 'training-uuid',
+            type: ProjectType.TRAINING,
+        };
+        const summaries = [
+            preview,
+            upstream,
+            hidden,
+            otherOrganization,
+            training,
+        ];
+        // Manages the preview and views every project except the hidden one.
+        // The other-organization grant has no org condition, so rejecting it
+        // proves the explicit same-organization check.
+        const ability = new Ability<PossibleAbilities>([
+            {
+                subject: 'Project',
+                action: ['manage', 'view'],
+                conditions: { projectUuid: preview.projectUuid },
+            },
+            {
+                subject: 'Project',
+                action: 'view',
+                conditions: {
+                    projectUuid: {
+                        $in: [
+                            upstream.projectUuid,
+                            training.projectUuid,
+                            otherOrganization.projectUuid,
+                        ],
+                    },
+                },
+            },
+        ]);
+        const sessionUser: SessionUser = { ...user, ability };
+        const registeredAccount = {
+            ...account,
+            user: { ...account.user, ability },
+        } as RegisteredAccount;
+
+        beforeEach(() => {
+            projectModel.getSummary.mockImplementation(async (uuid: string) => {
+                const summary = summaries.find((s) => s.projectUuid === uuid);
+                if (!summary) throw new NotFoundError('Project not found');
+                return summary;
+            });
+        });
+
+        afterEach(() => {
+            projectModel.getSummary.mockImplementation(
+                async () => projectSummary,
+            );
+        });
+
+        test.each([
+            ['an unviewable project', hidden.projectUuid, ForbiddenError],
+            [
+                'a project in another organization',
+                otherOrganization.projectUuid,
+                ForbiddenError,
+            ],
+            ['the training project', training.projectUuid, ForbiddenError],
+            ['the project itself', preview.projectUuid, ParameterError],
+            ['a missing project', 'missing-uuid', NotFoundError],
+        ])(
+            'rejects linking to %s',
+            async (_label, upstreamProjectUuid, error) => {
+                await expect(
+                    service.updateMetadata(sessionUser, preview.projectUuid, {
+                        upstreamProjectUuid,
+                    }),
+                ).rejects.toThrow(error);
+                expect(projectModel.updateMetadata).not.toHaveBeenCalled();
+            },
+        );
+
+        test.each([upstream.projectUuid, null])(
+            'saves an upstream of %s',
+            async (upstreamProjectUuid) => {
+                await service.updateMetadata(sessionUser, preview.projectUuid, {
+                    upstreamProjectUuid,
+                });
+                expect(projectModel.updateMetadata).toHaveBeenCalledWith(
+                    preview.projectUuid,
+                    { upstreamProjectUuid },
+                );
+            },
+        );
+
+        test('diffs a preview against a viewable upstream', async () => {
+            await expect(
+                service.getUpstreamDiff(preview.projectUuid, registeredAccount),
+            ).resolves.toEqual({
+                upstreamProjectUuid: upstream.projectUuid,
+                fields: [],
+            });
+            expect(catalogModel.getUpstreamDiff).toHaveBeenCalledWith(
+                preview.projectUuid,
+                upstream.projectUuid,
+            );
+        });
+
+        test.each([hidden.projectUuid, otherOrganization.projectUuid])(
+            'refuses to diff against a stored upstream of %s',
+            async (upstreamProjectUuid) => {
+                const linked = { ...preview, upstreamProjectUuid };
+                projectModel.getSummary.mockImplementation(
+                    async (uuid: string) =>
+                        uuid === preview.projectUuid
+                            ? linked
+                            : summaries.find((s) => s.projectUuid === uuid)!,
+                );
+
+                await expect(
+                    service.getUpstreamDiff(
+                        preview.projectUuid,
+                        registeredAccount,
+                    ),
+                ).rejects.toThrow(ForbiddenError);
+                expect(catalogModel.getUpstreamDiff).not.toHaveBeenCalled();
+            },
+        );
     });
 
     describe('active create project jobs', () => {
