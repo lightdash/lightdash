@@ -1,8 +1,11 @@
 import {
     AuthorizationError,
     DashboardTileTypes,
+    DimensionType,
     FeatureFlags,
+    FieldType,
     ForbiddenError,
+    MergeJoinType,
     NotFoundError,
     ParameterError,
     type Account,
@@ -18,7 +21,64 @@ import { chart, user } from './DashboardService.mock';
 
 const { projectUuid } = chart;
 const account = fromSession(user);
-const explore = { name: chart.tableName } as Explore;
+// Explores as the explore compiler leaves them: references sit on the compiled
+// table (sql_where) and fields, so no SQL is compiled here
+const exploreWithParameters = (
+    name: string,
+    parameterReferences: string[],
+    fieldParameterReferences: string[] = [],
+): Explore =>
+    ({
+        name,
+        baseTable: name,
+        joinedTables: [],
+        tables: {
+            [name]: {
+                name,
+                sqlTable: `"schema"."${name}"`,
+                parameterReferences,
+                dimensions: {
+                    amount: {
+                        fieldType: FieldType.DIMENSION,
+                        type: DimensionType.NUMBER,
+                        name: 'amount',
+                        table: name,
+                        sql: '${TABLE}.amount',
+                        compiledSql: `"${name}".amount`,
+                        parameterReferences: fieldParameterReferences,
+                    },
+                },
+                metrics: {},
+            },
+        },
+    }) as unknown as Explore;
+const explore = exploreWithParameters(
+    chart.tableName,
+    ['orders.region'],
+    ['orders.min_amount'],
+);
+const paymentsExplore = exploreWithParameters('payments', ['payments.region']);
+const explores: Record<string, Explore> = {
+    [chart.tableName]: explore,
+    payments: paymentsExplore,
+};
+// Sources on a parameter with no default used to fail the compile, not the listing
+const requiredParameterExplore: Explore = {
+    ...exploreWithParameters('required', ['required.region']),
+    parameters: { region: { label: 'Region' } },
+};
+const merge: SavedMergeDefinition = {
+    queries: {
+        payments: {
+            explore: 'payments',
+            dimensions: ['payments_amount'],
+            metrics: [],
+        },
+    },
+    join: MergeJoinType.LEFT,
+    keys: { table_name_amount: ['payments.payments_amount'] },
+    limit: 500,
+};
 const spaceContext = {
     organizationUuid: user.organizationUuid!,
     projectUuid,
@@ -35,18 +95,15 @@ const savedChart = (overrides: Partial<SavedChartDAO>): SavedChartDAO => ({
 const charts: Record<string, SavedChartDAO> = {
     plain: savedChart({ uuid: 'plain' }),
     sameExplore: savedChart({ uuid: 'sameExplore' }),
-    merged: savedChart({
-        uuid: 'merged',
-        merge: {
-            queries: {},
-            join: 'left',
-            keys: {},
-        } as unknown as SavedMergeDefinition,
+    merged: savedChart({ uuid: 'merged', merge }),
+    selecting: savedChart({
+        uuid: 'selecting',
+        metricQuery: {
+            ...chart.metricQuery,
+            dimensions: [`${chart.tableName}_amount`],
+        },
     }),
-    broken: savedChart({
-        uuid: 'broken',
-        metricQuery: { ...chart.metricQuery, exploreName: 'broken' },
-    }),
+    broken: savedChart({ uuid: 'broken', tableName: 'broken' }),
     hidden: savedChart({ uuid: 'hidden', spaceUuid: privateSpaceUuid }),
 };
 
@@ -105,24 +162,17 @@ const setup = ({ dashboardControlsEnabled = true } = {}) => {
     };
     const projectService = {
         findExplores: vi.fn(
-            async (_args: {
+            async ({
+                exploreNames,
+            }: {
                 exploreNames: string[];
-            }): Promise<Record<string, Explore>> => ({
-                [chart.tableName]: explore,
-            }),
+            }): Promise<Record<string, Explore>> =>
+                Object.fromEntries(
+                    exploreNames.flatMap((name) =>
+                        explores[name] ? [[name, explores[name]]] : [],
+                    ),
+                ),
         ),
-        compileQuery: vi.fn(
-            async ({ body }: { body: { exploreName: string } }) => {
-                if (body.exploreName === 'broken') {
-                    throw new Error('Field not found');
-                }
-                return { parameterReferences: ['orders.region'] };
-            },
-        ),
-        compileMergeQuery: vi.fn(async () => ({
-            parameterReferences: ['orders.region', 'payments.region'],
-            errors: [] as { message: string }[],
-        })),
     };
     const dashboardModel = {
         getByIdOrSlug: vi.fn(async () => embeddedDashboard),
@@ -177,12 +227,13 @@ const chartTile = (tileUuid: string, savedChartUuid: string) => ({
 });
 
 describe('DashboardService.getTileParameterReferences', () => {
-    it('compiles a saved chart against the preloaded explore', async () => {
+    it('reads the explore and the chart query, without compiling', async () => {
         const { service, projectService } = setup();
 
         await expect(
             service.getTileParameterReferences(account, projectUuid, [
                 chartTile('tile-1', 'plain'),
+                chartTile('tile-2', 'selecting'),
             ]),
         ).resolves.toEqual([
             {
@@ -190,9 +241,14 @@ describe('DashboardService.getTileParameterReferences', () => {
                 parameterReferences: ['orders.region'],
                 error: null,
             },
+            {
+                tileUuid: 'tile-2',
+                parameterReferences: ['orders.min_amount', 'orders.region'],
+                error: null,
+            },
         ]);
-        expect(projectService.compileQuery).toHaveBeenCalledWith(
-            expect.objectContaining({ explore, projectUuid }),
+        expect(projectService.findExplores).toHaveBeenCalledWith(
+            expect.objectContaining({ exploreNames: [chart.tableName] }),
         );
     });
 
@@ -219,40 +275,6 @@ describe('DashboardService.getTileParameterReferences', () => {
         expect(projectService.findExplores).toHaveBeenCalledWith(
             expect.objectContaining({ exploreNames: [chart.tableName] }),
         );
-        expect(projectService.compileQuery).toHaveBeenCalledTimes(2);
-    });
-
-    it('compiles at most five charts at a time', async () => {
-        const { service, projectService } = setup();
-        const manyCharts = Array.from({ length: 12 }, (_, index) =>
-            savedChart({ uuid: `many-${index}` }),
-        );
-        manyCharts.forEach((manyChart) => {
-            charts[manyChart.uuid] = manyChart;
-        });
-        let running = 0;
-        let maxRunning = 0;
-        projectService.compileQuery.mockImplementation(async () => {
-            running += 1;
-            maxRunning = Math.max(maxRunning, running);
-            await new Promise((resolve) => {
-                setTimeout(resolve, 5);
-            });
-            running -= 1;
-            return { parameterReferences: ['orders.region'] };
-        });
-
-        const results = await service.getTileParameterReferences(
-            account,
-            projectUuid,
-            manyCharts.map((manyChart) =>
-                chartTile(`tile-${manyChart.uuid}`, manyChart.uuid),
-            ),
-        );
-
-        expect(results.every((result) => result.error === null)).toBe(true);
-        expect(projectService.compileQuery).toHaveBeenCalledTimes(12);
-        expect(maxRunning).toBe(5);
     });
 
     it('loads at most five charts at a time', async () => {
@@ -340,7 +362,7 @@ describe('DashboardService.getTileParameterReferences', () => {
                         "You don't have authorization to access this explore",
                     );
                 }
-                return { [chart.tableName]: explore };
+                return explores;
             },
         );
 
@@ -373,7 +395,7 @@ describe('DashboardService.getTileParameterReferences', () => {
         ]);
     });
 
-    it('compiles a merged chart as a merge query', async () => {
+    it('unions the references of every query a merged chart runs', async () => {
         const { service, projectService } = setup();
 
         await expect(
@@ -387,43 +409,73 @@ describe('DashboardService.getTileParameterReferences', () => {
                 error: null,
             },
         ]);
-        expect(projectService.compileQuery).not.toHaveBeenCalled();
-        expect(projectService.compileMergeQuery).toHaveBeenCalledWith(
+        expect(projectService.findExplores).toHaveBeenCalledTimes(1);
+        expect(projectService.findExplores).toHaveBeenCalledWith(
             expect.objectContaining({
-                projectUuid,
-                mergeQuery: expect.objectContaining({
-                    sources: [
-                        expect.objectContaining({
-                            metricQuery: chart.metricQuery,
-                        }),
-                    ],
-                }),
+                exploreNames: [chart.tableName, 'payments'],
             }),
         );
     });
 
-    it('reports a merged chart that fails to compile as a failed tile', async () => {
-        const { service, projectService } = setup();
-        projectService.compileMergeQuery.mockResolvedValueOnce({
-            parameterReferences: [],
-            errors: [{ message: 'Query "orders" cannot back a merge' }],
+    it('lists a merged chart whose source needs a parameter with no default', async () => {
+        const { service } = setup();
+        explores.required = requiredParameterExplore;
+        charts.requiring = savedChart({
+            uuid: 'requiring',
+            parameters: undefined,
+            merge: {
+                ...merge,
+                queries: {
+                    required: {
+                        explore: 'required',
+                        dimensions: ['required_amount'],
+                        metrics: [],
+                    },
+                },
+                keys: { table_name_amount: ['required.required_amount'] },
+            },
         });
 
         await expect(
             service.getTileParameterReferences(account, projectUuid, [
-                chartTile('tile-1', 'merged'),
+                chartTile('tile-1', 'requiring'),
+            ]),
+        ).resolves.toEqual([
+            {
+                tileUuid: 'tile-1',
+                parameterReferences: ['orders.region', 'required.region'],
+                error: null,
+            },
+        ]);
+    });
+
+    it('reports a merged chart whose source explore is missing as a failed tile', async () => {
+        const { service } = setup();
+        charts.mergedBroken = savedChart({
+            uuid: 'mergedBroken',
+            merge: {
+                ...merge,
+                queries: {
+                    gone: { explore: 'gone', dimensions: [], metrics: [] },
+                },
+            },
+        });
+
+        await expect(
+            service.getTileParameterReferences(account, projectUuid, [
+                chartTile('tile-1', 'mergedBroken'),
             ]),
         ).resolves.toEqual([
             {
                 tileUuid: 'tile-1',
                 parameterReferences: null,
-                error: 'Query "orders" cannot back a merge',
+                error: 'Explore "gone" is not available',
             },
         ]);
     });
 
     it('reads a SQL chart from its SQL', async () => {
-        const { service, projectService } = setup();
+        const { service } = setup();
 
         await expect(
             service.getTileParameterReferences(account, projectUuid, [
@@ -440,7 +492,6 @@ describe('DashboardService.getTileParameterReferences', () => {
                 error: null,
             },
         ]);
-        expect(projectService.compileQuery).not.toHaveBeenCalled();
     });
 
     it('reports failing, missing and hidden tiles without failing the rest', async () => {
@@ -466,7 +517,7 @@ describe('DashboardService.getTileParameterReferences', () => {
             {
                 tileUuid: 'failing',
                 parameterReferences: null,
-                error: 'Field not found',
+                error: 'Explore "broken" is not available',
             },
             {
                 tileUuid: 'missing',
@@ -513,30 +564,6 @@ describe('DashboardService.getTileParameterReferences', () => {
             {
                 tileUuid: 'good',
                 parameterReferences: ['region'],
-                error: null,
-            },
-        ]);
-    });
-
-    it('keeps the references of a chart that compiles with errors', async () => {
-        // A number filter on a parameter with no value is a compile error; the
-        // listing is how the bar learns that parameter, so the tile keeps it
-        const { service, projectService } = setup();
-        projectService.compileQuery.mockResolvedValueOnce({
-            parameterReferences: ['orders.min_amount'],
-            compilationErrors: [
-                'Invalid number value in filter: "${lightdash.parameters.orders.min_amount}". Expected a valid number.',
-            ],
-        } as never);
-
-        await expect(
-            service.getTileParameterReferences(account, projectUuid, [
-                chartTile('tile-1', 'plain'),
-            ]),
-        ).resolves.toEqual([
-            {
-                tileUuid: 'tile-1',
-                parameterReferences: ['orders.min_amount'],
                 error: null,
             },
         ]);

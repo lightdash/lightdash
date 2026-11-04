@@ -28,6 +28,7 @@ import {
     getErrorMessage,
     getItemId,
     getParameterReferences,
+    getQueryParameterReferences,
     getSchedulerResourceTypeAndId,
     hasChartsInDashboard,
     isDashboardChartTileType,
@@ -37,6 +38,7 @@ import {
     isDashboardVersionedFields,
     isExploreError,
     isJwtUser,
+    isMergeMetricSource,
     isUserWithOrg,
     isValidDashboardTilePositions,
     isValidFrequency,
@@ -76,6 +78,7 @@ import {
     type DuplicateDashboardParams,
     type Explore,
     type ExploreError,
+    type MetricQuery,
     type SavedChartDAO,
     type UpdateDashboardCustomMetric,
     type UUID,
@@ -174,10 +177,7 @@ type DashboardServiceArguments = {
     organizationMemberProfileModel: OrganizationMemberProfileModel;
     spacePermissionService: SpacePermissionService;
     contentVerificationModel: ContentVerificationModel;
-    projectService: Pick<
-        ProjectService,
-        'findExplores' | 'compileQuery' | 'compileMergeQuery'
-    >;
+    projectService: Pick<ProjectService, 'findExplores'>;
 };
 
 type ContentAsCodeDeleteOptions = SoftDeleteOptions & {
@@ -197,7 +197,6 @@ type DashboardDraftOverlay = Partial<
     >
 >;
 
-const TILE_COMPILE_CONCURRENCY = 5;
 const TILE_LOAD_CONCURRENCY = 5;
 const MAX_PARAMETER_REFERENCE_TILES = 200;
 
@@ -216,6 +215,36 @@ type ParameterReferencesLookup = (
 
 const toError = (e: unknown): Error =>
     e instanceof Error ? e : new Error(getErrorMessage(e));
+
+/** The queries a chart runs, each against its own explore; a merge runs one per metric source. */
+const getChartQueries = (
+    chart: SavedChartDAO,
+): { exploreName: string; metricQuery: MetricQuery }[] =>
+    chart.merge
+        ? buildMergeQueryFromMergeDefinition(chart.metricQuery, chart.merge)
+              .sources.filter(isMergeMetricSource)
+              .map(({ metricQuery }) => ({
+                  exploreName: metricQuery.exploreName,
+                  metricQuery,
+              }))
+        : [{ exploreName: chart.tableName, metricQuery: chart.metricQuery }];
+
+const getChartParameterReferences = (
+    chart: SavedChartDAO,
+    explores: Map<string, Explore | ExploreError | Error>,
+): string[] =>
+    uniq(
+        getChartQueries(chart).flatMap(({ exploreName, metricQuery }) => {
+            const explore = explores.get(exploreName);
+            if (explore instanceof Error) throw explore;
+            if (!explore || isExploreError(explore)) {
+                throw new NotFoundError(
+                    `Explore "${exploreName}" is not available`,
+                );
+            }
+            return getQueryParameterReferences(explore, metricQuery);
+        }),
+    );
 
 const toLookup =
     (
@@ -952,8 +981,9 @@ export class DashboardService
     }
 
     /**
-     * The parameters each tile's query uses, compiled without running it. A
-     * tile that can't be loaded, viewed or compiled reports its own error.
+     * The parameters each tile's query uses, read from its saved query and
+     * explore without compiling. A tile that can't be loaded or viewed
+     * reports its own error.
      */
     async getTileParameterReferences(
         account: Account,
@@ -1115,50 +1145,34 @@ export class DashboardService
                 account,
                 projectUuid,
                 uniq(
-                    charts.flatMap((chart) =>
-                        chart.merge ? [] : [chart.tableName],
-                    ),
+                    charts
+                        .flatMap(getChartQueries)
+                        .map(({ exploreName }) => exploreName),
                 ),
             ),
         ]);
-        // Each compile makes several DB calls; cap them so one dashboard can't drain the pool
-        await runWithConcurrency(
-            charts,
-            TILE_COMPILE_CONCURRENCY,
-            async (chart) => {
-                if (!viewableChartUuids.has(chart.uuid)) {
-                    results.set(
-                        chart.uuid,
-                        parameterReferencesFailure(
-                            "You don't have access to view this chart",
-                        ),
-                    );
-                    return;
-                }
-                const explore = explores.get(chart.tableName);
-                if (explore instanceof Error) {
-                    results.set(
-                        chart.uuid,
-                        parameterReferencesFailure(explore),
-                    );
-                    return;
-                }
-                try {
-                    results.set(chart.uuid, {
-                        parameterReferences:
-                            await this.compileChartParameterReferences(
-                                account,
-                                projectUuid,
-                                chart,
-                                explore,
-                            ),
-                        error: null,
-                    });
-                } catch (e) {
-                    results.set(chart.uuid, parameterReferencesFailure(e));
-                }
-            },
-        );
+        charts.forEach((chart) => {
+            if (!viewableChartUuids.has(chart.uuid)) {
+                results.set(
+                    chart.uuid,
+                    parameterReferencesFailure(
+                        "You don't have access to view this chart",
+                    ),
+                );
+                return;
+            }
+            try {
+                results.set(chart.uuid, {
+                    parameterReferences: getChartParameterReferences(
+                        chart,
+                        explores,
+                    ),
+                    error: null,
+                });
+            } catch (e) {
+                results.set(chart.uuid, parameterReferencesFailure(e));
+            }
+        });
         return results;
     }
 
@@ -1245,42 +1259,6 @@ export class DashboardService
                 })
                 .map(({ uuid }) => uuid),
         );
-    }
-
-    private async compileChartParameterReferences(
-        account: Account,
-        projectUuid: string,
-        chart: SavedChartDAO,
-        explore: Explore | ExploreError | undefined,
-    ): Promise<string[]> {
-        if (chart.merge) {
-            const compiled = await this.projectService.compileMergeQuery({
-                account,
-                projectUuid,
-                mergeQuery: buildMergeQueryFromMergeDefinition(
-                    chart.metricQuery,
-                    chart.merge,
-                ),
-                parameters: chart.parameters,
-            });
-            if (compiled.errors.length > 0) {
-                throw new ParameterError(compiled.errors[0].message);
-            }
-            return compiled.parameterReferences;
-        }
-        if (!explore || isExploreError(explore)) {
-            throw new NotFoundError(
-                `Explore "${chart.tableName}" is not available`,
-            );
-        }
-        const compiled = await this.projectService.compileQuery({
-            account,
-            projectUuid,
-            explore,
-            body: { ...chart.metricQuery, parameters: chart.parameters },
-            customSqlProvenanceChartUuid: chart.uuid,
-        });
-        return compiled.parameterReferences;
     }
 
     private async getSavedSqlParameterReferences(
