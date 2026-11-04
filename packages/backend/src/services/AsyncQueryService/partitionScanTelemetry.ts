@@ -16,10 +16,10 @@ export type TablePartitioningLookup =
 const tableKey = ({ database, schema, table }: WarehouseTableReference) =>
     `${database}.${schema}.${table}`;
 
-// Failed lookups are cached too, so a table the credentials cannot read is not retried per query.
+// Short TTL keeps partition counts within minutes of BigQuery's own lag; failed lookups are cached too.
 export class TablePartitioningCache {
     private readonly cache = new NodeCache({
-        stdTTL: 60 * 60,
+        stdTTL: 5 * 60,
         useClones: false,
         maxKeys: 10_000,
     });

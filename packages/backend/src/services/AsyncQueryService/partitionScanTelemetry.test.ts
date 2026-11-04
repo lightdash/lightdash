@@ -143,6 +143,28 @@ describe('observePartitionScan', () => {
         expect(getTablePartitioning).toHaveBeenCalledTimes(2);
     });
 
+    it('refetches partition counts once the cache entry expires', async () => {
+        vi.useFakeTimers();
+        try {
+            const { observe, getTablePartitioning, loggedEvent } = setup({
+                events: dayPartitioned(30),
+            });
+            await observe([events], 29);
+            getTablePartitioning.mockResolvedValueOnce(dayPartitioned(29));
+
+            vi.advanceTimersByTime(5 * 60 * 1000 + 1);
+            await observe([events], 29);
+
+            expect(getTablePartitioning).toHaveBeenCalledTimes(2);
+            expect(loggedEvent()).toMatchObject({
+                totalPartitions: 29,
+                pruned: false,
+            });
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
     it('does not log when the query referenced no tables', async () => {
         const { observe, info } = setup({});
 
