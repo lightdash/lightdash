@@ -197,11 +197,6 @@
 
 /* Onboarding keeps the repo step to what a first connection needs; defaults cover the rest */
 .connectColumn
-    :global(.mantine-Select-root:has(+ input[name='dbt.semanticLayer'])) {
-    display: none;
-}
-
-.connectColumn
     :global(
         .mantine-InputWrapper-root:has(input[name='dbt.branch'])
             > .mantine-InputWrapper-description
