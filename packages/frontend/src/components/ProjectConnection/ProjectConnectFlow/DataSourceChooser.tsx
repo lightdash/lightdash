@@ -93,7 +93,7 @@ export const DataSourceChooser: FC = () => {
         onboardingNavigate(getWarehouseRoute(warehouse));
     };
 
-    const startWithTools = async () => {
+    const startWithTools = () => {
         track({
             name: EventName.ONBOARDING_WAREHOUSE_SELECTED,
             properties: {
@@ -103,13 +103,20 @@ export const DataSourceChooser: FC = () => {
                 onboardingFlow: 'new',
             },
         });
-        const { project } = await createProject.mutateAsync({
-            name: user.data?.organizationName || 'My project',
-            type: ProjectType.DEFAULT,
-            dbtConnection: { type: DbtProjectType.NONE },
-            dbtVersion: DefaultSupportedDbtVersion,
-        });
-        onboardingNavigate(`/onboarding/tools/${project.projectUuid}`);
+        createProject.mutate(
+            {
+                name: user.data?.organizationName || 'My project',
+                type: ProjectType.DEFAULT,
+                dbtConnection: { type: DbtProjectType.NONE },
+                dbtVersion: DefaultSupportedDbtVersion,
+            },
+            {
+                onSuccess: ({ project }) =>
+                    onboardingNavigate(
+                        `/onboarding/tools/${project.projectUuid}`,
+                    ),
+            },
+        );
     };
 
     const openSampleWorkspace = async () => {
@@ -200,7 +207,7 @@ export const DataSourceChooser: FC = () => {
 
             <LiveSourcesStartCard
                 isStarting={createProject.isLoading}
-                onStart={() => void startWithTools()}
+                onStart={startWithTools}
             />
 
             {canInvite && (

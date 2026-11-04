@@ -519,9 +519,9 @@ const renderBanner = (guide: SetupGuideState) =>
     );
 
 describe('first chart banner', () => {
-    it('stays hidden once the project has charts', () => {
+    it('stays after charts are saved, until hidden', () => {
         renderBanner({ ...bannerGuide, chartCount: 3 });
-        expect(screen.queryByText('Build your first chart')).toBeNull();
+        expect(screen.getByText('Build your first chart')).toBeTruthy();
     });
 
     it('shows on live sources alone, offering a warehouse', () => {

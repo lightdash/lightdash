@@ -63,6 +63,8 @@ export class FeatureFlagModel {
                     this.lightdashConfig.results.cacheEnabled,
                     options,
                 ),
+            [FeatureFlags.ApiQuerySources]:
+                this.getApiQuerySourcesEnabled.bind(this),
         };
     }
 
@@ -152,6 +154,23 @@ export class FeatureFlagModel {
             };
         }
         return this.getWithEnvFallback(args, true, options);
+    }
+
+    // Orgs on the new onboarding start from live sources, so they get them unless an override says otherwise
+    private async getApiQuerySourcesEnabled(
+        args: FeatureFlagLogicArgs,
+        options: FeatureFlagQueryOptions = {},
+    ): Promise<FeatureFlag> {
+        const override = await this.tryGetOverrideFromDatabase(args, options);
+        if (override) return override;
+        const newOnboarding = await this.resolve(
+            { ...args, featureFlagId: FeatureFlags.NewOnboarding },
+            options,
+        );
+        if (newOnboarding.enabled) {
+            return { id: args.featureFlagId, enabled: true };
+        }
+        return this.getWithEnvFallback(args, false, options);
     }
 
     // DB value (user override → org override → flag default) wins. Falls

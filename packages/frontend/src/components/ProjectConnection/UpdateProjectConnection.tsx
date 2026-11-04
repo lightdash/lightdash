@@ -170,8 +170,7 @@ const UpdateProjectConnection: FC<{
                             icon={<MantineIcon icon={IconDatabasePlus} />}
                             title="No warehouse connected yet"
                         >
-                            Pick your warehouse type below and save. Your
-                            connected tools keep working.
+                            Pick your warehouse type below and save.
                         </Alert>
                     )}
                     <ProjectFormProvider savedProject={project}>
