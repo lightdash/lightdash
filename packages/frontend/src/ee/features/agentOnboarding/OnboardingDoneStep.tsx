@@ -80,7 +80,12 @@ export const OnboardingDoneStep: FC<{ projectUuid: string }> = ({
     ];
 
     return (
-        <OnboardingLayout screen="done" stackDepth={6} centered size="compact">
+        <OnboardingLayout
+            screen="done"
+            stackDepth={6}
+            centered
+            withAccountSwitch={false}
+        >
             <DocumentTitle title="You're all set" />
             <Box className={classes.tick} aria-hidden>
                 <MantineIcon icon={IconCheck} size={28} stroke={2.5} />

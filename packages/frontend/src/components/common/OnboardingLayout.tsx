@@ -124,7 +124,7 @@ const useTrackScreen = (screen: OnboardingScreen | null) => {
 
 type Props = PropsWithChildren<{
     screen?: OnboardingScreen | null;
-    size?: 'compact' | 'standard' | 'wide';
+    size?: 'standard' | 'wide';
     withAccountSwitch?: boolean;
     progress?: Steps | null;
     journey?: Steps | null;

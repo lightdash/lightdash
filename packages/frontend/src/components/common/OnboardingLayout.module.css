@@ -28,10 +28,6 @@
     max-width: 56rem;
 }
 
-.content[data-size='compact'] {
-    max-width: 26rem;
-}
-
 .header {
     display: flex;
     align-items: center;
