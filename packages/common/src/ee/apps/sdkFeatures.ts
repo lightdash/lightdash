@@ -97,6 +97,14 @@ export const SDK_FEATURES: SdkFeature[] = [
             'Lets the host rasterize the app to an image for thumbnails and scheduled deliveries.',
     },
     {
+        key: 'pdf-export',
+        appliesTo: ['data_app'],
+        label: 'Scheduled PDF export',
+        description:
+            'Lets scheduled deliveries send the same PDF the app’s Download PDF button produces.',
+        wiring: "Register the Download PDF builder with `registerPdfExport` from `@/lib/pdfExport`, resolving to `pdf.output('blob')`; without it scheduled PDF deliveries of the app fail.",
+    },
+    {
         key: 'external-fetch',
         appliesTo: ['data_app', 'chart_type'],
         label: 'External data fetch',

@@ -13,13 +13,15 @@ Rules:
 - Track `isExportingPdf`, disable the button while report data is loading or PDF generation is running, and show a spinner or "Exporting..." label until the promise settles.
 - Use chart value labels in PDF reports because exported pages cannot be hovered.
 - Avoid capturing scroll containers with hidden content. Capture page-sized elements that already contain the full content intended for export.
+- Register the same builder for scheduled deliveries with `registerPdfExport` from `@/lib/pdfExport` — see below. Without it, scheduled PDF deliveries of this app fail.
 
 ```tsx
 import { Button } from '@/components/ui/button';
+import { registerPdfExport } from '@/lib/pdfExport';
 import { toPng } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import { Download, Loader2 } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 async function imageLoaded(src: string) {
     const image = new Image();
@@ -31,10 +33,7 @@ async function imageLoaded(src: string) {
     return image;
 }
 
-async function downloadPdfFromPages(
-    pages: HTMLElement[],
-    filename = 'report.pdf',
-) {
+async function buildPdfFromPages(pages: HTMLElement[]) {
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
@@ -55,6 +54,19 @@ async function downloadPdfFromPages(
         pdf.addImage(dataUrl, 'PNG', (pageWidth - width) / 2, 0, width, height);
     }
 
+    return pdf;
+}
+
+function reportPages(root: HTMLElement) {
+    const pages = Array.from(root.querySelectorAll<HTMLElement>('.pdf-page'));
+    return pages.length > 0 ? pages : [root];
+}
+
+async function downloadPdfFromPages(
+    pages: HTMLElement[],
+    filename = 'report.pdf',
+) {
+    const pdf = await buildPdfFromPages(pages);
     pdf.save(filename.endsWith('.pdf') ? filename : `${filename}.pdf`);
 }
 
@@ -62,15 +74,22 @@ export function PdfReport() {
     const reportRef = useRef<HTMLDivElement | null>(null);
     const [isExportingPdf, setIsExportingPdf] = useState(false);
 
+    // Scheduled deliveries reuse the exact builder behind the button; the
+    // host requests the Blob once the app has rendered with its data.
+    useEffect(() => {
+        registerPdfExport(async () => {
+            if (!reportRef.current) throw new Error('Report not mounted');
+            const pdf = await buildPdfFromPages(reportPages(reportRef.current));
+            return pdf.output('blob');
+        });
+    }, []);
+
     async function exportPdf() {
         if (!reportRef.current) return;
         setIsExportingPdf(true);
         try {
-            const pages = Array.from(
-                reportRef.current.querySelectorAll<HTMLElement>('.pdf-page'),
-            );
             await downloadPdfFromPages(
-                pages.length > 0 ? pages : [reportRef.current],
+                reportPages(reportRef.current),
                 'executive-report.pdf',
             );
         } finally {
