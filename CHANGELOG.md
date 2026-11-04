@@ -1,3 +1,10 @@
+## [3.153.1](https://github.com/lightdash/lightdash/compare/3.153.0...3.153.1) (2026-11-04)
+
+
+### Bug Fixes
+
+* **frontend:** stop aliasing lodash.get to es-toolkit so react-ace loads in dev ([#32082](https://github.com/lightdash/lightdash/issues/32082)) ([67fe2b0](https://github.com/lightdash/lightdash/commit/67fe2b03241219e9413c15bdf2a45655fdc58f5f))
+
 # [3.153.0](https://github.com/lightdash/lightdash/compare/3.152.0...3.153.0) (2026-11-04)
 
 
