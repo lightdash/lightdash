@@ -538,8 +538,8 @@ export const DEFAULT_UI_STRINGS = {
         ', in that order, each within {window} of the step before, over {range}',
     'aiAgent.composer.funnelNode.sentence.breakdown': ', split by {breakdown}',
     'aiAgent.composer.funnelNode.sentence.listAnd': ' and ',
-    'aiAgent.composer.funnelNode.strip.ofPrevious': '{percent}% of previous',
-    'aiAgent.composer.funnelNode.strip.users': 'users',
+    'aiAgent.composer.funnelNode.strip.droppedOff':
+        '{users} dropped off ({percent}%)',
     'aiAgent.composer.funnelNode.strip.converted': '{percent}% converted',
     'aiAgent.composer.funnelNode.strip.firstToLast': '{first} → {last} users',
     'aiAgent.composer.funnelNode.strip.largestDrop':
