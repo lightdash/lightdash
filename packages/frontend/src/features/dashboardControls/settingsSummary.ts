@@ -1,14 +1,11 @@
 import {
-    isValuelessDashboardFilterRule,
     type DashboardControlSection,
     type DashboardFilterRule,
     type DashboardFilters,
     type DashboardTab,
 } from '@lightdash/common';
-import { hasFilterValueSet } from '../../features/dashboardFilters/FilterConfiguration/utils';
 
-// The lock and required summaries of the rail's Settings row, as they shipped
-// in `dashboardControls/railSummaries.ts` before the popover replaced the rail
+// The Settings chip's summary: what an editor set on the filter, in short
 
 type LockState =
     | { hasTabs: false; isLocked: boolean }
@@ -62,7 +59,7 @@ export const getSettingsSummary = ({
         : [];
     const lockedTabUuids = rule.lockedTabUuids ?? [];
     const parts = [
-        section ? section.name : null,
+        section?.name || null,
         getRequiredSummary(
             !!rule.required || !!rule.requiredGroupId,
             alternatives.map(getRuleName),
@@ -80,22 +77,4 @@ export const getSettingsSummary = ({
         ),
     ].filter((part) => part !== null);
     return parts.length > 0 ? parts.join(' · ') : null;
-};
-
-// A viewer's Apply waits on it, as `useApplyBlockedReason`: `required` wins
-// over a group, and a group is met by another member that filters
-export const isMissingRequiredValue = (
-    rule: DashboardFilterRule,
-    filters: DashboardFilters,
-): boolean => {
-    if (hasFilterValueSet(rule)) return false;
-    if (rule.required) return true;
-    if (!rule.requiredGroupId) return false;
-    return !allRules(filters).some(
-        (other) =>
-            other.id !== rule.id &&
-            !other.required &&
-            other.requiredGroupId === rule.requiredGroupId &&
-            !isValuelessDashboardFilterRule(other),
-    );
 };

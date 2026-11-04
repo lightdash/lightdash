@@ -42,6 +42,16 @@ type Args = {
     dismissOutside: () => void;
 };
 
+// Blur commits a label that is still being typed, into the edit, before
+// the edit ends; any other focus stays put
+const blurLabel = () => {
+    if (
+        document.activeElement instanceof HTMLElement &&
+        document.activeElement.matches('[data-controls-label]')
+    )
+        document.activeElement.blur();
+};
+
 // One Escape listener while the editor is open, so one press does one thing:
 // an open list closes itself, else the clicked field is cleared, else the
 // editor is dismissed. A mouse down never clears the field. A press outside
@@ -70,6 +80,7 @@ export const useEditorDismiss = ({
                 (!isPristineNew || target?.closest(LIST_SELECTOR))
             )
                 return;
+            blurLabel();
             dismissOutside();
         };
         // Capture: a list is still open when this runs
@@ -102,13 +113,8 @@ export const useEditorDismiss = ({
                 !target?.closest(`[${EDITOR_ATTRIBUTE}]`)
             )
                 return;
-            // Blur commits a label that is still being typed; any other focus
-            // stays put, so an Escape that changes nothing keeps the place
-            if (
-                document.activeElement instanceof HTMLElement &&
-                document.activeElement.matches('[data-controls-label]')
-            )
-                document.activeElement.blur();
+            // An Escape that changes nothing keeps the place
+            blurLabel();
             dismiss();
         };
         // Capture: lists are still open when this runs, so they can be seen

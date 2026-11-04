@@ -1,6 +1,7 @@
 import type * as DndKitCore from '@dnd-kit/core';
 import { DndContext, type DragEndEvent } from '@dnd-kit/core';
 import {
+    DEFAULT_UI_STRINGS,
     DashboardTileTypes,
     DimensionType,
     FilterOperator,
@@ -747,6 +748,66 @@ describe('FilterPills', () => {
             ).not.toBeInTheDocument();
         });
 
+        it("keeps the pill's tooltip back over the lock's slot, beside its button", async () => {
+            const user = userEvent.setup();
+            setContext({
+                dashboardFilters: {
+                    ...filters,
+                    dimensions: [
+                        { ...savedRule, lockedTabUuids: ['dashboard-1'] },
+                    ],
+                },
+            });
+            renderSelectable([]);
+
+            const lock = within(pill(/^Status/)).getByRole('button', {
+                name: 'Unlock filter',
+            });
+            await user.hover(lock.parentElement!);
+            // Past the pill tooltip's 500ms delay
+            await act(() => new Promise((resolve) => setTimeout(resolve, 700)));
+            expect(
+                screen.queryByText('Click to edit · Ctrl click to select'),
+            ).not.toBeInTheDocument();
+        });
+
+        it("shows only the requirement's tooltip while its mark is hovered", async () => {
+            const user = userEvent.setup();
+            setContext({
+                dashboardFilters: {
+                    ...filters,
+                    dimensions: [
+                        {
+                            ...savedRule,
+                            values: [],
+                            disabled: true,
+                            required: true,
+                        },
+                    ],
+                },
+            });
+            renderSelectable([]);
+
+            await user.hover(
+                pill(/^Status/).querySelector<HTMLElement>(
+                    '[data-requirement-icon]',
+                )!,
+            );
+
+            expect(
+                await screen.findByRole('tooltip', {
+                    name: DEFAULT_UI_STRINGS[
+                        'filters.required.setValueTooltip'
+                    ],
+                }),
+            ).toBeInTheDocument();
+            // Past the pill tooltip's 500ms delay
+            await act(() => new Promise((resolve) => setTimeout(resolve, 700)));
+            expect(
+                screen.queryByText('Click to edit · Ctrl click to select'),
+            ).not.toBeInTheDocument();
+        });
+
         it('picks nothing on a bar without a selection, as on the flat bar', async () => {
             const user = userEvent.setup();
             renderWithProviders(<FilterPills activeTabUuid={undefined} />);
@@ -1076,7 +1137,8 @@ describe('FilterPills', () => {
             required: true,
         };
 
-        it('gives a required filter no cue: muted without a value', () => {
+        it('marks a required filter with no value with a muted asterisk on the left, before the field icon, with its tooltip', async () => {
+            const user = userEvent.setup();
             setContext({
                 dashboardFilters: {
                     ...filters,
@@ -1087,13 +1149,57 @@ describe('FilterPills', () => {
 
             const required = pill(/^Status/);
             const optional = pill(/^Region/);
-            // Grip and field icons, as an optional pill
-            expect(leadingIconsOf(required)).toHaveLength(
-                leadingIconsOf(optional).length,
+            // On the left, before the field icon: one icon more than an
+            // optional pill
+            const icons = leadingIconsOf(required);
+            expect(icons).toHaveLength(leadingIconsOf(optional).length + 1);
+            const markIndex = icons.findIndex((icon) =>
+                icon.hasAttribute('data-requirement-icon'),
             );
-            expect(required).not.toHaveAttribute('data-requirement-unmet');
+            expect(markIndex).not.toBe(-1);
+            expect(isFieldIcon(icons[markIndex + 1])).toBe(true);
+            expect(
+                required.querySelector(
+                    '[data-position="right"] [data-requirement-icon]',
+                ),
+            ).toBeNull();
+            const mark = icons[markIndex] as HTMLElement;
+            // Said to assistive tech too, not only on hover: the pill is
+            // described by it, its name unchanged
+            expect(required).toHaveAccessibleDescription(
+                DEFAULT_UI_STRINGS['filters.required.setValueTooltip'],
+            );
+            expect(optional).not.toHaveAccessibleDescription();
+            expect(
+                optional.querySelector('[data-requirement-icon]'),
+            ).toBeNull();
             expect(required).not.toHaveAttribute('data-in-effect');
-            expect(required.className).toBe(optional.className);
+            await user.hover(mark!);
+            expect(
+                await screen.findByText(
+                    DEFAULT_UI_STRINGS['filters.required.setValueTooltip'],
+                ),
+            ).toBeInTheDocument();
+        });
+
+        it('shows only the lock on a locked, required filter with no value', () => {
+            setContext({
+                dashboardFilters: {
+                    ...filters,
+                    dimensions: [
+                        { ...requiredRule, lockedTabUuids: ['dashboard-1'] },
+                    ],
+                },
+            });
+            renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+
+            const required = pill(/^Status/);
+            expect(
+                required.querySelector('[data-requirement-icon]'),
+            ).toBeNull();
+            expect(
+                within(required).getByRole('button', { name: 'Unlock filter' }),
+            ).toBeInTheDocument();
         });
     });
 

@@ -1,6 +1,6 @@
 import { TextInput } from '@mantine/core';
 import { useRef, useState, type FC } from 'react';
-import { type NameExit } from '../../features/dashboardControls/nameFocus';
+import { type NameExit } from './nameFocus';
 
 // A control's name, and its rename: blur and Enter commit, Escape reverts
 export const NameInput: FC<{

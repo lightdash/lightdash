@@ -421,6 +421,16 @@ describe('dismissing in the controls editor', () => {
             expect(value().isSidebarOpen).toBe(false);
         });
 
+        it('lets a label being typed commit into the edit before it is discarded', () => {
+            act(() => label().focus());
+            onLabelBlur.mockClear();
+            press(screen.getByText('Tile card'));
+            // Blurred while the editor was still open, so the commit lands
+            // in the draft the press then discards, never on the dashboard
+            expect(onLabelBlur).toHaveBeenCalledWith({ filterId: 'a' });
+            expect(value().isSidebarOpen).toBe(false);
+        });
+
         it('discards unapplied changes with no question', () => {
             act(() => value().updateFilter({ ...rule('a'), values: ['9'] }));
             press(document.body);

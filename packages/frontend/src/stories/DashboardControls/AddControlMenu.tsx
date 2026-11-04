@@ -18,6 +18,7 @@ import { useMemo, useState, type FC } from 'react';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
+import { focusStartOnMount } from '../../features/dashboardControls/editorFocus';
 import { formatTileCount } from '../../features/dashboardControls/fieldLabels';
 import {
     getCollidingFieldIds,
@@ -26,7 +27,6 @@ import {
 } from '../../features/dashboardFilters/FilterConfiguration/FilterFieldSelect/useFilterFieldSections';
 import { ControlPicker, type PickerSection } from './ControlPicker';
 import { CONTROL_STRINGS } from './controlStrings';
-import { focusStartOnMount } from './focus';
 import {
     getParameterGroup,
     getParameterLabel,
@@ -43,7 +43,7 @@ const getRowHint = (
     isOnBar: boolean,
 ) => {
     const tiles = formatTileCount(getUiString, tileCount);
-    return isOnBar ? `${CONTROL_STRINGS.onTheBar} · ${tiles}` : tiles;
+    return isOnBar ? `On the bar · ${tiles}` : tiles;
 };
 
 type Step = 'closed' | 'choose' | 'filter' | 'parameter';

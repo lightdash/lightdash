@@ -8,6 +8,7 @@ import {
     type LightdashProjectParameter,
     type ParametersValuesMap,
     type ParameterValue,
+    type UiStringResolver,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -41,21 +42,21 @@ import {
     formatTilesOf,
 } from '../../features/dashboardControls/fieldLabels';
 import classes from '../../features/dashboardControls/FilterEditor.module.css';
+import { type EditorView as PopoverView } from '../../features/dashboardControls/FilterPopover';
 import { focusOnMount } from '../../features/dashboardControls/mappingFocus';
 import { useRefocusAfter } from '../../features/dashboardControls/nameFocus';
+import { NameInput } from '../../features/dashboardControls/NameInput';
+import { SectionSetting } from '../../features/dashboardControls/SectionSetting';
+import { useSettingsChipFocus } from '../../features/dashboardControls/useSettingsChipFocus';
 import { ParameterInput } from '../../features/parameters/components/ParameterInput';
 import { ShadowedReservedNameWarning } from '../../features/parameters/components/ShadowedReservedNameWarning';
 import { CONTROL_STRINGS } from './controlStrings';
 import { focusInputOnMount } from './focus';
-import { NameInput } from './NameInput';
 import {
     getParameterLabel,
     type ParameterControl,
     type ParameterOption,
 } from './parameterOptions';
-import { SectionSetting } from './SectionSetting';
-import { useSettingsChipFocus } from './useSettingsChipFocus';
-import { type PopoverView } from './views';
 
 const hasValue = (value: ParameterValue | null) =>
     value !== null && value !== '' && !(Array.isArray(value) && !value.length);
@@ -77,6 +78,7 @@ const formatValue = (
 // Values resolve per parameter key, so a mix of defaults says nothing rather
 // than guess; with no default at all each tile keeps its own value
 const getClearedCaption = (
+    getUiString: UiStringResolver,
     parameters: ParameterOption[],
     timezone: string | undefined,
 ): string | null => {
@@ -87,12 +89,15 @@ const getClearedCaption = (
     );
     const [first] = defaults;
     if (defaults.every((value) => value === undefined))
-        return CONTROL_STRINGS.clearedUsesOwnValue;
+        return getUiString('controls.parameter.clearedUsesOwnValue');
     return first !== undefined &&
         defaults.every((value) => isEqual(value, first))
-        ? interpolateUiString(CONTROL_STRINGS.clearedUsesDefault, {
-              value: formatValue(firstParameter.definition, first),
-          })
+        ? interpolateUiString(
+              getUiString('controls.parameter.clearedUsesDefault'),
+              {
+                  value: formatValue(firstParameter.definition, first),
+              },
+          )
         : null;
 };
 
@@ -158,13 +163,17 @@ export const ParameterControlPopover: FC<Props> = ({
             ? getAllowedParameterValue(first.definition, control.value)
             : null;
     const caption = hasValue(shownValue)
-        ? getClearedCaption(control.parameters, projectTimezone ?? undefined)
+        ? getClearedCaption(
+              getUiString,
+              control.parameters,
+              projectTimezone ?? undefined,
+          )
         : null;
 
     // Distinct tiles: a tile that uses two of its parameters counts once
     const tileCount = new Set(control.tileUuids).size;
     const tilesOf = formatTilesOf(getUiString, tileCount, totalTileCount);
-    const sets = interpolateUiString(CONTROL_STRINGS.sets, {
+    const sets = interpolateUiString(getUiString('controls.sets'), {
         tiles:
             tileCount === totalTileCount
                 ? formatTileCount(getUiString, totalTileCount)
@@ -177,7 +186,7 @@ export const ParameterControlPopover: FC<Props> = ({
         tileCount > 0
             ? null
             : isViewer
-              ? CONTROL_STRINGS.setsNoTiles
+              ? getUiString('controls.setsNoTiles')
               : CONTROL_STRINGS.notAppliedToAnyTiles;
     // Always there for editors; with no sections it holds the section select
     // at "No section"

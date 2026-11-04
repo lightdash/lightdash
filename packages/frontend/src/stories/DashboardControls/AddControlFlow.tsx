@@ -76,7 +76,6 @@ export const AddControlFlow: FC = () => {
                     appliedTileCount={getFieldTileCount(flow.field)}
                     isAsking={false}
                     initialView="value"
-                    footerLayout="row"
                     onApply={action('onApply')}
                     onCancel={backToMenu}
                     onChooseTiles={action('onChooseTiles')}
