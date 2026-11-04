@@ -34,6 +34,14 @@
     animation-delay: calc(var(--i) * 90ms);
 }
 
+/* The card for the step you're on */
+.card[data-current] {
+    border-color: var(--mantine-color-violet-3);
+    box-shadow:
+        0 0 0 3px var(--mantine-color-violet-0),
+        0 12px 32px -18px rgb(0 0 0 / 0.25);
+}
+
 .card + .card {
     margin-top: var(--mantine-spacing-sm);
 }
@@ -510,6 +518,35 @@
 
 .sourcePair > .card + .card {
     margin-top: 0;
+}
+
+/* A Y: each card drops a line, they meet midway and continue into the chart */
+.sourcePair {
+    position: relative;
+}
+
+.sourcePair > .card::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    height: 14px;
+    border-left: 1px solid var(--mantine-color-ldGray-3);
+}
+
+.sourcePair::after {
+    content: '';
+    position: absolute;
+    top: calc(100% + 14px);
+    left: calc((100% - 10px) / 4);
+    right: calc((100% - 10px) / 4);
+    border-top: 1px solid var(--mantine-color-ldGray-3);
+    animation: rise 480ms cubic-bezier(0.22, 1, 0.36, 1) 180ms both;
+}
+
+.sourcePair + .connector {
+    margin-top: 14px;
+    height: 14px;
 }
 
 .sourceRow {

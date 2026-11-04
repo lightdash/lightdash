@@ -99,7 +99,7 @@ export const WarehouseVisual: FC<{ nextUp: ReactNode }> = ({ nextUp }) => (
         body="Charts, dashboards and answers query your warehouse directly."
     >
         <Box className={classes.enrichRow}>
-            <Box className={classes.card} __vars={{ '--i': '0' }}>
+            <Box className={classes.card} data-current __vars={{ '--i': '0' }}>
                 <Group gap={8} wrap="nowrap" className={classes.cardHeader}>
                     <Box className={classes.logoStack}>
                         {WAREHOUSE_LOGOS.map((logo) => (
@@ -208,7 +208,11 @@ export const ToolsVisual: FC<{ warehouse: WarehouseTypes | null }> = ({
                         </Box>
                     ))}
                 </Box>
-                <Box className={classes.card} __vars={{ '--i': '1' }}>
+                <Box
+                    className={classes.card}
+                    data-current
+                    __vars={{ '--i': '1' }}
+                >
                     <Group gap={8} wrap="nowrap" className={classes.cardHeader}>
                         <Text fz="xs" fw={500}>
                             Live sources

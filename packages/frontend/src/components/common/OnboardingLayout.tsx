@@ -73,7 +73,7 @@ const JourneySteps: FC<Steps> = ({ currentStep, steps, progress = 0.4 }) => (
                 className={classes.journeySegment}
                 __vars={{ '--progress': String(progress) }}
                 data-state={
-                    index + 1 < currentStep || currentStep === steps.length
+                    index + 1 < currentStep
                         ? 'done'
                         : index + 1 === currentStep
                           ? 'current'
