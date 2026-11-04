@@ -3921,7 +3921,13 @@ describe('AiAgentToolsService runComposerQueries', () => {
         });
 
         const result = await service
-            .createRuntime(makeRuntimeContext())
+            .createRuntime(
+                makeRuntimeContext({
+                    agentUuid: 'agent-uuid',
+                    threadUuid: 'thread-uuid',
+                    promptUuid: 'prompt-uuid',
+                }),
+            )
             .runComposerQueries({
                 queries: composerQueries,
                 terminalNodeId: 'joined',
@@ -3937,6 +3943,11 @@ describe('AiAgentToolsService runComposerQueries', () => {
             parameters: {},
             userAttributeOverrides: {},
             invalidateCache: false,
+            aiAttribution: {
+                aiAgentUuid: 'agent-uuid',
+                threadUuid: 'thread-uuid',
+                promptUuid: 'prompt-uuid',
+            },
         });
         expect(getAsyncQueryResults).toHaveBeenCalledWith(
             expect.objectContaining({ queryUuid: 'query-2', page: 1 }),

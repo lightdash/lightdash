@@ -10402,6 +10402,8 @@ export class AiAgentService extends BaseService {
                         runtimeOptions?.userAttributeOverrides ?? {},
                     invalidateCache: false,
                     plans: {},
+                    // Re-renders stay unattributed: prompt ids mark tool runs only.
+                    aiAttribution: null,
                 });
             const submissions = allSubmissions.filter(
                 ({ nodeId }) => nodeId !== stageNodeId,
@@ -11047,6 +11049,8 @@ export class AiAgentService extends BaseService {
                             runtimeOptions?.userAttributeOverrides ?? {},
                         invalidateCache: false,
                         plans: {},
+                        // Re-renders stay unattributed: prompt ids mark tool runs only.
+                        aiAttribution: null,
                     },
                 );
                 return {
