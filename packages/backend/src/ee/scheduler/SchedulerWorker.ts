@@ -45,6 +45,7 @@ import type { AnalyticsProjectService } from '../services/AnalyticsProjectServic
 import { AppGenerateService } from '../services/AppGenerateService/AppGenerateService';
 import type { DataAppAnalysisService } from '../services/DataAppAnalysisService/DataAppAnalysisService';
 import type { EmbedService } from '../services/EmbedService/EmbedService';
+import type { ExternalConnectionService } from '../services/ExternalConnectionService/ExternalConnectionService';
 import type { ExternalSourceService } from '../services/ExternalSourceService/ExternalSourceService';
 import { ManagedAgentService } from '../services/ManagedAgentService/ManagedAgentService';
 import { type MobilePushNotificationService } from '../services/MobilePushNotificationService/MobilePushNotificationService';
@@ -53,6 +54,7 @@ import { ProjectContextService } from '../services/ProjectContextService/Project
 import type { ProjectHomepageService } from '../services/ProjectHomepageService';
 import { createReviewJiraIssue } from './tasks/createReviewJiraIssue';
 import { createReviewLinearIssue } from './tasks/createReviewLinearIssue';
+import { scanApiSourceSchema } from './tasks/scanApiSourceSchema';
 import { sendContentReviewNotification } from './tasks/sendContentReviewNotification';
 import { sendReviewNotification } from './tasks/sendReviewNotification';
 
@@ -159,6 +161,10 @@ type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
         'runIngest' | 'markIngestError' | 'maintain'
     >;
     aiThreadFileService: Pick<AiThreadFileService, 'sweepExpiredUnclaimed'>;
+    externalConnectionService: Pick<
+        ExternalConnectionService,
+        'scanApiSourceSchema'
+    >;
     mobilePushNotificationService: Pick<
         MobilePushNotificationService,
         | 'deliverLiveActivityStart'
@@ -229,6 +235,8 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
 
     protected readonly aiThreadFileService: CommercialSchedulerWorkerArguments['aiThreadFileService'];
 
+    protected readonly externalConnectionService: CommercialSchedulerWorkerArguments['externalConnectionService'];
+
     protected readonly mobilePushNotificationService: CommercialSchedulerWorkerArguments['mobilePushNotificationService'];
 
     protected readonly contentReviewRequestModel: ContentReviewRequestModel;
@@ -276,6 +284,7 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
         this.projectHomepageService = args.projectHomepageService;
         this.externalSourceService = args.externalSourceService;
         this.aiThreadFileService = args.aiThreadFileService;
+        this.externalConnectionService = args.externalConnectionService;
         this.mobilePushNotificationService = args.mobilePushNotificationService;
         this.contentReviewRequestModel = args.contentReviewRequestModel;
         this.contentReviewSettingsModel = args.contentReviewSettingsModel;
@@ -1182,6 +1191,25 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 ),
             [EE_SCHEDULER_TASKS.MAINTAIN_EXTERNAL_SOURCES]: async () => {
                 await this.externalSourceService.maintain();
+            },
+            [EE_SCHEDULER_TASKS.SCAN_API_SOURCE_SCHEMA]: async (
+                payload,
+                helpers,
+            ) => {
+                await SchedulerClient.processJob(
+                    EE_SCHEDULER_TASKS.SCAN_API_SOURCE_SCHEMA,
+                    helpers.job.id,
+                    helpers.job.run_at,
+                    payload,
+                    () =>
+                        scanApiSourceSchema({
+                            userService: this.userService,
+                            externalConnectionService:
+                                this.externalConnectionService,
+                            externalConnectionModel:
+                                this.externalConnectionModel,
+                        })(payload),
+                );
             },
             [EE_SCHEDULER_TASKS.SWEEP_UNCLAIMED_AI_THREAD_FILES]: async () => {
                 await this.aiThreadFileService.sweepExpiredUnclaimed();

@@ -27,13 +27,23 @@ const createSource = () => {
         .fn()
         .mockResolvedValue({ queryUuid: 'api-query-uuid' });
     const getApiConnector = vi.fn().mockResolvedValue(connector);
+    const listSchemaTables = vi.fn().mockResolvedValue([
+        {
+            reference: connectionUuid,
+            label: 'PostHog',
+            description: null,
+            columns: [],
+        },
+    ]);
     return {
         source: new ApiQuerySource({
             asyncQueryService: { executeAsyncApiQuery },
             getApiConnector,
+            listSchemaTables,
         }),
         executeAsyncApiQuery,
         getApiConnector,
+        listSchemaTables,
     };
 };
 
@@ -80,6 +90,24 @@ describe('ApiQuerySource', () => {
                 sql: 'SELECT 1',
             }),
         ).toThrow(ParameterError);
+    });
+
+    it('scans the schema tables of the connections the caller may query', async () => {
+        const { source, listSchemaTables } = createSource();
+        await expect(
+            source.scanSchema({ account, projectUuid }),
+        ).resolves.toEqual({
+            sourceType: QuerySourceType.API,
+            tables: [
+                {
+                    reference: connectionUuid,
+                    label: 'PostHog',
+                    description: null,
+                    columns: [],
+                },
+            ],
+        });
+        expect(listSchemaTables).toHaveBeenCalledWith(account, projectUuid);
     });
 
     it('submits the payload to the connection connector', async () => {
