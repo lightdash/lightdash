@@ -165,6 +165,16 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                                     value: SchedulerFormat.IMAGE,
                                     disabled: isImageDisabled,
                                 },
+                                {
+                                    label: 'PDF',
+                                    value: SchedulerFormat.PDF,
+                                    disabled:
+                                        isImageDisabled ||
+                                        (form.values.msTeamsTargets?.length ??
+                                            0) > 0 ||
+                                        (form.values.googleChatTargets
+                                            ?.length ?? 0) > 0,
+                                },
                             ]}
                             w="100%"
                             value={format}
@@ -224,6 +234,12 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                 {isApp && appQueryCountCaption && (
                     <Text size="xs" c="dimmed">
                         {appQueryCountCaption}
+                    </Text>
+                )}
+                {isApp && format === SchedulerFormat.PDF && (
+                    <Text size="xs" c="dimmed">
+                        Sends the PDF built by the app's own Download PDF button
+                        — the delivery fails if the app doesn't have one.
                     </Text>
                 )}
                 {isImageDisabled && (

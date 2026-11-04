@@ -147,15 +147,13 @@ describe('SchedulerDataFormatSection - app formats', () => {
         },
     );
 
-    it('shows csv/xlsx/image (no PDF) and the query-count caption when the app has captured queries', () => {
+    it('shows csv/xlsx/image/pdf and the query-count caption when the app has captured queries', () => {
         renderSection({ capturedQueryCount: 3 });
 
         expect(screen.getByRole('radio', { name: '.csv' })).toBeEnabled();
         expect(screen.getByRole('radio', { name: '.xlsx' })).toBeEnabled();
         expect(screen.getByRole('radio', { name: 'Image' })).toBeVisible();
-        expect(
-            screen.queryByRole('radio', { name: 'PDF' }),
-        ).not.toBeInTheDocument();
+        expect(screen.getByRole('radio', { name: 'PDF' })).toBeVisible();
         expect(
             screen.getByText(
                 '3 data queries detected in the current view — each query becomes a file',
