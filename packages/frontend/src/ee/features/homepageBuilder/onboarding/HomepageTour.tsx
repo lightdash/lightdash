@@ -45,15 +45,21 @@ export const HomepageTour: FC<{ ready: boolean }> = ({ ready }) => {
     const [steps, setSteps] = useState<HomepageTourStep[]>([]);
     useEffect(() => {
         if (!shouldOpen) return;
-        // A frame later, so portalled targets like the setup dock have mounted
-        const frame = requestAnimationFrame(() =>
-            setSteps(
-                HOMEPAGE_TOUR_STEPS.filter(
+        // Targets come and go with their data (portalled dock, suggestion chips), so follow them while open
+        const sync = () =>
+            setSteps((previous) => {
+                const next = HOMEPAGE_TOUR_STEPS.filter(
                     ({ target }) => document.querySelector(target) !== null,
-                ),
-            ),
-        );
-        return () => cancelAnimationFrame(frame);
+                );
+                return next.length === previous.length &&
+                    next.every((step, index) => step === previous[index])
+                    ? previous
+                    : next;
+            });
+        sync();
+        const observer = new MutationObserver(sync);
+        observer.observe(document.body, { childList: true, subtree: true });
+        return () => observer.disconnect();
     }, [shouldOpen]);
 
     return (
