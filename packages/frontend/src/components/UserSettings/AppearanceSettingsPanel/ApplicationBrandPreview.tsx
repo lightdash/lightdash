@@ -1,4 +1,4 @@
-import { type OrganizationBrandLogo } from '@lightdash/common';
+import { pickBrandLogo, type OrganizationBrandLogo } from '@lightdash/common';
 import { Box, Group, Paper, Stack, Text } from '@mantine/core';
 import {
     IconChevronDown,
@@ -7,7 +7,6 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
-import { pickBrandLogo } from '../../../hooks/organization/brandLogos';
 import Logo from '../../../svgs/logo-icon.svg?react';
 import MantineIcon from '../../common/MantineIcon';
 import classes from './ApplicationBrandPreview.module.css';

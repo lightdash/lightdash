@@ -1,6 +1,6 @@
 import { type OrganizationBrandLogo } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { findSquareBrandLogo, pickBrandLogo } from './brandLogos';
+import { findSquareBrandLogo } from './brandLogos';
 
 const main: OrganizationBrandLogo = {
     url: '/main.png',
@@ -10,34 +10,6 @@ const main: OrganizationBrandLogo = {
 };
 
 describe('brand logo selection', () => {
-    it.each([null, 'dark', 'light'])(
-        'supports existing logos with theme %s',
-        (theme) => {
-            const logo = { ...main, theme };
-            expect(pickBrandLogo([logo])).toEqual(logo);
-        },
-    );
-
-    it('keeps the primary image when a previous dark mode override exists', () => {
-        expect(
-            pickBrandLogo([
-                main,
-                { ...main, url: '/dark.png', theme: 'light', type: 'icon' },
-            ]),
-        ).toEqual(main);
-    });
-
-    it('prefers icons and SVG formats when importing multiple candidates', () => {
-        const icon = { ...main, type: 'icon', format: 'svg', url: '/icon.svg' };
-        expect(pickBrandLogo([main, { ...main, type: 'icon' }, icon])).toEqual(
-            icon,
-        );
-    });
-
-    it('returns no logo for an empty list', () => {
-        expect(pickBrandLogo([])).toBeNull();
-    });
-
     it('imports the best-ranked square logo and skips wide ones', async () => {
         const wide = { ...main, type: 'logo', url: '/wide.png' };
         const icon = { ...main, type: 'icon', url: '/icon.png' };

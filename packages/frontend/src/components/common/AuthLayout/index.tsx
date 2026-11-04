@@ -9,9 +9,11 @@ import {
     type PropsWithChildren,
     type ReactNode,
 } from 'react';
+import { useWhiteLabelBrand } from '../../../hooks/organization/useWhiteLabelBrand';
 import LightdashLogo from '../../LightdashLogo/LightdashLogo';
 import PageSpinner from '../../PageSpinner';
 import { DocumentTitle } from '../DocumentTitle';
+import AuthBrandLogo from './AuthBrandLogo';
 import classes from './AuthLayout.module.css';
 import { AuthPanelContext } from './AuthPanelContext';
 import CustomerLogos from './CustomerLogos';
@@ -65,6 +67,8 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
     children,
 }) => {
     const { isNewLayout, isInitialLoading } = useAuthLayoutVariant();
+    const whiteLabelBrand = useWhiteLabelBrand();
+    const isBranded = !!(whiteLabelBrand.logoUrl || whiteLabelBrand.name);
     const brandPanelRef = useRef<HTMLDivElement>(null);
 
     const flashError = useCallback(() => {
@@ -126,7 +130,7 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
         if (panel) panel.dataset.stage = 'submitting';
     };
 
-    if (isInitialLoading) {
+    if (isInitialLoading || !whiteLabelBrand.isResolved) {
         return <PageSpinner />;
     }
 
@@ -138,7 +142,7 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
                 <Box className={classes.legacyRoot}>
                     <Stack className={classes.legacyContent}>
                         <Box mx="auto" my="lg">
-                            <LightdashLogo />
+                            <AuthBrandLogo fallback={<LightdashLogo />} />
                         </Box>
                         {withLegacyCard ? (
                             <Card id={cardId} p="xl" radius="md">
@@ -164,27 +168,29 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
             <DocumentTitle title={pageTitle} />
 
             <Box className={classes.root}>
-                <Box
-                    ref={brandPanelRef}
-                    className={classes.brandPanel}
-                    data-stage="idle"
-                >
-                    <LightdashWordmark className={classes.brandWordmark} />
+                {!isBranded && (
+                    <Box
+                        ref={brandPanelRef}
+                        className={classes.brandPanel}
+                        data-stage="idle"
+                    >
+                        <LightdashWordmark className={classes.brandWordmark} />
 
-                    <Stack gap="lg" className={classes.brandIntro}>
-                        <Title order={1} className={classes.headline}>
-                            Analytics at the speed of code.
-                        </Title>
-                        <Text className={classes.subcopy}>
-                            The only open-source, AI-native BI platform that
-                            lets AI build, refactor, and ship analytics in
-                            minutes.
-                        </Text>
-                        {withCustomerLogos && <CustomerLogos />}
-                    </Stack>
+                        <Stack gap="lg" className={classes.brandIntro}>
+                            <Title order={1} className={classes.headline}>
+                                Analytics at the speed of code.
+                            </Title>
+                            <Text className={classes.subcopy}>
+                                The only open-source, AI-native BI platform that
+                                lets AI build, refactor, and ship analytics in
+                                minutes.
+                            </Text>
+                            {withCustomerLogos && <CustomerLogos />}
+                        </Stack>
 
-                    <ListeningBlocks />
-                </Box>
+                        <ListeningBlocks />
+                    </Box>
+                )}
 
                 <Box
                     className={classes.formPanel}
@@ -194,7 +200,14 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
                     onKeyUpCapture={(event) => syncCodeProgress(event.target)}
                 >
                     <Stack id={cardId} className={classes.formContent} gap="xl">
-                        <LightdashWordmark className={classes.formWordmark} />
+                        <AuthBrandLogo
+                            className={classes.formBrandLogo}
+                            fallback={
+                                <LightdashWordmark
+                                    className={classes.formWordmark}
+                                />
+                            }
+                        />
                         {title && (
                             <Stack gap="xs">
                                 <Title order={2}>{title}</Title>

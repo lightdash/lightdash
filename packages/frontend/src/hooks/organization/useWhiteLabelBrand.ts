@@ -1,10 +1,12 @@
-import { type OrganizationBrand } from '@lightdash/common';
+import { pickBrandLogo } from '@lightdash/common';
 import useIsEmbedded from '../../ee/providers/Embed/useIsEmbedded';
 import useApp from '../../providers/App/useApp';
 import { useOrganizationBrand } from './useOrganizationBrand';
 
+// The organization brand wins when signed in, then the instance brand
 export const useWhiteLabelBrand = (): {
-    brand: OrganizationBrand | null;
+    logoUrl: string | null;
+    name: string | null;
     isResolved: boolean;
 } => {
     const { health, user } = useApp();
@@ -14,12 +16,23 @@ export const useWhiteLabelBrand = (): {
     const enabled = canUseBrand && !!user.data?.organizationUuid && !isEmbedded;
     const { data, isError } = useOrganizationBrand({ enabled });
     const isResolved =
-        !!health.data &&
-        (!canUseBrand ||
-            (!!user.data && (!enabled || isError || data !== undefined)));
+        health.isError ||
+        (!!health.data &&
+            (!canUseBrand ||
+                user.isError ||
+                (!!user.data && (!enabled || isError || data !== undefined))));
+
+    const brand = enabled && !isError ? (data ?? null) : null;
+    const instanceBrand = isEmbedded
+        ? null
+        : (health.data?.instanceBrand ?? null);
 
     return {
-        brand: enabled && !isError ? (data ?? null) : null,
+        logoUrl:
+            (brand ? pickBrandLogo(brand.logos)?.url : null) ??
+            instanceBrand?.logoUrl ??
+            null,
+        name: brand?.name?.trim() || instanceBrand?.name || null,
         isResolved,
     };
 };

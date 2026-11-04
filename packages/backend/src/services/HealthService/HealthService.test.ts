@@ -9,6 +9,7 @@ import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlag
 import { MigrationModel } from '../../models/MigrationModel/MigrationModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
+import { InstanceBrandService } from '../InstanceBrandService/InstanceBrandService';
 import { LicenseService } from '../LicenseService/LicenseService';
 import type { ReadinessResult } from '../ReadinessService/ReadinessService';
 import { HealthService } from './HealthService';
@@ -60,6 +61,8 @@ const learnSandboxServiceMock = {
     isRuntimeAvailable: vi.fn(async () => false),
 };
 
+const instanceBrandService = new InstanceBrandService();
+
 describe('health', () => {
     const healthService = new HealthService({
         organizationModel: organizationModel as unknown as OrganizationModel,
@@ -70,6 +73,7 @@ describe('health', () => {
             organizationSettingsModel as unknown as OrganizationSettingsModel,
         featureFlagModel: featureFlagModelMock,
         learnSandboxService: learnSandboxServiceMock,
+        instanceBrandService,
     });
 
     afterEach(() => {
@@ -106,6 +110,7 @@ describe('health', () => {
                     organizationSettingsModel as unknown as OrganizationSettingsModel,
                 featureFlagModel: featureFlagModelMock,
                 learnSandboxService: learnSandboxServiceMock,
+                instanceBrandService,
             });
             const health = await service.getHealthState(undefined);
             expect(health.auth.snowflakeAi.enabled).toBe(licenseKey !== null);
@@ -138,6 +143,7 @@ describe('health', () => {
                 organizationSettingsModel:
                     organizationSettingsModel as unknown as OrganizationSettingsModel,
                 learnSandboxService: learnSandboxServiceMock,
+                instanceBrandService,
                 featureFlagModel: featureFlagModelMock,
             });
             const health = await service.getHealthState(undefined);
@@ -179,6 +185,7 @@ describe('health', () => {
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
             featureFlagModel: featureFlagModelMock,
             learnSandboxService: learnSandboxServiceMock,
+            instanceBrandService,
         });
 
         expect(
@@ -208,6 +215,7 @@ describe('health', () => {
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
             featureFlagModel: featureFlagModelMock,
             learnSandboxService: learnSandboxServiceMock,
+            instanceBrandService,
         });
 
         await expect(service.getHealthState(undefined)).resolves.toEqual({
@@ -238,6 +246,7 @@ describe('health', () => {
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
             featureFlagModel: featureFlagModelMock,
             learnSandboxService: learnSandboxServiceMock,
+            instanceBrandService,
         });
 
         expect(
@@ -267,6 +276,7 @@ describe('health', () => {
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
             featureFlagModel: featureFlagModelMock,
             learnSandboxService: learnSandboxServiceMock,
+            instanceBrandService,
         });
         expect(
             (await licensedService.getHealthState(undefined))
@@ -292,6 +302,7 @@ describe('health', () => {
                     organizationSettingsModel as unknown as OrganizationSettingsModel,
                 featureFlagModel: featureFlagModelMock,
                 learnSandboxService: learnSandboxServiceMock,
+                instanceBrandService,
             });
 
             expect(
@@ -321,6 +332,7 @@ describe('health', () => {
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
             featureFlagModel: featureFlagModelMock,
             learnSandboxService: learnSandboxServiceMock,
+            instanceBrandService,
         });
 
         expect(
@@ -340,6 +352,7 @@ describe('health', () => {
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
             featureFlagModel: featureFlagModelMock,
             learnSandboxService: learnSandboxServiceMock,
+            instanceBrandService,
         });
 
         expect(
@@ -363,6 +376,7 @@ describe('health', () => {
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
             featureFlagModel: featureFlagModelMock,
             learnSandboxService: learnSandboxServiceMock,
+            instanceBrandService,
         });
         expect(await service.getHealthState(undefined)).toEqual({
             ...BaseResponse,
@@ -436,6 +450,7 @@ describe('health', () => {
             featureFlagModel: featureFlagModelMock,
             readinessService: { getReadiness },
             learnSandboxService: learnSandboxServiceMock,
+            instanceBrandService,
         });
 
         await expect(service.getHealthState(undefined)).resolves.toEqual({
@@ -474,6 +489,7 @@ describe('health', () => {
                     organizationSettingsModel as unknown as OrganizationSettingsModel,
                 featureFlagModel: featureFlagModelMock,
                 learnSandboxService: learnSandboxServiceMock,
+                instanceBrandService,
             });
 
             const result = await service.getHealthState(userMock);
@@ -497,6 +513,7 @@ describe('health', () => {
                     organizationSettingsModel as unknown as OrganizationSettingsModel,
                 featureFlagModel: featureFlagModelMock,
                 learnSandboxService: learnSandboxServiceMock,
+                instanceBrandService,
             });
 
             const userWithEmail = { ...userMock, email: testEmail };
@@ -532,6 +549,7 @@ describe('fast decisions in health', () => {
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
             featureFlagModel: featureFlagModelMock,
             learnSandboxService: learnSandboxServiceMock,
+            instanceBrandService,
         });
 
     it('is off without a decision key', async () => {

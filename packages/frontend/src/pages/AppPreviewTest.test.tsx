@@ -78,7 +78,11 @@ vi.mock('../features/apps/hooks/useGetApp', () => ({
 }));
 
 vi.mock('../hooks/organization/useWhiteLabelBrand', () => ({
-    useWhiteLabelBrand: () => ({ brand: null, isResolved: true }),
+    useWhiteLabelBrand: () => ({
+        logoUrl: null,
+        name: null,
+        isResolved: true,
+    }),
 }));
 
 vi.mock('../hooks/useProjectUuid', () => ({

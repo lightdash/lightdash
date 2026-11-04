@@ -1,4 +1,5 @@
 import {
+    pickBrandLogo,
     type OrganizationBrand,
     type OrganizationBrandColor,
     type OrganizationBrandFont,
@@ -26,10 +27,7 @@ import {
     useCreateColorPalette,
 } from '../../../hooks/appearance/useOrganizationAppearance';
 import useHealth from '../../../hooks/health/useHealth';
-import {
-    findSquareBrandLogo,
-    pickBrandLogo,
-} from '../../../hooks/organization/brandLogos';
+import { findSquareBrandLogo } from '../../../hooks/organization/brandLogos';
 import {
     useFetchOrganizationBrand,
     useOrganizationBrand,

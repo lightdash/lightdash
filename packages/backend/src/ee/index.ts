@@ -121,6 +121,7 @@ import { OAuthClientCredentialsTokenProvider } from './services/ExternalConnecti
 import { ExternalQuerySource } from './services/ExternalSourceService/ExternalQuerySource';
 import { ExternalSourceService } from './services/ExternalSourceService/ExternalSourceService';
 import { HomepageRecommendedActionSkipsService } from './services/HomepageRecommendedActionSkipsService';
+import { EnterpriseInstanceBrandService } from './services/InstanceBrandService/InstanceBrandService';
 import { EnterpriseLicenseService } from './services/LicenseService/LicenseService';
 import { ManagedAgentService } from './services/ManagedAgentService/ManagedAgentService';
 import { McpService } from './services/McpService/McpService';
@@ -218,6 +219,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
             licenseService: () =>
                 new EnterpriseLicenseService({
                     licenseKey: lightdashConfig.license.licenseKey,
+                }),
+            instanceBrandService: () =>
+                new EnterpriseInstanceBrandService({
+                    logo: process.env.LIGHTDASH_INSTANCE_LOGO,
+                    name: process.env.LIGHTDASH_INSTANCE_NAME,
                 }),
             mobilePushNotificationService: ({ models, clients, context }) => {
                 const notificationStore =

@@ -17,6 +17,7 @@ import { OrganizationSettingsModel } from '../../models/OrganizationSettingsMode
 import { getDuckdbRuntimeConfig } from '../../utils/duckdb/getDuckdbRuntimeConfig';
 import { VERSION } from '../../version';
 import { BaseService } from '../BaseService';
+import type { InstanceBrandService } from '../InstanceBrandService/InstanceBrandService';
 import type { LearnSandboxService } from '../LearnSandboxService/LearnSandboxService';
 import { LicenseService } from '../LicenseService/LicenseService';
 import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
@@ -31,6 +32,7 @@ type HealthServiceArguments = {
     featureFlagModel: FeatureFlagModel;
     readinessService?: Pick<ReadinessService, 'getReadiness'>;
     learnSandboxService: Pick<LearnSandboxService, 'isRuntimeAvailable'>;
+    instanceBrandService: Pick<InstanceBrandService, 'getInstanceBrand'>;
 };
 
 export class HealthService extends BaseService {
@@ -53,6 +55,11 @@ export class HealthService extends BaseService {
         'isRuntimeAvailable'
     >;
 
+    private readonly instanceBrandService: Pick<
+        InstanceBrandService,
+        'getInstanceBrand'
+    >;
+
     constructor({
         organizationModel,
         migrationModel,
@@ -62,6 +69,7 @@ export class HealthService extends BaseService {
         featureFlagModel,
         readinessService,
         learnSandboxService,
+        instanceBrandService,
     }: HealthServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -72,6 +80,7 @@ export class HealthService extends BaseService {
         this.featureFlagModel = featureFlagModel;
         this.readinessService = readinessService;
         this.learnSandboxService = learnSandboxService;
+        this.instanceBrandService = instanceBrandService;
     }
 
     private isEnterpriseEnabled(): boolean {
@@ -158,6 +167,7 @@ export class HealthService extends BaseService {
             defaultProject: undefined,
             isAuthenticated,
             requiresOrgRegistration,
+            instanceBrand: this.instanceBrandService.getInstanceBrand(),
             latest: { version: dockerHubVersion },
             rudder: this.lightdashConfig.rudder,
             sentry: {

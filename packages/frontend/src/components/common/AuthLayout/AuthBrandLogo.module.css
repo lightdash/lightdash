@@ -1,0 +1,20 @@
+.root {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-sm);
+    height: 100%;
+}
+
+.logo {
+    height: 100%;
+    max-height: rem(40px);
+    aspect-ratio: 1;
+    object-fit: contain;
+}
+
+.name {
+    font-size: var(--mantine-font-size-xl);
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+}
