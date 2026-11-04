@@ -20,10 +20,14 @@ const getFieldsQueryKey = ({ projectUuid, connectionUuid }: LiveSourceParams) =>
     ['live-source-fields', projectUuid, connectionUuid] as const;
 
 /** Every field of a live data source, in use or available. */
-export const useLiveSourceFields = (params: LiveSourceParams) => {
+export const useLiveSourceFields = ({
+    enabled = true,
+    ...params
+}: LiveSourceParams & { enabled?: boolean }) => {
     const lightdashApi = useLightdashApi();
     return useQuery<LiveSourceFields, ApiError>({
         queryKey: getFieldsQueryKey(params),
+        enabled,
         queryFn: () =>
             lightdashApi<LiveSourceFields>({
                 url: getFieldsUrl(params),

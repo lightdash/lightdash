@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     formatEstimatedBytes,
     type ApiConnectorType,
     type ExternalConnection,
@@ -30,9 +31,11 @@ import { useExternalConnectionApiUsage } from '../../../features/externalConnect
 import { useExternalConnections } from '../../../features/externalConnections/hooks/useExternalConnections';
 import { getLiveSource } from '../../../features/externalConnections/liveSources/liveSourceCatalog';
 import { LiveSourceIcon } from '../../../features/externalConnections/liveSources/LiveSourceIcon';
+import { getSemanticStudioSourceUrl } from '../../../features/semanticStudio/urls';
 import useHealth from '../../../hooks/health/useHealth';
 import tableStyles from '../../../hooks/styles/tableStyles.module.css';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { formatDuration } from '../../../utils/formatters';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
@@ -65,9 +68,19 @@ const SourceRow: FC<{
     usage: ExternalConnectionApiUsage | null;
     onEdit: () => void;
     onViewFields: () => void;
+    /** Field editing lives in Semantic Layer when its flag is on. */
+    fieldsInStudio: boolean;
     onReconnect: (() => void) | null;
     onDelete: () => void;
-}> = ({ connection, usage, onEdit, onViewFields, onReconnect, onDelete }) => (
+}> = ({
+    connection,
+    usage,
+    onEdit,
+    onViewFields,
+    fieldsInStudio,
+    onReconnect,
+    onDelete,
+}) => (
     <Table.Tr>
         <Table.Td>
             {connection.apiSource ? (
@@ -127,7 +140,9 @@ const SourceRow: FC<{
                         leftSection={<MantineIcon icon={IconListDetails} />}
                         onClick={onViewFields}
                     >
-                        Fields
+                        {fieldsInStudio
+                            ? 'Edit fields in Semantic Layer'
+                            : 'Fields'}
                     </Menu.Item>
                     {onReconnect && (
                         <Menu.Item
@@ -170,6 +185,10 @@ const modalConnector = (modal: ModalState): ApiConnectorType | null => {
 };
 
 const LiveDataSourcesPanel: FC<Props> = ({ projectUuid }) => {
+    const semanticStudioFlag = useServerFeatureFlag(
+        FeatureFlags.SemanticStudio,
+    );
+    const fieldsInStudio = semanticStudioFlag.data?.enabled === true;
     const { data: connections, isLoading } =
         useExternalConnections(projectUuid);
     const { data: usage } = useExternalConnectionApiUsage(projectUuid);
@@ -189,6 +208,13 @@ const LiveDataSourcesPanel: FC<Props> = ({ projectUuid }) => {
         searchParams.delete('pickGoogleSource');
         setSearchParams(searchParams, { replace: true });
     };
+    // ?add=true (the semantic layer's Add menu) opens the add flow.
+    useEffect(() => {
+        if (searchParams.get('add') !== 'true') return;
+        setModal({ kind: 'pick' });
+        searchParams.delete('add');
+        setSearchParams(searchParams, { replace: true });
+    }, [searchParams, setSearchParams]);
     useEffect(() => {
         const connected = searchParams.get('connected');
         const signInError = searchParams.get('signInError');
@@ -304,9 +330,15 @@ const LiveDataSourcesPanel: FC<Props> = ({ projectUuid }) => {
                                                 connection,
                                             })
                                         }
+                                        fieldsInStudio={fieldsInStudio}
                                         onViewFields={() =>
                                             navigate(
-                                                `/generalSettings/projectManagement/${projectUuid}/liveDataSources/${connection.externalConnectionUuid}/fields`,
+                                                fieldsInStudio
+                                                    ? getSemanticStudioSourceUrl(
+                                                          projectUuid,
+                                                          connection.externalConnectionUuid,
+                                                      )
+                                                    : `/generalSettings/projectManagement/${projectUuid}/liveDataSources/${connection.externalConnectionUuid}/fields`,
                                             )
                                         }
                                         onReconnect={getReconnect(connection)}

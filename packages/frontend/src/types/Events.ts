@@ -67,6 +67,7 @@ export enum PageName {
     CATALOG = 'catalog',
     METRICS_CATALOG = 'metrics_catalog',
     FUNNEL_BUILDER = 'funnel_builder',
+    SEMANTIC_STUDIO = 'semantic_studio',
     ROADMAP = 'roadmap',
     LEARN = 'learn',
     LEARN_WORKSPACE = 'learn_workspace',
