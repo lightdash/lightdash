@@ -44,7 +44,7 @@ import { AiProvidersCard } from './AiProvidersCard';
 import { AiRouterInstructionsCard } from './AiRouterInstructionsCard';
 import { AiSurfacesCard } from './AiSurfacesCard';
 import { ReviewNotificationsSettings } from './ReviewNotificationsSettings';
-import { SettingRow, SettingsSection } from './SettingLayout';
+import { SettingRow, SettingsSection } from '../../../../../../components/common/Settings/SettingLayout';
 import { ThreadRetentionRow } from './ThreadRetentionRow';
 
 export const AiGeneralSettingsPage = () => {

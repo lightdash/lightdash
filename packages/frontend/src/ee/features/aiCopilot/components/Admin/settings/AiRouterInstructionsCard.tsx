@@ -12,7 +12,7 @@ import {
 import { useProjectAiAgents } from '../../../hooks/useProjectAiAgents';
 import { extractTaggedAgentUuids } from '../../../utils/aiRouterInstructions';
 import { AiRouterInstructionsEditor } from './AiRouterInstructionsEditor';
-import { SettingRow } from './SettingLayout';
+import { SettingRow } from '../../../../../../components/common/Settings/SettingLayout';
 
 // Split out so the relative-time hook only runs when there is a saved version.
 const SavedAtLabel: FC<{ savedAt: Date | string }> = ({ savedAt }) => {

@@ -32,7 +32,7 @@ import {
 } from '../../../hooks/useReviewNotificationSettings';
 import styles from './LinearReviewSettings.module.css';
 import { buildLinearAppSetupUrl } from './linearReviewSettingsUtils';
-import { SettingRow } from './SettingLayout';
+import { SettingRow } from '../../../../../../components/common/Settings/SettingLayout';
 
 const selectOptionsWithCurrent = (
     options: Array<{ value: string; label: string }>,

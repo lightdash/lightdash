@@ -9,7 +9,7 @@ import {
 import { type FC } from 'react';
 import { Link } from 'react-router';
 import { SettingsCard } from '../../../../../../components/common/Settings/SettingsCard';
-import { SettingRow } from './SettingLayout';
+import { SettingRow } from '../../../../../../components/common/Settings/SettingLayout';
 
 const SurfaceRow: FC<{
     icon: Icon;

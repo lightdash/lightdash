@@ -31,7 +31,7 @@ import {
     type BedrockCredentialFormValues,
 } from './BedrockCredentialModal';
 import { BEDROCK_GEOGRAPHY_LABELS } from './bedrockGeographyLabels';
-import { SettingRow } from './SettingLayout';
+import { SettingRow } from '../../../../../../components/common/Settings/SettingLayout';
 
 type Props = {
     models: AiModelOption[];

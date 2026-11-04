@@ -43,7 +43,7 @@ import {
     useUpdateReviewJiraRouting,
 } from '../../../hooks/useReviewNotificationSettings';
 import styles from './JiraReviewSettings.module.css';
-import { SettingRow } from './SettingLayout';
+import { SettingRow } from '../../../../../../components/common/Settings/SettingLayout';
 
 const ATLASSIAN_DEVELOPER_CONSOLE_URL =
     'https://developer.atlassian.com/console/myapps/';
