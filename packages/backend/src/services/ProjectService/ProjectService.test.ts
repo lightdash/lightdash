@@ -2711,21 +2711,49 @@ describe('ProjectService', () => {
             projectUuid: 'training-uuid',
             type: ProjectType.TRAINING,
         };
+        const viewOnly: ProjectSummary = {
+            ...projectSummary,
+            projectUuid: 'view-only-uuid',
+        };
+        const otherPreview: ProjectSummary = {
+            ...projectSummary,
+            projectUuid: 'other-preview-uuid',
+            type: ProjectType.PREVIEW,
+        };
+        const managedAnalytics: ProjectSummary = {
+            ...projectSummary,
+            projectUuid: 'managed-analytics-uuid',
+            provisioningSource: 'analytics',
+        };
+        const managedDefault: ProjectSummary = {
+            ...projectSummary,
+            projectUuid: 'managed-default-uuid',
+        };
         const summaries = [
             preview,
             upstream,
             hidden,
             otherOrganization,
             training,
+            viewOnly,
+            otherPreview,
+            managedAnalytics,
+            managedDefault,
         ];
-        // Manages the preview and views every project except the hidden one.
-        // The other-organization grant has no org condition, so rejecting it
+        // Manages the preview and a default project, views every project
+        // except the hidden one, and may create previews of the upstream, the
+        // other preview and the managed analytics project. The
+        // other-organization grant has no org condition, so rejecting it
         // proves the explicit same-organization check.
         const ability = new Ability<PossibleAbilities>([
             {
                 subject: 'Project',
                 action: ['manage', 'view'],
-                conditions: { projectUuid: preview.projectUuid },
+                conditions: {
+                    projectUuid: {
+                        $in: [preview.projectUuid, managedDefault.projectUuid],
+                    },
+                },
             },
             {
                 subject: 'Project',
@@ -2736,6 +2764,23 @@ describe('ProjectService', () => {
                             upstream.projectUuid,
                             training.projectUuid,
                             otherOrganization.projectUuid,
+                            viewOnly.projectUuid,
+                            otherPreview.projectUuid,
+                            managedAnalytics.projectUuid,
+                        ],
+                    },
+                },
+            },
+            {
+                subject: 'Project',
+                action: 'create',
+                conditions: {
+                    type: ProjectType.PREVIEW,
+                    upstreamProjectUuid: {
+                        $in: [
+                            upstream.projectUuid,
+                            otherPreview.projectUuid,
+                            managedAnalytics.projectUuid,
                         ],
                     },
                 },
@@ -2747,17 +2792,60 @@ describe('ProjectService', () => {
             user: { ...account.user, ability },
         } as RegisteredAccount;
 
+        const findSummary = async (uuid: string) => {
+            const summary = summaries.find((s) => s.projectUuid === uuid);
+            if (!summary) throw new NotFoundError('Project not found');
+            return summary;
+        };
+        const ssoCredentials = (
+            refreshToken: string,
+        ): CreateBigqueryCredentials => ({
+            type: WarehouseTypes.BIGQUERY,
+            authenticationType: BigqueryAuthenticationType.SSO,
+            project: 'analytics',
+            dataset: 'prod',
+            timeoutSeconds: undefined,
+            priority: undefined,
+            retries: undefined,
+            location: undefined,
+            maximumBytesBilled: undefined,
+            keyfileContents: {
+                type: 'authorized_user',
+                client_id: 'lightdash-client',
+                client_secret: 'secret',
+                refresh_token: refreshToken,
+            },
+        });
+        const storedCredentials = new Map<string, CreateWarehouseCredentials>();
+        const setPreviewOwnsCredentials = vi.fn(async () => undefined);
+        const linkService = getMockedProjectService(
+            lightdashConfigWithGoogleOAuthMock,
+            {
+                projectModel: {
+                    ...projectModel,
+                    getWarehouseCredentialsForBinding: vi.fn(
+                        async (uuid: string) => storedCredentials.get(uuid),
+                    ),
+                    setPreviewOwnsCredentials,
+                } as unknown as ProjectModel,
+            },
+        );
+
         beforeEach(() => {
-            projectModel.getSummary.mockImplementation(async (uuid: string) => {
-                const summary = summaries.find((s) => s.projectUuid === uuid);
-                if (!summary) throw new NotFoundError('Project not found');
-                return summary;
-            });
+            projectModel.getSummary.mockImplementation(findSummary);
+            projectModel.get.mockImplementation(
+                findSummary as unknown as typeof projectModel.get,
+            );
+            storedCredentials.clear();
+            setPreviewOwnsCredentials.mockClear();
         });
 
         afterEach(() => {
             projectModel.getSummary.mockImplementation(
                 async () => projectSummary,
+            );
+            projectModel.get.mockImplementation(
+                async () => projectWithSensitiveFields,
             );
         });
 
@@ -2769,29 +2857,87 @@ describe('ProjectService', () => {
                 ForbiddenError,
             ],
             ['the training project', training.projectUuid, ForbiddenError],
+            [
+                'a project the user cannot create previews of',
+                viewOnly.projectUuid,
+                ForbiddenError,
+            ],
+            ['another preview', otherPreview.projectUuid, ForbiddenError],
+            [
+                'a managed analytics project',
+                managedAnalytics.projectUuid,
+                ForbiddenError,
+            ],
             ['the project itself', preview.projectUuid, ParameterError],
             ['a missing project', 'missing-uuid', NotFoundError],
         ])(
-            'rejects linking to %s',
+            'rejects linking a preview to %s',
             async (_label, upstreamProjectUuid, error) => {
                 await expect(
-                    service.updateMetadata(sessionUser, preview.projectUuid, {
-                        upstreamProjectUuid,
-                    }),
+                    linkService.updateMetadata(
+                        sessionUser,
+                        preview.projectUuid,
+                        {
+                            upstreamProjectUuid,
+                        },
+                    ),
                 ).rejects.toThrow(error);
                 expect(projectModel.updateMetadata).not.toHaveBeenCalled();
             },
         );
 
         test.each([upstream.projectUuid, null])(
-            'saves an upstream of %s',
+            'saves a preview upstream of %s',
             async (upstreamProjectUuid) => {
-                await service.updateMetadata(sessionUser, preview.projectUuid, {
-                    upstreamProjectUuid,
-                });
+                await linkService.updateMetadata(
+                    sessionUser,
+                    preview.projectUuid,
+                    { upstreamProjectUuid },
+                );
                 expect(projectModel.updateMetadata).toHaveBeenCalledWith(
                     preview.projectUuid,
                     { upstreamProjectUuid },
+                );
+            },
+        );
+
+        test('links a default project to an upstream the user can view', async () => {
+            await linkService.updateMetadata(
+                sessionUser,
+                managedDefault.projectUuid,
+                { upstreamProjectUuid: viewOnly.projectUuid },
+            );
+            expect(projectModel.updateMetadata).toHaveBeenCalledWith(
+                managedDefault.projectUuid,
+                { upstreamProjectUuid: viewOnly.projectUuid },
+            );
+            expect(setPreviewOwnsCredentials).not.toHaveBeenCalled();
+        });
+
+        test.each([
+            ['its own sign-in', 'preview-token', true],
+            ['the upstream sign-in', 'upstream-token', false],
+        ])(
+            'records that a relinked preview with %s owns it: %s',
+            async (_label, previewToken, owns) => {
+                storedCredentials.set(
+                    preview.projectUuid,
+                    ssoCredentials(previewToken),
+                );
+                storedCredentials.set(
+                    upstream.projectUuid,
+                    ssoCredentials('upstream-token'),
+                );
+
+                await linkService.updateMetadata(
+                    sessionUser,
+                    preview.projectUuid,
+                    { upstreamProjectUuid: upstream.projectUuid },
+                );
+
+                expect(setPreviewOwnsCredentials).toHaveBeenCalledWith(
+                    preview.projectUuid,
+                    owns,
                 );
             },
         );
