@@ -7,7 +7,11 @@ import {
     type Project,
 } from '@lightdash/common';
 import { Alert, Anchor, Box, Button, Flex, Card } from '@mantine/core';
-import { IconExclamationCircle, IconExternalLink } from '@tabler/icons-react';
+import {
+    IconDatabasePlus,
+    IconExclamationCircle,
+    IconExternalLink,
+} from '@tabler/icons-react';
 import { type FC } from 'react';
 import {
     useProject,
@@ -160,6 +164,16 @@ const UpdateProjectConnection: FC<{
             )}
             <form onSubmit={form.onSubmit(handleSubmit, handleError)}>
                 <FormContainer>
+                    {!project.warehouseConnection && (
+                        <Alert
+                            color="blue"
+                            icon={<MantineIcon icon={IconDatabasePlus} />}
+                            title="No warehouse connected yet"
+                        >
+                            Pick your warehouse type below and save. Your
+                            connected tools keep working.
+                        </Alert>
+                    )}
                     <ProjectFormProvider savedProject={project}>
                         <ProjectForm
                             showGeneralSettings
