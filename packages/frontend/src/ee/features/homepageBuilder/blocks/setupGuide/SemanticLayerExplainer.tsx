@@ -10,77 +10,135 @@ import {
     IconUser,
 } from '@tabler/icons-react';
 import { Fragment, useState, type FC, type ReactNode } from 'react';
-import { AI_NAME } from '../../../../../components/common/aiName';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import classes from './SemanticLayerExplainer.module.css';
 
 const VALUE = '$1.24M';
 
-const Consumer: FC<{ icon: ReactNode; label: string; index: number }> = ({
+const WAREHOUSE_TABLES = [
+    { name: 'orders', columns: 'amount, status' },
+    { name: 'payments', columns: 'method, paid_at' },
+];
+
+// Connector paths in px, matched to the 168px flow row in the CSS
+const FLOW_IN = ['M0 60 C16 60 16 84 32 84', 'M0 108 C16 108 16 84 32 84'];
+const FLOW_OUT = [
+    'M0 84 C16 84 16 36 32 36',
+    'M0 84 L32 84',
+    'M0 84 C16 84 16 132 32 132',
+];
+
+const Connector: FC<{ paths: string[]; direction: 'in' | 'out' }> = ({
+    paths,
+    direction,
+}) => (
+    <Box className={classes.connector} data-direction={direction}>
+        <svg viewBox="0 0 32 168" className={classes.connectorLines}>
+            {paths.map((d) => (
+                <path key={d} d={d} pathLength={1} />
+            ))}
+        </svg>
+        {paths.map((d) => (
+            <Box
+                key={d}
+                className={classes.packet}
+                __vars={{ '--path': `path('${d}')` }}
+            />
+        ))}
+    </Box>
+);
+
+const Tool: FC<{ icon: ReactNode; label: string; index: number }> = ({
     icon,
     label,
     index,
 }) => (
-    <Box className={classes.consumer} __vars={{ '--i': String(index + 4) }}>
+    <Box className={classes.tool} __vars={{ '--i': String(index + 4) }}>
         <Group gap={6} wrap="nowrap">
             {icon}
             <Text fz="xs" c="dimmed">
                 {label}
             </Text>
         </Group>
-        <Text
-            fw={600}
-            fz="sm"
-            className={classes.value}
-            __vars={{ '--i': String(index + 4) }}
-        >
+        <Text fw={600} fz="xs" className={classes.value}>
             {VALUE}
         </Text>
     </Box>
 );
 
 const Diagram: FC = () => (
-    <Box className={classes.diagram} aria-hidden>
-        <Group gap={6} justify="center" wrap="nowrap">
-            {['orders', 'payments'].map((table, index) => (
+    <Box className={classes.flow} aria-hidden>
+        <Text fz={10} fw={500} className={classes.caption}>
+            Warehouse
+        </Text>
+        <span />
+        <Text fz={10} fw={500} className={classes.caption}>
+            Semantic layer
+        </Text>
+        <span />
+        <Text fz={10} fw={500} className={classes.caption}>
+            Tools
+        </Text>
+        <Box className={classes.column}>
+            {WAREHOUSE_TABLES.map((table, index) => (
                 <Box
-                    key={table}
+                    key={table.name}
                     className={classes.table}
                     __vars={{ '--i': String(index) }}
                 >
-                    <MantineIcon icon={IconDatabase} size={12} />
-                    <Text fz="xs" fw={500}>
-                        {table}
+                    <Group gap={6} wrap="nowrap">
+                        <MantineIcon icon={IconDatabase} size={12} />
+                        <Text fz="xs" fw={500}>
+                            {table.name}
+                        </Text>
+                    </Group>
+                    <Text fz={10} className={classes.code} truncate="end">
+                        {table.columns}
                     </Text>
                 </Box>
             ))}
-        </Group>
-        <Box className={classes.stem} __vars={{ '--i': '2' }}>
-            <Box className={classes.packet} />
         </Box>
-        <Box className={classes.metric} __vars={{ '--i': '2' }}>
-            <Text fz="xs" fw={600} className={classes.metricName}>
-                revenue
+        <Connector paths={FLOW_IN} direction="in" />
+        <Box className={classes.layer} __vars={{ '--i': '2' }}>
+            <Text fz={10} className={classes.code}>
+                orders.yml
             </Text>
-            <Text fz="xs" className={classes.code}>
-                sum(orders.amount)
-            </Text>
+            <Box className={classes.metric}>
+                <Text fz="xs" fw={600} className={classes.metricName}>
+                    revenue
+                </Text>
+                <Text fz={10} className={classes.code} truncate="end">
+                    sum(orders.amount)
+                </Text>
+            </Box>
+            <Group gap={4} wrap="nowrap">
+                {['status', 'month'].map((dimension) => (
+                    <Text
+                        key={dimension}
+                        fz={10}
+                        className={classes.chip}
+                        data-kind="dimension"
+                    >
+                        {dimension}
+                    </Text>
+                ))}
+            </Group>
         </Box>
-        <Box className={classes.fan} __vars={{ '--i': '3' }} />
-        <Box className={classes.consumers}>
-            <Consumer
+        <Connector paths={FLOW_OUT} direction="out" />
+        <Box className={classes.column} data-tools>
+            <Tool
                 icon={<MantineIcon icon={IconChartBar} size={12} />}
                 label="Chart"
                 index={0}
             />
-            <Consumer
+            <Tool
                 icon={<MantineIcon icon={IconLayoutDashboard} size={12} />}
                 label="Dashboard"
                 index={1}
             />
-            <Consumer
-                icon={<Box className={classes.auroraDot} />}
-                label={AI_NAME}
+            <Tool
+                icon={<Box className={classes.aiDot} />}
+                label="Ask AI"
                 index={2}
             />
         </Box>
@@ -155,13 +213,6 @@ const RevenueChart: FC = () => {
                 </Box>
             </Group>
             <Box className={classes.plot}>
-                {[1, 2, 3].map((line) => (
-                    <Box
-                        key={line}
-                        className={classes.gridLine}
-                        __vars={{ '--y': `${line * 25}%` }}
-                    />
-                ))}
                 {slice.bars.map(({ label, value }, index) => (
                     <Box
                         key={`${slice.dimension}-${label}`}
@@ -245,21 +296,49 @@ const TablesArt: FC = () => (
 );
 
 // Follows the docs: tables, then metrics and dimensions, then defined once
-const STEPS: { art: ReactNode; title: string; body: string }[] = [
+const Term: FC<{ children: ReactNode }> = ({ children }) => (
+    <Box component="span" fw={500}>
+        {children}
+    </Box>
+);
+
+const STEPS: { art: ReactNode; title: string; body: ReactNode }[] = [
     {
         art: <TablesArt />,
         title: 'A model describes a table',
-        body: 'Each model points at one table in your warehouse and gives its columns readable names and types. Here, the table tbl_ord_dtl becomes the Orders model, and its cust_id column becomes Customer.',
+        body: (
+            <>
+                Each model points at one table in your warehouse and gives its
+                columns readable names and types. Here, the table{' '}
+                <Term>tbl_ord_dtl</Term> becomes the <Term>Orders</Term> model,
+                and its <Term>cust_id</Term> column becomes{' '}
+                <Term>Customer</Term>.
+            </>
+        ),
     },
     {
         art: <RevenueChart />,
         title: 'Metrics and dimensions',
-        body: 'A metric is a calculation across rows, like the sum of order amounts (revenue). A dimension is a column you group or filter by, like month or status. A chart combines the two, for example revenue by month.',
+        body: (
+            <>
+                A <Term>metric</Term> is a calculation across rows, like the sum
+                of order amounts (revenue). A <Term>dimension</Term> is a column
+                you group or filter by, like month or status. A chart combines
+                the two, for example revenue by month.
+            </>
+        ),
     },
     {
         art: <Diagram />,
         title: 'Where the SQL comes from',
-        body: 'Models are written in YAML. When you build a chart, ask a question or open a dashboard, the SQL is generated from these definitions, so each metric is calculated the same way everywhere.',
+        body: (
+            <>
+                Models are written in <Term>YAML</Term>. When you build a chart,
+                ask a question or open a dashboard, the SQL is generated from
+                these definitions, so each metric is calculated the same way
+                everywhere.
+            </>
+        ),
     },
 ];
 
