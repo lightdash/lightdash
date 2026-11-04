@@ -3,11 +3,10 @@ import {
     getErrorMessage,
     type ApiError,
     type DashboardTileParameterReferences,
-    type DashboardTileParameterReferencesTile,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { chunk } from 'es-toolkit/compat';
-import { useEffect, useMemo, useSyncExternalStore } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 import {
     dashboardParametersActions,
     selectTileQuerySources,
@@ -37,15 +36,10 @@ export const useDashboardTileParameterReferences = ({
     const tilesKey = useSyncExternalStore(store.subscribe, () =>
         selectTileQuerySourcesKey(store.getState()),
     );
-    const tiles = useMemo<DashboardTileParameterReferencesTile[]>(
-        () => selectTileQuerySources(store.getState()),
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        [store, tilesKey],
-    );
     const isEnabled =
         dashboardControlsFlag?.enabled === true &&
         !!projectUuid &&
-        tiles.length > 0;
+        tilesKey !== '';
 
     const { data } = useQuery<DashboardTileParameterReferences[], ApiError>({
         queryKey: [
@@ -57,9 +51,10 @@ export const useDashboardTileParameterReferences = ({
         // The endpoint takes at most 200 tiles a request; larger dashboards go
         // in turns, and a failed request fails only its own tiles
         queryFn: () =>
-            chunk(tiles, TILES_PER_REQUEST).reduce<
-                Promise<DashboardTileParameterReferences[]>
-            >(
+            chunk(
+                selectTileQuerySources(store.getState()),
+                TILES_PER_REQUEST,
+            ).reduce<Promise<DashboardTileParameterReferences[]>>(
                 async (previous, batch) => [
                     ...(await previous),
                     ...(await lightdashApi<DashboardTileParameterReferences[]>({
