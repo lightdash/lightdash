@@ -9687,7 +9687,7 @@ export class AsyncQueryService extends ProjectService {
                 ...parameters,
             },
             chartSavedValues: savedChart.parameters ?? {},
-            isTargeted: true,
+            excludedKeys: [],
         });
         const outcome = await this.executeAsyncMergeQuery({
             account,
@@ -9974,7 +9974,7 @@ export class AsyncQueryService extends ProjectService {
                 ...parameters,
             },
             chartSavedValues: savedChart.parameters ?? {},
-            isTargeted: true,
+            excludedKeys: [],
             preloadedProjectParameters: projectParameters,
         });
 

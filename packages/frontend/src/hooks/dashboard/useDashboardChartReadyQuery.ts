@@ -40,6 +40,7 @@ import { useSavedQuery } from '../useSavedQuery';
 import useSearchParams from '../useSearchParams';
 import { useSessionTimezone } from '../useSessionTimezone';
 import useDashboardFiltersForTile from './useDashboardFiltersForTile';
+import { useTileVirtualViewSavedParameters } from './useTileVirtualViewSavedParameters';
 
 const executeAsyncDashboardChartQuery = async (
     lightdashApi: LightdashApi,
@@ -178,6 +179,8 @@ export const useDashboardChartReadyQuery = (
             );
         }
     }, [explore, addParameterDefinitions]);
+
+    useTileVirtualViewSavedParameters(tileUuid, explore);
 
     const dateZoomCapabilities = useMemo(() => {
         if (!chartQuery.data || !explore) return undefined;

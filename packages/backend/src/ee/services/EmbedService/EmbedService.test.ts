@@ -227,7 +227,7 @@ describe('EmbedService', () => {
                 explore: validExplore,
                 dashboardValues: { status: 'Shipped', region: 'US' },
                 chartSavedValues: { status: 'Cancelled' },
-                isTargeted: true,
+                excludedKeys: [],
                 preloadedProjectParameters: null,
             });
         });

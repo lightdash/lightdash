@@ -326,6 +326,28 @@ describe('dashboardParametersReducer', () => {
             });
         });
 
+        it('setTileVirtualViewSavedParameters stores values and no-ops on deep-equal ones', () => {
+            const next = reducer(
+                stateWith(),
+                actions.setTileVirtualViewSavedParameters({
+                    tileUuid: 'tile-1',
+                    values: { status: 'Shipped' },
+                }),
+            );
+            expect(next.tileVirtualViewSavedParameters).toEqual({
+                'tile-1': { status: 'Shipped' },
+            });
+            expect(
+                reducer(
+                    next,
+                    actions.setTileVirtualViewSavedParameters({
+                        tileUuid: 'tile-1',
+                        values: { status: 'Shipped' },
+                    }),
+                ),
+            ).toBe(next);
+        });
+
         it('setTileChartSavedParameters stores values and no-ops on deep-equal ones', () => {
             const next = reducer(
                 stateWith(),
@@ -355,11 +377,13 @@ describe('dashboardParametersReducer', () => {
                     'tile-2': ['region'],
                 },
                 tileChartSavedParameters: { 'tile-2': { region: 'EU' } },
+                tileVirtualViewSavedParameters: { 'tile-2': { region: 'EU' } },
             });
             const next = reducer(
                 state,
                 actions.keepTileParameterState(['tile-1']),
             );
+            expect(next.tileVirtualViewSavedParameters).toEqual({});
             expect(next.tileParameterReferences).toEqual({
                 'tile-1': ['status'],
             });
