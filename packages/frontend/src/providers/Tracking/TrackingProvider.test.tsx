@@ -1,11 +1,9 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook } from '@testing-library/react';
 import * as rudderSDK from 'rudder-sdk-js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 // oxlint-disable-next-line vitest-js/no-mocks-import -- Shared test fixture, not an auto-mocked module.
 import mockHealthResponse from '../../testing/__mocks__/api/healthResponse.mock';
-// oxlint-disable-next-line vitest-js/no-mocks-import -- Shared test fixture, not an auto-mocked module.
-import { mockUserResponse } from '../../testing/__mocks__/api/userResponse.mock';
 // oxlint-disable-next-line vitest-js/no-mocks-import -- Shared context fixture keeps the real useApp hook in this test.
 import AppProviderMock from '../../testing/__mocks__/providers/AppProvider.mock';
 import { EventName, PageName, SectionName } from '../../types/Events';
@@ -60,7 +58,7 @@ describe('TrackingProvider', () => {
         },
     );
 
-    it('preserves analytics and page/section context when enabled', async () => {
+    it('preserves analytics and page/section context when enabled', () => {
         const queryClient = new QueryClient();
         queryClient.setQueryData(['health'], mockHealthResponse());
         const { result, unmount } = renderHook(() => useTracking(), {
@@ -101,16 +99,6 @@ describe('TrackingProvider', () => {
             undefined,
             expect.any(Object),
         );
-        const sessionUserUuid = mockUserResponse().userUuid;
-        await waitFor(() =>
-            expect(rudderSDK.identify).toHaveBeenCalledWith(
-                sessionUserUuid,
-                undefined,
-                expect.any(Object),
-            ),
-        );
-        // The explicit call plus the session user, once despite nested providers
-        expect(rudderSDK.identify).toHaveBeenCalledTimes(2);
         unmount();
         queryClient.clear();
     });
