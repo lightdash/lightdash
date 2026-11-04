@@ -63,17 +63,17 @@ When the backend creates a presigned URL for browser-direct upload, it uses `S3_
 
 **Code Quality:**
 
+Linter is oxlint, formatter is oxfmt; both are per-package devDependencies, so run them through package scripts (`<pkg>`: `common`, `visualization`, `warehouses`, `backend`, `frontend`, `cli`, `e2e`, `api-tests`, `formula`):
+
 ```bash
-pnpm -F common lint
-pnpm -F visualization lint
-pnpm -F backend lint
-pnpm -F frontend lint
-pnpm -F common typecheck
-pnpm -F visualization typecheck
-pnpm -F backend typecheck
-pnpm -F frontend typecheck
-pnpm -F warehouses typecheck
+pnpm -F <pkg> lint                                  # whole package; fix-lint to autofix
+pnpm -F <pkg> format                                # whole package; fix-format to write
+pnpm -F <pkg> run linter --fix src/a.ts src/b.ts    # specific files, paths relative to the package
+pnpm -F <pkg> run formatter src/a.ts src/b.ts       # add --check to only check
+pnpm -F <pkg> typecheck
 ```
+
+`git commit` runs lint-staged on staged files (`linter --fix` + `formatter`), so commits are linted and formatted automatically; `pnpm exec lint-staged` runs it on demand. `oxlint: command not found` means the worktree needs `sfw pnpm install`.
 
 **Testing:**
 
