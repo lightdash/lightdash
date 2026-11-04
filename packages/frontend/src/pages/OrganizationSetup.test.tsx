@@ -193,7 +193,6 @@ describe('OrganizationSetup', () => {
         });
 
         const nameInput = await screen.findByPlaceholderText('Acme Analytics');
-        expect(screen.getByText('Brand')).toBeInTheDocument();
         await user.clear(nameInput);
         await user.type(nameInput, 'test organization');
         await user.click(
@@ -543,9 +542,8 @@ describe('OrganizationSetup', () => {
                 },
             });
             await screen.findByPlaceholderText('Acme Analytics');
-            expect(screen.queryByText('Brand')).not.toBeInTheDocument();
             expect(
-                screen.queryByRole('button', { name: /Select theme color/ }),
+                screen.queryByText(/pulled your branding/),
             ).not.toBeInTheDocument();
             await user.click(
                 await screen.findByRole('button', { name: 'Continue' }),
@@ -678,6 +676,9 @@ describe('OrganizationSetup', () => {
 
         const nameInput = await screen.findByPlaceholderText('Acme Analytics');
         await waitFor(() => expect(nameInput).toHaveValue('Acme Inc'));
+        expect(
+            screen.getByText(/pulled your branding from lightdash.com/),
+        ).toBeInTheDocument();
 
         await user.click(
             await screen.findByRole('button', { name: 'Continue' }),

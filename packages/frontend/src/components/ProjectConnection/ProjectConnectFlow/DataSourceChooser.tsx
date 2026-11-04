@@ -3,20 +3,18 @@ import { ProjectType, WarehouseTypes } from '@lightdash/common';
 import {
     Anchor,
     Box,
+    Button,
     Group,
     Image,
-    Loader,
     Radio,
     SimpleGrid,
     Stack,
     Text,
-    UnstyledButton,
 } from '@mantine/core';
 import { captureException } from '@sentry/react';
-import { IconChevronRight, IconTable } from '@tabler/icons-react';
+import { IconTable } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
-import { withViewTransition } from '../../../features/apps/utils/viewTransition';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useEnsurePlaygroundProject } from '../../../hooks/useEnsurePlaygroundProject';
 import useApp from '../../../providers/App/useApp';
@@ -26,7 +24,6 @@ import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 import { useOnboardingNavigate } from '../../common/viewTransition';
 import DbtLogo from './Assets/dbt.svg';
-import { DbtAnswerSummary, type DbtAnswer } from './ChoiceSummary';
 import classes from './DataSourceChooser.module.css';
 import { InviteTeammateModal } from './InviteTeammateModal';
 import { LiveSourcesCard } from './LiveSourcesTeaser';
@@ -51,15 +48,19 @@ const WAREHOUSES: SelectedWarehouse[] = [
 ];
 
 const POPULAR = new Set<SelectedWarehouse>(WAREHOUSES.slice(0, 4));
+const CHOICES: SelectedWarehouse[] = [...WAREHOUSES, OtherWarehouse.Other];
 
 const DBT_PARAM = 'dbt';
+const WAREHOUSE_PARAM = 'warehouse';
 
-const DbtQuestion: FC<{
+type DbtAnswer = 'yes' | 'no';
+
+const ModelSourceQuestion: FC<{
     value: DbtAnswer | null;
     onChange: (value: DbtAnswer) => void;
 }> = ({ value, onChange }) => (
     <Radio.Group
-        label="Do you use dbt?"
+        label="How should we set up your models?"
         value={value}
         onChange={(next) => onChange(next === 'yes' ? 'yes' : 'no')}
         classNames={{ label: classes.questionLabel }}
@@ -73,10 +74,10 @@ const DbtQuestion: FC<{
                     <Radio.Indicator size="xs" />
                 </Group>
                 <Text fw={500} size="sm" mt="sm">
-                    Yes
+                    From my dbt project
                 </Text>
                 <Text c="dimmed" size="xs">
-                    Bring your models from a repo or dbt Cloud
+                    Bring models from a repo or dbt Cloud
                 </Text>
             </Radio.Card>
             <Radio.Card value="no" className={classes.choiceCard}>
@@ -87,10 +88,10 @@ const DbtQuestion: FC<{
                     <Radio.Indicator size="xs" />
                 </Group>
                 <Text fw={500} size="sm" mt="sm">
-                    No
+                    From my tables
                 </Text>
                 <Text c="dimmed" size="xs">
-                    We'll draft models from your tables
+                    We'll draft models for you to review
                 </Text>
             </Radio.Card>
         </SimpleGrid>
@@ -104,6 +105,11 @@ export const DataSourceChooser: FC = () => {
     const dbtParam = searchParams.get(DBT_PARAM);
     const usesDbt: DbtAnswer | null =
         dbtParam === 'yes' || dbtParam === 'no' ? dbtParam : null;
+    const warehouse =
+        CHOICES.find((key) => key === searchParams.get(WAREHOUSE_PARAM)) ??
+        null;
+    const isOtherWarehouse = warehouse === OtherWarehouse.Other;
+    const canContinue = !!warehouse && (isOtherWarehouse || !!usesDbt);
     const onboardingNavigate = useOnboardingNavigate();
     const { health, user } = useApp();
     const { track } = useTracking();
@@ -113,16 +119,14 @@ export const DataSourceChooser: FC = () => {
     const [hasFailed, setHasFailed] = useState(false);
     const [isInviteOpen, setIsInviteOpen] = useState(false);
 
-    const setDbtAnswer = (value: DbtAnswer | null) =>
-        withViewTransition(() =>
-            setSearchParams(
-                (params) => {
-                    if (value) params.set(DBT_PARAM, value);
-                    else params.delete(DBT_PARAM);
-                    return params;
-                },
-                { replace: true },
-            ),
+    // Kept in the URL so Back from the form restores both choices
+    const setParam = (key: string, value: string) =>
+        setSearchParams(
+            (params) => {
+                params.set(key, value);
+                return params;
+            },
+            { replace: true },
         );
 
     const organizationUuid = organization?.organizationUuid;
@@ -143,24 +147,24 @@ export const DataSourceChooser: FC = () => {
             subject('OrganizationMemberProfile', { organizationUuid }),
         ) === true;
 
-    const selectWarehouse = (key: SelectedWarehouse) => {
+    const continueToForm = () => {
+        if (!warehouse || !canContinue) return;
         track({
             name: EventName.ONBOARDING_WAREHOUSE_SELECTED,
             properties: {
                 organizationId: organizationUuid ?? null,
-                warehouse: String(key),
-                tier:
-                    key === OtherWarehouse.Other
-                        ? 'other'
-                        : POPULAR.has(key)
-                          ? 'popular'
-                          : 'all',
+                warehouse: String(warehouse),
+                tier: isOtherWarehouse
+                    ? 'other'
+                    : POPULAR.has(warehouse)
+                      ? 'popular'
+                      : 'all',
                 onboardingFlow: 'new',
             },
         });
-        const withRepo = usesDbt === 'yes' && key !== OtherWarehouse.Other;
+        const withRepo = usesDbt === 'yes' && !isOtherWarehouse;
         onboardingNavigate(
-            `${getWarehouseRoute(key)}${withRepo ? '/repo' : ''}${search}`,
+            `${getWarehouseRoute(warehouse)}${withRepo ? '/repo' : ''}${search}`,
         );
     };
 
@@ -194,99 +198,61 @@ export const DataSourceChooser: FC = () => {
 
     return (
         <Stack gap="xl">
-            {usesDbt ? (
-                <DbtAnswerSummary
+            <Radio.Group
+                label="Where does your data live?"
+                value={warehouse}
+                onChange={(next) => setParam(WAREHOUSE_PARAM, next)}
+                classNames={{ label: classes.questionLabel }}
+            >
+                <SimpleGrid cols={2} spacing="sm">
+                    {CHOICES.map((key) => (
+                        <Radio.Card
+                            key={key}
+                            value={key}
+                            className={classes.tile}
+                        >
+                            <Box className={classes.tileLogo}>
+                                {getWarehouseIcon(key, 'sm')}
+                            </Box>
+                            <Text
+                                fw={500}
+                                size="sm"
+                                className={classes.tileLabel}
+                            >
+                                {getWarehouseLabel(key)}
+                            </Text>
+                            <Radio.Indicator size="xs" />
+                        </Radio.Card>
+                    ))}
+                </SimpleGrid>
+            </Radio.Group>
+
+            {!isOtherWarehouse && (
+                <ModelSourceQuestion
                     value={usesDbt}
-                    onChange={() => setDbtAnswer(null)}
+                    onChange={(value) => setParam(DBT_PARAM, value)}
                 />
-            ) : (
-                <DbtQuestion value={usesDbt} onChange={setDbtAnswer} />
             )}
-            {usesDbt && (
-                <Stack gap="xs">
-                    <Text size="sm" fw={500}>
-                        Where does your data live?
-                    </Text>
-                    <SimpleGrid cols={2} spacing="sm">
-                        {WAREHOUSES.map((key) => (
-                            <UnstyledButton
-                                key={key}
-                                className={classes.tile}
-                                onClick={() => selectWarehouse(key)}
-                            >
-                                <Box className={classes.tileLogo}>
-                                    {getWarehouseIcon(key, 'sm')}
-                                </Box>
-                                <Text
-                                    fw={500}
-                                    size="sm"
-                                    className={classes.tileLabel}
-                                >
-                                    {getWarehouseLabel(key)}
-                                </Text>
-                                <MantineIcon
-                                    icon={IconChevronRight}
-                                    size={14}
-                                    color="ldGray.5"
-                                />
-                            </UnstyledButton>
-                        ))}
-                        {canUseSampleWorkspace ? (
-                            <UnstyledButton
-                                className={classes.tile}
-                                disabled={isOpeningSample}
-                                onClick={() => void openSampleWorkspace()}
-                            >
-                                <Box className={classes.tileLogo}>
-                                    {isOpeningSample ? (
-                                        <Loader size={14} />
-                                    ) : (
-                                        <LogoIcon width={18} height={18} />
-                                    )}
-                                </Box>
-                                <Text
-                                    fw={500}
-                                    size="sm"
-                                    className={classes.tileLabel}
-                                >
-                                    Try our demo project
-                                </Text>
-                                <MantineIcon
-                                    icon={IconChevronRight}
-                                    size={14}
-                                    color="ldGray.5"
-                                />
-                            </UnstyledButton>
-                        ) : (
-                            <UnstyledButton
-                                className={classes.tile}
-                                onClick={() =>
-                                    selectWarehouse(OtherWarehouse.Other)
-                                }
-                            >
-                                <Box className={classes.tileLogo}>
-                                    {getWarehouseIcon(
-                                        OtherWarehouse.Other,
-                                        'sm',
-                                    )}
-                                </Box>
-                                <Text
-                                    fw={500}
-                                    size="sm"
-                                    className={classes.tileLabel}
-                                >
-                                    {getWarehouseLabel(OtherWarehouse.Other)}
-                                </Text>
-                                <MantineIcon
-                                    icon={IconChevronRight}
-                                    size={14}
-                                    color="ldGray.5"
-                                />
-                            </UnstyledButton>
-                        )}
-                    </SimpleGrid>
-                </Stack>
-            )}
+
+            <Group justify="space-between">
+                {canUseSampleWorkspace ? (
+                    <Button
+                        variant="subtle"
+                        color="gray"
+                        px={0}
+                        loading={isOpeningSample}
+                        leftSection={<LogoIcon width={14} height={14} />}
+                        onClick={() => void openSampleWorkspace()}
+                    >
+                        Try the demo project
+                    </Button>
+                ) : (
+                    <Box />
+                )}
+                <Button disabled={!canContinue} onClick={continueToForm}>
+                    Continue
+                </Button>
+            </Group>
 
             {hasFailed && (
                 <Text size="sm" c="red" role="alert">
@@ -309,7 +275,7 @@ export const DataSourceChooser: FC = () => {
                 </Text>
             )}
 
-            {usesDbt && <LiveSourcesCard />}
+            <LiveSourcesCard />
 
             {canInvite && (
                 <InviteTeammateModal

@@ -62,9 +62,7 @@ import { getNoProjectPath } from '../utils/noProjectPath';
 import { inferOrganizationName } from '../utils/organizationName';
 import classes from './OrganizationSetup.module.css';
 
-const PRESET_COLORS = ['#4c6ef5', '#7950f2', '#40c057', '#f59f00', '#fa5252'];
-const DEFAULT_COLOR = PRESET_COLORS[0];
-const MAX_SWATCHES = 7;
+const DEFAULT_COLOR = '#4c6ef5';
 
 const isValidHexColor = (hex: string): boolean =>
     /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(hex);
@@ -90,9 +88,6 @@ const brandColorsSorted = (colors: OrganizationBrandColor[]): string[] => {
             .map((color) => color.hex),
     );
 };
-
-const buildSwatches = (brandColors: string[]): string[] =>
-    dedupeColors([...brandColors, ...PRESET_COLORS]).slice(0, MAX_SWATCHES);
 
 const buildBrandColors = (
     selectedColor: string,
@@ -130,7 +125,6 @@ type OrganizationSetupFormValues = {
     enableEmailDomainAccess: boolean;
     isMarketingOptedIn: boolean;
     isTrackingAnonymized: boolean;
-    selectedColor: string;
 };
 
 type OrganizationSetupContentProps = {
@@ -165,7 +159,6 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
             enableEmailDomainAccess: canEnableEmailDomainAccess,
             isMarketingOptedIn: true,
             isTrackingAnonymized: false,
-            selectedColor: DEFAULT_COLOR,
         },
         validate: withOrganizationNameMessage(
             zodResolver(
@@ -204,20 +197,13 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
         if (!canUseBranding || !brand || hasAppliedDetectedBrand.current)
             return;
         hasAppliedDetectedBrand.current = true;
-        const detected = brandColorsSorted(brand.colors);
-        setValues((current) => ({
-            ...(brand.name && !isDirty('organizationName')
-                ? {
-                      organizationName: sanitizeOrganizationName(
-                          brand.name,
-                          inferOrganizationName(emailDomain),
-                      ),
-                  }
-                : {}),
-            ...(current.selectedColor === DEFAULT_COLOR && detected[0]
-                ? { selectedColor: detected[0] }
-                : {}),
-        }));
+        if (!brand.name || isDirty('organizationName')) return;
+        setValues({
+            organizationName: sanitizeOrganizationName(
+                brand.name,
+                inferOrganizationName(emailDomain),
+            ),
+        });
     }, [brandDetection.data, canUseBranding, emailDomain, isDirty, setValues]);
 
     const hasTrackedBrandDetection = useRef(false);
@@ -248,10 +234,7 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
     const detectedColors = detectedBrand
         ? brandColorsSorted(detectedBrand.colors)
         : [];
-    const swatches = buildSwatches(detectedColors);
-    const selectedColor = canUseBranding
-        ? form.values.selectedColor
-        : DEFAULT_COLOR;
+    const selectedColor = detectedColors[0] ?? DEFAULT_COLOR;
 
     const showWorkspaceStep = canEnterOrganizationName;
     const [step, setStep] = useState(1);
@@ -475,66 +458,37 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                     </Group>
                                 )}
 
-                                {canUseBranding && (
+                                {detectedBrand && (
                                     <>
                                         <Divider />
 
-                                        <Stack gap="md">
-                                            <Group gap="sm">
-                                                <Text fw={600}>Brand</Text>
-                                                <Tooltip
-                                                    label="Optional. You can change it later in Appearance settings."
-                                                    multiline
-                                                    maw={280}
-                                                >
-                                                    <ActionIcon
-                                                        aria-label="About brand customization"
-                                                        size="sm"
-                                                    >
-                                                        <MantineIcon
-                                                            icon={
-                                                                IconInfoCircle
-                                                            }
-                                                            size={16}
-                                                        />
-                                                    </ActionIcon>
-                                                </Tooltip>
-                                            </Group>
-
-                                            <Stack gap="xs">
-                                                <Group gap="lg" align="center">
-                                                    <Box
-                                                        className={
-                                                            classes.swatchRow
-                                                        }
-                                                    >
-                                                        {swatches.map(
-                                                            (color) => (
-                                                                <Box
-                                                                    key={color}
-                                                                    component="button"
-                                                                    type="button"
-                                                                    aria-label={`Select brand color ${color}`}
-                                                                    className={
-                                                                        color.toLowerCase() ===
-                                                                        selectedColor.toLowerCase()
-                                                                            ? `${classes.swatch} ${classes.swatchSelected}`
-                                                                            : classes.swatch
-                                                                    }
-                                                                    bg={color}
-                                                                    onClick={() =>
-                                                                        form.setFieldValue(
-                                                                            'selectedColor',
-                                                                            color,
-                                                                        )
-                                                                    }
-                                                                />
-                                                            ),
-                                                        )}
-                                                    </Box>
+                                        <Group gap="sm" wrap="nowrap">
+                                            {detectedColors.length > 0 && (
+                                                <Group gap={4} wrap="nowrap">
+                                                    {detectedColors
+                                                        .slice(0, 5)
+                                                        .map((color) => (
+                                                            <Box
+                                                                key={color}
+                                                                className={
+                                                                    classes.brandDot
+                                                                }
+                                                                bg={color}
+                                                            />
+                                                        ))}
                                                 </Group>
+                                            )}
+                                            <Stack gap={0}>
+                                                <Text size="sm" fw={500}>
+                                                    We've pulled your branding
+                                                    from {detectedBrand.domain}
+                                                </Text>
+                                                <Text size="xs" c="dimmed">
+                                                    Change it anytime in
+                                                    Appearance settings.
+                                                </Text>
                                             </Stack>
-                                        </Stack>
+                                        </Group>
                                     </>
                                 )}
 

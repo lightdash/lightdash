@@ -10,23 +10,9 @@
     line-height: 1.1;
 }
 
-.swatchRow {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--mantine-spacing-sm);
-}
-
-.swatch {
-    width: 28px;
-    height: 28px;
+.brandDot {
+    width: 16px;
+    height: 16px;
     border-radius: 50%;
-    cursor: pointer;
-    border: 1px solid var(--mantine-color-ldGray-3);
-    padding: 0;
-}
-
-.swatchSelected {
-    box-shadow:
-        0 0 0 2px var(--mantine-color-body),
-        0 0 0 4px var(--mantine-color-ldGray-6);
+    border: 1px solid var(--mantine-color-default-border);
 }

@@ -66,19 +66,29 @@ describe('OnboardingDataSource', () => {
         } as ReturnType<typeof useServerFeatureFlag>);
     });
 
-    it('asks about dbt first and then lists the warehouses', async () => {
+    it('asks for the warehouse and model setup on one screen', async () => {
         renderDataSourcePicker(false);
 
-        expect(
-            await screen.findByRole('radiogroup', { name: 'Do you use dbt?' }),
-        ).toBeInTheDocument();
-        expect(screen.queryByText('BigQuery')).not.toBeInTheDocument();
-
-        await userEvent.click(screen.getByRole('radio', { name: /No/ }));
-
+        const continueButton = await screen.findByRole('button', {
+            name: 'Continue',
+        });
         expect(screen.getByText('BigQuery')).toBeInTheDocument();
-        expect(screen.getByText('PostgreSQL')).toBeInTheDocument();
-        expect(screen.getByText('Redshift')).toBeInTheDocument();
+        expect(
+            screen.getByRole('radiogroup', {
+                name: 'How should we set up your models?',
+            }),
+        ).toBeInTheDocument();
+        expect(continueButton).toBeDisabled();
+
+        await userEvent.click(
+            screen.getByRole('radio', { name: /PostgreSQL/ }),
+        );
+        expect(continueButton).toBeDisabled();
+
+        await userEvent.click(
+            screen.getByRole('radio', { name: /From my tables/ }),
+        );
+        expect(continueButton).toBeEnabled();
     });
 
     it('sends a user who cannot create a project to the no access page', async () => {
