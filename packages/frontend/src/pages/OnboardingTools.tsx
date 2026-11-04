@@ -29,11 +29,10 @@ import { DocumentTitle } from '../components/common/DocumentTitle';
 import { useGithubConfig } from '../components/common/GithubIntegration/hooks/useGithubIntegration';
 import MantineIcon from '../components/common/MantineIcon';
 import OnboardingLayout from '../components/common/OnboardingLayout';
-import { ONBOARDING_DATA_STEPS } from '../components/common/onboardingSteps';
 import {
-    useOnboardingVariant,
-    useStepCopy,
-} from '../components/common/onboardingVariant';
+    ONBOARDING_DATA_STEPS,
+    ONBOARDING_STEP_COPY,
+} from '../components/common/onboardingSteps';
 import {
     StepVisual,
     ToolsVisual,
@@ -292,13 +291,12 @@ const TeamStep: FC<{
     backPath: string | null;
 }> = ({ projectUuid, nextPath, backPath }) => {
     const onboardingNavigate = useOnboardingNavigate();
-    const copy = useStepCopy('team');
+    const copy = ONBOARDING_STEP_COPY.team;
     const { health } = useApp();
     const hasSlack = health.data?.hasSlack === true;
     const hasTeams = health.data?.hasMicrosoftTeams === true;
     const hasGithub = health.data?.hasGithub === true;
     const { track } = useTracking();
-    const [variant] = useOnboardingVariant();
     const queryClient = useQueryClient();
     const slackQuery = useGetSlack();
     const githubQuery = useGithubConfig();
@@ -435,7 +433,7 @@ const TeamStep: FC<{
                             if (!hasConnected) {
                                 track({
                                     name: EventName.ONBOARDING_STEP_SKIPPED,
-                                    properties: { screen: 'team', variant },
+                                    properties: { screen: 'team' },
                                 });
                             }
                             onboardingNavigate(nextPath);
@@ -454,9 +452,8 @@ const OnboardingToolsContent: FC<{
     projectUuid: string;
 }> = ({ user, projectUuid }) => {
     const onboardingNavigate = useOnboardingNavigate();
-    const copy = useStepCopy('tools');
+    const copy = ONBOARDING_STEP_COPY.tools;
     const { track } = useTracking();
-    const [variant] = useOnboardingVariant();
     const [searchParams] = useSearchParams();
     const { health } = useApp();
     const liveSourcesFlag = useServerFeatureFlag(FeatureFlags.ApiQuerySources);
@@ -663,7 +660,7 @@ const OnboardingToolsContent: FC<{
                             if (!hasConnected) {
                                 track({
                                     name: EventName.ONBOARDING_STEP_SKIPPED,
-                                    properties: { screen: 'tools', variant },
+                                    properties: { screen: 'tools' },
                                 });
                             }
                             onboardingNavigate(teamStepPath);

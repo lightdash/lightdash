@@ -2,27 +2,22 @@ import {
     AGENT_ONBOARDING_STAGES,
     type ApiConnectorType,
 } from '@lightdash/common';
-import { Box, Button, Group, Image, Stack, Text, Title } from '@mantine/core';
+import { Box, Button, Image, Stack, Text, Title } from '@mantine/core';
 import { IconArrowRight, IconCheck } from '@tabler/icons-react';
 import { Fragment, useEffect, type FC } from 'react';
 import { Link } from 'react-router';
-import { AI_NAME } from '../../../components/common/aiName';
 import { DocumentTitle } from '../../../components/common/DocumentTitle';
 import MantineIcon from '../../../components/common/MantineIcon';
 import OnboardingLayout from '../../../components/common/OnboardingLayout';
-import { useOnboardingVariant } from '../../../components/common/onboardingVariant';
 import { WarehouseTypeLabels } from '../../../components/ProjectConnection/ProjectConnectFlow/utils';
 import { useExternalConnections } from '../../../features/externalConnections/hooks/useExternalConnections';
 import { LiveSourceIcon } from '../../../features/externalConnections/liveSources/LiveSourceIcon';
 import { useProject } from '../../../hooks/useProject';
-import { useSetupGuide } from '../homepageBuilder/blocks/setupGuide/useSetupGuide';
-import { useRecommendedActions } from '../homepageBuilder/blocks/useRecommendedActions';
 import { markHomepageTourSeen } from '../homepageBuilder/onboarding';
 import { useAuroraRun } from './hooks/useAuroraRun';
 import { useAskAurora } from './hooks/useFirstQuestions';
 import classes from './OnboardingDoneStep.module.css';
 import { OnboardingRunActivity } from './OnboardingRunActivity';
-import { plural } from './utils';
 
 type Source = {
     key: string;
@@ -45,74 +40,10 @@ const SourceName: FC<{ source: Source }> = ({ source }) => (
 const FIRST_QUESTION =
     "What's in my data, and what are three questions worth asking?";
 
-type RecapItem = { key: string; state: 'done' | 'live' | 'todo'; text: string };
-
-const SetupRecap: FC<{ projectUuid: string; toolCount: number }> = ({
-    projectUuid,
-    toolCount,
-}) => {
-    const { isLive } = useAuroraRun(projectUuid);
-    const guide = useSetupGuide(
-        projectUuid,
-        useRecommendedActions(projectUuid),
-    );
-    const semanticLayer = guide.sections
-        .flatMap((section) => section.rows)
-        .find(({ id }) => id === 'semantic-layer');
-    const items: RecapItem[] = [
-        { key: 'warehouse', state: 'done', text: 'Warehouse connected' },
-        {
-            key: 'tools',
-            state: toolCount > 0 ? 'done' : 'todo',
-            text:
-                toolCount > 0
-                    ? `${plural(toolCount, 'tool')} connected`
-                    : 'No other tools yet. You can add them from home.',
-        },
-        isLive
-            ? {
-                  key: 'aurora',
-                  state: 'live',
-                  text: `${AI_NAME} is still drafting your metrics. Home shows when it finishes.`,
-              }
-            : semanticLayer?.status === 'done'
-              ? {
-                    key: 'aurora',
-                    state: 'done',
-                    text:
-                        semanticLayer.evidence?.text ??
-                        'Your metrics are ready',
-                }
-              : {
-                    key: 'aurora',
-                    state: 'todo',
-                    text: 'No metrics drafted yet. You can start from home.',
-                },
-    ];
-    return (
-        <Stack gap="xs">
-            <Text fw={600}>While you were setting up</Text>
-            {items.map(({ key, state, text }) => (
-                <Group key={key} gap="sm" wrap="nowrap" align="flex-start">
-                    <Box className={classes.recapGlyph} data-state={state}>
-                        {state === 'done' && (
-                            <MantineIcon icon={IconCheck} size={12} />
-                        )}
-                    </Box>
-                    <Text fz="sm" c={state === 'todo' ? 'dimmed' : undefined}>
-                        {text}
-                    </Text>
-                </Group>
-            ))}
-        </Stack>
-    );
-};
-
 export const OnboardingDoneStep: FC<{ projectUuid: string }> = ({
     projectUuid,
 }) => {
     useEffect(markHomepageTourSeen, []);
-    const [variant] = useOnboardingVariant();
     const ask = useAskAurora(projectUuid);
     const { run, isLive } = useAuroraRun(projectUuid);
     // Asked before the semantic layer deploys, the agent only sees the raw sources
@@ -173,16 +104,6 @@ export const OnboardingDoneStep: FC<{ projectUuid: string }> = ({
                         </Text>
                     )}
                 </Stack>
-
-                {variant === 'b' && (
-                    <SetupRecap
-                        projectUuid={projectUuid}
-                        toolCount={
-                            sources.filter(({ key }) => key !== 'warehouse')
-                                .length
-                        }
-                    />
-                )}
 
                 <Box className={classes.runCard}>
                     <OnboardingRunActivity

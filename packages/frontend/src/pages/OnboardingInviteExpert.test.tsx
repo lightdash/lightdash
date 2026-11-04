@@ -4,7 +4,6 @@ import {
     type ApiError,
 } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type FC } from 'react';
@@ -90,6 +89,8 @@ vi.mock('../hooks/useServerOrClientFeatureFlag', () => ({
     }),
 }));
 
+vi.mock('../components/AboutFooter', () => ({ default: () => null }));
+
 let currentPath = '/onboarding/invite-expert';
 const PathProbe: FC = () => {
     currentPath = useLocation().pathname;
@@ -99,21 +100,19 @@ const PathProbe: FC = () => {
 type InitialEntry = string | { pathname: string; state: unknown };
 
 const pageTree = (initialEntry: InitialEntry) => (
-    <QueryClientProvider client={new QueryClient()}>
-        <MantineProvider env="test">
-            <MemoryRouter
-                initialEntries={[
-                    initialEntry as string & {
-                        pathname: string;
-                        state: unknown;
-                    },
-                ]}
-            >
-                <PathProbe />
-                <OnboardingInviteExpert />
-            </MemoryRouter>
-        </MantineProvider>
-    </QueryClientProvider>
+    <MantineProvider env="test">
+        <MemoryRouter
+            initialEntries={[
+                initialEntry as string & {
+                    pathname: string;
+                    state: unknown;
+                },
+            ]}
+        >
+            <PathProbe />
+            <OnboardingInviteExpert />
+        </MemoryRouter>
+    </MantineProvider>
 );
 
 const renderPage = (

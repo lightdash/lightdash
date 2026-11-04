@@ -18,7 +18,6 @@ import { EventName } from '../../types/Events';
 import LightdashWordmark from './AuthLayout/LightdashWordmark';
 import OnboardingControlPanel from './OnboardingControlPanel';
 import classes from './OnboardingLayout.module.css';
-import { useOnboardingVariant } from './onboardingVariant';
 import { StepVisual } from './OnboardingVisuals';
 import { PixelField } from './PixelField';
 
@@ -104,7 +103,6 @@ let lastScreenViewedAt: number | null = null;
 
 const useTrackScreen = (screen: OnboardingScreen | null) => {
     const track = useTracking({ failSilently: true })?.track;
-    const [variant] = useOnboardingVariant();
     const trackedScreen = useRef<OnboardingScreen | null>(null);
     useEffect(() => {
         if (!screen || !track || trackedScreen.current === screen) return;
@@ -114,7 +112,6 @@ const useTrackScreen = (screen: OnboardingScreen | null) => {
             name: EventName.ONBOARDING_SCREEN_VIEWED,
             properties: {
                 screen,
-                variant,
                 secondsOnPreviousScreen:
                     lastScreenViewedAt === null
                         ? null
@@ -122,7 +119,7 @@ const useTrackScreen = (screen: OnboardingScreen | null) => {
             },
         });
         lastScreenViewedAt = now;
-    }, [screen, track, variant]);
+    }, [screen, track]);
 };
 
 type Props = PropsWithChildren<{
@@ -156,13 +153,11 @@ const OnboardingLayout: FC<Props> = ({
 }) => {
     useStackDirection(stackDepth);
     useTrackScreen(screen);
-    const [variant] = useOnboardingVariant();
     const aside =
-        asideProp ??
-        (variant === 'c' && !centered ? <StepVisual step="welcome" /> : null);
+        asideProp ?? (centered ? null : <StepVisual step="welcome" />);
     const controlPanel = import.meta.env.DEV && <OnboardingControlPanel />;
 
-    if (variant === 'c' && !centered) {
+    if (!centered) {
         return (
             <Box component="main" className={classes.splitRoot}>
                 <Box className={classes.splitForm} data-onboarding-card>

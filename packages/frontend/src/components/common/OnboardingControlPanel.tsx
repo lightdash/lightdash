@@ -1,13 +1,5 @@
 import { ProjectType } from '@lightdash/common';
-import {
-    ActionIcon,
-    Box,
-    Button,
-    Group,
-    SegmentedControl,
-    Select,
-    Text,
-} from '@mantine/core';
+import { ActionIcon, Box, Button, Group, Select, Text } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import {
     IconAdjustmentsHorizontal,
@@ -21,7 +13,6 @@ import useLogoutMutation from '../../hooks/user/useUserLogoutMutation';
 import useApp from '../../providers/App/useApp';
 import MantineIcon from './MantineIcon';
 import classes from './OnboardingControlPanel.module.css';
-import { ONBOARDING_VARIANTS, useOnboardingVariant } from './onboardingVariant';
 
 const screensFor = (projectUuid: string | null) => [
     { value: '/onboarding/data-source', label: 'Start (intro in B)' },
@@ -45,13 +36,9 @@ const screensFor = (projectUuid: string | null) => [
         : []),
 ];
 
-// Keeps the variant and theme so a fresh run starts in the same comparison
+// Keeps the theme and panel state across a fresh run
 const COLLAPSED_KEY = 'ld.onboarding.controlsCollapsed';
-const KEPT_STORAGE_KEYS = [
-    'ld.onboarding.variant',
-    'color-scheme',
-    COLLAPSED_KEY,
-];
+const KEPT_STORAGE_KEYS = ['color-scheme', COLLAPSED_KEY];
 
 const clearBrowserState = () => {
     for (const key of Object.keys(localStorage)) {
@@ -60,7 +47,7 @@ const clearBrowserState = () => {
     sessionStorage.clear();
 };
 
-/** Local-only switcher for comparing onboarding variants */
+/** Local-only controls for jumping between onboarding screens and starting over */
 const OnboardingControlPanel: FC = () => {
     const navigate = useNavigate();
     const params = useParams<{ projectUuid?: string }>();
@@ -68,7 +55,6 @@ const OnboardingControlPanel: FC = () => {
     const { data: projects } = useProjects({
         enabled: !!user.data?.organizationUuid,
     });
-    const [variant, setVariant] = useOnboardingVariant();
     const [isCollapsed, setIsCollapsed] = useLocalStorage({
         key: COLLAPSED_KEY,
         defaultValue: false,
@@ -113,20 +99,6 @@ const OnboardingControlPanel: FC = () => {
     return (
         <Box className={classes.panel}>
             <Group gap="sm" wrap="nowrap">
-                <Text fz="xs" c="dimmed">
-                    Variant
-                </Text>
-                <SegmentedControl
-                    size="xs"
-                    value={variant}
-                    onChange={(value) => {
-                        const next = ONBOARDING_VARIANTS.find(
-                            (option) => option.value === value,
-                        );
-                        if (next) setVariant(next.value);
-                    }}
-                    data={ONBOARDING_VARIANTS}
-                />
                 <Select
                     size="xs"
                     w={200}

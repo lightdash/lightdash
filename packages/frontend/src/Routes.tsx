@@ -1013,6 +1013,11 @@ const PRIVATE_ROUTES: RouteObject[] = [
                             };
                         },
                     },
+                ],
+            },
+            {
+                element: <NavBarLayout />,
+                children: [
                     {
                         path: '/onboarding/invite-expert',
                         handle: { hideAILauncher: true },
@@ -1034,11 +1039,6 @@ const PRIVATE_ROUTES: RouteObject[] = [
                             };
                         },
                     },
-                ],
-            },
-            {
-                element: <NavBarLayout />,
-                children: [
                     {
                         path: '/createProject/:method?',
                         lazy: async () => {

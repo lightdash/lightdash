@@ -41,7 +41,6 @@ import { Navigate, useSearchParams } from 'react-router';
 import { DocumentTitle } from '../components/common/DocumentTitle';
 import MantineIcon from '../components/common/MantineIcon';
 import OnboardingLayout from '../components/common/OnboardingLayout';
-import { useOnboardingVariant } from '../components/common/onboardingVariant';
 import { useOnboardingNavigate } from '../components/common/viewTransition';
 import PageSpinner from '../components/PageSpinner';
 import { jobTitles } from '../components/UserCompletionModal/jobTitles';
@@ -258,7 +257,6 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
     const [step, setStep] = useState(1);
 
     const isWorkspaceStep = showWorkspaceStep && step === 1;
-    const [variant] = useOnboardingVariant();
     const displayStep = showWorkspaceStep ? step : 1;
 
     const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -386,7 +384,7 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
     return (
         <OnboardingLayout
             screen={isWorkspaceStep ? 'organization' : 'about_you'}
-            aside={variant === 'c' ? brandPreview : null}
+            aside={brandPreview}
             progress={{
                 currentStep: displayStep,
                 steps: showWorkspaceStep
@@ -536,7 +534,6 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                                     </Box>
                                                 </Group>
                                             </Stack>
-                                            {variant !== 'c' && brandPreview}
                                         </Stack>
                                     </>
                                 )}

@@ -2,20 +2,14 @@ import { subject } from '@casl/ability';
 import { ProjectType, WarehouseTypes } from '@lightdash/common';
 import { Anchor, Box, Button, Group, Stack, Text, Title } from '@mantine/core';
 import { useState, type FC } from 'react';
-import {
-    Navigate,
-    useLocation,
-    useParams,
-    useSearchParams,
-} from 'react-router';
+import { Navigate, useLocation, useParams } from 'react-router';
 import { DocumentTitle } from '../components/common/DocumentTitle';
 import ErrorState from '../components/common/ErrorState';
 import OnboardingLayout from '../components/common/OnboardingLayout';
-import { ONBOARDING_DATA_STEPS } from '../components/common/onboardingSteps';
 import {
-    useOnboardingVariant,
-    useStepCopy,
-} from '../components/common/onboardingVariant';
+    ONBOARDING_DATA_STEPS,
+    ONBOARDING_STEP_COPY,
+} from '../components/common/onboardingSteps';
 import { StepVisual } from '../components/common/OnboardingVisuals';
 import { useOnboardingNavigate } from '../components/common/viewTransition';
 import { CreateProjectConnection } from '../components/ProjectConnection';
@@ -29,7 +23,6 @@ import {
     OTHER_ROUTE_PARAM,
 } from '../components/ProjectConnection/ProjectConnectFlow/utils';
 import { ProjectFormProvider } from '../components/ProjectConnection/ProjectFormProvider';
-import { MeetAurora } from '../ee/features/agentOnboarding/MeetAurora';
 import { withViewTransition } from '../features/apps/utils/viewTransition';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import { useOnboardingPageGuard } from '../hooks/useOnboardingPageGuard';
@@ -54,7 +47,7 @@ const useBackToChooser = () => {
 };
 
 const DataSourcePicker: FC = () => {
-    const copy = useStepCopy('warehouse');
+    const copy = ONBOARDING_STEP_COPY.warehouse;
     return (
         <Stack gap="lg">
             <Stack gap="xs">
@@ -221,9 +214,6 @@ const OnboardingDataSourceContent: FC = () => {
         warehouse?: string;
         mode?: string;
     }>();
-    const [searchParams] = useSearchParams();
-    const [variant] = useOnboardingVariant();
-
     const selectedWarehouse =
         warehouse && isWarehouseType(warehouse) ? warehouse : undefined;
 
@@ -233,19 +223,6 @@ const OnboardingDataSourceContent: FC = () => {
 
     if (mode && (!selectedWarehouse || mode !== REPO_MODE)) {
         return <Navigate to="/onboarding/data-source" replace />;
-    }
-
-    if (!warehouse && variant === 'b' && searchParams.get('intro') !== 'done') {
-        return (
-            <OnboardingLayout
-                screen="meet_aurora"
-                journey={{ currentStep: 1, steps: ONBOARDING_DATA_STEPS }}
-                aside={<StepVisual step="welcome" />}
-            >
-                <DocumentTitle title="Your AI analyst" />
-                <MeetAurora />
-            </OnboardingLayout>
-        );
     }
 
     return (

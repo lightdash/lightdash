@@ -941,7 +941,6 @@ type OrganizationBrandDetectedEvent = {
 export type OnboardingScreen =
     | 'organization'
     | 'about_you'
-    | 'meet_aurora'
     | 'choose_source'
     | 'warehouse_form'
     | 'dbt'
@@ -953,7 +952,6 @@ type OnboardingScreenViewedEvent = {
     name: EventName.ONBOARDING_SCREEN_VIEWED;
     properties: {
         screen: OnboardingScreen;
-        variant: string;
         secondsOnPreviousScreen: number | null;
     };
 };
@@ -962,7 +960,6 @@ type OnboardingStepSkippedEvent = {
     name: EventName.ONBOARDING_STEP_SKIPPED;
     properties: {
         screen: OnboardingScreen;
-        variant: string;
     };
 };
 
