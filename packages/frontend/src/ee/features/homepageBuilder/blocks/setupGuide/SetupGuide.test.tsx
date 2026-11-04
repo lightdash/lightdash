@@ -13,6 +13,7 @@ import {
     type ActionStatus,
     type RecommendedActionsState,
 } from '../useRecommendedActions';
+import { SEMANTIC_LAYER_STEP_COUNT } from './SemanticLayerExplainer';
 import { SetupGuideView } from './SetupGuide';
 import {
     buildSetupGuide,
@@ -552,6 +553,45 @@ describe('first chart banner', () => {
         expect(
             screen.getByRole('link', { name: /Connect a warehouse/ }),
         ).toHaveAttribute('href', '/settings');
+    });
+
+    it('explains the semantic layer on live sources, ending on the warehouse', async () => {
+        render(
+            <MantineProvider env="test">
+                <MemoryRouter>
+                    <YourData
+                        projectUuid="p1"
+                        actions={{
+                            ...bannerActions,
+                            statuses: {
+                                ...bannerActions.statuses,
+                                'connect-warehouse': status({
+                                    url: '/settings',
+                                }),
+                            },
+                        }}
+                        guide={{
+                            ...bannerGuide,
+                            liveConnections: [postHogConnection],
+                        }}
+                        onAsk={vi.fn()}
+                    />
+                </MemoryRouter>
+            </MantineProvider>,
+        );
+        await userEvent.click(
+            screen.getByRole('button', { name: /Add a semantic layer/ }),
+        );
+        for (let step = 1; step < SEMANTIC_LAYER_STEP_COUNT; step += 1) {
+            await userEvent.click(
+                await screen.findByRole('button', { name: 'Next' }),
+            );
+        }
+        expect(
+            screen
+                .getAllByRole('link', { name: 'Connect a warehouse' })
+                .map((link) => link.getAttribute('href')),
+        ).toContain('/settings');
     });
 
     it('reports the impression, an Explore pick and the dismiss', async () => {
