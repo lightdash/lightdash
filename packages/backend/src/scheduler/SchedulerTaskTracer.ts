@@ -434,6 +434,11 @@ const getTagsForTask: {
         'project.uuid': payload.projectUuid,
     }),
     [SCHEDULER_TASKS.MAINTAIN_EXTERNAL_SOURCES]: () => ({}),
+    [SCHEDULER_TASKS.SCAN_API_SOURCE_SCHEMA]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'user.uuid': payload.userUuid,
+        'project.uuid': payload.projectUuid,
+    }),
     [SCHEDULER_TASKS.SWEEP_UNCLAIMED_AI_THREAD_FILES]: () => ({}),
     [SCHEDULER_TASKS.LEARN_SANDBOX_COMMAND]: (payload) => ({
         projectUuid: payload.projectUuid,

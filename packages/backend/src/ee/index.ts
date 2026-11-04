@@ -128,11 +128,11 @@ import { ManagedAgentService } from './services/ManagedAgentService/ManagedAgent
 import { McpService } from './services/McpService/McpService';
 import { MobilePushNotificationReconciler } from './services/MobilePushNotificationService/MobilePushNotificationReconciler';
 import { MobilePushNotificationService } from './services/MobilePushNotificationService/MobilePushNotificationService';
+import { autoStartOnboardingAgentRun } from './services/OnboardingAgentService/autoStartOnboardingAgentRun';
 import { OnboardingAgentService } from './services/OnboardingAgentService/OnboardingAgentService';
 import { ProjectContextService } from './services/ProjectContextService/ProjectContextService';
 import { ProjectHomepageService } from './services/ProjectHomepageService';
 import { createPlaygroundAppFileStore } from './services/ProjectService/playgroundAppFiles';
-import { provisionOnboardingHomepage } from './services/ProjectService/provisionOnboardingHomepage';
 import { provisionPlaygroundProject } from './services/ProjectService/provisionPlaygroundProject';
 import { seedTrainingCopyAgentDocuments } from './services/ProjectService/seedPlaygroundAgentDocuments';
 import { seedPlaygroundContent } from './services/ProjectService/seedPlaygroundContent';
@@ -522,6 +522,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
             }) =>
                 new OnboardingAgentService({
                     lightdashConfig: context.lightdashConfig,
+                    analytics: context.lightdashAnalytics,
                     agentOnboardingRunModel:
                         models.getAgentOnboardingRunModel<AgentOnboardingRunModel>(),
                     sandboxRegistryModel:
@@ -581,6 +582,13 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                                     account,
                                     projectUuid,
                                     connectionUuid,
+                                ),
+                        listSchemaTables: (account, projectUuid) =>
+                            repository
+                                .getExternalConnectionService<ExternalConnectionService>()
+                                .listApiSourceSchemaTables(
+                                    account,
+                                    projectUuid,
                                 ),
                     }),
                 );
@@ -1158,6 +1166,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 context,
                 repository,
                 utils,
+                clients,
             }) =>
                 new ExternalConnectionService({
                     allowedPrivateHostCidrs:
@@ -1168,6 +1177,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getExternalConnectionModel(),
                     appModel: models.getAppModel(),
                     featureFlagModel: models.getFeatureFlagModel(),
+                    schedulerClient:
+                        clients.getSchedulerClient() as CommercialSchedulerClient,
                     projectModel: models.getProjectModel(),
                     savedChartModel: models.getSavedChartModel(),
                     encryptionUtil: utils.getEncryptionUtil(),
@@ -1355,24 +1366,29 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                             .getCustomSqlProvenance(args),
                     getAiAgentService: () =>
                         repository.getAiAgentService<AiAgentService>(),
-                    onProjectCreated: ({
+                    onProjectCreated: async ({
                         user,
                         projectUuid,
                         projectType,
+                        dbtProjectType,
+                        method,
                         provisioningSource,
-                    }) =>
-                        provisionOnboardingHomepage({
+                    }) => {
+                        await autoStartOnboardingAgentRun({
                             user,
                             projectUuid,
                             projectType,
+                            dbtProjectType,
+                            method,
                             provisioningSource,
                             featureFlagService:
                                 repository.getFeatureFlagService(),
                             projectModel: models.getProjectModel(),
-                            projectHomepageModel:
-                                models.getProjectHomepageModel<ProjectHomepageModel>(),
+                            onboardingAgentService:
+                                repository.getOnboardingAgentService<OnboardingAgentService>(),
                             analytics: context.lightdashAnalytics,
-                        }),
+                        });
+                    },
                     provisionPlaygroundProject: ({
                         user,
                         projectService,
@@ -1970,6 +1986,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     context.serviceRepository.getProjectHomepageService<ProjectHomepageService>(),
                 externalSourceService:
                     context.serviceRepository.getExternalSourceService<ExternalSourceService>(),
+                externalConnectionService:
+                    context.serviceRepository.getExternalConnectionService<ExternalConnectionService>(),
                 aiThreadFileService:
                     context.serviceRepository.getAiThreadFileService<AiThreadFileService>(),
                 mobilePushNotificationService:

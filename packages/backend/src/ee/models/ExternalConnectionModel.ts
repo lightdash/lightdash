@@ -8,6 +8,7 @@ import {
     getAppDisplayName,
     NotFoundError,
     ParameterError,
+    type ApiSourceSchemaScan,
     type CreateExternalConnection,
     type ExternalConnection,
     type ExternalConnectionApiSource,
@@ -77,6 +78,31 @@ const apiSourceSchema = z.discriminatedUnion('connector', [
 const parseApiSource = (value: unknown): ExternalConnectionApiSource | null => {
     if (value === null) return null;
     const parsed = apiSourceSchema.safeParse(value);
+    return parsed.success ? parsed.data : null;
+};
+
+const apiSourceSchemaScanSchema = z.discriminatedUnion('status', [
+    z.object({ status: z.literal('pending'), requestedAt: z.coerce.date() }),
+    z.object({
+        status: z.literal('ready'),
+        scannedAt: z.coerce.date(),
+        windowDays: z.number(),
+        events: z.array(z.object({ name: z.string(), count: z.number() })),
+        eventsTruncated: z.boolean(),
+        propertyKeys: z.array(z.string()).nullable(),
+    }),
+    z.object({
+        status: z.literal('failed'),
+        scannedAt: z.coerce.date(),
+        error: z.string(),
+    }),
+]);
+
+const parseApiSourceSchemaScan = (
+    value: unknown,
+): ApiSourceSchemaScan | null => {
+    if (value === null) return null;
+    const parsed = apiSourceSchemaScanSchema.safeParse(value);
     return parsed.success ? parsed.data : null;
 };
 
@@ -1621,5 +1647,29 @@ export class ExternalConnectionModel {
                     ? null
                     : Math.round(Number(row.median_duration_ms)),
         }));
+    }
+
+    async setApiSourceSchema(
+        connectionUuid: string,
+        scan: ApiSourceSchemaScan,
+    ): Promise<void> {
+        await this.database(ExternalConnectionsTableName)
+            .where('external_connection_uuid', connectionUuid)
+            .update({ api_source_schema: JSON.stringify(scan) });
+    }
+
+    async getApiSourceSchemas(
+        connectionUuids: string[],
+    ): Promise<Map<string, ApiSourceSchemaScan | null>> {
+        if (connectionUuids.length === 0) return new Map();
+        const rows = await this.database(ExternalConnectionsTableName)
+            .whereIn('external_connection_uuid', connectionUuids)
+            .select('external_connection_uuid', 'api_source_schema');
+        return new Map(
+            rows.map((row) => [
+                row.external_connection_uuid,
+                parseApiSourceSchemaScan(row.api_source_schema),
+            ]),
+        );
     }
 }
