@@ -1,5 +1,6 @@
 import {
     FeatureFlags,
+    isApiError,
     WAREHOUSE_CONNECTION_NAME_CONFLICT_MESSAGE,
     type ApiCreateWarehouseConnectionRequest,
     type ApiError,
@@ -24,6 +25,10 @@ export type ProjectWarehouseConnections = {
     connections: WarehouseConnection[];
     capabilities: WarehouseConnectionCapabilities;
 };
+
+export type ProjectWarehouseConnectionsMode =
+    | { mode: 'single' }
+    | ({ mode: 'multiple' } & ProjectWarehouseConnections);
 
 export type NameConflictHandler = (message: string) => void;
 
@@ -62,14 +67,25 @@ export const useWarehouseConnections = (projectUuid: string) => {
         FeatureFlags.MultiConnectionProjects,
     );
     const isEnabled = flag?.enabled === true;
-    const query = useQuery<ProjectWarehouseConnections, ApiError>({
+    const query = useQuery<ProjectWarehouseConnectionsMode, ApiError>({
         queryKey: connectionsQueryKey(projectUuid),
-        queryFn: () =>
-            lightdashApi<ProjectWarehouseConnections>({
-                url: connectionsUrl(projectUuid),
-                method: 'GET',
-                body: undefined,
-            }),
+        queryFn: async () => {
+            try {
+                const listing = await lightdashApi<ProjectWarehouseConnections>(
+                    {
+                        url: connectionsUrl(projectUuid),
+                        method: 'GET',
+                        body: undefined,
+                    },
+                );
+                return { mode: 'multiple', ...listing };
+            } catch (error) {
+                if (isApiError(error) && isSingleConnectionProject(error)) {
+                    return { mode: 'single' };
+                }
+                throw error;
+            }
+        },
         enabled: isEnabled,
         retry: false,
     });

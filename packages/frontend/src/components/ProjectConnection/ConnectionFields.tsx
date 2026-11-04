@@ -36,8 +36,10 @@ export const ConnectionFields: FC<{
 }) => {
     const { data } = useWarehouseConnections(projectUuid);
     const originalWarehouseType =
-        data?.connections.find((connection) => connection.isOriginal)
-            ?.warehouseType ?? warehouseType;
+        (data?.mode === 'multiple'
+            ? data.connections.find((connection) => connection.isOriginal)
+                  ?.warehouseType
+            : undefined) ?? warehouseType;
     return (
         <FormProvider form={form}>
             <ProjectFormProvider
