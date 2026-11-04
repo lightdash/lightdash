@@ -569,6 +569,10 @@ export class UserService extends BaseService {
             : await this.userModel.activateUserWithoutPassword(
                   inviteLink.userUuid,
               );
+        const invitedByUserUuid =
+            await this.inviteLinkModel.findInvitedByUserUuid(
+                inviteLink.inviteCode,
+            );
         await this.inviteLinkModel.deleteByCode(inviteLink.inviteCode);
 
         // Apply default project memberships from allowed email domains config.
@@ -657,6 +661,7 @@ export class UserService extends BaseService {
                     organizationId: inviteLink.organizationUuid,
                     invitePurpose: InviteLinkPurpose.Setup,
                     onboardingFlow,
+                    invitedByUserId: invitedByUserUuid,
                 },
             });
         }
@@ -923,6 +928,7 @@ export class UserService extends BaseService {
             organizationUuid,
             userUuid,
             purpose,
+            user.userUuid,
         );
         await this.emailClient.sendInviteEmail(user, inviteLink);
         this.analytics.track({

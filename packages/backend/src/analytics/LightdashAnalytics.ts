@@ -313,6 +313,8 @@ type SetupInviteAcceptedEvent = BaseTrack & {
         organizationId: string;
         invitePurpose: InviteLinkPurpose.Setup;
         onboardingFlow: OnboardingFlow;
+        /** Null for links created before the inviter was stored */
+        invitedByUserId: string | null;
     };
 };
 

@@ -907,6 +907,7 @@ export class RolesService extends BaseService {
             organizationUuid,
             userUuid,
             InviteLinkPurpose.Member,
+            account.user.id,
         );
         try {
             await this.emailClient.sendInviteEmail(

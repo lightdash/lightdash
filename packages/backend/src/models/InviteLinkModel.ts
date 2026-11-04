@@ -115,6 +115,7 @@ export class InviteLinkModel {
         organizationUuid: string,
         userUuid: string,
         purpose: InviteLinkPurpose,
+        invitedByUserUuid: string | null,
     ): Promise<InviteLink> {
         const inviteCodeHash = InviteLinkModel._hash(inviteCode);
         const orgs = await this.database('organizations')
@@ -131,10 +132,18 @@ export class InviteLinkModel {
                 expires_at: expiresAt,
                 user_uuid: userUuid,
                 purpose,
+                invited_by_user_uuid: invitedByUserUuid,
             })
             .onConflict('user_uuid')
             .merge();
         return this.getByCode(inviteCode);
+    }
+
+    async findInvitedByUserUuid(inviteCode: string): Promise<string | null> {
+        const row = await this.database(InviteLinkTableName)
+            .where('invite_code_hash', InviteLinkModel._hash(inviteCode))
+            .first('invited_by_user_uuid');
+        return row?.invited_by_user_uuid ?? null;
     }
 
     async hasValidInviteLink(
