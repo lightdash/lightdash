@@ -16,6 +16,7 @@ import {
     IconArrowDownLeft,
     IconBrandSlack,
     IconChartBar,
+    IconChevronRight,
     IconCircleCheckFilled,
     IconDatabase,
     IconDots,
@@ -43,7 +44,7 @@ import {
     type SetupGuideRowId,
     type SetupGuideSection,
 } from './setupGuideModel';
-import { StepArt } from './StepArt';
+import { ChoiceArt, StepArt } from './StepArt';
 import { useSetupGuide } from './useSetupGuide';
 import { YourData } from './YourData';
 
@@ -177,7 +178,11 @@ const GuideRow: FC<{ row: SetupGuideRow } & RowHandlers> = ({
                     </Text>
                 )}
             </Box>
-            <RowStatus row={row} />
+            {row.choices.length > 0 ? (
+                <MantineIcon icon={IconChevronRight} size={14} color="dimmed" />
+            ) : (
+                <RowStatus row={row} />
+            )}
         </>
     );
     const { action } = row;
@@ -185,7 +190,7 @@ const GuideRow: FC<{ row: SetupGuideRow } & RowHandlers> = ({
         <HoverCard
             position="right-start"
             offset={24}
-            width={280}
+            width={row.choices.length > 0 ? 360 : 280}
             openDelay={120}
             closeDelay={80}
         >
@@ -221,19 +226,50 @@ const GuideRow: FC<{ row: SetupGuideRow } & RowHandlers> = ({
                 </Box>
             </HoverCard.Target>
             <HoverCard.Dropdown p={0} className={classes.preview}>
-                <StepArt
-                    id={row.id}
-                    badge={isCompletedStatus(row.status) ? 'Done' : copy.time}
-                    size="lg"
-                />
-                <Box p="sm">
-                    <Text fz="sm" fw={600}>
-                        {row.title}
-                    </Text>
-                    <Text fz="xs" c="dimmed">
-                        {row.evidence?.text ?? copy.pitch}
-                    </Text>
-                </Box>
+                {row.choices.length > 0 ? (
+                    <Box p="sm">
+                        <Text fz="sm" fw={600}>
+                            {row.title}
+                        </Text>
+                        <Text fz="xs" c="dimmed" mb="sm">
+                            Two ways to get there
+                        </Text>
+                        <Box className={classes.choices}>
+                            {row.choices.map((choice) => (
+                                <Link
+                                    key={choice.kind}
+                                    to={choice.to}
+                                    className={classes.choice}
+                                >
+                                    <ChoiceArt kind={choice.kind} />
+                                    <Text fz="xs" fw={600} px={10} py={8}>
+                                        {choice.label}
+                                    </Text>
+                                </Link>
+                            ))}
+                        </Box>
+                    </Box>
+                ) : (
+                    <>
+                        <StepArt
+                            id={row.id}
+                            badge={
+                                isCompletedStatus(row.status)
+                                    ? 'Done'
+                                    : copy.time
+                            }
+                            size="lg"
+                        />
+                        <Box p="sm">
+                            <Text fz="sm" fw={600}>
+                                {row.title}
+                            </Text>
+                            <Text fz="xs" c="dimmed">
+                                {row.evidence?.text ?? copy.pitch}
+                            </Text>
+                        </Box>
+                    </>
+                )}
             </HoverCard.Dropdown>
         </HoverCard>
     );

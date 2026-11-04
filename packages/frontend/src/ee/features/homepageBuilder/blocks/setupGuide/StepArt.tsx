@@ -4,6 +4,7 @@ import {
     IconDatabase,
     IconGitPullRequest,
     IconPlus,
+    IconSparkles,
 } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
 import { AI_NAME } from '../../../../../components/common/aiName';
@@ -22,6 +23,15 @@ const Bars: FC<{ heights: number[] }> = ({ heights }) => (
                 __vars={{ '--h': `${height}%`, '--i': String(index) }}
             />
         ))}
+    </Box>
+);
+
+const ChartCard: FC = () => (
+    <Box className={classes.chartCard}>
+        <Box className={classes.line} data-strong>
+            Orders by month
+        </Box>
+        <Bars heights={[34, 48, 42, 60, 56, 74, 92]} />
     </Box>
 );
 
@@ -74,9 +84,20 @@ const SCENES: Record<SetupGuideRowId, () => ReactNode> = {
         </Box>
     ),
     'first-chart': () => (
-        <Box className={classes.metricCard}>
-            <Box className={classes.line}>Orders by month</Box>
-            <Bars heights={[30, 46, 40, 62, 58, 84]} />
+        <Box className={classes.build}>
+            <Box className={classes.bubble} data-ask>
+                <MantineIcon icon={IconSparkles} size={10} />
+                orders by month?
+            </Box>
+            <ChartCard />
+            <Box className={classes.sheet} data-fields>
+                <Box className={classes.field} data-kind="metric">
+                    order_count
+                </Box>
+                <Box className={classes.field} data-kind="dimension">
+                    order_month
+                </Box>
+            </Box>
         </Box>
     ),
     'source-control': () => (
@@ -134,5 +155,47 @@ export const StepArt: FC<{
     <Box className={classes.band} data-size={size} aria-hidden>
         {badge && <Box className={classes.badge}>{badge}</Box>}
         <Box className={classes.scene}>{SCENES[id]()}</Box>
+    </Box>
+);
+
+const CHOICE_SCENES: Record<'ask' | 'explore', () => ReactNode> = {
+    ask: () => (
+        <Box className={classes.thread}>
+            <Box className={classes.bubble} data-question>
+                orders by month?
+            </Box>
+            <Box className={classes.bubble} data-reply>
+                <Box className={classes.auroraDot} />
+                <Bars heights={[40, 55, 48, 70, 92]} />
+            </Box>
+        </Box>
+    ),
+    explore: () => (
+        <Box className={classes.model}>
+            <Box className={classes.sheet}>
+                <Box className={classes.field} data-kind="metric" data-picked>
+                    order_count
+                </Box>
+                <Box
+                    className={classes.field}
+                    data-kind="dimension"
+                    data-picked
+                >
+                    order_month
+                </Box>
+                <Box className={classes.field} data-kind="dimension">
+                    status
+                </Box>
+            </Box>
+            <Box className={classes.metricCard}>
+                <Bars heights={[40, 55, 48, 70, 92]} />
+            </Box>
+        </Box>
+    ),
+};
+
+export const ChoiceArt: FC<{ kind: 'ask' | 'explore' }> = ({ kind }) => (
+    <Box className={classes.band} data-size="choice" aria-hidden>
+        <Box className={classes.scene}>{CHOICE_SCENES[kind]()}</Box>
     </Box>
 );

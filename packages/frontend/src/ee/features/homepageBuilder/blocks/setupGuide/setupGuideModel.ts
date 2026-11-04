@@ -38,6 +38,12 @@ export type SetupGuideEvidence = {
 
 export type SetupGuidePreview = { kind: 'agent-run'; run: AgentOnboardingRun };
 
+export type SetupGuideChoice = {
+    kind: 'ask' | 'explore';
+    label: string;
+    to: string;
+};
+
 export type SetupGuideRow = {
     id: SetupGuideRowId;
     title: string;
@@ -47,6 +53,8 @@ export type SetupGuideRow = {
     /** The checklist key backing this row: drives server-persisted skips and tracking */
     actionKey: HomepageRecommendedActionKey | null;
     preview: SetupGuidePreview | null;
+    // Alternative ways to finish the step, offered side by side
+    choices: SetupGuideChoice[];
 };
 
 export type SetupGuideSection = {
@@ -140,6 +148,7 @@ const checklistRow = (
             : { label: status.ctaLabel, to: status.url },
         actionKey,
         preview: null,
+        choices: [],
     };
 };
 
@@ -177,6 +186,7 @@ const appDataRow = ({
         action: { label: hasSources ? 'Manage' : 'Connect', to },
         actionKey: null,
         preview: null,
+        choices: [],
     };
 };
 
@@ -202,6 +212,7 @@ const semanticLayerRow = ({
             evidence: evidence('Drafting models from your tables'),
             action: { label: 'Open', to: url },
             preview: { kind: 'agent-run', run: activeRun },
+            choices: [],
         };
     }
     if (semanticModelCount > 0) {
@@ -223,6 +234,7 @@ const semanticLayerRow = ({
                     : `/projects/${projectUuid}/tables`,
             },
             preview: null,
+            choices: [],
         };
     }
     return {
@@ -233,6 +245,7 @@ const semanticLayerRow = ({
         evidence: null,
         action: { label: ctaLabel, to: url },
         preview: null,
+        choices: [],
     };
 };
 
@@ -249,10 +262,25 @@ const firstChartRow = ({
         to:
             chartCount > 0
                 ? `/projects/${projectUuid}/spaces`
-                : `/projects/${projectUuid}/tables`,
+                : `/projects/${projectUuid}/ai-agents`,
     },
     actionKey: null,
     preview: null,
+    choices:
+        chartCount > 0
+            ? []
+            : [
+                  {
+                      kind: 'ask',
+                      label: `Ask ${AI_NAME}`,
+                      to: `/projects/${projectUuid}/ai-agents`,
+                  },
+                  {
+                      kind: 'explore',
+                      label: 'Build in Explore',
+                      to: `/projects/${projectUuid}/tables`,
+                  },
+              ],
 });
 
 const MAX_SWATCHES = 4;
@@ -274,6 +302,7 @@ const brandRow = ({ brand }: SetupGuideFacts): SetupGuideRow => ({
     },
     actionKey: null,
     preview: null,
+    choices: [],
 });
 
 const inviteTeamRow = ({ teammateCount }: SetupGuideFacts): SetupGuideRow => ({
@@ -291,6 +320,7 @@ const inviteTeamRow = ({ teammateCount }: SetupGuideFacts): SetupGuideRow => ({
               },
     actionKey: null,
     preview: null,
+    choices: [],
 });
 
 export const buildSetupGuide = (
