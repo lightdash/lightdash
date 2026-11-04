@@ -24,7 +24,3 @@ const SCHEMA_FIELDS: Record<WarehouseTypes, string> = {
 
 export const getSchemaField = (warehouseType: WarehouseTypes) =>
     SCHEMA_FIELDS[warehouseType];
-
-// The schema input is rendered with the dbt settings, so it belongs to the dbt step
-export const isDbtStepField = (path: string, warehouseType: WarehouseTypes) =>
-    path.startsWith('dbt') || path === SCHEMA_FIELDS[warehouseType];
