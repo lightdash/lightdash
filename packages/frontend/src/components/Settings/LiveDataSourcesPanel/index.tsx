@@ -34,7 +34,6 @@ import { LiveSourceIcon } from '../../../features/externalConnections/liveSource
 import { getSemanticStudioSourceUrl } from '../../../features/semanticStudio/urls';
 import useHealth from '../../../hooks/health/useHealth';
 import tableStyles from '../../../hooks/styles/tableStyles.module.css';
-import useToaster from '../../../hooks/toaster/useToaster';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { formatDuration } from '../../../utils/formatters';
 import MantineIcon from '../../common/MantineIcon';
@@ -49,6 +48,7 @@ import { GoogleSourcePickerModal } from './GoogleSourcePickerModal';
 import { getPostHogSignInUrl, toPostHogFormValues } from './postHogConnection';
 import { PostHogConnectionModal } from './PostHogConnectionModal';
 import { SourceConnectedModal } from './SourceConnectedModal';
+import { useLiveSourceSignInResult } from './useLiveSourceSignInResult';
 
 type Props = {
     projectUuid: string;
@@ -197,40 +197,20 @@ const LiveDataSourcesPanel: FC<Props> = ({ projectUuid }) => {
     const { data: health } = useHealth();
     const canSignIn = health?.hasPostHogOAuth ?? false;
     const canUseGoogle = health?.hasGoogleLiveSources ?? false;
-    const { showToastError } = useToaster();
     const navigate = useNavigate();
-
-    // Sign-in callbacks land here with their outcome.
-    const [searchParams, setSearchParams] = useSearchParams();
-    const isPickingGoogleSource =
-        searchParams.get('pickGoogleSource') === 'true';
-    const closeGoogleSourcePicker = () => {
-        searchParams.delete('pickGoogleSource');
-        setSearchParams(searchParams, { replace: true });
-    };
+    const { isPickingGoogleSource, closeGoogleSourcePicker } =
+        useLiveSourceSignInResult({
+            onConnected: (connectionUuid) =>
+                setModal({ kind: 'connected', connectionUuid }),
+        });
     // ?add=true (the semantic layer's Add menu) opens the add flow.
+    const [searchParams, setSearchParams] = useSearchParams();
     useEffect(() => {
         if (searchParams.get('add') !== 'true') return;
         setModal({ kind: 'pick' });
         searchParams.delete('add');
         setSearchParams(searchParams, { replace: true });
     }, [searchParams, setSearchParams]);
-    useEffect(() => {
-        const connected = searchParams.get('connected');
-        const signInError = searchParams.get('signInError');
-        if (!connected && !signInError) return;
-        if (signInError) {
-            showToastError({
-                title: 'Could not connect the source',
-                subtitle: signInError,
-            });
-        } else if (connected) {
-            setModal({ kind: 'connected', connectionUuid: connected });
-        }
-        searchParams.delete('connected');
-        searchParams.delete('signInError');
-        setSearchParams(searchParams, { replace: true });
-    }, [searchParams, setSearchParams, showToastError]);
     const sources = (connections ?? [])
         .filter((connection) => connection.kind === 'live_source')
         .sort(byIntegrationThenName);
@@ -257,6 +237,7 @@ const LiveDataSourcesPanel: FC<Props> = ({ projectUuid }) => {
                               connector,
                               connection.name,
                               connection.externalConnectionUuid,
+                              'settings',
                           ),
                       )
                 : null;
@@ -268,6 +249,7 @@ const LiveDataSourcesPanel: FC<Props> = ({ projectUuid }) => {
                           projectUuid,
                           toPostHogFormValues(connection, canSignIn),
                           connection.externalConnectionUuid,
+                          'settings',
                       ),
                   )
             : null;
