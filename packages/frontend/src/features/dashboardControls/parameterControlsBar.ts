@@ -1,4 +1,5 @@
 import {
+    friendlyName,
     type DashboardControlSection,
     type DashboardParameterControl,
     type DashboardTab,
@@ -18,6 +19,41 @@ export const getParameterLabel = ({
     key,
     definition,
 }: ParameterControlParameter): string => definition.label || key;
+
+export const getParameterControlBaseName = (
+    control: DashboardParameterControl,
+    first: ParameterControlParameter | undefined,
+    unnamed: string,
+): string => control.label ?? (first ? getParameterLabel(first) : unnamed);
+export const getParameterModelLabel = (
+    key: string,
+    tableLabels: Map<string, string>,
+    projectLabel: string,
+): string => {
+    const dot = key.indexOf('.');
+    if (dot === -1) return projectLabel;
+    const model = key.slice(0, dot);
+    return tableLabels.get(model) ?? friendlyName(model);
+};
+export const getParameterNameSuffixes = (
+    controls: { id: string; baseName: string; key: string }[],
+    modelOf: (key: string) => string,
+): Map<string, string | null> => {
+    const models = controls.reduce<Map<string, Set<string>>>(
+        (acc, { baseName, key }) =>
+            acc.set(
+                baseName,
+                (acc.get(baseName) ?? new Set()).add(modelOf(key)),
+            ),
+        new Map(),
+    );
+    return new Map(
+        controls.map(({ id, baseName, key }) => [
+            id,
+            (models.get(baseName)?.size ?? 0) > 1 ? modelOf(key) : null,
+        ]),
+    );
+};
 
 /** What a parameter pill's drag carries, so drops tell it from a filter's. */
 export const PARAMETER_DRAG = 'parameter';

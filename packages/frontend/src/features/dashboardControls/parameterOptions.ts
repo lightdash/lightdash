@@ -1,11 +1,13 @@
 import {
     assertUnreachable,
-    friendlyName,
     isField,
     type DashboardFilterableField,
     type LightdashProjectParameter,
 } from '@lightdash/common';
-import { getParameterLabel } from './parameterControlsBar';
+import {
+    getParameterLabel,
+    getParameterModelLabel,
+} from './parameterControlsBar';
 
 /** Where a parameter is defined: on a model (`orders.region`), or for the
  * whole project (`fiscal_year_start`). */
@@ -48,21 +50,18 @@ export const getParameterName = (option: ParameterOption): string =>
 // A model's parameters are keyed `model.name`; its label is its table's
 const getParameterSource = (
     key: string,
-    fields: DashboardFilterableField[],
+    tableLabels: Map<string, string>,
 ): ParameterSource => {
     const dot = key.indexOf('.');
     if (dot === -1) return { type: 'project' };
-    const modelName = key.slice(0, dot);
-    const tableField = fields.find(
-        (field) => isField(field) && field.table === modelName,
-    );
     return {
         type: 'model',
-        modelName,
-        modelLabel:
-            tableField !== undefined && isField(tableField)
-                ? tableField.tableLabel
-                : friendlyName(modelName),
+        modelName: key.slice(0, dot),
+        modelLabel: getParameterModelLabel(
+            key,
+            tableLabels,
+            PROJECT_GROUP_LABEL,
+        ),
     };
 };
 
@@ -76,6 +75,14 @@ export const getParameterOptions = ({
     tileParameterReferences: Record<string, string[]>;
     fields: DashboardFilterableField[];
 }): ParameterOption[] => {
+    // The first label a table's fields give it
+    const tableLabels = fields.reduce<Map<string, string>>(
+        (acc, field) =>
+            isField(field) && !acc.has(field.table)
+                ? acc.set(field.table, field.tableLabel)
+                : acc,
+        new Map(),
+    );
     const tilesByKey = new Map<string, string[]>();
     Object.entries(tileParameterReferences).forEach(([tileUuid, keys]) =>
         new Set(keys).forEach((key) =>
@@ -89,7 +96,7 @@ export const getParameterOptions = ({
             : [
                   {
                       key,
-                      source: getParameterSource(key, fields),
+                      source: getParameterSource(key, tableLabels),
                       definition,
                       tileUuids,
                   },

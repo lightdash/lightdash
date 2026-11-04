@@ -1,5 +1,4 @@
 import {
-    friendlyName,
     getAllowedParameterValue,
     getControlledKeys,
     getControlTileUuids,
@@ -28,7 +27,9 @@ import {
 import { applyParameterPicks } from '../dashboard/store/parameterControls';
 import {
     getControlSectionId,
-    getParameterLabel,
+    getParameterControlBaseName,
+    getParameterModelLabel,
+    getParameterNameSuffixes,
     type ParameterControlParameter,
     getTabTileUuids,
     isControlShownOnTab,
@@ -53,6 +54,8 @@ export type ParameterBarEntry = {
     isMissing: boolean;
     /** The tiles it sets. */
     tileUuids: string[];
+    /** Bound to no tile: on the bar, out of effect, as an orphaned filter. */
+    isOrphaned: boolean;
     /** Unsectioned when it has none or it is gone. */
     sectionId: string | null;
     /** Its label, else its first parameter's label. */
@@ -135,11 +138,11 @@ export const useBuildParameterBar = (): ParameterBar => {
                     !isControlShownOnTab(tileUuids, tabTileUuids))
             )
                 return [];
-            const label =
-                control.label ??
-                (parameters[0]
-                    ? getParameterLabel(parameters[0])
-                    : getUiString('controls.parameter.unnamed'));
+            const label = getParameterControlBaseName(
+                control,
+                parameters[0],
+                getUiString('controls.parameter.unnamed'),
+            );
             const input: ParameterControlParameter = {
                 key: parameterKeys[0] ?? control.id,
                 definition: {
@@ -161,6 +164,10 @@ export const useBuildParameterBar = (): ParameterBar => {
                     isNeedsValue,
                     isMissing,
                     tileUuids,
+                    isOrphaned:
+                        !isNeedsValue &&
+                        control.id !== newControl?.control.id &&
+                        tileUuids.length === 0,
                     sectionId: isNeedsValue
                         ? null
                         : getControlSectionId(control, sections),
@@ -287,35 +294,32 @@ export const useBuildParameterBar = (): ParameterBar => {
                   })),
             ...needsValue,
         ];
-        // A model parameter is keyed `model.name`; a project one has no model
         const tableLabels = new Map(
             (allFilterableFields ?? []).map(({ table, tableLabel }) => [
                 table,
                 tableLabel,
             ]),
         );
-        const groupOf = ({ parameterKeys: [key = ''] }: ParameterBarEntry) => {
-            const dot = key.indexOf('.');
-            if (dot === -1) return getUiString('controls.parameter.project');
-            const model = key.slice(0, dot);
-            return tableLabels.get(model) ?? friendlyName(model);
-        };
         // Only where the model tells colliding pills apart (a safety-net pill
         // shares its key's model with the control beside it)
-        const groupsByName = entries.reduce<Map<string, Set<string>>>(
-            (acc, entry) =>
-                acc.set(
-                    entry.label,
-                    (acc.get(entry.label) ?? new Set()).add(groupOf(entry)),
+        const suffixes = getParameterNameSuffixes(
+            entries.map((entry) => ({
+                id: entry.control.id,
+                baseName: entry.label,
+                key: entry.parameterKeys[0] ?? '',
+            })),
+            (key) =>
+                getParameterModelLabel(
+                    key,
+                    tableLabels,
+                    getUiString('controls.parameter.project'),
                 ),
-            new Map(),
         );
         return {
-            entries: entries.map((entry) =>
-                (groupsByName.get(entry.label)?.size ?? 0) > 1
-                    ? { ...entry, nameSuffix: groupOf(entry) }
-                    : entry,
-            ),
+            entries: entries.map((entry) => {
+                const nameSuffix = suffixes.get(entry.control.id) ?? null;
+                return nameSuffix === null ? entry : { ...entry, nameSuffix };
+            }),
             totalTileCount: tiles?.length ?? 0,
             shadowedReservedNames: getShadowedReservedNames(
                 Object.keys(definitions),
