@@ -18,6 +18,10 @@ import {
     renderModelSelectOption,
     toModelSelectItem,
 } from '../../../../../../components/common/ModelSelector/modelSelectOption';
+import {
+    SettingRow,
+    SettingsSection,
+} from '../../../../../../components/common/Settings/SettingLayout';
 import { SettingsCard } from '../../../../../../components/common/Settings/SettingsCard';
 import { SettingsPage } from '../../../../../../components/common/Settings/SettingsPage';
 import { useChartStudioAvailable } from '../../../../../../features/chartTypes/hooks/useChartStudioAvailable';
@@ -44,7 +48,6 @@ import { AiProvidersCard } from './AiProvidersCard';
 import { AiRouterInstructionsCard } from './AiRouterInstructionsCard';
 import { AiSurfacesCard } from './AiSurfacesCard';
 import { ReviewNotificationsSettings } from './ReviewNotificationsSettings';
-import { SettingRow, SettingsSection } from './SettingLayout';
 import { ThreadRetentionRow } from './ThreadRetentionRow';
 
 export const AiGeneralSettingsPage = () => {

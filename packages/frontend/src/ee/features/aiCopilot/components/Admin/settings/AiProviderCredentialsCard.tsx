@@ -17,6 +17,7 @@ import { IconDots, IconPlus } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import Callout from '../../../../../../components/common/Callout';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
+import { SettingRow } from '../../../../../../components/common/Settings/SettingLayout';
 import {
     useAdoptLegacyAiProviderCredential,
     useAiProviderCredentials,
@@ -31,7 +32,6 @@ import {
     type BedrockCredentialFormValues,
 } from './BedrockCredentialModal';
 import { BEDROCK_GEOGRAPHY_LABELS } from './bedrockGeographyLabels';
-import { SettingRow } from './SettingLayout';
 
 type Props = {
     models: AiModelOption[];
