@@ -333,9 +333,8 @@ const TeamStep: FC<{
         <OnboardingLayout
             screen="team"
             journey={{
-                currentStep: 2,
+                currentStep: 4,
                 steps: ONBOARDING_DATA_STEPS,
-                progress: 0.8,
             }}
             stackDepth={3}
             aside={<StepVisual step="team" />}
@@ -488,9 +487,8 @@ const OnboardingToolsContent: FC<{
         return (
             <OnboardingLayout
                 journey={{
-                    currentStep: 2,
+                    currentStep: isTeamStep ? 4 : 3,
                     steps: ONBOARDING_DATA_STEPS,
-                    progress: isTeamStep ? 0.8 : 0.4,
                 }}
                 stackDepth={isTeamStep ? 3 : 2}
                 aside={<StepVisual step={isTeamStep ? 'team' : 'tools'} />}
@@ -532,9 +530,8 @@ const OnboardingToolsContent: FC<{
         <OnboardingLayout
             screen="tools"
             journey={{
-                currentStep: 2,
+                currentStep: 3,
                 steps: ONBOARDING_DATA_STEPS,
-                progress: 0.4,
             }}
             stackDepth={2}
             activity={<OnboardingRunActivity projectUuid={projectUuid} />}

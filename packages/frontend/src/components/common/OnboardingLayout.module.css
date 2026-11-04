@@ -115,8 +115,7 @@
 }
 
 .journeySegment[data-state='current']::after {
-    transform: scaleX(var(--progress));
-    transition: transform 400ms cubic-bezier(0.22, 1, 0.36, 1);
+    transform: none;
     animation: segmentFill 400ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 

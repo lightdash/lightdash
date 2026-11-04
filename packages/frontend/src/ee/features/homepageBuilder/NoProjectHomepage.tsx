@@ -55,7 +55,6 @@ const NoProjectHomepage: FC = () => {
             journey={{
                 currentStep: 1,
                 steps: ONBOARDING_DATA_STEPS,
-                progress: 0.2,
             }}
             aside={<StepVisual step="warehouse" />}
         >

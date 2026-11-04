@@ -1,4 +1,9 @@
-export const ONBOARDING_DATA_STEPS = ['Connect your data', 'Optional extras'];
+export const ONBOARDING_DATA_STEPS = [
+    'Choose a source',
+    'Connect your warehouse',
+    'Connect your tools',
+    'Share answers and review changes',
+];
 
 export const ONBOARDING_STEP_COPY = {
     warehouse: { title: 'Connect your data', subtitle: null },
@@ -7,7 +12,8 @@ export const ONBOARDING_STEP_COPY = {
         subtitle: 'You can connect these later in settings.',
     },
     team: {
-        title: 'Connect Slack and GitHub',
-        subtitle: 'You can connect these later from home.',
+        title: 'Share answers and review changes',
+        subtitle:
+            'Send dashboards and alerts to Slack, and save changes to GitHub as pull requests.',
     },
 } as const satisfies Record<string, { title: string; subtitle: string | null }>;

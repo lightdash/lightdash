@@ -122,7 +122,7 @@ describe('OnboardingTools', () => {
 
         expect(
             await screen.findByRole('heading', {
-                name: 'Connect Slack and GitHub',
+                name: 'Share answers and review changes',
             }),
         ).toBeInTheDocument();
     });

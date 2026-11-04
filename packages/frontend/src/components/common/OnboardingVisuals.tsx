@@ -313,10 +313,7 @@ export const LiveSourceFieldsVisual: FC<{
 };
 
 const TeamVisual: FC = () => (
-    <Figure
-        title={null}
-        body="Anyone can ask in a thread. New metrics only go live after you merge the pull request."
-    >
+    <Figure title={null} body={null}>
         <Box className={classes.card} __vars={{ '--i': '0' }}>
             <Group gap={6} wrap="nowrap" className={classes.cardHeader}>
                 <SlackSvg width={14} height={14} />
@@ -380,6 +377,14 @@ const TeamVisual: FC = () => (
                 </Box>
             </Box>
         </Box>
+        <Text
+            fz="xs"
+            c="dimmed"
+            className={classes.cardNote}
+            __vars={{ '--i': '5' }}
+        >
+            Anyone on your team can ask in a thread.
+        </Text>
         <Box className={classes.card} __vars={{ '--i': '5' }}>
             <Group gap={6} wrap="nowrap" className={classes.cardHeader}>
                 <MantineIcon icon={IconBrandGithub} size={14} />
@@ -425,6 +430,14 @@ const TeamVisual: FC = () => (
                 </Group>
             </Box>
         </Box>
+        <Text
+            fz="xs"
+            c="dimmed"
+            className={classes.cardNote}
+            __vars={{ '--i': '9' }}
+        >
+            New metrics only go live after you merge the pull request.
+        </Text>
     </Figure>
 );
 
