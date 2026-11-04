@@ -136,6 +136,7 @@ const renderGuide = (
                     sections={buildSetupGuide(facts)}
                     isMinimized={handlers.isMinimized ?? false}
                     onMinimizedChange={handlers.onMinimizedChange ?? vi.fn()}
+                    onAsk={vi.fn()}
                     onSkip={handlers.onSkip ?? vi.fn()}
                     onRestore={handlers.onRestore ?? vi.fn()}
                 />

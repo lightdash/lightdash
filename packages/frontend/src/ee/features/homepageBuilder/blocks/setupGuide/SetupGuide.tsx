@@ -40,6 +40,7 @@ import {
     countProgress,
     isCompletedStatus,
     isSkippableRow,
+    type SetupGuideChoice,
     type SetupGuideRow,
     type SetupGuideRowId,
     type SetupGuideSection,
@@ -94,7 +95,11 @@ const ROW_COPY: Record<
     },
 };
 
+const isAskChoice = (choice: SetupGuideChoice) => choice.kind === 'ask';
+
 type RowHandlers = {
+    // Ask rows fill the composer on this page instead of leaving it
+    onAsk: () => void;
     onSkip: (actionKey: HomepageRecommendedActionKey) => void;
     onRestore: (actionKey: HomepageRecommendedActionKey) => void;
 };
@@ -204,7 +209,12 @@ const GuideRow: FC<{ row: SetupGuideRow } & RowHandlers> = ({
                         <Link
                             to={action.to}
                             className={classes.rowLink}
-                            onClick={() => {
+                            onClick={(event) => {
+                                if (row.choices.some(isAskChoice)) {
+                                    event.preventDefault();
+                                    handlers.onAsk();
+                                    return;
+                                }
                                 if (!row.actionKey) return;
                                 track({
                                     name: EventName.HOMEPAGE_RECOMMENDED_ACTION_CLICKED,
@@ -240,6 +250,11 @@ const GuideRow: FC<{ row: SetupGuideRow } & RowHandlers> = ({
                                     key={choice.kind}
                                     to={choice.to}
                                     className={classes.choice}
+                                    onClick={(event) => {
+                                        if (!isAskChoice(choice)) return;
+                                        event.preventDefault();
+                                        handlers.onAsk();
+                                    }}
                                 >
                                     <ChoiceArt kind={choice.kind} />
                                     <Text fz="xs" fw={600} px={10} py={8}>
@@ -364,7 +379,8 @@ export const SetupGuideView: FC<SetupGuideViewProps> = ({
 export const SetupGuide: FC<{
     projectUuid: string;
     actions: RecommendedActionsState;
-}> = ({ projectUuid, actions }) => {
+    onAsk: () => void;
+}> = ({ projectUuid, actions, onAsk }) => {
     const { track } = useTracking();
     const guide = useSetupGuide(projectUuid, actions);
     if (guide.isLoading) return <Skeleton h={120} radius="md" />;
@@ -380,6 +396,7 @@ export const SetupGuide: FC<{
                 sections={guide.sections}
                 isMinimized={guide.isDismissed}
                 onMinimizedChange={guide.setIsDismissed}
+                onAsk={onAsk}
                 onSkip={(actionKey) => {
                     guide.skipAction(actionKey);
                     track({

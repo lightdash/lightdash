@@ -76,6 +76,7 @@ const Guide = ({ state }: { state: GuideState }) => {
                     sections={buildSetupGuide(facts)}
                     isMinimized={isDismissed}
                     onMinimizedChange={setIsDismissed}
+                    onAsk={() => undefined}
                     onSkip={(key) =>
                         setSkippedActions((keys) => [...keys, key])
                     }

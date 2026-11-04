@@ -7,7 +7,7 @@ import {
     Switch,
     Text,
 } from '@mantine/core';
-import { type FC } from 'react';
+import { useState, type FC } from 'react';
 import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../providers/App/useApp';
 import { DayOneAskInput } from '../DayOneAskInput';
@@ -56,6 +56,7 @@ export const AskAiHero: FC<{
     const isReady = !actions.isLoading;
     const isWarehouseConnected =
         actions.statuses['connect-warehouse'].isComplete;
+    const [prefillRequest, setPrefillRequest] = useState(0);
     return (
         <Stack gap={16} align="center" w="100%">
             {showGreeting &&
@@ -69,7 +70,11 @@ export const AskAiHero: FC<{
                     <Skeleton h={34} w={320} radius="sm" />
                 ))}
             <Box w="100%" data-tour="home-ask">
-                <DayOneAskInput projectUuid={projectUuid} preview={preview} />
+                <DayOneAskInput
+                    projectUuid={projectUuid}
+                    preview={preview}
+                    prefillRequest={prefillRequest}
+                />
             </Box>
             {showRecommendedActions &&
                 (isNewOnboarding ? (
@@ -77,6 +82,7 @@ export const AskAiHero: FC<{
                         <SetupGuide
                             projectUuid={projectUuid}
                             actions={actions}
+                            onAsk={() => setPrefillRequest((n) => n + 1)}
                         />
                     </Box>
                 ) : isReady ? (

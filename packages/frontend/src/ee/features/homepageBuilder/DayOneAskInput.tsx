@@ -51,6 +51,8 @@ type Props = {
     projectUuid: string | null;
     preview?: boolean;
     hideSuggestions?: boolean;
+    // Bumped to drop a starter chart question into the composer
+    prefillRequest?: number;
 };
 
 type ProjectAgent = NonNullable<
@@ -373,6 +375,7 @@ const DayOneAskInputInner: FC<Props> = ({
     projectUuid,
     preview = false,
     hideSuggestions,
+    prefillRequest = 0,
 }) => {
     const navigate = useNavigate();
     const { track } = useTracking();
@@ -509,6 +512,10 @@ const DayOneAskInputInner: FC<Props> = ({
             : suggestions.chips.findIndex(isChartChip);
     const starterChip =
         starterIndex >= 0 ? suggestions.chips[starterIndex] : null;
+    const prefill =
+        prefillRequest > 0
+            ? (suggestions.chips.find(isChartChip)?.label ?? 'Make a chart of ')
+            : undefined;
 
     if (hasNoAgents) {
         return (
@@ -534,6 +541,8 @@ const DayOneAskInputInner: FC<Props> = ({
                 <Skeleton className={inputHoldClass(projectUuid)} radius="lg" />
             ) : (
                 <AgentChatInput
+                    key={prefillRequest}
+                    defaultValue={prefill}
                     projectUuid={projectUuid ?? undefined}
                     agentUuid={selectedAgent?.uuid}
                     agents={agents}
