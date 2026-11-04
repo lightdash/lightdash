@@ -1,4 +1,7 @@
-import { type ExternalConnectionListItem } from '@lightdash/common';
+import {
+    type AgentOnboardingRun,
+    type ExternalConnectionListItem,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
@@ -142,40 +145,22 @@ const HowItWorks: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     );
 };
 
-const SemanticLayerDetail: FC<{ guide: SetupGuideState }> = ({ guide }) => {
-    const { activeRun, semanticExplores } = guide;
-    if (activeRun) {
-        return (
-            <Group gap={6} wrap="nowrap">
-                <Box className={guideClasses.liveDot} aria-hidden />
-                Drafting models
-                <Anchor
-                    component={Link}
-                    to={getAgentOnboardingRunUrl(
-                        activeRun.agentOnboardingRunUuid,
-                        activeRun.projectUuid,
-                    )}
-                    fz="xs"
-                >
-                    Watch
-                </Anchor>
-            </Group>
-        );
-    }
-    if (semanticExplores.length === 0) {
-        const action = guide.sections
-            .flatMap(({ rows }) => rows)
-            .find(({ id }) => id === 'semantic-layer')?.action;
-        return action ? (
-            <Anchor component={Link} to={action.to} fz="xs">
-                Add models
-            </Anchor>
-        ) : (
-            'No models yet'
-        );
-    }
-    return null;
-};
+const DraftingModelsDetail: FC<{ run: AgentOnboardingRun }> = ({ run }) => (
+    <Group gap={6} wrap="nowrap">
+        <Box className={guideClasses.liveDot} aria-hidden />
+        Drafting models
+        <Anchor
+            component={Link}
+            to={getAgentOnboardingRunUrl(
+                run.agentOnboardingRunUuid,
+                run.projectUuid,
+            )}
+            fz="xs"
+        >
+            Watch
+        </Anchor>
+    </Group>
+);
 
 const liveSourceTag = (connection: ExternalConnectionListItem) => {
     const { apiSource } = connection;
@@ -230,7 +215,8 @@ export const YourData: FC<{
     );
     const { track } = useTracking();
     const warehouse = actions.statuses['connect-warehouse'];
-    const isShown = warehouse.isComplete && !isDismissed;
+    const isShown =
+        warehouse.isComplete && guide.chartCount === 0 && !isDismissed;
     const bannerProperties = {
         surface: 'first_chart_banner',
         projectId: projectUuid,
@@ -336,7 +322,7 @@ export const YourData: FC<{
                         name={warehouse.annotation ?? 'Warehouse'}
                         detail={
                             guide.activeRun ? (
-                                <SemanticLayerDetail guide={guide} />
+                                <DraftingModelsDetail run={guide.activeRun} />
                             ) : null
                         }
                     />
