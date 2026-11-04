@@ -18,7 +18,6 @@ import {
     Tooltip,
     Button,
     Checkbox,
-    Divider,
     Group,
     Select,
     Stack,
@@ -368,11 +367,28 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                     null
                 }
             />
-            <Text size="xs" c="dimmed" mt="xs">
-                {detectedBrand
-                    ? `Colors from ${detectedBrand.domain} on sample data`
-                    : 'Preview with sample data'}
-            </Text>
+            {detectedBrand ? (
+                <Group gap="xs" wrap="nowrap" mt="sm">
+                    {detectedColors.length > 0 && (
+                        <Group gap={4} wrap="nowrap">
+                            {detectedColors.slice(0, 5).map((color) => (
+                                <Box
+                                    key={color}
+                                    className={classes.brandDot}
+                                    bg={color}
+                                />
+                            ))}
+                        </Group>
+                    )}
+                    <Text size="xs" c="dimmed">
+                        We've pulled your branding from {detectedBrand.domain}
+                    </Text>
+                </Group>
+            ) : (
+                <Text size="xs" c="dimmed" mt="xs">
+                    Preview with sample data
+                </Text>
+            )}
         </Box>
     );
 
@@ -468,34 +484,6 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                             </ActionIcon>
                                         </Tooltip>
                                     </Group>
-                                )}
-
-                                {detectedBrand && (
-                                    <>
-                                        <Divider />
-
-                                        <Group gap="sm" wrap="nowrap">
-                                            {detectedColors.length > 0 && (
-                                                <Group gap={4} wrap="nowrap">
-                                                    {detectedColors
-                                                        .slice(0, 5)
-                                                        .map((color) => (
-                                                            <Box
-                                                                key={color}
-                                                                className={
-                                                                    classes.brandDot
-                                                                }
-                                                                bg={color}
-                                                            />
-                                                        ))}
-                                                </Group>
-                                            )}
-                                            <Text size="sm" fw={500}>
-                                                We've pulled your branding from{' '}
-                                                {detectedBrand.domain}
-                                            </Text>
-                                        </Group>
-                                    </>
                                 )}
 
                                 <Group justify="flex-end" mt="md">
