@@ -1,6 +1,8 @@
 import {
     createContentToolDefinition,
     documentAsCodeSchema,
+    documentCreateContentArgsSchema,
+    documentCreateContentToolDefinition,
     mcpCreateContentArgsSchema,
     mcpCreateContentToolDefinition,
     toolCreateContentArgsSchema,
@@ -32,6 +34,8 @@ type Dependencies = {
     createContent: CreateContentFn;
     sqlChartSaving?: SqlChartSaving;
     documentsEnabled?: boolean;
+    /** False when the actor can save Documents but not charts or dashboards. */
+    chartsEnabled?: boolean;
     artifacts?: ArtifactChartExportAccess;
 };
 
@@ -45,6 +49,24 @@ type ExecuteCreateContentResult =
     | ExecuteToolErrorResult;
 
 const toolDefinition = createContentToolDefinition.for('agent');
+
+const getToolVariant = (documentsEnabled: boolean, chartsEnabled: boolean) => {
+    if (!documentsEnabled) {
+        return {
+            definition: toolDefinition,
+            schema: toolCreateContentArgsSchema,
+        };
+    }
+    return chartsEnabled
+        ? {
+              definition: mcpCreateContentToolDefinition.for('agent'),
+              schema: mcpCreateContentArgsSchema,
+          }
+        : {
+              definition: documentCreateContentToolDefinition.for('agent'),
+              schema: documentCreateContentArgsSchema,
+          };
+};
 
 const resolveDocumentContent = async (
     content: unknown,
@@ -98,9 +120,11 @@ export const getCreateContent = ({
     createContent,
     sqlChartSaving = { mode: 'disabled' },
     documentsEnabled = false,
+    chartsEnabled = true,
     artifacts,
 }: Dependencies) => {
     const sqlChartGate = createSqlChartGate(sqlChartSaving, 'createContent');
+    const variant = getToolVariant(documentsEnabled, chartsEnabled);
 
     const getCreateArgs = async (
         args: { type: string; content: unknown },
@@ -129,9 +153,7 @@ export const getCreateContent = ({
     };
 
     return tool({
-        ...(documentsEnabled
-            ? mcpCreateContentToolDefinition.for('agent')
-            : toolDefinition),
+        ...variant.definition,
         needsApproval: sqlChartGate.needsApproval,
         execute: (
             args,
@@ -143,10 +165,7 @@ export const getCreateContent = ({
                 approveSql: ApproveSqlFn | null,
             ): Promise<ExecuteCreateContentResult> => {
                 try {
-                    (documentsEnabled
-                        ? mcpCreateContentArgsSchema
-                        : toolCreateContentArgsSchema
-                    ).parse(args);
+                    variant.schema.parse(args);
                     const result = await createContent(
                         await getCreateArgs(
                             args,

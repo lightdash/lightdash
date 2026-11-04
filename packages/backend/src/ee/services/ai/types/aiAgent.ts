@@ -285,7 +285,9 @@ export type AiAgentArgs = AnyAiModel & {
     enableSelfImprovement: boolean;
     // Content setting on; read tools enforce view access per item, so authoring isn't required.
     enableContentReads: boolean;
+    // Content setting on + user may save a chart or dashboard.
     enableContentTools: boolean;
+    // Content setting on + user may save a Document in a Space; independent of charts.
     enableDocuments: boolean;
     // Data apps enabled + user may create them + content tools (trusted identity).
     enableGenerateDataApp: boolean;

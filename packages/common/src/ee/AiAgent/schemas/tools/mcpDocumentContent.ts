@@ -185,10 +185,21 @@ export const mcpDocumentEditSchema = z.discriminatedUnion('type', [
         .strict(),
 ]);
 
-export const MCP_CREATE_CONTENT_DESCRIPTION = ({
+const getDocumentCreateGuidance = ({
     runtime,
 }: ToolDescriptionContext): string =>
-    `Create a dashboard, chart, SQL chart or Document from its JSON; the developing-in-lightdash skill has the chart and dashboard shapes. ${SQL_CHART_CREATE_GUIDANCE} A Document (schema version 2) is Markdown with chart tags plus the charts they reference; the result shows its charts as short tags. A Document without a spaceSlug is personal until it is saved to a Space with ${toolNameFor('editContent', runtime)}. For a Document from an investigation, default to the research journey: questions explored, evidence and findings, follow-up questions, conclusions and limitations. Draw on the whole conversation and its tool results, not just the last answer, with supporting charts where available. Capture the observable investigation rather than private reasoning or a verbatim transcript, and name missing context rather than inventing findings or steps.`;
+    `A Document (schema version 2) is Markdown with chart tags plus the charts they reference; the result shows its charts as short tags. A Document without a spaceSlug is personal until it is saved to a Space with ${toolNameFor('editContent', runtime)}. For a Document from an investigation, default to the research journey: questions explored, evidence and findings, follow-up questions, conclusions and limitations. Draw on the whole conversation and its tool results, not just the last answer, with supporting charts where available. Capture the observable investigation rather than private reasoning or a verbatim transcript, and name missing context rather than inventing findings or steps.`;
+
+export const MCP_CREATE_CONTENT_DESCRIPTION = (
+    context: ToolDescriptionContext,
+): string =>
+    `Create a dashboard, chart, SQL chart or Document from its JSON; the developing-in-lightdash skill has the chart and dashboard shapes. ${SQL_CHART_CREATE_GUIDANCE} ${getDocumentCreateGuidance(context)}`;
+
+/** For an actor who can save Documents but not charts or dashboards. */
+export const DOCUMENT_CREATE_CONTENT_DESCRIPTION = (
+    context: ToolDescriptionContext,
+): string =>
+    `Create a Document from its JSON. ${getDocumentCreateGuidance(context)}`;
 
 export const MCP_READ_CONTENT_DESCRIPTION = `Read a dashboard, chart, SQL chart, data app or Document by its slug. ${READ_CONTENT_SHARED_DESCRIPTION} A Document returns Markdown where each chart is a short tag (id, title, type, explore), plus the latest version UUID that edits need; pass chartId to read one chart in full. A tag marked unsupported is a chart from a newer version: keep its tag unchanged when editing.`;
 
@@ -197,12 +208,25 @@ export const MCP_EDIT_CONTENT_DESCRIPTION = (
 ): string =>
     `${TOOL_EDIT_CONTENT_DESCRIPTION(context)} For a Document, pass documentEdit instead of patch.`;
 
+/** For an actor who can save Documents but not charts or dashboards. */
+export const DOCUMENT_EDIT_CONTENT_DESCRIPTION = ({
+    runtime,
+}: ToolDescriptionContext): string =>
+    `Edit a Document with documentEdit against the latest version ${toolNameFor('readContent', runtime)} returned. A Document in a Space can be edited only when that Space shows canEdit true in ${toolNameFor('findContent', runtime)} or ${toolNameFor('listContent', runtime)} results.`;
+
 export const mcpCreateContentArgsSchema = toolCreateContentArgsSchema.extend({
     type: z.enum(['dashboard', 'chart', 'sql_chart', 'document']),
     content: z.union([
         documentAsCodeSchema,
         toolCreateContentArgsSchema.shape.content,
     ]),
+});
+
+export const documentCreateContentArgsSchema = z.object({
+    type: z
+        .literal('document')
+        .describe('Type of Lightdash content to create.'),
+    content: documentAsCodeSchema,
 });
 
 export const mcpReadContentArgsSchema = toolReadContentArgsSchema.extend({
@@ -224,6 +248,14 @@ export const mcpEditContentArgsSchema = toolEditContentArgsSchema.extend({
         .describe(
             'A Document edit: replace the Markdown (content), patch one chart (chart), or update metadata (metadata).',
         ),
+});
+
+export const documentEditContentArgsSchema = z.object({
+    slug: toolEditContentArgsSchema.shape.slug,
+    type: z.literal('document').describe('Type of Lightdash content to edit'),
+    documentEdit: mcpDocumentEditSchema.describe(
+        'A Document edit: replace the Markdown (content), patch one chart (chart), or update metadata (metadata).',
+    ),
 });
 
 export type McpDocumentEdit = z.infer<typeof mcpDocumentEditSchema>;

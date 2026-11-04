@@ -10,7 +10,7 @@
         "addsSkills": []
     },
     "contentTools": {
-        "description": "Edit and create saved charts and dashboards",
+        "description": "Edit and create saved charts and dashboards, or Documents alone",
         "addsTools": [
             "createContent",
             "editContent",

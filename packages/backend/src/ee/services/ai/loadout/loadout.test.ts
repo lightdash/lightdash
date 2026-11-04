@@ -380,6 +380,30 @@ describe('resolveLoadout', () => {
         expect(loadout.promptSections.has('contentTools')).toBe(false);
     });
 
+    test('Document saves load without chart saves', () => {
+        const loadout = resolveLoadout({
+            ...fullInput,
+            enableContentTools: false,
+            canCreateDashboards: false,
+        });
+        expect(loadout.toolNames.has('createContent')).toBe(true);
+        expect(loadout.toolNames.has('editContent')).toBe(true);
+        expect(loadout.promptSections.has('documents')).toBe(true);
+        expect(loadout.addOns.has('scheduling')).toBe(false);
+        expect(loadout.toolNames.has('generateDashboard')).toBe(false);
+    });
+
+    test('chart saves load without Document saves', () => {
+        const loadout = resolveLoadout({
+            ...fullInput,
+            enableDocuments: false,
+        });
+        expect(loadout.toolNames.has('createContent')).toBe(true);
+        expect(loadout.promptSections.has('contentTools')).toBe(true);
+        expect(loadout.addOns.has('documents')).toBe(false);
+        expect(loadout.promptSections.has('documents')).toBe(false);
+    });
+
     test('legacy dashboards load only when content reads are off', () => {
         const loadout = resolveLoadout({
             ...fullInput,

@@ -514,7 +514,6 @@ const DOCUMENT_SAVE_TOOLS = new Set(['createContent', 'editContent']);
 const areDocumentNudgesEnabled = (args: AiAgentArgs): boolean =>
     args.enableDocuments &&
     args.enableDataAccess &&
-    args.enableContentTools &&
     args.execution.mode === 'standard';
 
 const isDocumentInput = (input: unknown): boolean =>
@@ -1961,6 +1960,7 @@ export const getAgentTools = (
             getEditContent({
                 editContent: dependencies.editContent,
                 documentsEnabled,
+                chartsEnabled: args.enableContentTools,
                 artifacts: dependencies.chartExportArtifacts,
                 sqlChartSaving: getSqlChartSaving(),
             }),
@@ -1970,6 +1970,7 @@ export const getAgentTools = (
             getCreateContent({
                 createContent: dependencies.createContent,
                 documentsEnabled,
+                chartsEnabled: args.enableContentTools,
                 artifacts: dependencies.chartExportArtifacts,
                 sqlChartSaving: getSqlChartSaving(),
             }),
@@ -2526,6 +2527,8 @@ const getCapabilitySectionArgs = (
 ): CapabilitySectionArgs => ({
     promptSections: loadout.promptSections,
     availableSkills: getAvailableSkills(args, loadout),
+    // The content tools also load for Documents alone; chart guidance needs chart saves.
+    canSaveCharts: args.enableContentTools,
     enableDocumentNudges: areDocumentNudgesEnabled(args),
     // Custom charts reach Documents through findCustomChartTypes and
     // exportChartAsCode, so the guidance needs both tools.

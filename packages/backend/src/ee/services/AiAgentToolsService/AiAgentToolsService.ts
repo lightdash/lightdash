@@ -2470,10 +2470,11 @@ export class AiAgentToolsService extends BaseService {
               );
     }
 
-    /** Spaces the user can save charts into, as the app's save modal would list them. */
+    /** Spaces the user can save charts (or Documents) into, as the app's save modal would list them. */
     private async getEditableSpaceUuids(
         user: SessionUser,
         spaceUuids: string[],
+        subjectType: 'SavedChart' | 'Document' = 'SavedChart',
     ): Promise<Set<string>> {
         if (spaceUuids.length === 0) {
             return new Set();
@@ -2483,7 +2484,7 @@ export class AiAgentToolsService extends BaseService {
                 'create',
                 user,
                 spaceUuids,
-                { subjectType: 'SavedChart' },
+                { subjectType },
             ),
         );
     }
@@ -2493,24 +2494,35 @@ export class AiAgentToolsService extends BaseService {
      * (or the right to create one) is enough; without one, only the role is known, as before a project is chosen.
      * `spaceUuids` limits the check to the spaces the run may write to, such as an embed token's write spaces.
      */
-    async canAuthorContent(context: {
-        user: SessionUser;
-        projectUuid: UUID | undefined;
-        spaceUuids: string[] | null;
-    }): Promise<boolean> {
+    private async canSaveIntoProject(
+        context: {
+            user: SessionUser;
+            projectUuid: UUID | undefined;
+            spaceUuids: string[] | null;
+        },
+        roleSubjects: ('SavedChart' | 'Dashboard' | 'Document')[],
+        spaceSubject: 'SavedChart' | 'Document',
+    ): Promise<boolean> {
         const { user, projectUuid, spaceUuids } = context;
         const { organizationUuid } = user;
         const ability = this.createAuditedAbility(user);
-        const roleCanSaveContent =
+        const roleCanSave =
             organizationUuid !== undefined &&
-            (ability.can('create', 'SavedChart') ||
-                ability.can('create', 'Dashboard'));
-        if (!roleCanSaveContent || projectUuid === undefined) {
-            return roleCanSaveContent;
+            roleSubjects.some((roleSubject) =>
+                ability.can('create', roleSubject),
+            );
+        if (!roleCanSave || projectUuid === undefined) {
+            return roleCanSave;
         }
         if (spaceUuids !== null) {
             return (
-                (await this.getEditableSpaceUuids(user, spaceUuids)).size > 0
+                (
+                    await this.getEditableSpaceUuids(
+                        user,
+                        spaceUuids,
+                        spaceSubject,
+                    )
+                ).size > 0
             );
         }
         if (
@@ -2525,8 +2537,31 @@ export class AiAgentToolsService extends BaseService {
         const editableSpaceUuids = await this.getEditableSpaceUuids(
             user,
             spaces.map((space) => space.uuid),
+            spaceSubject,
         );
         return editableSpaceUuids.size > 0;
+    }
+
+    /** Whether the user can save a chart or dashboard in the project. */
+    async canAuthorContent(context: {
+        user: SessionUser;
+        projectUuid: UUID | undefined;
+        spaceUuids: string[] | null;
+    }): Promise<boolean> {
+        return this.canSaveIntoProject(
+            context,
+            ['SavedChart', 'Dashboard'],
+            'SavedChart',
+        );
+    }
+
+    /** Whether the user can save a Document in one of the project's Spaces; personal Documents don't count. */
+    async canAuthorDocuments(context: {
+        user: SessionUser;
+        projectUuid: UUID | undefined;
+        spaceUuids: string[] | null;
+    }): Promise<boolean> {
+        return this.canSaveIntoProject(context, ['Document'], 'Document');
     }
 
     private async listDataAppThemes(
