@@ -1,23 +1,16 @@
 /*
- * Layering: the page canvas (--ld-color-page) holds flat rails on the body
- * colour; the field table is the only raised surface. Ask AI is always
- * there, so nothing slides in; tree and row navigation never animate.
+ * Layering: the page canvas (--ld-color-page) holds a flat rail on the body
+ * colour; the field table is the only raised surface. Tree and row
+ * navigation never animate.
  */
 .shell {
     --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
     display: grid;
-    grid-template-columns: 272px minmax(0, 1fr) 360px;
-    grid-template-areas: 'rail main side';
+    grid-template-columns: 272px minmax(0, 1fr);
+    grid-template-areas: 'rail main';
     height: 100%;
     min-height: 0;
     background: var(--ld-color-page);
-}
-
-.side {
-    grid-area: side;
-    min-width: 0;
-    min-height: 0;
-    border-left: 1px solid var(--mantine-color-default-border);
 }
 
 /* Rail */
@@ -130,6 +123,10 @@
     flex-direction: column;
     min-height: 0;
     min-width: 0;
+    /* The page width settings uses, centred beside the tree. */
+    justify-self: center;
+    width: 100%;
+    max-width: calc(var(--page-content-width) + 48px);
 }
 
 .mainHeader {

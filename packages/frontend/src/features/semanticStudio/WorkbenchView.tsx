@@ -1,7 +1,7 @@
 /**
- * Semantic Layer: the tree on the left, the page in the middle, and Ask AI
- * fixed on the right. Every page lives in the middle: a source, a folder or
- * an explore and its fields. Breadcrumbs lead back up; details open in a
+ * Semantic Layer: the tree on the left and the page beside it, at the width
+ * settings pages use. Every page lives there: a kind, a source, a folder or
+ * an explore and its fields. Breadcrumbs lead back up; fields open in a
  * modal.
  */
 import {
@@ -27,7 +27,6 @@ import {
     type KeyboardEvent,
 } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
-import { AssistantPanel } from './AssistantPanel';
 import {
     ancestorKeys,
     containerOf,
@@ -643,9 +642,6 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                     onOpenNode={openNode}
                 />
             )}
-            <Box className={classes.side}>
-                <AssistantPanel />
-            </Box>
         </Box>
     );
 };
