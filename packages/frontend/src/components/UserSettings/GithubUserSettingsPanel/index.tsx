@@ -4,7 +4,7 @@ import {
     Button,
     Flex,
     Group,
-    Loader,
+    Skeleton,
     Stack,
     Text,
     Title,
@@ -18,14 +18,21 @@ import {
     useUnlinkGithubUserMutation,
 } from '../../common/GithubIntegration/hooks/useGithubIntegration';
 import MantineIcon from '../../common/MantineIcon';
-import { SettingsGridCard } from '../../common/Settings/SettingsCard';
+import {
+    SettingsCard,
+    SettingsGridCard,
+} from '../../common/Settings/SettingsCard';
 
 const GithubUserSettingsPanel: FC = () => {
     const { data: credential, isInitialLoading } = useGithubUserCredential();
     const unlinkGithubUserMutation = useUnlinkGithubUserMutation();
 
     if (isInitialLoading) {
-        return <Loader />;
+        return (
+            <SettingsCard>
+                <Skeleton height={60} />
+            </SettingsCard>
+        );
     }
 
     return (
@@ -35,15 +42,14 @@ const GithubUserSettingsPanel: FC = () => {
                     <Avatar src={githubIcon} size="md" />
                     <Title order={5}>My GitHub account</Title>
                 </Group>
-            </Box>
-
-            <Stack>
-                <Text c="dimmed" fz="xs">
+                <Text c="dimmed" fz="xs" mt="xs">
                     Link your personal GitHub account so commits and pull
                     requests created by Lightdash are authored as you. Without a
                     linked account they are created by the Lightdash bot.
                 </Text>
+            </Box>
 
+            <Stack>
                 {credential ? (
                     <Group justify="space-between">
                         <Group gap="xs">

@@ -1,10 +1,11 @@
-import { Group, Stack, Switch, Text } from '@mantine/core';
+import { Box, Switch, Text } from '@mantine/core';
 import { type FC } from 'react';
 import {
     useImpersonationSettings,
     useUpdateImpersonationSettings,
 } from '../../../hooks/user/useImpersonation';
 import Callout from '../../common/Callout';
+import { SettingRow } from '../../common/Settings/SettingLayout';
 
 const ImpersonationPanel: FC = () => {
     const { data: settings, isLoading } = useImpersonationSettings();
@@ -12,18 +13,13 @@ const ImpersonationPanel: FC = () => {
         useUpdateImpersonationSettings();
 
     return (
-        <Stack gap="sm">
-            <Group justify="space-between" wrap="nowrap">
-                <Stack gap="xxs">
-                    <Text fw={500} fz="sm">
-                        Enable user impersonation
-                    </Text>
-                    <Text fz="xs" c="dimmed">
-                        Allow organization admins to impersonate other users to
-                        see Lightdash from their perspective.
-                    </Text>
-                </Stack>
+        <SettingRow
+            title="User impersonation"
+            description="Allow organization admins to impersonate other users to see the app from their perspective."
+            control={
                 <Switch
+                    aria-label="User impersonation"
+                    size="md"
                     checked={settings?.impersonationEnabled ?? false}
                     disabled={isLoading || isUpdating}
                     onChange={(event) => {
@@ -32,18 +28,22 @@ const ImpersonationPanel: FC = () => {
                         });
                     }}
                 />
-            </Group>
-            <Callout variant="warning">
-                <Text fz="xs">
-                    If the project requires users to provide their own warehouse
-                    credentials, queries run with the impersonated user's{' '}
-                    <Text span inherit fw={600}>
-                        personal warehouse credentials
-                    </Text>{' '}
-                    (including SSO-backed credentials).
-                </Text>
-            </Callout>
-        </Stack>
+            }
+        >
+            <Box mt="sm">
+                <Callout variant="warning">
+                    <Text fz="xs">
+                        If the project requires users to provide their own
+                        warehouse credentials, queries run with the impersonated
+                        user's{' '}
+                        <Text span inherit fw={600}>
+                            personal warehouse credentials
+                        </Text>{' '}
+                        (including SSO-backed credentials).
+                    </Text>
+                </Callout>
+            </Box>
+        </SettingRow>
     );
 };
 
