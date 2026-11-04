@@ -4,10 +4,7 @@ import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeature
 import { setWatchedAgentOnboardingRun } from '../watchedRunStore';
 import { useActiveAgentOnboardingRun } from './useAgentOnboarding';
 
-// The run starts on the backend a moment after the project is created
-const ACTIVE_RUN_POLLS = 15;
-
-/** Hands the project's auto-started run to the app-wide watcher */
+/** Hands the project's active run to the app-wide watcher */
 export const useWatchActiveAgentOnboardingRun = (
     projectUuid: string | undefined,
 ) => {
@@ -16,12 +13,6 @@ export const useWatchActiveAgentOnboardingRun = (
             ?.enabled === true;
     const { data: activeRun } = useActiveAgentOnboardingRun(projectUuid, {
         enabled: isAgentOnboardingOn,
-        refetchInterval: (data, query) =>
-            !data &&
-            query.state.dataUpdateCount + query.state.errorUpdateCount <
-                ACTIVE_RUN_POLLS
-                ? 2000
-                : false,
     });
     useEffect(() => {
         if (!activeRun || isAgentOnboardingRunTerminal(activeRun.status)) {
