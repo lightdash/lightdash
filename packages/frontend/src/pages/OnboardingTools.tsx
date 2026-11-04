@@ -16,6 +16,7 @@ import {
     Text,
     Title,
     Tooltip,
+    Image,
 } from '@mantine/core';
 import {
     IconBrandGithub,
@@ -27,6 +28,7 @@ import { useEffect, useState, type FC, type ReactNode } from 'react';
 import { Link, Navigate, useParams, useSearchParams } from 'react-router';
 import { DocumentTitle } from '../components/common/DocumentTitle';
 import { useGithubConfig } from '../components/common/GithubIntegration/hooks/useGithubIntegration';
+import { useGitlabRepositories } from '../components/common/GitlabIntegration/hooks/useGitlabIntegration';
 import MantineIcon from '../components/common/MantineIcon';
 import OnboardingLayout from '../components/common/OnboardingLayout';
 import {
@@ -70,6 +72,7 @@ import { type UserWithAbility } from '../hooks/user/useUser';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
 import useTracking from '../providers/Tracking/useTracking';
+import gitlabIcon from '../svgs/gitlab-icon.svg';
 import MsTeamsSvg from '../svgs/msteams.svg?react';
 import SlackSvg from '../svgs/slack.svg?react';
 import { EventName } from '../types/Events';
@@ -284,24 +287,31 @@ const TeamStep: FC<{
     const hasSlack = health.data?.hasSlack === true;
     const hasTeams = health.data?.hasMicrosoftTeams === true;
     const hasGithub = health.data?.hasGithub === true;
+    const hasGitlab = health.data?.hasGitlab === true;
     const { track } = useTracking();
     const queryClient = useQueryClient();
     const slackQuery = useGetSlack();
     const githubQuery = useGithubConfig();
     const isGithubInstalled = hasGithub && githubQuery.data?.enabled === true;
-    const hasConnected = (hasSlack && !!slackQuery.data) || isGithubInstalled;
+    const gitlabQuery = useGitlabRepositories({ enabled: hasGitlab });
+    const isGitlabInstalled = hasGitlab && gitlabQuery.isSuccess;
+    const hasConnected =
+        (hasSlack && !!slackQuery.data) ||
+        isGithubInstalled ||
+        isGitlabInstalled;
 
     // Connect opens a new tab, so pick up the install when the user comes back
     useEffect(() => {
         const refresh = () => {
             void queryClient.invalidateQueries(['slack']);
             void queryClient.invalidateQueries(['github_installation']);
+            void queryClient.invalidateQueries(['gitlab_repositories']);
         };
         window.addEventListener('focus', refresh);
         return () => window.removeEventListener('focus', refresh);
     }, [queryClient]);
 
-    if (!hasSlack && !hasTeams && !hasGithub) {
+    if (!hasSlack && !hasTeams && !hasGithub && !hasGitlab) {
         return <Navigate to={nextPath} replace />;
     }
 
@@ -340,7 +350,7 @@ const TeamStep: FC<{
             aside={<StepVisual step="team" />}
             activity={<OnboardingRunActivity projectUuid={projectUuid} />}
         >
-            <DocumentTitle title="Connect Slack and GitHub" />
+            <DocumentTitle title={copy.title} />
             <Stack className={classes.column} gap="xl">
                 <Stack gap={4}>
                     <Title order={1}>{copy.title}</Title>
@@ -375,7 +385,9 @@ const TeamStep: FC<{
                             )}
                         />
                     )}
-                    {(hasSlack || hasTeams) && hasGithub && <Divider />}
+                    {(hasSlack || hasTeams) && (hasGithub || hasGitlab) && (
+                        <Divider />
+                    )}
                     {hasGithub && (
                         <ToolRow
                             icon={
@@ -403,6 +415,24 @@ const TeamStep: FC<{
                                         Connect
                                     </Button>
                                 )
+                            }
+                        />
+                    )}
+                    {hasGithub && hasGitlab && <Divider />}
+                    {hasGitlab && (
+                        <ToolRow
+                            icon={
+                                <Image src={gitlabIcon} alt="" w={24} h={24} />
+                            }
+                            label="GitLab"
+                            description="Save new metrics, charts and dashboards as merge requests"
+                            info={null}
+                            connectedDetail={
+                                isGitlabInstalled ? 'GitLab connected' : null
+                            }
+                            action={
+                                !isGitlabInstalled &&
+                                connectButton('/api/v1/gitlab/install', false)
                             }
                         />
                     )}
