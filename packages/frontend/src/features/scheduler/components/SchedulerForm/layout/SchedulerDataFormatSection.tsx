@@ -231,11 +231,14 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                         />
                     )}
                 </Group>
-                {isApp && appQueryCountCaption && (
-                    <Text size="xs" c="dimmed">
-                        {appQueryCountCaption}
-                    </Text>
-                )}
+                {isApp &&
+                    (format === SchedulerFormat.CSV ||
+                        format === SchedulerFormat.XLSX) &&
+                    appQueryCountCaption && (
+                        <Text size="xs" c="dimmed">
+                            {appQueryCountCaption}
+                        </Text>
+                    )}
                 {isApp && format === SchedulerFormat.PDF && (
                     <Text size="xs" c="dimmed">
                         Sends the report from the app's Download PDF button

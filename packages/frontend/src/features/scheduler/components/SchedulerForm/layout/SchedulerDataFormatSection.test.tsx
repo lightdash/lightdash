@@ -161,6 +161,21 @@ describe('SchedulerDataFormatSection - app formats', () => {
         ).toBeInTheDocument();
     });
 
+    // "Each query becomes a file" is only true for the tabular formats —
+    // image and pdf deliveries produce a single file.
+    it('hides the query-count caption for pdf and image formats', () => {
+        for (const format of [SchedulerFormat.PDF, SchedulerFormat.IMAGE]) {
+            const { unmount } = renderSection(
+                { capturedQueryCount: 3 },
+                { ...DEFAULT_VALUES, format },
+            );
+            expect(
+                screen.queryByText(/each query becomes a file/),
+            ).not.toBeInTheDocument();
+            unmount();
+        }
+    });
+
     it('uses singular copy for exactly one captured query', () => {
         renderSection({ capturedQueryCount: 1 });
 
