@@ -8869,12 +8869,14 @@ describe('AiAgentToolsService canAuthorContent', () => {
             await serviceWithEditableSpaces(['space-b']).canAuthorContent({
                 user: editorUser,
                 projectUuid,
+                spaceUuids: null,
             }),
         ).toBe(true);
         expect(
             await serviceWithEditableSpaces([]).canAuthorContent({
                 user: editorUser,
                 projectUuid,
+                spaceUuids: null,
             }),
         ).toBe(false);
     });
@@ -8885,7 +8887,11 @@ describe('AiAgentToolsService canAuthorContent', () => {
         await makeService({
             spaceModel: { find: vi.fn().mockResolvedValue([{ uuid: 'a' }]) },
             spacePermissionService: { getAccessibleSpaceUuids },
-        }).canAuthorContent({ user: editorUser, projectUuid });
+        }).canAuthorContent({
+            user: editorUser,
+            projectUuid,
+            spaceUuids: null,
+        });
         expect(getAccessibleSpaceUuids).toHaveBeenCalledWith(
             'create',
             editorUser,
@@ -8901,12 +8907,14 @@ describe('AiAgentToolsService canAuthorContent', () => {
             await service.canAuthorContent({
                 user: makeUser([...spaceEditorRules]),
                 projectUuid: undefined,
+                spaceUuids: null,
             }),
         ).toBe(true);
         expect(
             await service.canAuthorContent({
                 user: makeUser([]),
                 projectUuid: undefined,
+                spaceUuids: null,
             }),
         ).toBe(false);
         expect(find).not.toHaveBeenCalled();
@@ -8919,6 +8927,7 @@ describe('AiAgentToolsService canAuthorContent', () => {
             await service.canAuthorContent({
                 user: makeUser([]),
                 projectUuid,
+                spaceUuids: null,
             }),
         ).toBe(false);
         expect(find).not.toHaveBeenCalled();
@@ -8937,7 +8946,38 @@ describe('AiAgentToolsService canAuthorContent', () => {
             await serviceWithEditableSpaces([]).canAuthorContent({
                 user: editorUser,
                 projectUuid,
+                spaceUuids: null,
             }),
         ).toBe(true);
+    });
+
+    it('with write spaces, counts only those spaces', async () => {
+        const find = vi.fn();
+        const getAccessibleSpaceUuids = vi.fn().mockResolvedValue([]);
+        const editorUser = makeUser([
+            ...spaceEditorRules,
+            {
+                action: 'create',
+                subject: 'Space',
+                conditions: { organizationUuid, projectUuid },
+            },
+        ]);
+        expect(
+            await makeService({
+                spaceModel: { find },
+                spacePermissionService: { getAccessibleSpaceUuids },
+            }).canAuthorContent({
+                user: editorUser,
+                projectUuid,
+                spaceUuids: ['write-space'],
+            }),
+        ).toBe(false);
+        expect(getAccessibleSpaceUuids).toHaveBeenCalledWith(
+            'create',
+            editorUser,
+            ['write-space'],
+            { subjectType: 'SavedChart' },
+        );
+        expect(find).not.toHaveBeenCalled();
     });
 });
