@@ -59,6 +59,28 @@ describe('OnboardingLayout', () => {
         ).toHaveAttribute('aria-current', 'step');
     });
 
+    it('shows the current step in the split layout progress', () => {
+        render(
+            <MantineProvider env="test">
+                <OnboardingLayout
+                    withAccountSwitch={false}
+                    progress={{
+                        currentStep: 1,
+                        steps: ['Organization', 'About you'],
+                    }}
+                >
+                    <Title order={1}>Name your organization</Title>
+                </OnboardingLayout>
+            </MantineProvider>,
+        );
+        expect(
+            screen.getByRole('list', { name: 'Setup progress' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('listitem', { name: 'Organization, step 1 of 2' }),
+        ).toHaveAttribute('aria-current', 'step');
+    });
+
     it('keeps setup in one main card without app navigation or a version footer', () => {
         const { container } = renderLayout(false);
         expect(screen.getByRole('main')).toContainElement(

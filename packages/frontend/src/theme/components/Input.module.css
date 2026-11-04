@@ -11,8 +11,6 @@
 
     --input-placeholder-color: var(--mantine-color-placeholder);
     --input-section-color: var(--mantine-color-dimmed);
-    /* Sections like NumberInput controls sit beside the input, not in it */
-    --input-bd: var(--mantine-color-default-border);
 }
 
 .input {

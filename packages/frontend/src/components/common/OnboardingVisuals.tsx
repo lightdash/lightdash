@@ -1,4 +1,8 @@
-import { ApiConnectorType, WarehouseTypes } from '@lightdash/common';
+import {
+    ApiConnectorType,
+    assertUnreachable,
+    WarehouseTypes,
+} from '@lightdash/common';
 import { Box, Group, Image, Text } from '@mantine/core';
 import {
     IconBrandGithub,
@@ -441,9 +445,7 @@ export const StepVisual: FC<{ step: OnboardingVisualStep }> = ({ step }) => {
             return <ToolsVisual warehouse={null} />;
         case 'team':
             return <TeamVisual />;
-        default: {
-            const unreachable: never = step;
-            return unreachable;
-        }
+        default:
+            return assertUnreachable(step, `Unknown onboarding step: ${step}`);
     }
 };

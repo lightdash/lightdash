@@ -278,33 +278,42 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
             return;
         }
 
-        completeMutation.mutate({
-            organizationName: values.organizationName,
-            jobTitle: values.jobTitle,
-            howDidYouHearAboutUs: values.howDidYouHearAboutUs.trim(),
-            enableEmailDomainAccess: values.enableEmailDomainAccess,
-            isMarketingOptedIn: values.isMarketingOptedIn,
-            isTrackingAnonymized: values.isTrackingAnonymized,
-        });
-
         const brandDomain =
             detectedBrand?.domain ?? (isCompanyDomain ? emailDomain : null);
+        const brandName =
+            values.organizationName.trim() || detectedBrand?.name || null;
+        const brandColors = buildBrandColors(
+            selectedColor,
+            detectedBrand?.colors ?? [],
+        );
+
+        completeMutation
+            .mutateAsync({
+                organizationName: values.organizationName,
+                jobTitle: values.jobTitle,
+                howDidYouHearAboutUs: values.howDidYouHearAboutUs.trim(),
+                enableEmailDomainAccess: values.enableEmailDomainAccess,
+                isMarketingOptedIn: values.isMarketingOptedIn,
+                isTrackingAnonymized: values.isTrackingAnonymized,
+            })
+            .then(() => {
+                // Without detected colors the default palette beats one derived from a placeholder
+                if (
+                    canUseBranding &&
+                    brandDomain &&
+                    detectedColors.length > 0
+                ) {
+                    applyColorPalette.mutate({
+                        name: `${brandName ?? brandDomain} brand`,
+                        colors: generateBrandPalette(
+                            brandColors.map(({ hex }) => hex),
+                        ),
+                    });
+                }
+            })
+            .catch(() => undefined);
+
         if (canUseBranding && brandDomain) {
-            const brandName =
-                values.organizationName.trim() || detectedBrand?.name || null;
-            const brandColors = buildBrandColors(
-                selectedColor,
-                detectedBrand?.colors ?? [],
-            );
-            // Without detected colors the default palette beats one derived from a placeholder
-            if (detectedColors.length > 0) {
-                applyColorPalette.mutate({
-                    name: `${brandName ?? brandDomain} brand`,
-                    colors: generateBrandPalette(
-                        brandColors.map(({ hex }) => hex),
-                    ),
-                });
-            }
             saveBrand.mutate({
                 domain: brandDomain,
                 name: brandName,
