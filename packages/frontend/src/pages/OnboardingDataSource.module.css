@@ -36,9 +36,10 @@
     display: none;
 }
 
-/* Two-step warehouse + dbt form shows one section at a time */
-.connectColumn
-    :global(form[data-form-step='warehouse'] [data-connection-card='dbt']),
+/* The stepped form shows one section at a time */
+.connectColumn :global(form[data-form-step='models'] [data-connection-card]),
+.connectColumn :global(form[data-form-step='models'] [data-form-collapse]),
+.connectColumn :global(form[data-form-step='models'] [data-form-collapse] + *),
 .connectColumn
     :global(
         form[data-form-step='dbt']

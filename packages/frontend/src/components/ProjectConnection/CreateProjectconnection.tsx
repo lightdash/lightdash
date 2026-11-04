@@ -54,7 +54,7 @@ import {
 import { isDbtStepField } from './WarehouseForms/util';
 import { createWarehouseValueValidators } from './WarehouseForms/validators';
 
-export type ConnectionFormStep = 'warehouse' | 'dbt';
+export type ConnectionFormStep = 'warehouse' | 'models' | 'dbt';
 
 interface CreateProjectConnectionProps {
     isCreatingFirstProject: boolean;
@@ -65,13 +65,14 @@ interface CreateProjectConnectionProps {
     celebrateOnSuccess?: boolean;
     footerStart?: ReactNode;
     alwaysShowProjectName?: boolean;
-    /** Splits the warehouse and dbt fields into two steps of the same form */
+    /** Splits the warehouse, models choice and dbt fields into steps of the same form */
     steps?: {
         current: ConnectionFormStep;
         onChange: (step: ConnectionFormStep) => void;
     } | null;
-    /** Rendered after the warehouse fields, above the footer */
-    warehouseStepEnd?: ReactNode;
+    /** Content of the step between the warehouse and dbt fields */
+    modelsStep?: ReactNode;
+    submitLabel?: string;
 }
 
 const getJobErrorCategory = (
@@ -100,7 +101,8 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
     footerStart = null,
     alwaysShowProjectName = false,
     steps = null,
-    warehouseStepEnd = null,
+    modelsStep = null,
+    submitLabel,
 }) => {
     const { pathname } = useLocation();
     const onboardingFlow = pathname.startsWith('/onboarding/')
@@ -264,7 +266,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         if (
             steps &&
             Object.keys(errors).some(
-                (path) => !isDbtStepField(path, warehouseType),
+                (path) => warehouseOnly || !isDbtStepField(path, warehouseType),
             )
         ) {
             steps.onChange('warehouse');
@@ -272,16 +274,20 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         onProjectError(errors);
     };
 
-    const goToDbtStep = () => {
+    const goToNextStep = () => {
         if (!steps) return;
         const { errors } = form.validate();
         const warehouseErrors = Object.keys(errors).filter(
-            (path) => !isDbtStepField(path, warehouseType),
+            (path) => warehouseOnly || !isDbtStepField(path, warehouseType),
         );
         if (warehouseErrors.length > 0) return;
         form.clearErrors();
-        steps.onChange('dbt');
+        steps.onChange(
+            steps.current === 'warehouse' && modelsStep ? 'models' : 'dbt',
+        );
     };
+    const previousStep: ConnectionFormStep =
+        steps?.current === 'dbt' && modelsStep ? 'models' : 'warehouse';
 
     useCreateProjectSuccessRedirect({
         activeJob,
@@ -394,8 +400,10 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
     }
 
     const isWarehouseStep = steps?.current === 'warehouse';
-    const submitButton = isWarehouseStep ? (
-        <Button className={classes.submitButton} onClick={goToDbtStep}>
+    const isModelsStep = steps?.current === 'models';
+    const showsNext = isWarehouseStep || (isModelsStep && !warehouseOnly);
+    const submitButton = showsNext ? (
+        <Button className={classes.submitButton} onClick={goToNextStep}>
             Next
         </Button>
     ) : (
@@ -406,7 +414,8 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
             loading={isSavingProject}
             disabled={!form.isValid()}
         >
-            {warehouseOnly ? 'Test & save' : 'Test & deploy project'}
+            {submitLabel ??
+                (warehouseOnly ? 'Test & save' : 'Test & deploy project')}
         </Button>
     );
 
@@ -451,8 +460,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                                     dbtTypePicker={steps ? 'tiles' : 'select'}
                                 />
 
-                                {(!steps || isWarehouseStep) &&
-                                    warehouseStepEnd}
+                                {isModelsStep && modelsStep}
 
                                 {footerStart ? (
                                     <Group
@@ -465,7 +473,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                                                 color="gray"
                                                 px={0}
                                                 onClick={() =>
-                                                    steps.onChange('warehouse')
+                                                    steps.onChange(previousStep)
                                                 }
                                             >
                                                 Back
@@ -473,7 +481,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                                         ) : (
                                             footerStart
                                         )}
-                                        {steps && !isWarehouseStep ? (
+                                        {steps?.current === 'dbt' ? (
                                             <Group gap="xs">
                                                 <Button
                                                     variant="subtle"

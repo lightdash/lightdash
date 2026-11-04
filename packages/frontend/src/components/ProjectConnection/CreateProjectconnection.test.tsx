@@ -9,6 +9,7 @@ import {
 import { notifications } from '@mantine/notifications';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
@@ -17,7 +18,9 @@ vi.mock('../../api');
 import { sharedLightdashApi } from '../../api';
 import ActiveJobProvider from '../../providers/ActiveJob/ActiveJobProvider';
 import { renderWithProviders } from '../../testing/testUtils';
-import CreateProjectConnection from './CreateProjectconnection';
+import CreateProjectConnection, {
+    type ConnectionFormStep,
+} from './CreateProjectconnection';
 
 const mockApi = sharedLightdashApi as unknown as Mock;
 
@@ -196,6 +199,51 @@ describe('CreateProjectConnection project name', () => {
 
         await waitFor(() =>
             expect(getPostedProjectName(calls)).toBe('Jaffle Shop'),
+        );
+    });
+});
+
+const SteppedFlow = () => {
+    const [step, setStep] = useState<ConnectionFormStep>('warehouse');
+    return (
+        <CreateProjectConnection
+            isCreatingFirstProject
+            selectedWarehouse={WarehouseTypes.POSTGRES}
+            warehouseOnly
+            steps={{ current: step, onChange: setStep }}
+            modelsStep={<div>Models question</div>}
+            submitLabel={step === 'models' ? 'Test & build models' : undefined}
+        />
+    );
+};
+
+describe('CreateProjectConnection models step', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('asks the models question after the warehouse fields and saves from it', async () => {
+        const calls = routeApi({ activeJob: () => null });
+        renderWithProviders(
+            <MemoryRouter initialEntries={['/onboarding/data-source/postgres']}>
+                <ActiveJobProvider>
+                    <SteppedFlow />
+                </ActiveJobProvider>
+            </MemoryRouter>,
+        );
+
+        const user = await fillConnectionForm();
+        expect(screen.queryByText('Models question')).not.toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: 'Next' }));
+
+        expect(await screen.findByText('Models question')).toBeInTheDocument();
+        await user.click(
+            screen.getByRole('button', { name: 'Test & build models' }),
+        );
+        await waitFor(() =>
+            expect(calls.some(({ url }) => url === CREATE_PROJECT_URL)).toBe(
+                true,
+            ),
         );
     });
 });
