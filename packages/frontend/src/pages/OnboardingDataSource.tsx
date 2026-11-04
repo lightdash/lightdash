@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
-import { FeatureFlags, ProjectType, WarehouseTypes } from '@lightdash/common';
+import { ProjectType, WarehouseTypes } from '@lightdash/common';
 import { Anchor, Box, Button, Group, Stack, Text, Title } from '@mantine/core';
-import { useState, type FC } from 'react';
+import { type FC } from 'react';
 import { Navigate, useLocation, useParams } from 'react-router';
 import { DocumentTitle } from '../components/common/DocumentTitle';
 import ErrorState from '../components/common/ErrorState';
@@ -15,24 +15,17 @@ import { useTrackOnboardingScreen } from '../components/common/useTrackOnboardin
 import { useOnboardingNavigate } from '../components/common/viewTransition';
 import { CreateProjectConnection } from '../components/ProjectConnection';
 import { ConnectionFormSkeleton } from '../components/ProjectConnection/ConnectionFormSkeleton';
-import { type ConnectionFormStep } from '../components/ProjectConnection/CreateProjectconnection';
 import { DataSourceChooser } from '../components/ProjectConnection/ProjectConnectFlow/DataSourceChooser';
 import { LiveSourcesNextUp } from '../components/ProjectConnection/ProjectConnectFlow/LiveSourcesTeaser';
-import {
-    ModelSourceQuestion,
-    type ModelSource,
-} from '../components/ProjectConnection/ProjectConnectFlow/ModelSourceQuestion';
 import {
     getWarehouseIcon,
     getWarehouseLabel,
     OTHER_ROUTE_PARAM,
 } from '../components/ProjectConnection/ProjectConnectFlow/utils';
 import { ProjectFormProvider } from '../components/ProjectConnection/ProjectFormProvider';
-import { withViewTransition } from '../features/apps/utils/viewTransition';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import { useOnboardingPageGuard } from '../hooks/useOnboardingPageGuard';
 import { useProjects } from '../hooks/useProjects';
-import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { isPlaygroundProvisioningSource } from '../utils/playgroundProject';
 import classes from './OnboardingDataSource.module.css';
 
@@ -69,27 +62,11 @@ const DataSourcePicker: FC = () => {
     );
 };
 
-const REPO_MODE = 'repo';
-
-const WarehouseConnect: FC<{
-    selectedWarehouse: WarehouseTypes;
-    initialModelSource: ModelSource;
-}> = ({ selectedWarehouse, initialModelSource }) => {
+const WarehouseConnect: FC<{ selectedWarehouse: WarehouseTypes }> = ({
+    selectedWarehouse,
+}) => {
     const goBack = useBackToChooser();
-    const onboardingNavigate = useOnboardingNavigate();
-    const [step, setStep] = useState<ConnectionFormStep>('warehouse');
-    const [modelSource, setModelSource] = useState(initialModelSource);
-    const isDbtStep = modelSource === 'dbt' && step === 'dbt';
-    useTrackOnboardingScreen(
-        isDbtStep
-            ? 'dbt_repo'
-            : step === 'models'
-              ? 'model_source'
-              : 'warehouse_form',
-    );
-    const canAutoBuildModels =
-        useServerFeatureFlag(FeatureFlags.CodingAgentOnboarding).data
-            ?.enabled === true;
+    useTrackOnboardingScreen('warehouse_form');
     const {
         isInitialLoading: isLoadingOrganization,
         data: organization,
@@ -118,64 +95,21 @@ const WarehouseConnect: FC<{
         <Box className={classes.connectColumn}>
             <Stack gap="lg">
                 <Group gap="sm" wrap="nowrap">
-                    {!isDbtStep && (
-                        <Box className={classes.logo}>
-                            {getWarehouseIcon(selectedWarehouse, 'sm')}
-                        </Box>
-                    )}
-                    <Stack gap={4}>
-                        <Title order={2}>
-                            {isDbtStep
-                                ? 'Connect your repo'
-                                : `Connect ${getWarehouseLabel(selectedWarehouse)}`}
-                        </Title>
-                        {isDbtStep && (
-                            <Text c="dimmed" size="sm">
-                                Deploying from your machine?{' '}
-                                <Anchor
-                                    component="button"
-                                    type="button"
-                                    inherit
-                                    onClick={() =>
-                                        onboardingNavigate(
-                                            '/onboarding/dbt/cli',
-                                        )
-                                    }
-                                >
-                                    Use the CLI
-                                </Anchor>
-                            </Text>
-                        )}
-                    </Stack>
+                    <Box className={classes.logo}>
+                        {getWarehouseIcon(selectedWarehouse, 'sm')}
+                    </Box>
+                    <Title order={2}>
+                        Connect {getWarehouseLabel(selectedWarehouse)}
+                    </Title>
                 </Group>
                 <ProjectFormProvider>
                     <CreateProjectConnection
                         isCreatingFirstProject={!hasRealProject}
                         selectedWarehouse={selectedWarehouse}
-                        warehouseOnly={
-                            modelSource === 'tables' || step === 'warehouse'
-                        }
-                        steps={{
-                            current: step,
-                            onChange: (next) =>
-                                withViewTransition(() => setStep(next)),
-                        }}
+                        warehouseOnly
                         alwaysShowProjectName
-                        modelsStep={
-                            <ModelSourceQuestion
-                                value={modelSource}
-                                onChange={setModelSource}
-                            />
-                        }
-                        submitLabel={
-                            step === 'models' &&
-                            canAutoBuildModels &&
-                            !hasRealProject
-                                ? 'Test & build models'
-                                : undefined
-                        }
                         successRedirect={(projectUuid) =>
-                            `/projects/${projectUuid}/home`
+                            `/onboarding/models/${projectUuid}`
                         }
                         footerStart={
                             <Button
@@ -234,18 +168,11 @@ const OtherWarehouseConnect: FC = () => {
 };
 
 const OnboardingDataSourceContent: FC = () => {
-    const { warehouse, mode } = useParams<{
-        warehouse?: string;
-        mode?: string;
-    }>();
+    const { warehouse } = useParams<{ warehouse?: string }>();
     const selectedWarehouse =
         warehouse && isWarehouseType(warehouse) ? warehouse : undefined;
 
     if (warehouse && !selectedWarehouse && warehouse !== OTHER_ROUTE_PARAM) {
-        return <Navigate to="/onboarding/data-source" replace />;
-    }
-
-    if (mode && (!selectedWarehouse || mode !== REPO_MODE)) {
         return <Navigate to="/onboarding/data-source" replace />;
     }
 
@@ -271,10 +198,7 @@ const OnboardingDataSourceContent: FC = () => {
         >
             <DocumentTitle title="Add a data source" />
             {selectedWarehouse ? (
-                <WarehouseConnect
-                    selectedWarehouse={selectedWarehouse}
-                    initialModelSource={mode === REPO_MODE ? 'dbt' : 'tables'}
-                />
+                <WarehouseConnect selectedWarehouse={selectedWarehouse} />
             ) : warehouse === OTHER_ROUTE_PARAM ? (
                 <OtherWarehouseConnect />
             ) : (

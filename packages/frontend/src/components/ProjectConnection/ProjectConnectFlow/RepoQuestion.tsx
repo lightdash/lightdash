@@ -1,55 +1,60 @@
-import { Box, Group, Image, Radio, SimpleGrid, Text } from '@mantine/core';
+import { Box, Group, Radio, SimpleGrid, Text } from '@mantine/core';
+import { IconBrandGit } from '@tabler/icons-react';
 import { type FC } from 'react';
 import LogoIcon from '../../../svgs/logo-icon.svg?react';
-import DbtLogo from './Assets/dbt.svg';
+import MantineIcon from '../../common/MantineIcon';
 import classes from './DataSourceChooser.module.css';
 
-export type ModelSource = 'dbt' | 'tables';
+export type ModelSource = 'build' | 'repo';
 
-export const ModelSourceQuestion: FC<{
+export const RepoQuestion: FC<{
     value: ModelSource;
     onChange: (value: ModelSource) => void;
-}> = ({ value, onChange }) => (
+    canBuildModels: boolean;
+}> = ({ value, onChange, canBuildModels }) => (
     <Radio.Group
-        label="How should we set up your models?"
+        label="Do you already have a repo with your models?"
         description="Models turn tables into things your team can ask about, like revenue by month or orders by country, without writing SQL."
         value={value}
-        onChange={(next) => onChange(next === 'dbt' ? 'dbt' : 'tables')}
+        onChange={(next) => onChange(next === 'repo' ? 'repo' : 'build')}
         classNames={{
             label: classes.questionLabel,
             description: classes.questionDescription,
         }}
     >
         <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="xs">
-            <Radio.Card value="tables" className={classes.choiceCard}>
+            <Radio.Card value="build" className={classes.choiceCard}>
                 <Group gap="sm" wrap="nowrap">
                     <Box className={classes.tileLogo}>
                         <LogoIcon width={16} height={16} />
                     </Box>
                     <Box flex={1} miw={0}>
                         <Text fw={500} size="sm">
-                            Let us handle it
+                            {canBuildModels
+                                ? 'No, build them for me'
+                                : 'Not yet'}
                         </Text>
                         <Text c="dimmed" size="xs">
-                            We'll read your tables and draft them in a few
-                            minutes
+                            {canBuildModels
+                                ? "We'll read your tables and draft them in a few minutes"
+                                : 'Start from your tables and add models later'}
                         </Text>
                     </Box>
                     <Radio.Indicator size="xs" />
                 </Group>
             </Radio.Card>
-            <Radio.Card value="dbt" className={classes.choiceCard}>
+            <Radio.Card value="repo" className={classes.choiceCard}>
                 <Group gap="sm" wrap="nowrap">
                     <Box className={classes.tileLogo}>
-                        <Image src={DbtLogo} alt="" w={18} h={18} />
+                        <MantineIcon icon={IconBrandGit} />
                     </Box>
                     <Box flex={1} miw={0}>
                         <Text fw={500} size="sm">
-                            I have a dbt project
+                            Yes, connect my repo
                         </Text>
                         <Text c="dimmed" size="xs">
-                            Use the models you already have, from a repo or dbt
-                            Cloud
+                            GitHub, GitLab, Bitbucket or dbt Cloud, with dbt or
+                            Lightdash YAML
                         </Text>
                     </Box>
                     <Radio.Indicator size="xs" />

@@ -1,5 +1,5 @@
-import { ProjectType, DbtProjectType } from '@lightdash/common';
-import { TextInput, Flex, Stack, Title, Avatar } from '@mantine/core';
+import { ProjectType, DbtProjectType, WarehouseTypes } from '@lightdash/common';
+import { TextInput, Flex, Stack, Title, Avatar, Box } from '@mantine/core';
 import { type FC } from 'react';
 import LightdashLogo from '../../svgs/logo-icon.svg';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
@@ -13,6 +13,13 @@ import { getWarehouseIcon } from './ProjectConnectFlow/utils';
 import { useProjectFormContext } from './useProjectFormContext';
 import WarehouseSchemaInput from './WarehouseSchemaInput';
 import WarehouseSettingsForm from './WarehouseSettingsForm';
+
+// These warehouses only read the schema when running dbt
+const DBT_ONLY_SCHEMA_WAREHOUSES = new Set<WarehouseTypes>([
+    WarehouseTypes.POSTGRES,
+    WarehouseTypes.REDSHIFT,
+    WarehouseTypes.BIGQUERY,
+]);
 
 interface Props {
     showGeneralSettings: boolean;
@@ -82,11 +89,17 @@ export const ProjectForm: FC<Props> = ({
                         isProjectUpdate={isProjectUpdate}
                     >
                         {(warehouseOnly || isNative) && warehouse && (
-                            <WarehouseSchemaInput
-                                warehouseType={warehouse}
-                                disabled={disabled}
-                                warehouseOnly
-                            />
+                            <Box
+                                data-dbt-only-schema={DBT_ONLY_SCHEMA_WAREHOUSES.has(
+                                    warehouse,
+                                )}
+                            >
+                                <WarehouseSchemaInput
+                                    warehouseType={warehouse}
+                                    disabled={disabled}
+                                    warehouseOnly
+                                />
+                            </Box>
                         )}
                     </WarehouseSettingsForm>
                 </div>
