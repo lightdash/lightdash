@@ -39,7 +39,6 @@ const dayPartitioned: TablePartitioning = {
     },
     granularity: PartitionGranularity.DAY,
     requiresPartitionFilter: false,
-    partitionCount: 30,
 };
 
 describe('describeWarehouseTable partitioning', () => {
@@ -55,11 +54,7 @@ describe('describeWarehouseTable partitioning', () => {
             ].join('\n'),
         );
         expect(output.structuredContent).toMatchObject({
-            partitioning: {
-                partitionColumn: dayPartitioned.partitionColumn,
-                granularity: PartitionGranularity.DAY,
-                requiresPartitionFilter: false,
-            },
+            partitioning: dayPartitioned,
         });
     });
 
@@ -71,7 +66,6 @@ describe('describeWarehouseTable partitioning', () => {
             },
             granularity: PartitionGranularity.HOUR,
             requiresPartitionFilter: true,
-            partitionCount: null,
         });
 
         expect(output.result).toContain(
@@ -87,7 +81,6 @@ describe('describeWarehouseTable partitioning', () => {
             },
             granularity: null,
             requiresPartitionFilter: false,
-            partitionCount: null,
         });
 
         expect(output.result).toContain(

@@ -54,7 +54,6 @@ import {
     OrganizationAccessStatus,
     ParameterError,
     parameterRegex,
-    PartitionType,
     PersistentDownloadFileAccessMode,
     PersonSignInProvider,
     PossibleAbilities,
@@ -11377,17 +11376,8 @@ describe('AsyncQueryService', () => {
                             referencedTables: [
                                 { database: 'p', schema: 'd', table: 't' },
                             ],
-                            partitionsProcessed: 1,
+                            partitionsProcessed: 3,
                         },
-                    }),
-                    getTablePartitioning: async () => ({
-                        partitionColumn: {
-                            field: 'day',
-                            partitionType: PartitionType.DATE,
-                        },
-                        granularity: null,
-                        requiresPartitionFilter: false,
-                        partitionCount: 10,
                     }),
                 },
                 sshTunnel: mockSshTunnel,
@@ -11416,20 +11406,19 @@ describe('AsyncQueryService', () => {
                 queryCreatedAt: new Date(),
                 displayTimezone: null,
             });
-            const events = () =>
-                info.mock.calls.filter(
-                    ([message]) => message === 'partition_scan.observed',
-                );
+            const events = info.mock.calls.filter(
+                ([message]) => message === 'partition_scan.observed',
+            );
             if (logged) {
-                await vi.waitFor(() => expect(events()).toHaveLength(1));
-                expect(events()[0][1]).toMatchObject({
+                expect(events).toHaveLength(1);
+                expect(events[0][1]).toMatchObject({
                     queryUuid: 'partition-query',
                     queryContext: context,
-                    totalPartitions: 10,
-                    pruned: true,
+                    referencedTableCount: 1,
+                    partitionsProcessed: 3,
                 });
             } else {
-                expect(events()).toHaveLength(0);
+                expect(events).toHaveLength(0);
             }
         },
     );

@@ -1572,7 +1572,6 @@ describe('BigqueryWarehouseClient.getTablePartitioning', () => {
         await expect(
             partitioningFor({
                 timePartitioning: { type: 'DAY', field: 'created_at' },
-                numPartitions: '42',
             }),
         ).resolves.toEqual({
             partitionColumn: {
@@ -1581,7 +1580,6 @@ describe('BigqueryWarehouseClient.getTablePartitioning', () => {
             },
             granularity: PartitionGranularity.DAY,
             requiresPartitionFilter: false,
-            partitionCount: 42,
         });
     });
 
@@ -1598,7 +1596,6 @@ describe('BigqueryWarehouseClient.getTablePartitioning', () => {
             },
             granularity: PartitionGranularity.HOUR,
             requiresPartitionFilter: true,
-            partitionCount: null,
         });
     });
 
@@ -1617,7 +1614,6 @@ describe('BigqueryWarehouseClient.getTablePartitioning', () => {
             },
             granularity: null,
             requiresPartitionFilter: false,
-            partitionCount: null,
         });
     });
 

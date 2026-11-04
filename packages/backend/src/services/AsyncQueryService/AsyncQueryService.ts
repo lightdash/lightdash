@@ -437,10 +437,6 @@ import {
     type MergeSubmission,
 } from './mergeQueryTelemetry';
 import {
-    observePartitionScan,
-    TablePartitioningCache,
-} from './partitionScanTelemetry';
-import {
     NoOpPreAggregateStrategy,
     type PreAggregateExecutionResolution,
     type PreAggregateStrategy,
@@ -690,8 +686,6 @@ type PreparedAsyncQueryArgs = Omit<
 
 export class AsyncQueryService extends ProjectService {
     private readonly queryEstimateCache = new QueryEstimateCache();
-
-    private readonly tablePartitioningCache = new TablePartitioningCache();
 
     private readonly mergeSubmissionQueries = new AsyncLocalStorage<
         Map<string, Promise<QueryHistory>>
@@ -5639,28 +5633,24 @@ export class AsyncQueryService extends ProjectService {
                 const { partitionScanStats } = queryResults.warehouseResults;
                 if (
                     partitionScanStats &&
+                    partitionScanStats.referencedTables.length > 0 &&
                     executionStats?.cacheHit !== true &&
                     isAiAccessQueryContext(queryTags.query_context)
                 ) {
-                    // Not awaited: table metadata lookups must not delay the query's caller.
-                    void observePartitionScan({
-                        warehouseClient: completedClient,
-                        cache: this.tablePartitioningCache,
-                        logger: this.logger,
+                    this.logger.info('partition_scan.observed', {
+                        event: 'partition_scan.observed',
                         projectUuid,
                         queryUuid,
                         queryContext: queryTags.query_context,
                         exploreName: queryTags.explore_name ?? null,
+                        warehouseType: completedClient.credentials.type,
                         jobId: executionStats?.jobId ?? null,
                         bytesProcessed: executionStats?.bytesProcessed ?? null,
                         bytesBilled: executionStats?.bytesBilled ?? null,
-                        stats: partitionScanStats,
-                    }).catch((error: unknown) => {
-                        this.logger.warn('partition_scan.failed', {
-                            projectUuid,
-                            queryUuid,
-                            error: getErrorMessage(error),
-                        });
+                        referencedTableCount:
+                            partitionScanStats.referencedTables.length,
+                        partitionsProcessed:
+                            partitionScanStats.partitionsProcessed,
                     });
                 }
             };

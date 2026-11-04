@@ -471,7 +471,6 @@ const getTablePartitioningFromMetadata = (
         metadata.requirePartitionFilter ??
         metadata.timePartitioning?.requirePartitionFilter,
     );
-    const partitionCount = toFiniteNumber(metadata.numPartitions);
     if (metadata.timePartitioning) {
         return {
             partitionColumn: {
@@ -483,7 +482,6 @@ const getTablePartitioningFromMetadata = (
                 ? metadata.timePartitioning.type
                 : null,
             requiresPartitionFilter,
-            partitionCount,
         };
     }
     if (metadata.rangePartitioning?.field) {
@@ -494,7 +492,6 @@ const getTablePartitioningFromMetadata = (
             },
             granularity: null,
             requiresPartitionFilter,
-            partitionCount,
         };
     }
     return null;

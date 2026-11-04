@@ -757,6 +757,4 @@ export type TablePartitioning = {
     partitionColumn: PartitionColumn;
     granularity: PartitionGranularity | null;
     requiresPartitionFilter: boolean;
-    /** Null when the warehouse does not report it; may lag recent writes. */
-    partitionCount: number | null;
 };
