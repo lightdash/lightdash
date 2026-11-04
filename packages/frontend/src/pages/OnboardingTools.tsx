@@ -11,7 +11,6 @@ import {
     Button,
     Divider,
     Group,
-    Loader,
     Paper,
     Stack,
     Text,
@@ -154,38 +153,6 @@ const visibleFields = (explores: ApiExploreResults[]): PreviewField[] =>
             isMetric,
         }));
 
-const LiveSourceReadyRow: FC<{
-    projectUuid: string;
-    connection: ExternalConnectionListItem;
-    showName: boolean;
-}> = ({ projectUuid, connection, showName }) => {
-    const { data: explores, isError } = useLiveSourceExplores({
-        projectUuid,
-        connectionUuid: connection.externalConnectionUuid,
-    });
-    const isReady = !!explores?.length;
-
-    const status = isError
-        ? 'Fields are still being prepared'
-        : isReady
-          ? `${visibleFields(explores).length} fields ready to explore`
-          : 'Preparing fields…';
-
-    return (
-        <Group
-            justify="space-between"
-            wrap="nowrap"
-            gap="md"
-            className={classes.readyPanel}
-        >
-            <Text fz="xs" c="dimmed" truncate>
-                {showName ? `${connection.name}: ${status}` : status}
-            </Text>
-            {!isReady && !isError && <Loader size="xs" />}
-        </Group>
-    );
-};
-
 const ToolsAside: FC<{
     projectUuid: string;
     connection: ExternalConnectionListItem | null;
@@ -216,19 +183,6 @@ const ToolsAside: FC<{
         />
     );
 };
-
-const ReadyPanels: FC<{
-    projectUuid: string;
-    connections: ExternalConnectionListItem[];
-}> = ({ projectUuid, connections }) =>
-    connections.map((connection) => (
-        <LiveSourceReadyRow
-            key={connection.externalConnectionUuid}
-            projectUuid={projectUuid}
-            connection={connection}
-            showName={connections.length > 1}
-        />
-    ));
 
 const ToolGroup: FC<{ title: string | null; children: ReactNode }> = ({
     title,
@@ -629,10 +583,6 @@ const OnboardingToolsContent: FC<{
                             )
                         }
                     />
-                    <ReadyPanels
-                        projectUuid={projectUuid}
-                        connections={postHogConnections}
-                    />
                     {isPostHogOpen && (
                         <PostHogInlineConnect
                             projectUuid={projectUuid}
@@ -689,10 +639,6 @@ const OnboardingToolsContent: FC<{
                                                 )}
                                             </Button>
                                         }
-                                    />
-                                    <ReadyPanels
-                                        projectUuid={projectUuid}
-                                        connections={connected}
                                     />
                                 </Box>
                             );
