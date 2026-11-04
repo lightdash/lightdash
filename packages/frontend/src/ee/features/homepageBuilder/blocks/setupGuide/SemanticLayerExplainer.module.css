@@ -18,49 +18,77 @@
     width: 100%;
 }
 
-.diagram {
+/* Warehouse, semantic layer and tools as three columns joined by connectors */
+.flow {
+    display: grid;
+    grid-template-columns:
+        minmax(0, 1fr) 32px minmax(0, 1.35fr) 32px
+        minmax(0, 1.1fr);
+    grid-template-rows: auto 168px;
+    row-gap: 8px;
+    width: 100%;
+}
+
+.caption {
+    color: var(--mantine-color-dimmed);
+    text-align: center;
+}
+
+.column {
     display: flex;
     flex-direction: column;
-    align-items: center;
+    justify-content: center;
+    gap: 8px;
 }
 
 .table,
-.metric,
-.consumer {
+.tool,
+.metric {
     border: 1px solid var(--mantine-color-default-border);
     background: var(--mantine-color-body);
-    box-shadow: 0 8px 20px -14px rgb(0 0 0 / 0.25);
+}
+
+.table,
+.tool {
+    height: 40px;
+    border-radius: var(--mantine-radius-md);
     animation: rise 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
     animation-delay: calc(var(--i) * 110ms);
 }
 
 .table {
     display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 10px;
-    border-radius: var(--mantine-radius-sm);
+    flex-direction: column;
+    justify-content: center;
+    padding: 0 10px;
 }
 
-.stem {
-    position: relative;
-    width: 1px;
-    height: 16px;
-    background: var(--mantine-color-ldGray-3);
-    animation: grow 240ms ease both;
-    animation-delay: calc(var(--i) * 110ms - 60ms);
-    transform-origin: top;
+.tool {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    padding: 0 10px;
+}
+
+.layer {
+    display: flex;
+    flex-direction: column;
+    align-self: center;
+    gap: 6px;
+    padding: 8px 10px 10px;
+    border: 1px dashed
+        color-mix(in srgb, var(--ld-field-metric-color) 45%, transparent);
+    border-radius: var(--mantine-radius-lg);
+    background: var(--mantine-color-body);
+    animation: rise 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: calc(var(--i) * 110ms);
 }
 
 .metric {
-    width: 13rem;
-    padding: 8px 12px;
+    padding: 6px 10px;
     border-color: var(--ld-field-metric-color);
     border-radius: var(--mantine-radius-md);
-    animation:
-        rise 420ms cubic-bezier(0.22, 1, 0.36, 1) both,
-        metricGlow 2.4s ease-in-out 1s infinite;
-    animation-delay: calc(var(--i) * 110ms), 1s;
 }
 
 .metricName {
@@ -68,57 +96,32 @@
 }
 
 .code {
-    margin-top: 2px;
     font-family: var(--mantine-font-family-monospace);
     color: var(--mantine-color-dimmed);
 }
 
-/* Draws the branch from the metric down to the three consumers */
-.fan {
+.connector {
     position: relative;
-    width: 68%;
-    height: 16px;
-    margin-top: 16px;
-    border: 1px solid var(--mantine-color-ldGray-3);
-    border-bottom: 0;
-    border-radius: 10px 10px 0 0;
-    animation: grow 240ms ease both;
-    animation-delay: calc(var(--i) * 110ms);
-    transform-origin: top;
 }
 
-.fan::before,
-.fan::after {
-    content: '';
-    position: absolute;
-    left: 50%;
-    width: 1px;
-    background: var(--mantine-color-ldGray-3);
+.connectorLines {
+    display: block;
+    width: 32px;
+    height: 168px;
+    overflow: visible;
 }
 
-.fan::before {
-    bottom: 100%;
-    height: 16px;
+.connectorLines path {
+    fill: none;
+    stroke: var(--mantine-color-ldGray-3);
+    stroke-width: 1;
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: draw 360ms ease-out 280ms forwards;
 }
 
-.fan::after {
-    top: 0;
-    height: 16px;
-}
-
-.consumers {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-    width: 100%;
-}
-
-.consumer {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    padding: 8px 10px;
-    border-radius: var(--mantine-radius-md);
+.connector[data-direction='out'] .connectorLines path {
+    animation-delay: 420ms;
 }
 
 .value {
@@ -128,12 +131,12 @@
     animation-delay: calc(var(--i) * 110ms + 200ms);
 }
 
-.auroraDot {
+.aiDot {
     width: 8px;
     height: 8px;
     margin: 2px;
     border-radius: 50%;
-    background: var(--mantine-color-violet-5);
+    background: var(--mantine-color-dimmed);
 }
 
 .chip {
@@ -157,39 +160,62 @@
 
 .packet {
     position: absolute;
-    left: -2px;
-    width: 5px;
-    height: 5px;
+    top: 0;
+    left: 0;
+    width: 6px;
+    height: 6px;
     border-radius: 50%;
     background: var(--ld-field-metric-color);
-    animation: travel 1.6s ease-in-out 1.2s infinite both;
+    offset-path: var(--path);
+    offset-rotate: 0deg;
+    animation: flowIn 2.8s ease-in-out 1.2s infinite both;
 }
 
-@keyframes metricGlow {
-    0%,
-    100% {
-        box-shadow:
-            0 8px 20px -14px rgb(0 0 0 / 0.25),
-            0 0 0 0 var(--ld-field-metric-bg);
-    }
-    50% {
-        box-shadow:
-            0 8px 20px -14px rgb(0 0 0 / 0.25),
-            0 0 0 5px var(--ld-field-metric-bg);
-    }
+.connector[data-direction='out'] .packet {
+    animation-name: flowOut;
 }
 
-@keyframes travel {
-    from {
-        top: -4px;
+@keyframes flowIn {
+    0% {
+        offset-distance: 0%;
         opacity: 0;
     }
-    30% {
+    8% {
         opacity: 1;
     }
-    to {
-        top: 100%;
+    42% {
+        offset-distance: 100%;
+        opacity: 1;
+    }
+    50%,
+    100% {
+        offset-distance: 100%;
         opacity: 0;
+    }
+}
+
+@keyframes flowOut {
+    0%,
+    50% {
+        offset-distance: 0%;
+        opacity: 0;
+    }
+    58% {
+        opacity: 1;
+    }
+    92% {
+        offset-distance: 100%;
+        opacity: 1;
+    }
+    100% {
+        offset-distance: 100%;
+        opacity: 0;
+    }
+}
+
+@keyframes draw {
+    to {
+        stroke-dashoffset: 0;
     }
 }
 
@@ -228,11 +254,15 @@
 
 @media (prefers-reduced-motion: reduce) {
     .table,
+    .tool,
+    .layer,
     .metric,
-    .consumer,
-    .stem,
-    .fan,
     .value {
+        animation: none;
+    }
+
+    .connectorLines path {
+        stroke-dashoffset: 0;
         animation: none;
     }
 
@@ -372,18 +402,9 @@
 }
 
 .plot {
-    position: relative;
     display: flex;
     gap: 8px;
     height: 150px;
-}
-
-.gridLine {
-    position: absolute;
-    right: 0;
-    bottom: calc(18px + (100% - 18px) * var(--y) / 100%);
-    left: 0;
-    border-top: 1px dashed var(--mantine-color-ldGray-2);
 }
 
 .barColumn {
@@ -405,7 +426,7 @@
 }
 
 .bar {
-    width: min(100%, 28px);
+    width: min(100%, 64px);
     height: var(--h);
     border-radius: 4px 4px 1px 1px;
     background: var(--ld-field-metric-color);
