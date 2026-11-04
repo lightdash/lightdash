@@ -307,9 +307,12 @@ export const SetupGuideView: FC<SetupGuideViewProps> = ({
     const { completed, total } = countProgress(rows);
     // Skipped rows are out of the total, so this means nothing is left to do
     if (completed === total) return null;
-    // Skipped steps sink to the bottom so the list reads as what is left
+    // Done steps lead, then what is left, then skipped steps at the bottom
     const orderedRows = [
-        ...rows.filter((row) => row.status !== 'skipped'),
+        ...rows.filter((row) => isCompletedStatus(row.status)),
+        ...rows.filter(
+            (row) => !isCompletedStatus(row.status) && row.status !== 'skipped',
+        ),
         ...rows.filter((row) => row.status === 'skipped'),
     ];
     return (
