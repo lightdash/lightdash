@@ -1,3 +1,10 @@
+# [3.148.0](https://github.com/lightdash/lightdash/compare/3.147.0...3.148.0) (2026-11-04)
+
+
+### Features
+
+* **dashboards:** list each tile's parameters without running queries ([#31948](https://github.com/lightdash/lightdash/issues/31948)) ([c600824](https://github.com/lightdash/lightdash/commit/c600824d06995792ddf6470ce4aecfe529b73fba))
+
 # [3.147.0](https://github.com/lightdash/lightdash/compare/3.146.2...3.147.0) (2026-11-04)
 
 

@@ -71884,6 +71884,101 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "DashboardTileParameterReferences": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "error": {
+                                "type": "number",
+                                "enum": [null],
+                                "nullable": true
+                            },
+                            "parameterReferences": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "tileUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "error",
+                            "parameterReferences",
+                            "tileUuid"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "error": {
+                                "type": "string"
+                            },
+                            "parameterReferences": {
+                                "type": "number",
+                                "enum": [null],
+                                "nullable": true
+                            },
+                            "tileUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "error",
+                            "parameterReferences",
+                            "tileUuid"
+                        ],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiDashboardTileParameterReferencesResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardTileParameterReferences"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "DashboardTileParameterReferencesTile": {
+                "properties": {
+                    "savedSqlUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "savedChartUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "tileUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["savedSqlUuid", "savedChartUuid", "tileUuid"],
+                "type": "object"
+            },
+            "DashboardTileParameterReferencesRequest": {
+                "properties": {
+                    "tiles": {
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardTileParameterReferencesTile"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["tiles"],
+                "type": "object"
+            },
             "Pick_CreateDashboard.name-or-description-or-spaceUuid-or-colorPaletteUuid-or-ownerUserUuid_": {
                 "properties": {
                     "description": {
@@ -75317,7 +75412,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.147.0",
+        "version": "3.148.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -117494,6 +117589,57 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v2/projects/{projectUuid}/dashboards/tile-parameter-references": {
+            "post": {
+                "operationId": "getDashboardTileParameterReferences",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiDashboardTileParameterReferencesResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List the parameters each dashboard tile uses, read from its saved query\nwithout running it. Tiles that can't be loaded or viewed report an error.\nThe dashboard calls this while it is edited; in view mode each tile\nreports its parameters with its own query results.\n\nEmbed tokens can call this with the `Lightdash-Embed-Token` header. The\ntoken must embed a dashboard: only that dashboard's tiles are listed,\nwith the charts saved on it (request chart uuids are ignored), and a\ntile not on it reports an error.",
+                "summary": "Get tile parameter references",
+                "tags": ["v2", "Dashboards"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DashboardTileParameterReferencesRequest"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v2/projects/{projectUuid}/dashboards/{dashboardUuidOrSlug}/comments": {
