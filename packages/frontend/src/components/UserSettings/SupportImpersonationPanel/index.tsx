@@ -1,9 +1,10 @@
-import { Group, Stack, Switch, Text } from '@mantine/core';
+import { Switch } from '@mantine/core';
 import { type FC } from 'react';
 import {
     useOrganizationSettings,
     useUpdateOrganizationSettings,
 } from '../../../hooks/organization/useOrganizationSettings';
+import { SettingRow } from '../../common/Settings/SettingLayout';
 
 const SupportImpersonationPanel: FC = () => {
     const { data, isLoading } = useOrganizationSettings();
@@ -18,30 +19,24 @@ const SupportImpersonationPanel: FC = () => {
         false;
 
     return (
-        <Group justify="space-between" wrap="nowrap">
-            <Stack gap="xxs">
-                <Text fw={500} fz="sm">
-                    Allow Lightdash support to impersonate users
-                </Text>
-                <Text fz="xs" c="dimmed">
-                    When enabled, the Lightdash support team can impersonate
-                    users in your organization while helping with a support
-                    request, so they can reproduce issues from your perspective
-                    without asking for permission each time. You can turn this
-                    off at any time.
-                </Text>
-            </Stack>
-            <Switch
-                checked={supportImpersonationEnabled}
-                disabled={isLoading || update.isLoading}
-                onChange={(event) =>
-                    update.mutate({
-                        supportImpersonationEnabled:
-                            event.currentTarget.checked,
-                    })
-                }
-            />
-        </Group>
+        <SettingRow
+            title="Lightdash support access"
+            description="Allow the Lightdash support team to impersonate users in your organization while helping with a support request, so they can reproduce issues from your perspective without asking for permission each time. You can turn this off at any time."
+            control={
+                <Switch
+                    aria-label="Lightdash support access"
+                    size="md"
+                    checked={supportImpersonationEnabled}
+                    disabled={isLoading || update.isLoading}
+                    onChange={(event) =>
+                        update.mutate({
+                            supportImpersonationEnabled:
+                                event.currentTarget.checked,
+                        })
+                    }
+                />
+            }
+        />
     );
 };
 
