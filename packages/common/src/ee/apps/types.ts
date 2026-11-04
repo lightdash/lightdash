@@ -1080,83 +1080,83 @@ export const dataAppVizGradientValueSchema = z.object({
     max: z.union([z.number().finite(), z.literal('auto')]),
 });
 
-const vizConfigOptions = z.array(
-    z.discriminatedUnion('type', [
-        z.object({
-            ...optionBase,
-            type: z.literal('boolean'),
-            default: z
-                .boolean()
-                .describe('Value used until the viewer changes it.'),
-        }),
-        z.object({
-            ...optionBase,
-            type: z.literal('select'),
-            choices: z
-                .array(
-                    z.object({
-                        value: z
-                            .string()
-                            .describe('Value delivered on `options`.'),
-                        label: z.string().describe('Human label in the list.'),
-                    }),
-                )
-                .min(1)
-                .describe('The selectable choices; at least one.'),
-            default: z
-                .string()
-                .describe('One of the declared choice `value`s.'),
-        }),
-        z.object({
-            ...optionBase,
-            type: z.literal('number'),
-            default: z
-                .number()
-                .describe('Value used until the viewer changes it.'),
-            min: z
-                .number()
-                .nullable()
-                .transform((value) => value ?? undefined)
-                .optional()
-                .describe('Optional lower bound.'),
-            max: z
-                .number()
-                .nullable()
-                .transform((value) => value ?? undefined)
-                .optional()
-                .describe('Optional upper bound.'),
-        }),
-        z.object({
-            ...optionBase,
-            type: z.literal('text'),
-            default: z
-                .string()
-                .describe('Value used until the viewer changes it.'),
-        }),
-        z.object({
-            ...optionBase,
-            type: z.literal('color'),
-            default: z
-                .string()
-                .describe('Hex colour used until the viewer changes it.'),
-        }),
-        z.object({
-            ...optionBase,
-            type: z.literal('gradient'),
-            showBounds: z
-                .boolean()
-                .nullable()
-                .transform((value) => value ?? undefined)
-                .optional()
-                .describe(
-                    'Show minimum and maximum controls in the config panel. Defaults to true; false hides the controls without changing the gradient value or bounds.',
-                ),
-            default: dataAppVizGradientValueSchema.describe(
-                'Fixed hex colors and numeric or automatic bounds used until the viewer changes them.',
+const vizConfigOptionBranches = [
+    z.object({
+        ...optionBase,
+        type: z.literal('boolean'),
+        default: z
+            .boolean()
+            .describe('Value used until the viewer changes it.'),
+    }),
+    z.object({
+        ...optionBase,
+        type: z.literal('select'),
+        choices: z
+            .array(
+                z.object({
+                    value: z.string().describe('Value delivered on `options`.'),
+                    label: z.string().describe('Human label in the list.'),
+                }),
+            )
+            .min(1)
+            .describe('The selectable choices; at least one.'),
+        default: z.string().describe('One of the declared choice `value`s.'),
+    }),
+    z.object({
+        ...optionBase,
+        type: z.literal('number'),
+        default: z.number().describe('Value used until the viewer changes it.'),
+        min: z
+            .number()
+            .nullable()
+            .transform((value) => value ?? undefined)
+            .optional()
+            .describe('Optional lower bound.'),
+        max: z
+            .number()
+            .nullable()
+            .transform((value) => value ?? undefined)
+            .optional()
+            .describe('Optional upper bound.'),
+    }),
+    z.object({
+        ...optionBase,
+        type: z.literal('text'),
+        default: z.string().describe('Value used until the viewer changes it.'),
+    }),
+    z.object({
+        ...optionBase,
+        type: z.literal('color'),
+        default: z
+            .string()
+            .describe('Hex colour used until the viewer changes it.'),
+    }),
+    z.object({
+        ...optionBase,
+        type: z.literal('gradient'),
+        showBounds: z
+            .boolean()
+            .nullable()
+            .transform((value) => value ?? undefined)
+            .optional()
+            .describe(
+                'Show minimum and maximum controls in the config panel. Defaults to true; false hides the controls without changing the gradient value or bounds.',
             ),
-        }),
-    ]),
+        default: dataAppVizGradientValueSchema.describe(
+            'Fixed hex colors and numeric or automatic bounds used until the viewer changes them.',
+        ),
+    }),
+] as const;
+
+const vizConfigOptions = z.array(
+    z.discriminatedUnion('type', vizConfigOptionBranches),
 );
+
+// z.union, not z.discriminatedUnion: zod renders a discriminated union as
+// JSON Schema `oneOf`, which OpenAI's strict structured outputs reject
+// ("'oneOf' is not permitted"). The branches have distinct `type` literals, so
+// z.union parses the same inputs; reads keep the discriminator for clearer errors.
+const vizConfigOptionsForGeneration = z.array(z.union(vizConfigOptionBranches));
 
 const vizColorPalette = z
     .object({
@@ -1198,7 +1198,7 @@ export const dataAppVizGenerationSchema = z
             uniqueNames,
             'duplicate field name',
         ),
-        configOptions: vizConfigOptions
+        configOptions: vizConfigOptionsForGeneration
             .refine(uniqueNames, 'duplicate option name')
             .describe(
                 'Every setting the viewer can change from the chart config panel without regenerating the viz — one per literal the component would otherwise hardcode: what it shows or hides, which variant it picked, and the numbers and labels it wrote in. Each `name` must be a key the component reads from `options`. Series colours are not among them: declare `colorPalette` instead. Empty is only right for a component that hardcodes nothing a viewer would want different.',
@@ -1232,11 +1232,11 @@ void dataAppVizGenerationSchemaIsPersistable;
 
 // JSON Schema form of the generation contract for the generator CLI's
 // `--json-schema` flag. Refinements (e.g. unique names) don't survive the
-// conversion and stay enforced by the runtime `safeParse`. The OpenAI target
+// conversion and stay enforced by the runtime `safeParse`. `makeOpenAiStrict`
 // represents optional properties as required and nullable for strict structured
 // output. Inline shared schemas because Codex only accepts top-level references,
-// and retain draft-07 because the Claude CLI does not support the OpenAI
-// target's 2019-09 meta-schema.
+// and retain draft-07 because the Claude CLI does not support the 2019-09
+// meta-schema.
 type JsonSchemaObject = Record<string, unknown>;
 
 const isJsonSchemaObject = (value: unknown): value is JsonSchemaObject =>
@@ -1250,11 +1250,9 @@ const makeOpenAiStrict = (value: unknown): unknown => {
         return value;
     }
 
-    // OpenAI strict mode rejects oneOf; the discriminated branches can't overlap,
-    // so anyOf accepts the same values.
     const schema = Object.fromEntries(
         Object.entries(value).map(([key, child]) => [
-            key === 'oneOf' ? 'anyOf' : key,
+            key,
             makeOpenAiStrict(child),
         ]),
     );
