@@ -390,6 +390,7 @@ import {
     querySurfaceFromConnectionSurface,
 } from '../WarehouseClientFactory/ConnectionContext';
 import { WarehouseClientFactory } from '../WarehouseClientFactory/WarehouseClientFactory';
+import { discoverColumns } from './columnDiscovery';
 import { type ComposeEngineClient } from './ComposeEngineClient';
 import {
     assertPivotColumnsExist,
@@ -15114,9 +15115,6 @@ export class AsyncQueryService extends ProjectService {
 
                     // 3. Column Discovery
                     const sectionStartColumnDiscovery = performance.now();
-                    // Get one row to get the column definitions
-                    const columns: { name: string; type: DimensionType }[] = [];
-
                     // Replace user attributes first
                     const sqlWithUserAttributes =
                         replaceUserAttributesAsStrings(
@@ -15147,72 +15145,17 @@ export class AsyncQueryService extends ProjectService {
                         );
                     }
 
-                    const limitedColumnDiscoverySql = applyLimitToSqlQuery({
-                        sqlQuery: columnDiscoverySql,
-                        limit: 1,
-                    });
-                    this.logger.info('column_discovery.started', {
-                        event: 'column_discovery.started',
+                    const columns = await discoverColumns({
+                        warehouseClient,
+                        sql: columnDiscoverySql,
+                        tags: queryTags,
                         projectUuid,
-                        sqlBytes: Buffer.byteLength(
-                            limitedColumnDiscoverySql,
-                            'utf8',
-                        ),
-                        ...queryTags,
+                        context,
+                        logger: this.logger,
+                        prometheusMetrics: this.prometheusMetrics,
                     });
-                    try {
-                        await warehouseClient.streamQuery(
-                            limitedColumnDiscoverySql,
-                            (chunk) => {
-                                // Only handle the first call
-                                if (columns.length === 0 && chunk.fields) {
-                                    Object.keys(chunk.fields).forEach((key) => {
-                                        columns.push({
-                                            name: key,
-                                            type: chunk.fields[key].type,
-                                        });
-                                    });
-                                }
-                            },
-                            {
-                                tags: queryTags,
-                            },
-                        );
-                    } catch (e) {
-                        const durationMs =
-                            performance.now() - sectionStartColumnDiscovery;
-                        this.logger.error('column_discovery.failed', {
-                            event: 'column_discovery.failed',
-                            projectUuid,
-                            durationMs,
-                            sqlBytes: Buffer.byteLength(
-                                limitedColumnDiscoverySql,
-                                'utf8',
-                            ),
-                            errorName: e instanceof Error ? e.name : undefined,
-                            errorCode: (e as { code?: string })?.code,
-                            warehouseTimeout:
-                                e instanceof WarehouseQueryTimeoutError
-                                    ? e.data
-                                    : undefined,
-                            errorMessage: getErrorMessage(e),
-                            ...queryTags,
-                        });
-                        throw e;
-                    }
                     const durationColumnDiscovery =
                         performance.now() - sectionStartColumnDiscovery;
-                    this.logger.info('column_discovery.completed', {
-                        event: 'column_discovery.completed',
-                        projectUuid,
-                        durationMs: durationColumnDiscovery,
-                        sqlBytes: Buffer.byteLength(
-                            limitedColumnDiscoverySql,
-                            'utf8',
-                        ),
-                        columnCount: columns.length,
-                        ...queryTags,
-                    });
 
                     // 4. Query Building
                     const sectionStartQueryBuilding = performance.now();
