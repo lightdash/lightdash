@@ -405,7 +405,6 @@ import { ProjectCompileLogModel } from '../../models/ProjectCompileLogModel';
 import { ProjectDbtSourcesModel } from '../../models/ProjectDbtSourcesModel';
 import { type ExploreNaming } from '../../models/ProjectModel/exploreNameAllocation';
 import {
-    LIVE_SOURCE_ONLY_CREDENTIALS,
     ProjectModel,
     type ExploreWriteCheck,
     type PushToPreview,
@@ -3023,19 +3022,15 @@ export class ProjectService
                 const resolvedCredentials: ResolvedWarehouseCredentials =
                     await this.getSingleRouteWarehouseCredentials(args).catch(
                         async (error: unknown) => {
-                            if (
-                                error instanceof NotFoundError &&
-                                (await this.projectModel.isLiveSourceExplore(
+                            if (!(error instanceof NotFoundError)) throw error;
+                            return {
+                                ...(await this.projectModel.liveSourceCredentialsOrThrow(
+                                    error,
                                     args.projectUuid,
                                     binding,
-                                ))
-                            ) {
-                                return {
-                                    ...LIVE_SOURCE_ONLY_CREDENTIALS,
-                                    userWarehouseCredentialsUuid: undefined,
-                                };
-                            }
-                            throw error;
+                                )),
+                                userWarehouseCredentialsUuid: undefined,
+                            };
                         },
                     );
                 const { aiPlan, ...warehouseCredentials } = resolvedCredentials;

@@ -442,7 +442,10 @@ describe('ProjectModel', () => {
         });
 
         test('shapes the query without a warehouse connection', async () => {
-            vi.spyOn(model, 'isLiveSourceExplore').mockResolvedValue(true);
+            vi.spyOn(model, 'getExploreFromCache').mockResolvedValue({
+                ...exploreWithMetricFilters,
+                type: ExploreType.API_SOURCE,
+            });
             await expect(
                 model.getWarehouseCredentialsForBinding(projectUuid, {
                     kind: 'explore',
@@ -452,7 +455,9 @@ describe('ProjectModel', () => {
         });
 
         test('still fails for a warehouse explore', async () => {
-            vi.spyOn(model, 'isLiveSourceExplore').mockResolvedValue(false);
+            vi.spyOn(model, 'getExploreFromCache').mockResolvedValue(
+                exploreWithMetricFilters,
+            );
             await expect(
                 model.getWarehouseCredentialsForBinding(projectUuid, {
                     kind: 'explore',
