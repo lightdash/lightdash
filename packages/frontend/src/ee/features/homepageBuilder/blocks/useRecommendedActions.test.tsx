@@ -364,6 +364,61 @@ describe('useRecommendedActions', () => {
         });
     });
 
+    describe('on a project started from live sources', () => {
+        beforeEach(() => {
+            vi.mocked(useServerFeatureFlag).mockImplementation(
+                (flag) =>
+                    settled({
+                        enabled: flag === FeatureFlags.NewOnboarding,
+                    }) as ReturnType<typeof useServerFeatureFlag>,
+            );
+            vi.mocked(useOrganization).mockReturnValue(
+                settled({ needsProject: false }) as ReturnType<
+                    typeof useOrganization
+                >,
+            );
+            vi.mocked(useProjects).mockReturnValue(
+                settled([
+                    organizationProject({ projectUuid: 'real-uuid' }),
+                ]) as unknown as ReturnType<typeof useProjects>,
+            );
+        });
+
+        it('keeps connect-warehouse open until a warehouse is connected', () => {
+            vi.mocked(useProject).mockReturnValue(
+                settled({
+                    provisioningSource: null,
+                }) as unknown as ReturnType<typeof useProject>,
+            );
+
+            const { result } = renderHook(() =>
+                useRecommendedActions('real-uuid'),
+            );
+
+            expect(result.current.statuses['connect-warehouse']).toMatchObject({
+                isComplete: false,
+                ctaLabel: 'Connect',
+            });
+        });
+
+        it('completes connect-warehouse once the project has one', () => {
+            vi.mocked(useProject).mockReturnValue(
+                settled({
+                    provisioningSource: null,
+                    warehouseConnection: { type: 'postgres' },
+                }) as unknown as ReturnType<typeof useProject>,
+            );
+
+            const { result } = renderHook(() =>
+                useRecommendedActions('real-uuid'),
+            );
+
+            expect(
+                result.current.statuses['connect-warehouse'].isComplete,
+            ).toBe(true);
+        });
+    });
+
     describe('add-semantic-layer completion', () => {
         beforeEach(() => {
             vi.mocked(useServerFeatureFlag).mockImplementation(

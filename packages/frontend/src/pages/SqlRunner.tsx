@@ -15,6 +15,7 @@ import { SqlRunnerSidebar } from '../features/sqlRunner';
 import { ContentPanel } from '../features/sqlRunner/components/ContentPanel';
 import { Header } from '../features/sqlRunner/components/Header';
 import { HeaderCreate } from '../features/sqlRunner/components/Header/HeaderCreate';
+import { NoWarehouseState } from '../features/sqlRunner/components/NoWarehouseState';
 import { useSavedSqlChart } from '../features/sqlRunner/hooks/useSavedSqlCharts';
 import { useSqlRunnerShareUrl } from '../features/sqlRunner/hooks/useSqlRunnerShareUrl';
 import { SqlRunnerConnectionScope } from '../features/sqlRunner/multiConnection/components/SqlRunnerConnectionScope';
@@ -302,6 +303,9 @@ const SqlRunnerNewPage = ({
         return (
             <SuboptimalState title="SQL Runner is unavailable for managed analytics projects" />
         );
+    }
+    if (!project.warehouseConnection) {
+        return <NoWarehouseState project={project} />;
     }
 
     return (

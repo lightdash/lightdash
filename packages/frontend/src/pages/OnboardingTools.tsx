@@ -590,6 +590,8 @@ const OnboardingToolsContent: FC<{
         (connection) => connection.kind === 'live_source',
     );
     const hasConnected = liveSources.length > 0;
+    // Without a warehouse, a tool is the only source, so one has to be connected
+    const needsSource = !!project && !project.warehouseConnection;
     const latestLiveSource = liveSources[liveSources.length - 1] ?? null;
     const connectLabel = (isConnected: boolean) =>
         isConnected ? 'Add another' : 'Connect';
@@ -712,8 +714,16 @@ const OnboardingToolsContent: FC<{
                 )}
 
                 <Group justify="flex-end">
+                    {needsSource && !hasConnected && (
+                        <Text fz="xs" c="dimmed">
+                            Connect at least one tool to continue
+                        </Text>
+                    )}
                     <Button
-                        variant={hasConnected ? 'filled' : 'default'}
+                        variant={
+                            hasConnected || needsSource ? 'filled' : 'default'
+                        }
+                        disabled={needsSource && !hasConnected}
                         onClick={() => {
                             if (!hasConnected) {
                                 track({
@@ -724,7 +734,9 @@ const OnboardingToolsContent: FC<{
                             onboardingNavigate(teamStepPath);
                         }}
                     >
-                        {hasConnected ? 'Continue' : 'Skip for now'}
+                        {hasConnected || needsSource
+                            ? 'Continue'
+                            : 'Skip for now'}
                     </Button>
                 </Group>
             </Stack>

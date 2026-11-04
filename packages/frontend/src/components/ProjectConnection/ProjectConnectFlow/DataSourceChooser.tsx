@@ -1,5 +1,10 @@
 import { subject } from '@casl/ability';
-import { ProjectType, WarehouseTypes } from '@lightdash/common';
+import {
+    DbtProjectType,
+    DefaultSupportedDbtVersion,
+    ProjectType,
+    WarehouseTypes,
+} from '@lightdash/common';
 import {
     Anchor,
     Box,
@@ -14,6 +19,7 @@ import { useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useEnsurePlaygroundProject } from '../../../hooks/useEnsurePlaygroundProject';
+import { useCreateProjectWithoutCompileMutation } from '../../../hooks/useProject';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import LogoIcon from '../../../svgs/logo-icon.svg?react';
@@ -21,7 +27,7 @@ import { EventName } from '../../../types/Events';
 import { useOnboardingNavigate } from '../../common/viewTransition';
 import classes from './DataSourceChooser.module.css';
 import { InviteTeammateModal } from './InviteTeammateModal';
-import { LiveSourcesCard } from './LiveSourcesTeaser';
+import { LiveSourcesStartCard } from './LiveSourcesTeaser';
 import { getPlaygroundSetupFailure } from './playgroundSetupFailure';
 import { type SelectedWarehouse } from './types';
 import {
@@ -54,6 +60,7 @@ export const DataSourceChooser: FC = () => {
     const [isOpeningSample, setIsOpeningSample] = useState(false);
     const [hasFailed, setHasFailed] = useState(false);
     const [isInviteOpen, setIsInviteOpen] = useState(false);
+    const createProject = useCreateProjectWithoutCompileMutation();
 
     const organizationUuid = organization?.organizationUuid;
     const canUseSampleWorkspace =
@@ -84,6 +91,25 @@ export const DataSourceChooser: FC = () => {
             },
         });
         onboardingNavigate(getWarehouseRoute(warehouse));
+    };
+
+    const startWithTools = async () => {
+        track({
+            name: EventName.ONBOARDING_WAREHOUSE_SELECTED,
+            properties: {
+                organizationId: organizationUuid ?? null,
+                warehouse: 'none',
+                tier: 'all',
+                onboardingFlow: 'new',
+            },
+        });
+        const { project } = await createProject.mutateAsync({
+            name: user.data?.organizationName || 'My project',
+            type: ProjectType.DEFAULT,
+            dbtConnection: { type: DbtProjectType.NONE },
+            dbtVersion: DefaultSupportedDbtVersion,
+        });
+        onboardingNavigate(`/onboarding/tools/${project.projectUuid}`);
     };
 
     const openSampleWorkspace = async () => {
@@ -172,7 +198,10 @@ export const DataSourceChooser: FC = () => {
                 </Text>
             )}
 
-            <LiveSourcesCard />
+            <LiveSourcesStartCard
+                isStarting={createProject.isLoading}
+                onStart={() => void startWithTools()}
+            />
 
             {canInvite && (
                 <InviteTeammateModal

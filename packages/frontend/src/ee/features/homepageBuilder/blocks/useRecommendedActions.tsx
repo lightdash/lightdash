@@ -101,27 +101,37 @@ const resolveWarehouse = (
         !isPlaygroundProvisioningSource(project?.provisioningSource)
             ? project?.warehouseConnection?.type
             : undefined;
-    return { hasRealWarehouseProject, warehouseType };
+    // A project started from live sources only has no warehouse until one is connected
+    const isMissingWarehouse =
+        !!project &&
+        !isPlaygroundProvisioningSource(project.provisioningSource) &&
+        !project.warehouseConnection;
+    return { hasRealWarehouseProject, warehouseType, isMissingWarehouse };
 };
 
 const warehouseStatus = (
     {
         hasRealWarehouseProject,
         warehouseType,
+        isMissingWarehouse,
     }: ReturnType<typeof resolveWarehouse>,
     settingsProjectUuid: string | null,
-): ActionStatus => ({
-    isVisible: true,
-    isComplete: hasRealWarehouseProject,
-    annotation: warehouseType ? getWarehouseLabel(warehouseType) : null,
-    doneIcon: warehouseType ? getWarehouseIcon(warehouseType, 14) : null,
-    // Once connected, the onboarding page would only start a second project
-    url:
-        hasRealWarehouseProject && settingsProjectUuid
-            ? `/generalSettings/projectManagement/${settingsProjectUuid}/settings`
-            : '/onboarding/data-source',
-    ctaLabel: DEFAULT_CTA_LABEL,
-});
+): ActionStatus => {
+    // Settings is where the warehouse gets added, so only the new onboarding offers it
+    const needsWarehouse = isMissingWarehouse && settingsProjectUuid !== null;
+    return {
+        isVisible: true,
+        isComplete: hasRealWarehouseProject && !needsWarehouse,
+        annotation: warehouseType ? getWarehouseLabel(warehouseType) : null,
+        doneIcon: warehouseType ? getWarehouseIcon(warehouseType, 14) : null,
+        // Once a project exists, the onboarding page would only start a second one
+        url:
+            hasRealWarehouseProject && settingsProjectUuid
+                ? `/generalSettings/projectManagement/${settingsProjectUuid}/settings`
+                : '/onboarding/data-source',
+        ctaLabel: needsWarehouse ? 'Connect' : DEFAULT_CTA_LABEL,
+    };
+};
 
 // An agent run left mid-flight is resumable, so the step points at the run
 // instead of restarting the flow
