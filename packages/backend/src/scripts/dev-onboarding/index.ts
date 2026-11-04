@@ -33,9 +33,7 @@ const waitForApp = async (siteUrl: string, attempts = 30): Promise<void> => {
 const main = async () => {
     const args = process.argv.slice(2);
     if (args.some((arg) => !['--no-open', '--resume'].includes(arg))) {
-        throw new Error(
-            'Usage: corepack pnpm dev:onboarding [--no-open] [--resume]',
-        );
+        throw new Error('Usage: pnpm dev:onboarding [--no-open] [--resume]');
     }
     const siteUrl = process.env.SITE_URL ?? 'http://localhost:3000';
     const connectionUri = process.env.PGCONNECTIONURI;

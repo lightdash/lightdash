@@ -117,8 +117,8 @@ export const OnboardingDoneStep: FC<{ projectUuid: string }> = ({
                         {isLive && (
                             <Text fz="sm" fw={500}>
                                 {areMetricsLive
-                                    ? 'While you wait'
-                                    : 'Ready once your metrics are live'}
+                                    ? 'Your metrics are live'
+                                    : 'Available once your metrics are live'}
                             </Text>
                         )}
                         <Button

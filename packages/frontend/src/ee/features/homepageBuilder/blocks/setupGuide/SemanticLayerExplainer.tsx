@@ -10,6 +10,7 @@ import {
     IconUser,
 } from '@tabler/icons-react';
 import { Fragment, useState, type FC, type ReactNode } from 'react';
+import { AI_NAME } from '../../../../../components/common/aiName';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import classes from './SemanticLayerExplainer.module.css';
 
@@ -79,7 +80,7 @@ const Diagram: FC = () => (
             />
             <Consumer
                 icon={<Box className={classes.auroraDot} />}
-                label="Ask AI"
+                label={AI_NAME}
                 index={2}
             />
         </Box>
@@ -247,18 +248,18 @@ const TablesArt: FC = () => (
 const STEPS: { art: ReactNode; title: string; body: string }[] = [
     {
         art: <TablesArt />,
-        title: 'Tables become business objects',
-        body: 'Your warehouse speaks in columns like cust_id. The semantic layer turns them into things people know, like the Customer on an Order.',
+        title: 'Columns become business fields',
+        body: 'Raw columns like cust_id get names people know, like Customer on Orders.',
     },
     {
         art: <RevenueChart />,
         title: 'Metrics and dimensions',
-        body: 'Metrics are the numbers you track, like revenue. Dimensions are what you slice them by, like month, status or payment method.',
+        body: 'Each model defines metrics, like revenue, and the dimensions to slice them by, like month or status.',
     },
     {
         art: <Diagram />,
         title: 'Defined once, used everywhere',
-        body: 'Definitions live in version-controlled YAML and the SQL is written for you. Every chart, dashboard and AI answer uses them, so the same question gets the same number.',
+        body: 'Definitions live in YAML and the SQL is generated from them. Every chart, dashboard and AI answer uses them, so the same question gets the same number.',
     },
 ];
 

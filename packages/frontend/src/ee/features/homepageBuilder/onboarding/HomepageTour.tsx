@@ -22,13 +22,13 @@ const HOMEPAGE_TOUR_STEPS: HomepageTourStep[] = [
     {
         target: '[data-tour="home-suggestions"]',
         title: 'Not sure where to start?',
-        body: 'These questions come from your own tables. Pick one to get an answer straight away.',
+        body: 'These questions come from your own tables. Pick one to get an answer.',
         position: 'bottom',
     },
     {
         target: '[data-tour="home-setup"]',
         title: 'Finish setting up',
-        body: 'More data, metrics and teammates make every answer better.',
+        body: 'Add data, metrics and teammates to get better answers.',
         position: 'top',
     },
     {

@@ -290,7 +290,7 @@ export const DataSourceChooser: FC = () => {
 
             {hasFailed && (
                 <Text size="sm" c="red" role="alert">
-                    We couldn't prepare the sample data. Try again, or connect a
+                    We couldn't open the demo project. Try again, or connect a
                     warehouse.
                 </Text>
             )}

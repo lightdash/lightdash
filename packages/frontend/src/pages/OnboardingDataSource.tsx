@@ -110,7 +110,7 @@ const WarehouseConnect: FC<{
                         <Title order={2}>
                             {isDbtStep
                                 ? 'Connect your repo'
-                                : `Create a ${getWarehouseLabel(selectedWarehouse)} connection`}
+                                : `Connect ${getWarehouseLabel(selectedWarehouse)}`}
                         </Title>
                         {!isDbtStep && <LiveSourcesNote />}
                         {isDbtStep && (
@@ -181,9 +181,9 @@ const OtherWarehouseConnect: FC = () => {
         <Box className={classes.connectColumn}>
             <Stack gap="lg">
                 <Stack gap="xs">
-                    <Title order={2}>We don't connect to that one yet</Title>
+                    <Title order={2}>That warehouse isn't supported yet</Title>
                     <Text c="dimmed" size="sm">
-                        Today we support {SUPPORTED_WAREHOUSES}.
+                        Supported warehouses: {SUPPORTED_WAREHOUSES}.
                     </Text>
                     <Text c="dimmed" size="sm">
                         Tell us which warehouse you use on{' '}
@@ -195,8 +195,7 @@ const OtherWarehouseConnect: FC = () => {
                         >
                             GitHub
                         </Anchor>{' '}
-                        so we can prioritize it. Meanwhile, the demo project on
-                        the previous screen shows what you'd get.
+                        so we can prioritize it.
                     </Text>
                 </Stack>
                 <Group>

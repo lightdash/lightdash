@@ -260,7 +260,9 @@ export const RunSummary: FC<{
                         onClick={() => setIsNotesOpen((value) => !value)}
                     >
                         <Text fz="xs" c="dimmed">
-                            {isNotesOpen ? 'Hide full notes' : 'Full notes'}
+                            {isNotesOpen
+                                ? 'Hide full notes'
+                                : 'Show full notes'}
                         </Text>
                         <MantineIcon
                             icon={IconChevronDown}

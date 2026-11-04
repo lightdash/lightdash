@@ -109,7 +109,7 @@ const warehouseStatus = (
         hasRealWarehouseProject,
         warehouseType,
     }: ReturnType<typeof resolveWarehouse>,
-    projectUuid: string | null,
+    settingsProjectUuid: string | null,
 ): ActionStatus => ({
     isVisible: true,
     isComplete: hasRealWarehouseProject,
@@ -117,8 +117,8 @@ const warehouseStatus = (
     doneIcon: warehouseType ? getWarehouseIcon(warehouseType, 14) : null,
     // Once connected, the onboarding page would only start a second project
     url:
-        hasRealWarehouseProject && projectUuid
-            ? `/generalSettings/projectManagement/${projectUuid}/settings`
+        hasRealWarehouseProject && settingsProjectUuid
+            ? `/generalSettings/projectManagement/${settingsProjectUuid}/settings`
             : '/onboarding/data-source',
     ctaLabel: DEFAULT_CTA_LABEL,
 });
@@ -181,14 +181,14 @@ const sourceControlAnnotation = (
 };
 
 const sourceControlStatus = ({
-    projectUuid,
+    settingsProjectUuid,
     hasGithub,
     hasGitlab,
     isGithubConnected,
     isGitlabConnected,
     dbtConnection,
 }: {
-    projectUuid: string | null;
+    settingsProjectUuid: string | null;
     hasGithub: boolean;
     hasGitlab: boolean;
     isGithubConnected: boolean;
@@ -206,8 +206,8 @@ const sourceControlStatus = ({
         dbtConnection,
     ),
     doneIcon: null,
-    url: projectUuid
-        ? `/generalSettings/projectManagement/${projectUuid}/settings`
+    url: settingsProjectUuid
+        ? `/generalSettings/projectManagement/${settingsProjectUuid}/settings`
         : '/onboarding/dbt',
     ctaLabel: DEFAULT_CTA_LABEL,
 });
@@ -292,6 +292,8 @@ const useActionStatuses = (
         ]);
 
     const dbtConnection = projectQuery.data?.dbtConnection;
+    // Without the new onboarding these rows keep linking where they always did
+    const settingsProjectUuid = isNewOnboarding ? projectUuid : null;
 
     return {
         isLoading,
@@ -302,7 +304,7 @@ const useActionStatuses = (
                     projectsQuery.data,
                     projectQuery.data,
                 ),
-                projectUuid,
+                settingsProjectUuid,
             ),
             'add-semantic-layer': semanticLayerStatus({
                 projectUuid,
@@ -314,7 +316,7 @@ const useActionStatuses = (
                 hasAgentSemanticLayerEntry,
             }),
             'connect-source-control': sourceControlStatus({
-                projectUuid,
+                settingsProjectUuid,
                 hasGithub,
                 hasGitlab,
                 isGithubConnected,

@@ -77,7 +77,7 @@ const ROW_COPY: Record<
     },
     'app-data': {
         short: 'more sources',
-        pitch: 'Ask AI can combine PostHog or Google Analytics with your metrics.',
+        pitch: `${AI_NAME} can combine PostHog or GA4 with your metrics.`,
         icon: IconPlugConnected,
         time: '2 min',
     },
@@ -94,7 +94,7 @@ const ROW_COPY: Record<
         time: '3 min',
     },
     'starter-dashboard': {
-        short: 'first dashboard',
+        short: 'starter dashboard',
         pitch: 'Give people somewhere to begin.',
         icon: IconLayoutDashboard,
         time: '2 min',
@@ -300,8 +300,8 @@ const AuroraLiveCard: FC<{ rows: SetupGuideRow[] }> = ({ rows }) => {
                         {AI_NAME} is drafting your {drafting}
                     </Text>
                     <Text fz="xs" c="dimmed">
-                        Reading your tables and writing the YAML. Keep going,
-                        this runs in the background.
+                        Reading your tables and writing YAML. This runs in the
+                        background.
                     </Text>
                 </Box>
                 {run ? (

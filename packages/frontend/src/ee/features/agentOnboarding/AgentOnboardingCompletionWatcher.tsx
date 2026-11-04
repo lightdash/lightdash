@@ -62,7 +62,7 @@ export const AgentOnboardingCompletionWatcher: FC = () => {
                 showToastWarning({
                     key: runToastKey(agentOnboardingRunUuid),
                     autoClose: false,
-                    title: `${AI_NAME} couldn't finish drafting`,
+                    title: `${AI_NAME} couldn't finish project setup`,
                     subtitle: 'You can try again from home.',
                     action: {
                         children: 'See what happened',
@@ -96,8 +96,8 @@ export const AgentOnboardingCompletionWatcher: FC = () => {
         showToastSuccess({
             key: runToastKey(agentOnboardingRunUuid),
             autoClose: false,
-            title: 'Your workspace is ready',
-            subtitle: 'Your models, metrics and starter dashboard are in.',
+            title: 'Your project is ready',
+            subtitle: 'Your semantic layer and starter dashboard are built.',
             action: {
                 children: 'Open home',
                 onClick: () => {

@@ -45,10 +45,10 @@ export const AGENT_ONBOARDING_STAGE_LABELS: Record<
     AgentOnboardingProgressStage,
     string
 > = {
-    explore: 'Read your warehouse',
-    semantic_layer: 'Define metrics',
-    dashboard: 'Draft a dashboard',
-    ready: 'Check and hand off',
+    explore: 'Explore warehouse',
+    semantic_layer: 'Build semantic layer',
+    dashboard: 'Create dashboard',
+    ready: 'Verify',
 };
 
 export type AgentOnboardingProgressStageTiming = {

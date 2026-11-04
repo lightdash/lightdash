@@ -1,5 +1,10 @@
-import { assertUnreachable, WarehouseTypes } from '@lightdash/common';
+import {
+    assertUnreachable,
+    FeatureFlags,
+    WarehouseTypes,
+} from '@lightdash/common';
 import { type FC } from 'react';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { AthenaSchemaInput } from './WarehouseForms/AthenaForm';
 import { BigQuerySchemaInput } from './WarehouseForms/BigQueryForm';
 import { ClickhouseSchemaInput } from './WarehouseForms/ClickhouseForm';
@@ -11,22 +16,17 @@ import { SnowflakeSchemaInput } from './WarehouseForms/SnowflakeForm';
 import { TrinoSchemaInput } from './WarehouseForms/TrinoForm';
 
 const SCHEMA_HINTS: Record<WarehouseTypes, string> = {
-    [WarehouseTypes.BIGQUERY]:
-        'The dataset that holds your tables, listed under your project in the BigQuery console.',
-    [WarehouseTypes.POSTGRES]:
-        'The schema your tables live in. Often public if you never created one.',
-    [WarehouseTypes.REDSHIFT]:
-        'The schema your tables live in. Often public if you never created one.',
-    [WarehouseTypes.SNOWFLAKE]:
-        'The schema inside your database that holds your tables, such as PUBLIC.',
+    [WarehouseTypes.BIGQUERY]: 'The dataset with your tables.',
+    [WarehouseTypes.POSTGRES]: 'The schema with your tables, often public.',
+    [WarehouseTypes.REDSHIFT]: 'The schema with your tables, often public.',
+    [WarehouseTypes.SNOWFLAKE]: 'The schema with your tables, such as PUBLIC.',
     [WarehouseTypes.DATABRICKS]:
-        'The schema inside your catalog that holds your tables, such as default.',
-    [WarehouseTypes.TRINO]:
-        'The schema inside your catalog that holds your tables.',
+        'The schema with your tables, such as default.',
+    [WarehouseTypes.TRINO]: 'The schema with your tables.',
     [WarehouseTypes.CLICKHOUSE]:
-        'The database that holds your tables. Often default.',
-    [WarehouseTypes.ATHENA]: 'The Glue database that holds your tables.',
-    [WarehouseTypes.DUCKDB]: 'The schema your tables live in. Often main.',
+        'The database with your tables, often default.',
+    [WarehouseTypes.ATHENA]: 'The Glue database with your tables.',
+    [WarehouseTypes.DUCKDB]: 'The schema with your tables, often main.',
 };
 
 const WarehouseSchemaInput: FC<{
@@ -34,9 +34,15 @@ const WarehouseSchemaInput: FC<{
     disabled: boolean;
     warehouseOnly?: boolean;
 }> = ({ warehouseType, disabled, warehouseOnly }) => {
-    const description = warehouseOnly
-        ? `${SCHEMA_HINTS[warehouseType]} You can add more later.`
-        : undefined;
+    const isNewOnboarding =
+        useServerFeatureFlag(FeatureFlags.NewOnboarding).data?.enabled === true;
+    const description = !warehouseOnly
+        ? undefined
+        : isNewOnboarding
+          ? `${SCHEMA_HINTS[warehouseType]} You can add more later.`
+          : warehouseType === WarehouseTypes.BIGQUERY
+            ? "We'll start with this dataset — you can add more later."
+            : "We'll start with this schema — you can add more later.";
 
     switch (warehouseType) {
         case WarehouseTypes.BIGQUERY:

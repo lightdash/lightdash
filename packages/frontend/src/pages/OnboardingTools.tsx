@@ -545,7 +545,7 @@ const OnboardingToolsContent: FC<{
                 />
             }
         >
-            <DocumentTitle title="Connect your tools" />
+            <DocumentTitle title="Connect other tools" />
             <Stack className={classes.column} gap="xl">
                 <Stack gap={4}>
                     <Title order={1}>{copy.title}</Title>
@@ -564,7 +564,7 @@ const OnboardingToolsContent: FC<{
                         description={
                             getLiveSource(ApiConnectorType.POSTHOG).description
                         }
-                        info="AI agents send HogQL queries to this PostHog project and read the results live. Sign in, or use a personal API key with the Query Read scope."
+                        info="AI agents query this PostHog project live with HogQL. Sign in, or use a personal API key with the Query Read scope."
                         connectedDetail={describeConnections(
                             postHogConnections,
                         )}

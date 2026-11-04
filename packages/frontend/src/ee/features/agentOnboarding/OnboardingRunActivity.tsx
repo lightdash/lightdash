@@ -87,10 +87,10 @@ export const OnboardingRunActivity: FC<{
     const endedAt = run.completedAt ? Date.parse(run.completedAt) : now;
 
     const title = isDone
-        ? 'Your metrics and starter dashboard are ready'
+        ? 'Your semantic layer and starter dashboard are ready'
         : isFailed
-          ? `${AI_NAME} couldn't finish drafting`
-          : `${AI_NAME} is drafting your metrics`;
+          ? `${AI_NAME} couldn't finish project setup`
+          : `${AI_NAME} is building your semantic layer`;
     const counts = [
         summary.tables > 0 && plural(summary.tables, 'table'),
         summary.models > 0 && plural(summary.models, 'model'),

@@ -38,7 +38,7 @@ import classes from './CreateProjectJobProgress.module.css';
 const getConnectionErrorHint = (error: string | undefined): string | null => {
     if (!error) return null;
     if (/\bssl\b|certificate|self[- ]signed/i.test(error))
-        return 'The server rejected the SSL setting. Open Advanced, set SSL mode to disable or no-verify, and try again.';
+        return 'SSL failed. In Advanced configuration options, set SSL mode to no-verify or disable, then try again.';
     if (
         /password|authentication failed|incorrect username|access denied/i.test(
             error,
@@ -50,7 +50,7 @@ const getConnectionErrorHint = (error: string | undefined): string | null => {
             error,
         )
     )
-        return "We couldn't reach the host. Check the host and port, and that the database accepts outside connections.";
+        return "We couldn't reach the host. Check the host and port, and that the database accepts external connections.";
     if (/does not exist|not found|unknown database/i.test(error))
         return 'Check the database and schema names.';
     return null;
@@ -127,7 +127,7 @@ export const OnboardingConnectionProgress: FC<{
         },
         error: {
             title: `Couldn't connect to ${target}`,
-            detail: 'Check the details below and try again.',
+            detail: 'Fix the connection settings and try again.',
         },
     }[status];
 

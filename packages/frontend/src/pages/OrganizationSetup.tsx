@@ -483,7 +483,7 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                             <Group gap="sm">
                                                 <Text fw={600}>Brand</Text>
                                                 <Tooltip
-                                                    label="Optional. Choose a brand color now, or change it later in Appearance settings."
+                                                    label="Optional. You can change it later in Appearance settings."
                                                     multiline
                                                     maw={280}
                                                 >
@@ -514,7 +514,7 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                                                     key={color}
                                                                     component="button"
                                                                     type="button"
-                                                                    aria-label={`Select theme color ${color}`}
+                                                                    aria-label={`Select brand color ${color}`}
                                                                     className={
                                                                         color.toLowerCase() ===
                                                                         selectedColor.toLowerCase()

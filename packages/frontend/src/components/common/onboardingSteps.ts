@@ -7,11 +7,11 @@ export const ONBOARDING_DATA_STEPS = [
 export const ONBOARDING_STEP_COPY = {
     warehouse: { title: 'Connect your data', subtitle: null },
     tools: {
-        title: 'Bring in your other tools',
-        subtitle: 'Optional. You can add these later from settings.',
+        title: 'Connect other tools',
+        subtitle: 'Optional. You can connect these later in settings.',
     },
     team: {
         title: 'Connect Slack and GitHub',
-        subtitle: 'You can also do this later from home.',
+        subtitle: 'Optional. You can connect these later from home.',
     },
 } as const satisfies Record<string, { title: string; subtitle: string | null }>;

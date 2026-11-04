@@ -62,7 +62,7 @@ export const SemanticLayerCard: FC<{
                         component={Link}
                         to={`/projects/${projectUuid}/metrics`}
                     >
-                        Explore
+                        Explore metrics
                     </Button>
                     <Button
                         size="xs"
@@ -73,7 +73,7 @@ export const SemanticLayerCard: FC<{
                             open();
                         }}
                     >
-                        Learn
+                        How it works
                     </Button>
                 </Group>
             </Box>

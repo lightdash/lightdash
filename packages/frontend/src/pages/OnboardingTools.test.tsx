@@ -90,7 +90,7 @@ describe('OnboardingTools', () => {
 
         expect(
             await screen.findByRole('heading', {
-                name: 'Bring in your other tools',
+                name: 'Connect other tools',
             }),
         ).toBeInTheDocument();
         expect(screen.getByText('Product analytics')).toBeInTheDocument();

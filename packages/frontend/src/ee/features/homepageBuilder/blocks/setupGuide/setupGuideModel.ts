@@ -240,7 +240,7 @@ const starterDashboardRow = ({
 }: SetupGuideFacts): SetupGuideRow => {
     const common = {
         id: 'starter-dashboard',
-        title: 'Start from a first dashboard',
+        title: 'Create a starter dashboard',
         actionKey: null,
         preview: null,
     } as const;
@@ -259,7 +259,7 @@ const starterDashboardRow = ({
         return {
             ...common,
             status: 'building',
-            evidence: evidence('Drafted once your models are ready'),
+            evidence: evidence('Starts once your models are ready'),
             action: null,
         };
     }
@@ -366,7 +366,7 @@ export const buildSetupGuide = (
                   {
                       id: 'more-data' as const,
                       title: 'More data',
-                      why: 'Live sources can be combined with your metrics in Ask AI.',
+                      why: `${AI_NAME} can combine live sources with your metrics.`,
                       rows: [appDataRow(facts)],
                   },
               ]

@@ -268,7 +268,7 @@ describe('SetupGuideView', () => {
         renderGuide(building);
         expect(
             screen.getByText(
-                'Lightdash is drafting your metrics and first dashboard',
+                'Lightdash is drafting your metrics and starter dashboard',
             ),
         ).toBeInTheDocument();
         await userEvent.click(screen.getByRole('button', { name: 'Watch' }));

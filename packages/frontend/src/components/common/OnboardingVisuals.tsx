@@ -91,7 +91,7 @@ const TABLES: [string, string][] = [
 const WarehouseVisual: FC = () => (
     <Figure
         title="Your data stays where it is"
-        body="Charts, dashboards and answers query your warehouse directly. Nothing gets copied."
+        body="Charts, dashboards and answers query your warehouse directly."
     >
         <Box className={classes.card} __vars={{ '--i': '0' }}>
             <Group gap={8} wrap="nowrap" className={classes.cardHeader}>
@@ -260,7 +260,7 @@ export const ToolsVisual: FC<{ warehouse: WarehouseTypes | null }> = ({
 const TeamVisual: FC = () => (
     <Figure
         title={null}
-        body="Anyone can ask in a thread. New metrics only go live after you approve the pull request."
+        body="Anyone can ask in a thread. New metrics only go live after you merge the pull request."
     >
         <Box className={classes.card} __vars={{ '--i': '0' }}>
             <Group gap={6} wrap="nowrap" className={classes.cardHeader}>

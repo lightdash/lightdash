@@ -72,8 +72,8 @@ export const LiveSourcesNote: FC = () => {
             <TeaserIcons sources={sources} />
             <Text size="xs" c="dimmed">
                 {hasGoogle
-                    ? 'After this, you can also add live sources like PostHog and GA4.'
-                    : 'After this, you can also add PostHog as a live source.'}
+                    ? 'After this, you can also connect PostHog, GA4 and Search Console.'
+                    : 'After this, you can also connect PostHog.'}
             </Text>
         </Group>
     );

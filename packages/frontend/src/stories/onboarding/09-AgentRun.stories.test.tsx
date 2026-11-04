@@ -20,7 +20,7 @@ describe('agent onboarding run stories', () => {
         ).toBeInTheDocument();
         expect(
             within(screen.getByRole('listitem', { current: 'step' })).getByText(
-                'Define metrics',
+                'Build semantic layer',
             ),
         ).toBeInTheDocument();
         expect(screen.getByText('Wrote the orders model')).toBeInTheDocument();

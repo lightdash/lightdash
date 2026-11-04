@@ -271,7 +271,7 @@ export class OnboardingAgentService extends BaseService {
         const failed = await this.agentOnboardingRunModel.markFailedIfIdle(
             run.agent_onboarding_run_uuid,
             ABANDONED_RUN_IDLE_MS,
-            'The setup run stopped responding. Try again to start over.',
+            'The setup run stopped responding.',
         );
         if (!failed) return run;
         return (

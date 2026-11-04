@@ -67,7 +67,6 @@ export const InviteTeammateModal: FC<{
         });
         showToastSuccess({
             title: `Invite sent to ${values.email}`,
-            subtitle: "We'll take them straight to warehouse setup.",
         });
         close();
     });
@@ -76,7 +75,7 @@ export const InviteTeammateModal: FC<{
         <MantineModal
             opened={opened}
             onClose={close}
-            title="Ask them to connect your data"
+            title="Invite a teammate to connect your warehouse"
             description={
                 needsName
                     ? "They'll land straight on warehouse setup. Add your name so they know who's asking."
