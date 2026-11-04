@@ -132,7 +132,6 @@ export const OnboardingDoneStep: FC<{ projectUuid: string }> = ({
                             disabled={!areMetricsLive}
                             onClick={() => ask(FIRST_QUESTION)}
                             rightSection={<MantineIcon icon={IconArrowRight} />}
-                            className={classes.primary}
                         >
                             Ask your first question
                         </Button>

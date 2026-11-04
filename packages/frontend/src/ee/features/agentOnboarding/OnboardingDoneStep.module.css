@@ -66,20 +66,6 @@
     }
 }
 
-.primary {
-    box-shadow: 0 6px 20px -8px rgb(0 0 0 / 0.45);
-    transition:
-        transform 150ms ease,
-        box-shadow 150ms ease;
-}
-
-@media (hover: hover) and (pointer: fine) {
-    .primary:not(:disabled):hover {
-        transform: translateY(-1px);
-        box-shadow: 0 10px 24px -8px rgb(0 0 0 / 0.5);
-    }
-}
-
 /* The title arrives with the tick, so it must not also morph in from the last step */
 .column h1[class] {
     view-transition-name: none;
