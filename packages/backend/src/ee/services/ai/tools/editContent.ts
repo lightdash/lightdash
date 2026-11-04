@@ -1,4 +1,6 @@
 import {
+    documentEditContentArgsSchema,
+    documentEditContentToolDefinition,
     editContentToolDefinition,
     mcpEditContentArgsSchema,
     mcpEditContentToolDefinition,
@@ -26,12 +28,32 @@ type Dependencies = {
     editContent: EditContentFn;
     sqlChartSaving?: SqlChartSaving;
     documentsEnabled?: boolean;
+    /** False when the actor can save Documents but not charts or dashboards. */
+    chartsEnabled?: boolean;
     artifacts?: ArtifactChartExportAccess;
 };
 
 type EditedContent = Awaited<ReturnType<EditContentFn>>;
 
 const toolDefinition = editContentToolDefinition.for('agent');
+
+const getToolVariant = (documentsEnabled: boolean, chartsEnabled: boolean) => {
+    if (!documentsEnabled) {
+        return {
+            definition: toolDefinition,
+            schema: toolEditContentArgsSchema,
+        };
+    }
+    return chartsEnabled
+        ? {
+              definition: mcpEditContentToolDefinition.for('agent'),
+              schema: mcpEditContentArgsSchema,
+          }
+        : {
+              definition: documentEditContentToolDefinition.for('agent'),
+              schema: documentEditContentArgsSchema,
+          };
+};
 
 const contentResult = ({
     content,
@@ -80,6 +102,7 @@ export const executeEditContent = async (
         editContent,
         sqlChartSaving = { mode: 'disabled' },
         documentsEnabled = false,
+        chartsEnabled = true,
         artifacts,
     }: Dependencies,
     args: z.infer<typeof mcpEditContentArgsSchema>,
@@ -87,10 +110,7 @@ export const executeEditContent = async (
 ) => {
     const { slug, type, patch, documentEdit } = args;
     try {
-        (documentsEnabled
-            ? mcpEditContentArgsSchema
-            : toolEditContentArgsSchema
-        ).parse(args);
+        getToolVariant(documentsEnabled, chartsEnabled).schema.parse(args);
         const getEditArgs = async (): Promise<Parameters<EditContentFn>[0]> => {
             if (type === 'document') {
                 if (patch !== undefined || documentEdit === undefined) {
@@ -178,11 +198,10 @@ export const getEditContent = ({
     editContent,
     sqlChartSaving = { mode: 'disabled' },
     documentsEnabled = false,
+    chartsEnabled = true,
     artifacts,
 }: Dependencies) => {
-    const definition = documentsEnabled
-        ? mcpEditContentToolDefinition.for('agent')
-        : toolDefinition;
+    const { definition } = getToolVariant(documentsEnabled, chartsEnabled);
     const inputSchema: FlexibleSchema<
         z.infer<typeof mcpEditContentArgsSchema>
     > = definition.inputSchema;
@@ -199,6 +218,7 @@ export const getEditContent = ({
                         editContent,
                         sqlChartSaving,
                         documentsEnabled,
+                        chartsEnabled,
                         artifacts,
                     },
                     args,

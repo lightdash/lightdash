@@ -244,7 +244,9 @@ export class SpacePermissionService extends BaseService {
         spaceUuids: string[],
         {
             subjectType = 'Space',
-        }: { subjectType?: 'Space' | 'SavedChart' | 'Dashboard' } = {},
+        }: {
+            subjectType?: 'Space' | 'SavedChart' | 'Dashboard' | 'Document';
+        } = {},
     ): Promise<string[]> {
         const accessContext = await this.getSpacesCaslContext(spaceUuids, {
             userUuid: user.userUuid,

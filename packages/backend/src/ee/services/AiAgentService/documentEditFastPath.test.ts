@@ -95,7 +95,7 @@ const setup = ({
         },
         aiAgentToolsService: {
             createRuntime: vi.fn().mockReturnValue(runtime),
-            canAuthorContent: vi.fn().mockResolvedValue(authorized),
+            canAuthorDocuments: vi.fn().mockResolvedValue(authorized),
         },
     } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
     const privateService = service as unknown as PrivateService;

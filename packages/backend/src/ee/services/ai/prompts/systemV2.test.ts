@@ -759,10 +759,13 @@ describe('getSystemPromptV2 Deep Research context', () => {
         expect(content).not.toContain('`editContent` it');
     });
 
-    test('lets content tools update a published report in place', () => {
+    test('lets Document tools update a published report in place', () => {
         const content = promptText({
             availableExplores: [],
-            promptSections: new Set<PromptSection>(['contentTools']),
+            promptSections: new Set<PromptSection>([
+                'contentTools',
+                'documents',
+            ]),
             deepResearchRuns: [
                 {
                     uuid: 'run-1',
@@ -786,6 +789,29 @@ describe('getSystemPromptV2 Deep Research context', () => {
         expect(content).not.toContain(
             'You cannot update a published report here',
         );
+    });
+
+    test('does not offer report updates when only charts can be saved', () => {
+        const content = promptText({
+            availableExplores: [],
+            promptSections: new Set<PromptSection>(['contentTools']),
+            deepResearchRuns: [
+                {
+                    uuid: 'run-1',
+                    question: 'Why did revenue fall?',
+                    status: 'completed',
+                    phase: null,
+                    activity: null,
+                    progressCurrent: null,
+                    progressTotal: null,
+                    startedAt: '2026-07-29T10:00:00.000Z',
+                    elapsedSeconds: 600,
+                    hasReport: true,
+                },
+            ],
+        });
+
+        expect(content).toContain('You cannot update a published report here');
     });
 });
 

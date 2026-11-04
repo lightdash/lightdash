@@ -15906,7 +15906,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         return agent.enableContentTools && agent.enableDataAccess;
     }
 
-    /** The agent offers content write tools when the setting is on and the user can save content where the run may write. */
+    /** The agent offers chart and dashboard write tools when the setting is on and the user can save one where the run may write. */
     private async canUseContentWriteTools(
         user: SessionUser,
         agent: Pick<AiAgent, 'enableContentTools' | 'enableDataAccess'>,
@@ -15916,6 +15916,23 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         return (
             AiAgentService.canReadContent(agent) &&
             this.aiAgentToolsService.canAuthorContent({
+                user,
+                projectUuid,
+                spaceUuids: writeSpaceUuids,
+            })
+        );
+    }
+
+    /** The agent offers Documents when the setting is on and the user can save a Document in a Space where the run may write. */
+    private async canUseDocumentTools(
+        user: SessionUser,
+        agent: Pick<AiAgent, 'enableContentTools' | 'enableDataAccess'>,
+        projectUuid: string,
+        writeSpaceUuids: string[] | null,
+    ): Promise<boolean> {
+        return (
+            AiAgentService.canReadContent(agent) &&
+            this.aiAgentToolsService.canAuthorDocuments({
                 user,
                 projectUuid,
                 spaceUuids: writeSpaceUuids,
@@ -15944,7 +15961,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         if (
             documentSlug === null ||
             pinsOtherContent ||
-            !(await this.canUseContentWriteTools(
+            !(await this.canUseDocumentTools(
                 user,
                 agent,
                 prompt.projectUuid,
@@ -17014,14 +17031,25 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 const canReadContent =
                     hasTrustedPromptUserIdentity &&
                     AiAgentService.canReadContent(agentSettings);
-                const canUseContentWriteTools =
-                    hasTrustedPromptUserIdentity &&
-                    (await this.canUseContentWriteTools(
-                        user,
-                        agentSettings,
-                        promptProject.projectUuid,
-                        options.runtimeOptions?.writeSpaceUuids ?? null,
-                    ));
+                const writeSpaceUuids =
+                    options.runtimeOptions?.writeSpaceUuids ?? null;
+                const [canUseContentWriteTools, canUseDocumentTools] =
+                    hasTrustedPromptUserIdentity
+                        ? await Promise.all([
+                              this.canUseContentWriteTools(
+                                  user,
+                                  agentSettings,
+                                  promptProject.projectUuid,
+                                  writeSpaceUuids,
+                              ),
+                              this.canUseDocumentTools(
+                                  user,
+                                  agentSettings,
+                                  promptProject.projectUuid,
+                                  writeSpaceUuids,
+                              ),
+                          ])
+                        : [false, false];
                 const enableGenerateDataApp =
                     canUseContentWriteTools &&
                     (await this.aiAgentToolsService.canGenerateDataApp({
@@ -17118,7 +17146,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     suppressWritebackPreview: options.suppressWritebackPreview,
                     dbtSourceUuid: options.dbtSourceUuid,
                     onWarehouseQuery: responseExecution.onWarehouseQuery,
-                    enableDocuments: canUseContentWriteTools,
+                    enableDocuments: canUseDocumentTools,
                     enableRuntimeCache: !!decisions,
                     // Battle sides must not warm one another's result cache. Normal
                     // threads retain production cache behavior.
@@ -17379,7 +17407,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     enableSelfImprovement: agentSettings.enableSelfImprovement,
                     enableContentReads: canReadContent,
                     enableContentTools: canUseContentWriteTools,
-                    enableDocuments: canUseContentWriteTools,
+                    enableDocuments: canUseDocumentTools,
                     enableGenerateDataApp,
                     enableAiWriteback: aiWritebackEnabled,
                     enableEditProjectContext: isReviewRemediationWorkThread,
