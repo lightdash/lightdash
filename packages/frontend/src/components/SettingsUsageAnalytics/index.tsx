@@ -1,9 +1,9 @@
-import { Card, Group, Stack, Text } from '@mantine/core';
+import { Button } from '@mantine/core';
 import { IconLayoutDashboard } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
-import MantineIcon from '../common/MantineIcon';
-import classes from './SettingsUsageAnalytics.module.css';
+import { SettingRow } from '../common/Settings/SettingLayout';
+import { SettingsCard } from '../common/Settings/SettingsCard';
 
 interface ProjectUserAccessProps {
     projectUuid: string;
@@ -13,25 +13,23 @@ const SettingsUsageAnalytics: FC<ProjectUserAccessProps> = ({
     projectUuid,
 }) => {
     return (
-        <Stack gap="md">
-            <Card
-                component={Link}
-                shadow="sm"
-                className={classes.linkCard}
-                to={`/projects/${projectUuid}/user-activity`}
-            >
-                <Group>
-                    <MantineIcon
-                        icon={IconLayoutDashboard}
-                        size="xl"
-                        color="dimmed"
-                    />
-                    <Text fw={600} fz="lg">
-                        User Activity
-                    </Text>
-                </Group>
-            </Card>
-        </Stack>
+        <SettingsCard>
+            <SettingRow
+                title="User activity"
+                description="Active users, queries, and chart and dashboard views for this project."
+                icon={IconLayoutDashboard}
+                control={
+                    <Button
+                        component={Link}
+                        to={`/projects/${projectUuid}/user-activity`}
+                        variant="default"
+                        size="xs"
+                    >
+                        Open dashboard
+                    </Button>
+                }
+            />
+        </SettingsCard>
     );
 };
 

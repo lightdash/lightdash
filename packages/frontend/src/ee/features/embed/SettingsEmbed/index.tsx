@@ -7,24 +7,22 @@ import {
 } from '@lightdash/common';
 import {
     Anchor,
-    Box,
     Button,
-    Flex,
+    Divider,
     PasswordInput,
     Stack,
     Tabs,
-    Text,
-    Title,
 } from '@mantine/core';
 import { IconAlertCircle, IconKey } from '@tabler/icons-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState, type FC } from 'react';
-import { EmptyState } from '../../../../components/common/EmptyState';
-import MantineIcon from '../../../../components/common/MantineIcon';
+import EmptyStateLoader from '../../../../components/common/EmptyStateLoader';
 import {
-    SettingsCard,
-    SettingsGridCard,
-} from '../../../../components/common/Settings/SettingsCard';
+    SettingRow,
+    SettingsSection,
+} from '../../../../components/common/Settings/SettingLayout';
+import { SettingsCard } from '../../../../components/common/Settings/SettingsCard';
+import { SettingsEmptyState } from '../../../../components/common/Settings/SettingsEmptyState';
 import SuboptimalState from '../../../../components/common/SuboptimalState/SuboptimalState';
 import { useProjectApps } from '../../../../features/apps/hooks/useProjectApps';
 import { useDashboards } from '../../../../hooks/dashboard/useDashboards';
@@ -204,146 +202,137 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
         (aiAgentsEnabled && isLoadingAgents) ||
         !health.data
     ) {
-        return (
-            <Box mt="lg">
-                <SuboptimalState title="Loading embed config" loading />
-            </Box>
-        );
+        return <EmptyStateLoader title="Loading embed config" />;
     }
 
     if (error && error.error.statusCode !== 404) {
         return (
-            <Box mt="lg">
-                <SuboptimalState
-                    title="Embed configuration not available"
-                    description={error.error.message}
-                    icon={IconAlertCircle}
-                />
-            </Box>
+            <SuboptimalState
+                title="Embed configuration not available"
+                description={error.error.message}
+                icon={IconAlertCircle}
+            />
         );
     }
 
     if (!embedConfig) {
         return (
-            <Stack mb="lg">
-                <EmptyState
-                    icon={
-                        <MantineIcon
-                            icon={IconKey}
-                            color="dimmed"
-                            stroke={1}
-                            size="5xl"
-                        />
-                    }
-                    title="No embed secret"
-                    description="You haven't generated any secret yet!"
+            <SettingsEmptyState
+                icon={IconKey}
+                title="No embed secret"
+                description="Generate a secret to start signing embed tokens for dashboards and charts."
+            >
+                <Button
+                    disabled={isSaving}
+                    onClick={() => createEmbedConfig({ dashboardUuids: [] })}
                 >
-                    <Button
-                        disabled={isSaving}
-                        onClick={() =>
-                            createEmbedConfig({ dashboardUuids: [] })
-                        }
-                    >
-                        Generate embed secret
-                    </Button>
-                </EmptyState>
-            </Stack>
+                    Generate embed secret
+                </Button>
+            </SettingsEmptyState>
         );
     }
 
     return (
-        <Stack mb="lg">
-            <SettingsGridCard>
-                <Stack gap="sm">
-                    <Stack gap="xs">
-                        <Title order={4}>Embed secret</Title>
-                        <Text c="dimmed" fz="sm">
-                            Use this secret to generate embed tokens for
-                            embedding dashboards and charts.
-                        </Text>
-                    </Stack>
-                    <Text c="dimmed" fz="xs">
-                        Learn more on how to use your embed secret in our{' '}
-                        <Anchor
-                            href="https://docs.lightdash.com/references/embedding"
-                            fz="xs"
-                            target="_blank"
-                        >
-                            docs guide
-                        </Anchor>
-                        .
-                    </Text>
-                </Stack>
-                <Stack>
-                    <PasswordInput
-                        value={embedConfig.secret}
-                        label={'Secret'}
-                        readOnly
-                    />
-                    <Flex justify="flex-end" gap="sm">
-                        <Button
-                            disabled={isSaving}
-                            onClick={() =>
-                                createEmbedConfig({
-                                    dashboardUuids: embedConfig.dashboardUuids,
-                                })
+        <>
+            <SettingsSection
+                label="Embed secret"
+                description="Use this secret to generate embed tokens for embedding dashboards and charts."
+            >
+                <SettingsCard>
+                    <Stack gap="md">
+                        <SettingRow
+                            title="Secret"
+                            description={
+                                <>
+                                    See the{' '}
+                                    <Anchor
+                                        href="https://docs.lightdash.com/references/embedding"
+                                        fz="xs"
+                                        target="_blank"
+                                    >
+                                        embedding docs
+                                    </Anchor>{' '}
+                                    for how to sign tokens with it.
+                                </>
                             }
                         >
-                            Generate new secret
-                        </Button>
-                    </Flex>
-                </Stack>
-            </SettingsGridCard>
-            <SettingsCard>
-                <Stack gap="xs" mb="md">
-                    <Title order={4}>Allowed content</Title>
-                    <Text c="dimmed" fz="sm">
-                        Select the content you want to allow to be embedded.
-                    </Text>
-                </Stack>
-                <EmbedAllowListForm
-                    disabled={isSaving}
-                    embedConfig={embedConfig}
-                    dashboards={dashboards || []}
-                    charts={charts || []}
-                    apps={apps || []}
-                    showDataApps={dataAppsEnabled}
-                    onSave={updateEmbedConfig}
-                />
-            </SettingsCard>
-            <SettingsCard>
-                <Stack gap="xs" mb="md">
-                    <Title order={4}>Preview & embed code</Title>
-                    <Text c="dimmed" fz="sm">
-                        Configure your content, preview it, and copy the right
-                        embed code for your integration method.
-                    </Text>
-                </Stack>
-                <Tabs
-                    value={activeTab}
-                    onChange={(value) =>
-                        setActiveTab(
-                            value === 'charts' ||
-                                value === 'apps' ||
-                                value === 'aiAgents'
-                                ? value
-                                : 'dashboards',
-                        )
-                    }
-                    keepMounted
-                >
-                    <Tabs.List>
-                        <Tabs.Tab value="dashboards">Dashboards</Tabs.Tab>
-                        <Tabs.Tab value="charts">Charts</Tabs.Tab>
-                        {dataAppsEnabled && (
-                            <Tabs.Tab value="apps">Data apps</Tabs.Tab>
-                        )}
-                        {aiAgentsEnabled && (
-                            <Tabs.Tab value="aiAgents">AI agents</Tabs.Tab>
-                        )}
-                    </Tabs.List>
-                    <Tabs.Panel value="dashboards">
-                        <Stack mt="md">
+                            <PasswordInput
+                                mt="sm"
+                                value={embedConfig.secret}
+                                aria-label="Secret"
+                                readOnly
+                            />
+                        </SettingRow>
+                        <Divider />
+                        <SettingRow
+                            title="Generate new secret"
+                            description="Replaces the current secret. Tokens signed with the old secret stop working."
+                            control={
+                                <Button
+                                    variant="default"
+                                    size="xs"
+                                    disabled={isSaving}
+                                    onClick={() =>
+                                        createEmbedConfig({
+                                            dashboardUuids:
+                                                embedConfig.dashboardUuids,
+                                        })
+                                    }
+                                >
+                                    Generate new secret
+                                </Button>
+                            }
+                        />
+                    </Stack>
+                </SettingsCard>
+            </SettingsSection>
+
+            <SettingsSection
+                label="Allowed content"
+                description="Select the content you want to allow to be embedded."
+            >
+                <SettingsCard>
+                    <EmbedAllowListForm
+                        disabled={isSaving}
+                        embedConfig={embedConfig}
+                        dashboards={dashboards || []}
+                        charts={charts || []}
+                        apps={apps || []}
+                        showDataApps={dataAppsEnabled}
+                        onSave={updateEmbedConfig}
+                    />
+                </SettingsCard>
+            </SettingsSection>
+
+            <SettingsSection
+                label="Preview & embed code"
+                description="Configure your content, preview it, and copy the right embed code for your integration method."
+            >
+                <SettingsCard>
+                    <Tabs
+                        value={activeTab}
+                        onChange={(value) =>
+                            setActiveTab(
+                                value === 'charts' ||
+                                    value === 'apps' ||
+                                    value === 'aiAgents'
+                                    ? value
+                                    : 'dashboards',
+                            )
+                        }
+                        keepMounted
+                    >
+                        <Tabs.List>
+                            <Tabs.Tab value="dashboards">Dashboards</Tabs.Tab>
+                            <Tabs.Tab value="charts">Charts</Tabs.Tab>
+                            {dataAppsEnabled && (
+                                <Tabs.Tab value="apps">Data apps</Tabs.Tab>
+                            )}
+                            {aiAgentsEnabled && (
+                                <Tabs.Tab value="aiAgents">AI agents</Tabs.Tab>
+                            )}
+                        </Tabs.List>
+                        <Tabs.Panel value="dashboards" pt="md">
                             <EmbedPreviewDashboardForm
                                 projectUuid={projectUuid}
                                 siteUrl={health.data.siteUrl}
@@ -366,10 +355,8 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                                     ) : null
                                 }
                             />
-                        </Stack>
-                    </Tabs.Panel>
-                    <Tabs.Panel value="charts">
-                        <Stack mt="md">
+                        </Tabs.Panel>
+                        <Tabs.Panel value="charts" pt="md">
                             <EmbedPreviewChartForm
                                 projectUuid={projectUuid}
                                 siteUrl={health.data.siteUrl}
@@ -389,22 +376,18 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                                     ) : null
                                 }
                             />
-                        </Stack>
-                    </Tabs.Panel>
-                    {dataAppsEnabled && (
-                        <Tabs.Panel value="apps">
-                            <Stack mt="md">
+                        </Tabs.Panel>
+                        {dataAppsEnabled && (
+                            <Tabs.Panel value="apps" pt="md">
                                 <EmbedPreviewAppForm
                                     projectUuid={projectUuid}
                                     siteUrl={health.data.siteUrl}
                                     apps={allowedApps}
                                 />
-                            </Stack>
-                        </Tabs.Panel>
-                    )}
-                    {aiAgentsEnabled && (
-                        <Tabs.Panel value="aiAgents">
-                            <Stack mt="md">
+                            </Tabs.Panel>
+                        )}
+                        {aiAgentsEnabled && (
+                            <Tabs.Panel value="aiAgents" pt="md">
                                 <EmbedPreviewAiAgentForm
                                     projectUuid={projectUuid}
                                     siteUrl={health.data.siteUrl}
@@ -422,12 +405,12 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                                         ) : null
                                     }
                                 />
-                            </Stack>
-                        </Tabs.Panel>
-                    )}
-                </Tabs>
-            </SettingsCard>
-        </Stack>
+                            </Tabs.Panel>
+                        )}
+                    </Tabs>
+                </SettingsCard>
+            </SettingsSection>
+        </>
     );
 };
 

@@ -14,6 +14,7 @@ import {
     Code,
     Divider,
     Group,
+    Input,
     Menu,
     MultiSelect,
     ScrollArea,
@@ -423,16 +424,14 @@ const EmbedWriteActionsForm: FC<Props> = ({
 
                     <Stack gap="xs">
                         <Title order={6}>Run actions as</Title>
-                        <Text c="dimmed" fz="sm">
+                        <Text c="dimmed" fz="xs">
                             Select the service account Lightdash should use when
                             an embed action needs read or write permissions.
                         </Text>
                     </Stack>
 
                     <Stack gap="xs">
-                        <Text size="sm" fw={500}>
-                            Service account
-                        </Text>
+                        <Input.Label>Service account</Input.Label>
                         <Menu
                             width="target"
                             position="bottom-start"
@@ -518,9 +517,9 @@ const EmbedWriteActionsForm: FC<Props> = ({
                     )}
 
                     <Stack gap="xs">
-                        <Text size="sm" fw={500}>
+                        <Input.Label>
                             Default space for created content
-                        </Text>
+                        </Input.Label>
                         <Menu
                             width="target"
                             position="bottom-start"
@@ -684,9 +683,7 @@ const EmbedWriteActionsForm: FC<Props> = ({
                         }
                     />
                     <Stack gap="xs">
-                        <Text size="sm" fw={500}>
-                            Role type
-                        </Text>
+                        <Input.Label>Role type</Input.Label>
                         <SegmentedControl
                             fullWidth
                             data={[

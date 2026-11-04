@@ -17,14 +17,12 @@ import {
     Flex,
     Group,
     Input,
-    Paper,
     SegmentedControl,
     Select,
     Stack,
     Switch,
     Text,
     TextInput,
-    Title,
     Tooltip,
     useComputedColorScheme,
 } from '@mantine/core';
@@ -48,6 +46,7 @@ import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeature
 import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 import EmbedCodeSnippet, { type EmbedMethod } from './EmbedCodeSnippet';
 import EmbedFiltersInteractivity from './EmbedFiltersInteractivity';
+import { EmbedFormSection } from './EmbedFormSection';
 
 const useEmbedUrlCreateMutation = (projectUuid: string) => {
     const lightdashApi = useLightdashApi();
@@ -249,7 +248,7 @@ const EmbedPreviewDashboardForm: FC<{
 
     return (
         <form id="generate-embed-url" onSubmit={handleCopySubmit}>
-            <Stack gap="md" mb="md">
+            <Stack gap="md">
                 <Select
                     required
                     label="Dashboard"
@@ -274,9 +273,7 @@ const EmbedPreviewDashboardForm: FC<{
                 />
 
                 <Stack gap="xs">
-                    <Text size="sm" fw={500}>
-                        Expires in
-                    </Text>
+                    <Input.Label>Expires in</Input.Label>
                     <SegmentedControl
                         value={form.values.expiresIn}
                         onChange={(value) =>
@@ -293,228 +290,213 @@ const EmbedPreviewDashboardForm: FC<{
                     />
                 </Stack>
 
-                <Paper p="md">
-                    <Stack gap="md">
-                        <Title order={6}>Identification & Security</Title>
-                        <Stack gap="xs">
-                            <Input.Wrapper label="User identifier">
-                                <TextInput
-                                    size="xs"
-                                    placeholder="1234"
-                                    {...form.getInputProps('externalId')}
-                                />
-                            </Input.Wrapper>
-
-                            <Input.Wrapper label="User email">
-                                <TextInput
-                                    size="xs"
-                                    placeholder="Type an email to add as intrinsic user attribute"
-                                    {...form.getInputProps('email')}
-                                />
-                            </Input.Wrapper>
-
-                            <Input.Wrapper label="User attributes">
-                                <Stack gap="xs" mt="xs">
-                                    {form.values.userAttributes.map(
-                                        (item, index) => (
-                                            <Group
-                                                key={item.uuid}
-                                                gap="xs"
-                                                wrap="nowrap"
-                                            >
-                                                <TextInput
-                                                    size="xs"
-                                                    placeholder="E.g. user_country"
-                                                    flex={1}
-                                                    {...form.getInputProps(
-                                                        `userAttributes.${index}.key`,
-                                                    )}
-                                                />
-                                                <TextInput
-                                                    size="xs"
-                                                    placeholder="E.g. US"
-                                                    flex={1}
-                                                    {...form.getInputProps(
-                                                        `userAttributes.${index}.value`,
-                                                    )}
-                                                />
-                                                <ActionIcon
-                                                    variant="light"
-                                                    color="red"
-                                                    onClick={() =>
-                                                        form.removeListItem(
-                                                            'userAttributes',
-                                                            index,
-                                                        )
-                                                    }
-                                                >
-                                                    <MantineIcon
-                                                        icon={IconTrash}
-                                                    />
-                                                </ActionIcon>
-                                            </Group>
-                                        ),
-                                    )}
-                                    <Button
-                                        size="xs"
-                                        variant="default"
-                                        leftSection={
-                                            <MantineIcon icon={IconPlus} />
-                                        }
-                                        onClick={() =>
-                                            form.insertListItem(
-                                                'userAttributes',
-                                                {
-                                                    key: '',
-                                                    value: '',
-                                                    uuid: uuidv4(),
-                                                },
-                                            )
-                                        }
-                                    >
-                                        Add attribute
-                                    </Button>
-                                </Stack>
-                            </Input.Wrapper>
-                        </Stack>
-                    </Stack>
-                </Paper>
-
-                <Paper p="md">
-                    <Stack gap="sm">
-                        <Title order={6}>Interactivity & Permissions</Title>
-                        <Stack gap="md">
-                            <EmbedFiltersInteractivity
-                                dashboardUuid={form.values.dashboardUuid}
-                                onInteractivityOptionsChange={(
-                                    interactivityOptions,
-                                ) => {
-                                    form.setFieldValue(
-                                        'dashboardFiltersInteractivity',
-                                        interactivityOptions,
-                                    );
-                                }}
-                                interactivityOptions={
-                                    form.values.dashboardFiltersInteractivity
-                                }
+                <Divider />
+                <EmbedFormSection title="Identification & security">
+                    <Stack gap="xs">
+                        <Input.Wrapper label="User identifier">
+                            <TextInput
+                                size="xs"
+                                placeholder="1234"
+                                {...form.getInputProps('externalId')}
                             />
+                        </Input.Wrapper>
 
-                            <Stack gap="xs">
-                                <Text size="sm" fw={500}>
-                                    Users can:
-                                </Text>
-                                <Switch
-                                    checked={
-                                        form.values.parameterInteractivity
-                                            .enabled
-                                    }
-                                    onChange={(event) =>
-                                        form.setFieldValue(
-                                            'parameterInteractivity',
-                                            {
-                                                enabled:
-                                                    event.currentTarget.checked,
-                                            },
-                                        )
-                                    }
-                                    label="Change parameters"
-                                />
-                                <Switch
-                                    {...form.getInputProps('canExportCsv', {
-                                        type: 'checkbox',
-                                    })}
-                                    label="Export CSV (per tile)"
-                                />
-                                <Switch
-                                    {...form.getInputProps(
-                                        'canExportDashboardCsv',
-                                        {
-                                            type: 'checkbox',
-                                        },
-                                    )}
-                                    label="Export all tiles (CSV/XLSX ZIP)"
-                                />
-                                <Switch
-                                    {...form.getInputProps('canExportImages', {
-                                        type: 'checkbox',
-                                    })}
-                                    label="Export Images"
-                                />
-                                <Switch
-                                    {...form.getInputProps('canExportPagePdf', {
-                                        type: 'checkbox',
-                                    })}
-                                    label="Export page to PDF"
-                                    defaultChecked={true}
-                                />
-                                <Switch
-                                    {...form.getInputProps('canDateZoom', {
-                                        type: 'checkbox',
-                                    })}
-                                    label="Date zoom"
-                                />
-                                <Switch
-                                    {...form.getInputProps('canExplore', {
-                                        type: 'checkbox',
-                                    })}
-                                    label="Explore charts"
-                                />
-                                <Switch
-                                    {...form.getInputProps(
-                                        'canViewUnderlyingData',
-                                        {
-                                            type: 'checkbox',
-                                        },
-                                    )}
-                                    label="View underlying data"
-                                />
-                                {dataAppsEnabled && (
-                                    <Switch
-                                        {...form.getInputProps(
-                                            'canViewDataApps',
-                                            { type: 'checkbox' },
-                                        )}
-                                        label={
-                                            <Group gap="xs">
-                                                <Text inherit>
-                                                    View data apps
-                                                </Text>
-                                                <Tooltip
-                                                    label="Lets data apps run project-wide metric queries and use external connections linked by an admin."
-                                                    maw="300px"
-                                                    position="right"
-                                                >
-                                                    <MantineIcon
-                                                        icon={IconInfoCircle}
-                                                        size="sm"
-                                                    />
-                                                </Tooltip>
-                                            </Group>
-                                        }
-                                    />
+                        <Input.Wrapper label="User email">
+                            <TextInput
+                                size="xs"
+                                placeholder="Type an email to add as intrinsic user attribute"
+                                {...form.getInputProps('email')}
+                            />
+                        </Input.Wrapper>
+
+                        <Input.Wrapper label="User attributes">
+                            <Stack gap="xs" mt="xs">
+                                {form.values.userAttributes.map(
+                                    (item, index) => (
+                                        <Group
+                                            key={item.uuid}
+                                            gap="xs"
+                                            wrap="nowrap"
+                                        >
+                                            <TextInput
+                                                size="xs"
+                                                placeholder="E.g. user_country"
+                                                flex={1}
+                                                {...form.getInputProps(
+                                                    `userAttributes.${index}.key`,
+                                                )}
+                                            />
+                                            <TextInput
+                                                size="xs"
+                                                placeholder="E.g. US"
+                                                flex={1}
+                                                {...form.getInputProps(
+                                                    `userAttributes.${index}.value`,
+                                                )}
+                                            />
+                                            <ActionIcon
+                                                variant="light"
+                                                color="red"
+                                                onClick={() =>
+                                                    form.removeListItem(
+                                                        'userAttributes',
+                                                        index,
+                                                    )
+                                                }
+                                            >
+                                                <MantineIcon icon={IconTrash} />
+                                            </ActionIcon>
+                                        </Group>
+                                    ),
                                 )}
+                                <Button
+                                    size="xs"
+                                    variant="default"
+                                    leftSection={
+                                        <MantineIcon icon={IconPlus} />
+                                    }
+                                    onClick={() =>
+                                        form.insertListItem('userAttributes', {
+                                            key: '',
+                                            value: '',
+                                            uuid: uuidv4(),
+                                        })
+                                    }
+                                >
+                                    Add attribute
+                                </Button>
                             </Stack>
+                        </Input.Wrapper>
+                    </Stack>
+                </EmbedFormSection>
 
-                            <Stack gap="xs">
-                                <Text size="sm" fw={500}>
-                                    Appearance:
-                                </Text>
+                <Divider />
+                <EmbedFormSection title="Interactivity & permissions">
+                    <Stack gap="md">
+                        <EmbedFiltersInteractivity
+                            dashboardUuid={form.values.dashboardUuid}
+                            onInteractivityOptionsChange={(
+                                interactivityOptions,
+                            ) => {
+                                form.setFieldValue(
+                                    'dashboardFiltersInteractivity',
+                                    interactivityOptions,
+                                );
+                            }}
+                            interactivityOptions={
+                                form.values.dashboardFiltersInteractivity
+                            }
+                        />
+
+                        <Stack gap="xs">
+                            <Input.Label>Users can:</Input.Label>
+                            <Switch
+                                checked={
+                                    form.values.parameterInteractivity.enabled
+                                }
+                                onChange={(event) =>
+                                    form.setFieldValue(
+                                        'parameterInteractivity',
+                                        {
+                                            enabled:
+                                                event.currentTarget.checked,
+                                        },
+                                    )
+                                }
+                                label="Change parameters"
+                            />
+                            <Switch
+                                {...form.getInputProps('canExportCsv', {
+                                    type: 'checkbox',
+                                })}
+                                label="Export CSV (per tile)"
+                            />
+                            <Switch
+                                {...form.getInputProps(
+                                    'canExportDashboardCsv',
+                                    {
+                                        type: 'checkbox',
+                                    },
+                                )}
+                                label="Export all tiles (CSV/XLSX ZIP)"
+                            />
+                            <Switch
+                                {...form.getInputProps('canExportImages', {
+                                    type: 'checkbox',
+                                })}
+                                label="Export Images"
+                            />
+                            <Switch
+                                {...form.getInputProps('canExportPagePdf', {
+                                    type: 'checkbox',
+                                })}
+                                label="Export page to PDF"
+                                defaultChecked={true}
+                            />
+                            <Switch
+                                {...form.getInputProps('canDateZoom', {
+                                    type: 'checkbox',
+                                })}
+                                label="Date zoom"
+                            />
+                            <Switch
+                                {...form.getInputProps('canExplore', {
+                                    type: 'checkbox',
+                                })}
+                                label="Explore charts"
+                            />
+                            <Switch
+                                {...form.getInputProps(
+                                    'canViewUnderlyingData',
+                                    {
+                                        type: 'checkbox',
+                                    },
+                                )}
+                                label="View underlying data"
+                            />
+                            {dataAppsEnabled && (
                                 <Switch
-                                    {...form.getInputProps('stickyHeader', {
+                                    {...form.getInputProps('canViewDataApps', {
                                         type: 'checkbox',
                                     })}
-                                    label="Sticky header (keep tabs & filters visible when scrolling)"
+                                    label={
+                                        <Group gap="xs">
+                                            <Text inherit>View data apps</Text>
+                                            <Tooltip
+                                                label="Lets data apps run project-wide metric queries and use external connections linked by an admin."
+                                                maw="300px"
+                                                position="right"
+                                            >
+                                                <MantineIcon
+                                                    icon={IconInfoCircle}
+                                                    size="sm"
+                                                />
+                                            </Tooltip>
+                                        </Group>
+                                    }
                                 />
-                            </Stack>
+                            )}
+                        </Stack>
+
+                        <Stack gap="xs">
+                            <Input.Label>Appearance:</Input.Label>
+                            <Switch
+                                {...form.getInputProps('stickyHeader', {
+                                    type: 'checkbox',
+                                })}
+                                label="Sticky header (keep tabs & filters visible when scrolling)"
+                            />
                         </Stack>
                     </Stack>
-                </Paper>
+                </EmbedFormSection>
 
                 {writeActionsPanel && (
-                    <Paper p="md">
-                        <Stack gap="xs" mb="md">
-                            <Group gap="sm">
-                                <Title order={6}>Write actions</Title>
+                    <>
+                        <Divider />
+                        <EmbedFormSection
+                            title="Write actions"
+                            description="Choose which Lightdash actor should power embedded actions like creating scheduled deliveries or saving charts."
+                            titleAddon={
                                 <Badge
                                     color="violet"
                                     size="sm"
@@ -522,15 +504,11 @@ const EmbedPreviewDashboardForm: FC<{
                                 >
                                     Experimental
                                 </Badge>
-                            </Group>
-                            <Text c="dimmed" fz="sm">
-                                Choose which Lightdash actor should power
-                                embedded actions like creating scheduled
-                                deliveries or saving charts.
-                            </Text>
-                        </Stack>
-                        {writeActionsPanel}
-                    </Paper>
+                            }
+                        >
+                            {writeActionsPanel}
+                        </EmbedFormSection>
+                    </>
                 )}
 
                 <Flex justify="flex-end" gap="sm">
@@ -549,15 +527,10 @@ const EmbedPreviewDashboardForm: FC<{
                         Generate & copy URL
                     </Button>
                 </Flex>
-            </Stack>
+                <Divider />
 
-            <Divider mb="md" />
-
-            <Stack gap="md" mb="md">
                 <Stack gap="xs">
-                    <Text size="sm" fw={500}>
-                        Embed method
-                    </Text>
+                    <Input.Label>Embed method</Input.Label>
                     <SegmentedControl
                         value={embedMethod}
                         onChange={(value) =>
@@ -569,24 +542,25 @@ const EmbedPreviewDashboardForm: FC<{
                         ]}
                     />
                 </Stack>
-                <Stack gap="xs">
-                    <Title order={5}>
-                        {embedMethod === 'iframe'
+                <EmbedFormSection
+                    title={
+                        embedMethod === 'iframe'
                             ? 'Iframe embed code'
-                            : 'React SDK code'}
-                    </Title>
-                    <Text c="dimmed" fz="sm">
-                        {embedMethod === 'iframe'
+                            : 'React SDK code'
+                    }
+                    description={
+                        embedMethod === 'iframe'
                             ? 'Use this for iframe or direct embedding with a full embed URL.'
-                            : 'Use this for React SDK embedding with a backend-generated JWT.'}
-                    </Text>
-                </Stack>
-                <EmbedCodeSnippet
-                    mode={embedMethod}
-                    projectUuid={projectUuid}
-                    siteUrl={siteUrl}
-                    data={convertFormValuesToCreateEmbedJwt(formValues)}
-                />
+                            : 'Use this for React SDK embedding with a backend-generated JWT.'
+                    }
+                >
+                    <EmbedCodeSnippet
+                        mode={embedMethod}
+                        projectUuid={projectUuid}
+                        siteUrl={siteUrl}
+                        data={convertFormValuesToCreateEmbedJwt(formValues)}
+                    />
+                </EmbedFormSection>
             </Stack>
         </form>
     );

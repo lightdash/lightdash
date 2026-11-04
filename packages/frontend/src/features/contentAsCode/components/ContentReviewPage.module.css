@@ -1,6 +1,22 @@
+.panes {
+    display: flex;
+    align-items: stretch;
+}
+
+.listPane {
+    flex: 0 0 17.5rem;
+    padding: var(--mantine-spacing-xs);
+}
+
+.detailPane {
+    flex: 1;
+    min-width: 0;
+    padding: var(--mantine-spacing-md);
+}
+
 .row {
     width: 100%;
-    padding: 6px 8px;
+    padding: var(--mantine-spacing-xs);
     border-radius: var(--mantine-radius-md);
     transition:
         background-color 100ms ease,

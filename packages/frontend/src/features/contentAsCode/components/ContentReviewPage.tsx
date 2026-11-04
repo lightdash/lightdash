@@ -9,7 +9,6 @@ import {
     Avatar,
     Box,
     Button,
-    Center,
     Divider,
     Group,
     Paper,
@@ -17,7 +16,7 @@ import {
     ScrollArea,
     Stack,
     Text,
-    ThemeIcon,
+    Title,
     Tooltip,
     UnstyledButton,
 } from '@mantine/core';
@@ -34,6 +33,8 @@ import {
 import { useMemo, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { SettingsCard } from '../../../components/common/Settings/SettingsCard';
+import { SettingsEmptyState } from '../../../components/common/Settings/SettingsEmptyState';
 import {
     PIERRE_HIGHLIGHTER_OPTIONS,
     PIERRE_POOL_OPTIONS,
@@ -136,7 +137,7 @@ const SectionLabel: FC<{ label: string; count?: number }> = ({
     label,
     count,
 }) => (
-    <Text size="xs" c="dimmed" px={8}>
+    <Text fz="xs" c="dimmed" px="xs">
         {label}
         {count !== undefined ? ` · ${count}` : ''}
     </Text>
@@ -153,14 +154,12 @@ const DraftRow: FC<{
         data-active={isActive}
     >
         <Group gap="sm" wrap="nowrap">
-            <Avatar size={26} radius="xl" color="gray" variant="light">
-                <Text size="10px" fw={600}>
-                    {initials(draft.authorName)}
-                </Text>
+            <Avatar size="sm" radius="xl" color="gray" variant="light">
+                {initials(draft.authorName)}
             </Avatar>
-            <Stack gap={1} flex={1} miw={0}>
-                <Group gap={6} wrap="nowrap">
-                    <Text size="sm" fw={isActive ? 600 : 500} truncate>
+            <Stack gap="xxs" flex={1} miw={0}>
+                <Group gap="xs" wrap="nowrap">
+                    <Text fz="sm" fw={500} truncate>
                         {draft.slug}
                     </Text>
                     {draft.stale ? (
@@ -169,7 +168,7 @@ const DraftRow: FC<{
                         </Badge>
                     ) : null}
                 </Group>
-                <Text size="xs" c="dimmed" truncate>
+                <Text fz="xs" c="dimmed" truncate>
                     {rowMeta(draft)}
                 </Text>
             </Stack>
@@ -184,11 +183,9 @@ const ReviewPlaceholder: FC<{
 }> = ({ active, error, onDismiss }) => {
     if (!active || !error) {
         return (
-            <Box mt="xl">
-                <Text c="dimmed" ta="center">
-                    Select a draft to review
-                </Text>
-            </Box>
+            <Text fz="sm" c="dimmed" ta="center" py="xl">
+                Select a draft to review
+            </Text>
         );
     }
     const title =
@@ -196,10 +193,12 @@ const ReviewPlaceholder: FC<{
             ? `This draft's ${active.contentType} no longer exists.`
             : "This draft couldn't be loaded.";
     return (
-        <Stack mt="xl" gap={4} align="center">
-            <Text ta="center">{title}</Text>
+        <Stack py="xl" gap="xxs" align="center">
+            <Title order={6} ta="center">
+                {title}
+            </Title>
             {error.error.message ? (
-                <Text size="sm" c="dimmed" ta="center">
+                <Text fz="xs" c="dimmed" ta="center">
                     {error.error.message}
                 </Text>
             ) : null}
@@ -258,34 +257,21 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
 
     if (drafts && drafts.length === 0) {
         return (
-            <Center mih={280}>
-                <Stack align="center" gap="xs">
-                    <ThemeIcon
-                        size={44}
-                        radius="xl"
-                        variant="light"
-                        color="gray"
-                    >
-                        <MantineIcon icon={IconEyeCheck} size="lg" />
-                    </ThemeIcon>
-                    <Text fw={600}>All clear</Text>
-                    <Text size="sm" c="dimmed" ta="center" maw={360}>
-                        When editors save unpublished changes to managed charts
-                        or dashboards, their drafts land here for you to review
-                        and write back to the repo.
-                    </Text>
-                </Stack>
-            </Center>
+            <SettingsEmptyState
+                icon={IconEyeCheck}
+                title="All clear"
+                description="When editors save unpublished changes to managed charts or dashboards, their drafts land here for you to review and write back to the repo."
+            />
         );
     }
 
     return (
-        <Group align="flex-start" gap="md" wrap="nowrap">
-            <Stack w={280} gap="sm" flex="0 0 auto">
+        <SettingsCard p={0} className={classes.panes}>
+            <Box className={classes.listPane}>
                 <ScrollArea.Autosize mah="72vh">
                     <Stack gap="md">
                         {openDrafts.length > 0 && (
-                            <Stack gap={4}>
+                            <Stack gap="xxs">
                                 <SectionLabel
                                     label="Awaiting review"
                                     count={openDrafts.length}
@@ -303,7 +289,7 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
                             </Stack>
                         )}
                         {historyDrafts.length > 0 && (
-                            <Stack gap={4}>
+                            <Stack gap="xxs">
                                 <SectionLabel label="History" />
                                 {historyDrafts.map((draft) => (
                                     <DraftRow
@@ -319,11 +305,11 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
                         )}
                     </Stack>
                 </ScrollArea.Autosize>
-            </Stack>
+            </Box>
 
             <Divider orientation="vertical" />
 
-            <Stack flex={1} miw={0} gap="xs">
+            <Stack gap="sm" className={classes.detailPane}>
                 {active && review ? (
                     <>
                         <Group
@@ -331,12 +317,10 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
                             align="flex-start"
                             wrap="nowrap"
                         >
-                            <Stack gap={2} miw={0}>
-                                <Text fw={600} size="lg">
-                                    {active.slug}
-                                </Text>
-                                <Group gap={6}>
-                                    <Text size="xs" c="dimmed">
+                            <Stack gap="xxs" miw={0}>
+                                <Title order={5}>{active.slug}</Title>
+                                <Group gap="xs">
+                                    <Text fz="xs" c="dimmed">
                                         Draft by{' '}
                                         {active.authorName ?? 'unknown'} ·
                                         updated {timeAgo(active.updatedAt)}
@@ -355,7 +339,7 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
                                         c="dimmed"
                                         underline="always"
                                     >
-                                        <Group gap={2} display="inline-flex">
+                                        <Group gap="xxs" display="inline-flex">
                                             Open {active.contentType}
                                             <MantineIcon
                                                 icon={IconExternalLink}
@@ -458,8 +442,8 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
                         </Group>
                         {review.staleness ? (
                             <Box className={staleClasses.panel}>
-                                <Stack gap={4}>
-                                    <Group gap={8} wrap="nowrap">
+                                <Stack gap="xxs">
+                                    <Group gap="xs" wrap="nowrap">
                                         <span className={staleClasses.dot} />
                                         <Text size="sm" fw={600}>
                                             Behind the repo
@@ -520,7 +504,7 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
                     />
                 )}
             </Stack>
-        </Group>
+        </SettingsCard>
     );
 };
 

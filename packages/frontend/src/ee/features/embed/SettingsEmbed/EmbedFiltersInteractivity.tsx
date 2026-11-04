@@ -11,6 +11,7 @@ import {
     Checkbox,
     Divider,
     Group,
+    Input,
     SegmentedControl,
     Stack,
     Switch,
@@ -159,9 +160,7 @@ const EmbedFiltersInteractivity: React.FC<Props> = ({
     return (
         <Stack gap="sm">
             <Group gap="xs">
-                <Text size="sm" fw={500}>
-                    Users can change:
-                </Text>
+                <Input.Label>Users can change:</Input.Label>
                 <SegmentedControl
                     value={interactivityOptions.enabled as string}
                     onChange={(value: string) => {

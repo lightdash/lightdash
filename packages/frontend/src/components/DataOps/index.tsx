@@ -1,10 +1,11 @@
 import { ProjectType } from '@lightdash/common';
-import { Button, Flex, Text, Title, Select } from '@mantine/core';
+import { Button, Group, Select, Stack } from '@mantine/core';
 import { useState, type FC } from 'react';
 import { useProject } from '../../hooks/useProject';
 import { useProjects } from '../../hooks/useProjects';
 import { groupComboboxItems } from '../common/Select/utils';
-import { SettingsGridCard } from '../common/Settings/SettingsCard';
+import { SettingRow } from '../common/Settings/SettingLayout';
+import { SettingsCard } from '../common/Settings/SettingsCard';
 import { useUpdateMutation } from './hooks/useUpstreamProject';
 
 export const DataOps: FC<{ projectUuid: string }> = ({ projectUuid }) => {
@@ -15,23 +16,14 @@ export const DataOps: FC<{ projectUuid: string }> = ({ projectUuid }) => {
         currentProject?.upstreamProjectUuid || null,
     );
     return (
-        <>
-            <Text c="dimmed">
-                Perform data operations between on this project
-            </Text>
-
-            <SettingsGridCard>
-                <div>
-                    <Title order={5}>Promote content</Title>
-                    <Text c="dimmed" fz="xs">
-                        Developers and admins on this organization can copy
-                        content from this project into the selected upstream
-                        project, overriding its defaults or creating new content
-                        if it is new.
-                    </Text>
-                </div>
-                <div>
+        <SettingsCard>
+            <Stack gap="md">
+                <SettingRow
+                    title="Promote content"
+                    description="Developers and admins on this organization can copy content from this project into the selected upstream project, overriding its defaults or creating new content if it is new."
+                >
                     <Select
+                        mt="md"
                         value={selectedProject}
                         clearable
                         data={groupComboboxItems(
@@ -64,25 +56,23 @@ export const DataOps: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                         }}
                         placeholder="Select project"
                     />
-                    <Flex justify="flex-end" gap="sm" mt="sm">
-                        <Button
-                            type="submit"
-                            display="block"
-                            disabled={
-                                selectedProject ===
-                                currentProject?.upstreamProjectUuid
-                            }
-                            onClick={async () => {
-                                await updateMutation({
-                                    upstreamProjectUuid: selectedProject,
-                                });
-                            }}
-                        >
-                            Update
-                        </Button>
-                    </Flex>
-                </div>
-            </SettingsGridCard>
-        </>
+                </SettingRow>
+                <Group justify="flex-end">
+                    <Button
+                        disabled={
+                            selectedProject ===
+                            currentProject?.upstreamProjectUuid
+                        }
+                        onClick={async () => {
+                            await updateMutation({
+                                upstreamProjectUuid: selectedProject,
+                            });
+                        }}
+                    >
+                        Save
+                    </Button>
+                </Group>
+            </Stack>
+        </SettingsCard>
     );
 };

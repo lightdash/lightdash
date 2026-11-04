@@ -10,16 +10,14 @@ import {
 import {
     ActionIcon,
     Button,
+    Divider,
     Flex,
     Group,
     Input,
-    Paper,
     SegmentedControl,
     Select,
     Stack,
-    Text,
     TextInput,
-    Title,
 } from '@mantine/core';
 import { useMantineColorScheme } from '@mantine/core';
 import { useForm } from '@mantine/form';
@@ -33,6 +31,7 @@ import { useAsyncClipboard } from '../../../../hooks/useAsyncClipboard';
 import useUser from '../../../../hooks/user/useUser';
 import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 import EmbedCodeSnippet from './EmbedCodeSnippet';
+import { EmbedFormSection } from './EmbedFormSection';
 
 const useEmbedUrlCreateMutation = (projectUuid: string) => {
     const lightdashApi = useLightdashApi();
@@ -170,7 +169,7 @@ const EmbedPreviewAppForm: FC<{
 
     return (
         <form id="generate-embed-url-app" onSubmit={handleCopySubmit}>
-            <Stack gap="md" mb="md">
+            <Stack gap="md">
                 <Select
                     required
                     label="Data app"
@@ -189,9 +188,7 @@ const EmbedPreviewAppForm: FC<{
                 />
 
                 <Stack gap="xs">
-                    <Text size="sm" fw={500}>
-                        Expires in
-                    </Text>
+                    <Input.Label>Expires in</Input.Label>
                     <SegmentedControl
                         value={form.values.expiresIn}
                         onChange={(value) =>
@@ -208,92 +205,85 @@ const EmbedPreviewAppForm: FC<{
                     />
                 </Stack>
 
-                <Paper p="md">
-                    <Stack gap="md">
-                        <Title order={6}>Identification & Security</Title>
-                        <Stack gap="xs">
-                            <Input.Wrapper label="User identifier">
-                                <TextInput
-                                    size="xs"
-                                    placeholder="1234"
-                                    {...form.getInputProps('externalId')}
-                                />
-                            </Input.Wrapper>
+                <Divider />
+                <EmbedFormSection title="Identification & security">
+                    <Stack gap="xs">
+                        <Input.Wrapper label="User identifier">
+                            <TextInput
+                                size="xs"
+                                placeholder="1234"
+                                {...form.getInputProps('externalId')}
+                            />
+                        </Input.Wrapper>
 
-                            <Input.Wrapper label="User email">
-                                <TextInput
-                                    size="xs"
-                                    placeholder="Type an email to add as intrinsic user attribute"
-                                    {...form.getInputProps('email')}
-                                />
-                            </Input.Wrapper>
+                        <Input.Wrapper label="User email">
+                            <TextInput
+                                size="xs"
+                                placeholder="Type an email to add as intrinsic user attribute"
+                                {...form.getInputProps('email')}
+                            />
+                        </Input.Wrapper>
 
-                            <Input.Wrapper label="User attributes">
-                                <Stack gap="xs" mt="xs">
-                                    {form.values.userAttributes.map(
-                                        (item, index) => (
-                                            <Group
-                                                key={item.uuid}
-                                                gap="xs"
-                                                wrap="nowrap"
+                        <Input.Wrapper label="User attributes">
+                            <Stack gap="xs" mt="xs">
+                                {form.values.userAttributes.map(
+                                    (item, index) => (
+                                        <Group
+                                            key={item.uuid}
+                                            gap="xs"
+                                            wrap="nowrap"
+                                        >
+                                            <TextInput
+                                                size="xs"
+                                                placeholder="E.g. user_country"
+                                                flex={1}
+                                                {...form.getInputProps(
+                                                    `userAttributes.${index}.key`,
+                                                )}
+                                            />
+                                            <TextInput
+                                                size="xs"
+                                                placeholder="E.g. US"
+                                                flex={1}
+                                                {...form.getInputProps(
+                                                    `userAttributes.${index}.value`,
+                                                )}
+                                            />
+                                            <ActionIcon
+                                                variant="light"
+                                                color="red"
+                                                onClick={() =>
+                                                    form.removeListItem(
+                                                        'userAttributes',
+                                                        index,
+                                                    )
+                                                }
                                             >
-                                                <TextInput
-                                                    size="xs"
-                                                    placeholder="E.g. user_country"
-                                                    flex={1}
-                                                    {...form.getInputProps(
-                                                        `userAttributes.${index}.key`,
-                                                    )}
-                                                />
-                                                <TextInput
-                                                    size="xs"
-                                                    placeholder="E.g. US"
-                                                    flex={1}
-                                                    {...form.getInputProps(
-                                                        `userAttributes.${index}.value`,
-                                                    )}
-                                                />
-                                                <ActionIcon
-                                                    variant="light"
-                                                    color="red"
-                                                    onClick={() =>
-                                                        form.removeListItem(
-                                                            'userAttributes',
-                                                            index,
-                                                        )
-                                                    }
-                                                >
-                                                    <MantineIcon
-                                                        icon={IconTrash}
-                                                    />
-                                                </ActionIcon>
-                                            </Group>
-                                        ),
-                                    )}
-                                    <Button
-                                        size="xs"
-                                        variant="default"
-                                        leftSection={
-                                            <MantineIcon icon={IconPlus} />
-                                        }
-                                        onClick={() =>
-                                            form.insertListItem(
-                                                'userAttributes',
-                                                {
-                                                    key: '',
-                                                    value: '',
-                                                    uuid: uuidv4(),
-                                                },
-                                            )
-                                        }
-                                    >
-                                        Add attribute
-                                    </Button>
-                                </Stack>
-                            </Input.Wrapper>
-                        </Stack>
+                                                <MantineIcon icon={IconTrash} />
+                                            </ActionIcon>
+                                        </Group>
+                                    ),
+                                )}
+                                <Button
+                                    size="xs"
+                                    variant="default"
+                                    leftSection={
+                                        <MantineIcon icon={IconPlus} />
+                                    }
+                                    onClick={() =>
+                                        form.insertListItem('userAttributes', {
+                                            key: '',
+                                            value: '',
+                                            uuid: uuidv4(),
+                                        })
+                                    }
+                                >
+                                    Add attribute
+                                </Button>
+                            </Stack>
+                        </Input.Wrapper>
                     </Stack>
-                </Paper>
+                </EmbedFormSection>
 
                 <Flex justify="flex-end" gap="sm">
                     <Button
@@ -311,22 +301,19 @@ const EmbedPreviewAppForm: FC<{
                         Generate & copy URL
                     </Button>
                 </Flex>
-            </Stack>
+                <Divider />
 
-            <Stack gap="md" mb="md">
-                <Stack gap="xs">
-                    <Title order={5}>Iframe embed code</Title>
-                    <Text c="dimmed" fz="sm">
-                        Use this for iframe or direct embedding with a full
-                        embed URL.
-                    </Text>
-                </Stack>
-                <EmbedCodeSnippet
-                    mode="iframe"
-                    projectUuid={projectUuid}
-                    siteUrl={siteUrl}
-                    data={convertFormValuesToCreateEmbedJwt(formValues)}
-                />
+                <EmbedFormSection
+                    title="Iframe embed code"
+                    description="Use this for iframe or direct embedding with a full embed URL."
+                >
+                    <EmbedCodeSnippet
+                        mode="iframe"
+                        projectUuid={projectUuid}
+                        siteUrl={siteUrl}
+                        data={convertFormValuesToCreateEmbedJwt(formValues)}
+                    />
+                </EmbedFormSection>
             </Stack>
         </form>
     );
