@@ -11,7 +11,6 @@ import {
     availableTileFilters,
     createParameterControl,
     fields,
-    ON_BAR_FIELD_IDS,
     ON_BAR_PARAMETER_KEYS,
     parameterList,
     tabs,
@@ -50,9 +49,7 @@ export const AddControlFlow: FC = () => {
                     tabs={tabs}
                     tiles={tiles}
                     availableTileFilters={availableTileFilters}
-                    onBarFieldIds={ON_BAR_FIELD_IDS}
                     parameters={parameterList}
-                    onBarParameterKeys={ON_BAR_PARAMETER_KEYS}
                     isViewer={false}
                     onPickField={(field) => setFlow({ step: 'field', field })}
                     onPickParameter={(parameter) =>

@@ -159,14 +159,14 @@ describe('ParameterControlPopover', () => {
         ).toBeNull();
     });
 
-    it('blocks Apply at no tiles, with the editor or the viewer reason', async () => {
-        const { user } = render({ tileCount: 0 });
-        const apply = screen.getByRole('button', { name: 'Apply' });
-        expect(apply).toBeDisabled();
-        if (apply.parentElement) await user.hover(apply.parentElement);
-        expect(await screen.findByRole('tooltip')).toHaveTextContent(
-            'This parameter is not applied to any tiles',
-        );
+    it('allows editors to apply a control with no tiles', () => {
+        render({ tileCount: 0 });
+        expect(screen.getByRole('button', { name: 'Apply' })).toBeEnabled();
+    });
+
+    it('blocks a viewer from applying a control with no tiles', () => {
+        render({ tileCount: 0, isViewer: true });
+        expect(screen.getByRole('button', { name: 'Apply' })).toBeDisabled();
     });
 
     it('gives a viewer the value only: no rename, count or settings', () => {

@@ -9,6 +9,7 @@ import {
 } from '@lightdash/common';
 import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { type FC } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     createDashboardTestStore,
@@ -20,6 +21,10 @@ import { dashboardParametersActions } from '../dashboard/store';
 import { ParameterEditorProvider } from './ParameterEditorProvider';
 import { ParameterPills } from './ParameterPills';
 import { RailContractClasses } from './railContractClasses';
+import {
+    useParameterEditorSelector,
+    type NewParameterControl,
+} from './useParameterEditor';
 
 const { setParameter, openFilter, tileHoverOwner } = vi.hoisted(() => ({
     setParameter: vi.fn(),
@@ -108,6 +113,13 @@ type Setup = {
     parameterDefinitions?: ParameterDefinitions;
     tabs?: { uuid: string; name: string; order: number }[];
     activeTabUuid?: string;
+    /** A control "Add" would open, behind a button. */
+    added?: NewParameterControl;
+};
+
+const AddButton: FC<{ entry: NewParameterControl }> = ({ entry }) => {
+    const add = useParameterEditorSelector((c) => c.add);
+    return <button onClick={() => add(entry)}>Add it</button>;
 };
 
 const setup = ({
@@ -119,6 +131,7 @@ const setup = ({
     activeTabUuid,
     isEmbed = false,
     tileChartSavedParameters = {},
+    added,
 }: Setup) => {
     const store = createDashboardTestStore({
         isEditMode: !isViewer,
@@ -170,6 +183,7 @@ const setup = ({
                     {Object.keys(references).map((tileUuid) => (
                         <div key={tileUuid} data-tile-uuid={tileUuid} />
                     ))}
+                    {added && <AddButton entry={added} />}
                 </ParameterEditorProvider>
             </RailContractClasses.Provider>
         </DashboardStoreTestProvider>
@@ -434,6 +448,58 @@ describe('ParameterPills', () => {
                 activeTabUuid: 't1',
             });
             expect(pills()).toEqual(['region', 'gone']);
+        });
+
+        it('shows a control opened from "Add" as a draft pill on any tab, until Cancel', async () => {
+            const { user, store } = setup({
+                controls: [control('region')],
+                references: { 'tile-1': ['region'], 'tile-2': ['week'] },
+                tabs: [
+                    { uuid: 't1', name: 'One', order: 0 },
+                    { uuid: 't2', name: 'Two', order: 1 },
+                ],
+                activeTabUuid: 't1',
+                added: {
+                    control: control('new', {
+                        label: 'Week starts',
+                        parameters: { week: 'all' },
+                    }),
+                    parameterKeys: ['week'],
+                    tileUuids: ['tile-2'],
+                },
+            });
+            await user.click(screen.getByRole('button', { name: 'Add it' }));
+            expect(pills()).toEqual(['region', 'new']);
+            const dialog = await screen.findByRole('dialog', {
+                name: 'Week starts',
+            });
+            await user.click(
+                within(dialog).getByRole('button', { name: 'Cancel' }),
+            );
+            expect(pills()).toEqual(['region']);
+            expect(
+                store
+                    .getState()
+                    .parameters.parameterControls?.map(({ id }) => id),
+            ).toEqual(['region']);
+        });
+
+        it('drops the "needs a value" pill while "Add" opens a control on its key', async () => {
+            const { user } = setup({
+                controls: [],
+                references: { 'tile-1': ['currency'] },
+                added: {
+                    control: control('new', {
+                        label: 'Currency',
+                        parameters: { currency: 'all' },
+                    }),
+                    parameterKeys: ['currency'],
+                    tileUuids: ['tile-1'],
+                },
+            });
+            expect(pills()).toEqual(['needs-value:currency']);
+            await user.click(screen.getByRole('button', { name: 'Add it' }));
+            expect(pills()).toEqual(['new']);
         });
 
         it('marks a control a tile needs a value from', () => {
@@ -766,6 +832,68 @@ describe('ParameterPills', () => {
             ).toBe('Sales region');
         });
 
+        it('a mode round trip ends a control opened from "Add"', async () => {
+            const { store, user, setViewer } = setup({
+                controls: [],
+                references: { 'tile-1': ['region'] },
+                added: {
+                    control: control('new', {
+                        label: 'Region',
+                        parameters: { region: 'all' },
+                    }),
+                    parameterKeys: ['region'],
+                    tileUuids: ['tile-1'],
+                },
+            });
+            await user.click(screen.getByRole('button', { name: 'Add it' }));
+            expect(screen.getByRole('dialog')).toBeInTheDocument();
+            act(() => setViewer(true));
+            act(() => setViewer(false));
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+            // An editor's edit settles as Apply would, a new control too
+            expect(store.getState().parameters.parameterControls).toEqual([
+                expect.objectContaining({
+                    id: 'new',
+                    parameters: { region: 'all' },
+                }),
+            ]);
+        });
+
+        it('a mode change saves a control from Add that sets no tiles', async () => {
+            const { store, user, setViewer } = setup({
+                controls: [
+                    control('first', {
+                        label: 'Region',
+                        parameters: { region: 'all' },
+                    }),
+                ],
+                references: { 'tile-1': ['region'] },
+                added: {
+                    control: control('new', {
+                        label: 'Region',
+                        parameters: { region: { only: [] } },
+                    }),
+                    parameterKeys: ['region'],
+                    tileUuids: [],
+                },
+            });
+            await user.click(screen.getByRole('button', { name: 'Add it' }));
+            // A second control can be saved without assigning tiles
+            expect(
+                within(screen.getByRole('dialog')).getByRole('button', {
+                    name: 'Apply',
+                }),
+            ).toBeEnabled();
+            act(() => setViewer(true));
+            act(() => setViewer(false));
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+            expect(
+                store
+                    .getState()
+                    .parameters.parameterControls?.map(({ id }) => id),
+            ).toEqual(['first', 'new']);
+        });
+
         it("a viewer's edit is dropped on a mode change", async () => {
             const { user, setViewer } = setup({
                 controls: [control('region', { value: 'EMEA' })],
@@ -907,7 +1035,7 @@ describe('ParameterPills', () => {
             ).toBe('market');
         });
 
-        it('blocks Apply at no tiles', async () => {
+        it('allows Apply for an explicit control without tiles', async () => {
             const { user } = setup({
                 controls: [
                     control('region', { parameters: { region: { only: [] } } }),
@@ -915,9 +1043,7 @@ describe('ParameterPills', () => {
             });
             await user.click(pill('region'));
             expect(screen.getByText('Sets 0 of 2 tiles')).toBeInTheDocument();
-            expect(
-                screen.getByRole('button', { name: 'Apply' }),
-            ).toBeDisabled();
+            expect(screen.getByRole('button', { name: 'Apply' })).toBeEnabled();
         });
 
         it('viewers set the value only, and cannot remove or move', async () => {

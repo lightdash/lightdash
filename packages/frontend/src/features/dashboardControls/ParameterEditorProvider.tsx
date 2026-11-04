@@ -11,6 +11,7 @@ import {
     useState,
     type FC,
     type ReactNode,
+    type RefObject,
 } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useStableCallback } from '../../hooks/useStableCallback';
@@ -36,6 +37,8 @@ import { useEditorDismiss } from './useEditorDismiss';
 import { type ParameterBarEntry } from './useParameterBarControls';
 import {
     ParameterEditorContext,
+    useParameterEditorSelector,
+    type NewParameterControl,
     type ParameterEditorValue,
 } from './useParameterEditor';
 
@@ -58,7 +61,9 @@ type OpenedEntry = Pick<
 type EditState = {
     id: string;
     isNeedsValue: boolean;
-    /** A "needs a value" pill's key, and the tiles it was left without a value on. */
+    // Started from "Add": not on the bar until Apply
+    isNew: boolean;
+    /** Its keys and tiles as opened: a "needs a value" or new control's are the ones Apply sets. */
     parameterKeys: string[];
     tileUuids: string[];
     // The mode it started in: a mode change ends it, as Cancel
@@ -79,6 +84,24 @@ const findPill = (id: string) =>
         `[${PARAMETER_PILL_ATTRIBUTE}="${id}"]`,
     );
 
+// The pill and this reader update together after the editor closes.
+const ParameterFocusReturn: FC<{ target: RefObject<string | null> }> = ({
+    target,
+}) => {
+    const isOpen = useParameterEditorSelector(
+        (editor) => editor.editingId !== null,
+    );
+    useEffect(() => {
+        const id = target.current;
+        if (isOpen || id === null) return;
+        target.current = null;
+        (
+            findPill(id) ?? document.querySelector<HTMLElement>(ADD_SELECTOR)
+        )?.focus();
+    }, [isOpen, target]);
+    return null;
+};
+
 // One parameter control edited at a time, beside the filter editor: the
 // draft, Apply, Cancel, Escape, a press outside and focus return follow the
 // filter editor's rules. This is the only writer of parameter controls
@@ -96,6 +119,7 @@ export const ParameterEditorProvider: FC<{
         state !== null &&
         state.isViewer === isViewer &&
         (state.isNeedsValue ||
+            state.isNew ||
             (controls ?? []).some(({ id }) => id === state.id))
             ? state
             : null;
@@ -117,7 +141,8 @@ export const ParameterEditorProvider: FC<{
             current: DashboardParameterControl[],
         ) => DashboardParameterControl[],
     ) => {
-        const current = store.getState().parameters.parameterControls ?? [];
+        const current = store.getState().parameters.parameterControls;
+        if (current === null) return;
         const next = write(current);
         if (next !== current)
             dispatch(dashboardParametersActions.setParameterControls(next));
@@ -129,16 +154,15 @@ export const ParameterEditorProvider: FC<{
         setState(null);
         setPending(null);
     };
-    const start = ({
-        control,
-        isNeedsValue,
-        parameterKeys,
-        tileUuids,
-    }: OpenedEntry) => {
+    const start = (
+        { control, isNeedsValue, parameterKeys, tileUuids }: OpenedEntry,
+        isNew = false,
+    ) => {
         setPending(null);
         setState({
             id: control.id,
             isNeedsValue,
+            isNew,
             parameterKeys,
             tileUuids,
             isViewer,
@@ -157,7 +181,8 @@ export const ParameterEditorProvider: FC<{
         const current = latest.current;
         if (current === null) return;
         const { draft } = current;
-        const saved = store.getState().parameters.parameterControls ?? [];
+        const saved = store.getState().parameters.parameterControls;
+        if (!current.isViewer && saved === null) return;
         const [needsValueKey] = current.parameterKeys;
         if (current.isViewer) {
             if (!isDirty(current)) {
@@ -166,7 +191,7 @@ export const ParameterEditorProvider: FC<{
             }
             if (
                 current.isNeedsValue &&
-                getControlledKeys(saved).has(needsValueKey)
+                getControlledKeys(saved ?? []).has(needsValueKey)
             ) {
                 // Beside a control on the key: only the tiles it leaves out
                 dispatch(
@@ -199,6 +224,11 @@ export const ParameterEditorProvider: FC<{
             end(added.id);
             return;
         }
+        if (current.isNew) {
+            writeControls((list) => [...list, draft]);
+            end(draft.id);
+            return;
+        }
         if (isDirty(current))
             writeControls((list) =>
                 list.map((control) =>
@@ -229,6 +259,10 @@ export const ParameterEditorProvider: FC<{
         }
         start(entry);
     });
+
+    const add = useStableCallback((entry: NewParameterControl) =>
+        start({ ...entry, isNeedsValue: false }, true),
+    );
 
     // The prompt's answer: Apply or Discard, then what was clicked. The
     // next editor takes focus, not this control's pill
@@ -289,6 +323,7 @@ export const ParameterEditorProvider: FC<{
         const isSectionMove =
             !current.isViewer &&
             !current.isNeedsValue &&
+            !current.isNew &&
             sectionId !== (current.draft.sectionId ?? null);
         if (isSectionMove)
             writeControls((list) =>
@@ -360,8 +395,8 @@ export const ParameterEditorProvider: FC<{
     });
 
     // A mode change ends the edit it started in, as the filter editor's:
-    // an editor's is applied, a viewer's (only picks) dropped. The one
-    // effect that writes the store, as in the filter provider
+    // an editor's is applied, a viewer's (only picks) dropped.
+    // The one effect that writes the store
     const unsettled = useRef(state);
     unsettled.current = state;
     const lastIsViewer = useRef(isViewer);
@@ -389,25 +424,22 @@ export const ParameterEditorProvider: FC<{
         pillSelector: `${PARAMETER_PILL_SELECTOR}, ${FILTER_TARGET_SELECTOR}`,
     });
 
-    const isOpen = edit !== null;
-    useEffect(() => {
-        if (isOpen) return;
-        const id = focusReturn.current;
-        if (id === null) return;
-        focusReturn.current = null;
-        (
-            findPill(id) ?? document.querySelector<HTMLElement>(ADD_SELECTOR)
-        )?.focus();
-    }, [isOpen]);
-
     const value = useMemo<ParameterEditorValue>(
         () => ({
             editingId: edit?.id ?? null,
             draft: edit?.draft ?? null,
             isNeedsValue: edit?.isNeedsValue ?? false,
+            newControl: edit?.isNew
+                ? {
+                      control: edit.snapshot,
+                      parameterKeys: edit.parameterKeys,
+                      tileUuids: edit.tileUuids,
+                  }
+                : null,
             isViewer,
             isAsking,
             open,
+            add,
             update,
             apply,
             cancel,
@@ -420,6 +452,7 @@ export const ParameterEditorProvider: FC<{
             isViewer,
             isAsking,
             open,
+            add,
             update,
             apply,
             cancel,
@@ -432,6 +465,7 @@ export const ParameterEditorProvider: FC<{
     return (
         <ParameterEditorContext.Provider value={value}>
             <ParameterBarProvider>{children}</ParameterBarProvider>
+            <ParameterFocusReturn target={focusReturn} />
             {/* Moves happen with controls on (the flag), in edit mode */}
             {!isViewer && controls !== null && (
                 // Not a second `status` role: the filter moves own that one

@@ -56,7 +56,6 @@ import { SectionSetting } from './SectionSetting';
 import { useSettingsChipFocus } from './useSettingsChipFocus';
 
 // Apply's reason at no tiles, an editor's, as the filter's
-const NOT_APPLIED_TO_ANY_TILES = 'This parameter is not applied to any tiles';
 
 const hasValue = (value: ParameterValue | null) =>
     value !== null && value !== '' && !(Array.isArray(value) && !value.length);
@@ -192,14 +191,9 @@ export const ParameterControlPopover: FC<Props> = ({
                 : `${tilesOf.count} ${tilesOf.noun}`,
     });
     const chooseTiles = getUiString('controls.chooseTiles');
-    // As a filter at no tiles, for anyone; a missing required value does not
-    // block
+    // Editors can save an empty assignment for later mapping.
     const applyBlockedReason =
-        tileCount > 0
-            ? null
-            : isViewer
-              ? getUiString('controls.setsNoTiles')
-              : NOT_APPLIED_TO_ANY_TILES;
+        tileCount > 0 || !isViewer ? null : getUiString('controls.setsNoTiles');
     // Always there for editors; with no sections it holds the section select
     // at "No section"
     const hasSettings = !isViewer;

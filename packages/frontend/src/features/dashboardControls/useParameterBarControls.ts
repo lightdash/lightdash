@@ -34,6 +34,7 @@ import {
     isControlShownOnTab,
     NEEDS_VALUE_PREFIX,
 } from './parameterControlsBar';
+import { useParameterEditorSelector } from './useParameterEditor';
 
 export type ParameterBarEntry = {
     /** As saved, with a pick by key over its own value: what the draft starts from. */
@@ -98,6 +99,7 @@ export const useBuildParameterBar = (): ParameterBar => {
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
     const sections = useDashboardSelector(selectControlSections);
     const getUiString = useUiStrings();
+    const newControl = useParameterEditorSelector((c) => c.newControl);
     const allFilterableFields = useDashboardContext(
         (c) => c.allFilterableFields,
     );
@@ -129,7 +131,8 @@ export const useBuildParameterBar = (): ParameterBar => {
             if (
                 (parameterKeys.length > 0 &&
                     parameters[0]?.key !== parameterKeys[0]) ||
-                !isControlShownOnTab(tileUuids, tabTileUuids)
+                (control.id !== newControl?.control.id &&
+                    !isControlShownOnTab(tileUuids, tabTileUuids))
             )
                 return [];
             const label =
@@ -212,40 +215,42 @@ export const useBuildParameterBar = (): ParameterBar => {
         );
         const needsValue = [
             ...new Set([...uncoveredByKey.keys(), ...pickedKeys]),
-        ].flatMap((key) => {
-            const definition = definitions[key];
-            // Beside another control on the key, it sets only the tiles left out
-            const tileUuids = controlledKeys.has(key)
-                ? (uncoveredByKey.get(key) ?? [])
-                : Object.keys(references).filter((tileUuid) =>
-                      references[tileUuid].includes(key),
-                  );
-            return toEntry(
-                {
-                    id: `${NEEDS_VALUE_PREFIX}${key}`,
-                    label: definition?.label || key,
-                    value:
-                        picks[key] ??
-                        (uncoveredByKey.get(key) ?? [])
-                            .map((tileUuid) => tilePicks[tileUuid]?.[key])
-                            .find((value) => value !== undefined) ??
-                        null,
-                    valueType: {
-                        type: definition?.type ?? 'string',
-                        multiple: definition?.multiple ?? false,
+        ]
+            .filter((key) => !newControl?.parameterKeys.includes(key))
+            .flatMap((key) => {
+                const definition = definitions[key];
+                // Beside another control on the key, it sets only the tiles left out
+                const tileUuids = controlledKeys.has(key)
+                    ? (uncoveredByKey.get(key) ?? [])
+                    : Object.keys(references).filter((tileUuid) =>
+                          references[tileUuid].includes(key),
+                      );
+                return toEntry(
+                    {
+                        id: `${NEEDS_VALUE_PREFIX}${key}`,
+                        label: definition?.label || key,
+                        value:
+                            picks[key] ??
+                            (uncoveredByKey.get(key) ?? [])
+                                .map((tileUuid) => tilePicks[tileUuid]?.[key])
+                                .find((value) => value !== undefined) ??
+                            null,
+                        valueType: {
+                            type: definition?.type ?? 'string',
+                            multiple: definition?.multiple ?? false,
+                        },
+                        parameters: { [key]: 'all' },
                     },
-                    parameters: { [key]: 'all' },
-                },
-                {
-                    parameterKeys: [key],
-                    tileUuids,
-                    isNeedsValue: true,
-                    isMissing: tileUuids.some((tileUuid) =>
-                        missingByTile[tileUuid]?.includes(key),
-                    ),
-                },
-            );
-        });
+                    {
+                        parameterKeys: [key],
+                        tileUuids,
+                        isNeedsValue: true,
+                        isMissing: tileUuids.some((tileUuid) =>
+                            missingByTile[tileUuid]?.includes(key),
+                        ),
+                    },
+                );
+            });
         const entries = [
             ...shown.flatMap((control) =>
                 toEntry(control, {
@@ -272,6 +277,14 @@ export const useBuildParameterBar = (): ParameterBar => {
                     ),
                 }),
             ),
+            ...(newControl === null
+                ? []
+                : toEntry(newControl.control, {
+                      parameterKeys: newControl.parameterKeys,
+                      tileUuids: newControl.tileUuids,
+                      isNeedsValue: false,
+                      isMissing: false,
+                  })),
             ...needsValue,
         ];
         // A model parameter is keyed `model.name`; a project one has no model
@@ -322,6 +335,7 @@ export const useBuildParameterBar = (): ParameterBar => {
         sections,
         getUiString,
         allFilterableFields,
+        newControl,
     ]);
 };
 
