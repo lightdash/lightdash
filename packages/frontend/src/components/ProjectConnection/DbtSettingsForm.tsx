@@ -41,6 +41,7 @@ import FormSection from './Inputs/FormSection';
 import { MultiKeyValuePairsInput } from './Inputs/MultiKeyValuePairsInput';
 import DbtLogo from './ProjectConnectFlow/Assets/dbt.svg';
 import { useProjectFormContext } from './useProjectFormContext';
+import { getSchemaField } from './WarehouseForms/util';
 import WarehouseLocationInputs from './WarehouseLocationInputs';
 import WarehouseSchemaInput from './WarehouseSchemaInput';
 
@@ -249,7 +250,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                         isNative ||
                         isDbtSource ||
                         type === DbtProjectType.NONE) &&
-                    form.errors['warehouse.schema'] && (
+                    form.errors[getSchemaField(warehouseType)] && (
                         <WarehouseSchemaInput
                             warehouseType={warehouseType}
                             disabled={disabled}
