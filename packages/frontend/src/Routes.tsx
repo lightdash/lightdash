@@ -958,6 +958,7 @@ const PRIVATE_ROUTES: RouteObject[] = [
                 element: <Navigate to="/generalSettings/roadmap" replace />,
             },
             {
+                element: <NavBarLayout />,
                 children: [
                     {
                         path: '/get-started',
@@ -976,7 +977,7 @@ const PRIVATE_ROUTES: RouteObject[] = [
                         },
                     },
                     {
-                        path: '/onboarding/data-source/:warehouse?/:mode?',
+                        path: '/onboarding/data-source/:warehouse?',
                         handle: { hideAILauncher: true },
                         lazy: async () => {
                             const OnboardingDataSource =
@@ -1013,11 +1014,6 @@ const PRIVATE_ROUTES: RouteObject[] = [
                             };
                         },
                     },
-                ],
-            },
-            {
-                element: <NavBarLayout />,
-                children: [
                     {
                         path: '/onboarding/invite-expert',
                         handle: { hideAILauncher: true },
