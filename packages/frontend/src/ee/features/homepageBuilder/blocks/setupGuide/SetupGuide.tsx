@@ -58,7 +58,7 @@ const ROW_COPY: Record<
 > = {
     warehouse: {
         icon: IconDatabase,
-        pitch: 'Every chart and answer runs on data in your warehouse.',
+        pitch: 'Add your own tables so charts and answers can use them.',
         time: '3 min',
     },
     'app-data': {

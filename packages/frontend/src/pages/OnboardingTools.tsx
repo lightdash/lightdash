@@ -592,6 +592,10 @@ const OnboardingToolsContent: FC<{
     const hasConnected = liveSources.length > 0;
     // Without a warehouse, a tool is the only source, so one has to be connected
     const needsSource = !!project && !project.warehouseConnection;
+    const title = needsSource ? 'Connect your tools' : copy.title;
+    const subtitle = needsSource
+        ? 'Connect at least one to start asking questions. You can add a warehouse later.'
+        : copy.subtitle;
     const latestLiveSource = liveSources[liveSources.length - 1] ?? null;
     const connectLabel = (isConnected: boolean) =>
         isConnected ? 'Add another' : 'Connect';
@@ -613,11 +617,11 @@ const OnboardingToolsContent: FC<{
                 />
             }
         >
-            <DocumentTitle title="Connect other tools" />
+            <DocumentTitle title={title} />
             <Stack className={classes.column} gap="xl">
                 <Stack gap={4}>
-                    <Title order={1}>{copy.title}</Title>
-                    {copy.subtitle && <Text c="dimmed">{copy.subtitle}</Text>}
+                    <Title order={1}>{title}</Title>
+                    {subtitle && <Text c="dimmed">{subtitle}</Text>}
                 </Stack>
 
                 <ToolGroup title="Product analytics">
