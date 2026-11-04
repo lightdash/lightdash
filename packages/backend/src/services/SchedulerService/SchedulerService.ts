@@ -610,13 +610,14 @@ export class SchedulerService extends BaseService {
     }): void {
         const allowedFormats = [
             SchedulerFormat.IMAGE,
+            SchedulerFormat.PDF,
             SchedulerFormat.CSV,
             SchedulerFormat.XLSX,
             SchedulerFormat.GSHEETS,
         ];
         if (!allowedFormats.includes(scheduler.format)) {
             throw new ParameterError(
-                'Data app schedulers support image, csv, xlsx and google sheets deliveries',
+                'Data app schedulers support image, pdf, csv, xlsx and google sheets deliveries',
             );
         }
         if (
