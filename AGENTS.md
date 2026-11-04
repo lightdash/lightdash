@@ -64,17 +64,17 @@ When the backend creates a presigned URL for browser-direct upload, it uses `S3_
 
 **Code Quality:**
 
+Linter is oxlint, formatter is oxfmt, installed per package: run them through package scripts.
+
 ```bash
-pnpm -F common lint
-pnpm -F visualization lint
-pnpm -F backend lint
-pnpm -F frontend lint
-pnpm -F common typecheck
-pnpm -F visualization typecheck
-pnpm -F backend typecheck
-pnpm -F frontend typecheck
-pnpm -F warehouses typecheck
+pnpm -F <pkg> lint                                  # whole package; fix-lint to autofix
+pnpm -F <pkg> format                                # whole package; fix-format to write
+pnpm -F <pkg> run linter --fix src/a.ts src/b.ts    # specific files, paths relative to the package
+pnpm -F <pkg> run formatter src/a.ts src/b.ts       # add --check to only check
+pnpm -F <pkg> typecheck
 ```
+
+`git commit` lints and formats staged files via lint-staged, so a commit needs no separate format pass; `pnpm exec lint-staged` runs the same pass before committing.
 
 **Testing:**
 
