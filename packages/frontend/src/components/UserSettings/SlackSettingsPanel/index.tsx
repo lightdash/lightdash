@@ -364,7 +364,6 @@ const SlackSettingsPanel: FC = () => {
                                         size="xs"
                                         placeholder="https://lightdash.cloud/photo.jpg"
                                         type="url"
-                                        disabled={!organizationHasSlack}
                                         {...form.getInputProps(
                                             'appProfilePhotoUrl',
                                         )}

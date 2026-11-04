@@ -3,9 +3,9 @@ import {
     Avatar,
     Button,
     Group,
+    List,
     ScrollArea,
     Stack,
-    Text,
 } from '@mantine/core';
 import { IconAlertCircle, IconRefresh, IconTrash } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
@@ -124,17 +124,13 @@ const GitlabSettingsPanel: FC = () => {
                 >
                     {data.length > 0 && (
                         <ScrollArea.Autosize mah={200} mt="xs">
-                            <Text
-                                component="ul"
-                                fz="xs"
-                                c="dimmed"
-                                m={0}
-                                pl="md"
-                            >
+                            <List size="xs" c="dimmed" withPadding>
                                 {data.map((repo) => (
-                                    <li key={repo.fullName}>{repo.fullName}</li>
+                                    <List.Item key={repo.fullName}>
+                                        {repo.fullName}
+                                    </List.Item>
                                 ))}
-                            </Text>
+                            </List>
                         </ScrollArea.Autosize>
                     )}
                 </SettingRow>
