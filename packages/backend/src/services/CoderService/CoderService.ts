@@ -107,6 +107,7 @@ import {
     type ContentAsCodeProjectSettings,
     type ContentAsCodeSettingsStamp,
     type ContentVerificationInfo,
+    type DashboardConfig,
     type DashboardTileWithSlug,
     type DirectAccessAssignment,
     type DirectAccessPrincipalRef,
@@ -213,6 +214,10 @@ import {
 import { ScheduledContentCoder } from './handlers/ScheduledContentCoder';
 import { VirtualViewCoder } from './handlers/VirtualViewCoder';
 import { paginateAsCode } from './pagination';
+import {
+    getParameterControlsWithIds,
+    getParameterControlsWithSlugs,
+} from './parameterControlSlugs';
 import {
     getDashboardScheduledDeliveryFiltersWithTileSlugs,
     getDashboardScheduledDeliveryFiltersWithTileUuids,
@@ -2114,6 +2119,13 @@ export class CoderService extends BaseService {
                 ),
         );
 
+        const config = getConfigWithParameterControlTileSlugs(
+            dashboard,
+            CoderService.getConfigWithDateZoomTileSlugs(
+                dashboard,
+                controlTileSlugs,
+            ),
+        );
         const dashboardAsCode: DashboardAsCode = {
             name: dashboard.name,
             description: dashboard.description,
@@ -2131,17 +2143,16 @@ export class CoderService extends BaseService {
                 hidden,
             })),
             slug: dashboard.slug,
-            ...(dashboard.config
-                ? {
-                      config: getConfigWithParameterControlTileSlugs(
-                          dashboard,
-                          CoderService.getConfigWithDateZoomTileSlugs(
-                              dashboard,
-                              controlTileSlugs,
-                          ),
-                      ),
-                  }
-                : {}),
+            ...(config && {
+                config: {
+                    ...config,
+                    ...(config.parameterControls !== undefined && {
+                        parameterControls: getParameterControlsWithSlugs(
+                            config.parameterControls,
+                        ),
+                    }),
+                },
+            }),
             ...(dashboard.parameters
                 ? { parameters: dashboard.parameters }
                 : {}),
@@ -5730,19 +5741,30 @@ export class CoderService extends BaseService {
             dashboardWithResolvedTabs,
             tilesWithUuids,
         );
-        const dateZoomConfig = dashboardWithResolvedTabs.config
-            ? CoderService.getConfigWithDateZoomTileUuids(
-                  dashboardWithResolvedTabs.config,
-                  tilesWithUuids,
-              )
-            : undefined;
-        const dashboardConfig =
-            dateZoomConfig && controlsEnabled
+        let dashboardConfig: DashboardConfig | undefined;
+        if (dashboardWithResolvedTabs.config) {
+            const { parameterControls: portableControls, ...config } =
+                CoderService.getConfigWithDateZoomTileUuids(
+                    dashboardWithResolvedTabs.config,
+                    tilesWithUuids,
+                );
+            const existingControls =
+                existingDashboard?.config?.parameterControls;
+            dashboardConfig = controlsEnabled
                 ? getConfigWithParameterControlTileUuids(
-                      dateZoomConfig,
+                      {
+                          ...config,
+                          ...(portableControls !== undefined && {
+                              parameterControls: getParameterControlsWithIds(
+                                  portableControls,
+                                  existingControls ?? [],
+                              ),
+                          }),
+                      },
                       tilesWithUuids,
                   )
-                : dateZoomConfig;
+                : { ...config, parameterControls: existingControls };
+        }
         if (controlsEnabled && dashboardConfig?.parameterControls) {
             const tileSlugs = getTileSlugsByUuid(tilesWithUuids);
             const definitions = await this.getTileParameterDefinitions(

@@ -37,6 +37,9 @@ const isWellFormedControl = (
         control !== null &&
         typeof control.id === 'string' &&
         control.id.length > 0 &&
+        (control.slug === undefined ||
+            (typeof control.slug === 'string' &&
+                /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(control.slug))) &&
         (typeof control.label === 'string' || control.label === null) &&
         (control.value === null ||
             typeof control.value === 'string' ||
@@ -192,6 +195,7 @@ export const validateParameterControls = (
     if (malformed.length) return malformed;
     const messages: string[] = [];
     const ids = new Set<string>();
+    const slugs = new Set<string>();
     const defaults = new Map<string, DashboardParameterControl>();
     const explicit = new Map<string, Map<string, DashboardParameterControl>>();
     for (const control of controls) {
@@ -199,6 +203,13 @@ export const validateParameterControls = (
         if (ids.has(control.id))
             messages.push(`Parameter control ${name} has a duplicate id`);
         ids.add(control.id);
+        if (control.slug !== undefined) {
+            if (slugs.has(control.slug))
+                messages.push(
+                    `Parameter control slug "${control.slug}" is duplicated`,
+                );
+            slugs.add(control.slug);
+        }
         for (const [key, target] of Object.entries(control.parameters)) {
             if (
                 definitions[key] &&
