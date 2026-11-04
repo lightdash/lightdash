@@ -486,7 +486,7 @@ describe('SQL approved earlier in the same turn', () => {
                 source: 'same_turn_approval',
             }),
         ]);
-        // Ran in the same run, so onStepFinish stores its result, not the gate.
+        // Ran in the same run, so onStepEnd stores its result, not the gate.
         expect(turns.storeToolResults).toHaveBeenCalledOnce();
         expect(turns.updateProgress).not.toHaveBeenCalled();
     });

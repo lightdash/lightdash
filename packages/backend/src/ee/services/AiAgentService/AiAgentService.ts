@@ -13148,7 +13148,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
     /**
      * The editDbtProject tool enqueues this pipeline job mid-step, so the job
      * can start — and a fast pre-flight failure can call updateToolResult —
-     * before onStepFinish has inserted the tool-result row. updateToolResult is
+     * before onStepEnd has inserted the tool-result row. updateToolResult is
      * an UPDATE, so it would silently match no rows and leave the card stuck.
      * Poll until the row exists (bounded), mirroring
      * waitForOriginalResponseWritten for the model-response field.
@@ -13255,7 +13255,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 return;
             }
 
-            // This job is enqueued mid-step, so it can outrun the onStepFinish
+            // This job is enqueued mid-step, so it can outrun the onStepEnd
             // insert of its own tool-result row — wait for it before any
             // updateToolResult below would otherwise no-op and strand the card.
             await this.waitForToolResultWritten(promptUuid, toolCallId);
@@ -13607,7 +13607,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 );
                 return;
             }
-            // The build can end before onStepFinish inserts the row.
+            // The build can end before onStepEnd inserts the row.
             await this.waitForToolResultWritten(
                 aiAgentToolCall.promptUuid,
                 aiAgentToolCall.toolCallId,
@@ -18003,7 +18003,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                                 : result.toUIMessageStream(),
                         );
                     },
-                    onFinish: () => {
+                    onEnd: () => {
                         clearKeepalive();
                         stepProgressEmitter?.removeAllListeners(
                             'artifactReady',

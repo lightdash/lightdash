@@ -391,8 +391,8 @@ describe('prompts', () => {
                 },
             ],
         });
-        expect(prompt.system).toContain('field lists are omitted');
-        expect(prompt.system).toContain('validated after your choice');
+        expect(prompt.instructions).toContain('field lists are omitted');
+        expect(prompt.instructions).toContain('validated after your choice');
     });
 });
 

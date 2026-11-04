@@ -1006,7 +1006,7 @@ describe('empty finishes and interrupts', () => {
         });
         expect(capturedOptions.experimental_repairToolCall).toBeUndefined();
         // AI SDK 7: `usage` aggregates every step; the final step keeps its own usage.
-        await capturedOptions.onFinish({
+        await capturedOptions.onEnd({
             usage: { totalTokens: 100 },
             totalUsage: { totalTokens: 100 },
             steps: [{ text: '', usage: { totalTokens: 10 } }],
@@ -1173,7 +1173,7 @@ describe('generateAgentResponse token usage persistence', () => {
             await stepTotals.reduce(
                 (chain, totalTokens) =>
                     chain.then(() =>
-                        options.onStepFinish({
+                        options.onStepEnd({
                             usage: { totalTokens },
                             toolCalls: [],
                             toolResults: [],
@@ -3576,7 +3576,7 @@ describe('external MCP tool call activity', () => {
             }
 
             const finish = (event: Record<string, unknown>) =>
-                options.experimental_onToolCallFinish?.({
+                options.onToolExecutionEnd?.({
                     stepNumber: 0,
                     messages: [],
                     ...event,
@@ -3899,7 +3899,7 @@ describe.each(['generate', 'stream'] as const)(
                     | { type: 'tool-result'; output: unknown }
                     | { type: 'tool-error'; error: unknown },
             ) =>
-                options.experimental_onToolCallFinish({
+                options.onToolExecutionEnd({
                     stepNumber: 0,
                     messages: [],
                     toolCall: {
