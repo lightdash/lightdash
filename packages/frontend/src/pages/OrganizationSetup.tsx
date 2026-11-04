@@ -120,6 +120,8 @@ const withOrganizationNameMessage =
 
 type OrganizationSetupFormValues = {
     organizationName: string;
+    firstName: string;
+    lastName: string;
     jobTitle: string;
     howDidYouHearAboutUs: string;
     enableEmailDomainAccess: boolean;
@@ -154,6 +156,8 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                 canEnterOrganizationName && isCompanyDomain
                     ? inferOrganizationName(emailDomain)
                     : '',
+            firstName: user.firstName,
+            lastName: user.lastName,
             jobTitle: '',
             howDidYouHearAboutUs: '',
             enableEmailDomainAccess: canEnableEmailDomainAccess,
@@ -274,6 +278,8 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
             // belongs to the org (which a joiner — often a viewer — has no
             // rights to change), so don't attempt to save it.
             completeMutation.mutate({
+                firstName: values.firstName,
+                lastName: values.lastName,
                 jobTitle: values.jobTitle,
                 enableEmailDomainAccess: values.enableEmailDomainAccess,
                 isMarketingOptedIn: values.isMarketingOptedIn,
@@ -294,6 +300,8 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
         completeMutation
             .mutateAsync({
                 organizationName: values.organizationName,
+                firstName: values.firstName,
+                lastName: values.lastName,
                 jobTitle: values.jobTitle,
                 howDidYouHearAboutUs: values.howDidYouHearAboutUs.trim(),
                 enableEmailDomainAccess: values.enableEmailDomainAccess,
@@ -503,6 +511,23 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                     Tell us about you
                                 </Title>
 
+                                <Group grow align="flex-start">
+                                    <TextInput
+                                        label="First name"
+                                        placeholder="Jane"
+                                        size="md"
+                                        required
+                                        {...form.getInputProps('firstName')}
+                                    />
+                                    <TextInput
+                                        label="Last name"
+                                        placeholder="Doe"
+                                        size="md"
+                                        required
+                                        {...form.getInputProps('lastName')}
+                                    />
+                                </Group>
+
                                 <Select
                                     label="What's your role?"
                                     data={jobTitles}
@@ -573,7 +598,11 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                         type="submit"
                                         size="md"
                                         loading={completeMutation.isLoading}
-                                        disabled={!form.values.jobTitle}
+                                        disabled={
+                                            !form.values.jobTitle ||
+                                            !form.values.firstName.trim() ||
+                                            !form.values.lastName.trim()
+                                        }
                                     >
                                         Continue
                                     </Button>

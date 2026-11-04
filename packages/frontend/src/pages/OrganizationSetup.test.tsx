@@ -177,6 +177,8 @@ describe('OrganizationSetup', () => {
 
         const scope = nock(BASE_API_URL)
             .patch('/api/v1/user/me/complete', {
+                firstName: 'David',
+                lastName: 'Attenborough',
                 jobTitle: 'Software Engineer',
                 enableEmailDomainAccess: false,
                 isMarketingOptedIn: true,
@@ -186,6 +188,46 @@ describe('OrganizationSetup', () => {
 
         expect(submitButton).toBeEnabled();
 
+        await user.click(submitButton);
+
+        await waitFor(() => expect(scope.isDone()).toBe(true));
+    });
+
+    it('holds Continue until the user has a first and last name', async () => {
+        const user = userEvent.setup();
+
+        mockOrgApi('test organization');
+        renderSetupPage({
+            user: {
+                isSetupComplete: false,
+                organizationName: 'test organization',
+                email: 'demo@lightdash.com',
+                firstName: '',
+                lastName: '',
+            },
+            health: { mode: LightdashMode.DEFAULT },
+        });
+
+        await screen.findByPlaceholderText('Select your role');
+        await selectRole(user);
+        const submitButton = screen.getByRole('button', { name: 'Continue' });
+        expect(submitButton).toBeDisabled();
+
+        await user.type(screen.getByLabelText(/First name/), ' Ada ');
+        await user.type(screen.getByLabelText(/Last name/), 'Lovelace');
+
+        const scope = nock(BASE_API_URL)
+            .patch('/api/v1/user/me/complete', {
+                firstName: ' Ada ',
+                lastName: 'Lovelace',
+                jobTitle: 'Software Engineer',
+                enableEmailDomainAccess: false,
+                isMarketingOptedIn: true,
+                isTrackingAnonymized: false,
+            })
+            .reply(200);
+
+        expect(submitButton).toBeEnabled();
         await user.click(submitButton);
 
         await waitFor(() => expect(scope.isDone()).toBe(true));
@@ -223,6 +265,8 @@ describe('OrganizationSetup', () => {
         const scope = nock(BASE_API_URL)
             .patch('/api/v1/user/me/complete', {
                 organizationName: 'test organization',
+                firstName: 'David',
+                lastName: 'Attenborough',
                 jobTitle: 'Software Engineer',
                 howDidYouHearAboutUs: 'a podcast',
                 enableEmailDomainAccess: true,
@@ -266,6 +310,8 @@ describe('OrganizationSetup', () => {
 
         const scope = nock(BASE_API_URL)
             .patch('/api/v1/user/me/complete', {
+                firstName: 'David',
+                lastName: 'Attenborough',
                 jobTitle: 'Software Engineer',
                 enableEmailDomainAccess: false,
                 isMarketingOptedIn: true,
@@ -695,6 +741,8 @@ describe('OrganizationSetup', () => {
         const scope = nock(BASE_API_URL)
             .patch('/api/v1/user/me/complete', {
                 organizationName: 'Acme Inc',
+                firstName: 'David',
+                lastName: 'Attenborough',
                 jobTitle: 'Software Engineer',
                 howDidYouHearAboutUs: 'Podcast',
                 enableEmailDomainAccess: true,

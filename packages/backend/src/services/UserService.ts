@@ -1631,6 +1631,8 @@ export class UserService extends BaseService {
         user: SessionUser,
         {
             organizationName,
+            firstName,
+            lastName,
             jobTitle,
             isTrackingAnonymized,
             isMarketingOptedIn,
@@ -1640,6 +1642,14 @@ export class UserService extends BaseService {
     ): Promise<LightdashUser> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
+        }
+        if (
+            (firstName !== undefined && !validateUserName(firstName)) ||
+            (lastName !== undefined && !validateUserName(lastName))
+        ) {
+            throw new ParameterError(
+                'First name and last name must not contain HTML',
+            );
         }
         const auditedAbility = this.createAuditedAbility(user);
         if (organizationName) {
@@ -1699,6 +1709,8 @@ export class UserService extends BaseService {
             user.userUuid,
             undefined,
             {
+                firstName: firstName?.trim(),
+                lastName: lastName?.trim(),
                 isSetupComplete: true,
                 isTrackingAnonymized,
                 isMarketingOptedIn,
