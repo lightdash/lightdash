@@ -1,3 +1,10 @@
+# [3.147.0](https://github.com/lightdash/lightdash/compare/3.146.2...3.147.0) (2026-11-04)
+
+
+### Features
+
+* **analytics:** attribute query_sources.submitted to AI agent, thread and prompt ([#32050](https://github.com/lightdash/lightdash/issues/32050)) ([b80972a](https://github.com/lightdash/lightdash/commit/b80972aa2cb5812da67074bad6e7b8c3198985da))
+
 ## [3.146.2](https://github.com/lightdash/lightdash/compare/3.146.1...3.146.2) (2026-11-04)
 
 
