@@ -18,10 +18,6 @@ pnpm -F backend create-migration add_enterprise_feature
 ```
 
 The script uses the Knex CLI under the hood to create properly timestamped migration files in the correct directory.
-
-Before implementing a core or EE migration, read the shared rules in
-`../database/migrations/AGENTS.md`. The generator prints that path before the
-prompt; choose timeouts for the operation rather than copying an older migration.
 </howToUse>
 
 <codeExample>

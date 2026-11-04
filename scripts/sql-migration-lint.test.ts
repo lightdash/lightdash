@@ -438,7 +438,7 @@ export async function down(knex) { await knex.schema.alterTable('users', table =
 
 test('SET LOCAL lock_timeout suppresses the DDL warning', () => {
     const source = `export async function up(knex) {
-  await knex.raw("SET LOCAL lock_timeout = '60s'");
+  await knex.raw("SET LOCAL lock_timeout = '5s'");
   await knex.schema.alterTable('users', table => table.string('nickname'));
 }
 export async function down(knex) { await knex.schema.alterTable('users', table => table.dropColumn('nickname')); }`;

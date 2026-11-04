@@ -44,9 +44,6 @@ const promptUser = (): Promise<'ee' | 'oss'> =>
     });
 
 const createMigration = async (): Promise<void> => {
-    console.log(
-        'Before writing this migration, read packages/backend/src/database/migrations/AGENTS.md and choose timeouts for its locking behavior.',
-    );
     const migrationType = await promptUser();
 
     try {
