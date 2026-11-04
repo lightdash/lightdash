@@ -47,6 +47,7 @@ import { AgentOnboardingRunPageLegacy } from './AgentOnboardingRunPageLegacy';
 import { RunSummary } from './AgentOnboardingRunSummary';
 import { RunSemanticLayer } from './AgentOnboardingSemanticLayer';
 import {
+    isRunGoneError,
     useAgentOnboardingRun,
     useCancelAgentOnboardingRun,
     useStartAgentOnboardingRun,
@@ -263,7 +264,11 @@ const AgentOnboardingRunPage: FC = () => {
         return <PageSpinner />;
     }
 
-    if (runQuery.isError) {
+    // A failed poll keeps the loaded run on screen; the next poll retries it
+    if (
+        runQuery.isError &&
+        (isRunGoneError(runQuery.error) || !runQuery.data)
+    ) {
         return <ErrorState error={runQuery.error.error} />;
     }
 
