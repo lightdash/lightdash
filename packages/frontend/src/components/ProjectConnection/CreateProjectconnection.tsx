@@ -67,7 +67,6 @@ interface CreateProjectConnectionProps {
     } | null;
     /** Rendered after the warehouse fields, above the footer */
     warehouseStepEnd?: ReactNode;
-    canSubmit?: boolean;
 }
 
 // The schema input is rendered with the dbt settings, so it belongs to the dbt step
@@ -84,7 +83,6 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
     alwaysShowProjectName = false,
     steps = null,
     warehouseStepEnd = null,
-    canSubmit = true,
 }) => {
     const { pathname } = useLocation();
     const onboardingFlow = pathname.startsWith('/onboarding/')
@@ -368,11 +366,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
 
     const isWarehouseStep = steps?.current === 'warehouse';
     const submitButton = isWarehouseStep ? (
-        <Button
-            className={classes.submitButton}
-            onClick={goToDbtStep}
-            disabled={!canSubmit}
-        >
+        <Button className={classes.submitButton} onClick={goToDbtStep}>
             Next
         </Button>
     ) : (
@@ -381,7 +375,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
             className={classes.submitButton}
             type="submit"
             loading={isSavingProject}
-            disabled={!canSubmit || !form.isValid()}
+            disabled={!form.isValid()}
         >
             {warehouseOnly ? 'Test & save' : 'Test & deploy project'}
         </Button>

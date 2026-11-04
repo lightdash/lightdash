@@ -71,7 +71,7 @@ const REPO_MODE = 'repo';
 
 const WarehouseConnect: FC<{
     selectedWarehouse: WarehouseTypes;
-    initialModelSource: ModelSource | null;
+    initialModelSource: ModelSource;
     step: ConnectionFormStep;
     onStepChange: (step: ConnectionFormStep) => void;
 }> = ({ selectedWarehouse, initialModelSource, step, onStepChange }) => {
@@ -161,7 +161,6 @@ const WarehouseConnect: FC<{
                                 onChange={setModelSource}
                             />
                         }
-                        canSubmit={modelSource !== null}
                         successRedirect={(projectUuid) =>
                             `/onboarding/tools/${projectUuid}`
                         }
@@ -263,7 +262,7 @@ const OnboardingDataSourceContent: FC = () => {
             {selectedWarehouse ? (
                 <WarehouseConnect
                     selectedWarehouse={selectedWarehouse}
-                    initialModelSource={mode === REPO_MODE ? 'dbt' : null}
+                    initialModelSource={mode === REPO_MODE ? 'dbt' : 'tables'}
                     step={formStep}
                     onStepChange={(step) => setStepState({ warehouse, step })}
                 />
