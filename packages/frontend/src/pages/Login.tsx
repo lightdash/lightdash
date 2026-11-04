@@ -26,7 +26,7 @@ const Login: FC<{ minimal?: boolean }> = ({ minimal = false }) => {
         <AuthLayout
             pageTitle="Login"
             title="Log in"
-            subtitle="Welcome back. Pick up where you left off."
+            subtitle="Welcome back."
             legacyTitle="Sign in"
             cardId={LOGIN_PAGE_ID}
             withCustomerLogos
