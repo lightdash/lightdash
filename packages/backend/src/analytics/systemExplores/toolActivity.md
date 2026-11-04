@@ -25,7 +25,7 @@ error rate divides failures by calls with explicit success/error outcomes and
 returns null when there are none. Latency uses observed call durations, not
 warehouse query duration or external assistant time.
 
-MCP capture uses configured usage storage unless `LIGHTDASH_DISABLE_ANALYTICS=true`.
+MCP capture uses configured usage storage on licensed deployments.
 The nightly compactor and organization-scoped reader require managed Analytics
 availability and retain organization access checks. Capture starts
 after deployment; historical MCP analytics are not automatically imported.

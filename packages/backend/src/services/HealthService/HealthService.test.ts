@@ -83,19 +83,17 @@ describe('health', () => {
     });
 
     it.each([
-        { licensed: true, disabled: false, storage: true, expected: true },
-        { licensed: true, disabled: true, storage: true, expected: false },
-        { licensed: false, disabled: false, storage: true, expected: false },
-        { licensed: true, disabled: false, storage: false, expected: false },
+        { licensed: true, storage: true, expected: true },
+        { licensed: false, storage: true, expected: false },
+        { licensed: true, storage: false, expected: false },
     ])(
         'exposes managed analytics availability to the UI: %j',
-        async ({ licensed, disabled, storage, expected }) => {
+        async ({ licensed, storage, expected }) => {
             const service = new HealthService({
                 organizationModel:
                     organizationModel as unknown as OrganizationModel,
                 lightdashConfig: {
                     ...lightdashConfigMock,
-                    analyticsProject: { disabled },
                     usageEvents: {
                         ...lightdashConfigMock.usageEvents,
                         s3: storage

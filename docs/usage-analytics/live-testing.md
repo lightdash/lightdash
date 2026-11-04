@@ -11,15 +11,15 @@ change is required. Read-only credential hardening is deferred in PROD-11103.
    usage-events endpoint, bucket and credentials are correct
    for the deployment and that its org has compacted Parquet data. Confirm effective
    IAM does not grant the identity access to other deployments' buckets.
-2. Leave `LIGHTDASH_DISABLE_ANALYTICS` unset or `false`. Validated commercial
+2. Validated commercial
    deployments with usage storage expose Analytics to every organization by
    default; old `analytics-project` flag overrides are ignored. The existing
    role and project permissions still decide which users can access it.
 3. After deploying this code, sign in as an organization admin.
    In Organization settings → Lightdash analytics, create the project, open its
    dashboards and Explore, and exercise Sync content.
-4. Verify both AI usage and query events, unauthorized-reader and cross-org denial, then
-   deployment opt-out denial for creation, status, sync, deletion and query/result
+4. Verify both AI usage and query events, unauthorized-reader and cross-org denial, and
+   missing-license denial for creation, status, sync, deletion and query/result
    access in an isolated test deployment.
    Do not delete a project with valuable custom content just to test the flow.
 
@@ -30,11 +30,9 @@ checks. Both legacy `LIGHTDASH_LOCAL_ANALYTICS_ORG_UUID` and
 development. Local demos with mismatched source and project orgs must use matching
 fixtures; they can no longer read another org through an override.
 
-To disable the feature, set `LIGHTDASH_DISABLE_ANALYTICS=true` and restart every
-API, scheduler and NATS worker in the deployment. This stops new capture and
-processing and blocks managed Analytics access. Leave projects/content intact.
-Existing signed URLs and already delivered data are not revoked by this change.
-See [deployment opt-out](access.md#deployment-opt-out).
+Deleting a managed project excludes the organization from future nightly
+processing. It does not stop capture, cancel already selected or scoped jobs,
+or remove stored usage data. See [project removal](access.md#project-removal).
 
 ## Accepted boundary
 

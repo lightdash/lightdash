@@ -26,7 +26,7 @@ Explore. It does not reconstruct every past event or historical People summaries
 | ---------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
 | Project                | New projects use `DEFAULT` with `provisioning_source=analytics`; older previews retain their type | Non-admin readers need explicit managed Analytics and project permissions |
 | Entry point            | Organization analytics settings and session-authenticated, org-admin-only endpoints               | No configurable connector setup UI                                        |
-| Enablement             | Validated commercial license and usage storage; `LIGHTDASH_DISABLE_ANALYTICS=true` opt-out        | Controlled live verification before customer rollout                      |
+| Enablement             | Validated commercial license and usage storage; enabled by default                                | Controlled live verification before customer rollout                      |
 | Source org             | Persisted, authorized project org; legacy local overrides ignored                                 | Live shared-instance isolation verification                               |
 | Storage authentication | Existing writer credentials retained in backend; signed GET URLs passed to DuckDB                 | Verify effective IAM; read-only hardening is deferred (PROD-11103)        |
 | Models                 | Backend-owned Query Events, AI Usage, Data App Events and Export Events explores                  | Additional event coverage and named-entity lookups                        |
@@ -283,7 +283,7 @@ The normal result/history paths still exist and need authorization. Analytics
 checks cover project access, result/history retrieval, CSV/XLSX export generation
 and protected download retrieval. Scheduled deliveries can intentionally share
 signed export links; see [downloads and scheduled deliveries](access.md#downloads-and-scheduled-deliveries).
-Disabling the deployment does not revoke previously issued signed delivery links
+Deleting the project does not revoke previously issued signed delivery links
 or returned data.
 
 ### Small Parquet cache and temporary-file lifecycle
@@ -344,7 +344,7 @@ immediately purge previously cached bytes. Eviction is not secure erasure.
 [`analyticsProjectClient`](../../packages/backend/src/services/ProjectService/analyticsProject/analyticsProjectClient.ts)
 reads files for the persisted project's org after service authorization checks.
 Legacy local org/source-org overrides are ignored in all environments. Production
-execution uses validated commercial registration and the deployment opt-out.
+execution uses validated commercial registration and configured usage storage.
 See [live testing](live-testing.md) for rollout and remaining trust boundaries.
 
 The prefix filter is a backend authorization boundary, not bucket IAM. Storage

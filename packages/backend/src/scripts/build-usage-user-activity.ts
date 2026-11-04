@@ -37,10 +37,7 @@ async function main() {
         );
     }
     const { serviceProviders } = await getEnterpriseAppArguments();
-    if (
-        lightdashConfig.analyticsProject.disabled ||
-        !serviceProviders?.analyticsProjectService
-    )
+    if (!serviceProviders?.analyticsProjectService)
         throw new Error('Managed analytics is not enabled');
     console.log(
         await new UsageUserActivityBuilder(storage).run(

@@ -37,21 +37,13 @@ operations, project administration, SQL Runner, or extra content permissions.
 Built-in Project Admin and other non-admin organization roles are not opted in
 automatically. Private spaces retain their normal content-access checks.
 
-## Deployment opt-out
-
-Set `LIGHTDASH_DISABLE_ANALYTICS=true` and restart the API, scheduler and NATS
-workers to disable managed Analytics throughout a self-hosted deployment. The
-default is unset/false. This hides the settings entry, blocks managed project
-reads and administration, stops new usage-event capture, and skips compaction and
-history processing. It does not delete existing projects, content or stored data,
-or change other telemetry destinations and AI billing. Permissions still apply
-when enabled: availability is not access for every individual user.
+## Project removal
 
 Deleting an organization's managed Analytics project stops future nightly
 selection for that organization. It does not stop raw event capture, cancel work
 already selected or explicitly queued for the organization, or delete stored
-usage data. Administrators can recreate the project. Use the deployment opt-out
-above when capture and all Analytics access must also stop.
+usage data. Administrators can recreate the project. There is no per-organization capture
+switch.
 
 ## Agents and service accounts
 
@@ -77,7 +69,7 @@ adding a download token does not bypass these checks.
 Scheduled deliveries can deliberately share `SIGNED` files with recipients.
 These are bearer links: anyone holding a valid link can retrieve the file until
 it expires, without analytics access. Revoking the sender's permission or
-disabling managed Analytics does not revoke an already issued signed link or a
+deleting the project does not revoke an already issued signed link or a
 delivered attachment. Choose recipients accordingly: exports can contain
 organization-wide usage data, including user and content names.
 
@@ -92,7 +84,7 @@ admin still has access through their administration role.
 The backend verifies organization identity independently of the scope. Queries
 remain bound to the persisted project's organization and its server-controlled
 storage prefix; granting this scope does not allow choosing another customer's
-storage, connector or models. Disabling managed Analytics blocks reads
+storage, connector or models. Deleting the managed project blocks reads
 and new exports for admins and explicitly authorized readers alike. Previously
 shared signed exports follow the delivery behavior described above.
 

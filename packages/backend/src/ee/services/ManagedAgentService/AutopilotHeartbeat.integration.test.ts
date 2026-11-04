@@ -67,7 +67,6 @@ describe.skipIf(process.env.AUTOPILOT_HEARTBEAT_EVAL !== 'true')(
             expect(process.env.NATS_ENABLED).toBe('false');
             expect(process.env.SCHEDULER_ENABLED).toBe('false');
             expect(process.env.RUDDERSTACK_ANALYTICS_DISABLED).toBe('true');
-            expect(parseConfig().analyticsProject.disabled).toBe(true);
             if (provider !== 'openai' && provider !== 'anthropic')
                 throw new Error('Choose OpenAI or Anthropic');
             if (mode !== 'observe' && mode !== 'flag' && mode !== 'cleanup')
@@ -80,6 +79,11 @@ describe.skipIf(process.env.AUTOPILOT_HEARTBEAT_EVAL !== 'true')(
                 );
             modelName = process.env.AUTOPILOT_EVAL_MODEL;
             const config = parseConfig();
+            config.usageEvents = {
+                ...config.usageEvents,
+                enabled: false,
+                s3: null,
+            };
             const { model } = getModel(config.ai.copilot, {
                 provider,
                 modelName,

@@ -196,7 +196,7 @@ describe('AnalyticsProjectService', () => {
             expect(upsertDashboard).not.toHaveBeenCalled();
         });
 
-        it('skips queued reconciliation and sync when the deployment opts out', async () => {
+        it('skips queued reconciliation and sync when managed analytics is unavailable', async () => {
             isAnalyticsProjectEnabled.mockReturnValue(false);
             await configured().reconcileContent({ organizationUuid: null });
             await configured().syncContent({ organizationUuid: 'org' });

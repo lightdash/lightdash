@@ -3,9 +3,7 @@ import type { LicenseService } from '../../LicenseService/LicenseService';
 
 /** Instance availability; organization and project authorization remain separate. */
 export const isAnalyticsProjectAvailable = (
-    config: Pick<LightdashConfig, 'analyticsProject' | 'usageEvents'>,
+    config: Pick<LightdashConfig, 'usageEvents'>,
     licenseService: Pick<LicenseService, 'getLicenseStatus'>,
 ): boolean =>
-    !config.analyticsProject.disabled &&
-    config.usageEvents.s3 !== null &&
-    licenseService.getLicenseStatus().valid;
+    config.usageEvents.s3 !== null && licenseService.getLicenseStatus().valid;

@@ -5,16 +5,14 @@ import { isAnalyticsProjectAvailable } from './analyticsProjectAvailability';
 
 describe('managed analytics availability', () => {
     it.each([
-        { licensed: true, disabled: false, storage: true, expected: true },
-        { licensed: true, disabled: true, storage: true, expected: false },
-        { licensed: false, disabled: false, storage: true, expected: false },
-        { licensed: true, disabled: false, storage: false, expected: false },
+        { licensed: true, storage: true, expected: true },
+        { licensed: false, storage: true, expected: false },
+        { licensed: true, storage: false, expected: false },
     ])(
-        'requires validated licensing and storage, respects opt-out: %j',
-        ({ licensed, disabled, storage, expected }) => {
+        'requires validated licensing and storage: %j',
+        ({ licensed, storage, expected }) => {
             const config = {
                 ...lightdashConfigMock,
-                analyticsProject: { disabled },
                 usageEvents: {
                     ...lightdashConfigMock.usageEvents,
                     s3: storage

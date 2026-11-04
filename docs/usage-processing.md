@@ -5,10 +5,9 @@ commercial license and configured usage storage. The retired `analytics-project`
 organization flag no longer controls availability or processing. Existing role
 and project authorization and organization isolation remain in force.
 
-Set `LIGHTDASH_DISABLE_ANALYTICS=true` and restart API, scheduler and NATS workers
-to opt out of managed Analytics, new usage-event capture and processing. Unset or
-`false` enables the feature. This does not delete stored data or change unrelated
-telemetry and AI billing. See [access](usage-analytics/access.md).
+Capture is enabled for every organization when the deployment has a license key
+and configured usage storage. There is no Analytics rollout flag or dedicated
+ENV opt-out. Other telemetry destinations and AI billing are unchanged.
 
 `USAGE_EVENTS_ENABLED` remains removed and ignored. Usage storage continues to
 inherit base S3 settings unless overridden by `USAGE_EVENTS_S3_*`.
@@ -53,7 +52,7 @@ queue locks after four hours; monitor processing times and backlog before increa
 rollout cohorts so that scheduled and initial processing jobs do not overlap.
 
 The explicit `build-usage-user-activity` command also checks validated commercial
-registration and the deployment opt-out, and rejects dates older than the seven-day window.
+registration, and rejects dates older than the seven-day window.
 It remains a privileged maintenance script using the configured usage storage.
 An organization can receive the existing no-data error until processing succeeds.
 Project creation can enqueue the initial processing and retained-history import;

@@ -18,9 +18,7 @@ server-owned configuration to issue signed GET URLs; it requires no CLI login,
 OAuth exchange, or new cloud infrastructure. The usage-events endpoint defaults
 to `S3_ENDPOINT`; override it when analytics uses GCS and local storage uses MinIO.
 
-Leave `LIGHTDASH_DISABLE_ANALYTICS` unset (or `false`) to enable Analytics.
-To test the deployment opt-out, set it to `true` in that worktree's
-`.env.development.local` and restart its processes. Legacy `analytics-project`
+Legacy `analytics-project`
 feature-flag overrides no longer control availability. Source data must belong
 to the persisted project's org, even locally; legacy org/source-org overrides
 are ignored. For production testing, follow [live testing](live-testing.md).
@@ -154,7 +152,7 @@ instance and a dedicated bucket:
 
 Actual GCS reads and isolated MinIO tests verify the signed-URL path; AWS S3 and
 production multi-tenant rollout remain unverified.
-Production execution uses the same licensed default and deployment opt-out;
+Production execution uses the same licensed default;
 see [live testing](live-testing.md).
 
 ## Original provisioning stack

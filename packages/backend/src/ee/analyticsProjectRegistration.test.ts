@@ -21,7 +21,6 @@ describe('analytics provider registration', () => {
 
     afterEach(() => {
         lightdashConfig.usageEvents.s3 = originalStorage;
-        lightdashConfig.analyticsProject.disabled = false;
         lightdashConfig.license = { ...originalLicense };
         lightdashConfig.enabledFeatureFlags = originalEnabledFlags;
         vi.restoreAllMocks();
@@ -54,14 +53,6 @@ describe('analytics provider registration', () => {
                     repository.getLicenseService(),
                 ),
             ).toBe(license === 'valid');
-            lightdashConfig.analyticsProject.disabled = true;
-            expect(
-                isAnalyticsProjectAvailable(
-                    lightdashConfig,
-                    repository.getLicenseService(),
-                ),
-            ).toBe(false);
-            lightdashConfig.analyticsProject.disabled = false;
             expect(validate).toHaveBeenCalledTimes(
                 license === 'missing' ? 0 : 1,
             );
