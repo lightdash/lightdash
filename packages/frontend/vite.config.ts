@@ -64,7 +64,7 @@ export default defineConfig({
         alias: {
             // Same-shape es-toolkit entries replace lodash copies pulled in by react-ace and react-grid-layout
             'lodash.isequal': 'es-toolkit/compat/isEqual',
-            'lodash.get': 'es-toolkit/compat/get',
+            // No lodash.get alias: es-toolkit's CJS get makes rolldown emit a self-calling require_hasOwn in react-ace
             ...(process.env.NODE_ENV === 'development'
                 ? {
                       '@lightdash/common/src': path.resolve(
