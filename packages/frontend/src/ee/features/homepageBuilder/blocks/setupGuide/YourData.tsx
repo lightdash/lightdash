@@ -16,6 +16,7 @@ import {
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconArrowRight,
+    IconCircleDashed,
     IconDatabase,
     IconExternalLink,
     IconHelpCircle,
@@ -67,10 +68,74 @@ const SourceTag: FC<{
     </Group>
 );
 
-const HowItWorks: FC<{ projectUuid: string }> = ({ projectUuid }) => {
-    const [isOpen, { open, close }] = useDisclosure(false);
+type ModalAction = { label: string; to: string };
+
+const SemanticLayerModal: FC<{
+    opened: boolean;
+    onClose: () => void;
+    finalAction: ModalAction | null;
+}> = ({ opened, onClose, finalAction }) => {
     const [step, setStep] = useState(0);
     const isLastStep = step === SEMANTIC_LAYER_STEP_COUNT - 1;
+    const handleClose = () => {
+        setStep(0);
+        onClose();
+    };
+    return (
+        <MantineModal
+            opened={opened}
+            onClose={handleClose}
+            title="How the semantic layer works"
+            icon={IconLayersLinked}
+            cancelLabel={false}
+            leftActions={
+                isLastStep ? (
+                    <Anchor
+                        href={SEMANTIC_LAYER_DOCS_URL}
+                        target="_blank"
+                        rel="noreferrer"
+                        fz="sm"
+                    >
+                        <Group gap={4} wrap="nowrap">
+                            Read the docs
+                            <MantineIcon icon={IconExternalLink} size={14} />
+                        </Group>
+                    </Anchor>
+                ) : (
+                    <Text fz="xs" c="dimmed">
+                        {step + 1} of {SEMANTIC_LAYER_STEP_COUNT}
+                    </Text>
+                )
+            }
+            actions={
+                <Group gap="xs">
+                    {step > 0 && (
+                        <Button
+                            variant="default"
+                            onClick={() => setStep(step - 1)}
+                        >
+                            Back
+                        </Button>
+                    )}
+                    {isLastStep ? (
+                        finalAction && (
+                            <Button component={Link} to={finalAction.to}>
+                                {finalAction.label}
+                            </Button>
+                        )
+                    ) : (
+                        <Button onClick={() => setStep(step + 1)}>Next</Button>
+                    )}
+                </Group>
+            }
+        >
+            <SemanticLayerExplainer step={step} />
+        </MantineModal>
+    );
+};
+
+const HowItWorks: FC<{ projectUuid: string }> = ({ projectUuid }) => {
+    const [isOpen, { open, close }] = useDisclosure(false);
     return (
         <>
             <Anchor
@@ -78,72 +143,81 @@ const HowItWorks: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                 type="button"
                 fz="xs"
                 c="dimmed"
-                onClick={() => {
-                    setStep(0);
-                    open();
-                }}
+                onClick={open}
             >
                 <Group gap={4} wrap="nowrap">
                     <MantineIcon icon={IconHelpCircle} size={14} />
                     How models work
                 </Group>
             </Anchor>
-            <MantineModal
+            <SemanticLayerModal
                 opened={isOpen}
                 onClose={close}
-                title="How the semantic layer works"
-                icon={IconLayersLinked}
-                cancelLabel={false}
-                leftActions={
-                    isLastStep ? (
-                        <Anchor
-                            href={SEMANTIC_LAYER_DOCS_URL}
-                            target="_blank"
-                            rel="noreferrer"
-                            fz="sm"
-                        >
-                            <Group gap={4} wrap="nowrap">
-                                Read the docs
-                                <MantineIcon
-                                    icon={IconExternalLink}
-                                    size={14}
-                                />
-                            </Group>
-                        </Anchor>
-                    ) : (
-                        <Text fz="xs" c="dimmed">
-                            {step + 1} of {SEMANTIC_LAYER_STEP_COUNT}
-                        </Text>
-                    )
-                }
-                actions={
-                    <Group gap="xs">
-                        {step > 0 && (
-                            <Button
-                                variant="default"
-                                onClick={() => setStep(step - 1)}
-                            >
-                                Back
-                            </Button>
-                        )}
-                        {isLastStep ? (
-                            <Button
-                                component={Link}
-                                to={`/projects/${projectUuid}/metrics`}
-                            >
-                                Explore your metrics
-                            </Button>
-                        ) : (
-                            <Button onClick={() => setStep(step + 1)}>
-                                Next
-                            </Button>
-                        )}
-                    </Group>
-                }
-            >
-                <SemanticLayerExplainer step={step} />
-            </MantineModal>
+                finalAction={{
+                    label: 'Explore your metrics',
+                    to: `/projects/${projectUuid}/metrics`,
+                }}
+            />
         </>
+    );
+};
+
+const StepText: FC<{ title: string; description: string }> = ({
+    title,
+    description,
+}) => (
+    <Box flex={1}>
+        <Text fz="sm" fw={500}>
+            {title}
+        </Text>
+        <Text fz="xs" c="dimmed">
+            {description}
+        </Text>
+    </Box>
+);
+
+/** What a warehouse and a semantic layer would add, for projects running on live sources */
+const NextSteps: FC<{
+    warehouseUrl: string | null;
+    semanticLayer: { finalAction: ModalAction | null } | null;
+}> = ({ warehouseUrl, semanticLayer }) => {
+    const [isModalOpen, { open, close }] = useDisclosure(false);
+    if (!warehouseUrl && !semanticLayer) return null;
+    return (
+        <Box className={classes.nextSteps}>
+            <Text fz="xs" c="dimmed" className={classes.nextStepsLabel}>
+                When you're ready
+            </Text>
+            {warehouseUrl && (
+                <Link to={warehouseUrl} className={classes.nextStep}>
+                    <MantineIcon icon={IconCircleDashed} color="dimmed" />
+                    <StepText
+                        title="Connect a warehouse"
+                        description="Chart your own tables next to your tool data."
+                    />
+                    <WarehouseLogoStack size="sm" monochrome />
+                </Link>
+            )}
+            {semanticLayer && (
+                <>
+                    <UnstyledButton className={classes.nextStep} onClick={open}>
+                        <MantineIcon icon={IconCircleDashed} color="dimmed" />
+                        <StepText
+                            title="Add a semantic layer"
+                            description="Define metrics once so every chart and answer uses the same numbers."
+                        />
+                        <Text fz="xs" c="dimmed" className={classes.nowrap}>
+                            How it works
+                        </Text>
+                    </UnstyledButton>
+                    <SemanticLayerModal
+                        opened={isModalOpen}
+                        onClose={close}
+                        finalAction={semanticLayer.finalAction}
+                    />
+                </>
+            )}
+        </Box>
     );
 };
 
@@ -186,15 +260,6 @@ const liveSourceTag = (connection: ExternalConnectionListItem) => {
     );
 };
 
-const ConnectWarehouseBadge: FC<{ to: string }> = ({ to }) => (
-    <Link to={to} className={`${classes.pill} ${classes.connectWarehouse}`}>
-        <WarehouseLogoStack size="sm" monochrome />
-        <Text fz="xs" fw={500}>
-            Connect a warehouse
-        </Text>
-    </Link>
-);
-
 const PathLabel: FC<{ label: string; description: string }> = ({
     label,
     description,
@@ -226,6 +291,7 @@ export const YourData: FC<{
     );
     const { track } = useTracking();
     const warehouse = actions.statuses['connect-warehouse'];
+    const semanticLayerStatus = actions.statuses['add-semantic-layer'];
     const canConnectWarehouse = useCanManageProject(projectUuid);
     // Live sources compile into explores, so charts work before a warehouse
     const isShown =
@@ -350,14 +416,35 @@ export const YourData: FC<{
                         />
                     )}
                     {guide.liveConnections.map(liveSourceTag)}
-                    {!warehouse.isComplete && canConnectWarehouse && (
-                        <ConnectWarehouseBadge to={warehouse.url} />
-                    )}
                 </Group>
                 {guide.semanticExplores.length > 0 && (
                     <HowItWorks projectUuid={projectUuid} />
                 )}
             </Group>
+            <NextSteps
+                warehouseUrl={
+                    !warehouse.isComplete && canConnectWarehouse
+                        ? warehouse.url
+                        : null
+                }
+                semanticLayer={
+                    guide.semanticExplores.length === 0 && !guide.activeRun
+                        ? {
+                              finalAction: !canConnectWarehouse
+                                  ? null
+                                  : warehouse.isComplete
+                                    ? {
+                                          label: semanticLayerStatus.ctaLabel,
+                                          to: semanticLayerStatus.url,
+                                      }
+                                    : {
+                                          label: 'Connect a warehouse',
+                                          to: warehouse.url,
+                                      },
+                          }
+                        : null
+                }
+            />
         </Paper>
     );
 };
