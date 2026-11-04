@@ -1,7 +1,6 @@
 import { Box, Group, Image, Radio, SimpleGrid, Text } from '@mantine/core';
-import { IconTable } from '@tabler/icons-react';
 import { type FC } from 'react';
-import MantineIcon from '../../common/MantineIcon';
+import LogoIcon from '../../../svgs/logo-icon.svg?react';
 import DbtLogo from './Assets/dbt.svg';
 import classes from './DataSourceChooser.module.css';
 
@@ -18,6 +17,20 @@ export const ModelSourceQuestion: FC<{
         classNames={{ label: classes.questionLabel }}
     >
         <SimpleGrid cols={2} spacing="xs">
+            <Radio.Card value="tables" className={classes.choiceCard}>
+                <Group justify="space-between" align="flex-start">
+                    <Box className={classes.tileLogo}>
+                        <LogoIcon width={16} height={16} />
+                    </Box>
+                    <Radio.Indicator size="xs" />
+                </Group>
+                <Text fw={500} size="sm" mt="sm">
+                    Let Lightdash handle it
+                </Text>
+                <Text c="dimmed" size="xs">
+                    We'll draft models from your tables
+                </Text>
+            </Radio.Card>
             <Radio.Card value="dbt" className={classes.choiceCard}>
                 <Group justify="space-between" align="flex-start">
                     <Box className={classes.tileLogo}>
@@ -26,24 +39,10 @@ export const ModelSourceQuestion: FC<{
                     <Radio.Indicator size="xs" />
                 </Group>
                 <Text fw={500} size="sm" mt="sm">
-                    From my dbt project
+                    I have a dbt project
                 </Text>
                 <Text c="dimmed" size="xs">
                     Bring models from a repo or dbt Cloud
-                </Text>
-            </Radio.Card>
-            <Radio.Card value="tables" className={classes.choiceCard}>
-                <Group justify="space-between" align="flex-start">
-                    <Box className={classes.tileLogo}>
-                        <MantineIcon icon={IconTable} size={18} />
-                    </Box>
-                    <Radio.Indicator size="xs" />
-                </Group>
-                <Text fw={500} size="sm" mt="sm">
-                    From my tables
-                </Text>
-                <Text c="dimmed" size="xs">
-                    We'll draft models for you to review
                 </Text>
             </Radio.Card>
         </SimpleGrid>
