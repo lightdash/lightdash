@@ -543,7 +543,7 @@ describe('getRunComposerQueries', () => {
         );
     });
 
-    it('names the sort of a capped node and drops the max once the limit is the max', async () => {
+    it('drops the max from the capped marker once the limit is the max', async () => {
         const { tool, dependencies } = makeTool({ autoApproveSql: true });
         dependencies.runComposerQueries.mockResolvedValueOnce({
             ...defaultRunResult,
@@ -558,17 +558,7 @@ describe('getRunComposerQueries', () => {
             tool,
             makeArgs({
                 queries: [
-                    {
-                        ...semanticNode,
-                        limit: 5000,
-                        sorts: [
-                            { fieldId: 'payments_month', descending: true },
-                            {
-                                fieldId: 'payments_total_revenue',
-                                descending: false,
-                            },
-                        ],
-                    },
+                    { ...semanticNode, limit: 5000 },
                     sqlNode,
                     duckdbNode,
                 ],
@@ -576,7 +566,7 @@ describe('getRunComposerQueries', () => {
         );
 
         expect(output.result).toContain(
-            '- revenue: "Revenue by month" (semanticLayer): 5000 rows, limit 5000. Reached its limit of 5000, so more rows may exist. Holds the first rows sorted by payments_month desc, payments_total_revenue asc.',
+            '- revenue: "Revenue by month" (semanticLayer): 5000 rows, limit 5000. Reached its limit of 5000, so more rows may exist.',
         );
     });
 

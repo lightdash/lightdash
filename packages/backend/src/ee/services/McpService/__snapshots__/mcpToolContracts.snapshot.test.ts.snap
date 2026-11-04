@@ -10605,7 +10605,7 @@ When building an HTML/React artifact that calls MCP, load the mcp-artifact-integ
         "readOnlyHint": true,
         "title": "Run composer queries",
       },
-      "description": "Run a pipeline: one or more nodes submitted together, where duckdb and python nodes join or transform other nodes' results. A pipeline of one node runs a single semantic-layer or SQL query.
+      "description": "Run a pipeline: up to 25 nodes submitted together, where duckdb and python nodes join or transform other nodes' results. A pipeline of one node runs a single semantic-layer or SQL query.
 
 One call returns one node's rows, so exactly one submitted node may go unread by the others: combine several results in one duckdb node (UNION ALL or JOIN), or submit them in separate calls reusing earlier nodes.
 

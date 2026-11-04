@@ -6,6 +6,7 @@ import {
     assertRegisteredAccount,
     FeatureFlags,
     ForbiddenError,
+    MAX_SOURCE_QUERIES_PER_SUBMISSION,
     ParameterError,
     QueryHistoryStatus,
     QuerySourceType,
@@ -69,7 +70,6 @@ type ValidatedQuery = {
     dependsOn: string[];
 };
 
-const MAX_QUERIES = 25;
 const MAX_STATUS_QUERY_UUIDS = 50;
 const NODE_ID_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]{0,62}$/;
 const UUID_PATTERN =
@@ -294,9 +294,9 @@ export class QuerySourceService extends BaseService {
         if (queries.length === 0) {
             throw new ParameterError('Submit at least one query');
         }
-        if (queries.length > MAX_QUERIES) {
+        if (queries.length > MAX_SOURCE_QUERIES_PER_SUBMISSION) {
             throw new ParameterError(
-                `A submission supports at most ${MAX_QUERIES} queries`,
+                `A submission supports at most ${MAX_SOURCE_QUERIES_PER_SUBMISSION} queries`,
             );
         }
 

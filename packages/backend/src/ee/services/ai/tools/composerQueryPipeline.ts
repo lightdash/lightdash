@@ -268,24 +268,10 @@ export const toNodeSummary = (
 
 const describeCappedRows = (
     node: ComposerNodeSummary,
-    query: ComposerPipelineNode | null,
     maxQueryLimit: number,
 ): string => {
     const max = node.limit < maxQueryLimit ? ` (max ${maxQueryLimit})` : '';
-    const sorts =
-        query?.sourceType === QuerySourceType.SEMANTIC_LAYER
-            ? (query.sorts ?? [])
-            : [];
-    const sortedBy =
-        sorts.length > 0
-            ? ` Holds the first rows sorted by ${sorts
-                  .map(
-                      ({ fieldId, descending }) =>
-                          `${fieldId} ${descending ? 'desc' : 'asc'}`,
-                  )
-                  .join(', ')}.`
-            : '';
-    return ` Reached its limit of ${node.limit}, so more rows may exist${max}.${sortedBy}`;
+    return ` Reached its limit of ${node.limit}, so more rows may exist${max}.`;
 };
 
 export const hasReachedLimit = (node: ComposerNodeSummary) =>
@@ -353,12 +339,7 @@ export const renderComposerNodeListing = ({
     const getOutcome = (node: ComposerNodeSummary): string => {
         if (node.rowCount !== null) {
             const capped = reachedLimit.has(node.nodeId)
-                ? describeCappedRows(
-                      node,
-                      queries.find(({ nodeId }) => nodeId === node.nodeId) ??
-                          null,
-                      maxQueryLimit,
-                  )
+                ? describeCappedRows(node, maxQueryLimit)
                 : '';
             const reused = submittedNodeIds.has(node.nodeId)
                 ? ''
