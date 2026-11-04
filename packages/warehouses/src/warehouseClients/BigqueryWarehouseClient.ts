@@ -1368,7 +1368,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         const projectId = keyfileContents.project_id;
         const [datasets] = await new BigQuery({
             projectId,
-            credentials: keyfileContents,
+            credentials: getBigqueryKeyfileCredentials(keyfileContents),
         }).getDatasets({ autoPaginate: false, maxResults: 1000 });
         return datasets.map((dataset) => ({
             projectId: dataset.projectId ?? projectId,
