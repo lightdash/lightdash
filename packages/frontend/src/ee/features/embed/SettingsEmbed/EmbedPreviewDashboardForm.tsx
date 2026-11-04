@@ -291,7 +291,10 @@ const EmbedPreviewDashboardForm: FC<{
                 </Stack>
 
                 <Divider />
-                <EmbedFormSection title="Identification & security">
+                <EmbedFormSection
+                    title="Identification & security"
+                    description={null}
+                >
                     <Stack gap="xs">
                         <Input.Wrapper label="User identifier">
                             <TextInput
@@ -371,7 +374,10 @@ const EmbedPreviewDashboardForm: FC<{
                 </EmbedFormSection>
 
                 <Divider />
-                <EmbedFormSection title="Interactivity & permissions">
+                <EmbedFormSection
+                    title="Interactivity & permissions"
+                    description={null}
+                >
                     <Stack gap="md">
                         <EmbedFiltersInteractivity
                             dashboardUuid={form.values.dashboardUuid}

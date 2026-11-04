@@ -23,7 +23,7 @@ export const DataOps: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                     description="Developers and admins on this organization can copy content from this project into the selected upstream project, overriding its defaults or creating new content if it is new."
                 >
                     <Select
-                        mt="md"
+                        mt="sm"
                         value={selectedProject}
                         clearable
                         data={groupComboboxItems(

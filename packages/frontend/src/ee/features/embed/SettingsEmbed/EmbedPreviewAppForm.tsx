@@ -206,7 +206,10 @@ const EmbedPreviewAppForm: FC<{
                 </Stack>
 
                 <Divider />
-                <EmbedFormSection title="Identification & security">
+                <EmbedFormSection
+                    title="Identification & security"
+                    description={null}
+                >
                     <Stack gap="xs">
                         <Input.Wrapper label="User identifier">
                             <TextInput

@@ -253,7 +253,10 @@ const EmbedPreviewChartForm: FC<{
                 </Stack>
 
                 <Divider />
-                <EmbedFormSection title="Identification & security">
+                <EmbedFormSection
+                    title="Identification & security"
+                    description={null}
+                >
                     <Stack gap="xs">
                         <Input.Wrapper label="User identifier">
                             <TextInput
@@ -333,7 +336,10 @@ const EmbedPreviewChartForm: FC<{
                 </EmbedFormSection>
 
                 <Divider />
-                <EmbedFormSection title="Interactivity & permissions">
+                <EmbedFormSection
+                    title="Interactivity & permissions"
+                    description={null}
+                >
                     <Stack gap="xs">
                         <Input.Label>Users can:</Input.Label>
                         <Switch

@@ -386,7 +386,7 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
                                             </Popover.Target>
                                             <Popover.Dropdown>
                                                 <Stack gap="xs">
-                                                    <Text size="sm" maw={220}>
+                                                    <Text fz="sm" maw={220}>
                                                         Dismiss this draft? The
                                                         author's changes stay
                                                         unpublished and won't
@@ -445,18 +445,16 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
                                 <Stack gap="xxs">
                                     <Group gap="xs" wrap="nowrap">
                                         <span className={staleClasses.dot} />
-                                        <Text size="sm" fw={600}>
-                                            Behind the repo
-                                        </Text>
+                                        <Title order={6}>Behind the repo</Title>
                                     </Group>
-                                    <Text size="sm" c="dimmed">
+                                    <Text fz="sm" c="dimmed">
                                         The repo published past the version this
                                         draft started from. The author has to
                                         update it before it can be written back.
                                     </Text>
                                     {(stalenessDetails?.changes ?? []).map(
                                         (change) => (
-                                            <Text size="sm" key={change.field}>
+                                            <Text fz="sm" key={change.field}>
                                                 <Text span fw={500}>
                                                     {draftFieldLabel(
                                                         change.field,

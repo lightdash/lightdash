@@ -3,7 +3,7 @@ import { type FC, type PropsWithChildren, type ReactNode } from 'react';
 
 type EmbedFormSectionProps = {
     title: string;
-    description?: string;
+    description: string | null;
     titleAddon?: ReactNode;
 };
 

@@ -220,7 +220,7 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
             <SettingsEmptyState
                 icon={IconKey}
                 title="No embed secret"
-                description="Generate a secret to start signing embed tokens for dashboards and charts."
+                description="Generate a secret to start signing embed tokens."
             >
                 <Button
                     disabled={isSaving}
