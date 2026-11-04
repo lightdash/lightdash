@@ -1,5 +1,6 @@
 import {
     type AgentOnboardingRun,
+    WarehouseTypes,
     type ExternalConnectionListItem,
 } from '@lightdash/common';
 import {
@@ -29,12 +30,14 @@ import { useLocalStorage } from 'react-use';
 import { AI_NAME } from '../../../../../components/common/aiName';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
+import { getWarehouseIcon } from '../../../../../components/ProjectConnection/ProjectConnectFlow/utils';
 import { getLiveSource } from '../../../../../features/externalConnections/liveSources/liveSourceCatalog';
 import { LiveSourceIcon } from '../../../../../features/externalConnections/liveSources/LiveSourceIcon';
 import useApp from '../../../../../providers/App/useApp';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import { getAgentOnboardingRunUrl } from '../../../agentOnboarding/utils';
+import { useCanManageProject } from '../../hooks/useHomepageAbilities';
 import { type RecommendedActionsState } from '../useRecommendedActions';
 import {
     SEMANTIC_LAYER_STEP_COUNT,
@@ -184,6 +187,28 @@ const liveSourceTag = (connection: ExternalConnectionListItem) => {
     );
 };
 
+const WAREHOUSES = [
+    WarehouseTypes.BIGQUERY,
+    WarehouseTypes.SNOWFLAKE,
+    WarehouseTypes.DATABRICKS,
+    WarehouseTypes.POSTGRES,
+];
+
+const ConnectWarehouseBadge: FC<{ to: string }> = ({ to }) => (
+    <Link to={to} className={`${classes.pill} ${classes.connectWarehouse}`}>
+        <Box className={classes.warehouseStack} aria-hidden>
+            {WAREHOUSES.map((warehouse) => (
+                <Box key={warehouse} className={classes.warehouseLogo}>
+                    {getWarehouseIcon(warehouse, 12)}
+                </Box>
+            ))}
+        </Box>
+        <Text fz="xs" fw={500}>
+            Connect a warehouse
+        </Text>
+    </Link>
+);
+
 const PathLabel: FC<{ label: string; description: string }> = ({
     label,
     description,
@@ -215,8 +240,12 @@ export const YourData: FC<{
     );
     const { track } = useTracking();
     const warehouse = actions.statuses['connect-warehouse'];
+    const canConnectWarehouse = useCanManageProject(projectUuid);
+    // Live sources compile into explores, so charts work before a warehouse
     const isShown =
-        warehouse.isComplete && guide.chartCount === 0 && !isDismissed;
+        (warehouse.isComplete || guide.liveConnections.length > 0) &&
+        guide.chartCount === 0 &&
+        !isDismissed;
     const bannerProperties = {
         surface: 'first_chart_banner',
         projectId: projectUuid,
@@ -313,20 +342,30 @@ export const YourData: FC<{
                     <Text fz="xs" c="dimmed" mr={2}>
                         Using
                     </Text>
-                    <SourceTag
-                        icon={
-                            warehouse.doneIcon ?? (
-                                <MantineIcon icon={IconDatabase} size={14} />
-                            )
-                        }
-                        name={warehouse.annotation ?? 'Warehouse'}
-                        detail={
-                            guide.activeRun ? (
-                                <DraftingModelsDetail run={guide.activeRun} />
-                            ) : null
-                        }
-                    />
+                    {warehouse.isComplete && (
+                        <SourceTag
+                            icon={
+                                warehouse.doneIcon ?? (
+                                    <MantineIcon
+                                        icon={IconDatabase}
+                                        size={14}
+                                    />
+                                )
+                            }
+                            name={warehouse.annotation ?? 'Warehouse'}
+                            detail={
+                                guide.activeRun ? (
+                                    <DraftingModelsDetail
+                                        run={guide.activeRun}
+                                    />
+                                ) : null
+                            }
+                        />
+                    )}
                     {guide.liveConnections.map(liveSourceTag)}
+                    {!warehouse.isComplete && canConnectWarehouse && (
+                        <ConnectWarehouseBadge to={warehouse.url} />
+                    )}
                 </Group>
                 {guide.semanticExplores.length > 0 && (
                     <HowItWorks projectUuid={projectUuid} />

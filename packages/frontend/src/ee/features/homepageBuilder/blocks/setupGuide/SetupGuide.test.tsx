@@ -1,5 +1,7 @@
 import {
+    ApiConnectorType,
     type AgentOnboardingRun,
+    type ExternalConnectionListItem,
     type OrganizationBrand,
 } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
@@ -25,6 +27,10 @@ const track = vi.hoisted(() => vi.fn());
 
 vi.mock('../../../../../providers/Tracking/useTracking', () => ({
     default: () => ({ track }),
+}));
+
+vi.mock('../../hooks/useHomepageAbilities', () => ({
+    useCanManageProject: () => true,
 }));
 
 vi.mock('../../../../../providers/App/useApp', () => ({
@@ -467,6 +473,37 @@ const bannerGuide: SetupGuideState = {
     restoreAction: vi.fn(),
 };
 
+const postHogConnection: ExternalConnectionListItem = {
+    externalConnectionUuid: 'c1',
+    projectUuid: 'p1',
+    organizationUuid: 'o1',
+    name: 'PostHog',
+    slug: 'posthog',
+    type: 'oauth_authorization_code',
+    origin: 'https://us.posthog.com',
+    instructions: null,
+    allowedPathPrefixes: [],
+    allowedMethods: ['GET'],
+    allowedContentTypes: [],
+    responseMaxBytes: 0,
+    requestMaxBytes: 0,
+    timeoutMs: 0,
+    rateLimitPerMinute: null,
+    apiKeyName: null,
+    apiKeyLocation: null,
+    oauthScopes: null,
+    customHeaders: null,
+    kind: 'live_source',
+    apiSource: { connector: ApiConnectorType.POSTHOG, projectId: '1' },
+    hasSecret: true,
+    createdByUserUuid: null,
+    updatedByUserUuid: null,
+    createdAt: new Date(0),
+    updatedAt: new Date(0),
+    linkedDataAppCount: 0,
+    linkedChartTypeCount: 0,
+};
+
 const renderBanner = (guide: SetupGuideState) =>
     render(
         <MantineProvider env="test">
@@ -485,6 +522,36 @@ describe('first chart banner', () => {
     it('stays hidden once the project has charts', () => {
         renderBanner({ ...bannerGuide, chartCount: 3 });
         expect(screen.queryByText('Build your first chart')).toBeNull();
+    });
+
+    it('shows on live sources alone, offering a warehouse', () => {
+        render(
+            <MantineProvider env="test">
+                <MemoryRouter>
+                    <YourData
+                        projectUuid="p1"
+                        actions={{
+                            ...bannerActions,
+                            statuses: {
+                                ...bannerActions.statuses,
+                                'connect-warehouse': status({
+                                    url: '/settings',
+                                }),
+                            },
+                        }}
+                        guide={{
+                            ...bannerGuide,
+                            liveConnections: [postHogConnection],
+                        }}
+                        onAsk={vi.fn()}
+                    />
+                </MemoryRouter>
+            </MantineProvider>,
+        );
+        expect(screen.getByText('Build your first chart')).toBeTruthy();
+        expect(
+            screen.getByRole('link', { name: /Connect a warehouse/ }),
+        ).toHaveAttribute('href', '/settings');
     });
 
     it('reports the impression, an Explore pick and the dismiss', async () => {

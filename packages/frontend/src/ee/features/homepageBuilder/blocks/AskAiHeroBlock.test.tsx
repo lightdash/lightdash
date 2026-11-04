@@ -29,6 +29,10 @@ const state = vi.hoisted(() => ({
     isNewOnboarding: true,
 }));
 
+vi.mock('../hooks/useHasLiveSources', () => ({
+    useHasLiveSources: () => false,
+}));
+
 vi.mock('../hooks/useHomepageAiState', () => ({
     useHomepageAiState: () => ({
         canAskAi: state.canAskAi,
