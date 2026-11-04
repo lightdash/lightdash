@@ -303,6 +303,7 @@ export const SCHEDULER_TASKS = {
     BACKFILL_DEFAULT_USER_SPACES: 'backfillDefaultUserSpaces',
     LEARN_SANDBOX_COMMAND: 'learnSandboxCommand',
     ...EE_SCHEDULER_TASKS,
+    WARM_WAREHOUSE_TABLES_CACHE: 'warmWarehouseTablesCache',
 } as const;
 
 export const ALL_TASK_NAMES: SchedulerTaskName[] =
@@ -363,6 +364,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.BACKFILL_DEFAULT_USER_SPACES]: BackfillDefaultUserSpacesPayload;
     [SCHEDULER_TASKS.LEARN_SANDBOX_COMMAND]: LearnSandboxCommandPayload;
     [SCHEDULER_TASKS.AI_AGENT_EVAL_RESULT]: AiAgentEvalRunJobPayload;
+    [SCHEDULER_TASKS.WARM_WAREHOUSE_TABLES_CACHE]: TraceTaskBase;
     [SCHEDULER_TASKS.AI_AGENT_REVIEW_CLASSIFIER]: AiAgentReviewClassifierJobPayload;
     [SCHEDULER_TASKS.AI_AGENT_REVIEW_WRITEBACK]: AiAgentReviewWritebackJobPayload;
     [SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_PREVIEW]: AiAgentReviewRemediationPreviewJobPayload;

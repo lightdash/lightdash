@@ -87,7 +87,7 @@ export class GithubAppService extends BaseService {
         this.analytics = args.analytics;
     }
 
-    async installRedirect(user: SessionUser) {
+    async installRedirect(user: SessionUser, returnToPath?: string) {
         this.analytics.track({
             event: 'github_install.started',
             userId: user.userUuid,
@@ -97,7 +97,7 @@ export class GithubAppService extends BaseService {
         });
 
         const returnToUrl = new URL(
-            '/generalSettings/integrations',
+            this.toSameOriginPath(returnToPath),
             this.lightdashConfig.siteUrl,
         );
         const randomID = nanoid().replace('_', ''); // we use _ as separator, don't allow this character on the nanoid

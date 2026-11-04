@@ -179,6 +179,7 @@ const emailModel = {
 
 const inviteLinkModel = {
     getByCode: vi.fn(async () => inviteLink),
+    findInvitedByUserUuid: vi.fn(async () => null),
     deleteByCode: vi.fn(async () => undefined),
     upsert: vi.fn(async () => inviteLink),
 };
@@ -5324,6 +5325,7 @@ describe('UserService', () => {
                 sessionUser.organizationUuid,
                 newUser.userUuid,
                 InviteLinkPurpose.Member,
+                sessionUser.userUuid,
             );
         });
         test('should cap invite expiry at the organization setting', async () => {
@@ -5346,6 +5348,7 @@ describe('UserService', () => {
                 sessionUser.organizationUuid,
                 newUser.userUuid,
                 InviteLinkPurpose.Member,
+                sessionUser.userUuid,
             );
             dateNowSpy.mockRestore();
         });
@@ -5366,6 +5369,7 @@ describe('UserService', () => {
                 sessionUser.organizationUuid,
                 newUser.userUuid,
                 InviteLinkPurpose.Member,
+                sessionUser.userUuid,
             );
             dateNowSpy.mockRestore();
         });
@@ -5383,6 +5387,7 @@ describe('UserService', () => {
                 sessionUser.organizationUuid,
                 newUser.userUuid,
                 InviteLinkPurpose.Member,
+                sessionUser.userUuid,
             );
         });
         test('should use a changed organization setting for subsequent links only', async () => {
@@ -5410,6 +5415,7 @@ describe('UserService', () => {
                 sessionUser.organizationUuid,
                 newUser.userUuid,
                 InviteLinkPurpose.Member,
+                sessionUser.userUuid,
             );
             expect(vi.mocked(inviteLinkModel.upsert)).toHaveBeenNthCalledWith(
                 2,
@@ -5418,6 +5424,7 @@ describe('UserService', () => {
                 sessionUser.organizationUuid,
                 newUser.userUuid,
                 InviteLinkPurpose.Member,
+                sessionUser.userUuid,
             );
             dateNowSpy.mockRestore();
         });
@@ -5467,6 +5474,7 @@ describe('UserService', () => {
                 sessionUser.organizationUuid,
                 newUser.userUuid,
                 InviteLinkPurpose.Setup,
+                sessionUser.userUuid,
             );
             expect(vi.mocked(emailClient.sendInviteEmail)).toHaveBeenCalledWith(
                 adminUser,
