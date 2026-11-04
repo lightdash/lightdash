@@ -52,7 +52,11 @@ const NoProjectHomepage: FC = () => {
     return (
         <OnboardingLayout
             screen="choose_source"
-            journey={{ currentStep: 1, steps: ONBOARDING_DATA_STEPS }}
+            journey={{
+                currentStep: 1,
+                steps: ONBOARDING_DATA_STEPS,
+                progress: 0.2,
+            }}
             aside={<StepVisual step="warehouse" />}
         >
             <DocumentTitle title="Get started" />

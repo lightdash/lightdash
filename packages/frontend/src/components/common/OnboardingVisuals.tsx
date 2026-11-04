@@ -50,6 +50,14 @@ const Connector: FC<{ index: number }> = ({ index }) => (
     </Box>
 );
 
+/** A dashed card beside the warehouse for the sources the next step adds */
+export const NextUpCard: FC<{ children: ReactNode }> = ({ children }) => (
+    <>
+        <Box className={classes.nextUpLink} aria-hidden />
+        <Box className={classes.nextUp}>{children}</Box>
+    </>
+);
+
 const Bars: FC<{ heights: number[]; delay: number }> = ({ heights, delay }) => (
     <Box className={classes.bars} aria-hidden>
         {heights.map((height, index) => (
@@ -88,46 +96,49 @@ const TABLES: [string, string][] = [
     ['subscriptions', '22k rows'],
 ];
 
-const WarehouseVisual: FC = () => (
+export const WarehouseVisual: FC<{ nextUp: ReactNode }> = ({ nextUp }) => (
     <Figure
         title="Your data stays where it is"
         body="Charts, dashboards and answers query your warehouse directly."
     >
-        <Box className={classes.card} __vars={{ '--i': '0' }}>
-            <Group gap={8} wrap="nowrap" className={classes.cardHeader}>
-                <Box className={classes.logoStack}>
-                    {WAREHOUSE_LOGOS.map((logo) => (
-                        <Image
-                            key={logo}
-                            src={logo}
-                            w={14}
-                            h={14}
-                            fit="contain"
-                        />
-                    ))}
-                </Box>
-                <Text fz="xs" fw={500}>
-                    analytics
-                </Text>
-                <Text fz="xs" c="dimmed" ml="auto">
-                    4 tables
-                </Text>
-            </Group>
-            {TABLES.map(([name, rows], index) => (
-                <Box
-                    key={name}
-                    className={classes.scanRow}
-                    __vars={{ '--i': String(index) }}
-                >
-                    <MantineIcon icon={IconDatabase} size={12} />
+        <Box className={classes.enrichRow}>
+            <Box className={classes.card} __vars={{ '--i': '0' }}>
+                <Group gap={8} wrap="nowrap" className={classes.cardHeader}>
+                    <Box className={classes.logoStack}>
+                        {WAREHOUSE_LOGOS.map((logo) => (
+                            <Image
+                                key={logo}
+                                src={logo}
+                                w={14}
+                                h={14}
+                                fit="contain"
+                            />
+                        ))}
+                    </Box>
                     <Text fz="xs" fw={500}>
-                        {name}
+                        analytics
                     </Text>
                     <Text fz="xs" c="dimmed" ml="auto">
-                        {rows}
+                        4 tables
                     </Text>
-                </Box>
-            ))}
+                </Group>
+                {TABLES.map(([name, rows], index) => (
+                    <Box
+                        key={name}
+                        className={classes.scanRow}
+                        __vars={{ '--i': String(index) }}
+                    >
+                        <MantineIcon icon={IconDatabase} size={12} />
+                        <Text fz="xs" fw={500}>
+                            {name}
+                        </Text>
+                        <Text fz="xs" c="dimmed" ml="auto">
+                            {rows}
+                        </Text>
+                    </Box>
+                ))}
+            </Box>
+            {nextUp}
         </Box>
         <Connector index={2} />
         <Box className={classes.answer} __vars={{ '--i': '3' }}>
@@ -457,7 +468,7 @@ export const StepVisual: FC<{ step: OnboardingVisualStep }> = ({ step }) => {
         case 'welcome':
             return <WelcomeVisual />;
         case 'warehouse':
-            return <WarehouseVisual />;
+            return <WarehouseVisual nextUp={null} />;
         case 'tools':
             return <ToolsVisual warehouse={null} />;
         case 'team':

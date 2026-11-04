@@ -8,6 +8,7 @@ import {
 } from '../../../features/externalConnections/liveSources/liveSourceCatalog';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
+import { NextUpCard } from '../../common/OnboardingVisuals';
 import classes from './DataSourceChooser.module.css';
 
 const GOOGLE_CONNECTORS = new Set<ApiConnectorType>([
@@ -64,17 +65,28 @@ export const LiveSourcesCard: FC = () => {
     );
 };
 
-export const LiveSourcesNote: FC = () => {
-    const { isEnabled, hasGoogle, sources } = useTeasedLiveSources();
+const shortLabel = (label: string) =>
+    label.replace('Google Analytics 4', 'GA4').replace(/^Google /, '');
+
+/** Teases the live sources the tools step offers, beside the warehouse form */
+export const LiveSourcesNextUp: FC = () => {
+    const { isEnabled, sources } = useTeasedLiveSources();
     if (!isEnabled) return null;
     return (
-        <Group gap="xs" wrap="nowrap">
-            <TeaserIcons sources={sources} />
-            <Text size="xs" c="dimmed">
-                {hasGoogle
-                    ? 'After this, you can also connect PostHog, GA4 and Search Console.'
-                    : 'After this, you can also connect PostHog.'}
-            </Text>
-        </Group>
+        <NextUpCard>
+            <Stack gap={8}>
+                <Text fz="xs" c="dimmed">
+                    Up next
+                </Text>
+                {sources.map(({ id, icon, label }) => (
+                    <Group key={id} gap={6} wrap="nowrap">
+                        <Image src={icon} alt="" w={14} h={14} />
+                        <Text fz="xs" fw={500}>
+                            {shortLabel(label)}
+                        </Text>
+                    </Group>
+                ))}
+            </Stack>
+        </NextUpCard>
     );
 };

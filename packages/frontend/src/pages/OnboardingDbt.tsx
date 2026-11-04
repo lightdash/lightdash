@@ -347,7 +347,11 @@ const OnboardingDbtContent: FC = () => {
     return (
         <OnboardingLayout
             screen="dbt"
-            journey={{ currentStep: 1, steps: ONBOARDING_DATA_STEPS }}
+            journey={{
+                currentStep: 1,
+                steps: ONBOARDING_DATA_STEPS,
+                progress: 0.8,
+            }}
             stackDepth={method === CLI_ROUTE_PARAM ? 2 : 1}
             aside={<StepVisual step="warehouse" />}
         >

@@ -10,13 +10,13 @@ import {
     ONBOARDING_DATA_STEPS,
     ONBOARDING_STEP_COPY,
 } from '../components/common/onboardingSteps';
-import { StepVisual } from '../components/common/OnboardingVisuals';
+import { WarehouseVisual } from '../components/common/OnboardingVisuals';
 import { useOnboardingNavigate } from '../components/common/viewTransition';
 import { CreateProjectConnection } from '../components/ProjectConnection';
 import { ConnectionFormSkeleton } from '../components/ProjectConnection/ConnectionFormSkeleton';
 import { type ConnectionFormStep } from '../components/ProjectConnection/CreateProjectconnection';
 import { DataSourceChooser } from '../components/ProjectConnection/ProjectConnectFlow/DataSourceChooser';
-import { LiveSourcesNote } from '../components/ProjectConnection/ProjectConnectFlow/LiveSourcesTeaser';
+import { LiveSourcesNextUp } from '../components/ProjectConnection/ProjectConnectFlow/LiveSourcesTeaser';
 import {
     ModelSourceQuestion,
     type ModelSource,
@@ -72,10 +72,11 @@ const REPO_MODE = 'repo';
 const WarehouseConnect: FC<{
     selectedWarehouse: WarehouseTypes;
     initialModelSource: ModelSource | null;
-}> = ({ selectedWarehouse, initialModelSource }) => {
+    step: ConnectionFormStep;
+    onStepChange: (step: ConnectionFormStep) => void;
+}> = ({ selectedWarehouse, initialModelSource, step, onStepChange }) => {
     const goBack = useBackToChooser();
     const onboardingNavigate = useOnboardingNavigate();
-    const [step, setStep] = useState<ConnectionFormStep>('warehouse');
     const [modelSource, setModelSource] = useState(initialModelSource);
     const withDbt = modelSource === 'dbt';
     const isDbtStep = withDbt && step === 'dbt';
@@ -118,7 +119,6 @@ const WarehouseConnect: FC<{
                                 ? 'Connect your repo'
                                 : `Connect ${getWarehouseLabel(selectedWarehouse)}`}
                         </Title>
-                        {!isDbtStep && <LiveSourcesNote />}
                         {isDbtStep && (
                             <Text c="dimmed" size="sm">
                                 Deploying from your machine?{' '}
@@ -149,7 +149,7 @@ const WarehouseConnect: FC<{
                                       current: step,
                                       onChange: (next) =>
                                           withViewTransition(() =>
-                                              setStep(next),
+                                              onStepChange(next),
                                           ),
                                   }
                                 : null
@@ -228,6 +228,13 @@ const OnboardingDataSourceContent: FC = () => {
     }>();
     const selectedWarehouse =
         warehouse && isWarehouseType(warehouse) ? warehouse : undefined;
+    // Keyed by warehouse so picking another one starts back on its first step
+    const [stepState, setStepState] = useState<{
+        warehouse: string | undefined;
+        step: ConnectionFormStep;
+    }>({ warehouse, step: 'warehouse' });
+    const formStep =
+        stepState.warehouse === warehouse ? stepState.step : 'warehouse';
 
     if (warehouse && !selectedWarehouse && warehouse !== OTHER_ROUTE_PARAM) {
         return <Navigate to="/onboarding/data-source" replace />;
@@ -240,15 +247,25 @@ const OnboardingDataSourceContent: FC = () => {
     return (
         <OnboardingLayout
             screen={warehouse ? 'warehouse_form' : 'choose_source'}
-            journey={{ currentStep: 1, steps: ONBOARDING_DATA_STEPS }}
+            journey={{
+                currentStep: 1,
+                steps: ONBOARDING_DATA_STEPS,
+                progress: !warehouse ? 0.2 : formStep === 'dbt' ? 0.8 : 0.5,
+            }}
             stackDepth={warehouse ? 1 : 0}
-            aside={<StepVisual step="warehouse" />}
+            aside={
+                <WarehouseVisual
+                    nextUp={selectedWarehouse ? <LiveSourcesNextUp /> : null}
+                />
+            }
         >
             <DocumentTitle title="Add a data source" />
             {selectedWarehouse ? (
                 <WarehouseConnect
                     selectedWarehouse={selectedWarehouse}
                     initialModelSource={mode === REPO_MODE ? 'dbt' : null}
+                    step={formStep}
+                    onStepChange={(step) => setStepState({ warehouse, step })}
                 />
             ) : warehouse === OTHER_ROUTE_PARAM ? (
                 <OtherWarehouseConnect />

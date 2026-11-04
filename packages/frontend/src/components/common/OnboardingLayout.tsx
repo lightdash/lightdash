@@ -53,9 +53,14 @@ const SwitchAccountButton: FC = () => {
     );
 };
 
-type Steps = { currentStep: number; steps: string[] };
+type Steps = {
+    currentStep: number;
+    steps: string[];
+    /** How far into the current step, from 0 to 1 */
+    progress?: number;
+};
 
-const JourneySteps: FC<Steps> = ({ currentStep, steps }) => (
+const JourneySteps: FC<Steps> = ({ currentStep, steps, progress = 0.4 }) => (
     <Box
         component="ol"
         className={classes.journeyBar}
@@ -66,6 +71,7 @@ const JourneySteps: FC<Steps> = ({ currentStep, steps }) => (
                 component="li"
                 key={label}
                 className={classes.journeySegment}
+                __vars={{ '--progress': String(progress) }}
                 data-state={
                     index + 1 < currentStep || currentStep === steps.length
                         ? 'done'
