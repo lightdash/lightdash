@@ -159,6 +159,12 @@ export type ExternalConnection = {
     kind?: ExternalConnectionKind;
     /** Optional for compatibility with older servers during rolling upgrades. */
     apiSource?: ExternalConnectionApiSource | null;
+    /**
+     * Prefix of a live source's explore names, such as `posthog`. Set once on
+     * its first build and never changed, because saved charts reference it.
+     * Optional for compatibility with older servers during rolling upgrades.
+     */
+    liveSourceName?: string | null;
     hasSecret: boolean;
     createdByUserUuid: string | null;
     updatedByUserUuid: string | null;

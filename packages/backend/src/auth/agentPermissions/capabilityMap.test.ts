@@ -247,7 +247,13 @@ const buildAgentTools = (overrides: Partial<AiAgentArgs>) => {
         }),
         execution: { mode: 'standard', maxSteps: 10 },
         messageHistory: [{ role: 'user', content: 'Question' }],
-        composerApiConnections: [],
+        liveSources: [
+            {
+                connectionUuid: 'live-source',
+                name: 'Product analytics',
+                connector: 'posthog',
+            },
+        ],
         mcpServers: [],
         requestingUser: {
             name: 'User',

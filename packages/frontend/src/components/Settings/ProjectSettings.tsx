@@ -68,6 +68,7 @@ import CorsSettingsPanel from '../UserSettings/CorsSettingsPanel';
 import VerifiedContentPanel from '../VerifiedContent/VerifiedContentPanel';
 import DataAppConnectionsPanel from './DataAppConnectionsPanel';
 import LiveDataSourcesPanel from './LiveDataSourcesPanel';
+import LiveSourceFieldsPage from './LiveDataSourcesPanel/LiveSourceFieldsPage';
 import SemanticLayerConnectionPanel from './SemanticLayerConnectionPanel';
 
 type ProjectSettingsPageProps = PropsWithChildren<{
@@ -630,6 +631,12 @@ const ProjectSettings: FC<{
                               <LiveDataSourcesPanel projectUuid={projectUuid} />
                           ),
                       },
+                      {
+                          path: `/liveDataSources/:connectionUuid/fields`,
+                          element: (
+                              <LiveSourceFieldsPage projectUuid={projectUuid} />
+                          ),
+                      },
                   ]
                 : []),
         ];
@@ -695,7 +702,7 @@ const ProjectSettings: FC<{
     const isAwaitingLiveDataSourcesRoute =
         isApiQuerySourcesFlagLoading &&
         !!matchPath(
-            '/generalSettings/projectManagement/:projectUuid/liveDataSources',
+            '/generalSettings/projectManagement/:projectUuid/liveDataSources/*',
             location.pathname,
         );
     const isAwaitingAgentIdentityRoute =

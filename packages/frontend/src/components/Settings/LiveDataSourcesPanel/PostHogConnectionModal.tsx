@@ -17,6 +17,7 @@ type Props = {
     projectUuid: string;
     connection: ExternalConnection | null;
     canSignIn: boolean;
+    onCreated: (connectionUuid: string) => void;
 };
 
 export const PostHogConnectionModal: FC<Props> = ({
@@ -25,6 +26,7 @@ export const PostHogConnectionModal: FC<Props> = ({
     projectUuid,
     connection,
     canSignIn,
+    onCreated,
 }) => {
     const form = usePostHogConnectionForm(connection, canSignIn);
     const createMutation = useCreateExternalConnection();
@@ -49,13 +51,14 @@ export const PostHogConnectionModal: FC<Props> = ({
                 connectionUuid: connection.externalConnectionUuid,
                 data: toPostHogUpdatePayload(values),
             });
-        } else {
-            await createMutation.mutateAsync({
-                projectUuid,
-                data: toPostHogCreatePayload(values),
-            });
+            onClose();
+            return;
         }
-        onClose();
+        const created = await createMutation.mutateAsync({
+            projectUuid,
+            data: toPostHogCreatePayload(values),
+        });
+        onCreated(created.externalConnectionUuid);
     });
 
     return (

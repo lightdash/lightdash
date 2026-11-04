@@ -9,6 +9,7 @@ import {
     FeatureFlags,
     ForbiddenError,
     getErrorMessage,
+    getItemId,
     isJwtUser,
     MissingConfigError,
     NotFoundError,
@@ -22,6 +23,7 @@ import {
     type ApiSaveExternalConnectionSampleRequest,
     type CreateExternalConnection,
     type ExternalConnection,
+    type ExternalConnectionApiSource,
     type ExternalConnectionApiUsage,
     type ExternalConnectionAuthType,
     type ExternalConnectionConfigProposal,
@@ -34,6 +36,9 @@ import {
     type ExternalFetchResponse,
     type GoogleLiveSourceChoice,
     type GoogleLiveSourcePendingChoice,
+    type LiveSourceFieldChange,
+    type LiveSourceFieldEditor,
+    type LiveSourceFields,
     type RegisteredAccount,
     type UpdateExternalConnection,
 } from '@lightdash/common';
@@ -46,6 +51,7 @@ import { type LightdashConfig } from '../../../config/parseConfig';
 import { type AppModel } from '../../../models/AppModel';
 import type { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
+import type { SavedChartModel } from '../../../models/SavedChartModel';
 import { BaseService } from '../../../services/BaseService';
 import type {
     ApiConnector,
@@ -55,10 +61,22 @@ import type {
 } from '../../../services/QuerySourceService/api/ApiConnector';
 import {
     buildApiSourceExplores,
+    getApiSourceBaseLayer,
+    getApiSourceExploreName,
+    getApiSourceExploreNames,
+    getLegacyLiveSourceName,
+    getLiveSourceNameBase,
+    toScannedLiveSourceFields,
     type ApiSourceScan,
 } from '../../../services/QuerySourceService/api/apiSourceExplores';
 import { Ga4Connector } from '../../../services/QuerySourceService/api/google/Ga4Connector';
 import { SearchConsoleConnector } from '../../../services/QuerySourceService/api/google/SearchConsoleConnector';
+import {
+    applyLiveSourceFieldChanges,
+    getInitialLiveSourceFieldEdits,
+    getRequiredFieldNames,
+    listLiveSourceFields,
+} from '../../../services/QuerySourceService/api/liveSourceFields';
 import { PostHogConnector } from '../../../services/QuerySourceService/api/posthog/PostHogConnector';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import {
@@ -71,7 +89,10 @@ import {
     SecureFetchError,
     type AllowedPrivateHostCidrs,
 } from '../../../utils/secureFetch/secureFetch';
-import { type ExternalConnectionModel } from '../../models/ExternalConnectionModel';
+import {
+    type DeletedLiveSource,
+    type ExternalConnectionModel,
+} from '../../models/ExternalConnectionModel';
 import { generateExternalConnectionConfigProposal } from '../ai/agents/externalConnectionConfigGenerator';
 import { getModel } from '../ai/models';
 import { type GeneratorModelOptions } from '../ai/models/types';
@@ -145,15 +166,22 @@ type ExternalConnectionServiceArguments = {
     oauthAuthorizationCodeTokenClient: OAuthAuthorizationCodeTokenClient;
     orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
     featureFlagModel: FeatureFlagModel;
+    savedChartModel: Pick<SavedChartModel, 'getChartCountPerField'>;
     projectModel: Pick<
         ProjectModel,
-        'replaceApiSourceExplores' | 'deleteApiSourceExplores'
+        | 'replaceApiSourceExplores'
+        | 'deleteApiSourceExplores'
+        | 'findExploreNamesTakenByOthers'
+        | 'hasApiSourceExplores'
     >;
     encryptionUtil: Pick<EncryptionUtil, 'encrypt' | 'decrypt'>;
     lightdashConfig: Pick<LightdashConfig, 'siteUrl' | 'liveSources' | 'auth'>;
 };
 
 export type PostHogRegion = keyof typeof POSTHOG_REGION_ORIGINS;
+
+// A new source tries `posthog`, `posthog_2` … `posthog_20` before falling back to its id.
+const MAX_LIVE_SOURCE_NAME_SUFFIX = 20;
 
 /** What the sign-in callback needs from the request that started it. */
 export type PostHogOAuthSession = {
@@ -228,6 +256,8 @@ export class ExternalConnectionService extends BaseService {
 
     private readonly projectModel: ExternalConnectionServiceArguments['projectModel'];
 
+    private readonly savedChartModel: ExternalConnectionServiceArguments['savedChartModel'];
+
     private static readonly DEFAULT_RATE_LIMIT_PER_MINUTE = 60;
 
     private static readonly MAX_PROPOSAL_DESCRIPTION_CHARS = 2_000;
@@ -254,6 +284,7 @@ export class ExternalConnectionService extends BaseService {
         this.orgAiCopilotConfigResolver = args.orgAiCopilotConfigResolver;
         this.featureFlagModel = args.featureFlagModel;
         this.projectModel = args.projectModel;
+        this.savedChartModel = args.savedChartModel;
     }
 
     private async assertLiveSourcesEnabled(
@@ -1096,9 +1127,10 @@ export class ExternalConnectionService extends BaseService {
     }
 
     /**
-     * Saves the source's explores from its integration's base layer plus the
-     * fields a scan finds. A failed scan either keeps the source's current
-     * explores (`throw`) or saves the base layer alone (`useBaseLayer`).
+     * Scans the source, stores what the integration offers, and rebuilds its
+     * explores. A failed scan either keeps the source's current explores
+     * (`throw`) or builds from the last scan, or the base layer alone for a
+     * new source (`useBaseLayer`).
      */
     private async syncApiSourceExplores(
         account: RegisteredAccount,
@@ -1109,7 +1141,7 @@ export class ExternalConnectionService extends BaseService {
         if (connection.kind !== 'live_source' || !apiSource) {
             return;
         }
-        const getScan = async (): Promise<ApiSourceScan> => {
+        const getScan = async (): Promise<ApiSourceScan | null> => {
             try {
                 return await this.createApiConnector(account, connection, {
                     isPerQuery: false,
@@ -1119,21 +1151,363 @@ export class ExternalConnectionService extends BaseService {
                     throw error;
                 }
                 this.logger.warn(
-                    `Saving the base semantic layer of live data source ${connection.externalConnectionUuid}; its scan failed: ${getErrorMessage(error)}`,
+                    `Building live data source ${connection.externalConnectionUuid} from its last scan; this scan failed: ${getErrorMessage(error)}`,
                 );
-                return {};
+                return null;
             }
         };
+        const { sourceName, deletedTwin } = await this.claimLiveSourceName(
+            connection,
+            apiSource,
+        );
+        const scan = await getScan();
+        if (scan) {
+            const { externalConnectionUuid, projectUuid } = connection;
+            const scannedFields = toScannedLiveSourceFields(
+                apiSource.connector,
+                scan,
+            );
+            await this.externalConnectionModel.saveLiveSourceScan(
+                externalConnectionUuid,
+                { scannedAt: new Date().toISOString(), fields: scannedFields },
+            );
+            await this.externalConnectionModel.initLiveSourceFieldEdits(
+                externalConnectionUuid,
+                getInitialLiveSourceFieldEdits({
+                    scannedFields,
+                    isExistingSource:
+                        deletedTwin !== null ||
+                        (await this.projectModel.hasApiSourceExplores(
+                            projectUuid,
+                            externalConnectionUuid,
+                        )),
+                }),
+            );
+        }
+        await this.rebuildApiSourceExplores(
+            { ...connection, liveSourceName: sourceName },
+            apiSource,
+        );
+    }
+
+    /** Rebuilds the source's explores from its stored scan and field edits, without calling the integration. */
+    private async rebuildApiSourceExplores(
+        connection: ExternalConnection,
+        apiSource: ExternalConnectionApiSource,
+    ): Promise<void> {
+        const { externalConnectionUuid, projectUuid } = connection;
+        const [sourceName, state] = await Promise.all([
+            this.resolveLiveSourceName(connection, apiSource),
+            this.externalConnectionModel.getLiveSourceFieldState(
+                externalConnectionUuid,
+            ),
+        ]);
+        const scannedFields = state.lastScan?.fields ?? [];
         const explores = buildApiSourceExplores({
-            connectionUuid: connection.externalConnectionUuid,
+            connectionUuid: externalConnectionUuid,
+            sourceName,
             name: connection.name,
             apiSource,
-            scan: await getScan(),
+            scannedFields,
+            edits:
+                state.fields ??
+                getInitialLiveSourceFieldEdits({
+                    scannedFields,
+                    isExistingSource: true,
+                }),
         });
         await this.projectModel.replaceApiSourceExplores(
-            connection.projectUuid,
-            connection.externalConnectionUuid,
+            projectUuid,
+            externalConnectionUuid,
             explores,
+        );
+    }
+
+    /**
+     * Every field of a live source, in use or available. Admins only: everyone
+     * else sees just the fields in use, through the source's explore.
+     */
+    async getLiveSourceFields(
+        account: RegisteredAccount,
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<LiveSourceFields> {
+        const connection = await this.getOwnedConnection(
+            account,
+            projectUuid,
+            connectionUuid,
+        );
+        await this.assertLiveSourcesEnabled(account);
+        return this.readLiveSourceFields(
+            connection,
+            ExternalConnectionService.getLiveSourceSettings(connection),
+        );
+    }
+
+    /**
+     * Changes fields of a live source and rebuilds its explores, with the
+     * same admin check as refreshing fields.
+     */
+    async updateLiveSourceFields(
+        account: RegisteredAccount,
+        projectUuid: string,
+        connectionUuid: string,
+        changes: LiveSourceFieldChange[],
+    ): Promise<LiveSourceFields> {
+        const connection = await this.getOwnedConnection(
+            account,
+            projectUuid,
+            connectionUuid,
+        );
+        await this.assertLiveSourcesEnabled(account);
+        const apiSource =
+            ExternalConnectionService.getLiveSourceSettings(connection);
+        if (changes.length === 0) {
+            return this.readLiveSourceFields(connection, apiSource);
+        }
+        const { definition } = getApiSourceBaseLayer(apiSource.connector);
+        const state =
+            await this.externalConnectionModel.getLiveSourceFieldState(
+                connectionUuid,
+            );
+        const knownNames = new Set([
+            ...definition.dimensions.map(({ name }) => name),
+            ...definition.metrics.map(({ name }) => name),
+            ...(state.lastScan?.fields ?? []).map(
+                (field) => field.definition.name,
+            ),
+        ]);
+        const editor: LiveSourceFieldEditor = {
+            userUuid: account.user.id,
+            userName:
+                `${account.user.firstName ?? ''} ${account.user.lastName ?? ''}`.trim(),
+            at: new Date().toISOString(),
+        };
+        await this.externalConnectionModel.updateLiveSourceFieldEdits(
+            connectionUuid,
+            (current) =>
+                applyLiveSourceFieldChanges({
+                    current,
+                    changes,
+                    knownNames,
+                    requiredNames: new Set(getRequiredFieldNames(definition)),
+                    editor,
+                }),
+        );
+        await this.rebuildApiSourceExplores(connection, apiSource);
+        this.analytics.track({
+            event: 'live_source.fields_updated',
+            userId: account.user.id,
+            properties: {
+                organizationId: connection.organizationUuid,
+                projectId: projectUuid,
+                externalConnectionUuid: connectionUuid,
+                ...ExternalConnectionService.kindProperties(connection),
+                changeCount: changes.length,
+            },
+        });
+        return this.readLiveSourceFields(connection, apiSource);
+    }
+
+    private static getLiveSourceSettings(
+        connection: ExternalConnection,
+    ): ExternalConnectionApiSource {
+        if (connection.kind !== 'live_source' || !connection.apiSource) {
+            throw new ParameterError(
+                `"${connection.name}" is not a live data source`,
+            );
+        }
+        return connection.apiSource;
+    }
+
+    private async readLiveSourceFields(
+        connection: ExternalConnection,
+        apiSource: ExternalConnectionApiSource,
+    ): Promise<LiveSourceFields> {
+        const { externalConnectionUuid, projectUuid } = connection;
+        const { definition } = getApiSourceBaseLayer(apiSource.connector);
+        const [sourceName, state] = await Promise.all([
+            this.resolveLiveSourceName(connection, apiSource),
+            this.externalConnectionModel.getLiveSourceFieldState(
+                externalConnectionUuid,
+            ),
+        ]);
+        const exploreName = getApiSourceExploreName(
+            sourceName,
+            definition.name,
+        );
+        const scannedFields = state.lastScan?.fields ?? [];
+        const fieldNames = [
+            ...definition.dimensions.map(({ name }) => name),
+            ...definition.metrics.map(({ name }) => name),
+            ...scannedFields.map((field) => field.definition.name),
+        ];
+        const usage = await this.savedChartModel.getChartCountPerField(
+            projectUuid,
+            fieldNames.map((name) => getItemId({ table: exploreName, name })),
+        );
+        const usageByFieldName = Object.fromEntries(
+            usage.map(({ fieldId, count }) => [
+                fieldId.slice(exploreName.length + 1),
+                count,
+            ]),
+        );
+        return {
+            exploreName,
+            scannedAt: state.lastScan?.scannedAt ?? null,
+            fields: listLiveSourceFields({
+                base: definition,
+                scannedFields,
+                edits:
+                    state.fields ??
+                    getInitialLiveSourceFieldEdits({
+                        scannedFields,
+                        isExistingSource: true,
+                    }),
+                usageByFieldName,
+            }),
+        };
+    }
+
+    private async resolveLiveSourceName(
+        connection: ExternalConnection,
+        apiSource: ExternalConnectionApiSource,
+    ): Promise<string> {
+        const { sourceName } = await this.claimLiveSourceName(
+            connection,
+            apiSource,
+        );
+        return sourceName;
+    }
+
+    /**
+     * The source's stable explore-name prefix, stored on first build. Sources
+     * built before names were stored keep their id-based name. A new source
+     * for the same target as a deleted one takes the deleted one's name and
+     * field edits, so its charts work again; anything else gets a free name
+     * from its own. Returns the deleted source it took over, if any.
+     */
+    private async claimLiveSourceName(
+        connection: ExternalConnection,
+        apiSource: ExternalConnectionApiSource,
+    ): Promise<{
+        sourceName: string;
+        deletedTwin: DeletedLiveSource | null;
+    }> {
+        if (connection.liveSourceName) {
+            return { sourceName: connection.liveSourceName, deletedTwin: null };
+        }
+        const { projectUuid, externalConnectionUuid } = connection;
+        const legacyName = getLegacyLiveSourceName(
+            apiSource.connector,
+            externalConnectionUuid,
+        );
+        const claim = async (candidates: string[]) =>
+            (await this.externalConnectionModel.claimLiveSourceName(
+                projectUuid,
+                externalConnectionUuid,
+                candidates,
+            )) ?? legacyName;
+
+        if (
+            await this.projectModel.hasApiSourceExplores(
+                projectUuid,
+                externalConnectionUuid,
+            )
+        ) {
+            return { sourceName: await claim([legacyName]), deletedTwin: null };
+        }
+        const deletedTwin =
+            (
+                await this.externalConnectionModel.listDeletedLiveSources(
+                    projectUuid,
+                )
+            ).find(
+                (deleted) =>
+                    deleted.origin === connection.origin &&
+                    isEqual(deleted.apiSource, apiSource),
+            ) ?? null;
+        const deletedTwinName =
+            deletedTwin &&
+            (deletedTwin.sourceName ??
+                getLegacyLiveSourceName(
+                    deletedTwin.apiSource.connector,
+                    deletedTwin.externalConnectionUuid,
+                ));
+        const base = getLiveSourceNameBase(
+            apiSource.connector,
+            connection.name,
+        );
+        const candidates = [
+            ...(deletedTwinName ? [deletedTwinName] : []),
+            base,
+            ...Array.from(
+                { length: MAX_LIVE_SOURCE_NAME_SUFFIX - 1 },
+                (_, index) => `${base}_${index + 2}`,
+            ),
+        ];
+        const freeCandidates = await this.getFreeLiveSourceNames(
+            connection,
+            apiSource,
+            candidates,
+        );
+        const sourceName = await claim([...freeCandidates, legacyName]);
+        const tookOverTwin =
+            deletedTwin !== null && sourceName === deletedTwinName;
+        if (tookOverTwin && deletedTwin.fieldEdits) {
+            await this.externalConnectionModel.initLiveSourceFieldEdits(
+                externalConnectionUuid,
+                deletedTwin.fieldEdits,
+            );
+        }
+        return { sourceName, deletedTwin: tookOverTwin ? deletedTwin : null };
+    }
+
+    /**
+     * The candidates whose explore names no other explore of the project has
+     * and that no source built before names were stored holds. Names stored
+     * by other sources are checked when the name is claimed.
+     */
+    private async getFreeLiveSourceNames(
+        connection: ExternalConnection,
+        apiSource: ExternalConnectionApiSource,
+        candidates: string[],
+    ): Promise<string[]> {
+        const { projectUuid, externalConnectionUuid } = connection;
+        const activeSources = await this.externalConnectionModel.list(
+            projectUuid,
+            connection.organizationUuid,
+            { kind: 'live_source' },
+        );
+        const legacyNamesInUse = new Set(
+            activeSources.flatMap((source) =>
+                source.externalConnectionUuid !== externalConnectionUuid &&
+                source.apiSource &&
+                !source.liveSourceName
+                    ? [
+                          getLegacyLiveSourceName(
+                              source.apiSource.connector,
+                              source.externalConnectionUuid,
+                          ),
+                      ]
+                    : [],
+            ),
+        );
+        const takenExploreNames = new Set(
+            await this.projectModel.findExploreNamesTakenByOthers(
+                projectUuid,
+                externalConnectionUuid,
+                candidates.flatMap((candidate) =>
+                    getApiSourceExploreNames(apiSource.connector, candidate),
+                ),
+            ),
+        );
+        return candidates.filter(
+            (candidate) =>
+                !legacyNamesInUse.has(candidate) &&
+                getApiSourceExploreNames(apiSource.connector, candidate).every(
+                    (exploreName) => !takenExploreNames.has(exploreName),
+                ),
         );
     }
 

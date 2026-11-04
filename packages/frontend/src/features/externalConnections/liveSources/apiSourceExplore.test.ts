@@ -8,13 +8,8 @@ import {
     type ApiExploreResults,
     type ApiSourceExplore,
 } from '@lightdash/common';
-import { load } from 'js-yaml';
 import { describe, expect, it } from 'vitest';
-import { getDefaultDateRangeNote } from '../../../features/externalConnections/liveSources/apiSourceExplore';
-import {
-    getSemanticLayerFields,
-    toSemanticLayerYaml,
-} from './semanticLayerView';
+import { getDefaultDateRangeNote } from './apiSourceExplore';
 
 const TABLE = 'ga4_abc_report';
 
@@ -92,70 +87,6 @@ const explore = {
     },
     apiSource,
 } as unknown as ApiExploreResults;
-
-describe('getSemanticLayerFields', () => {
-    it('lists visible dimensions then metrics with their integration names and filters', () => {
-        expect(getSemanticLayerFields(explore)).toEqual([
-            {
-                name: 'date',
-                label: 'Date',
-                kind: 'dimension',
-                type: DimensionType.DATE,
-                apiName: 'date',
-                filterOperators: [FilterOperator.IN_BETWEEN],
-                description: null,
-            },
-            {
-                name: 'sessions',
-                label: 'Sessions',
-                kind: 'metric',
-                type: MetricType.SUM,
-                apiName: 'sessions',
-                filterOperators: [],
-                description: 'Sessions started.',
-            },
-        ]);
-    });
-});
-
-describe('toSemanticLayerYaml', () => {
-    it('writes the rules and fields the query compiler enforces', () => {
-        expect(load(toSemanticLayerYaml([explore]))).toEqual([
-            {
-                explore: TABLE,
-                label: 'Google Analytics',
-                description: 'One property.',
-                base_version: 1,
-                rules: {
-                    or_filters: true,
-                    nested_filters: false,
-                    max_dimensions: 9,
-                    max_metrics: 10,
-                    default_date_range: { field: `${TABLE}_date`, days: 28 },
-                },
-                dimensions: [
-                    {
-                        name: 'date',
-                        label: 'Date',
-                        type: 'date',
-                        api_name: 'date',
-                        filters: ['inBetween'],
-                    },
-                ],
-                metrics: [
-                    {
-                        name: 'sessions',
-                        label: 'Sessions',
-                        type: 'sum',
-                        api_name: 'sessions',
-                        description: 'Sessions started.',
-                        filters: [],
-                    },
-                ],
-            },
-        ]);
-    });
-});
 
 describe('getDefaultDateRangeNote', () => {
     it('names the date field and the default window', () => {

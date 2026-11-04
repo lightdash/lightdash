@@ -10,7 +10,6 @@ import {
     toComposerNodeColumns,
     toolComposerQueryNodeToSourceQuery,
     type AnyType,
-    type ComposerApiConnection,
     type ComposerNodeScopeName,
     type ComposerPipelineNode,
     type DimensionType,
@@ -98,7 +97,6 @@ export const buildComposerQueryPipeline = ({
     reusableNodes,
     scopeName = 'thread',
     enablePythonNodes,
-    apiConnections,
     canRunSql,
     sqlDisabledMessage,
 }: {
@@ -108,7 +106,6 @@ export const buildComposerQueryPipeline = ({
     reusableNodes: ThreadComposerQueryNode[];
     scopeName?: ComposerNodeScopeName;
     enablePythonNodes: boolean;
-    apiConnections: ComposerApiConnection[];
     canRunSql: boolean;
     sqlDisabledMessage: string;
 }): { pipeline: ComposerQueryPipeline } | { error: string } => {
@@ -180,25 +177,12 @@ export const buildComposerQueryPipeline = ({
         };
     }
 
-    if (
-        apiConnections.length === 0 &&
-        queries.some((node) => node.sourceType === QuerySourceType.API)
-    ) {
-        return {
-            error: 'This pipeline contains "api" nodes but api queries are not enabled. Rebuild the pipeline without them.',
-        };
-    }
-
-    const unknownConnectionNode = queries.find(
-        (node) =>
-            node.sourceType === QuerySourceType.API &&
-            !apiConnections.some(
-                ({ connectionUuid }) => connectionUuid === node.connectionUuid,
-            ),
+    const apiNode = queries.find(
+        (node) => node.sourceType === QuerySourceType.API,
     );
-    if (unknownConnectionNode) {
+    if (apiNode) {
         return {
-            error: `Node "${unknownConnectionNode.nodeId}" names a connection that is not available. Use one of the connectionUuid values listed in the tool description.`,
+            error: `Node "${apiNode.nodeId}" is an "api" node, which is no longer supported. Query a live data source with a semanticLayer node on its explore.`,
         };
     }
 

@@ -874,6 +874,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'ExternalConnectionController.getExternalConnectionApiUsage': [
         AgentCapability.ReadDiscover,
     ],
+    'ExternalConnectionController.getLiveSourceFields': [
+        AgentCapability.Administration,
+    ],
     'ExternalConnectionController.linkAppExternalConnection': [
         AgentCapability.Administration,
     ],
@@ -911,6 +914,9 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.Administration,
     ],
     'ExternalConnectionController.updateExternalConnection': [
+        AgentCapability.Administration,
+    ],
+    'ExternalConnectionController.updateLiveSourceFields': [
         AgentCapability.Administration,
     ],
     'ExternalSourceController.commitUpload': [

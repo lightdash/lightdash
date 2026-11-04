@@ -1,5 +1,6 @@
 import { Group, rem, Text } from '@mantine/core';
 import type { FC } from 'react';
+import { ExploreChip } from '../ExploreChip';
 import { ToolCallChip } from '../ToolCallChip';
 
 type GrepFieldsToolCallDescriptionProps = {
@@ -20,7 +21,7 @@ export const GrepFieldsToolCallDescription: FC<
             ))}
             {exploreName ? (
                 <>
-                    in <ToolCallChip>{exploreName}</ToolCallChip>
+                    in <ExploreChip exploreName={exploreName} />
                 </>
             ) : null}
         </Group>

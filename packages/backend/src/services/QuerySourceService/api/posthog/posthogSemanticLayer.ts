@@ -8,8 +8,33 @@ import type {
 
 export const POSTHOG_SEMANTIC_LAYER_VERSION = 1;
 
-/** Properties a scan adds per kind; PostHog projects can define thousands. */
-export const POSTHOG_MAX_SCANNED_PROPERTIES = 200;
+/** Properties a scan keeps per kind; PostHog projects can define thousands. */
+export const POSTHOG_MAX_SCANNED_PROPERTIES = 2000;
+
+// Ad click ids PostHog captures from landing URLs: one value per click, never a useful dimension.
+const AD_CLICK_ID_PROPERTIES = new Set([
+    'gclid',
+    'gad_source',
+    'gbraid',
+    'wbraid',
+    'dclid',
+    'fbclid',
+    'msclkid',
+    'twclid',
+    'ttclid',
+    'li_fat_id',
+    'mc_cid',
+    'igshid',
+    'rdt_cid',
+    'irclid',
+    '_kx',
+]);
+
+/** PostHog's own bookkeeping properties (`$lib_version`) and ad click ids. */
+export const isInternalPostHogProperty = (apiName: string) => {
+    const property = apiName.split('.').at(-1) ?? apiName;
+    return property.startsWith('$') || AD_CLICK_ID_PROPERTIES.has(property);
+};
 
 const NULL_FILTERS = [FilterOperator.NULL, FilterOperator.NOT_NULL];
 const STRING_FILTERS = [
@@ -93,8 +118,12 @@ const metric = (
     ),
 });
 
-const eventProperty = (name: string, property: string, label: string) =>
-    dimension({ name, apiName: `properties.${property}`, label });
+const eventProperty = (
+    name: string,
+    property: string,
+    label: string,
+    description: string,
+) => dimension({ name, apiName: `properties.${property}`, label, description });
 
 export const POSTHOG_EVENTS_EXPLORE: ApiSourceExploreDefinition = {
     name: 'events',
@@ -108,6 +137,8 @@ export const POSTHOG_EVENTS_EXPLORE: ApiSourceExploreDefinition = {
             label: 'Event date',
             type: DimensionType.DATE,
             sql: 'toDate(${TABLE}.timestamp)',
+            description:
+                'Day the event happened. Queries without a date filter read the last 30 days.',
         }),
         dimension({
             name: 'week',
@@ -123,12 +154,14 @@ export const POSTHOG_EVENTS_EXPLORE: ApiSourceExploreDefinition = {
             label: 'Event month',
             type: DimensionType.DATE,
             sql: 'toStartOfMonth(${TABLE}.timestamp)',
+            description: 'Month the event happened.',
         }),
         dimension({
             name: 'timestamp',
             apiName: 'timestamp',
             label: 'Event time',
             type: DimensionType.TIMESTAMP,
+            description: 'Exact time the event happened.',
         }),
         dimension({
             name: 'event',
@@ -141,6 +174,8 @@ export const POSTHOG_EVENTS_EXPLORE: ApiSourceExploreDefinition = {
             name: 'distinct_id',
             apiName: 'distinct_id',
             label: 'Distinct ID',
+            description:
+                'The ID the event was sent with: anonymous until identify, then the user ID.',
         }),
         dimension({
             name: 'person_id',
@@ -149,18 +184,54 @@ export const POSTHOG_EVENTS_EXPLORE: ApiSourceExploreDefinition = {
             sql: 'toString(${TABLE}.person_id)',
             description: 'The person after identify and merges.',
         }),
-        eventProperty('current_url', '$current_url', 'Current URL'),
-        eventProperty('pathname', '$pathname', 'Path'),
+        eventProperty(
+            'current_url',
+            '$current_url',
+            'Current URL',
+            'Full URL of the page the event happened on.',
+        ),
+        eventProperty(
+            'pathname',
+            '$pathname',
+            'Path',
+            'URL path of the page, without domain or query string.',
+        ),
         eventProperty(
             'referring_domain',
             '$referring_domain',
             'Referring domain',
+            'Domain the visitor came from, or $direct.',
         ),
-        eventProperty('utm_source', 'utm_source', 'UTM source'),
-        eventProperty('browser', '$browser', 'Browser'),
-        eventProperty('os', '$os', 'Operating system'),
-        eventProperty('device_type', '$device_type', 'Device type'),
-        eventProperty('country', '$geoip_country_code', 'Country code'),
+        eventProperty(
+            'utm_source',
+            'utm_source',
+            'UTM source',
+            'utm_source of the page URL, such as google or newsletter.',
+        ),
+        eventProperty(
+            'browser',
+            '$browser',
+            'Browser',
+            'Browser name, such as Chrome or Safari.',
+        ),
+        eventProperty(
+            'os',
+            '$os',
+            'Operating system',
+            'Operating system, such as Mac OS X or Android.',
+        ),
+        eventProperty(
+            'device_type',
+            '$device_type',
+            'Device type',
+            'Desktop, Mobile or Tablet.',
+        ),
+        eventProperty(
+            'country',
+            '$geoip_country_code',
+            'Country code',
+            'Two-letter country code, from the IP address.',
+        ),
     ],
     metrics: [
         metric(
@@ -197,6 +268,7 @@ const propertyDefinitionsSchema = z.object({
         z.object({
             name: z.string(),
             property_type: z.string().nullish(),
+            description: z.string().nullish(),
         }),
     ),
 });
@@ -247,7 +319,7 @@ export const withPostHogPropertyFields = (
         return parsed.data.results
             .filter(({ name }) => PROPERTY_NAME.test(name))
             .slice(0, POSTHOG_MAX_SCANNED_PROPERTIES)
-            .map(({ name, property_type: propertyType }) => {
+            .map(({ name, property_type: propertyType, description }) => {
                 const type =
                     TYPES_BY_PROPERTY_TYPE[propertyType ?? ''] ??
                     DimensionType.STRING;
@@ -256,6 +328,9 @@ export const withPostHogPropertyFields = (
                     name: toScannedFieldName(prefix, name),
                     apiName,
                     label: `${labelPrefix}${name}`,
+                    description:
+                        description?.trim() ||
+                        `The ${name} ${kind} property, as sent to PostHog.`,
                     type,
                     sql:
                         type === DimensionType.NUMBER
