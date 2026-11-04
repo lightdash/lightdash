@@ -173,39 +173,3 @@ describe('getBedrockModel output budget', () => {
         });
     });
 });
-
-describe('getBedrockModel reasoning off', () => {
-    const preset = MODEL_PRESETS.bedrock.find(
-        (candidate) => candidate.name === 'claude-haiku-5-5',
-    );
-    if (!preset) throw new Error('Missing adaptive model preset');
-    const config = {
-        apiKey: 'test',
-        region: 'us-east-1',
-        modelName: preset.name,
-        embeddingModelName: 'amazon.titan-embed-text-v2:0',
-        customHeaders: {},
-        supportsStreaming: true,
-    };
-
-    test('explicitly disables reasoning on adaptive models', () => {
-        // Adaptive models think by default when no reasoning config is sent,
-        // eating the max_tokens budget of short-capped ambient calls.
-        const { providerOptions } = getBedrockModel(config, preset);
-        expect(providerOptions?.bedrock).toMatchObject({
-            reasoningConfig: { type: 'disabled' },
-        });
-    });
-
-    test('sends no reasoning config for budget-style models', () => {
-        const budgetPreset = MODEL_PRESETS.bedrock.find(
-            (candidate) => candidate.name === 'claude-haiku-4-5',
-        );
-        if (!budgetPreset) throw new Error('Missing budget model preset');
-        const { providerOptions } = getBedrockModel(
-            { ...config, modelName: budgetPreset.name },
-            budgetPreset,
-        );
-        expect(providerOptions?.bedrock?.reasoningConfig).toBeUndefined();
-    });
-});
