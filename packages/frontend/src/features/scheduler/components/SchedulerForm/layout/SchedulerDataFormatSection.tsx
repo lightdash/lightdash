@@ -165,6 +165,16 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                                     value: SchedulerFormat.IMAGE,
                                     disabled: isImageDisabled,
                                 },
+                                {
+                                    label: 'PDF',
+                                    value: SchedulerFormat.PDF,
+                                    disabled:
+                                        isImageDisabled ||
+                                        (form.values.msTeamsTargets?.length ??
+                                            0) > 0 ||
+                                        (form.values.googleChatTargets
+                                            ?.length ?? 0) > 0,
+                                },
                             ]}
                             w="100%"
                             value={format}
@@ -221,9 +231,17 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                         />
                     )}
                 </Group>
-                {isApp && appQueryCountCaption && (
+                {isApp &&
+                    (format === SchedulerFormat.CSV ||
+                        format === SchedulerFormat.XLSX) &&
+                    appQueryCountCaption && (
+                        <Text size="xs" c="dimmed">
+                            {appQueryCountCaption}
+                        </Text>
+                    )}
+                {isApp && format === SchedulerFormat.PDF && (
                     <Text size="xs" c="dimmed">
-                        {appQueryCountCaption}
+                        Sends the report from the app's Download PDF button
                     </Text>
                 )}
                 {isImageDisabled && (
