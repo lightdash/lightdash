@@ -462,6 +462,8 @@ export const DEFAULT_UI_STRINGS = {
     'controls.parameter.notAppliedToAnyTabs':
         'This parameter is not applied to any tabs',
     'controls.parameter.unnamed': 'Parameter',
+    'controls.parameter.unavailableOptions': 'Unavailable in current options',
+    'controls.parameter.refreshOptions': 'Refresh options',
     'controls.parameter.everyTileUsingIt': 'Every tile using it',
     'controls.parameter.onlyChosenTiles': 'Only chosen tiles',
     'controls.parameter.setEverywhereBy': 'Set by {control} everywhere',

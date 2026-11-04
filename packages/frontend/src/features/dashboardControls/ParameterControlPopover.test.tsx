@@ -87,11 +87,55 @@ describe('ParameterControlPopover', () => {
         const input = screen.getByRole('combobox');
         expect(input).toHaveValue('APAC');
         expect(input).toHaveFocus();
+        expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Apply' })).toBeVisible();
         await user.click(input);
         await user.click(await screen.findByRole('option', { name: 'EMEA' }));
         expect(onChange).toHaveBeenCalledWith(
             expect.objectContaining({ value: 'EMEA' }),
         );
+    });
+
+    it('keeps a saved value visible when it falls outside the current options', async () => {
+        const { user, onChange } = render({
+            control: control({ value: 'AMER' }),
+        });
+        const input = screen.getByRole('combobox', { name: 'Region' });
+        expect(input).toHaveValue('AMER');
+        await user.click(input);
+        expect(
+            screen.getByText('Unavailable in current options'),
+        ).toBeVisible();
+        expect(screen.getByRole('option', { name: 'AMER' })).toBeVisible();
+        await user.click(screen.getByRole('option', { name: 'APAC' }));
+        expect(onChange).toHaveBeenCalledWith(
+            expect.objectContaining({ value: 'APAC' }),
+        );
+    });
+
+    it('shows unavailable saved values when editing a multiple selection', async () => {
+        const input = {
+            ...region,
+            definition: { ...region.definition, multiple: true },
+        };
+        const { user } = render({
+            control: control({
+                value: ['APAC', 'AMER'],
+                valueType: { type: 'string', multiple: true },
+            }),
+            input,
+        });
+        expect(
+            screen.getByText('APAC', { selector: '.mantine-Pill-label' }),
+        ).toBeVisible();
+        expect(
+            screen.getByText('AMER', { selector: '.mantine-Pill-label' }),
+        ).toBeVisible();
+        await user.click(screen.getByRole('combobox', { name: 'Region' }));
+        expect(
+            screen.getByText('Unavailable in current options'),
+        ).toBeVisible();
+        expect(screen.getByRole('option', { name: 'AMER' })).toBeVisible();
     });
 
     it('says what clearing falls back to while a value is set', () => {
@@ -130,17 +174,17 @@ describe('ParameterControlPopover', () => {
         expect(screen.queryByText(/^If cleared,/)).toBeNull();
     });
 
-    it('clears through the input', async () => {
+    it('clears from the keyboard and returns focus to the input', async () => {
         const { user, onChange } = render();
-        // The shipped input's own clear (unlabelled, as GRADUATION.md notes)
-        const clear = document.querySelector<HTMLElement>(
-            '.mantine-InputClearButton-root',
-        );
-        expect(clear).not.toBeNull();
-        if (clear) await user.click(clear);
+        await user.tab();
+        expect(
+            screen.getByRole('button', { name: 'Clear parameter' }),
+        ).toHaveFocus();
+        await user.keyboard('{Enter}');
         expect(onChange).toHaveBeenCalledWith(
             expect.objectContaining({ value: null }),
         );
+        expect(screen.getByRole('combobox')).toHaveFocus();
     });
 
     it('shows the input error when a tile needs a value', () => {
@@ -176,7 +220,7 @@ describe('ParameterControlPopover', () => {
         expect(screen.queryByText(/^Sets/)).toBeNull();
     });
 
-    it("renames in the header with Enter, a blank name following the parameter's", async () => {
+    it("renames inline with Enter, a blank name following the parameter's", async () => {
         const { user, onChange } = render({
             control: control({ label: 'Sales region' }),
         });
@@ -203,12 +247,23 @@ describe('ParameterControlPopover', () => {
         );
     });
 
-    it('holds only the section in Settings', async () => {
+    it('holds section and visibility in Settings', async () => {
         const { user, onChange } = render({ initialView: 'settings' });
         await user.click(screen.getByRole('combobox', { name: 'Section' }));
         await user.click(await screen.findByRole('option', { name: 'Market' }));
         expect(onChange).toHaveBeenCalledWith(
             expect.objectContaining({ sectionId: 'market' }),
+        );
+        const visibility = screen.getByRole('switch', {
+            name: 'Show to viewers',
+        });
+        expect(visibility).toBeChecked();
+        expect(visibility).toHaveAccessibleDescription(
+            'The value still applies to its tiles when hidden.',
+        );
+        await user.click(visibility);
+        expect(onChange).toHaveBeenCalledWith(
+            expect.objectContaining({ hidden: true }),
         );
         expect(
             screen.queryByRole('textbox', { name: 'Name' }),

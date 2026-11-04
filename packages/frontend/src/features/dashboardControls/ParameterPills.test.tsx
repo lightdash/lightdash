@@ -207,6 +207,12 @@ const pill = (id: string) => {
     return element;
 };
 
+const removeButton = (id: string) => {
+    const wrapper = pill(id).parentElement;
+    if (wrapper === null) throw new Error(`No pill wrapper ${id}`);
+    return within(wrapper).getByRole('button', { name: 'Remove parameter' });
+};
+
 describe('ParameterPills', () => {
     beforeEach(() => {
         setParameter.mockReset();
@@ -601,11 +607,7 @@ describe('ParameterPills', () => {
 
         it('can be removed by hand', async () => {
             const { store, user } = setup({ controls });
-            await user.click(
-                within(pill('ops')).getByRole('button', {
-                    name: 'Remove parameter',
-                }),
-            );
+            await user.click(removeButton('ops'));
             expect(
                 store
                     .getState()
@@ -1142,13 +1144,13 @@ describe('ParameterPills', () => {
             expect(pill('currency')).not.toHaveAttribute('data-hidden');
         });
 
-        it("hides and shows a control from the popover's menu, applied with the edit", async () => {
+        it("hides and shows a control from the popover's Settings, applied with the edit", async () => {
             const { store, user } = setup({ controls: [control('region')] });
             await user.click(pill('region'));
-            await user.click(screen.getByRole('button', { name: 'More' }));
+            await user.click(screen.getByRole('button', { name: 'Settings' }));
             await user.click(
-                await screen.findByRole('menuitem', {
-                    name: 'Hide for viewers',
+                await screen.findByRole('switch', {
+                    name: 'Show to viewers',
                 }),
             );
             // Only the draft so far
@@ -1161,10 +1163,10 @@ describe('ParameterPills', () => {
             ).toBe(true);
 
             await user.click(pill('region'));
-            await user.click(screen.getByRole('button', { name: 'More' }));
+            await user.click(screen.getByRole('button', { name: 'Settings' }));
             await user.click(
-                await screen.findByRole('menuitem', {
-                    name: 'Show for viewers',
+                await screen.findByRole('switch', {
+                    name: 'Show to viewers',
                 }),
             );
             await user.click(screen.getByRole('button', { name: 'Apply' }));
@@ -1208,11 +1210,7 @@ describe('ParameterPills', () => {
 
         it("shows only the X's tooltip while the pointer is on it, not the pill's description", async () => {
             const { user } = setup({ controls: [control('region')] });
-            await user.hover(
-                within(pill('region')).getByRole('button', {
-                    name: 'Remove parameter',
-                }),
-            );
+            await user.hover(removeButton('region'));
             // Past the pill tooltip's delay
             await act(() => new Promise((resolve) => setTimeout(resolve, 700)));
             const tooltips = screen.queryAllByRole('tooltip');
@@ -1225,11 +1223,12 @@ describe('ParameterPills', () => {
             const { store, user } = setup({
                 controls: [control('region'), control('currency')],
             });
-            await user.click(
-                within(pill('region')).getByRole('button', {
-                    name: 'Remove parameter',
-                }),
-            );
+            const remove = removeButton('region');
+            expect(pill('region')).not.toContainElement(remove);
+            pill('region').focus();
+            await user.tab();
+            expect(remove).toHaveFocus();
+            await user.keyboard('{Enter}');
             expect(
                 store
                     .getState()

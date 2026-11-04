@@ -10,7 +10,8 @@ export type ParameterControl = {
     parameters: ParameterOption[];
     /** The tiles it sets; empty for a second control on a parameter. */
     tileUuids: string[];
-    /** Its section on the bar, its one setting; null for none. */
+    /** Its section on the bar; null for none. */
     sectionId: string | null;
+    hidden?: boolean;
     value: ParameterValue | null;
 };

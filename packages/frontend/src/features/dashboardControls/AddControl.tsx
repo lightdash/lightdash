@@ -1,4 +1,5 @@
-import { Box, Menu, Popover } from '@mantine/core';
+import { ActionIcon, Box, Menu, Popover, Tooltip } from '@mantine/core';
+import { IconPlus } from '@tabler/icons-react';
 import {
     forwardRef,
     useCallback,
@@ -10,6 +11,7 @@ import {
     type ReactNode,
 } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
@@ -38,7 +40,7 @@ import { useParameterEditorSelector } from './useParameterEditor';
 
 const noop = () => {};
 const ADD_SELECTOR =
-    '[data-filter-actions] > button[data-dashboard-filter-control]';
+    '[data-filter-actions] > button[data-dashboard-filter-control], [data-section-add]';
 const NO_PARAMETERS: ParameterOption[] = [];
 
 // The menu's anchor, leaving its roles to the Add button inside
@@ -106,6 +108,12 @@ type Props = {
     triggerClassName?: string;
     /** The viewer bar's tooltip (default: the shipped app wording). */
     unsavedFiltersTooltip?: string;
+    section?: {
+        id: string;
+        name: string;
+        isEditorOpen: boolean;
+        allowParameters: boolean;
+    };
 };
 
 // The bar's shipped "Add filter" button, which starts a new filter in the
@@ -116,6 +124,7 @@ type Props = {
 export const AddControl: FC<Props> = ({
     triggerClassName,
     unsavedFiltersTooltip,
+    section,
 }) => {
     const openNew = useControlsSidebarSelector((c) => c.openNew);
     const canAddFilters = useControlsSidebarSelector((c) => c.canAddFilters);
@@ -133,7 +142,9 @@ export const AddControl: FC<Props> = ({
     const addParameterControl = useParameterEditorSelector((c) => c.add);
     const parameterValues = useDashboardSelector(selectParameterValues);
     const parameterControls = useDashboardSelector(selectParameterControls);
-    const parameters = useParameterOptions(isViewer);
+    const parameters = useParameterOptions(
+        isViewer || section?.allowParameters === false,
+    );
     const referencesReady = useDashboardSelector((state) => {
         const tiles = selectDashboardTiles(state);
         return (
@@ -156,7 +167,21 @@ export const AddControl: FC<Props> = ({
         discard();
         setStep('choose');
     }, [discard]);
-    if (!canAddFilters) return null;
+    if (!canAddFilters && section === undefined) return null;
+
+    const openFilter = () => {
+        if (section === undefined) openNew();
+        else openNew(section.id);
+    };
+    const handleAdd = () => {
+        if (hasChoice) {
+            setStep((current) =>
+                current === 'choose' || current === 'parameter'
+                    ? 'closed'
+                    : 'choose',
+            );
+        } else openFilter();
+    };
 
     const pickParameter = (parameter: ParameterOption) => {
         setStep('closed');
@@ -168,6 +193,7 @@ export const AddControl: FC<Props> = ({
         addParameterControl({
             control: {
                 id: uuidv4(),
+                ...(section && { sectionId: section.id }),
                 label: alreadyControlled ? (definition.label ?? key) : null,
                 value: alreadyControlled
                     ? null
@@ -182,39 +208,59 @@ export const AddControl: FC<Props> = ({
             tileUuids: alreadyControlled ? [] : parameter.tileUuids,
         });
     };
-    const addFilterButton = (
-        <EditorPopover isOpen={isNewOpen}>
-            <Box>
-                <AddFilterButton
-                    isEditMode={!isViewer}
-                    triggerClassName={triggerClassName}
-                    unsavedFiltersTooltip={unsavedFiltersTooltip}
-                    editModeAction={isViewer ? undefined : <FilterBarMenu />}
-                    label={hasChoice ? getUiString('controls.add') : undefined}
-                    isMenuOpen={hasChoice ? step === 'choose' : undefined}
-                    activeTabUuid={undefined}
-                    openPopoverId={undefined}
-                    onPopoverOpen={() =>
-                        hasChoice
-                            ? setStep((current) =>
-                                  current === 'choose' ||
-                                  current === 'parameter'
-                                      ? 'closed'
-                                      : 'choose',
-                              )
-                            : openNew()
-                    }
-                    onPopoverClose={noop}
-                    onSave={noop}
-                    onResetDashboardFilters={
-                        isViewer ? resetDashboardFilters : noop
-                    }
-                />
-            </Box>
+    const sectionLabel = section
+        ? `${hasChoice ? 'Add' : 'Add filter'} to ${section.name}`
+        : undefined;
+    const addButton = (
+        <EditorPopover isOpen={section?.isEditorOpen ?? isNewOpen}>
+            {section ? (
+                <Tooltip label={sectionLabel}>
+                    <ActionIcon
+                        size="sm"
+                        radius="xl"
+                        aria-label={sectionLabel}
+                        aria-haspopup={hasChoice ? 'menu' : undefined}
+                        aria-expanded={
+                            hasChoice ? step === 'choose' : undefined
+                        }
+                        data-section-add={section.id}
+                        onClick={handleAdd}
+                    >
+                        <MantineIcon icon={IconPlus} size={14} />
+                    </ActionIcon>
+                </Tooltip>
+            ) : (
+                <Box>
+                    <AddFilterButton
+                        isEditMode={!isViewer}
+                        triggerClassName={triggerClassName}
+                        unsavedFiltersTooltip={unsavedFiltersTooltip}
+                        editModeAction={
+                            isViewer ? undefined : <FilterBarMenu />
+                        }
+                        label={
+                            hasChoice ? getUiString('controls.add') : undefined
+                        }
+                        leadingIcon={
+                            hasChoice ? (
+                                <MantineIcon icon={IconPlus} size={14} />
+                            ) : undefined
+                        }
+                        isMenuOpen={hasChoice ? step === 'choose' : undefined}
+                        activeTabUuid={undefined}
+                        openPopoverId={undefined}
+                        onPopoverOpen={handleAdd}
+                        onPopoverClose={noop}
+                        onSave={noop}
+                        onResetDashboardFilters={
+                            isViewer ? resetDashboardFilters : noop
+                        }
+                    />
+                </Box>
+            )}
         </EditorPopover>
     );
-    if (!hasChoice)
-        return <InertWhileEditing>{addFilterButton}</InertWhileEditing>;
+    if (!hasChoice) return <InertWhileEditing>{addButton}</InertWhileEditing>;
 
     return (
         <InertWhileEditing>
@@ -254,19 +300,20 @@ export const AddControl: FC<Props> = ({
                                 }}
                                 position="bottom-start"
                                 width={280}
+                                withArrow
+                                offset={1}
+                                arrowOffset={14}
                                 returnFocus={step === 'closed'}
                                 transitionProps={MENU_TRANSITION}
                             >
                                 <Menu.Target>
-                                    <RolelessAnchor>
-                                        {addFilterButton}
-                                    </RolelessAnchor>
+                                    <RolelessAnchor>{addButton}</RolelessAnchor>
                                 </Menu.Target>
                                 <Menu.Dropdown>
                                     <AddKindItems
                                         onFilter={() => {
                                             setStep('filter');
-                                            openNew();
+                                            openFilter();
                                         }}
                                         onParameter={() => setStep('parameter')}
                                     />

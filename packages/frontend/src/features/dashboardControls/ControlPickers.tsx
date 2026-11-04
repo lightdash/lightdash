@@ -20,7 +20,6 @@ import {
     IconArrowLeft,
     IconFilter,
     IconSearch,
-    IconSelector,
     type Icon,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
@@ -58,8 +57,13 @@ const KindItem: FC<{
     helper: string;
     onClick: () => void;
 }> = ({ icon, label, helper, onClick }) => (
-    <Menu.Item leftSection={<MantineIcon icon={icon} />} onClick={onClick}>
-        <Text fz="sm">{label}</Text>
+    <Menu.Item
+        leftSection={<MantineIcon icon={icon} size={16} />}
+        onClick={onClick}
+    >
+        <Text fz="sm" fw={500}>
+            {label}
+        </Text>
         <Text fz="xs" c="dimmed">
             {helper}
         </Text>
@@ -152,6 +156,7 @@ export const FieldPicker: FC<FieldPickerProps> = ({
                     placeholder={getUiString('controls.searchFields')}
                     withinPortal={withinPortal}
                     defaultOpened
+                    isPickerSearch
                     getRowHint={isViewer ? undefined : getHint}
                     isFirstMatchSelected={!isViewer}
                     onChange={onPick}
@@ -227,13 +232,7 @@ export const ParameterPicker: FC<ParameterPickerProps> = ({
 
     const getRow = useCallback(
         (option: ParameterOption): VirtualOptionRow => ({
-            icon: (
-                <MantineIcon
-                    icon={IconAdjustmentsHorizontal}
-                    size="md"
-                    color="ldGray.6"
-                />
-            ),
+            icon: null,
             name: getParameterLabel(option),
             description: option.definition.description ?? null,
             hint: formatTileCount(getUiString, option.tileUuids.length),
@@ -248,6 +247,7 @@ export const ParameterPicker: FC<ParameterPickerProps> = ({
                 <Combobox
                     store={combobox}
                     withinPortal={withinPortal}
+                    offset={2}
                     onOptionSubmit={(key) => {
                         const parameter = parameters.find(
                             (option) => option.key === key,
@@ -274,8 +274,6 @@ export const ParameterPicker: FC<ParameterPickerProps> = ({
                             leftSection={
                                 <MantineIcon icon={IconSearch} color="dimmed" />
                             }
-                            rightSection={<MantineIcon icon={IconSelector} />}
-                            rightSectionPointerEvents="none"
                             autoComplete="off"
                             data-autofocus
                         />

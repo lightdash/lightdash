@@ -12,8 +12,8 @@ import {
     Box,
     Button,
     Group,
-    Menu,
     Stack,
+    Switch,
     Text,
     Title,
     Tooltip,
@@ -21,15 +21,13 @@ import {
 import {
     IconAdjustmentsHorizontal,
     IconArrowLeft,
-    IconDots,
     IconEye,
-    IconEyeOff,
     IconLayoutGrid,
     IconPencil,
     IconSettings,
 } from '@tabler/icons-react';
 import { isEqual } from 'es-toolkit/compat';
-import { useState, type FC } from 'react';
+import { useId, useState, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import TruncatedText from '../../components/common/TruncatedText';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
@@ -45,7 +43,6 @@ import { formatTileCount, formatTilesOf } from './fieldLabels';
 import classes from './FilterEditor.module.css';
 import { EditorPrompt, type EditorView as PopoverView } from './FilterPopover';
 import { focusOnMount } from './mappingFocus';
-import { MENU_TRANSITION } from './menuTransition';
 import { useRefocusAfter } from './nameFocus';
 import { NameInput } from './NameInput';
 import {
@@ -151,6 +148,7 @@ export const ParameterControlPopover: FC<Props> = ({
     onChooseTiles,
 }) => {
     const getUiString = useUiStrings();
+    const visibilityId = useId();
     const sections = useDashboardSelector(selectControlSections);
     // As the filter's Settings chip: the section is its whole summary
     const sectionName =
@@ -170,12 +168,11 @@ export const ParameterControlPopover: FC<Props> = ({
     const shadowedKey =
         parameters.find(({ key }) => shadowedReservedNames.includes(key))
             ?.key ?? null;
-    // The value the input shows: one outside fixed options reads as unset
-    const shownValue =
-        control.value !== null
-            ? getAllowedParameterValue(input.definition, control.value)
-            : null;
-    const caption = hasValue(shownValue)
+    const applicableValue =
+        control.value === null
+            ? null
+            : getAllowedParameterValue(input.definition, control.value);
+    const caption = hasValue(applicableValue)
         ? getClearedCaption(
               getUiString,
               parameters,
@@ -194,17 +191,14 @@ export const ParameterControlPopover: FC<Props> = ({
     // Editors can save an empty assignment for later mapping.
     const applyBlockedReason =
         tileCount > 0 || !isViewer ? null : getUiString('controls.setsNoTiles');
-    // Always there for editors; with no sections it holds the section select
-    // at "No section"
-    const hasSettings = !isViewer;
 
     const valueView = (
         <Box ref={focusValueView}>
-            <Group gap="xs" wrap="nowrap" px="md" pt="sm">
+            <Group gap="xs" wrap="nowrap" className={classes.editorHeader}>
                 <MantineIcon
                     icon={IconAdjustmentsHorizontal}
-                    size="lg"
-                    color="ldGray.6"
+                    size={16}
+                    color="dimmed"
                 />
                 {isRenaming ? (
                     <NameInput
@@ -213,7 +207,6 @@ export const ParameterControlPopover: FC<Props> = ({
                         onCommit={(text) =>
                             onChange({
                                 ...control,
-                                // Empty or untouched keeps following the parameter's label
                                 label:
                                     text.trim() === '' ||
                                     (control.label === null && text === label)
@@ -227,7 +220,6 @@ export const ParameterControlPopover: FC<Props> = ({
                         }}
                     />
                 ) : (
-                    // As the shipped pill: the description on hover
                     <Tooltip
                         label={input.definition.description}
                         disabled={!input.definition.description}
@@ -242,11 +234,16 @@ export const ParameterControlPopover: FC<Props> = ({
                         </Box>
                     </Tooltip>
                 )}
-                {shadowedKey !== null && (
+                {shadowedKey !== null && !isRenaming && (
                     <ShadowedReservedNameWarning paramKey={shadowedKey} />
                 )}
                 {!isViewer && !isRenaming && (
-                    <Group gap={2} wrap="nowrap" ml="auto">
+                    <Group gap="xs" wrap="nowrap" ml="auto" flex="0 0 auto">
+                        {control.hidden && (
+                            <Text size="xs" c="dimmed">
+                                Hidden from viewers
+                            </Text>
+                        )}
                         <Tooltip fz="xs" label="Rename">
                             <ActionIcon
                                 size="sm"
@@ -254,51 +251,9 @@ export const ParameterControlPopover: FC<Props> = ({
                                 ref={pencilRef}
                                 onClick={() => setIsRenaming(true)}
                             >
-                                <MantineIcon
-                                    icon={IconPencil}
-                                    size={14}
-                                    strokeWidth={2.25}
-                                />
+                                <MantineIcon icon={IconPencil} size={14} />
                             </ActionIcon>
                         </Tooltip>
-                        {/* As the filter bar's "...": the item names the action */}
-                        <Menu
-                            position="bottom-end"
-                            withinPortal={false}
-                            transitionProps={MENU_TRANSITION}
-                        >
-                            <Menu.Target>
-                                <ActionIcon size="sm" aria-label="More">
-                                    <MantineIcon icon={IconDots} size={14} />
-                                </ActionIcon>
-                            </Menu.Target>
-                            <Menu.Dropdown className={classes.menu}>
-                                <Menu.Item
-                                    leftSection={
-                                        <MantineIcon
-                                            icon={
-                                                control.hidden
-                                                    ? IconEye
-                                                    : IconEyeOff
-                                            }
-                                            size={14}
-                                        />
-                                    }
-                                    onClick={() => {
-                                        const { hidden, ...rest } = control;
-                                        onChange(
-                                            hidden
-                                                ? rest
-                                                : { ...rest, hidden: true },
-                                        );
-                                    }}
-                                >
-                                    {control.hidden
-                                        ? 'Show for viewers'
-                                        : 'Hide for viewers'}
-                                </Menu.Item>
-                            </Menu.Dropdown>
-                        </Menu>
                     </Group>
                 )}
             </Group>
@@ -313,6 +268,16 @@ export const ParameterControlPopover: FC<Props> = ({
                     projectUuid={projectUuid}
                     parameterValues={parameterValues}
                     isError={isMissingRequired}
+                    dashboardControl={{
+                        label: name,
+                        unavailableOptions: getUiString(
+                            'controls.parameter.unavailableOptions',
+                        ),
+                        refreshOptions: getUiString(
+                            'controls.parameter.refreshOptions',
+                        ),
+                        clearLabel: getUiString('parameters.clear'),
+                    }}
                     onParameterChange={(_key, value) =>
                         onChange({ ...control, value })
                     }
@@ -351,7 +316,7 @@ export const ParameterControlPopover: FC<Props> = ({
                     </TruncatedText>
                 </Box>
             </Group>
-            <Stack gap="md">
+            <Stack gap="sm">
                 <SectionSetting
                     sections={sections}
                     sectionId={control.sectionId ?? null}
@@ -362,6 +327,46 @@ export const ParameterControlPopover: FC<Props> = ({
                         );
                     }}
                 />
+                <Stack gap={4}>
+                    <Group justify="space-between" wrap="nowrap">
+                        <Group gap={6} wrap="nowrap">
+                            <MantineIcon
+                                icon={IconEye}
+                                size="sm"
+                                color="ldGray.6"
+                            />
+                            <Text
+                                component="label"
+                                htmlFor={visibilityId}
+                                size="xs"
+                                fw={600}
+                            >
+                                Show to viewers
+                            </Text>
+                        </Group>
+                        <Switch
+                            id={visibilityId}
+                            size="xs"
+                            checked={!control.hidden}
+                            aria-describedby={`${visibilityId}-description`}
+                            onChange={({ currentTarget }) => {
+                                const { hidden: _hidden, ...rest } = control;
+                                onChange(
+                                    currentTarget.checked
+                                        ? rest
+                                        : { ...rest, hidden: true },
+                                );
+                            }}
+                        />
+                    </Group>
+                    <Text
+                        id={`${visibilityId}-description`}
+                        size="xs"
+                        c="dimmed"
+                    >
+                        The value still applies to its tiles when hidden.
+                    </Text>
+                </Stack>
             </Stack>
         </Stack>
     );
@@ -382,7 +387,7 @@ export const ParameterControlPopover: FC<Props> = ({
             >
                 {view === 'settings' ? settingsView : valueView}
                 {view === 'value' && !isViewer && (
-                    <Group gap="xs" align="flex-start" px="md" pb="sm">
+                    <Group gap="xs" align="center" px="md" pb="sm">
                         {onChooseTiles === null ? (
                             <Group gap={6} wrap="nowrap" mih={24} px={6}>
                                 <MantineIcon
@@ -400,6 +405,7 @@ export const ParameterControlPopover: FC<Props> = ({
                                 color="gray"
                                 size="compact-xs"
                                 mih={24}
+                                flex="0 0 auto"
                                 aria-label={`${sets}. ${chooseTiles}`}
                                 leftSection={
                                     <MantineIcon
@@ -417,36 +423,36 @@ export const ParameterControlPopover: FC<Props> = ({
                                 </Text>
                             </Button>
                         )}
-                        {hasSettings && (
-                            <Button
-                                ref={focusSettingsChip}
-                                variant="subtle"
-                                color="gray"
-                                size="compact-xs"
-                                mih={24}
-                                leftSection={
-                                    <MantineIcon
-                                        icon={IconSettings}
-                                        size={14}
-                                    />
-                                }
-                                aria-label={
-                                    sectionName === null
-                                        ? 'Settings'
-                                        : `Settings: ${sectionName}`
-                                }
-                                onClick={() => setView('settings')}
-                            >
-                                <Text span fz="xs">
-                                    Settings
-                                    {sectionName !== null && (
-                                        <Text span fz="xs" c="dimmed">
-                                            {` · ${sectionName}`}
-                                        </Text>
-                                    )}
-                                </Text>
-                            </Button>
-                        )}
+                        <Button
+                            ref={focusSettingsChip}
+                            variant="subtle"
+                            color="gray"
+                            size="compact-xs"
+                            miw={0}
+                            mih={24}
+                            classNames={{
+                                root: classes.wrappingChip,
+                                label: classes.wrappingChipLabel,
+                            }}
+                            leftSection={
+                                <MantineIcon icon={IconSettings} size={14} />
+                            }
+                            aria-label={
+                                sectionName === null
+                                    ? 'Settings'
+                                    : `Settings: ${sectionName}`
+                            }
+                            onClick={() => setView('settings')}
+                        >
+                            <Text span fz="xs">
+                                Settings
+                                {sectionName !== null && (
+                                    <Text span fz="xs" c="dimmed">
+                                        {` · ${sectionName}`}
+                                    </Text>
+                                )}
+                            </Text>
+                        </Button>
                     </Group>
                 )}
                 <Group

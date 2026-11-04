@@ -140,14 +140,20 @@ vi.mock('@dnd-kit/core', async (importOriginal) => {
 
 // The pills have their own tests; the mock pins what each pass is asked for
 // and gives each of its rules a draggable, as the real pass does in the bar's drag context
-vi.mock('./AddControl', async (importOriginal) => ({
-    ...(await importOriginal<typeof AddControlModule>()),
-    AddControl: () => (
-        <div data-filter-actions>
-            <button data-dashboard-filter-control>Add</button>
-        </div>
-    ),
-}));
+vi.mock('./AddControl', async (importOriginal) => {
+    const actual = await importOriginal<typeof AddControlModule>();
+    return {
+        ...actual,
+        AddControl: (props: Parameters<typeof actual.AddControl>[0]) =>
+            props.section ? (
+                <actual.AddControl {...props} />
+            ) : (
+                <div data-filter-actions>
+                    <button data-dashboard-filter-control>Add</button>
+                </div>
+            ),
+    };
+});
 // Marks which target the new-filter editor is open on
 vi.mock('./FilterEditor', async (importOriginal) => ({
     ...(await importOriginal<typeof FilterEditorModule>()),
@@ -1159,7 +1165,7 @@ describe('SectionedFilters', () => {
                 .filter((el) => el.getAttribute('aria-pressed') === 'true')
                 .map((el) => el.textContent?.replace('pill ', ''));
         const bar = () =>
-            screen.queryByRole('region', { name: 'Selected filters' });
+            screen.queryByRole('region', { name: 'Selected controls' });
         const sectionIdsOf = (filters: DashboardFilters) =>
             filters.dimensions.map((r) => [r.id, r.sectionId ?? null]);
         const sectionsOf = (store: { getState: () => unknown }) =>
@@ -2624,7 +2630,9 @@ describe('SectionedFilters', () => {
                 }),
             ).not.toBeInTheDocument();
             expect(
-                screen.getByRole('menuitem', { name: 'Remove, keep filters' }),
+                screen.getByRole('menuitem', {
+                    name: 'Remove section, keep controls',
+                }),
             ).toBeInTheDocument();
         });
 
@@ -2640,7 +2648,7 @@ describe('SectionedFilters', () => {
                 screen.queryByRole('menuitem', { name: 'Remove section' }),
             ).not.toBeInTheDocument();
             const item = await screen.findByRole('menuitem', {
-                name: 'Remove, keep filters',
+                name: 'Remove section, keep controls',
             });
             // Neutral: it deletes nothing
             expect(item.getAttribute('style') ?? '').not.toContain('red');
@@ -3093,6 +3101,18 @@ describe('SectionedFilters', () => {
                     '[data-parameter-pill="week"]',
                 ),
             );
+        });
+
+        it('labels removal of a parameter-only section as keeping its controls', async () => {
+            renderWithParameters([parameterControl('week', 'b')], []);
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Regions menu' }),
+            );
+            expect(
+                await screen.findByRole('menuitem', {
+                    name: 'Remove section, keep controls',
+                }),
+            ).toBeEnabled();
         });
 
         it('shows a viewer a section that holds only a parameter control', () => {

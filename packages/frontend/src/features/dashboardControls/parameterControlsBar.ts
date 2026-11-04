@@ -59,6 +59,7 @@ export const getParameterNameSuffixes = (
 export const PARAMETER_DRAG = 'parameter';
 export const PARAMETER_PILL_ATTRIBUTE = 'data-parameter-pill';
 export const PARAMETER_PILL_SELECTOR = `[${PARAMETER_PILL_ATTRIBUTE}]`;
+export const PARAMETER_PILL_ACTION_SELECTOR = '[data-parameter-pill-action]';
 /** A key no control sets that leaves a tile with no value: its pill's id. */
 export const NEEDS_VALUE_PREFIX = 'needs-value:';
 

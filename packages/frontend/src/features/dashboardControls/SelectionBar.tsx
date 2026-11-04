@@ -30,7 +30,7 @@ export const SelectionBar: FC<Props> = ({ onClear, ...actions }) => {
     return createPortal(
         <Paper
             role="region"
-            aria-label="Selected filters"
+            aria-label="Selected controls"
             shadow="md"
             radius="md"
             className={classes.bar}

@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, waitFor, within } from 'storybook/test';
+import { AddControlFlow } from './AddControlFlow';
 import { AddControlMenu } from './AddControlMenu';
 import { withStoryFrame } from './decorators';
 import {
@@ -14,7 +15,7 @@ import {
 } from './fixtures';
 
 const meta: Meta<typeof AddControlMenu> = {
-    title: 'Prototypes/Dashboard controls/Add menu',
+    title: 'Dashboards/Controls/Add menu',
     component: AddControlMenu,
     parameters: { layout: 'fullscreen' },
     decorators: [withStoryFrame],
@@ -44,14 +45,21 @@ const optionTexts = (root: HTMLElement) =>
 /** "Add" opens a choice first: Filter or Parameter. */
 export const FilterOrParameter: Story = {
     name: 'Filter or parameter',
-    play: async ({ canvasElement }) => {
+    render: () => <AddControlFlow />,
+    play: async ({ canvas, canvasElement, userEvent }) => {
         const page = onPage(canvasElement);
+        const add = canvas.getByRole('button', { name: 'Add' });
+        await expect(add.querySelector('svg.tabler-icon-plus')).not.toBeNull();
+        await userEvent.click(add);
         await expect(
             await page.findByRole('menuitem', { name: /^Filter/ }),
         ).toBeEnabled();
         await expect(
             page.getByRole('menuitem', { name: /^Parameter/ }),
         ).toBeEnabled();
+        await expect(
+            page.getByRole('menu').querySelector('.mantine-Menu-arrow'),
+        ).not.toBeNull();
     },
 };
 

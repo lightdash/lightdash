@@ -448,8 +448,6 @@ export const FilterPopover: FC<Props> = ({
                     mih={24}
                     classNames={{
                         root: classes.wrappingChip,
-                        inner: classes.wrappingChipInner,
-                        section: classes.wrappingChipSection,
                         label: classes.wrappingChipLabel,
                     }}
                     aria-label={
@@ -530,13 +528,13 @@ export const FilterPopover: FC<Props> = ({
     const valueView = (
         <DropdownClass className={contractClasses?.filterDropdown ?? null}>
             <Box ref={focusValueView}>
-                <Group gap="xs" wrap="nowrap" px="md" pt="sm">
+                <Group gap="xs" wrap="nowrap" className={classes.editorHeader}>
                     {field ? (
-                        <FieldIcon item={field} />
+                        <FieldIcon item={field} size={16} />
                     ) : (
                         <MantineIcon
                             icon={IconSql}
-                            size="lg"
+                            size={16}
                             color={LD_FIELD_COLORS.dimension.color}
                         />
                     )}
@@ -603,11 +601,7 @@ export const FilterPopover: FC<Props> = ({
                                 ref={pencilRef}
                                 onClick={() => setIsRenaming(true)}
                             >
-                                <MantineIcon
-                                    icon={IconPencil}
-                                    size={14}
-                                    strokeWidth={2.25}
-                                />
+                                <MantineIcon icon={IconPencil} size={14} />
                             </ActionIcon>
                         </Tooltip>
                     )}

@@ -28,6 +28,7 @@ import { ParameterBarProvider } from './ParameterBarProvider';
 import {
     addNeedsValueControl,
     moveParameterControl,
+    PARAMETER_PILL_ACTION_SELECTOR,
     PARAMETER_PILL_ATTRIBUTE,
     PARAMETER_PILL_SELECTOR,
     withControlSection,
@@ -111,19 +112,28 @@ const findPill = (id: string) =>
         `[${PARAMETER_PILL_ATTRIBUTE}="${id}"]`,
     );
 
+type FocusTarget = { pillId: string; sectionId?: string };
+
 // The pill and this reader update together after the editor closes.
-const ParameterFocusReturn: FC<{ target: RefObject<string | null> }> = ({
-    target,
-}) => {
+const ParameterFocusReturn: FC<{
+    target: RefObject<FocusTarget | null>;
+}> = ({ target }) => {
     const isOpen = useParameterEditorSelector(
         (editor) => editor.editingId !== null,
     );
     useEffect(() => {
-        const id = target.current;
-        if (isOpen || id === null) return;
+        const current = target.current;
+        if (isOpen || current === null) return;
         target.current = null;
+        const sectionAdd = current.sectionId
+            ? document.querySelector<HTMLElement>(
+                  `[data-section-add="${current.sectionId}"]`,
+              )
+            : null;
         (
-            findPill(id) ?? document.querySelector<HTMLElement>(ADD_SELECTOR)
+            findPill(current.pillId) ??
+            sectionAdd ??
+            document.querySelector<HTMLElement>(ADD_SELECTOR)
         )?.focus();
     }, [isOpen, target]);
     return null;
@@ -160,7 +170,7 @@ export const ParameterEditorProvider: FC<{
     const latestPending = useRef(pending);
     latestPending.current = isAsking ? pending : null;
     // The pill that takes focus once the popover has gone, else "Add"
-    const focusReturn = useRef<string | null>(null);
+    const focusReturn = useRef<FocusTarget | null>(null);
     const [announcement, setAnnouncement] = useState({ text: '', count: 0 });
 
     const writeControls = (
@@ -175,7 +185,16 @@ export const ParameterEditorProvider: FC<{
             dispatch(dashboardParametersActions.setParameterControls(next));
     };
     const end = (focusId: string | null) => {
-        focusReturn.current = focusId;
+        const current = latest.current;
+        focusReturn.current =
+            focusId === null
+                ? null
+                : {
+                      pillId: focusId,
+                      sectionId: current?.isNew
+                          ? current.snapshot.sectionId
+                          : undefined,
+                  };
         latest.current = null;
         latestPending.current = null;
         setState(null);
@@ -679,7 +698,7 @@ export const ParameterEditorProvider: FC<{
         clearField: clearKey,
         dismiss,
         dismissOutside,
-        pillSelector: `${PARAMETER_PILL_SELECTOR}, ${FILTER_TARGET_SELECTOR}`,
+        pillSelector: `${PARAMETER_PILL_SELECTOR}, ${PARAMETER_PILL_ACTION_SELECTOR}, ${FILTER_TARGET_SELECTOR}`,
     });
 
     const mapping = useParameterMappingModel({
