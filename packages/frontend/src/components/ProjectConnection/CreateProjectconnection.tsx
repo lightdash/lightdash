@@ -51,6 +51,7 @@ import {
     onboardingWarehouseDefaultValues,
     warehouseDefaultValues,
 } from './WarehouseForms/defaultValues';
+import { isDbtStepField } from './WarehouseForms/util';
 import { createWarehouseValueValidators } from './WarehouseForms/validators';
 
 export type ConnectionFormStep = 'warehouse' | 'dbt';
@@ -73,7 +74,6 @@ interface CreateProjectConnectionProps {
     warehouseStepEnd?: ReactNode;
 }
 
-// The schema input is rendered with the dbt settings, so it belongs to the dbt step
 const getJobErrorCategory = (
     step: JobStep | undefined,
 ): CreateProjectErrorCategory => {
@@ -90,9 +90,6 @@ const getJobErrorCategory = (
     if (step?.stepType === JobStepType.COMPILING) return 'dbt';
     return 'unknown';
 };
-
-const isDbtField = (path: string) =>
-    path.startsWith('dbt') || path === 'warehouse.schema';
 
 const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
     isCreatingFirstProject,
@@ -113,8 +110,10 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
     const { user, health } = useApp();
     const [createProjectJobId, setCreateProjectJobId] = useState<string>();
     const { activeJob, setActiveJobId, setQuietActiveJobId } = useActiveJob();
+    // Onboarding shows job progress inline instead of the global toast and drawer
+    const quietJob = warehouseOnly || isNewOnboarding;
     const { isLoading: isSaving, mutateAsync } = useCreateMutation({
-        quietJobToast: warehouseOnly,
+        quietJobToast: quietJob,
     });
     // Skipping dbt submits without a repo even when the form offered one
     const submittedWarehouseOnly = useRef(warehouseOnly);
@@ -123,13 +122,13 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
     const resumeJob = useCallback(
         (jobUuid: string) => {
             setCreateProjectJobId(jobUuid);
-            if (warehouseOnly) {
+            if (quietJob) {
                 setQuietActiveJobId(jobUuid);
             } else {
                 setActiveJobId(jobUuid);
             }
         },
-        [warehouseOnly, setActiveJobId, setQuietActiveJobId],
+        [quietJob, setActiveJobId, setQuietActiveJobId],
     );
 
     const { data: inFlightJob, isInitialLoading: isCheckingInFlightJob } =
@@ -262,7 +261,12 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
     };
 
     const handleError = (errors: typeof form.errors) => {
-        if (steps && Object.keys(errors).some((path) => !isDbtField(path))) {
+        if (
+            steps &&
+            Object.keys(errors).some(
+                (path) => !isDbtStepField(path, warehouseType),
+            )
+        ) {
             steps.onChange('warehouse');
         }
         onProjectError(errors);
@@ -272,7 +276,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         if (!steps) return;
         const { errors } = form.validate();
         const warehouseErrors = Object.keys(errors).filter(
-            (path) => !isDbtField(path),
+            (path) => !isDbtStepField(path, warehouseType),
         );
         if (warehouseErrors.length > 0) return;
         form.clearErrors();
@@ -285,7 +289,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         successRedirect,
         celebrateOnSuccess,
         // Let the inline success state register before the next step slides in
-        successHoldMs: isNewOnboarding && warehouseOnly ? 900 : 0,
+        successHoldMs: isNewOnboarding ? 900 : 0,
         submitButtonRef,
     });
 
