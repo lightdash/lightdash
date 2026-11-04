@@ -1,3 +1,16 @@
+# [3.152.0](https://github.com/lightdash/lightdash/compare/3.151.1...3.152.0) (2026-11-04)
+
+
+### Features
+
+* **dashboard-controls:** add filter and parameter choices ([#31953](https://github.com/lightdash/lightdash/issues/31953)) ([8a1f582](https://github.com/lightdash/lightdash/commit/8a1f582ac5ce2a75ce949f11b40a7881a09e0947))
+* **dashboard-controls:** add parameter controls to the bar ([#31952](https://github.com/lightdash/lightdash/issues/31952)) ([11a864b](https://github.com/lightdash/lightdash/commit/11a864b221af1a8658f8c40f679028e53f4e1a33))
+* **dashboard-controls:** choose targets per parameter ([#31978](https://github.com/lightdash/lightdash/issues/31978)) ([7063000](https://github.com/lightdash/lightdash/commit/70630000d933d6c822e02ac3e49c4fd6db9ffdb2))
+* **dashboard-controls:** link parameters on new tiles ([#31979](https://github.com/lightdash/lightdash/issues/31979)) ([5f5543f](https://github.com/lightdash/lightdash/commit/5f5543f07d1725880403625542cad82d9428632e))
+* **dashboard-controls:** sentence-style filter popover ([#31951](https://github.com/lightdash/lightdash/issues/31951)) ([256d7bd](https://github.com/lightdash/lightdash/commit/256d7bd79568c7d0867e5c294731ff17f78fdae9))
+* **dashboards-as-code:** slugs for filter sections and parameter controls ([#31980](https://github.com/lightdash/lightdash/issues/31980)) ([be9b57a](https://github.com/lightdash/lightdash/commit/be9b57a0538e9c2c93eac92f56768c0bfdfadfbf))
+* **dashboards:** save parameter controls and resolve them per tile ([#31949](https://github.com/lightdash/lightdash/issues/31949)) ([995f2ef](https://github.com/lightdash/lightdash/commit/995f2efdf559b6b77649cf7afc3756a7afafaa4f))
+
 ## [3.151.1](https://github.com/lightdash/lightdash/compare/3.151.0...3.151.1) (2026-11-04)
 
 
