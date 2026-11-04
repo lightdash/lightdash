@@ -21,6 +21,9 @@ vi.mock('../../ee/providers/Embed/useEmbed', () => ({
 vi.mock('../../hooks/dashboard/useDashboardTileParameterReferences', () => ({
     useDashboardTileParameterReferences: () => undefined,
 }));
+vi.mock('../../hooks/dashboard/useSyncParameterControls', () => ({
+    useSyncParameterControls: () => undefined,
+}));
 vi.mock('../../hooks/dashboard/useDashboard', () => ({
     useDashboardQuery: () => ({ data: undefined }),
     useDashboardVersionRefresh: () => ({ mutateAsync: vi.fn() }),

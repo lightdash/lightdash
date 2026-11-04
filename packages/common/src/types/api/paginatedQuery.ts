@@ -71,6 +71,12 @@ export type ExecuteAsyncDashboardChartRequestParams =
         dateZoom?: DateZoom;
         limit?: number | null | undefined;
         pivotResults?: boolean;
+        /**
+         * The keys this tile keeps as its own, sent with `parameters` when the
+         * app resolved the tile's parameter controls. A signed-in user's
+         * request is then used as sent, not resolved from the saved controls.
+         */
+        excludedParameterKeys?: string[];
         // Run the caller's own unpublished chart draft instead of the
         // published chart, so a tile matches what the author sees
         includeUnpublishedDraft?: boolean;
@@ -210,6 +216,8 @@ type ExecuteAsyncDashboardSqlChartCommonParams =
         dashboardFilters: DashboardFilters;
         dashboardSorts: SortField[];
         limit?: number;
+        /** As on the dashboard chart request */
+        excludedParameterKeys?: string[];
     };
 
 export type ExecuteAsyncDashboardSqlChartByUuidRequestParams =

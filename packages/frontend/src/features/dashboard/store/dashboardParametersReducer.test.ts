@@ -484,4 +484,174 @@ describe('dashboardParametersReducer', () => {
             ).toBe(state);
         });
     });
+
+    describe('parameter controls', () => {
+        const control = (key: string, id: string) => ({
+            id,
+            label: 'Label',
+            value: null,
+            valueType: { type: 'string', multiple: false } as const,
+            parameters: { [key]: 'all' as const },
+        });
+        // One control per key, applying to every tile using it
+        const filledList = (ids: Record<string, string>) =>
+            Object.entries(ids).map(([key, id]) => control(key, id));
+
+        it('seeds a saved list without marking it as changed', () => {
+            const list = filledList({ region: 'a' });
+            const next = reducer(
+                stateWith(),
+                actions.syncParameterControls({
+                    controls: list,
+                    isSaved: true,
+                }),
+            );
+            expect(next.parameterControls).toEqual(list);
+            expect(next.areParameterControlsSaved).toBe(true);
+            expect(next.haveParameterControlsChanged).toBe(false);
+        });
+
+        it('keeps the ids of filled controls when the list is refilled', () => {
+            const filled = reducer(
+                stateWith(),
+                actions.syncParameterControls({
+                    controls: filledList({ region: 'a' }),
+                    isSaved: false,
+                }),
+            );
+            const refilled = reducer(
+                filled,
+                actions.syncParameterControls({
+                    controls: filledList({ region: 'b', status: 'c' }),
+                    isSaved: false,
+                }),
+            );
+            expect(refilled.parameterControls).toEqual(
+                filledList({ region: 'a', status: 'c' }),
+            );
+            expect(
+                reducer(
+                    refilled,
+                    actions.syncParameterControls({
+                        controls: filledList({ region: 'd', status: 'e' }),
+                        isSaved: false,
+                    }),
+                ),
+            ).toBe(refilled);
+        });
+
+        it('marks updates and removals as changed, and stops seeding until reset', () => {
+            const seeded = stateWith({
+                parameterControls: filledList({ region: 'a', status: 'b' }),
+            });
+            const updated = reducer(
+                seeded,
+                actions.updateParameterControl({
+                    id: 'a',
+                    changes: { label: 'Region' },
+                }),
+            );
+            expect(updated.parameterControls?.[0].label).toBe('Region');
+            expect(updated.haveParameterControlsChanged).toBe(true);
+
+            const removed = reducer(
+                updated,
+                actions.removeParameterControl('b'),
+            );
+            expect(removed.parameterControls).toEqual([
+                { ...control('region', 'a'), label: 'Region' },
+            ]);
+            const empty = { controls: [], isSaved: true };
+            expect(reducer(removed, actions.syncParameterControls(empty))).toBe(
+                removed,
+            );
+
+            const reset = reducer(
+                removed,
+                actions.setHaveParameterControlsChanged(false),
+            );
+            expect(
+                reducer(reset, actions.syncParameterControls(empty))
+                    .parameterControls,
+            ).toEqual([]);
+        });
+
+        it('does not edit controls before discovery is complete', () => {
+            const state = stateWith();
+            expect(
+                reducer(
+                    state,
+                    actions.setParameterControls(filledList({ region: 'a' })),
+                ),
+            ).toBe(state);
+        });
+
+        it('replaces the whole list with setParameterControls', () => {
+            const list = filledList({ region: 'a' });
+            const next = reducer(
+                stateWith({ parameterControls: [] }),
+                actions.setParameterControls(list),
+            );
+            expect(next.parameterControls).toBe(list);
+            expect(next.haveParameterControlsChanged).toBe(true);
+        });
+    });
+
+    describe('parameter picks', () => {
+        it('records a picked value by key, even when it equals the saved one', () => {
+            const next = reducer(
+                stateWith({ savedParameters }),
+                actions.setParameter({ key: 'status', value: 'Shipped' }),
+            );
+            expect(next.parameterPicks).toEqual({ status: 'Shipped' });
+        });
+
+        it('drops a pick reverted in view mode and records a clear in edit mode', () => {
+            const picked = stateWith({
+                savedParameters,
+                parameterPicks: { status: 'Pending' },
+            });
+            expect(
+                reducer(
+                    picked,
+                    actions.setParameter({ key: 'status', value: null }),
+                ).parameterPicks,
+            ).toEqual({});
+            expect(
+                reducer(
+                    { ...picked, isEditMode: true },
+                    actions.setParameter({ key: 'status', value: null }),
+                ).parameterPicks,
+            ).toEqual({ status: null });
+        });
+
+        it('starts edit mode with no picks and takes a delivery values as picks', () => {
+            const picked = stateWith({ parameterPicks: { status: 'Pending' } });
+            expect(
+                reducer(picked, actions.setIsEditMode(true)).parameterPicks,
+            ).toEqual({});
+            expect(
+                reducer(
+                    stateWith(),
+                    actions.setParameterPicks({ status: 'Returned' }),
+                ).parameterPicks,
+            ).toEqual({ status: 'Returned' });
+        });
+
+        it('clears every pick in view mode and nulls every key in edit mode', () => {
+            const picked = stateWith({
+                savedParameters,
+                parameterPicks: { region: 'EU' },
+            });
+            expect(
+                reducer(picked, actions.clearAllParameters()).parameterPicks,
+            ).toEqual({});
+            expect(
+                reducer(
+                    { ...picked, isEditMode: true },
+                    actions.clearAllParameters(),
+                ).parameterPicks,
+            ).toEqual({ status: null, region: null });
+        });
+    });
 });

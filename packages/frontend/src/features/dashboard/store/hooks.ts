@@ -1,4 +1,7 @@
-import { getUnmetFilterRequirements } from '@lightdash/common';
+import {
+    getUnmetFilterRequirements,
+    type ParametersValuesMap,
+} from '@lightdash/common';
 // FIXES ts2742 issue with useDispatch and useSelector
 // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
 import type * as rtk from '@reduxjs/toolkit';
@@ -22,11 +25,14 @@ import {
 import { DashboardStoreContext } from './context';
 import { selectActiveTabUuid } from './dashboardEditSelectors';
 import { selectTemporaryFilterLocks } from './dashboardSourceSelectors';
+import { getTileDashboardParameterInputs } from './parameterControls';
 import {
     combineDashboardFilters,
     getSafeTemporaryFilters,
     selectDashboardFilters,
+    selectParameterControlInputs,
     selectRawTemporaryFilters,
+    selectTileParameterReferences,
 } from './selectors';
 
 // NOTE: Use these for dashboard state instead of plain `useDispatch` and `useSelector`
@@ -164,4 +170,38 @@ export const useScreenshotReadiness = () => {
             screenshotErroredTiles,
         ],
     );
+};
+
+const NO_TILE_PARAMETER_REFERENCES: Record<string, string[]> = {};
+const selectControlledTileParameterReferences = (
+    state: Parameters<typeof selectTileParameterReferences>[0],
+) =>
+    selectParameterControlInputs(state) === null
+        ? NO_TILE_PARAMETER_REFERENCES
+        : selectTileParameterReferences(state);
+
+/** One tile's dashboard parameter values, from its parameter controls (draft included) when the flag is on */
+export const useTileDashboardParameterInputs = (
+    tileUuid: string,
+    dashboardValues: ParametersValuesMap,
+) => {
+    const controlInputs = useDashboardSelector(selectParameterControlInputs);
+    // Without controls references don't count, so tiles don't re-render when any tile reports them
+    const tileParameterReferences = useDashboardSelector(
+        selectControlledTileParameterReferences,
+    );
+    return useMemo(() => {
+        const inputs = getTileDashboardParameterInputs({
+            controlInputs,
+            tileUuid,
+            tileParameterReferences,
+            dashboardValues,
+        });
+        return {
+            ...inputs,
+            // Sent with the values so the server uses this resolution as is; absent without controls
+            excludedParameterKeys:
+                controlInputs === null ? undefined : inputs.excludedKeys,
+        };
+    }, [controlInputs, tileUuid, tileParameterReferences, dashboardValues]);
 };

@@ -111,6 +111,12 @@ export const buildInitialDashboardState = ({
                 isEditMode,
                 parameterLabelOverrides,
                 parameters: parameters ?? {},
+                parameterPicks: Object.fromEntries(
+                    Object.entries(parameters ?? {}).map(([key, { value }]) => [
+                        key,
+                        value,
+                    ]),
+                ),
                 parametersHaveChanged: !isEqual(parameters ?? {}, {}),
             },
             dateZoom: {

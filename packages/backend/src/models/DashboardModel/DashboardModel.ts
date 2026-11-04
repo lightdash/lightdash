@@ -1733,11 +1733,21 @@ export class DashboardModel {
      * tiles, tabs, verification, or other dashboard metadata.
      * Used by dashboard chart query execution where only parameters are needed.
      */
-    async getDashboardParametersByIdOrSlug(
+    async getDashboardParameterStateByIdOrSlug(
         dashboardUuidOrSlug: string,
         projectUuid: string,
-    ): Promise<DashboardParameters | undefined> {
+    ): Promise<
+        {
+            parameters: DashboardParameters | undefined;
+            spaceUuid: string;
+        } & Pick<DashboardConfig, 'parameterControls'>
+    > {
         const query = this.database(DashboardsTableName)
+            .innerJoin(
+                SpaceTableName,
+                `${DashboardsTableName}.space_id`,
+                `${SpaceTableName}.space_id`,
+            )
             .innerJoin(
                 DashboardVersionsTableName,
                 `${DashboardsTableName}.dashboard_id`,
@@ -1748,8 +1758,17 @@ export class DashboardModel {
                 `${DashboardVersionsTableName}.dashboard_version_id`,
                 `${DashboardViewsTableName}.dashboard_version_id`,
             )
-            .select<{ parameters: DashboardParameters | null } | undefined>(
+            .select<
+                | {
+                      parameters: DashboardParameters | null;
+                      config: DashboardConfig | null;
+                      space_uuid: string;
+                  }
+                | undefined
+            >(
                 `${DashboardViewsTableName}.parameters`,
+                `${DashboardVersionsTableName}.config`,
+                `${SpaceTableName}.space_uuid`,
             )
             .where(`${DashboardsTableName}.project_uuid`, projectUuid)
             .whereNull(`${DashboardsTableName}.deleted_at`)
@@ -1780,7 +1799,11 @@ export class DashboardModel {
             throw new NotFoundError('Dashboard not found');
         }
 
-        return row.parameters ?? undefined;
+        return {
+            parameters: row.parameters ?? undefined,
+            parameterControls: row.config?.parameterControls,
+            spaceUuid: row.space_uuid,
+        };
     }
 
     /*

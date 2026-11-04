@@ -487,21 +487,42 @@ describe('DashboardModel', () => {
         const parameters = {
             test_parameter: 'test value',
         };
-        tracker.on.select(DashboardsTableName).response([{ parameters }]);
+        const parameterControls = [
+            {
+                id: 'control-1',
+                label: 'Test parameter',
+                value: 'test value',
+                valueType: { type: 'string', multiple: false },
+                parameters: { test_parameter: 'all' },
+            },
+        ];
+        tracker.on.select(DashboardsTableName).response([
+            {
+                parameters,
+                config: { parameterControls },
+                space_uuid: 'space-uuid',
+            },
+        ]);
 
-        const result = await model.getDashboardParametersByIdOrSlug(
+        const result = await model.getDashboardParameterStateByIdOrSlug(
             dashboardUuid,
             projectUuid,
         );
 
-        expect(result).toEqual(parameters);
+        expect(result).toEqual({
+            parameters,
+            parameterControls,
+            spaceUuid: 'space-uuid',
+        });
+        expect(tracker.history.select[0].sql).toContain(
+            '"dashboard_versions"."config"',
+        );
         expect(tracker.history.select).toHaveLength(1);
         expect(tracker.history.select[0].sql).toContain(
             '"dashboards"."project_uuid"',
         );
-        expect(tracker.history.select[0].sql).not.toContain(
-            'inner join "spaces"',
-        );
+        // The space, for the viewer's access check; no project join
+        expect(tracker.history.select[0].sql).toContain('inner join "spaces"');
         expect(tracker.history.select[0].sql).not.toContain(
             'inner join "projects"',
         );

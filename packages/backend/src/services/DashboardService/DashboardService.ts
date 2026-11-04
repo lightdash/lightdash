@@ -26,10 +26,12 @@ import {
     generateSlug,
     getDashboardDeleteAccess,
     getErrorMessage,
+    getExploreParameterDefinitions,
     getItemId,
     getParameterMirror,
     getParameterReferences,
     getQueryParameterReferences,
+    getReferencedParameterDefinitions,
     getSchedulerResourceTypeAndId,
     hasChartsInDashboard,
     isDashboardChartTileType,
@@ -80,6 +82,7 @@ import {
     type Explore,
     type ExploreError,
     type MetricQuery,
+    type ParameterDefinitions,
     type SavedChartDAO,
     type UpdateDashboardCustomMetric,
     type UUID,
@@ -181,7 +184,10 @@ type DashboardServiceArguments = {
     organizationMemberProfileModel: OrganizationMemberProfileModel;
     spacePermissionService: SpacePermissionService;
     contentVerificationModel: ContentVerificationModel;
-    projectService: Pick<ProjectService, 'findExplores'>;
+    projectService: Pick<
+        ProjectService,
+        'findExplores' | 'projectParametersModel'
+    >;
 };
 
 type ContentAsCodeDeleteOptions = SoftDeleteOptions & {
@@ -205,7 +211,11 @@ const TILE_LOAD_CONCURRENCY = 5;
 const MAX_PARAMETER_REFERENCE_TILES = 200;
 
 type ParameterReferencesResult =
-    | { parameterReferences: string[]; error: null }
+    | {
+          parameterReferences: string[];
+          parameterDefinitions: ParameterDefinitions;
+          error: null;
+      }
     | { parameterReferences: null; error: string };
 
 const parameterReferencesFailure = (e: unknown): ParameterReferencesResult => ({
@@ -1029,12 +1039,23 @@ export class DashboardService
                   tiles,
               )
             : tiles;
+        const projectDefinitions: ParameterDefinitions = Object.fromEntries(
+            (
+                await this.projectService.projectParametersModel.find(
+                    projectUuid,
+                )
+            ).map(({ name, config }) => [
+                name,
+                { ...config, type: config.type || 'string' },
+            ]),
+        );
         // One kind failing outright keeps the other kind's results
         const [chartResults, sqlResults] = await Promise.all([
             this.getSavedChartParameterReferences(
                 account,
                 projectUuid,
                 uniq(sources.flatMap((tile) => tile?.savedChartUuid ?? [])),
+                projectDefinitions,
             )
                 .then(toLookup)
                 .catch(getFailedResults),
@@ -1042,6 +1063,7 @@ export class DashboardService
                 account,
                 projectUuid,
                 uniq(sources.flatMap((tile) => tile?.savedSqlUuid ?? [])),
+                projectDefinitions,
             )
                 .then(toLookup)
                 .catch(getFailedResults),
@@ -1120,6 +1142,7 @@ export class DashboardService
         account: Account,
         projectUuid: string,
         savedChartUuids: string[],
+        projectDefinitions: ParameterDefinitions,
     ): Promise<Map<string, ParameterReferencesResult>> {
         const results = new Map<string, ParameterReferencesResult>();
         // Each chart load makes several DB calls too; a failure stays with its tile
@@ -1188,10 +1211,29 @@ export class DashboardService
             const queries = chartQueries.get(chart.uuid);
             if (!queries) return;
             try {
+                const parameterReferences = getChartParameterReferences(
+                    queries,
+                    explores,
+                );
+                const definitions = queries.reduce<ParameterDefinitions>(
+                    (acc, { exploreName }) => {
+                        const explore = explores.get(exploreName);
+                        return explore &&
+                            !(explore instanceof Error) &&
+                            !isExploreError(explore)
+                            ? {
+                                  ...acc,
+                                  ...getExploreParameterDefinitions(explore),
+                              }
+                            : acc;
+                    },
+                    projectDefinitions,
+                );
                 results.set(chart.uuid, {
-                    parameterReferences: getChartParameterReferences(
-                        queries,
-                        explores,
+                    parameterReferences,
+                    parameterDefinitions: getReferencedParameterDefinitions(
+                        definitions,
+                        parameterReferences,
                     ),
                     error: null,
                 });
@@ -1291,6 +1333,7 @@ export class DashboardService
         account: Account,
         projectUuid: string,
         savedSqlUuids: string[],
+        projectDefinitions: ParameterDefinitions,
     ): Promise<Map<string, ParameterReferencesResult>> {
         const results = new Map<string, ParameterReferencesResult>();
         const loaded = await runWithConcurrency(
@@ -1322,6 +1365,11 @@ export class DashboardService
                           parameterReferences: getParameterReferences(
                               sqlChart.sql,
                           ),
+                          parameterDefinitions:
+                              getReferencedParameterDefinitions(
+                                  projectDefinitions,
+                                  getParameterReferences(sqlChart.sql),
+                              ),
                           error: null,
                       }
                     : parameterReferencesFailure(

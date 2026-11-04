@@ -7,7 +7,11 @@ import { type DashboardFieldTarget, type DashboardFilters } from './filter';
 import { type KnexPaginatedData } from './knex-paginate';
 import { type LightdashProjectParameter } from './lightdashProjectConfig';
 import { type AdditionalMetric } from './metricQuery';
-import { type DashboardParameters, type ParameterValue } from './parameters';
+import {
+    type DashboardParameters,
+    type ParameterDefinitions,
+    type ParameterValue,
+} from './parameters';
 import { type ProjectType } from './projects';
 import {
     type ChartKind,
@@ -442,7 +446,12 @@ export type DashboardTileParameterReferencesRequest = {
 };
 
 export type DashboardTileParameterReferences =
-    | { tileUuid: string; parameterReferences: string[]; error: null }
+    | {
+          tileUuid: string;
+          parameterReferences: string[];
+          parameterDefinitions?: ParameterDefinitions;
+          error: null;
+      }
     | { tileUuid: string; parameterReferences: null; error: string };
 
 export type ApiDashboardTileParameterReferencesResponse = {

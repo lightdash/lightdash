@@ -94,6 +94,9 @@ describe('buildInitialDashboardState', () => {
             status: { parameterName: 'status', value: 'Cancelled' },
         });
         expect(state.parameters.parametersHaveChanged).toBe(true);
+        expect(state.parameters.parameterPicks).toEqual({
+            status: 'Cancelled',
+        });
         expect(state.parameters.isEditMode).toBe(false);
     });
 

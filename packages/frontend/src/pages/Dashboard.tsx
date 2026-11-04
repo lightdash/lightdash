@@ -66,6 +66,7 @@ import {
     selectDashboardFilters,
     selectDashboardParameterDefinitions,
     selectDashboardParameterReferences,
+    selectAreParameterControlsSaved,
     selectDashboardParameters,
     selectDashboardTabs,
     selectDashboardTiles,
@@ -76,6 +77,7 @@ import {
     selectHaveCustomMetricsChanged,
     selectHaveDateZoomGranularitiesChanged,
     selectHaveFiltersChanged,
+    selectHaveParameterControlsChanged,
     selectHavePinnedParametersChanged,
     selectHaveTabsChanged,
     selectHaveTilesChanged,
@@ -83,12 +85,15 @@ import {
     selectIsDateZoomDisabled,
     selectMissingRequiredParameters,
     selectOldestCacheTime,
+    selectParameterControls,
     selectParameterOrder,
+    selectParameterPicks,
     selectParametersHaveChanged,
     selectParameterValues,
     selectPinnedParameters,
     selectRawTemporaryFilters,
     dashboardEditActions,
+    dashboardParametersActions,
     useAreAllChartsLoaded,
     useDashboardDateZoomConfig,
     useDashboardDateZoomGranularities,
@@ -134,7 +139,10 @@ import useDashboardTileStatusContext from '../providers/Dashboard/useDashboardTi
 import useNativeFullscreenToggle from '../providers/Fullscreen/useNativeFullscreenToggle';
 import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
-import { buildDashboardConfig } from '../utils/dashboardConfig';
+import {
+    buildDashboardConfig,
+    getParametersToSave,
+} from '../utils/dashboardConfig';
 import { isSameDashboardRoute } from '../utils/dashboardRoutes';
 import '../styles/react-grid.css';
 
@@ -749,6 +757,9 @@ const Dashboard: FC = () => {
             dashboardEditActions.setHaveControlSectionsChanged(false),
         );
         dashboardDispatch(
+            dashboardParametersActions.setHaveParameterControlsChanged(false),
+        );
+        dashboardDispatch(
             dashboardEditActions.syncControlSections(
                 dashboard.config?.controlSections ?? [],
             ),
@@ -908,6 +919,11 @@ const Dashboard: FC = () => {
             setHasDateZoomConfigChanged(false);
             dashboardDispatch(
                 dashboardEditActions.setHaveControlSectionsChanged(false),
+            );
+            dashboardDispatch(
+                dashboardParametersActions.setHaveParameterControlsChanged(
+                    false,
+                ),
             );
             // The saved config is the source of truth again
             setRequiredFiltersNote(undefined);
@@ -1362,6 +1378,19 @@ const Dashboard: FC = () => {
             isDashboardControlsEnabled,
         );
 
+        const { parameterControlsToSave, parameters } = getParametersToSave({
+            parameterControls: selectParameterControls(dashboardState),
+            areParameterControlsSaved:
+                selectAreParameterControlsSaved(dashboardState),
+            haveParameterControlsChanged:
+                selectHaveParameterControlsChanged(dashboardState),
+            existingParameterControls:
+                dashboard.config?.parameterControls ?? null,
+            parameterPicks: selectParameterPicks(dashboardState),
+            appliedParameters: selectDashboardParameters(dashboardState),
+            savedParameters: dashboard.parameters ?? {},
+        });
+
         const dashboardUpdate: UpdateDashboard = {
             tiles: dashboardTiles,
             filters: {
@@ -1396,8 +1425,9 @@ const Dashboard: FC = () => {
                     : undefined,
                 controlSections,
                 haveControlSectionsChanged,
+                parameterControlsToSave,
             }),
-            parameters: selectDashboardParameters(dashboardState),
+            parameters,
             ...(preserveVerification !== undefined
                 ? { preserveVerification }
                 : {}),
