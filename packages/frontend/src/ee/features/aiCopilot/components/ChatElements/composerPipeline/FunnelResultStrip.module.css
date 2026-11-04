@@ -9,7 +9,7 @@
 /* One grid so names, bars and numbers align across rows. */
 .rows {
     display: grid;
-    grid-template-columns: 18px minmax(0, 1fr) minmax(0, 2fr) auto auto;
+    grid-template-columns: 18px minmax(0, 1fr) minmax(0, 3fr) auto auto;
     column-gap: var(--mantine-spacing-xs);
     row-gap: 4px;
     align-items: center;

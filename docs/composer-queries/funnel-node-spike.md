@@ -94,14 +94,15 @@ event fields as chips beneath, and the returned shape as a short note.
 
 ### Result strip (any variant)
 
-After a run the results toggle opens a per-step strip instead of a raw table.
-It follows the conventions every funnel tool shares (see "Reference
-conventions"): a headline with total conversion (last step ÷ first) and the
-largest drop, then one column per step with users, the share of step 1 as a
-bar whose lighter remainder is the drop-off, that share as a number, and
-"% of previous" beneath. Breakdown values are summed per step; the raw rows
-stay available in the full results view. Median time to convert is not
-aggregated across breakdown values, so the strip omits it.
+After a run the results toggle opens a per-step strip above the raw rows.
+It is a numbered list, one row per step, sharing the spine's circle: step
+name, the share of step 1 as a bar whose lighter remainder is the drop-off,
+users, and that share as a number. The users lost sit between two rows
+("800 dropped off (50.0%)"), where the loss happens. A headline states
+total conversion (last step ÷ first) and the largest drop. Breakdown values
+are summed per step; the raw rows stay available in the full results view.
+Median time to convert is not aggregated across breakdown values, so the
+strip omits it.
 
 ![A. Rows with the result strip](images/funnel-node-spike/a-rows-results-strip.png)
 
@@ -189,9 +190,46 @@ funnels, so the cell reads as a funnel to anyone who has used one:
 - Breakdown renders as grouped bars per step plus a table with an "Overall"
   control row; steps still own the axis.
 
+### Screens (Mobbin)
+
+Product screens checked on Mobbin, with what each contributed to the strip:
+
+- [June, milestones overview](https://mobbin.com/screens/9a995e5b-c179-4313-a0a7-985b8d1f34bd):
+  numbered rows, name, one bar per step on a shared track, percentage and
+  users to the right, headline band "29.37% completed all milestones". The
+  row layout the strip now uses.
+- [Arcade, insights](https://mobbin.com/screens/ffa76985-7fe5-4ae3-8a08-2337cae94c02):
+  numbered circles, horizontal bars with the count at the bar end, the
+  remainder ghosted; tooltip "From step 1: conversion / drop-off".
+- [Calendly, routing funnel](https://mobbin.com/screens/e50d7744-9733-428b-b82d-b59928ed6298)
+  and [HubSpot, step completion](https://mobbin.com/screens/9a7ed489-3325-4114-b47c-1f2afcb24059):
+  horizontal rows again when the funnel sits in a card; the drop-off drawn
+  as a wedge between rows.
+- [Zoho CRM, webforms](https://mobbin.com/screens/013cfb95-c2c1-4e1d-977f-d4d8de239bda):
+  "DROP 6.3% (1)" written in the gutter between two steps, overall
+  conversion at the end. The between-row drop-off line.
+- [Hotjar, funnels](https://mobbin.com/screens/3621a91d-0628-4500-aa72-1c668afa60e0):
+  per step "→ 3 (100%) reached step" and "↓ 3 (100%) dropped off"; an
+  "overall conversion (all steps)" box above the chart.
+- [Mixpanel, funnel report](https://mobbin.com/screens/647846ee-9587-4317-aecb-4abf5aece206)
+  and [Amplitude, funnel chart](https://mobbin.com/screens/b2ea2d07-0699-45d3-a68f-6bfbe65140a9):
+  full-height columns with step 1 ghosted behind each later step, the
+  percentage big and the count small in a badge; Amplitude's headline
+  "25.0% · From A to B within the last 30 days".
+- [Google Analytics, funnel exploration](https://mobbin.com/screens/557e0f62-e958-4b13-9be6-09930a6e76e2):
+  "Step n · name · %" column headers, abandonment per step, and a table
+  with a Total row per step and breakdown sub-rows.
+- [Klaviyo, review funnel](https://mobbin.com/screens/e1ed8a1f-6aa9-4223-83b9-bb44f78a43a5):
+  count big, name, "x% of previous step" under each column.
+
+Columns (Mixpanel, Amplitude, GA, Klaviyo) win when the chart owns the
+page; every tool that puts a funnel in a card or a sidebar (June, Arcade,
+Calendly, HubSpot) turns it into rows. The Lineage cell is a card, and rows
+scale with the step count without squeezing names, so the strip is rows.
+
 Taken into the cell: numbered steps with the window stated between or after
-them (spine, rows), the one-sentence criteria (sentence), the headline and
-two-percentage columns (strip). Not taken: colour per breakdown value and
+them (spine, rows), the one-sentence criteria (sentence), the headline,
+the row-per-step bars and the between-row drop-off (strip). Not taken: colour per breakdown value and
 the time-to-convert histogram, both of which belong to a chart over the
 node's rows rather than to the cell.
 
