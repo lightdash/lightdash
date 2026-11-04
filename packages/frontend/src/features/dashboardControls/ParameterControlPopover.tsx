@@ -1,11 +1,8 @@
 import {
-    formatDate,
     getAllowedParameterValue,
     interpolateUiString,
-    parseDate,
     resolveParameterDefault,
-    TimeFrames,
-    type LightdashProjectParameter,
+    type DashboardParameterControl,
     type ParametersValuesMap,
     type ParameterValue,
     type UiStringResolver,
@@ -15,7 +12,7 @@ import {
     Box,
     Button,
     Group,
-    Paper,
+    Menu,
     Stack,
     Text,
     Title,
@@ -24,6 +21,9 @@ import {
 import {
     IconAdjustmentsHorizontal,
     IconArrowLeft,
+    IconDots,
+    IconEye,
+    IconEyeOff,
     IconLayoutGrid,
     IconPencil,
     IconSettings,
@@ -36,50 +36,37 @@ import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import {
     selectControlSections,
     useDashboardSelector,
-} from '../../features/dashboard/store';
-import {
-    formatTileCount,
-    formatTilesOf,
-} from '../../features/dashboardControls/fieldLabels';
-import classes from '../../features/dashboardControls/FilterEditor.module.css';
-import { type EditorView as PopoverView } from '../../features/dashboardControls/FilterPopover';
-import { focusOnMount } from '../../features/dashboardControls/mappingFocus';
-import { useRefocusAfter } from '../../features/dashboardControls/nameFocus';
-import { NameInput } from '../../features/dashboardControls/NameInput';
-import { SectionSetting } from '../../features/dashboardControls/SectionSetting';
-import { useSettingsChipFocus } from '../../features/dashboardControls/useSettingsChipFocus';
-import { ParameterInput } from '../../features/parameters/components/ParameterInput';
-import { ShadowedReservedNameWarning } from '../../features/parameters/components/ShadowedReservedNameWarning';
-import { CONTROL_STRINGS } from './controlStrings';
-import { focusInputOnMount } from './focus';
+} from '../dashboard/store';
+import { ParameterInput } from '../parameters/components/ParameterInput';
+import { ShadowedReservedNameWarning } from '../parameters/components/ShadowedReservedNameWarning';
+import { getParameterDisplayValue } from '../parameters/utils/parameterDisplayValue';
+import { focusParameterValueOnMount } from './editorFocus';
+import { formatTileCount, formatTilesOf } from './fieldLabels';
+import classes from './FilterEditor.module.css';
+import { EditorPrompt, type EditorView as PopoverView } from './FilterPopover';
+import { focusOnMount } from './mappingFocus';
+import { MENU_TRANSITION } from './menuTransition';
+import { useRefocusAfter } from './nameFocus';
+import { NameInput } from './NameInput';
 import {
     getParameterLabel,
-    type ParameterControl,
-    type ParameterOption,
-} from './parameterOptions';
+    type ParameterControlParameter,
+} from './parameterControlsBar';
+import { SectionSetting } from './SectionSetting';
+import { useSettingsChipFocus } from './useSettingsChipFocus';
+
+// Apply's reason at no tiles, an editor's, as the filter's
+const NOT_APPLIED_TO_ANY_TILES = 'This parameter is not applied to any tiles';
 
 const hasValue = (value: ParameterValue | null) =>
     value !== null && value !== '' && !(Array.isArray(value) && !value.length);
-
-// From the shipped `Parameter.tsx` pill's `displayValue` (not exported): a
-// date reads as the pill shows it, an array joined
-const formatValue = (
-    definition: LightdashProjectParameter,
-    value: ParameterValue,
-) => {
-    if (definition.type === 'date' && typeof value === 'string') {
-        const date = parseDate(value, TimeFrames.DAY);
-        return date ? formatDate(date, TimeFrames.DAY, false) : value;
-    }
-    return Array.isArray(value) ? value.join(', ') : String(value);
-};
 
 // What clearing the value falls back to, while there is a value to clear.
 // Values resolve per parameter key, so a mix of defaults says nothing rather
 // than guess; with no default at all each tile keeps its own value
 const getClearedCaption = (
     getUiString: UiStringResolver,
-    parameters: ParameterOption[],
+    parameters: ParameterControlParameter[],
     timezone: string | undefined,
 ): string | null => {
     const [firstParameter] = parameters;
@@ -95,14 +82,25 @@ const getClearedCaption = (
         ? interpolateUiString(
               getUiString('controls.parameter.clearedUsesDefault'),
               {
-                  value: formatValue(firstParameter.definition, first),
+                  value: getParameterDisplayValue(
+                      firstParameter.definition,
+                      first,
+                  ),
               },
           )
         : null;
 };
 
 type Props = {
-    control: ParameterControl;
+    control: DashboardParameterControl;
+    /** Another pill on the bar has the same name: its model, appended (null: none). */
+    nameSuffix: string | null;
+    /** The parameters it sets that have a definition, in its key order. */
+    parameters: ParameterControlParameter[];
+    /** What its input edits: its value type, with its first parameter's options. */
+    input: ParameterControlParameter;
+    /** Distinct tiles it sets: the N in "Sets N of M tiles". */
+    tileCount: number;
     /** For a parameter whose options come from a field's values. */
     projectUuid: string;
     /** Resolves a `today` default on the project's calendar. */
@@ -117,16 +115,26 @@ type Props = {
     /** Every tile on the dashboard: the M in "Sets N of M tiles", as filters. */
     totalTileCount: number;
     initialView: PopoverView;
-    onChange: (next: ParameterControl) => void;
+    /** Apply's label (default the registry's "Apply"). */
+    applyLabel?: string;
+    /** Another pill was clicked over unapplied changes: "Apply changes to ... first?" */
+    isAsking: boolean;
+    onResolvePending: (shouldApply: boolean) => void;
+    onChange: (next: DashboardParameterControl) => void;
     onCancel: () => void;
     onApply: () => void;
-    onChooseTiles: () => void;
+    /** Null: the count alone, with no "Choose tiles". */
+    onChooseTiles: (() => void) | null;
 };
 
 // The filter popover's sentence for a parameter: no operator, the shipped
 // parameter input, and the same footer
 export const ParameterControlPopover: FC<Props> = ({
     control,
+    nameSuffix,
+    parameters,
+    input,
+    tileCount,
     projectUuid,
     projectTimezone,
     parameterValues,
@@ -135,6 +143,9 @@ export const ParameterControlPopover: FC<Props> = ({
     isMissingRequired,
     totalTileCount,
     initialView,
+    applyLabel,
+    isAsking,
+    onResolvePending,
     onChange,
     onCancel,
     onApply,
@@ -149,29 +160,30 @@ export const ParameterControlPopover: FC<Props> = ({
     const [isRenaming, setIsRenaming] = useState(false);
     const { ref: pencilRef, exit } = useRefocusAfter(isRenaming);
     const { focusValueView, focusSettingsChip, markBackFromSettings } =
-        useSettingsChipFocus(focusInputOnMount);
-    const [first] = control.parameters;
-    const name =
-        control.label ?? (first ? getParameterLabel(first) : 'Parameter');
+        useSettingsChipFocus(focusParameterValueOnMount);
+    const [first] = parameters;
+    const label =
+        control.label ??
+        (first
+            ? getParameterLabel(first)
+            : getUiString('controls.parameter.unnamed'));
+    const name = nameSuffix === null ? label : `${label} · ${nameSuffix}`;
     const shadowedKey =
-        control.parameters.find(({ key }) =>
-            shadowedReservedNames.includes(key),
-        )?.key ?? null;
+        parameters.find(({ key }) => shadowedReservedNames.includes(key))
+            ?.key ?? null;
     // The value the input shows: one outside fixed options reads as unset
     const shownValue =
-        first && control.value !== null
-            ? getAllowedParameterValue(first.definition, control.value)
+        control.value !== null
+            ? getAllowedParameterValue(input.definition, control.value)
             : null;
     const caption = hasValue(shownValue)
         ? getClearedCaption(
               getUiString,
-              control.parameters,
+              parameters,
               projectTimezone ?? undefined,
           )
         : null;
 
-    // Distinct tiles: a tile that uses two of its parameters counts once
-    const tileCount = new Set(control.tileUuids).size;
     const tilesOf = formatTilesOf(getUiString, tileCount, totalTileCount);
     const sets = interpolateUiString(getUiString('controls.sets'), {
         tiles:
@@ -187,7 +199,7 @@ export const ParameterControlPopover: FC<Props> = ({
             ? null
             : isViewer
               ? getUiString('controls.setsNoTiles')
-              : CONTROL_STRINGS.notAppliedToAnyTiles;
+              : NOT_APPLIED_TO_ANY_TILES;
     // Always there for editors; with no sections it holds the section select
     // at "No section"
     const hasSettings = !isViewer;
@@ -202,12 +214,17 @@ export const ParameterControlPopover: FC<Props> = ({
                 />
                 {isRenaming ? (
                     <NameInput
-                        initial={control.label ?? ''}
+                        initial={label}
                         placeholder={first ? getParameterLabel(first) : 'Name'}
                         onCommit={(text) =>
                             onChange({
                                 ...control,
-                                label: text.trim() === '' ? null : text,
+                                // Empty or untouched keeps following the parameter's label
+                                label:
+                                    text.trim() === '' ||
+                                    (control.label === null && text === label)
+                                        ? null
+                                        : text,
                             })
                         }
                         onDone={(how) => {
@@ -218,8 +235,8 @@ export const ParameterControlPopover: FC<Props> = ({
                 ) : (
                     // As the shipped pill: the description on hover
                     <Tooltip
-                        label={first?.definition.description}
-                        disabled={!first?.definition.description}
+                        label={input.definition.description}
+                        disabled={!input.definition.description}
                         maw={350}
                         fz="xs"
                         multiline
@@ -235,40 +252,77 @@ export const ParameterControlPopover: FC<Props> = ({
                     <ShadowedReservedNameWarning paramKey={shadowedKey} />
                 )}
                 {!isViewer && !isRenaming && (
-                    <Tooltip fz="xs" label="Rename">
-                        <ActionIcon
-                            size="sm"
-                            ml="auto"
-                            aria-label="Rename"
-                            ref={pencilRef}
-                            onClick={() => setIsRenaming(true)}
+                    <Group gap={2} wrap="nowrap" ml="auto">
+                        <Tooltip fz="xs" label="Rename">
+                            <ActionIcon
+                                size="sm"
+                                aria-label="Rename"
+                                ref={pencilRef}
+                                onClick={() => setIsRenaming(true)}
+                            >
+                                <MantineIcon
+                                    icon={IconPencil}
+                                    size={14}
+                                    strokeWidth={2.25}
+                                />
+                            </ActionIcon>
+                        </Tooltip>
+                        {/* As the filter bar's "...": the item names the action */}
+                        <Menu
+                            position="bottom-end"
+                            withinPortal={false}
+                            transitionProps={MENU_TRANSITION}
                         >
-                            <MantineIcon
-                                icon={IconPencil}
-                                size={14}
-                                strokeWidth={2.25}
-                            />
-                        </ActionIcon>
-                    </Tooltip>
+                            <Menu.Target>
+                                <ActionIcon size="sm" aria-label="More">
+                                    <MantineIcon icon={IconDots} size={14} />
+                                </ActionIcon>
+                            </Menu.Target>
+                            <Menu.Dropdown className={classes.menu}>
+                                <Menu.Item
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={
+                                                control.hidden
+                                                    ? IconEye
+                                                    : IconEyeOff
+                                            }
+                                            size={14}
+                                        />
+                                    }
+                                    onClick={() => {
+                                        const { hidden, ...rest } = control;
+                                        onChange(
+                                            hidden
+                                                ? rest
+                                                : { ...rest, hidden: true },
+                                        );
+                                    }}
+                                >
+                                    {control.hidden
+                                        ? 'Show for viewers'
+                                        : 'Hide for viewers'}
+                                </Menu.Item>
+                            </Menu.Dropdown>
+                        </Menu>
+                    </Group>
                 )}
             </Group>
             <Stack gap="xs" className={classes.content}>
-                {first && (
-                    // shortcut: a combined control edits through its first
-                    // parameter's definition; fine while combined ones match
-                    <ParameterInput
-                        paramKey={first.key}
-                        parameter={first.definition}
-                        value={control.value}
-                        size="xs"
-                        projectUuid={projectUuid}
-                        parameterValues={parameterValues}
-                        isError={isMissingRequired}
-                        onParameterChange={(_key, value) =>
-                            onChange({ ...control, value })
-                        }
-                    />
-                )}
+                {/* shortcut: a combined control edits through its first
+                    parameter's options; fine while combined ones match */}
+                <ParameterInput
+                    paramKey={input.key}
+                    parameter={input.definition}
+                    value={control.value}
+                    size="xs"
+                    projectUuid={projectUuid}
+                    parameterValues={parameterValues}
+                    isError={isMissingRequired}
+                    onParameterChange={(_key, value) =>
+                        onChange({ ...control, value })
+                    }
+                />
                 {caption !== null && (
                     <Text fz="xs" c="dimmed">
                         {caption}
@@ -306,45 +360,69 @@ export const ParameterControlPopover: FC<Props> = ({
             <Stack gap="md">
                 <SectionSetting
                     sections={sections}
-                    sectionId={control.sectionId}
-                    onChange={(sectionId) =>
-                        onChange({ ...control, sectionId })
-                    }
+                    sectionId={control.sectionId ?? null}
+                    onChange={(sectionId) => {
+                        const { sectionId: _previous, ...rest } = control;
+                        onChange(
+                            sectionId === null ? rest : { ...rest, sectionId },
+                        );
+                    }}
                 />
             </Stack>
         </Stack>
     );
 
     return (
-        <Paper
-            shadow="md"
-            radius="md"
-            w="min(400px, calc(100vw - 56px))"
-            role="dialog"
-            aria-label={name}
-        >
-            <Box className={classes.body}>
+        <Box className={classes.root} role="dialog" aria-label={name}>
+            {isAsking && (
+                <EditorPrompt
+                    name={name}
+                    applyBlockedReason={applyBlockedReason}
+                    onResolvePending={onResolvePending}
+                />
+            )}
+            <Box
+                className={classes.body}
+                data-dimmed={isAsking || undefined}
+                inert={isAsking || undefined}
+            >
                 {view === 'settings' ? settingsView : valueView}
                 {view === 'value' && !isViewer && (
                     <Group gap="xs" align="flex-start" px="md" pb="sm">
-                        <Button
-                            variant="subtle"
-                            color="gray"
-                            size="compact-xs"
-                            mih={24}
-                            aria-label={`${sets}. ${chooseTiles}`}
-                            leftSection={
-                                <MantineIcon icon={IconLayoutGrid} size={14} />
-                            }
-                            onClick={onChooseTiles}
-                        >
-                            <Text span fz="xs">
+                        {onChooseTiles === null ? (
+                            <Group gap={6} wrap="nowrap" mih={24} px={6}>
+                                <MantineIcon
+                                    icon={IconLayoutGrid}
+                                    size={14}
+                                    color="dimmed"
+                                />
                                 <Text span fz="xs" c="dimmed">
                                     {sets}
                                 </Text>
-                                {` · ${chooseTiles}`}
-                            </Text>
-                        </Button>
+                            </Group>
+                        ) : (
+                            <Button
+                                variant="subtle"
+                                color="gray"
+                                size="compact-xs"
+                                mih={24}
+                                aria-label={`${sets}. ${chooseTiles}`}
+                                leftSection={
+                                    <MantineIcon
+                                        icon={IconLayoutGrid}
+                                        size={14}
+                                    />
+                                }
+                                onClick={onChooseTiles}
+                            >
+                                <Text span fz="xs">
+                                    <Text span fz="xs" c="dimmed">
+                                        {sets}
+                                    </Text>
+                                    {` · ${chooseTiles}`}
+                                </Text>
+                            </Button>
+                        )}
                         {hasSettings && (
                             <Button
                                 ref={focusSettingsChip}
@@ -398,13 +476,13 @@ export const ParameterControlPopover: FC<Props> = ({
                                     disabled={applyBlockedReason !== null}
                                     onClick={onApply}
                                 >
-                                    {getUiString('filters.apply')}
+                                    {applyLabel ?? getUiString('filters.apply')}
                                 </Button>
                             </Box>
                         </Tooltip>
                     </Group>
                 </Group>
             </Box>
-        </Paper>
+        </Box>
     );
 };

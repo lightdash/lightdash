@@ -1,10 +1,6 @@
 import {
     DEFAULT_UI_STRINGS,
-    formatDate,
     getAllowedParameterValue,
-    parseDate,
-    resolveParameterDefault,
-    TimeFrames,
     type LightdashProjectParameter,
     type ParametersValuesMap,
     type ParameterValue,
@@ -23,6 +19,7 @@ import { useId } from '@mantine/hooks';
 import { IconGripVertical, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { getParameterDisplayValue } from '../utils/parameterDisplayValue';
 import styles from './Parameter.module.css';
 import { ParameterInput } from './ParameterInput';
 import { ShadowedReservedNameWarning } from './ShadowedReservedNameWarning';
@@ -80,38 +77,10 @@ const Parameter: FC<Props> = ({
         ? getUiString('parameters.is')
         : DEFAULT_UI_STRINGS['parameters.is'];
 
-    const displayValue = useMemo(() => {
-        if (value === null || value === undefined || value === '') {
-            const defaultVal = resolveParameterDefault(parameter);
-            if (defaultVal !== undefined) {
-                if (
-                    parameter.type === 'date' &&
-                    typeof defaultVal === 'string'
-                ) {
-                    const date = parseDate(defaultVal, TimeFrames.DAY);
-                    return date
-                        ? formatDate(date, TimeFrames.DAY, false)
-                        : defaultVal;
-                }
-                if (Array.isArray(defaultVal)) {
-                    return defaultVal.join(', ');
-                }
-                return String(defaultVal);
-            }
-            return 'any value';
-        }
-
-        if (parameter.type === 'date' && typeof value === 'string') {
-            const date = parseDate(value, TimeFrames.DAY);
-            return date ? formatDate(date, TimeFrames.DAY, false) : value;
-        }
-
-        if (Array.isArray(value)) {
-            return value.join(', ');
-        }
-
-        return String(value);
-    }, [value, parameter]);
+    const displayValue = useMemo(
+        () => getParameterDisplayValue(parameter, value),
+        [value, parameter],
+    );
 
     const hasValue = value !== null && value !== undefined && value !== '';
     const hasUnsetRequiredParameter = isRequired && !hasValue;

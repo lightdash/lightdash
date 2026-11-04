@@ -431,6 +431,8 @@ export const DEFAULT_UI_STRINGS = {
         '{applied} of {total} tiles on this tab are filtered by {subject}',
     'controls.sectionCount.singular': '{count} filter',
     'controls.sectionCount.plural': '{count} filters',
+    'controls.sectionControlCount.singular': '{count} control',
+    'controls.sectionControlCount.plural': '{count} controls',
     'controls.untitledSection': 'Untitled section',
     'controls.collapseSection': 'Collapse section {section}',
     'controls.expandSection': 'Expand section {section}',
@@ -450,6 +452,12 @@ export const DEFAULT_UI_STRINGS = {
         'If cleared, tiles use the default, {value}.',
     'controls.parameter.clearedUsesOwnValue':
         'If cleared, each tile uses its own value.',
+    'controls.parameter.needsValue': 'needs a value',
+    'controls.parameter.isNotSet': 'is not set',
+    'controls.parameter.notSetTooltip':
+        "Tiles use their own value or the parameter's default",
+    'controls.parameter.project': 'Project',
+    'controls.parameter.unnamed': 'Parameter',
     'filters.tileCard.locked': 'Tiles are locked while a filter is edited',
     'filters.tileCard.unreachable':
         'This tile has no field this filter can use',

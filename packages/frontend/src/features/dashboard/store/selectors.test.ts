@@ -289,6 +289,7 @@ describe('parameter selectors', () => {
             expect(selectParameterControlInputs(state)).toEqual({
                 controls: savedList,
                 overrides: { status: 'Picked' },
+                tilePicks: {},
                 userParameterNames: [],
             });
             expect(selectParameterControlInputs(state)).toBe(

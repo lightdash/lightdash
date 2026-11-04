@@ -156,6 +156,7 @@ const setSidebar = (overrides: Partial<ControlsSidebarContextValue>) => {
         endMapping: vi.fn(),
         isAsking: false,
         resolvePending: vi.fn(),
+        requestSwitch: vi.fn(),
         moveFilter: vi.fn(),
         applyWithUndo: vi.fn(),
         undoApply: vi.fn(),
@@ -808,6 +809,8 @@ describe('EditorPopover', () => {
                         rail: 'ld-dashboard-filter-rail',
                         addFilterDropdown: 'add-list',
                         filterDropdown: 'ld-dashboard-filter-dropdown',
+                        parameter: 'ld-dashboard-parameter',
+                        parameterDropdown: 'ld-dashboard-parameter-dropdown',
                     }}
                 >
                     <Editor />
@@ -829,6 +832,8 @@ describe('EditorPopover', () => {
                         rail: 'ld-dashboard-filter-rail',
                         addFilterDropdown: 'add-list',
                         filterDropdown: 'ld-dashboard-filter-dropdown',
+                        parameter: 'ld-dashboard-parameter',
+                        parameterDropdown: 'ld-dashboard-parameter-dropdown',
                     }}
                 >
                     <Editor />

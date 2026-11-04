@@ -1,6 +1,8 @@
 import {
     getMissingRequiredDashboardParameters,
-    getParameterMirror,
+    getDashboardTileParameterOverrides,
+    omitDisallowedParameterValues,
+    isReservedParameterName,
     stripOverridesForLockedFiltersOnTab,
     type DashboardFilters,
     type ParametersValuesMap,
@@ -11,6 +13,7 @@ import { type DashboardStoreState } from '.';
 import { applyParameterLabelOverrides } from '../../../providers/Dashboard/parameterLabelOverrides';
 import {
     getParameterControlInputs,
+    getDashboardParameterOptionValues,
     getTileDashboardParameterInputs,
 } from './parameterControls';
 
@@ -156,6 +159,11 @@ export const selectHaveParameterControlsChanged = (
     state: DashboardStoreState,
 ) => state.parameters.haveParameterControlsChanged;
 
+export const selectParameterControlPicks = (state: DashboardStoreState) =>
+    state.parameters.parameterControlPicks;
+export const selectParameterTilePicks = (state: DashboardStoreState) =>
+    state.parameters.parameterTilePicks;
+
 /**
  * Null with the dashboard-controls flag off, and while the list is only filled
  * from the tiles and unchanged; tiles then take the dashboard-wide values,
@@ -168,6 +176,8 @@ export const selectParameterControlInputs = createSelector(
         selectAreParameterControlsSaved,
         selectHaveParameterControlsChanged,
         selectRawParameterDefinitions,
+        selectParameterControlPicks,
+        selectParameterTilePicks,
     ],
     (
         parameterControls,
@@ -175,15 +185,22 @@ export const selectParameterControlInputs = createSelector(
         areControlsSaved,
         haveControlsChanged,
         parameterDefinitions,
+        controlPicks,
+        tilePicks,
     ) =>
         parameterControls === null ||
-        (!areControlsSaved && !haveControlsChanged)
+        (!areControlsSaved &&
+            !haveControlsChanged &&
+            Object.keys(controlPicks).length === 0 &&
+            Object.keys(tilePicks).length === 0)
             ? null
             : getParameterControlInputs(
                   parameterControls,
                   parameterPicks,
                   // Loaded definitions are the user's: project and model parameters
                   Object.keys(parameterDefinitions),
+                  controlPicks,
+                  tilePicks,
               ),
 );
 
@@ -209,22 +226,9 @@ export const selectDashboardWideParameterValues = createSelector(
  * form): with saved controls, each key's control value with the picks on top.
  */
 export const selectDashboardEffectiveParameterValues = createSelector(
-    [
-        selectParameterValues,
-        selectParameterControlInputs,
-        selectAreParameterControlsSaved,
-    ],
-    (parameterValues, controlInputs, areControlsSaved): ParametersValuesMap =>
-        controlInputs !== null && areControlsSaved
-            ? {
-                  ...Object.fromEntries(
-                      Object.entries(
-                          getParameterMirror(controlInputs.controls),
-                      ).map(([key, { value }]) => [key, value]),
-                  ),
-                  ...controlInputs.overrides,
-              }
-            : parameterValues,
+    [selectParameterValues, selectParameterControlInputs],
+    (parameterValues, controlInputs): ParametersValuesMap =>
+        getDashboardParameterOptionValues(controlInputs, parameterValues),
 );
 
 export const selectMissingRequiredParameters = createSelector(
@@ -266,6 +270,68 @@ export const selectMissingRequiredParameters = createSelector(
                 })),
             definitions: parameterDefinitions,
         }),
+);
+
+export const selectMissingParametersByTile = createSelector(
+    [
+        selectTileParameterReferences,
+        selectTileQueryParameterReferences,
+        selectTileChartSavedParameters,
+        selectTileVirtualViewSavedParameters,
+        selectAppliedParameterValues,
+        selectDashboardParameterDefinitions,
+        selectParameterControlInputs,
+    ],
+    (
+        references,
+        queryReferences,
+        chartValues,
+        virtualValues,
+        dashboardValues,
+        definitions,
+        controlInputs,
+    ) =>
+        Object.fromEntries(
+            Object.entries(references)
+                .filter(([tileUuid]) =>
+                    Object.hasOwn(queryReferences, tileUuid),
+                )
+                .map(([tileUuid, parameterReferences]) => {
+                    const inputs = {
+                        chartSavedValues: chartValues[tileUuid] ?? {},
+                        virtualViewSavedValues: virtualValues[tileUuid] ?? {},
+                        ...getTileDashboardParameterInputs({
+                            controlInputs,
+                            tileUuid,
+                            tileParameterReferences: references,
+                            dashboardValues,
+                        }),
+                    };
+                    const missing = getMissingRequiredDashboardParameters({
+                        tiles: [{ parameterReferences, ...inputs }],
+                        definitions,
+                    });
+                    const overrides = getDashboardTileParameterOverrides({
+                        ...inputs,
+                        definitions,
+                    });
+                    const virtual = omitDisallowedParameterValues(
+                        inputs.virtualViewSavedValues,
+                        definitions,
+                    );
+                    for (const key of new Set(parameterReferences)) {
+                        if (
+                            isReservedParameterName(key) &&
+                            Object.hasOwn(definitions, key) &&
+                            overrides[key] === undefined &&
+                            definitions[key]?.default === undefined &&
+                            virtual[key] === undefined
+                        )
+                            missing.push(key);
+                    }
+                    return [tileUuid, missing];
+                }),
+        ),
 );
 
 // Date zoom

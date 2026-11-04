@@ -40,6 +40,8 @@ type Args = {
     dismiss: () => void;
     /** A press outside the editor: cancels the edit. */
     dismissOutside: () => void;
+    /** The pills whose own click opens or switches (default the filter pills). */
+    pillSelector?: string;
 };
 
 // Blur commits a label that is still being typed, into the edit, before
@@ -64,13 +66,14 @@ export const useEditorDismiss = ({
     clearField,
     dismiss,
     dismissOutside,
+    pillSelector = PILL_SELECTOR,
 }: Args) => {
     useEffect(() => {
         if (!isOpen) return;
         const handlePointerDown = (event: PointerEvent) => {
             const target =
                 event.target instanceof Element ? event.target : null;
-            if (target?.closest(`[${EDITOR_ATTRIBUTE}], ${PILL_SELECTOR}`))
+            if (target?.closest(`[${EDITOR_ATTRIBUTE}], ${pillSelector}`))
                 return;
             // The press closes the open list, and only that; a new filter
             // with nothing picked has nothing to lose, unless the press is
@@ -92,7 +95,7 @@ export const useEditorDismiss = ({
                 true,
             );
         };
-    }, [isOpen, isPristineNew, dismissOutside]);
+    }, [isOpen, isPristineNew, dismissOutside, pillSelector]);
     useEffect(() => {
         if (!isOpen) return;
         const handleKeyDown = (event: KeyboardEvent) => {

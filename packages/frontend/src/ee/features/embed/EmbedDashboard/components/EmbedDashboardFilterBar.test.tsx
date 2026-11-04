@@ -3,11 +3,13 @@ import {
     FilterInteractivityValues,
     FilterOperator,
     type Dashboard,
+    type DashboardTile,
     type InteractivityOptions,
 } from '@lightdash/common';
 import { screen, within } from '@testing-library/react';
 import { type ReactElement, type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { dashboardParametersActions } from '../../../../../features/dashboard/store';
 import {
     createDashboardTestStore,
     seedDashboardEditState,
@@ -82,6 +84,20 @@ vi.mock('../../../../../features/dashboardControls/ControlsBar', () => ({
         <div data-testid="mapping-swap">{children}</div>
     ),
 }));
+vi.mock(
+    '../../../../../features/dashboardControls/useParameterBarControls',
+    () => ({
+        useParameterBarControls: () => ({
+            entries: [{ control: { hidden: false } }],
+        }),
+    }),
+);
+vi.mock('../../../../../features/dashboardControls/ParameterPills', () => ({
+    ParameterPills: () => <div data-testid="parameter-pills" />,
+}));
+vi.mock('./EmbedDashboardParameters', () => ({
+    default: () => <div data-testid="shipped-parameters" />,
+}));
 vi.mock('./EmbedDashboardFilters', () => ({
     default: () => <div data-testid="shipped-filters" />,
     EmbedResetFiltersButton: () => <button type="button">Reset</button>,
@@ -90,7 +106,7 @@ vi.mock('../../../../../features/dateZoom', () => ({
     DateZoom: () => null,
 }));
 
-const dashboard = (canAddFilters: boolean) =>
+const dashboard = (canAddFilters: boolean, areParametersEnabled = false) =>
     ({
         uuid: 'dashboard-1',
         canDateZoom: false,
@@ -98,7 +114,7 @@ const dashboard = (canAddFilters: boolean) =>
             enabled: FilterInteractivityValues.all,
             canAddFilters,
         },
-        parameterInteractivity: { enabled: false },
+        parameterInteractivity: { enabled: areParametersEnabled },
     }) as unknown as Dashboard & InteractivityOptions;
 
 const savedRule = {
@@ -228,6 +244,107 @@ describe('EmbedDashboardFilterBar', () => {
         expect(
             screen.queryByTestId('sectioned-filters'),
         ).not.toBeInTheDocument();
+    });
+
+    describe('parameters', () => {
+        const renderParameters = ({
+            isControlsEnabled,
+            areParametersEnabled,
+            shouldShowFilters,
+            hasControls = true,
+        }: {
+            isControlsEnabled: boolean;
+            areParametersEnabled: boolean;
+            shouldShowFilters: boolean;
+            hasControls?: boolean;
+        }) => {
+            const store = createDashboardTestStore({
+                parameterDefinitions: { region: { label: 'Region' } },
+                tileParameterReferences: { 'tile-1': ['region'] },
+            });
+            if (hasControls)
+                store.dispatch(
+                    dashboardParametersActions.syncParameterControls({
+                        controls: [],
+                        isSaved: true,
+                    }),
+                );
+            return renderWithProviders(
+                <DashboardStoreTestProvider store={store}>
+                    <EmbedDashboardFilterBar
+                        dashboard={dashboard(true, areParametersEnabled)}
+                        shouldShowFilters={shouldShowFilters}
+                        activeTiles={[{ uuid: 'tile-1' } as DashboardTile]}
+                        isControlsEnabled={isControlsEnabled}
+                    />
+                </DashboardStoreTestProvider>,
+            );
+        };
+
+        it('keeps legacy parameter pills while the list is unavailable', () => {
+            renderParameters({
+                isControlsEnabled: true,
+                areParametersEnabled: true,
+                shouldShowFilters: true,
+                hasControls: false,
+            });
+            expect(
+                screen.getByTestId('shipped-parameters'),
+            ).toBeInTheDocument();
+            expect(
+                screen.queryByTestId('parameter-pills'),
+            ).not.toBeInTheDocument();
+        });
+
+        it('renders parameter pills after the filters with the controls on', () => {
+            renderParameters({
+                isControlsEnabled: true,
+                areParametersEnabled: true,
+                shouldShowFilters: true,
+            });
+            expect(screen.getByTestId('rail-pills').nextElementSibling).toBe(
+                screen.getByTestId('parameter-pills'),
+            );
+            expect(
+                screen.queryByTestId('shipped-parameters'),
+            ).not.toBeInTheDocument();
+        });
+
+        it('keeps the parameters group class when filters are hidden', () => {
+            renderParameters({
+                isControlsEnabled: true,
+                areParametersEnabled: true,
+                shouldShowFilters: false,
+            });
+            expect(
+                screen.getByTestId('parameter-pills').parentElement,
+            ).toHaveClass('ld-dashboard-parameters');
+        });
+
+        it('hides parameter pills without parameter interactivity', () => {
+            renderParameters({
+                isControlsEnabled: true,
+                areParametersEnabled: false,
+                shouldShowFilters: true,
+            });
+            expect(
+                screen.queryByTestId('parameter-pills'),
+            ).not.toBeInTheDocument();
+        });
+
+        it('keeps the shipped parameters with the controls off', () => {
+            renderParameters({
+                isControlsEnabled: false,
+                areParametersEnabled: true,
+                shouldShowFilters: true,
+            });
+            expect(
+                screen.getByTestId('shipped-parameters'),
+            ).toBeInTheDocument();
+            expect(
+                screen.queryByTestId('parameter-pills'),
+            ).not.toBeInTheDocument();
+        });
     });
 
     it('keeps the pills while a tile change reloads the filter fields', () => {

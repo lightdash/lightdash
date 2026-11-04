@@ -2,7 +2,7 @@ import { type ComponentProps, type FC } from 'react';
 import DashboardHeader from '../../components/common/Dashboard/DashboardHeader';
 import classes from './DashboardHeaderGuard.module.css';
 import pillClasses from './FilterPills.module.css';
-import { useControlsSidebarSelector } from './useControlsSidebar';
+import { useIsControlEdited } from './useIsControlEdited';
 
 type Props = ComponentProps<typeof DashboardHeader>;
 
@@ -10,9 +10,8 @@ type Props = ComponentProps<typeof DashboardHeader>;
 // Apply or Cancel in the rail ends the filter, then Save ends the dashboard.
 // A viewer's filter leaves the dashboard as it is: nothing to lock
 export const DashboardHeaderGuard: FC<Props> = (props) => {
-    const isLocked = useControlsSidebarSelector(
-        (c) => c.isSidebarOpen && !c.isViewer,
-    );
+    // A filter or a parameter control, edited in edit mode
+    const isLocked = useIsControlEdited(true);
     return (
         <div
             // The shared dimming of what is inert while a filter is edited
