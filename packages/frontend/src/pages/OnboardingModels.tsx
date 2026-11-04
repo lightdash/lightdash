@@ -1,6 +1,5 @@
-import { FeatureFlags } from '@lightdash/common';
-import { Box, Button, Group, Stack, Title } from '@mantine/core';
-import { useCallback, useState, type FC } from 'react';
+import { Box, Button, Stack, Text, Title } from '@mantine/core';
+import { useCallback, type FC } from 'react';
 import { Navigate, useParams } from 'react-router';
 import { DocumentTitle } from '../components/common/DocumentTitle';
 import OnboardingLayout from '../components/common/OnboardingLayout';
@@ -11,67 +10,58 @@ import { useOnboardingNavigate } from '../components/common/viewTransition';
 import { ConnectionFormSkeleton } from '../components/ProjectConnection/ConnectionFormSkeleton';
 import { ConnectRepoForm } from '../components/ProjectConnection/ProjectConnectFlow/ConnectRepoForm';
 import { LiveSourcesNextUp } from '../components/ProjectConnection/ProjectConnectFlow/LiveSourcesTeaser';
-import {
-    RepoQuestion,
-    type ModelSource,
-} from '../components/ProjectConnection/ProjectConnectFlow/RepoQuestion';
-import { useStartAgentOnboardingRun } from '../ee/features/agentOnboarding/hooks/useAgentOnboarding';
 import { useOnboardingPageGuard } from '../hooks/useOnboardingPageGuard';
 import { useProject } from '../hooks/useProject';
-import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
+import useTracking from '../providers/Tracking/useTracking';
+import { EventName } from '../types/Events';
 import classes from './OnboardingDataSource.module.css';
 
 const OnboardingModelsContent: FC<{ projectUuid: string }> = ({
     projectUuid,
 }) => {
+    useTrackOnboardingScreen('dbt_repo');
     const onboardingNavigate = useOnboardingNavigate();
-    const [source, setSource] = useState<ModelSource>('build');
-    useTrackOnboardingScreen(source === 'repo' ? 'dbt_repo' : 'model_source');
-    const canBuildModels =
-        useServerFeatureFlag(FeatureFlags.CodingAgentOnboarding).data
-            ?.enabled === true;
+    const { track } = useTracking();
     const { data: project } = useProject(projectUuid);
-    const startRun = useStartAgentOnboardingRun();
 
     const goToTools = useCallback(
         () => onboardingNavigate(`/projects/${projectUuid}/home`),
         [onboardingNavigate, projectUuid],
     );
 
-    const handleContinue = () => {
-        if (!canBuildModels) {
-            goToTools();
-            return;
-        }
-        startRun.mutate(projectUuid, { onSuccess: goToTools });
-    };
-
     if (!project) return <ConnectionFormSkeleton />;
 
     return (
         <Box className={classes.connectColumn}>
             <Stack gap="lg">
-                <Title order={2}>Set up your models</Title>
-                <RepoQuestion
-                    value={source}
-                    onChange={setSource}
-                    canBuildModels={canBuildModels}
-                />
-                {source === 'repo' ? (
-                    <ConnectRepoForm
-                        project={project}
-                        onConnected={goToTools}
-                    />
-                ) : (
-                    <Group justify="flex-end" data-form-footer>
+                <Stack gap={4}>
+                    <Title order={2}>Connect your repo</Title>
+                    <Text c="dimmed" size="sm">
+                        Already have models in a repo? Connect it so your team
+                        can ask questions with them. You can also do this later
+                        in project settings.
+                    </Text>
+                </Stack>
+                <ConnectRepoForm
+                    project={project}
+                    onConnected={goToTools}
+                    footerStart={
                         <Button
-                            loading={startRun.isLoading}
-                            onClick={handleContinue}
+                            variant="transparent"
+                            color="gray"
+                            px={0}
+                            onClick={() => {
+                                track({
+                                    name: EventName.ONBOARDING_STEP_SKIPPED,
+                                    properties: { screen: 'dbt_repo' },
+                                });
+                                goToTools();
+                            }}
                         >
-                            {canBuildModels ? 'Build my models' : 'Continue'}
+                            Skip for now
                         </Button>
-                    </Group>
-                )}
+                    }
+                />
             </Stack>
         </Box>
     );
@@ -90,7 +80,7 @@ const OnboardingModels: FC = () => {
             stackDepth={2}
             aside={<WarehouseVisual nextUp={<LiveSourcesNextUp />} />}
         >
-            <DocumentTitle title="Set up your models" />
+            <DocumentTitle title="Connect your repo" />
             <OnboardingModelsContent projectUuid={projectUuid} />
         </OnboardingLayout>
     );

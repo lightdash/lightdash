@@ -959,7 +959,6 @@ export type OnboardingScreen =
     | 'about_you'
     | 'choose_source'
     | 'warehouse_form'
-    | 'model_source'
     | 'dbt_repo'
     | 'dbt'
     | 'tools'

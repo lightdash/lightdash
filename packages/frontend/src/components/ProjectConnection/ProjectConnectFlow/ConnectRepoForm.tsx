@@ -6,7 +6,7 @@ import {
     type Project,
 } from '@lightdash/common';
 import { Alert, Button, Group, Stack } from '@mantine/core';
-import { useEffect, useState, type FC } from 'react';
+import { useEffect, useState, type FC, type ReactNode } from 'react';
 import { useUpdateMutation } from '../../../hooks/useProject';
 import useActiveJob from '../../../providers/ActiveJob/useActiveJob';
 import { dbtDefaults } from '../DbtForms/defaultValues';
@@ -22,7 +22,8 @@ import { warehouseDefaultValues } from '../WarehouseForms/defaultValues';
 export const ConnectRepoForm: FC<{
     project: Project;
     onConnected: () => void;
-}> = ({ project, onConnected }) => {
+    footerStart: ReactNode;
+}> = ({ project, onConnected, footerStart }) => {
     const { mutateAsync, isLoading } = useUpdateMutation(project.projectUuid);
     const { activeJob } = useActiveJob();
     const onProjectError = useOnProjectError();
@@ -88,7 +89,8 @@ export const ConnectRepoForm: FC<{
                                 'Check the repo settings and try again.'}
                         </Alert>
                     )}
-                    <Group justify="flex-end" data-form-footer>
+                    <Group justify="space-between" data-form-footer>
+                        {footerStart}
                         <Button type="submit" loading={isConnecting}>
                             Connect repo
                         </Button>
