@@ -30,19 +30,23 @@ import {
     type SemanticLayerModel,
 } from './utils';
 
+// Fallback when the model has no description of its own
 const METRIC_TYPE_LABELS: Partial<Record<string, string>> = {
-    [MetricType.SUM]: 'Sum',
-    [MetricType.COUNT]: 'Count',
-    [MetricType.COUNT_DISTINCT]: 'Distinct count',
-    [MetricType.SUM_DISTINCT]: 'Distinct sum',
+    [MetricType.SUM]: 'Total',
+    [MetricType.COUNT]: 'Count of rows',
+    [MetricType.COUNT_DISTINCT]: 'Unique count',
+    [MetricType.SUM_DISTINCT]: 'Total of unique values',
     [MetricType.AVERAGE]: 'Average',
-    [MetricType.AVERAGE_DISTINCT]: 'Distinct average',
-    [MetricType.MIN]: 'Min',
-    [MetricType.MAX]: 'Max',
+    [MetricType.AVERAGE_DISTINCT]: 'Average of unique values',
+    [MetricType.MIN]: 'Smallest value',
+    [MetricType.MAX]: 'Largest value',
     [MetricType.MEDIAN]: 'Median',
     [MetricType.PERCENTILE]: 'Percentile',
-    [MetricType.NUMBER]: 'Formula',
+    [MetricType.NUMBER]: 'Calculated from other metrics',
 };
+
+const explainMetric = ({ description, type }: SemanticLayerField) =>
+    description ?? (type ? (METRIC_TYPE_LABELS[type] ?? null) : null);
 
 const FieldList: FC<{
     kind: 'metric' | 'dimension';
@@ -75,22 +79,26 @@ const FieldList: FC<{
                             size={13}
                             className={classes.fieldIcon}
                         />
-                        <Text
-                            fz="xs"
-                            fw={500}
-                            truncate
-                            className={classes.fieldText}
-                            title={field.description ?? undefined}
-                        >
-                            {field.label}
-                        </Text>
-                        {kind === 'metric' && field.type && (
+                        {kind === 'metric' ? (
+                            <Box className={classes.fieldText}>
+                                <Text fz="xs" fw={500} truncate>
+                                    {field.label}
+                                </Text>
+                                {explainMetric(field) && (
+                                    <Text fz="xs" c="dimmed" lineClamp={2}>
+                                        {explainMetric(field)}
+                                    </Text>
+                                )}
+                            </Box>
+                        ) : (
                             <Text
                                 fz="xs"
-                                c="dimmed"
-                                className={classes.fieldType}
+                                fw={500}
+                                truncate
+                                className={classes.fieldText}
+                                title={field.description ?? undefined}
                             >
-                                {METRIC_TYPE_LABELS[field.type] ?? field.type}
+                                {field.label}
                             </Text>
                         )}
                     </Box>

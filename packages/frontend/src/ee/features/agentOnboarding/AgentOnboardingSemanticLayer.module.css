@@ -81,7 +81,11 @@
     min-width: 0;
 }
 
-.fieldType {
-    flex: 0 0 auto;
-    white-space: nowrap;
+.fieldColumn[data-kind='metric'] .field {
+    align-items: flex-start;
+    padding: 3px 0;
+}
+
+.fieldColumn[data-kind='metric'] .fieldIcon {
+    margin-top: 2px;
 }
