@@ -40,7 +40,12 @@ export const isSingleConnectionProject = (error: ApiError | null) =>
     error?.error.name === 'SingleConnectionProjectError';
 
 export const hidesConnectionsPanel = (error: ApiError | null) =>
-    isSingleConnectionProject(error) || error?.error.name === 'ForbiddenError';
+    error?.error.name === 'ForbiddenError';
+
+const isSingleConnectionAnswer = (error: unknown) =>
+    isApiError(error) &&
+    error.error.statusCode === 409 &&
+    isSingleConnectionProject(error);
 
 const connectionsQueryKey = (projectUuid: string) => [
     'projects',
@@ -80,7 +85,7 @@ export const useWarehouseConnections = (projectUuid: string) => {
                 );
                 return { mode: 'multiple', ...listing };
             } catch (error) {
-                if (isApiError(error) && isSingleConnectionProject(error)) {
+                if (isSingleConnectionAnswer(error)) {
                     return { mode: 'single' };
                 }
                 throw error;

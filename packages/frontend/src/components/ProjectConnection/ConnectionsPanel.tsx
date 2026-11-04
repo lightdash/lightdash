@@ -525,10 +525,10 @@ const ConnectionsPanelContent: FC<{
     const [isAddOpen, setIsAddOpen] = useState(false);
     const canAddConnection = useCanAddConnection(data);
 
-    if (!isEnabled) {
+    if (!isEnabled || hidesConnectionsPanel(error)) {
         return null;
     }
-    if (data?.mode === 'single') {
+    if (error === null && data?.mode === 'single') {
         return (
             <EnableMultipleConnectionsCard
                 projectUuid={projectUuid}
@@ -536,11 +536,9 @@ const ConnectionsPanelContent: FC<{
             />
         );
     }
-    if (hidesConnectionsPanel(error)) {
-        return null;
-    }
 
-    const connections = data?.connections ?? [];
+    const listing = data?.mode === 'multiple' ? data : undefined;
+    const connections = listing?.connections ?? [];
     const originalWarehouseType = connections.find(
         (connection) => connection.isOriginal,
     )?.warehouseType;
@@ -560,7 +558,7 @@ const ConnectionsPanelContent: FC<{
                         Failed to load connections.
                     </Text>
                 )}
-                {data && (
+                {listing && (
                     <Stack gap={0}>
                         {connections.map((connection) => (
                             <ConnectionRow
@@ -586,9 +584,9 @@ const ConnectionsPanelContent: FC<{
                     <Tooltip
                         w={300}
                         disabled={
-                            canAddConnection || !data?.capabilities.reason
+                            canAddConnection || !listing?.capabilities.reason
                         }
-                        label={data?.capabilities.reason}
+                        label={listing?.capabilities.reason}
                     >
                         <Box>
                             <Button

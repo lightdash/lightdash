@@ -91,10 +91,24 @@ const apiError = (name: string, statusCode: number, message: string) => ({
     error: { name, message, statusCode, data: {} },
 });
 
-type ListState = 'single' | 'multiple' | 'failure' | 'forbidden';
+type ListState =
+    | 'single'
+    | 'multiple'
+    | 'failure'
+    | 'forbidden'
+    | 'otherConflict'
+    | 'singleNameWithout409';
 type Call = { url: string; method: string; body?: string };
+type HeldResponse = {
+    resolve: (value: unknown) => void;
+    reject: (error: unknown) => void;
+};
 
-const server: { list: ListState } = { list: 'single' };
+const server: { list: ListState; holdList: boolean; held: HeldResponse[] } = {
+    list: 'single',
+    holdList: false,
+    held: [],
+};
 
 const later = <T,>(respond: () => T): Promise<T> =>
     new Promise((resolve, reject) => {
@@ -124,6 +138,14 @@ const listResponse = () => {
             throw apiError('UnexpectedServerError', 500, 'Server failed');
         case 'forbidden':
             throw apiError('ForbiddenError', 403, 'Forbidden');
+        case 'otherConflict':
+            throw apiError('ConflictError', 409, 'Conflict');
+        case 'singleNameWithout409':
+            throw apiError(
+                'SingleConnectionProjectError',
+                500,
+                'This project uses a single warehouse connection. Enable multiple connections first.',
+            );
         default:
             throw new Error('Unknown list state');
     }
@@ -131,7 +153,14 @@ const listResponse = () => {
 
 const routeApi = () => {
     mockApi.mockImplementation(async ({ url, method }: Call) => {
-        if (url === listUrl && method === 'GET') return later(listResponse);
+        if (url === listUrl && method === 'GET') {
+            if (server.holdList) {
+                return new Promise((resolve, reject) => {
+                    server.held.push({ resolve, reject });
+                });
+            }
+            return later(listResponse);
+        }
         if (url === switchUrl && method === 'GET') {
             return later(() => ({
                 canSwitch: true,
@@ -193,6 +222,30 @@ const renderPanel = (abilityRules = [manageRule]) => {
     return userEvent.setup();
 };
 
+const refetchListAndHold = async () => {
+    const callsBefore = listCalls().length;
+    server.holdList = true;
+    act(() => {
+        void captured.client!.invalidateQueries(listQueryKey);
+    });
+    await waitFor(() => expect(listCalls()).toHaveLength(callsBefore + 1));
+    expect(server.held).toHaveLength(1);
+};
+
+const answerHeldList = async (state: ListState) => {
+    const held = server.held.shift();
+    if (!held) throw new Error('No held list request');
+    server.holdList = false;
+    server.list = state;
+    await act(async () => {
+        try {
+            held.resolve(listResponse());
+        } catch (error) {
+            held.reject(error);
+        }
+    });
+};
+
 const settle = (ms = LIST_DELAY_MS * 3) =>
     act(
         () =>
@@ -235,6 +288,8 @@ describe('Enable multiple connections dialog lifecycle', () => {
         flag.enabled = true;
         flag.mixedTypesEnabled = false;
         server.list = 'single';
+        server.holdList = false;
+        server.held = [];
         captured.client = null;
         routeApi();
     });
@@ -254,22 +309,23 @@ describe('Enable multiple connections dialog lifecycle', () => {
         ).toBeInTheDocument();
     }, 20_000);
 
-    it('stays open and keeps typed values when the list refetches while open', async () => {
+    it('stays open and keeps typed values while a list refetch is pending and after it answers 409', async () => {
         const user = renderPanel();
         const dialog = await openSwitchDialog(user);
         await settle();
         await user.click(within(dialog).getByLabelText(/^Name\s*\*?$/));
         await user.paste('Finance');
-        const callsBefore = listCalls().length;
 
-        await act(async () => {
-            await captured.client!.invalidateQueries(listQueryKey);
-        });
+        await refetchListAndHold();
+        expect(screen.getByRole('dialog')).toBe(dialog);
+        expect(within(dialog).getByLabelText(/^Name\s*\*?$/)).toHaveValue(
+            'Finance',
+        );
+
+        await answerHeldList('single');
         await settle();
-
-        expect(listCalls().length).toBe(callsBefore + 1);
-        const stillOpen = screen.getByRole('dialog');
-        expect(within(stillOpen).getByLabelText(/^Name\s*\*?$/)).toHaveValue(
+        expect(screen.getByRole('dialog')).toBe(dialog);
+        expect(within(dialog).getByLabelText(/^Name\s*\*?$/)).toHaveValue(
             'Finance',
         );
     }, 20_000);
@@ -374,6 +430,109 @@ describe('Enable multiple connections dialog lifecycle', () => {
         await settle();
         expect(screen.queryByText('Connections')).toBeNull();
     });
+
+    it.each([
+        { failure: 'failure' as const, dialogOpen: true },
+        { failure: 'failure' as const, dialogOpen: false },
+        { failure: 'forbidden' as const, dialogOpen: true },
+        { failure: 'forbidden' as const, dialogOpen: false },
+    ])(
+        'a cached single answer yields to a completed $failure refetch (dialog open: $dialogOpen), then recovers on 409',
+        async ({ failure, dialogOpen }) => {
+            const user = renderPanel();
+            const card = /This project uses one warehouse connection/;
+            if (dialogOpen) {
+                const dialog = await openSwitchDialog(user);
+                await user.click(within(dialog).getByLabelText(/^Name\s*\*?$/));
+                await user.paste('Finance');
+            } else {
+                await screen.findByText(card, undefined, { timeout: 3_000 });
+            }
+
+            await refetchListAndHold();
+            expect(screen.getByText(card)).toBeInTheDocument();
+            if (dialogOpen) {
+                expect(
+                    within(screen.getByRole('dialog')).getByLabelText(
+                        /^Name\s*\*?$/,
+                    ),
+                ).toHaveValue('Finance');
+            }
+
+            await answerHeldList(failure);
+            await waitFor(() => expect(screen.queryByText(card)).toBeNull());
+            expect(screen.queryByRole('dialog')).toBeNull();
+            expect(
+                screen.queryByRole('button', {
+                    name: 'Enable multiple connections',
+                }),
+            ).toBeNull();
+            if (failure === 'failure') {
+                expect(
+                    screen.getByText('Failed to load connections.'),
+                ).toBeInTheDocument();
+            } else {
+                expect(screen.queryByText('Connections')).toBeNull();
+            }
+
+            await refetchListAndHold();
+            if (failure === 'failure') {
+                expect(
+                    screen.getByText('Failed to load connections.'),
+                ).toBeInTheDocument();
+            } else {
+                expect(screen.queryByText('Connections')).toBeNull();
+            }
+            expect(screen.queryByText(card)).toBeNull();
+
+            await answerHeldList('single');
+            expect(
+                await screen.findByText(card, undefined, { timeout: 3_000 }),
+            ).toBeInTheDocument();
+            expect(
+                screen.queryByText('Failed to load connections.'),
+            ).toBeNull();
+            const reopened = await openSwitchDialog(user);
+            await settle();
+            expect(screen.getByRole('dialog')).toBe(reopened);
+            expect(within(reopened).getByLabelText(/^Name\s*\*?$/)).toHaveValue(
+                '',
+            );
+        },
+        30_000,
+    );
+
+    it.each([
+        { state: 'otherConflict' as const, name: 'another 409 conflict' },
+        {
+            state: 'singleNameWithout409' as const,
+            name: 'a single-connection error name without status 409',
+        },
+    ])(
+        'reports $name as a failed list and offers no switch',
+        async ({ state }) => {
+            server.list = state;
+            renderPanel();
+
+            expect(
+                await screen.findByText(
+                    'Failed to load connections.',
+                    undefined,
+                    { timeout: 3_000 },
+                ),
+            ).toBeInTheDocument();
+            expect(
+                screen.queryByText(
+                    /This project uses one warehouse connection/,
+                ),
+            ).toBeNull();
+            expect(
+                screen.queryByRole('button', {
+                    name: 'Enable multiple connections',
+                }),
+            ).toBeNull();
+        },
+    );
 
     it.each([
         {
