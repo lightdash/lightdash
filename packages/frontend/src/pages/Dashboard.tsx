@@ -251,6 +251,9 @@ const Dashboard: FC = () => {
     const parametersHaveChanged = useDashboardSelector(
         selectParametersHaveChanged,
     );
+    const haveParameterControlsChanged = useDashboardSelector(
+        selectHaveParameterControlsChanged,
+    );
     const parameterValues = useDashboardSelector(selectParameterValues);
     const clearAllParameters = useDashboardContext((c) => c.clearAllParameters);
     const hasDateZoomDisabledChanged = useMemo(() => {
@@ -868,6 +871,7 @@ const Dashboard: FC = () => {
         hasAddFilterDisabledChanged ||
         hasRequiredFiltersNoteChanged ||
         parametersHaveChanged ||
+        haveParameterControlsChanged ||
         havePinnedParametersChanged ||
         hasParameterOrderChanged ||
         haveControlSectionsChanged ||

@@ -169,7 +169,9 @@ export const AddControl: FC<Props> = ({
             control: {
                 id: uuidv4(),
                 label: alreadyControlled ? (definition.label ?? key) : null,
-                value: parameterValues[key] ?? null,
+                value: alreadyControlled
+                    ? null
+                    : (parameterValues[key] ?? null),
                 valueType: {
                     type: definition.type ?? 'string',
                     multiple: definition.multiple ?? false,
