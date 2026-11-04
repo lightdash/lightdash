@@ -4,9 +4,17 @@ import {
     type HealthState,
     type OpenIdIdentitySummary,
 } from '@lightdash/common';
-import { ActionIcon, Card, Group, Stack, Text } from '@mantine/core';
+import {
+    ActionIcon,
+    Divider,
+    Group,
+    Stack,
+    Text,
+    Title,
+    Tooltip,
+} from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
-import { useEffect, type FC } from 'react';
+import { Fragment, useEffect, type FC } from 'react';
 import { type Entries } from 'type-fest';
 import useHealth from '../../../hooks/health/useHealth';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -71,38 +79,43 @@ const SocialLoginsPanel: FC = () => {
                 Object.entries(userSocialLogins ?? {}) as Entries<
                     typeof userSocialLogins
                 >
-            ).map(
-                ([issuerType, logins]) =>
-                    isIssuerTypeAvailable(health, issuerType) && (
-                        <Stack key={issuerType} gap="xs">
-                            <Text tt="capitalize" fw={600}>
+            )
+                .filter(([issuerType]) =>
+                    isIssuerTypeAvailable(health, issuerType),
+                )
+                .map(([issuerType, logins], index) => (
+                    <Fragment key={issuerType}>
+                        {index > 0 && <Divider />}
+                        <Stack gap="xs">
+                            <Title order={6} tt="capitalize">
                                 {issuerType}
-                            </Text>
-                            {logins.length
-                                ? logins.map((login) => (
-                                      <Card key={login.email} padding="xs">
-                                          <Group justify="space-between">
-                                              {login.email}
-                                              <ActionIcon
-                                                  size="xs"
-                                                  disabled={
-                                                      deleteMutation.isLoading
-                                                  }
-                                                  onClick={() =>
-                                                      deleteMutation.mutate({
-                                                          email: login.email,
-                                                          issuer: login.issuer,
-                                                      })
-                                                  }
-                                              >
-                                                  <MantineIcon
-                                                      icon={IconTrash}
-                                                  />
-                                              </ActionIcon>
-                                          </Group>
-                                      </Card>
-                                  ))
-                                : null}
+                            </Title>
+                            {logins.map((login) => (
+                                <Group
+                                    key={login.email}
+                                    justify="space-between"
+                                    wrap="nowrap"
+                                >
+                                    <Text fz="xs" c="dimmed">
+                                        {login.email}
+                                    </Text>
+                                    <Tooltip label="Remove sign-in">
+                                        <ActionIcon
+                                            size="xs"
+                                            aria-label={`Remove ${login.email}`}
+                                            disabled={deleteMutation.isLoading}
+                                            onClick={() =>
+                                                deleteMutation.mutate({
+                                                    email: login.email,
+                                                    issuer: login.issuer,
+                                                })
+                                            }
+                                        >
+                                            <MantineIcon icon={IconTrash} />
+                                        </ActionIcon>
+                                    </Tooltip>
+                                </Group>
+                            ))}
                             <Group justify="flex-start" gap="xs">
                                 <ThirdPartySignInButton
                                     size="xs"
@@ -111,8 +124,8 @@ const SocialLoginsPanel: FC = () => {
                                 />
                             </Group>
                         </Stack>
-                    ),
-            )}
+                    </Fragment>
+                ))}
         </Stack>
     );
 };

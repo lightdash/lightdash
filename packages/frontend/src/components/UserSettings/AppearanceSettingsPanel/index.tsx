@@ -1,15 +1,7 @@
 import { subject } from '@casl/ability';
-import {
-    Box,
-    Button,
-    Group,
-    Skeleton,
-    Stack,
-    Text,
-    Title,
-} from '@mantine/core';
+import { Button, Divider, Group, Skeleton, Stack } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
-import { useCallback, useState, type FC } from 'react';
+import { Fragment, useCallback, useState, type FC } from 'react';
 import {
     useColorPalettes,
     useSetActiveColorPalette,
@@ -18,6 +10,7 @@ import useHealth from '../../../hooks/health/useHealth';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';
+import { SettingsSection } from '../../common/Settings/SettingLayout';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
 import {
     SettingsPage,
@@ -31,8 +24,14 @@ import { PaletteItem } from './PaletteItem';
 const AppearanceColorSettings: FC<{
     canManage: boolean;
     isCreatePaletteModalOpen: boolean;
+    onOpenCreatePaletteModal: () => void;
     onCloseCreatePaletteModal: () => void;
-}> = ({ canManage, isCreatePaletteModalOpen, onCloseCreatePaletteModal }) => {
+}> = ({
+    canManage,
+    isCreatePaletteModalOpen,
+    onOpenCreatePaletteModal,
+    onCloseCreatePaletteModal,
+}) => {
     const { data: organization } = useOrganization();
     const { data: health, isLoading: isHealthLoading } = useHealth();
     const { data: palettes = [], isLoading: isPalettesLoading } =
@@ -51,9 +50,48 @@ const AppearanceColorSettings: FC<{
         health?.appearance.overrideColorPalette &&
         health.appearance.overrideColorPalette.length > 0;
 
+    const paletteItems = [
+        ...(hasColorPaletteOverride &&
+        health?.appearance.overrideColorPalette &&
+        organization?.organizationUuid
+            ? [
+                  <PaletteItem
+                      key="custom"
+                      palette={{
+                          colorPaletteUuid: 'custom',
+                          createdAt: new Date(),
+                          name:
+                              health.appearance.overrideColorPaletteName ??
+                              'Custom override',
+                          colors: health.appearance.overrideColorPalette,
+                          darkColors: null,
+                          organizationUuid: organization.organizationUuid,
+                      }}
+                      isActive={true}
+                      readOnly
+                      canManage={canManage}
+                      onSetActive={undefined}
+                  />,
+              ]
+            : []),
+        ...palettes.map((palette) => (
+            <PaletteItem
+                key={palette.colorPaletteUuid}
+                palette={palette}
+                isActive={palette.isActive && !hasColorPaletteOverride}
+                canManage={canManage}
+                onSetActive={
+                    hasColorPaletteOverride || !canManage
+                        ? undefined
+                        : handleSetActive
+                }
+            />
+        )),
+    ];
+
     return (
-        <Stack gap="md">
-            <Stack gap="xs">
+        <SettingsCard>
+            <Stack gap="md">
                 {isPalettesLoading || isHealthLoading ? (
                     <>
                         <Skeleton height={30} />
@@ -61,45 +99,27 @@ const AppearanceColorSettings: FC<{
                         <Skeleton height={30} />
                     </>
                 ) : (
+                    paletteItems.map((item, index) => (
+                        <Fragment key={item.key}>
+                            {index > 0 && <Divider />}
+                            {item}
+                        </Fragment>
+                    ))
+                )}
+                {canManage && (
                     <>
-                        {hasColorPaletteOverride &&
-                            health?.appearance.overrideColorPalette &&
-                            organization?.organizationUuid && (
-                                <PaletteItem
-                                    palette={{
-                                        colorPaletteUuid: 'custom',
-                                        createdAt: new Date(),
-                                        name:
-                                            health.appearance
-                                                .overrideColorPaletteName ??
-                                            'Custom override',
-                                        colors: health.appearance
-                                            .overrideColorPalette,
-                                        darkColors: null,
-                                        organizationUuid:
-                                            organization?.organizationUuid,
-                                    }}
-                                    isActive={true}
-                                    readOnly
-                                    canManage={canManage}
-                                    onSetActive={undefined}
-                                />
-                            )}
-                        {palettes.map((palette) => (
-                            <PaletteItem
-                                key={palette.colorPaletteUuid}
-                                palette={palette}
-                                isActive={
-                                    palette.isActive && !hasColorPaletteOverride
-                                }
-                                canManage={canManage}
-                                onSetActive={
-                                    hasColorPaletteOverride || !canManage
-                                        ? undefined
-                                        : handleSetActive
-                                }
-                            />
-                        ))}
+                        <Divider />
+                        <Group>
+                            <Button
+                                variant="default"
+                                size="xs"
+                                leftSection={<MantineIcon icon={IconPlus} />}
+                                onClick={onOpenCreatePaletteModal}
+                                disabled={!!hasColorPaletteOverride}
+                            >
+                                Add palette
+                            </Button>
+                        </Group>
                     </>
                 )}
             </Stack>
@@ -109,7 +129,7 @@ const AppearanceColorSettings: FC<{
                 opened={isCreatePaletteModalOpen}
                 onClose={onCloseCreatePaletteModal}
             />
-        </Stack>
+        </SettingsCard>
     );
 };
 
@@ -149,33 +169,21 @@ const AppearanceSettingsPanel: FC = () => {
                     }
                 />
             )}
-            <SettingsCard>
-                <Group justify="space-between" mb="lg" gap="sm">
-                    <Box>
-                        <Title order={5}>Chart palettes</Title>
-                        <Text size="sm" c="dimmed">
-                            Choose the default palette for your charts.
-                        </Text>
-                    </Box>
-                    {canManageColorPalette && (
-                        <Button
-                            variant="default"
-                            leftSection={<MantineIcon icon={IconPlus} />}
-                            onClick={() => setIsCreatePaletteModalOpen(true)}
-                            disabled={hasColorPaletteOverride}
-                        >
-                            Add palette
-                        </Button>
-                    )}
-                </Group>
+            <SettingsSection
+                label="Chart palettes"
+                description="Choose the default palette for your charts."
+            >
                 <AppearanceColorSettings
                     canManage={canManageColorPalette}
                     isCreatePaletteModalOpen={isCreatePaletteModalOpen}
+                    onOpenCreatePaletteModal={() =>
+                        setIsCreatePaletteModalOpen(true)
+                    }
                     onCloseCreatePaletteModal={() =>
                         setIsCreatePaletteModalOpen(false)
                     }
                 />
-            </SettingsCard>
+            </SettingsSection>
         </SettingsPage>
     );
 };
