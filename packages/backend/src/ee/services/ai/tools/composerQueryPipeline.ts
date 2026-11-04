@@ -266,6 +266,16 @@ export const toNodeSummary = (
     sample: status?.sample ?? null,
 });
 
+const getSortedBy = (node: ComposerPipelineNode | undefined): string =>
+    node?.sourceType === QuerySourceType.SEMANTIC_LAYER && node.sorts?.length
+        ? ` Holds the first rows sorted by ${node.sorts
+              .map(
+                  ({ fieldId, descending }) =>
+                      `${fieldId} ${descending ? 'desc' : 'asc'}`,
+              )
+              .join(', ')}.`
+        : '';
+
 export const hasReachedLimit = (node: ComposerNodeSummary) =>
     node.rowCount !== null && hasReachedSourceQueryLimit(node, node.rowCount);
 
@@ -331,7 +341,11 @@ export const renderComposerNodeListing = ({
     const getOutcome = (node: ComposerNodeSummary): string => {
         if (node.rowCount !== null) {
             const capped = reachedLimit.has(node.nodeId)
-                ? ` Reached its limit of ${node.limit}, so more rows may exist (max ${maxQueryLimit}).`
+                ? ` Reached its limit of ${node.limit}, so more rows may exist${
+                      node.limit < maxQueryLimit
+                          ? ` (max ${maxQueryLimit})`
+                          : ''
+                  }.${getSortedBy(queries.find(({ nodeId }) => nodeId === node.nodeId))}`
                 : '';
             const reused = submittedNodeIds.has(node.nodeId)
                 ? ''

@@ -441,6 +441,7 @@ export const getSystemPromptV2 = (
             '{{memories_section}}',
             promptSections.has('memories') ? MEMORIES_SECTION : '',
         )
+        .replace('{{row_limit_sql_suffix}}', canRunSql ? ', then SQL' : '')
         .replace('{{custom_sql_limitation}}', customSqlLimitation)
         // Composer chart types come from the visualize tool's schema.
         .replace(

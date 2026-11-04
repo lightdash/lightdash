@@ -73,7 +73,7 @@ def run(inputs, params):
     return out                                      # unique [A-Za-z_][A-Za-z0-9_]* column names, index dropped
 
 Imports aside, all code inside run(). Read columns as df["col"], never df.col. Check df.dtypes before sum/astype.
-Rows past "limit" are dropped, so aggregate here. Libraries: ${PYTHON_SANDBOX_LIBRARIES_DESCRIPTION}. No network, no installs.`;
+Libraries: ${PYTHON_SANDBOX_LIBRARIES_DESCRIPTION}. No network, no installs.`;
 
 type ComposerQueriesDescriptionOptions = {
     enablePythonNodes: boolean;
@@ -96,7 +96,7 @@ const getComposerNodeKindsDescription = ({
         : ''
 }
 
-A node reads only the rows its references returned, so a referenced result that reached its limit is incomplete: before totalling, averaging or ranking over it, give that node a limit that holds its whole population, or aggregate there.`;
+A node reads only the rows its references returned, so a referenced result that reached its limit is incomplete: aggregate in the referenced node itself.`;
 
 export const getToolComposerQueriesDescription = ({
     enablePythonNodes,
