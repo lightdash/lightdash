@@ -25,7 +25,7 @@ export const ModelSourceQuestion: FC<{
                     <Radio.Indicator size="xs" />
                 </Group>
                 <Text fw={500} size="sm" mt="sm">
-                    Let Lightdash handle it
+                    Let us handle it
                 </Text>
                 <Text c="dimmed" size="xs">
                     We'll draft models from your tables
