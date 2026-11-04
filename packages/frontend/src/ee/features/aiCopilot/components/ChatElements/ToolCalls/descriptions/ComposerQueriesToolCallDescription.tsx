@@ -26,7 +26,10 @@ import { clsx } from 'clsx';
 import { useMemo, useState, type FC } from 'react';
 import CodeBlock from '../../../../../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../../../../../components/common/MantineIcon';
-import { useApiSourceExploreConnectionUuid } from '../../../../../../../features/externalConnections/liveSources/apiSourceExplore';
+import {
+    useApiSourceExploreConnectionUuid,
+    useLiveSourceExplore,
+} from '../../../../../../../features/externalConnections/liveSources/apiSourceExplore';
 import { getLiveSource } from '../../../../../../../features/externalConnections/liveSources/liveSourceCatalog';
 import { LiveSourceIcon } from '../../../../../../../features/externalConnections/liveSources/LiveSourceIcon';
 import { useLiveSourceConnection } from '../../../../../../../features/externalConnections/liveSources/useLiveSourceConnection';
@@ -122,15 +125,23 @@ const getNodePresentation = (
     }
 };
 
+/** A live data source explore reads by its label, e.g. "Events". */
+const NodeExploreName: FC<{ exploreName: string }> = ({ exploreName }) => {
+    const liveSource = useLiveSourceExplore(exploreName);
+    return (
+        <Text size="xs" c="dimmed">
+            {liveSource?.label ?? exploreName}
+        </Text>
+    );
+};
+
 const NodeBody: FC<{ node: ToolComposerQueryNode }> = ({ node }) => {
     const canViewSql = useCanViewAiAgentSql();
 
     if (node.sourceType === QuerySourceType.SEMANTIC_LAYER) {
         return (
             <Group gap={4} wrap="wrap">
-                <Text size="xs" c="dimmed">
-                    {node.exploreName}
-                </Text>
+                <NodeExploreName exploreName={node.exploreName} />
                 {[...node.dimensions, ...node.metrics].map((fieldId) => (
                     <ToolCallChip key={fieldId}>{fieldId}</ToolCallChip>
                 ))}

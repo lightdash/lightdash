@@ -1,6 +1,7 @@
 import {
     ExploreType,
     getItemLabelWithoutTableName,
+    type ApiConnectorType,
     getItemMap,
     type ApiSourceExplore,
     type Explore,
@@ -26,29 +27,50 @@ export const useApiSourceExplore = (
         : null;
 };
 
+export type LiveSourceExploreSummary = {
+    connectionUuid: string;
+    connector: ApiConnectorType;
+    /** The explore's label, e.g. "Events". */
+    label: string;
+};
+
 /**
- * The live data source an explore reads, or null for any other explore.
- * Fetches the explore only when the explore list says it is a live one.
+ * The live data source an explore reads and the explore's label, or null for
+ * any other explore. Fetches the explore only when the explore list says it
+ * is a live one.
  */
-export const useApiSourceExploreConnectionUuid = (
+export const useLiveSourceExplore = (
     exploreName: string | null,
-): string | null => {
+): LiveSourceExploreSummary | null => {
     const projectUuid = useProjectUuid();
     const { data: explores } = useExplores(projectUuid, true, false, {
         enabled: exploreName !== null && projectUuid !== undefined,
         onError: () => undefined,
     });
-    const isLive =
-        exploreName !== null &&
-        (explores ?? []).some(
-            ({ name, type }) =>
-                name === exploreName && type === ExploreType.API_SOURCE,
-        );
-    const { data: explore } = useExplore(isLive ? exploreName : undefined, {
+    const summary =
+        exploreName === null
+            ? undefined
+            : (explores ?? []).find(
+                  ({ name, type }) =>
+                      name === exploreName && type === ExploreType.API_SOURCE,
+              );
+    const { data: explore } = useExplore(summary?.name, {
         onError: () => undefined,
     });
-    return explore?.apiSource?.connectionUuid ?? null;
+    if (!summary || !explore?.apiSource) {
+        return null;
+    }
+    return {
+        connectionUuid: explore.apiSource.connectionUuid,
+        connector: explore.apiSource.integration,
+        label: summary.label,
+    };
 };
+
+/** The live data source an explore reads, or null for any other explore. */
+export const useApiSourceExploreConnectionUuid = (
+    exploreName: string | null,
+): string | null => useLiveSourceExplore(exploreName)?.connectionUuid ?? null;
 
 /** The date range a query reads when it doesn't filter on the explore's date. */
 export const getDefaultDateRangeNote = (explore: Explore): string | null => {
