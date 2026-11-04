@@ -4,13 +4,13 @@ import { IconAlertTriangle } from '@tabler/icons-react';
 import { useState } from 'react';
 import Callout from '../../../../../../components/common/Callout';
 import MantineModal from '../../../../../../components/common/MantineModal';
+import { SettingRow } from '../../../../../../components/common/Settings/SettingLayout';
 import {
     useAiThreadRetentionPreview,
     useUpdateAiOrganizationSettings,
 } from '../../../hooks/useAiOrganizationSettings';
 import { formatRetentionHours } from '../../../utils/threadRetention';
 import { ThreadRetentionSelect } from '../../ThreadRetentionSelect';
-import { SettingRow } from './SettingLayout';
 
 export const ThreadRetentionRow = ({
     current,

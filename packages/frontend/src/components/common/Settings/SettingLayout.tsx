@@ -1,7 +1,7 @@
 import { Box, Group, Stack, Text, Title } from '@mantine/core';
 import { type Icon } from '@tabler/icons-react';
 import { type FC, type PropsWithChildren, type ReactNode } from 'react';
-import MantineIcon from '../../../../../../components/common/MantineIcon';
+import MantineIcon from '../MantineIcon';
 import classes from './SettingLayout.module.css';
 
 type SettingsSectionProps = {
