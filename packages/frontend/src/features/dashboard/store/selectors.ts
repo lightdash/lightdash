@@ -1,5 +1,6 @@
 import {
     getMissingRequiredDashboardParameters,
+    getParameterMirror,
     stripOverridesForLockedFiltersOnTab,
     type DashboardFilters,
     type ParametersValuesMap,
@@ -8,6 +9,10 @@ import {
 import { createSelector } from '@reduxjs/toolkit';
 import { type DashboardStoreState } from '.';
 import { applyParameterLabelOverrides } from '../../../providers/Dashboard/parameterLabelOverrides';
+import {
+    getParameterControlInputs,
+    getTileDashboardParameterInputs,
+} from './parameterControls';
 
 export type TemporaryFilterLocks = {
     /** Saved filters of the query-loaded dashboard (embeds have none) */
@@ -141,6 +146,87 @@ export const selectDashboardParameterReferences = createSelector(
 const selectTileQueryParameterReferences = (state: DashboardStoreState) =>
     state.parameters.tileQueryParameterReferences;
 
+export const selectParameterPicks = (state: DashboardStoreState) =>
+    state.parameters.parameterPicks;
+export const selectParameterControls = (state: DashboardStoreState) =>
+    state.parameters.parameterControls;
+export const selectAreParameterControlsSaved = (state: DashboardStoreState) =>
+    state.parameters.areParameterControlsSaved;
+export const selectHaveParameterControlsChanged = (
+    state: DashboardStoreState,
+) => state.parameters.haveParameterControlsChanged;
+
+/**
+ * Null with the dashboard-controls flag off, and while the list is only filled
+ * from the tiles and unchanged; tiles then take the dashboard-wide values,
+ * which a filled list would equal once the tiles have reported.
+ */
+export const selectParameterControlInputs = createSelector(
+    [
+        selectParameterControls,
+        selectParameterPicks,
+        selectAreParameterControlsSaved,
+        selectHaveParameterControlsChanged,
+        selectRawParameterDefinitions,
+    ],
+    (
+        parameterControls,
+        parameterPicks,
+        areControlsSaved,
+        haveControlsChanged,
+        parameterDefinitions,
+    ) =>
+        parameterControls === null ||
+        (!areControlsSaved && !haveControlsChanged)
+            ? null
+            : getParameterControlInputs(
+                  parameterControls,
+                  parameterPicks,
+                  // Loaded definitions are the user's: project and model parameters
+                  Object.keys(parameterDefinitions),
+              ),
+);
+
+/**
+ * Values for dashboard-wide requests (exports, deliveries). Backend treats each
+ * as an outside value beating a control's own, so with saved controls only the
+ * picks go; the legacy path takes the full map, which replaces saved values.
+ */
+export const selectDashboardWideParameterValues = createSelector(
+    [
+        selectParameterValues,
+        selectParameterControlInputs,
+        selectAreParameterControlsSaved,
+    ],
+    (parameterValues, controlInputs, areControlsSaved): ParametersValuesMap =>
+        controlInputs !== null && areControlsSaved
+            ? controlInputs.overrides
+            : parameterValues,
+);
+
+/**
+ * The values the dashboard runs with by key, for showing them (the scheduler
+ * form): with saved controls, each key's control value with the picks on top.
+ */
+export const selectDashboardEffectiveParameterValues = createSelector(
+    [
+        selectParameterValues,
+        selectParameterControlInputs,
+        selectAreParameterControlsSaved,
+    ],
+    (parameterValues, controlInputs, areControlsSaved): ParametersValuesMap =>
+        controlInputs !== null && areControlsSaved
+            ? {
+                  ...Object.fromEntries(
+                      Object.entries(
+                          getParameterMirror(controlInputs.controls),
+                      ).map(([key, { value }]) => [key, value]),
+                  ),
+                  ...controlInputs.overrides,
+              }
+            : parameterValues,
+);
+
 export const selectMissingRequiredParameters = createSelector(
     [
         selectTileParameterReferences,
@@ -149,6 +235,7 @@ export const selectMissingRequiredParameters = createSelector(
         selectTileVirtualViewSavedParameters,
         selectAppliedParameterValues,
         selectDashboardParameterDefinitions,
+        selectParameterControlInputs,
     ],
     (
         tileParameterReferences,
@@ -157,6 +244,7 @@ export const selectMissingRequiredParameters = createSelector(
         tileVirtualViewSavedParameters,
         appliedParameterValues,
         parameterDefinitions,
+        controlInputs,
     ) =>
         getMissingRequiredDashboardParameters({
             // A tile's saved values arrive when it runs; until then it can't count as missing
@@ -167,10 +255,14 @@ export const selectMissingRequiredParameters = createSelector(
                 .map(([tileUuid, parameterReferences]) => ({
                     parameterReferences,
                     chartSavedValues: tileChartSavedParameters[tileUuid] ?? {},
-                    dashboardValues: appliedParameterValues,
-                    excludedKeys: [],
                     virtualViewSavedValues:
                         tileVirtualViewSavedParameters[tileUuid] ?? {},
+                    ...getTileDashboardParameterInputs({
+                        controlInputs,
+                        tileUuid,
+                        tileParameterReferences,
+                        dashboardValues: appliedParameterValues,
+                    }),
                 })),
             definitions: parameterDefinitions,
         }),

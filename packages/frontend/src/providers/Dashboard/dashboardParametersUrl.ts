@@ -60,3 +60,13 @@ export const getDashboardParameterOverrides = (
             ([key, value]) => !isEqual(savedParameters[key]?.value, value),
         ),
     );
+
+/** With controls, a pick is an explicit choice even when it equals the first control's value */
+export const getPickedParameterOverrides = (
+    picks: Record<string, ParameterValue | null>,
+): ParametersValuesMap =>
+    Object.fromEntries(
+        Object.entries(picks).filter(
+            (entry): entry is [string, ParameterValue] => entry[1] !== null,
+        ),
+    );

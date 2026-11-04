@@ -6,9 +6,10 @@ through fields. User-facing copy says _tile_, never _chart_.
 
 - **Flag**: `FeatureFlags.DashboardControls` (`dashboard-controls`), read with
   `useServerFeatureFlag`. Flag off, the dashboard behaves exactly as before.
-- **Saved data keeps today's shape**: `DashboardFilterRule` (plus
-  `sectionId`) and `DashboardConfig`. Expose only what a dashboard can
-  already save; never add a field the shipped app cannot read.
+- **Saved data grows by optional fields only**: `DashboardFilterRule` (plus
+  `sectionId`) and `DashboardConfig` (including `parameterControls`). Older
+  dashboards must keep loading, and with the flag off the shipped readers
+  ignore the new fields, so flag-off saves carry them forward.
 
 ## Topic docs
 

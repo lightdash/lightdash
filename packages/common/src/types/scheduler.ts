@@ -1000,6 +1000,10 @@ export type ExportContentPayload = TraceTaskBase & {
     customViewportWidth?: number;
     selectedTabs?: string[] | null;
     parameters?: ParametersValuesMap;
+    tileParameters?: Record<
+        string,
+        { parameters: ParametersValuesMap; excludedParameterKeys: string[] }
+    >;
     // Set for embed/JWT exports so the scheduler worker can rebuild the
     // anonymous account (no DB user) and run each tile query under it.
     encodedJwt?: string;
@@ -1013,6 +1017,10 @@ export type ExportContentRequest = {
     customViewportWidth?: number;
     selectedTabs?: string[] | null;
     parameters?: ParametersValuesMap;
+    tileParameters?: Record<
+        string,
+        { parameters: ParametersValuesMap; excludedParameterKeys: string[] }
+    >;
 };
 
 /** Renders one saved version of a Document to PDF as the requesting user. */

@@ -80,20 +80,51 @@ export const useDashboardTileParameterReferences = ({
     });
 
     useEffect(() => {
-        if (!isEnabled || !data) return;
-        // A failed tile keeps what its own query response registers
-        const listedByTile = Object.fromEntries(
-            data.flatMap((result) =>
-                result.error === null
-                    ? [[result.tileUuid, result.parameterReferences]]
-                    : [],
-            ),
+        if (
+            !isEnabled ||
+            !data ||
+            selectTileQuerySourcesKey(store.getState()) !== tilesKey
+        )
+            return;
+        const sourceByTile = Object.fromEntries(
+            selectTileQuerySources(store.getState()).map((source) => [
+                source.tileUuid,
+                JSON.stringify(source),
+            ]),
         );
-        if (Object.keys(listedByTile).length === 0) return;
+        const complete = data.flatMap((result) =>
+            result.error === null &&
+            result.parameterDefinitions !== undefined &&
+            sourceByTile[result.tileUuid] !== undefined
+                ? [
+                      {
+                          tileUuid: result.tileUuid,
+                          references: result.parameterReferences,
+                          definitions: result.parameterDefinitions,
+                      },
+                  ]
+                : [],
+        );
+        if (complete.length === 0) return;
         store.dispatch(
-            dashboardParametersActions.addListedParameterReferencesByTile(
-                listedByTile,
-            ),
+            dashboardParametersActions.addDiscoveredParameterReferences({
+                references: Object.fromEntries(
+                    complete.map((result) => [
+                        result.tileUuid,
+                        result.references,
+                    ]),
+                ),
+                definitions: Object.assign(
+                    {},
+                    ...complete.map((result) => result.definitions),
+                ),
+                sources: Object.fromEntries(
+                    complete.map((result) => [
+                        result.tileUuid,
+                        sourceByTile[result.tileUuid],
+                    ]),
+                ),
+            }),
         );
-    }, [data, isEnabled, store]);
+    }, [data, isEnabled, store, tilesKey]);
 };

@@ -157,6 +157,8 @@ export type ExecuteAsyncDashboardChartQueryArgs = CommonAsyncQueryArgs & {
     limit?: number | null | undefined;
     pivotResults?: boolean;
     includeUnpublishedDraft?: boolean;
+    /** Keys the app's own per-tile resolution leaves to the chart; used for signed-in users only */
+    excludedParameterKeys?: string[];
     sessionTimezone?: string | null;
     preloadedSavedChart?: SavedChartDAO;
     preloadedProjectParameters?: DbProjectParameter[];
@@ -276,6 +278,7 @@ export type ExecuteAsyncDashboardSqlChartCommonArgs = CommonAsyncQueryArgs & {
     tileUuid: string;
     dashboardFilters: DashboardFilters;
     dashboardSorts: SortField[];
+    excludedParameterKeys?: string[];
 };
 
 export type ExecuteAsyncDashboardSqlChartByUuidArgs =

@@ -80,6 +80,7 @@ import {
     type AuthType,
     type CaslSubjectNames,
     type CreateBigqueryCredentials,
+    type DashboardParameterControl,
     type Document,
     type DocumentQueryReference,
     type Explore,
@@ -14331,9 +14332,10 @@ describe('AsyncQueryService', () => {
                     })),
                 } as unknown as SpaceModel,
                 dashboardModel: {
-                    getDashboardParametersByIdOrSlug: vi.fn(
-                        async () => undefined,
-                    ),
+                    getDashboardParameterStateByIdOrSlug: vi.fn(async () => ({
+                        parameters: undefined,
+                        parameterControls: undefined,
+                    })),
                 } as unknown as DashboardModel,
             });
             const internals = service as AnyType;
@@ -14484,11 +14486,21 @@ describe('AsyncQueryService', () => {
                 chartStatus,
                 dashboardStatus,
                 requestStatus,
+                tileUuid = 'tile-1',
+                parameterControls,
+                dashboardControlsEnabled = false,
+                excludedParameterKeys,
+                account = viewer,
             }: {
                 statusDefault: string | null;
                 chartStatus: string;
                 dashboardStatus: string | null;
                 requestStatus: string | null;
+                tileUuid?: string;
+                parameterControls?: DashboardParameterControl[];
+                dashboardControlsEnabled?: boolean;
+                excludedParameterKeys?: string[];
+                account?: Account;
             }) => {
                 const { service } = buildService();
                 const internals = service as AnyType;
@@ -14501,16 +14513,25 @@ describe('AsyncQueryService', () => {
                     })),
                 };
                 internals.dashboardModel = {
-                    getDashboardParametersByIdOrSlug: vi.fn(async () =>
-                        dashboardStatus === null
-                            ? undefined
-                            : {
-                                  status: {
-                                      parameterName: 'status',
-                                      value: dashboardStatus,
+                    getDashboardParameterStateByIdOrSlug: vi.fn(async () => ({
+                        parameters:
+                            dashboardStatus === null
+                                ? undefined
+                                : {
+                                      status: {
+                                          parameterName: 'status',
+                                          value: dashboardStatus,
+                                      },
                                   },
-                              },
-                    ),
+                        parameterControls,
+                        spaceUuid: 'dashboard-space-uuid',
+                    })),
+                };
+                internals.featureFlagModel = {
+                    get: vi.fn(async () => ({
+                        id: FeatureFlags.DashboardControls,
+                        enabled: dashboardControlsEnabled,
+                    })),
                 };
                 internals.projectParametersModel = {
                     find: vi.fn(async () => [
@@ -14527,9 +14548,9 @@ describe('AsyncQueryService', () => {
                     ]),
                 };
                 await service.executeAsyncDashboardChartQuery({
-                    account: viewer,
+                    account,
                     projectUuid,
-                    tileUuid: 'tile-1',
+                    tileUuid,
                     chartUuid: savedChart.uuid,
                     dashboardUuid: 'dashboard-uuid',
                     dashboardFilters: {
@@ -14545,6 +14566,7 @@ describe('AsyncQueryService', () => {
                         requestStatus === null
                             ? undefined
                             : { status: requestStatus },
+                    excludedParameterKeys,
                     pivotResults: false,
                 });
                 return internals.prepareMetricQueryAsyncQueryArgs.mock
@@ -14603,6 +14625,236 @@ describe('AsyncQueryService', () => {
                     ).resolves.toEqual({ status: 'Returned' });
                 },
             );
+
+            describe('saved parameter controls', () => {
+                const valueType = { type: 'string', multiple: false } as const;
+                // Sales sets every tile but tile-3; ops takes tile-2
+                const sharedKeyControls: DashboardParameterControl[] = [
+                    {
+                        id: 'sales',
+                        label: 'Sales',
+                        value: 'Shipped',
+                        valueType,
+                        parameters: {
+                            status: { except: ['tile-2', 'tile-3'] },
+                        },
+                    },
+                    {
+                        id: 'ops',
+                        label: 'Ops',
+                        value: 'Returned',
+                        valueType,
+                        parameters: { status: { only: ['tile-2'] } },
+                    },
+                ];
+                const runControlledTile = (
+                    tileUuid: string,
+                    overrides: Partial<Parameters<typeof runTile>[0]> = {},
+                ) =>
+                    runTile({
+                        statusDefault: 'all',
+                        chartStatus: 'Cancelled',
+                        dashboardStatus: 'Shipped',
+                        requestStatus: null,
+                        tileUuid,
+                        parameterControls: sharedKeyControls,
+                        dashboardControlsEnabled: true,
+                        ...overrides,
+                    });
+
+                test('with the flag on, each tile runs with its own control value', async () => {
+                    await expect(runControlledTile('tile-1')).resolves.toEqual({
+                        status: 'Shipped',
+                    });
+                    await expect(runControlledTile('tile-2')).resolves.toEqual({
+                        status: 'Returned',
+                    });
+                });
+
+                test("a user who can view the chart but not the dashboard cannot run its tiles with the dashboard's controls", async () => {
+                    const chartOnly = {
+                        ...viewer,
+                        user: {
+                            ...(viewer as RegisteredAccount).user,
+                            ability: new Ability<PossibleAbilities>([
+                                { subject: 'Project', action: ['view'] },
+                                { subject: 'SavedChart', action: ['view'] },
+                            ]),
+                        },
+                    } as unknown as Account;
+                    await expect(
+                        runControlledTile('tile-1', { account: chartOnly }),
+                    ).rejects.toThrow(ForbiddenError);
+                    await expect(
+                        runControlledTile('tile-1', {
+                            account: chartOnly,
+                            excludedParameterKeys: [],
+                        }),
+                    ).rejects.toThrow(ForbiddenError);
+                    await expect(
+                        runControlledTile('tile-1', {
+                            account: chartOnly,
+                            parameterControls: undefined,
+                            excludedParameterKeys: [],
+                        }),
+                    ).rejects.toThrow(ForbiddenError);
+                    // Flag off: the query runs as before controls
+                    await expect(
+                        runControlledTile('tile-1', {
+                            account: chartOnly,
+                            dashboardControlsEnabled: false,
+                        }),
+                    ).resolves.toEqual({ status: 'Shipped' });
+                });
+
+                test('a tile given to neither control uses its chart-saved value', async () => {
+                    await expect(runControlledTile('tile-3')).resolves.toEqual({
+                        status: 'Cancelled',
+                    });
+                    await expect(
+                        runControlledTile('tile-3', {
+                            requestStatus: 'Pending',
+                        }),
+                    ).resolves.toEqual({ status: 'Cancelled' });
+                });
+
+                test('a request value overrides every control that sets the key', async () => {
+                    await expect(
+                        runControlledTile('tile-2', {
+                            requestStatus: 'Pending',
+                        }),
+                    ).resolves.toEqual({ status: 'Pending' });
+                });
+
+                test('a request value equal to the first control value still sets the second', async () => {
+                    await expect(
+                        runControlledTile('tile-2', {
+                            requestStatus: 'Shipped',
+                        }),
+                    ).resolves.toEqual({ status: 'Shipped' });
+                });
+
+                test('with the flag off, every tile runs with the saved dashboard values', async () => {
+                    await expect(
+                        runControlledTile('tile-2', {
+                            dashboardControlsEnabled: false,
+                        }),
+                    ).resolves.toEqual({ status: 'Shipped' });
+                    await expect(
+                        runControlledTile('tile-3', {
+                            dashboardControlsEnabled: false,
+                        }),
+                    ).resolves.toEqual({ status: 'Shipped' });
+                });
+
+                describe('resolved by the app', () => {
+                    // tile-1 is cleared in the author's draft, so it keeps the chart value
+                    const clearedTile = {
+                        excludedParameterKeys: ['status'],
+                    };
+
+                    test('a signed-in request is used as sent, so a cleared tile stays cleared', async () => {
+                        await expect(
+                            runControlledTile('tile-1', clearedTile),
+                        ).resolves.toEqual({ status: 'Cancelled' });
+                    });
+
+                    test('a cleared control on an unsaved legacy dashboard uses the chart value', async () => {
+                        await expect(
+                            runControlledTile('tile-1', {
+                                ...clearedTile,
+                                parameterControls: undefined,
+                            }),
+                        ).resolves.toEqual({ status: 'Cancelled' });
+                    });
+
+                    test('with the flag off, the exclusion is ignored', async () => {
+                        await expect(
+                            runControlledTile('tile-1', {
+                                ...clearedTile,
+                                dashboardControlsEnabled: false,
+                            }),
+                        ).resolves.toEqual({ status: 'Shipped' });
+                    });
+
+                    test('a legacy dashboard ignores the exclusion when the flag is off', async () => {
+                        await expect(
+                            runControlledTile('tile-1', {
+                                ...clearedTile,
+                                parameterControls: undefined,
+                                dashboardControlsEnabled: false,
+                            }),
+                        ).resolves.toEqual({ status: 'Shipped' });
+                    });
+
+                    test('a signed-in request is used as sent when no controls are saved', async () => {
+                        await expect(
+                            runControlledTile('tile-3', {
+                                ...clearedTile,
+                                parameterControls: undefined,
+                                requestStatus: 'Pending',
+                                excludedParameterKeys: [],
+                            }),
+                        ).resolves.toEqual({ status: 'Pending' });
+                    });
+
+                    const embedViewer = (parametersEnabled: boolean) =>
+                        ({
+                            ...viewer,
+                            isRegisteredUser: () => false,
+                            isJwtUser: () => true,
+                            access: {
+                                content: {
+                                    type: 'dashboard',
+                                    dashboardUuid: 'dashboard-uuid',
+                                },
+                                parameters: { enabled: parametersEnabled },
+                            },
+                        }) as unknown as Account;
+
+                    test('an embed with parameter interactivity uses the field, so a tile the control excludes runs with the viewer value', async () => {
+                        await expect(
+                            runControlledTile('tile-3', {
+                                account: embedViewer(true),
+                                requestStatus: 'Pending',
+                                excludedParameterKeys: [],
+                            }),
+                        ).resolves.toEqual({ status: 'Pending' });
+                    });
+
+                    test('an embed without parameter interactivity ignores the field', async () => {
+                        await expect(
+                            runControlledTile('tile-1', {
+                                ...clearedTile,
+                                account: embedViewer(false),
+                            }),
+                        ).resolves.toEqual({ status: 'Shipped' });
+                    });
+
+                    test('an embed with interactivity but no field resolves from the saved controls as before', async () => {
+                        await expect(
+                            runControlledTile('tile-3', {
+                                account: embedViewer(true),
+                                requestStatus: 'Pending',
+                            }),
+                        ).resolves.toEqual({ status: 'Cancelled' });
+                    });
+
+                    test('without the field the saved controls resolve as before', async () => {
+                        await expect(
+                            runControlledTile('tile-1'),
+                        ).resolves.toEqual({ status: 'Shipped' });
+                    });
+                });
+
+                test('without saved controls, every tile runs with the saved dashboard values', async () => {
+                    await expect(
+                        runControlledTile('tile-3', {
+                            parameterControls: undefined,
+                        }),
+                    ).resolves.toEqual({ status: 'Shipped' });
+                });
+            });
         });
 
         test('the field value search query records the resolved connection', async () => {
@@ -15472,6 +15724,7 @@ describe('AsyncQueryService', () => {
                 ability: new Ability<PossibleAbilities>([
                     { subject: 'Project', action: ['view'] },
                     { subject: 'SavedChart', action: ['view'] },
+                    { subject: 'Dashboard', action: ['view'] },
                 ]),
             },
         } as unknown as Account;
@@ -15546,9 +15799,10 @@ describe('AsyncQueryService', () => {
                     })),
                 } as unknown as SpaceModel,
                 dashboardModel: {
-                    getDashboardParametersByIdOrSlug: vi.fn(
-                        async () => undefined,
-                    ),
+                    getDashboardParameterStateByIdOrSlug: vi.fn(async () => ({
+                        parameters: undefined,
+                        parameterControls: undefined,
+                    })),
                 } as unknown as DashboardModel,
             });
             service.getExploreWithUserAccessControls = vi
@@ -15638,8 +15892,11 @@ describe('AsyncQueryService', () => {
                 })),
             };
             internals.dashboardModel = {
-                getDashboardParametersByIdOrSlug: vi.fn(async () => ({
-                    tier: { parameterName: 'tier', value: 'gold' },
+                getDashboardParameterStateByIdOrSlug: vi.fn(async () => ({
+                    parameters: {
+                        tier: { parameterName: 'tier', value: 'gold' },
+                    },
+                    parameterControls: undefined,
                 })),
             };
             internals.projectParametersModel = {
@@ -22466,7 +22723,10 @@ describe('fresh stored result read boundary', () => {
                 addSqlChartViewEvent: vi.fn(),
             });
             Object.assign(f.service.dashboardModel, {
-                getDashboardParametersByIdOrSlug: vi.fn(async () => undefined),
+                getDashboardParameterStateByIdOrSlug: vi.fn(async () => ({
+                    parameters: undefined,
+                    parameterControls: undefined,
+                })),
                 getByIdOrSlug: vi.fn(async () => ({
                     uuid: 'dashboard',
                     organizationUuid: projectSummary.organizationUuid,
@@ -23601,7 +23861,10 @@ describe('fresh execution producer to result reader', () => {
             addChartViewEvent: vi.fn(async () => {}),
         });
         Object.assign(service.dashboardModel, {
-            getDashboardParametersByIdOrSlug: vi.fn(async () => undefined),
+            getDashboardParameterStateByIdOrSlug: vi.fn(async () => ({
+                parameters: undefined,
+                parameterControls: undefined,
+            })),
             getByIdOrSlug: vi.fn(async () => ({
                 uuid: dashboardUuid,
                 organizationUuid: projectSummary.organizationUuid,

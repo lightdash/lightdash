@@ -89,11 +89,13 @@ describe('useDashboardTileParameterReferences', () => {
             {
                 tileUuid: 'tile-open',
                 parameterReferences: ['orders.region'],
+                parameterDefinitions: {},
                 error: null,
             },
             {
                 tileUuid: 'tile-unopened',
                 parameterReferences: ['payments.region'],
+                parameterDefinitions: {},
                 error: null,
             },
             {
@@ -135,6 +137,21 @@ describe('useDashboardTileParameterReferences', () => {
         });
     });
 
+    it('does not mark older responses without definitions as complete', async () => {
+        mockApi.mockResolvedValue([
+            {
+                tileUuid: 'tile-open',
+                parameterReferences: ['region'],
+                error: null,
+            },
+        ]);
+        const store = setup(undefined, [tiles[0]]);
+        await waitFor(() => expect(mockApi).toHaveBeenCalled());
+        expect(store.getState().parameters.tileListedParameterSources).toEqual(
+            {},
+        );
+    });
+
     it('sends a large dashboard in requests of at most 200 tiles', async () => {
         const manyTiles = Array.from({ length: 450 }, (_, index) =>
             tile(
@@ -152,6 +169,7 @@ describe('useDashboardTileParameterReferences', () => {
             ).tiles.map(({ tileUuid }) => ({
                 tileUuid,
                 parameterReferences: ['orders.region'],
+                parameterDefinitions: {},
                 error: null,
             })),
         );
@@ -191,6 +209,7 @@ describe('useDashboardTileParameterReferences', () => {
             return batch.map(({ tileUuid }) => ({
                 tileUuid,
                 parameterReferences: ['orders.region'],
+                parameterDefinitions: {},
                 error: null,
             }));
         });
@@ -216,6 +235,7 @@ describe('useDashboardTileParameterReferences', () => {
             {
                 tileUuid: 'tile-open',
                 parameterReferences: ['orders.region'],
+                parameterDefinitions: {},
                 error: null,
             },
         ]);
@@ -250,6 +270,7 @@ describe('useDashboardTileParameterReferences', () => {
                 ({ tileUuid }) => ({
                     tileUuid,
                     parameterReferences: ['orders.region'],
+                    parameterDefinitions: {},
                     error: null,
                 }),
             ),

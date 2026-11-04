@@ -209,6 +209,7 @@ import {
 } from '@lightdash/warehouses';
 import { trace } from '@opentelemetry/api';
 import * as Sentry from '@sentry/node';
+import { omit } from 'es-toolkit/compat';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { randomUUID } from 'node:crypto';
 import { Readable, Writable } from 'stream';
@@ -346,7 +347,12 @@ import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
 import { getFieldValuesMetricQuery } from '../ProjectService/fieldValuesQueryBuilder';
-import { convertDashboardParametersToValuesMap } from '../ProjectService/parameters';
+import {
+    areDashboardControlsEnabled,
+    convertDashboardParametersToValuesMap,
+    getDashboardTileParameterLayer,
+    getEnabledParameterControls,
+} from '../ProjectService/parameters';
 import {
     ProjectService,
     type ProjectServiceArguments,
@@ -9604,6 +9610,100 @@ export class AsyncQueryService extends ProjectService {
         return AsyncQueryService.assertSavedMergeStarted(outcome);
     }
 
+    private async getDashboardTileParameterLayer({
+        dashboardUuid,
+        projectUuid,
+        organizationUuid,
+        flagUser,
+        appResolved,
+        ...tile
+    }: Omit<
+        Parameters<typeof getDashboardTileParameterLayer>[0],
+        'parameterControls' | 'dashboardParameters' | 'userParameterNames'
+    > & {
+        dashboardUuid: string;
+        projectUuid: string;
+        organizationUuid: string;
+        flagUser: Parameters<typeof getEnabledParameterControls>[0]['user'];
+        /** The app resolved this tile's controls (signed-in users, and embeds with parameter interactivity): its values stand as sent */
+        appResolved: {
+            account: Account;
+            parameters: ParametersValuesMap | undefined;
+            excludedParameterKeys: string[] | undefined;
+        };
+    }) {
+        const { parameters, spaceUuid, ...config } =
+            await this.dashboardModel.getDashboardParameterStateByIdOrSlug(
+                dashboardUuid,
+                projectUuid,
+            );
+        const parameterControls = await getEnabledParameterControls({
+            featureFlagModel: this.featureFlagModel,
+            user: flagUser,
+            config,
+        });
+        const controlsEnabled =
+            parameterControls !== null ||
+            (config.parameterControls === undefined &&
+                appResolved.excludedParameterKeys !== undefined &&
+                (await areDashboardControlsEnabled({
+                    featureFlagModel: this.featureFlagModel,
+                    user: flagUser,
+                })));
+        // Controls require dashboard access; embeds are scoped by their token.
+        if (controlsEnabled && appResolved.account.isRegisteredUser()) {
+            const ctx = await this.spacePermissionService.resolveAccess(
+                appResolved.account.user.id,
+                { type: 'dashboard', dashboardUuid, spaceUuid },
+            );
+            if (
+                this.createAuditedAbility(appResolved.account).cannot(
+                    'view',
+                    subject('Dashboard', {
+                        organizationUuid,
+                        projectUuid,
+                        inheritsFromOrgOrProject: ctx.inheritsFromOrgOrProject,
+                        access: ctx.access,
+                        metadata: { dashboardUuid },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError(
+                    "You don't have access to the space this dashboard belongs to",
+                );
+            }
+        }
+        if (
+            controlsEnabled &&
+            appResolved.excludedParameterKeys !== undefined &&
+            (appResolved.account.isRegisteredUser() ||
+                (isJwtUser(appResolved.account) &&
+                    isParameterInteractivityEnabled(
+                        appResolved.account.access.parameters,
+                    )))
+        ) {
+            return {
+                dashboardValues: appResolved.parameters ?? {},
+                excludedKeys: appResolved.excludedParameterKeys,
+            };
+        }
+        return getDashboardTileParameterLayer({
+            ...tile,
+            requestParameters:
+                parameterControls === null
+                    ? tile.requestParameters
+                    : appResolved.parameters,
+            dashboardParameters: parameters,
+            parameterControls,
+            userParameterNames:
+                parameterControls === null
+                    ? []
+                    : (await this.projectParametersModel.find(projectUuid)).map(
+                          ({ name }) => name,
+                      ),
+        });
+    }
+
     /**
      * A merged chart on a dashboard tile: the tile's dashboard filters are
      * pushed into each source before the join and the chart's own sort rides
@@ -9625,6 +9725,7 @@ export class AsyncQueryService extends ProjectService {
         invalidateCache,
         limit,
         parameters,
+        excludedParameterKeys,
         pivotResults,
         userAttributeOverrides,
     }: Pick<
@@ -9639,6 +9740,7 @@ export class AsyncQueryService extends ProjectService {
         | 'invalidateCache'
         | 'limit'
         | 'parameters'
+        | 'excludedParameterKeys'
         | 'pivotResults'
         | 'userAttributeOverrides'
     > & {
@@ -9673,22 +9775,26 @@ export class AsyncQueryService extends ProjectService {
                 formatRefusedMergeDashboardFilters(refusedDashboardFilters),
             );
         }
-        const rawDashboardParameters =
-            await this.dashboardModel.getDashboardParametersByIdOrSlug(
-                dashboardUuid,
-                projectUuid,
-            );
+        const chartSavedValues = savedChart.parameters ?? {};
         const tileParameters = await this.getDashboardTileParameterOverrides({
             projectUuid,
             explores: Object.values(exploreBySourceId),
-            dashboardValues: {
-                ...convertDashboardParametersToValuesMap(
-                    rawDashboardParameters,
-                ),
-                ...parameters,
-            },
-            chartSavedValues: savedChart.parameters ?? {},
-            excludedKeys: [],
+            ...(await this.getDashboardTileParameterLayer({
+                dashboardUuid,
+                projectUuid,
+                organizationUuid: savedChart.organizationUuid,
+                flagUser: {
+                    organizationUuid: savedChart.organizationUuid,
+                    userUuid: account.isRegisteredUser()
+                        ? account.user.id
+                        : undefined,
+                },
+                tileUuid,
+                chartSavedValues,
+                requestParameters: parameters,
+                appResolved: { account, parameters, excludedParameterKeys },
+            })),
+            chartSavedValues,
         });
         const outcome = await this.executeAsyncMergeQuery({
             account,
@@ -9742,6 +9848,7 @@ export class AsyncQueryService extends ProjectService {
         invalidateCache,
         limit,
         parameters,
+        excludedParameterKeys,
         pivotResults,
         includeUnpublishedDraft,
         sessionTimezone,
@@ -9846,6 +9953,7 @@ export class AsyncQueryService extends ProjectService {
                 invalidateCache,
                 limit,
                 parameters,
+                excludedParameterKeys,
                 pivotResults,
                 userAttributeOverrides,
             });
@@ -9939,7 +10047,7 @@ export class AsyncQueryService extends ProjectService {
                 connectionRoute,
                 aiPlan,
             },
-            rawDashboardParameters,
+            tileParameterLayer,
             projectParameters,
         ] = await Promise.all([
             this.getWarehouseCredentialsWithConnection({
@@ -9952,10 +10060,21 @@ export class AsyncQueryService extends ProjectService {
                 isServiceAccount: account.isServiceAccount(),
                 ...getAccountAgentIdentityFacts(account),
             }),
-            this.dashboardModel.getDashboardParametersByIdOrSlug(
-                resolvedDashboardUuid,
+            this.getDashboardTileParameterLayer({
+                dashboardUuid: resolvedDashboardUuid,
                 projectUuid,
-            ),
+                organizationUuid: savedChart.organizationUuid,
+                flagUser: {
+                    organizationUuid: savedChart.organizationUuid,
+                    userUuid: account.isRegisteredUser()
+                        ? account.user.id
+                        : undefined,
+                },
+                tileUuid,
+                chartSavedValues: savedChart.parameters ?? {},
+                requestParameters: parameters,
+                appResolved: { account, parameters, excludedParameterKeys },
+            }),
             preloadedProjectParameters ??
                 this.projectParametersModel.find(projectUuid),
         ]);
@@ -9968,14 +10087,8 @@ export class AsyncQueryService extends ProjectService {
         const combinedParameters = await this.resolveDashboardTileParameters({
             projectUuid,
             explore,
-            dashboardValues: {
-                ...convertDashboardParametersToValuesMap(
-                    rawDashboardParameters,
-                ),
-                ...parameters,
-            },
+            ...tileParameterLayer,
             chartSavedValues: savedChart.parameters ?? {},
-            excludedKeys: [],
             preloadedProjectParameters: projectParameters,
         });
 
@@ -15434,24 +15547,35 @@ export class AsyncQueryService extends ProjectService {
             await this.assertSavedChartAccess(account, 'view', savedChart);
         }
 
-        const [rawDashboardParameters, projectParameters] = await Promise.all([
-            this.dashboardModel.getDashboardParametersByIdOrSlug(
-                resolvedDashboardUuid,
+        const [tileParameterLayer, projectParameters] = await Promise.all([
+            this.getDashboardTileParameterLayer({
+                dashboardUuid: resolvedDashboardUuid,
                 projectUuid,
-            ),
+                organizationUuid: savedChart.organization.organizationUuid,
+                flagUser: {
+                    organizationUuid: savedChart.organization.organizationUuid,
+                    userUuid: account.isRegisteredUser()
+                        ? account.user.id
+                        : undefined,
+                },
+                tileUuid,
+                chartSavedValues: {},
+                requestParameters: undefined,
+                appResolved: {
+                    account,
+                    parameters: args.parameters,
+                    excludedParameterKeys: args.excludedParameterKeys,
+                },
+            }),
             this.projectParametersModel.find(projectUuid),
         ]);
-
-        const dashboardParameters = convertDashboardParametersToValuesMap(
-            rawDashboardParameters,
-        );
 
         // Combine default parameter values, dashboard parameters, and request parameters first
         const combinedParameters = await this.combineParameters(
             projectUuid,
             undefined,
-            args.parameters,
-            dashboardParameters,
+            omit(args.parameters, tileParameterLayer.excludedKeys),
+            tileParameterLayer.dashboardValues,
             projectParameters,
         );
 

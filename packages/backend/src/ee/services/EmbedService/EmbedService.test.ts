@@ -18,6 +18,7 @@ import {
     type DashboardDAO,
     type DashboardFilterRule,
     type DashboardFilters,
+    type DashboardParameterControl,
     type EmbedContent,
     type Explore,
     type MemberAbility,
@@ -165,7 +166,31 @@ describe('EmbedService', () => {
             uuid: 'chart-uuid',
             parameters: { status: 'Cancelled' },
         } as unknown as SavedChartDAO;
-        const buildService = () => {
+        const valueType = { type: 'string', multiple: false } as const;
+        // Sales sets every tile but tile-3; ops takes tile-2
+        const sharedStatusControls: DashboardParameterControl[] = [
+            {
+                id: 'sales',
+                label: 'Sales',
+                value: 'Shipped',
+                valueType,
+                parameters: { status: { except: ['tile-2', 'tile-3'] } },
+            },
+            {
+                id: 'ops',
+                label: 'Ops',
+                value: 'Returned',
+                valueType,
+                parameters: { status: { only: ['tile-2'] } },
+            },
+        ];
+        const buildService = ({
+            parameterControls,
+            dashboardControlsEnabled = false,
+        }: {
+            parameterControls?: DashboardParameterControl[];
+            dashboardControlsEnabled?: boolean;
+        } = {}) => {
             const resolveDashboardTileParameters = vi
                 .fn()
                 .mockResolvedValue({ status: 'resolved' });
@@ -177,6 +202,11 @@ describe('EmbedService', () => {
                 dashboardModel: {
                     getByIdOrSlug: vi.fn().mockResolvedValue({
                         uuid: 'dashboard-uuid',
+                        organizationUuid: 'org-uuid',
+                        config: {
+                            isDateZoomDisabled: false,
+                            parameterControls,
+                        },
                         parameters: {
                             status: {
                                 parameterName: 'status',
@@ -189,25 +219,45 @@ describe('EmbedService', () => {
                 projectService: {
                     resolveDashboardTileParameters,
                     combineParameters,
+                    projectParametersModel: {
+                        find: vi.fn().mockResolvedValue([]),
+                    },
+                },
+                featureFlagModel: {
+                    get: vi.fn().mockResolvedValue({
+                        id: FeatureFlags.DashboardControls,
+                        enabled: dashboardControlsEnabled,
+                    }),
                 },
             } as unknown as ConstructorParameters<typeof EmbedService>[0]);
-            const combine = (dashboardUuid: string | null) =>
+            const combine = (
+                tileUuid: string | null,
+                excludedParameterKeys?: string[],
+            ) =>
                 (
                     embedService as unknown as {
                         _combineSavedChartParameters(args: {
                             projectUuid: string;
                             explore: Explore;
                             chart: SavedChartDAO;
-                            dashboardUuid: string | null;
+                            dashboardTile: {
+                                dashboardUuid: string;
+                                tileUuid: string;
+                            } | null;
                             acceptedUserParameters: ParametersValuesMap;
+                            excludedParameterKeys: string[] | undefined;
                         }): Promise<ParametersValuesMap>;
                     }
                 )._combineSavedChartParameters({
                     projectUuid: mockProjectUuid,
                     explore: validExplore,
                     chart,
-                    dashboardUuid,
+                    dashboardTile:
+                        tileUuid === null
+                            ? null
+                            : { dashboardUuid: 'dashboard-uuid', tileUuid },
                     acceptedUserParameters: { region: 'US' },
+                    excludedParameterKeys,
                 });
             return {
                 combine,
@@ -219,7 +269,7 @@ describe('EmbedService', () => {
         test('a dashboard tile resolves its chart values against the dashboard', async () => {
             const { combine, resolveDashboardTileParameters } = buildService();
 
-            await expect(combine('dashboard-uuid')).resolves.toEqual({
+            await expect(combine('tile-1')).resolves.toEqual({
                 status: 'resolved',
             });
             expect(resolveDashboardTileParameters).toHaveBeenCalledWith({
@@ -230,6 +280,96 @@ describe('EmbedService', () => {
                 excludedKeys: [],
                 preloadedProjectParameters: null,
             });
+        });
+
+        test('with the flag on, saved controls set each tile with its own control', async () => {
+            const { combine, resolveDashboardTileParameters } = buildService({
+                parameterControls: sharedStatusControls,
+                dashboardControlsEnabled: true,
+            });
+
+            await combine('tile-2');
+            await combine('tile-3');
+            expect(resolveDashboardTileParameters).toHaveBeenNthCalledWith(
+                1,
+                expect.objectContaining({
+                    dashboardValues: { status: 'Returned', region: 'US' },
+                    excludedKeys: [],
+                }),
+            );
+            expect(resolveDashboardTileParameters).toHaveBeenNthCalledWith(
+                2,
+                expect.objectContaining({
+                    dashboardValues: { region: 'US' },
+                    excludedKeys: ['status'],
+                }),
+            );
+        });
+
+        test('with the flag off, saved controls are ignored', async () => {
+            const { combine, resolveDashboardTileParameters } = buildService({
+                parameterControls: sharedStatusControls,
+            });
+
+            await combine('tile-3');
+            expect(resolveDashboardTileParameters).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    dashboardValues: { status: 'Shipped', region: 'US' },
+                    excludedKeys: [],
+                }),
+            );
+        });
+
+        test('with the flag off, the viewer exclusion is ignored', async () => {
+            const { combine, resolveDashboardTileParameters } = buildService({
+                parameterControls: sharedStatusControls,
+            });
+            await combine('tile-3', ['status']);
+            expect(resolveDashboardTileParameters).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    dashboardValues: { status: 'Shipped', region: 'US' },
+                    excludedKeys: [],
+                }),
+            );
+        });
+
+        test('a legacy dashboard ignores viewer exclusions when controls are disabled', async () => {
+            const { combine, resolveDashboardTileParameters } = buildService();
+            await combine('tile-3', ['status']);
+            expect(resolveDashboardTileParameters).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    dashboardValues: { status: 'Shipped', region: 'US' },
+                    excludedKeys: [],
+                }),
+            );
+        });
+
+        test('a legacy dashboard uses the viewer exclusions when controls are enabled', async () => {
+            const { combine, resolveDashboardTileParameters } = buildService({
+                dashboardControlsEnabled: true,
+            });
+            await combine('tile-3', ['status']);
+            expect(resolveDashboardTileParameters).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    dashboardValues: { region: 'US' },
+                    excludedKeys: ['status'],
+                }),
+            );
+        });
+
+        test("the viewer's per-tile resolution stands as sent, so a tile the control excludes takes the viewer's value", async () => {
+            const { combine, resolveDashboardTileParameters } = buildService({
+                parameterControls: sharedStatusControls,
+                dashboardControlsEnabled: true,
+            });
+
+            await combine('tile-3', []);
+            expect(resolveDashboardTileParameters).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    dashboardValues: { region: 'US' },
+                    excludedKeys: [],
+                }),
+            );
         });
 
         test('a chart embed keeps the request values over the fallback chain', async () => {
@@ -249,6 +389,30 @@ describe('EmbedService', () => {
                 {},
             );
             expect(resolveDashboardTileParameters).not.toHaveBeenCalled();
+        });
+    });
+
+    describe("the viewer's per-tile parameter resolution", () => {
+        const gate = (parametersEnabled: boolean, keys: string[] | undefined) =>
+            (
+                EmbedService as unknown as {
+                    getGatedExcludedKeys(
+                        account: unknown,
+                        keys: string[] | undefined,
+                    ): string[] | undefined;
+                }
+            ).getGatedExcludedKeys(
+                { access: { parameters: { enabled: parametersEnabled } } },
+                keys,
+            );
+
+        test('is kept with parameter interactivity on', () => {
+            expect(gate(true, ['status'])).toEqual(['status']);
+            expect(gate(true, undefined)).toBeUndefined();
+        });
+
+        test('is dropped with parameter interactivity off', () => {
+            expect(gate(false, ['status'])).toBeUndefined();
         });
     });
 

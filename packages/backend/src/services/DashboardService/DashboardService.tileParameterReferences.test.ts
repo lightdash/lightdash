@@ -162,6 +162,7 @@ const setup = ({ dashboardControlsEnabled = true } = {}) => {
         ),
     };
     const projectService = {
+        projectParametersModel: { find: vi.fn().mockResolvedValue([]) },
         findExplores: vi.fn(
             async ({
                 exploreNames,
@@ -241,16 +242,92 @@ describe('DashboardService.getTileParameterReferences', () => {
                 tileUuid: 'tile-1',
                 parameterReferences: ['orders.region'],
                 error: null,
+                parameterDefinitions: {},
             },
             {
                 tileUuid: 'tile-2',
                 parameterReferences: ['orders.min_amount', 'orders.region'],
                 error: null,
+                parameterDefinitions: {},
             },
         ]);
         expect(projectService.findExplores).toHaveBeenCalledWith(
             expect.objectContaining({ exploreNames: [chart.tableName] }),
         );
+    });
+
+    it('returns referenced model and project definitions for unopened tiles without exposing private charts', async () => {
+        const { service, projectService } = setup();
+        projectService.projectParametersModel.find.mockResolvedValue([
+            {
+                name: 'region',
+                config: { label: 'Region', type: 'string', multiple: true },
+            },
+            { name: 'secret', config: { label: 'Secret', type: 'string' } },
+        ]);
+        projectService.findExplores.mockImplementation(
+            async ({ exploreNames }) =>
+                Object.fromEntries(
+                    exploreNames.map((name) => [
+                        name,
+                        {
+                            ...explore,
+                            tables: {
+                                ...explore.tables,
+                                [name]: {
+                                    ...explore.tables[name],
+                                    originalName: 'orders',
+                                    parameters: {
+                                        region: {
+                                            label: 'Region',
+                                            type: 'number',
+                                            multiple: true,
+                                        },
+                                        unused: {
+                                            label: 'Unused',
+                                            type: 'string',
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    ]),
+                ),
+        );
+        const result = await service.getTileParameterReferences(
+            account,
+            projectUuid,
+            [
+                chartTile('unopened', 'plain'),
+                chartTile('private', 'hidden'),
+                { tileUuid: 'sql', savedChartUuid: null, savedSqlUuid: 'sql' },
+            ],
+        );
+        expect(result[0]).toEqual({
+            tileUuid: 'unopened',
+            parameterReferences: ['orders.region'],
+            parameterDefinitions: {
+                'orders.region': {
+                    label: 'Region',
+                    type: 'number',
+                    multiple: true,
+                },
+            },
+            error: null,
+        });
+        expect(result[1]).toEqual({
+            tileUuid: 'private',
+            parameterReferences: null,
+            error: expect.any(String),
+        });
+        expect(result[2]).toEqual({
+            tileUuid: 'sql',
+            parameterReferences: ['region'],
+            parameterDefinitions: {
+                region: { label: 'Region', type: 'string', multiple: true },
+            },
+            error: null,
+        });
     });
 
     it('loads each explore and chart once across tiles', async () => {
@@ -382,6 +459,7 @@ describe('DashboardService.getTileParameterReferences', () => {
                 tileUuid: 'tile-1',
                 parameterReferences: ['orders.region'],
                 error: null,
+                parameterDefinitions: {},
             },
             {
                 tileUuid: 'tile-2',
@@ -392,6 +470,7 @@ describe('DashboardService.getTileParameterReferences', () => {
                 tileUuid: 'tile-3',
                 parameterReferences: ['region'],
                 error: null,
+                parameterDefinitions: {},
             },
         ]);
     });
@@ -408,6 +487,7 @@ describe('DashboardService.getTileParameterReferences', () => {
                 tileUuid: 'tile-1',
                 parameterReferences: ['orders.region', 'payments.region'],
                 error: null,
+                parameterDefinitions: {},
             },
         ]);
         expect(projectService.findExplores).toHaveBeenCalledTimes(1);
@@ -446,6 +526,7 @@ describe('DashboardService.getTileParameterReferences', () => {
                 tileUuid: 'tile-1',
                 parameterReferences: ['orders.region', 'required.region'],
                 error: null,
+                parameterDefinitions: {},
             },
         ]);
     });
@@ -472,6 +553,7 @@ describe('DashboardService.getTileParameterReferences', () => {
             tileUuid: 'tile-2',
             parameterReferences: ['orders.region'],
             error: null,
+            parameterDefinitions: {},
         });
     });
 
@@ -497,6 +579,7 @@ describe('DashboardService.getTileParameterReferences', () => {
                 tileUuid: 'tile-1',
                 parameterReferences: ['orders.min_amount', 'orders.region'],
                 error: null,
+                parameterDefinitions: {},
             },
         ]);
     });
@@ -514,7 +597,12 @@ describe('DashboardService.getTileParameterReferences', () => {
                 chartTile('tile-1', 'api'),
             ]),
         ).resolves.toEqual([
-            { tileUuid: 'tile-1', parameterReferences: [], error: null },
+            {
+                tileUuid: 'tile-1',
+                parameterReferences: [],
+                parameterDefinitions: {},
+                error: null,
+            },
         ]);
     });
 
@@ -559,6 +647,7 @@ describe('DashboardService.getTileParameterReferences', () => {
                 tileUuid: 'tile-1',
                 parameterReferences: ['region'],
                 error: null,
+                parameterDefinitions: {},
             },
         ]);
     });
@@ -582,6 +671,7 @@ describe('DashboardService.getTileParameterReferences', () => {
                 tileUuid: 'good',
                 parameterReferences: ['orders.region'],
                 error: null,
+                parameterDefinitions: {},
             },
             {
                 tileUuid: 'failing',
@@ -634,6 +724,7 @@ describe('DashboardService.getTileParameterReferences', () => {
                 tileUuid: 'good',
                 parameterReferences: ['region'],
                 error: null,
+                parameterDefinitions: {},
             },
         ]);
     });
@@ -657,6 +748,7 @@ describe('DashboardService.getTileParameterReferences', () => {
                 tileUuid: 'tile-2',
                 parameterReferences: ['orders.region'],
                 error: null,
+                parameterDefinitions: {},
             },
         ]);
     });
@@ -685,16 +777,19 @@ describe('DashboardService.getTileParameterReferences', () => {
                     tileUuid: 'embed-chart-tile',
                     parameterReferences: ['orders.region'],
                     error: null,
+                    parameterDefinitions: {},
                 },
                 {
                     tileUuid: 'embed-sql-tile',
                     parameterReferences: ['region'],
                     error: null,
+                    parameterDefinitions: {},
                 },
                 {
                     tileUuid: 'embed-hidden-tile',
                     parameterReferences: ['orders.region'],
                     error: null,
+                    parameterDefinitions: {},
                 },
             ]);
             expect(savedChartModel.get).not.toHaveBeenCalledWith(
@@ -754,6 +849,7 @@ describe('DashboardService.getTileParameterReferences', () => {
                     tileUuid: 'embed-chart-tile',
                     parameterReferences: ['orders.region'],
                     error: null,
+                    parameterDefinitions: {},
                 },
             ]);
         });

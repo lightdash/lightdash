@@ -26,6 +26,7 @@ import {
     selectTileParameterReferences,
     useDashboardDateZoomConfig,
     useDashboardSelector,
+    useTileDashboardParameterInputs,
 } from '../../features/dashboard/store';
 import { useTileQueryQueue } from '../../features/dashboard/tileQueryQueue/useTileQueryQueue';
 import { waitForQueryToFinish } from '../../features/dashboard/tileQueryQueue/waitForQueryToFinish';
@@ -69,6 +70,7 @@ const postEmbedDashboardTileQuery = async (
         | 'invalidateCache'
         | 'dateZoom'
         | 'parameters'
+        | 'excludedParameterKeys'
     >,
 ): Promise<ApiExecuteAsyncDashboardChartQueryResults> =>
     lightdashApi<ApiExecuteAsyncDashboardChartQueryResults>({
@@ -98,7 +100,9 @@ export const useDashboardChartReadyQuery = (
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const invalidateCache = useDashboardSelector(selectInvalidateCache);
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
-    const parameterValues = useDashboardSelector(selectParameterValues);
+    const appliedParameterValues = useDashboardSelector(selectParameterValues);
+    const { dashboardValues: parameterValues, excludedParameterKeys } =
+        useTileDashboardParameterInputs(tileUuid, appliedParameterValues);
     const addParameterReferences = useDashboardContext(
         (c) => c.addParameterReferences,
     );
@@ -359,6 +363,7 @@ export const useDashboardChartReadyQuery = (
                           dateZoom,
                           invalidateCache,
                           parameters: parameterValues,
+                          excludedParameterKeys,
                           pivotResults: true,
                           timezone: sessionTimezone ?? undefined,
                       })
@@ -375,6 +380,7 @@ export const useDashboardChartReadyQuery = (
                               dateZoom,
                               invalidateCache,
                               parameters: parameterValues,
+                              excludedParameterKeys,
                               pivotResults: true,
                               ...(includeUnpublishedDraft && {
                                   includeUnpublishedDraft: true,

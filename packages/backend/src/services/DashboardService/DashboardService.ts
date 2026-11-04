@@ -26,9 +26,12 @@ import {
     generateSlug,
     getDashboardDeleteAccess,
     getErrorMessage,
+    getExploreParameterDefinitions,
     getItemId,
+    getParameterMirror,
     getParameterReferences,
     getQueryParameterReferences,
+    getReferencedParameterDefinitions,
     getSchedulerResourceTypeAndId,
     hasChartsInDashboard,
     isDashboardChartTileType,
@@ -79,6 +82,7 @@ import {
     type Explore,
     type ExploreError,
     type MetricQuery,
+    type ParameterDefinitions,
     type SavedChartDAO,
     type UpdateDashboardCustomMetric,
     type UUID,
@@ -116,7 +120,10 @@ import {
     type ContentDraftBase,
 } from '../../models/ContentDraftModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
-import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import {
+    DashboardModel,
+    validateAndPruneDashboardConfig,
+} from '../../models/DashboardModel/DashboardModel';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
@@ -177,7 +184,10 @@ type DashboardServiceArguments = {
     organizationMemberProfileModel: OrganizationMemberProfileModel;
     spacePermissionService: SpacePermissionService;
     contentVerificationModel: ContentVerificationModel;
-    projectService: Pick<ProjectService, 'findExplores'>;
+    projectService: Pick<
+        ProjectService,
+        'findExplores' | 'projectParametersModel'
+    >;
 };
 
 type ContentAsCodeDeleteOptions = SoftDeleteOptions & {
@@ -201,7 +211,11 @@ const TILE_LOAD_CONCURRENCY = 5;
 const MAX_PARAMETER_REFERENCE_TILES = 200;
 
 type ParameterReferencesResult =
-    | { parameterReferences: string[]; error: null }
+    | {
+          parameterReferences: string[];
+          parameterDefinitions: ParameterDefinitions;
+          error: null;
+      }
     | { parameterReferences: null; error: string };
 
 const parameterReferencesFailure = (e: unknown): ParameterReferencesResult => ({
@@ -453,6 +467,7 @@ export class DashboardService
             customViewportWidth: data.customViewportWidth,
             selectedTabs: data.selectedTabs ?? null,
             parameters: data.parameters,
+            tileParameters: data.tileParameters,
             organizationUuid: dashboard.organizationUuid,
             projectUuid: dashboard.projectUuid,
             userUuid: account.user.id,
@@ -985,6 +1000,17 @@ export class DashboardService
      * explore without compiling. A tile that can't be loaded or viewed
      * reports its own error.
      */
+    async areDashboardControlsEnabled(
+        user: SessionUser,
+        organizationUuid: string,
+    ): Promise<boolean> {
+        const { enabled } = await this.featureFlagModel.get({
+            user: { organizationUuid, userUuid: user.userUuid },
+            featureFlagId: FeatureFlags.DashboardControls,
+        });
+        return enabled;
+    }
+
     async getTileParameterReferences(
         account: Account,
         projectUuid: string,
@@ -1014,12 +1040,23 @@ export class DashboardService
                   tiles,
               )
             : tiles;
+        const projectDefinitions: ParameterDefinitions = Object.fromEntries(
+            (
+                await this.projectService.projectParametersModel.find(
+                    projectUuid,
+                )
+            ).map(({ name, config }) => [
+                name,
+                { ...config, type: config.type || 'string' },
+            ]),
+        );
         // One kind failing outright keeps the other kind's results
         const [chartResults, sqlResults] = await Promise.all([
             this.getSavedChartParameterReferences(
                 account,
                 projectUuid,
                 uniq(sources.flatMap((tile) => tile?.savedChartUuid ?? [])),
+                projectDefinitions,
             )
                 .then(toLookup)
                 .catch(getFailedResults),
@@ -1027,6 +1064,7 @@ export class DashboardService
                 account,
                 projectUuid,
                 uniq(sources.flatMap((tile) => tile?.savedSqlUuid ?? [])),
+                projectDefinitions,
             )
                 .then(toLookup)
                 .catch(getFailedResults),
@@ -1105,6 +1143,7 @@ export class DashboardService
         account: Account,
         projectUuid: string,
         savedChartUuids: string[],
+        projectDefinitions: ParameterDefinitions,
     ): Promise<Map<string, ParameterReferencesResult>> {
         const results = new Map<string, ParameterReferencesResult>();
         // Each chart load makes several DB calls too; a failure stays with its tile
@@ -1173,10 +1212,29 @@ export class DashboardService
             const queries = chartQueries.get(chart.uuid);
             if (!queries) return;
             try {
+                const parameterReferences = getChartParameterReferences(
+                    queries,
+                    explores,
+                );
+                const definitions = queries.reduce<ParameterDefinitions>(
+                    (acc, { exploreName }) => {
+                        const explore = explores.get(exploreName);
+                        return explore &&
+                            !(explore instanceof Error) &&
+                            !isExploreError(explore)
+                            ? {
+                                  ...acc,
+                                  ...getExploreParameterDefinitions(explore),
+                              }
+                            : acc;
+                    },
+                    projectDefinitions,
+                );
                 results.set(chart.uuid, {
-                    parameterReferences: getChartParameterReferences(
-                        queries,
-                        explores,
+                    parameterReferences,
+                    parameterDefinitions: getReferencedParameterDefinitions(
+                        definitions,
+                        parameterReferences,
                     ),
                     error: null,
                 });
@@ -1276,6 +1334,7 @@ export class DashboardService
         account: Account,
         projectUuid: string,
         savedSqlUuids: string[],
+        projectDefinitions: ParameterDefinitions,
     ): Promise<Map<string, ParameterReferencesResult>> {
         const results = new Map<string, ParameterReferencesResult>();
         const loaded = await runWithConcurrency(
@@ -1307,6 +1366,11 @@ export class DashboardService
                           parameterReferences: getParameterReferences(
                               sqlChart.sql,
                           ),
+                          parameterDefinitions:
+                              getReferencedParameterDefinitions(
+                                  projectDefinitions,
+                                  getParameterReferences(sqlChart.sql),
+                              ),
                           error: null,
                       }
                     : parameterReferencesFailure(
@@ -1989,10 +2053,35 @@ export class DashboardService
             );
         }
 
-        const createDashboard = {
+        let createDashboard = {
             ...dashboard,
             slug: generateSlug(dashboard.name),
         };
+        if (dashboard.config?.parameterControls !== undefined) {
+            const { enabled } = await this.featureFlagModel.get({
+                user: {
+                    organizationUuid: space.organizationUuid,
+                    userUuid: user.userUuid,
+                },
+                featureFlagId: FeatureFlags.DashboardControls,
+            });
+            if (enabled) {
+                const controls = dashboard.config.parameterControls;
+                const config = validateAndPruneDashboardConfig(
+                    dashboard.config,
+                    dashboard.tiles,
+                );
+                createDashboard = {
+                    ...createDashboard,
+                    config,
+                    parameters: getParameterMirror(controls),
+                };
+            } else {
+                const { parameterControls: _ignored, ...config } =
+                    dashboard.config;
+                createDashboard = { ...createDashboard, config };
+            }
+        }
         const newDashboard = await this.dashboardModel.create(
             space.uuid,
             createDashboard,
@@ -2283,17 +2372,19 @@ export class DashboardService
                 }),
             );
 
-            const remapTileTargets = (
-                tileTargets: Record<string, DashboardTileTarget> | undefined,
-            ): Record<string, DashboardTileTarget> | undefined => {
-                if (!tileTargets) return undefined;
-                return Object.fromEntries(
-                    Object.entries(tileTargets).map(([key, value]) => [
+            const remapTileUuidKeys = <T>(
+                byTileUuid: Record<string, T>,
+            ): Record<string, T> =>
+                Object.fromEntries(
+                    Object.entries(byTileUuid).map(([key, value]) => [
                         tileUuidMap.get(key) ?? key,
                         value,
                     ]),
                 );
-            };
+            const remapTileTargets = (
+                tileTargets: Record<string, DashboardTileTarget> | undefined,
+            ): Record<string, DashboardTileTarget> | undefined =>
+                tileTargets && remapTileUuidKeys(tileTargets);
 
             const remappedFilters: typeof newDashboard.filters = {
                 dimensions: newDashboard.filters.dimensions.map((filter) => ({
@@ -2319,23 +2410,51 @@ export class DashboardService
                     filters: remappedFilters,
                     tabs: newTabs,
                     parameters: newDashboard.parameters,
-                    config: newDashboard.config?.dateZoomConfig
-                        ? {
-                              ...newDashboard.config,
-                              dateZoomConfig: {
-                                  ...newDashboard.config.dateZoomConfig,
-                                  tileTargets: Object.fromEntries(
-                                      Object.entries(
-                                          newDashboard.config.dateZoomConfig
-                                              .tileTargets,
-                                      ).map(([key, value]) => [
-                                          tileUuidMap.get(key) ?? key,
-                                          value,
-                                      ]),
-                                  ),
-                              },
-                          }
-                        : newDashboard.config,
+                    config: newDashboard.config && {
+                        ...newDashboard.config,
+                        ...(newDashboard.config.dateZoomConfig && {
+                            dateZoomConfig: {
+                                ...newDashboard.config.dateZoomConfig,
+                                tileTargets: remapTileUuidKeys(
+                                    newDashboard.config.dateZoomConfig
+                                        .tileTargets,
+                                ),
+                            },
+                        }),
+                        ...(newDashboard.config.parameterControls && {
+                            parameterControls:
+                                newDashboard.config.parameterControls.map(
+                                    (control) => ({
+                                        ...control,
+                                        parameters: Object.fromEntries(
+                                            Object.entries(
+                                                control.parameters,
+                                            ).map(([key, target]) => {
+                                                if (target === 'all') {
+                                                    return [key, target];
+                                                }
+                                                const remap = (id: string) =>
+                                                    tileUuidMap.get(id) ?? id;
+                                                return [
+                                                    key,
+                                                    'only' in target
+                                                        ? {
+                                                              only: target.only.map(
+                                                                  remap,
+                                                              ),
+                                                          }
+                                                        : {
+                                                              except: target.except.map(
+                                                                  remap,
+                                                              ),
+                                                          },
+                                                ];
+                                            }),
+                                        ),
+                                    }),
+                                ),
+                        }),
+                    },
                 },
                 user,
                 projectUuid,
@@ -2720,7 +2839,8 @@ export class DashboardService
                 projectUuid: options?.projectUuid,
             },
         );
-        const { preserveVerification, ...dashboardFields } = dashboard;
+        const { preserveVerification, ...incomingFields } = dashboard;
+        let dashboardFields = incomingFields;
 
         const currentSpace = await this.spacePermissionService.resolveAccess(
             user.userUuid,
@@ -2751,6 +2871,46 @@ export class DashboardService
             projectUuid: existingDashboardDao.projectUuid,
             organizationUuid: existingDashboardDao.organizationUuid,
         });
+
+        if (
+            isDashboardVersionedFields(incomingFields) &&
+            incomingFields.config
+        ) {
+            const incomingControls = incomingFields.config.parameterControls;
+            const savedControls =
+                existingDashboardDao.config?.parameterControls;
+            if (incomingControls !== undefined || savedControls !== undefined) {
+                const { enabled } = await this.featureFlagModel.get({
+                    user: {
+                        organizationUuid: existingDashboardDao.organizationUuid,
+                        userUuid: user.userUuid,
+                    },
+                    featureFlagId: FeatureFlags.DashboardControls,
+                });
+                if (enabled && incomingControls !== undefined) {
+                    validateAndPruneDashboardConfig(
+                        incomingFields.config,
+                        incomingFields.tiles,
+                    );
+                    dashboardFields = {
+                        ...incomingFields,
+                        parameters: getParameterMirror(incomingControls),
+                    };
+                } else {
+                    const { parameterControls: _ignored, ...config } =
+                        incomingFields.config;
+                    dashboardFields = {
+                        ...incomingFields,
+                        config: {
+                            ...config,
+                            ...(savedControls !== undefined && {
+                                parameterControls: savedControls,
+                            }),
+                        },
+                    };
+                }
+            }
+        }
 
         const draftResult = await this.maybeStoreDraft(
             user,

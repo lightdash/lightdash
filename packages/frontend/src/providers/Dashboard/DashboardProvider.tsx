@@ -63,6 +63,7 @@ import {
     useDashboardVersionRefresh,
 } from '../../hooks/dashboard/useDashboard';
 import { useDashboardTileParameterReferences } from '../../hooks/dashboard/useDashboardTileParameterReferences';
+import { useSyncParameterControls } from '../../hooks/dashboard/useSyncParameterControls';
 import useToaster from '../../hooks/toaster/useToaster';
 import DashboardDateZoomSync from './DashboardDateZoomSync';
 import DashboardFiltersSync from './DashboardFiltersSync';
@@ -310,6 +311,12 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
             store.dispatch(
                 dashboardParametersActions.setSavedParameters(dashboardParams),
             );
+            // A delivery's values apply to every control that sets the key
+            store.dispatch(
+                dashboardParametersActions.setParameterPicks(
+                    schedulerParameters,
+                ),
+            );
         }
     }, [store, schedulerParameters]);
 
@@ -358,6 +365,12 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         embedToken,
     );
     useDashboardTileParameterReferences({ store, projectUuid, isEditMode });
+    useSyncParameterControls({
+        store,
+        config: currentDashboardConfig,
+        dashboardParameters: (dashboard ?? embedDashboard)?.parameters,
+        isDashboardLoaded,
+    });
 
     // Computed here as well as in the store, so the filter sync gets them in
     // the same render as the dashboard, not a commit later
