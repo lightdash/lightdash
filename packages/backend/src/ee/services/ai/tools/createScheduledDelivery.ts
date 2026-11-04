@@ -8,7 +8,7 @@ import {
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type { CreateScheduledDeliveryFn } from '../types/aiAgentDependencies';
-import { toSiteUrl } from '../utils/siteUrl';
+import { toAbsoluteHref } from '../utils/absoluteHref';
 import type {
     ExecuteStructuredToolResult,
     ExecuteToolErrorResult,
@@ -75,7 +75,7 @@ const renderSummary = (
         delivery.aiAugmentationAttached
             ? 'AI augmentation is attached and will write the delivery message on each send.'
             : null,
-        `Share this markdown link with the user verbatim (the link text must be the delivery name) — it opens the delivery's settings, where it can be reviewed, paused, edited or deleted: [${delivery.name}](${toSiteUrl(siteUrl, delivery.href)})`,
+        `Share this markdown link with the user verbatim (the link text must be the delivery name) — it opens the delivery's settings, where it can be reviewed, paused, edited or deleted: [${delivery.name}](${toAbsoluteHref(siteUrl, delivery.href)})`,
         ...delivery.warnings,
     ]
         .filter(Boolean)

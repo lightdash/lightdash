@@ -9,10 +9,10 @@ import {
 import { tool, type FlexibleSchema } from 'ai';
 import { z } from 'zod';
 import type { EditContentFn } from '../types/aiAgentDependencies';
+import { toAbsoluteHref } from '../utils/absoluteHref';
 import type { ArtifactChartExportAccess } from '../utils/artifactChartAsCode';
 import { getContentWarnings } from '../utils/contentWarnings';
 import { resolveDocumentConversationTags } from '../utils/documentConversationTags';
-import { toSiteUrl } from '../utils/siteUrl';
 import { toolFailure } from '../utils/structuredToolResult';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorOutput } from '../utils/toolErrorHandler';
@@ -156,14 +156,14 @@ export const executeEditContent = async (
             warnings,
         };
 
-        const url = toSiteUrl(siteUrl, result.href);
+        const absoluteHref = toAbsoluteHref(siteUrl, result.href);
         return {
             result: contentResult({
                 content:
                     result.type === 'document'
-                        ? { ...result, href: url }
+                        ? { ...result, href: absoluteHref }
                         : result.content,
-                href: url,
+                href: absoluteHref,
                 type: result.type,
                 warnings,
             }),

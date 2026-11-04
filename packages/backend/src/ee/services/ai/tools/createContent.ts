@@ -11,10 +11,10 @@ import {
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type { CreateContentFn } from '../types/aiAgentDependencies';
+import { toAbsoluteHref } from '../utils/absoluteHref';
 import type { ArtifactChartExportAccess } from '../utils/artifactChartAsCode';
 import { getContentWarnings } from '../utils/contentWarnings';
 import { resolveDocumentConversationTags } from '../utils/documentConversationTags';
-import { toSiteUrl } from '../utils/siteUrl';
 import {
     toolFailure,
     type ExecuteStructuredToolResult,
@@ -172,14 +172,14 @@ export const getCreateContent = ({
                             : {}),
                     };
 
-                    const url = toSiteUrl(siteUrl, created.href);
+                    const absoluteHref = toAbsoluteHref(siteUrl, created.href);
                     return {
                         result: contentResult({
                             content:
                                 result.type === 'document'
-                                    ? { ...result, href: url }
+                                    ? { ...result, href: absoluteHref }
                                     : created.content,
-                            href: url,
+                            href: absoluteHref,
                             type: created.type,
                             warnings: created.warnings,
                         }),

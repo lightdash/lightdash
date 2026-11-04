@@ -5,7 +5,7 @@ import {
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type { ListContentFn } from '../types/aiAgentDependencies';
-import { toSiteUrl } from '../utils/siteUrl';
+import { toAbsoluteHref } from '../utils/absoluteHref';
 import type {
     ExecuteStructuredToolResult,
     ExecuteToolErrorResult,
@@ -52,7 +52,7 @@ const renderContent = (
                         contentType={item.contentType}
                         name={item.name}
                         slug={item.slug}
-                        href={toSiteUrl(siteUrl, item.href)}
+                        href={toAbsoluteHref(siteUrl, item.href)}
                         chartCount={item.chartCount}
                         dashboardCount={item.dashboardCount}
                         childSpaceCount={item.childSpaceCount}
@@ -69,7 +69,7 @@ const renderContent = (
                         uuid={item.uuid}
                         name={item.name}
                         slug={item.slug}
-                        href={toSiteUrl(siteUrl, item.href)}
+                        href={toAbsoluteHref(siteUrl, item.href)}
                     />
                 );
             }
@@ -78,7 +78,7 @@ const renderContent = (
                     contentType={item.contentType}
                     name={item.name}
                     slug={item.slug}
-                    href={toSiteUrl(siteUrl, item.href)}
+                    href={toAbsoluteHref(siteUrl, item.href)}
                 />
             );
         })}

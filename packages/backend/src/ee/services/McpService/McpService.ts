@@ -243,6 +243,8 @@ import { getResolveUrl } from '../ai/tools/resolveUrl';
 import { validateRunQueryTool } from '../ai/tools/runQuery';
 import { getSearchFieldValues } from '../ai/tools/searchFieldValues';
 import { formatToolJsonOutput } from '../ai/tools/toolOutputFormat';
+import type { DocumentContentResult } from '../ai/types/aiAgentDependencies';
+import { toAbsoluteHref } from '../ai/utils/absoluteHref';
 import {
     renderAppliedParameters,
     summarizeAppliedParameters,
@@ -1011,6 +1013,14 @@ export class McpService extends BaseService {
             this.logger.warn('Failed to build MCP scope label', { error });
             return '';
         }
+    }
+
+    private documentToolText(document: DocumentContentResult): string {
+        const href = toAbsoluteHref(
+            this.lightdashConfig.siteUrl,
+            document.href,
+        );
+        return `<document href="${href}" />\n---\n${JSON.stringify({ ...document, href }, null, 2)}`;
     }
 
     private async buildScopedResponse(
@@ -3430,7 +3440,7 @@ export class McpService extends BaseService {
                     );
                     return this.buildScopedResponse(
                         ctx,
-                        `<document href="${document.href}" />\n---\n${JSON.stringify(document, null, 2)}`,
+                        this.documentToolText(document),
                         document,
                         projectUuid,
                         args.agentUuid,
@@ -3500,7 +3510,7 @@ export class McpService extends BaseService {
                     );
                     return this.buildScopedResponse(
                         ctx,
-                        `<document href="${document.href}" />\n---\n${JSON.stringify(document, null, 2)}`,
+                        this.documentToolText(document),
                         document,
                         projectUuid,
                         args.agentUuid,
@@ -4183,7 +4193,7 @@ export class McpService extends BaseService {
                     );
                     return this.buildScopedResponse(
                         ctx,
-                        `<document href="${document.href}" />\n---\n${JSON.stringify(document, null, 2)}`,
+                        this.documentToolText(document),
                         document,
                         projectUuid,
                         args.agentUuid,
