@@ -1571,6 +1571,7 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.Query,
     ],
     'ProjectController.refreshPreAggregates': [AgentCapability.Query],
+    'ProjectController.replaceProjectContext': [AgentCapability.DeployUpload],
     'ProjectController.replaceProjectTableGroups': [
         AgentCapability.Administration,
     ],

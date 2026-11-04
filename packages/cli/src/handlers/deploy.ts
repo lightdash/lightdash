@@ -1,5 +1,7 @@
 import {
     ApiDeployExploresResults,
+    ApiReplaceProjectContextResults,
+    assertUnreachable,
     AuthorizationError,
     DeploySessionStatus,
     Explore,
@@ -35,7 +37,10 @@ import {
     warehouseCredentialsFromDbtTarget,
 } from '../dbt/profile';
 import GlobalState from '../globalState';
-import { readAndLoadLightdashProjectConfig } from '../lightdash-config';
+import {
+    readAndLoadLightdashProjectConfig,
+    readProjectContextFile,
+} from '../lightdash-config';
 import { CliProjectType, detectProjectType } from '../lightdash/projectType';
 import * as styles from '../styles';
 import {
@@ -244,6 +249,44 @@ const replaceProjectTableGroups = async (
         url: `/api/v1/projects/${projectUuid}/table-groups`,
         body: JSON.stringify(lightdashProjectConfig.table_groups),
     });
+};
+
+const replaceProjectContext = async (
+    projectUuid: string,
+    projectContextYaml: string | undefined,
+) => {
+    if (projectContextYaml === undefined) {
+        return;
+    }
+    const results = await lightdashApi<ApiReplaceProjectContextResults>({
+        method: 'PUT',
+        url: `/api/v1/projects/${projectUuid}/project-context`,
+        body: JSON.stringify({ yaml: projectContextYaml }),
+    });
+    if (results.ingested) {
+        GlobalState.debug(
+            `> Uploaded ${results.entryCount} project context entries`,
+        );
+        return;
+    }
+    switch (results.reason) {
+        case 'ai_agent_reviews_disabled':
+            console.error(
+                styles.warning(
+                    '\nlightdash.project_context.yml was ignored: enable "Review AI agent turns" in the organization AI settings to use project context\n',
+                ),
+            );
+            break;
+        case 'unavailable':
+            console.error(
+                styles.warning(
+                    '\nlightdash.project_context.yml was ignored: project context is not available on this instance\n',
+                ),
+            );
+            break;
+        default:
+            assertUnreachable(results.reason, 'Unknown project context result');
+    }
 };
 
 const BATCH_UPLOAD_MAX_ATTEMPTS = 4;
@@ -494,6 +537,9 @@ export const deploy = async (
         path.resolve(options.projectDir),
         options.projectUuid,
     );
+    const projectContextYaml = await readProjectContextFile(
+        path.resolve(options.projectDir),
+    );
 
     const shouldUseLegacyDeploy =
         options.batchedDeploy === false ||
@@ -633,6 +679,16 @@ export const deploy = async (
                 `\nError replacing project table groups: ${getErrorMessage(
                     e,
                 )}\n`,
+            ),
+        );
+    }
+
+    try {
+        await replaceProjectContext(options.projectUuid, projectContextYaml);
+    } catch (e) {
+        console.error(
+            styles.warning(
+                `\nError replacing project context: ${getErrorMessage(e)}\n`,
             ),
         );
     }

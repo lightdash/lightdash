@@ -7,7 +7,10 @@ import {
 import { LightdashAnalytics } from '../analytics/analytics';
 import { runWithAgentConnectionSelection } from '../credentials';
 import GlobalState from '../globalState';
-import { readAndLoadLightdashProjectConfig } from '../lightdash-config';
+import {
+    readAndLoadLightdashProjectConfig,
+    readProjectContextFile,
+} from '../lightdash-config';
 import { lightdashApi } from './dbt/apiClient';
 import { deploy } from './deploy';
 
@@ -692,4 +695,82 @@ it('prints fixed guidance for server deploy warnings on connection requests', as
     } finally {
         output.mockRestore();
     }
+});
+
+describe('deploy project context transport', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.mocked(readAndLoadLightdashProjectConfig).mockResolvedValue({
+            spotlight: { default_visibility: 'show' },
+        });
+        vi.mocked(LightdashAnalytics.track).mockResolvedValue(undefined);
+    });
+
+    test('uploads lightdash.project_context.yml after the explores', async () => {
+        const yaml =
+            'version: 2\nentries:\n  - kind: definition\n    content: ARR means annual recurring revenue.\n    terms: [ARR]\n';
+        vi.mocked(readProjectContextFile).mockResolvedValue(yaml);
+        vi.mocked(lightdashApi).mockImplementation(async ({ url }) => {
+            if (url.endsWith('/project-context')) {
+                return { ingested: true, entryCount: 1 } as never;
+            }
+            return null as never;
+        });
+
+        await deploy([compiledExplore], {
+            ...deployOptions,
+            batchedDeploy: false,
+        });
+
+        expect(lightdashApi).toHaveBeenCalledWith({
+            method: 'PUT',
+            url: '/api/v1/projects/project-uuid/project-context',
+            body: JSON.stringify({ yaml }),
+        });
+    });
+
+    test('leaves the stored project context alone when the file is absent', async () => {
+        vi.mocked(readProjectContextFile).mockResolvedValue(undefined);
+        vi.mocked(lightdashApi).mockResolvedValue(null as never);
+
+        await deploy([compiledExplore], {
+            ...deployOptions,
+            batchedDeploy: false,
+        });
+
+        expect(
+            vi
+                .mocked(lightdashApi)
+                .mock.calls.some(([{ url }]) =>
+                    url.endsWith('/project-context'),
+                ),
+        ).toBe(false);
+    });
+
+    test('warns instead of failing the deploy when the server ignores the file', async () => {
+        vi.mocked(readProjectContextFile).mockResolvedValue(
+            'version: 2\nentries: []\n',
+        );
+        vi.mocked(lightdashApi).mockImplementation(async ({ url }) => {
+            if (url.endsWith('/project-context')) {
+                return {
+                    ingested: false,
+                    reason: 'ai_agent_reviews_disabled',
+                } as never;
+            }
+            return null as never;
+        });
+        const output = vi.spyOn(console, 'error').mockImplementation(() => {});
+        try {
+            await deploy([compiledExplore], {
+                ...deployOptions,
+                batchedDeploy: false,
+            });
+            expect(output.mock.calls.flat().join('\n')).toContain(
+                'Review AI agent turns',
+            );
+        } finally {
+            output.mockRestore();
+        }
+    });
 });

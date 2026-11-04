@@ -72,6 +72,8 @@ import {
     type ApiGetTagsResponse,
     type ApiRefreshBody,
     type ApiRefreshResults,
+    type ApiReplaceProjectContextBody,
+    type ApiReplaceProjectContextResults,
     type ApiSuccess,
     type ApiTableGroupsResults,
     type ApiUpdateDashboardsResponse,
@@ -1076,6 +1078,41 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
         return {
             status: 'ok',
             results: undefined,
+        };
+    }
+
+    /**
+     * Replace the project's AI agent context with the contents of
+     * `lightdash.project_context.yml`. Sent by the CLI on deploy/preview so
+     * projects without a Git connection get the same context a server-side
+     * compile would ingest. Requires the organization's "Review AI agent
+     * turns" setting; when it is off the entries are left unchanged.
+     * @summary Replace project AI context
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Put('{projectUuid}/project-context')
+    @OperationId('replaceProjectContext')
+    async replaceProjectContext(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Body() body: ApiReplaceProjectContextBody,
+    ): Promise<ApiSuccess<ApiReplaceProjectContextResults>> {
+        assertRegisteredAccount(req.account);
+        const results = await this.services
+            .getProjectService()
+            .replaceProjectContextFromFile({
+                user: toSessionUser(req.account),
+                projectUuid,
+                fileContents: body.yaml,
+            });
+        return {
+            status: 'ok',
+            results,
         };
     }
 

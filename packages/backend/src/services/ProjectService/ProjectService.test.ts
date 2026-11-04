@@ -63,6 +63,7 @@ import {
     OpenIdIdentityIssuerType,
     OrganizationMemberRole,
     ParameterError,
+    ParseError,
     PersonSignInProvider,
     PreAggregateMissReason,
     PreviewWarehouseSignInExpiredError,
@@ -756,12 +757,16 @@ const getMockedProjectService = (
             | 'dbtSourceRefCatalogModel'
             | 'projectDbtSourcesModel'
             | 'githubAppInstallationsModel'
+            | 'projectContextModel'
+            | 'isProjectContextEnabled'
         >
     > = {},
 ) =>
     new ProjectService({
         isAnalyticsProjectEnabled:
             overrides.isAnalyticsProjectEnabled ?? (() => true),
+        projectContextModel: overrides.projectContextModel,
+        isProjectContextEnabled: overrides.isProjectContextEnabled,
         dbtSourceRefCatalogModel:
             overrides.dbtSourceRefCatalogModel ?? ({} as never),
         refreshTokenRotation: new RefreshTokenRotation({
@@ -23355,5 +23360,99 @@ describe('ProjectService.getDeployStartOfWeekByExplore', () => {
             'orders',
             'source-uuid',
         );
+    });
+});
+
+describe('ProjectService.replaceProjectContextFromFile', () => {
+    const compileUser: SessionUser = {
+        ...user,
+        ability: new Ability<PossibleAbilities>([
+            { subject: 'CompileProject', action: ['manage'] },
+        ]),
+    };
+    const yaml = [
+        'version: 2',
+        'entries:',
+        '  - kind: definition',
+        '    content: ARR means annual recurring revenue.',
+        '    terms: [ARR]',
+    ].join('\n');
+
+    const makeService = ({ enabled = true }: { enabled?: boolean } = {}) => {
+        const replaceEntriesForProject = vi.fn(async () => undefined);
+        const service = getMockedProjectService(
+            lightdashConfigWithGoogleOAuthMock,
+            {
+                projectContextModel: { replaceEntriesForProject },
+                isProjectContextEnabled: vi.fn(async () => enabled),
+            },
+        );
+        return { service, replaceEntriesForProject };
+    };
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    test('rejects users who cannot compile the project', async () => {
+        const { service, replaceEntriesForProject } = makeService();
+        await expect(
+            service.replaceProjectContextFromFile({
+                user,
+                projectUuid: projectSummary.projectUuid,
+                fileContents: yaml,
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(replaceEntriesForProject).not.toHaveBeenCalled();
+    });
+
+    test('stores the parsed entries for the project', async () => {
+        const { service, replaceEntriesForProject } = makeService();
+        await expect(
+            service.replaceProjectContextFromFile({
+                user: compileUser,
+                projectUuid: projectSummary.projectUuid,
+                fileContents: yaml,
+            }),
+        ).resolves.toEqual({ ingested: true, entryCount: 1 });
+        expect(replaceEntriesForProject).toHaveBeenCalledWith(
+            projectSummary.projectUuid,
+            [
+                expect.objectContaining({
+                    kind: 'definition',
+                    content: 'ARR means annual recurring revenue.',
+                    terms: ['ARR'],
+                }),
+            ],
+        );
+    });
+
+    test('leaves the stored entries alone while agent reviews are off', async () => {
+        const { service, replaceEntriesForProject } = makeService({
+            enabled: false,
+        });
+        await expect(
+            service.replaceProjectContextFromFile({
+                user: compileUser,
+                projectUuid: projectSummary.projectUuid,
+                fileContents: yaml,
+            }),
+        ).resolves.toEqual({
+            ingested: false,
+            reason: 'ai_agent_reviews_disabled',
+        });
+        expect(replaceEntriesForProject).not.toHaveBeenCalled();
+    });
+
+    test('rejects an invalid file without touching the stored entries', async () => {
+        const { service, replaceEntriesForProject } = makeService();
+        await expect(
+            service.replaceProjectContextFromFile({
+                user: compileUser,
+                projectUuid: projectSummary.projectUuid,
+                fileContents: 'entries: [{ kind: nonsense }]',
+            }),
+        ).rejects.toThrow(ParseError);
+        expect(replaceEntriesForProject).not.toHaveBeenCalled();
     });
 });

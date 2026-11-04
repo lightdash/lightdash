@@ -18,6 +18,7 @@ import {
     ApiExploreResults,
     ApiFormulaValidationResults,
     ApiQueryResults,
+    ApiReplaceProjectContextResults,
     ApiSqlQueryResults,
     ApiUpstreamDiffResults,
     applyWarehouseLocation,
@@ -168,6 +169,7 @@ import {
     LightdashError,
     LightdashProjectConfig,
     LightdashUser,
+    loadProjectContextFile,
     ManifestCollision,
     ManifestSource,
     MAX_RESULTS_CACHE_TTL_SECONDS,
@@ -18851,6 +18853,52 @@ export class ProjectService
             throw new ForbiddenError();
         }
         return this.projectModel.getTableGroups(projectUuid);
+    }
+
+    async replaceProjectContextFromFile({
+        user,
+        projectUuid,
+        fileContents,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+        fileContents: string;
+    }): Promise<ApiReplaceProjectContextResults> {
+        const { organizationUuid, type } =
+            await this.projectModel.getSummary(projectUuid);
+
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('CompileProject', {
+                    organizationUuid,
+                    projectUuid,
+                    type,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User does not have permission to update project context',
+            );
+        }
+
+        if (!this.projectContextModel) {
+            return { ingested: false, reason: 'unavailable' };
+        }
+        const enabled = this.isProjectContextEnabled
+            ? await this.isProjectContextEnabled({ user, organizationUuid })
+            : false;
+        if (!enabled) {
+            return { ingested: false, reason: 'ai_agent_reviews_disabled' };
+        }
+
+        const entries = loadProjectContextFile(fileContents);
+        await this.projectContextModel.replaceEntriesForProject(
+            projectUuid,
+            entries,
+        );
+        return { ingested: true, entryCount: entries.length };
     }
 
     async replaceProjectTableGroups({
