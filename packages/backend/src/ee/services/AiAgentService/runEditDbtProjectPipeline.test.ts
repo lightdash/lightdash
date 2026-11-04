@@ -305,7 +305,7 @@ describe('AiAgentService.runEditDbtProjectPipeline', () => {
         await service.runEditDbtProjectPipeline(PAYLOAD);
 
         // The guard is checked (with the run's prompt + tool call) so a fast
-        // pipeline can't updateToolResult before onStepFinish inserts the row.
+        // pipeline can't updateToolResult before onStepEnd inserts the row.
         expect(hasToolResult).toHaveBeenCalledWith('prompt-1', 'tool-call-1');
         expect(updateToolResult).toHaveBeenCalled();
     });

@@ -16,8 +16,8 @@ import { trace } from '@opentelemetry/api';
 import * as Sentry from '@sentry/node';
 import {
     generateText,
+    isStepCount,
     smoothStream,
-    stepCountIs,
     streamText,
     StreamTextResult,
     type LanguageModelUsage,
@@ -1392,7 +1392,7 @@ const CONTENT_STREAM_CHUNK_TYPES = new Set<TextStreamPart<ToolSet>['type']>([
 
 export const defaultAgentOptions = {
     toolChoice: 'auto' as const,
-    stopWhen: stepCountIs(DEFAULT_AGENT_MAX_STEPS),
+    stopWhen: isStepCount(DEFAULT_AGENT_MAX_STEPS),
     maxRetries: 6, // Increased for Bedrock rate limits
 };
 
@@ -1495,7 +1495,7 @@ export const buildPrepareStep = ({
     intentToolGate?: IntentToolGate;
     logger: ReturnType<typeof createAiAgentLogger>;
     // Ids of tool calls the AI SDK dropped for invalid input, recorded by
-    // onStepFinish/onChunk as the turn progresses (shared mutable set).
+    // onStepEnd/onChunk as the turn progresses (shared mutable set).
     invalidToolCallIds: ReadonlySet<string>;
     agentContext?: AgentContext;
 }) => {
@@ -2373,7 +2373,7 @@ export const getAgentTools = (
 
 // Fires an `in_progress` task update the moment a tool's execute() runs — i.e. as
 // soon as the model emits the call, before the (possibly slow) tool finishes.
-// generateText() only surfaces tool progress in onStepFinish, which lands after
+// generateText() only surfaces tool progress in onStepEnd, which lands after
 // the tool already returned, so without this the Slack/UI card stays empty until
 // the first tool completes. The streaming path emits this from its 'tool-call'
 // chunk instead, so this wrap is only applied in the non-streaming path.
@@ -3040,7 +3040,7 @@ const runGenerateAgentResponse = async ({
                 };
             },
             stopWhen: [
-                stepCountIs(args.execution.maxSteps),
+                isStepCount(args.execution.maxSteps),
                 stopWhenPromptInterrupted,
                 ({ steps }) =>
                     getTurnFastResponse(
@@ -3056,13 +3056,13 @@ const runGenerateAgentResponse = async ({
             tools,
             allowSystemInMessages: true,
             messages,
-            experimental_onToolCallStart: ({ toolCall }) => {
+            onToolExecutionStart: ({ toolCall }) => {
                 timing.recordToolCallStart(
                     toolCall.toolCallId,
                     toolCall.toolName,
                 );
             },
-            experimental_onToolCallFinish: (event) => {
+            onToolExecutionEnd: (event) => {
                 notifyAiAccessRefusal(dependencies, event);
                 recordExternalMcpToolCall(dependencies, mcpToolSetup, event);
                 const toolTiming = timing.recordToolCallEnd(
@@ -3098,7 +3098,7 @@ const runGenerateAgentResponse = async ({
                     });
                 }
             },
-            onStepFinish: async (step) => {
+            onStepEnd: async (step) => {
                 const stepUsage = await recordStepUsage(step);
                 // completeStep opens the next step; these calls belong to this one.
                 const stepIndex = timing.getCurrentStepIndex();
@@ -3482,7 +3482,7 @@ const runStreamAgentResponse = async ({
             ...args.callOptions,
             prepareStep,
             stopWhen: [
-                stepCountIs(args.execution.maxSteps),
+                isStepCount(args.execution.maxSteps),
                 stopWhenPromptInterrupted,
                 ({ steps }) =>
                     getTurnFastResponse(
@@ -3497,7 +3497,7 @@ const runStreamAgentResponse = async ({
             tools,
             allowSystemInMessages: true,
             messages,
-            experimental_onToolCallFinish: (event) => {
+            onToolExecutionEnd: (event) => {
                 notifyAiAccessRefusal(dependencies, event);
                 recordExternalMcpToolCall(dependencies, mcpToolSetup, event);
             },
@@ -3793,7 +3793,7 @@ const runStreamAgentResponse = async ({
                         assertUnreachable(event.chunk, 'Unknown chunk type');
                 }
             },
-            onStepFinish: async (step) => {
+            onStepEnd: async (step) => {
                 await recordStepUsage(step);
                 trackAgentStep(
                     args,
@@ -3827,12 +3827,7 @@ const runStreamAgentResponse = async ({
                         });
                 }
             },
-            onFinish: async ({
-                totalUsage,
-                steps,
-                finishReason,
-                finalStep,
-            }) => {
+            onEnd: async ({ totalUsage, steps, finishReason, finalStep }) => {
                 logger(
                     'On Finish',
                     `Stream finished. Updating prompt with response. finishReason: ${finishReason}, steps: ${steps.length}`,

@@ -37,7 +37,7 @@ export type SqlApprovalDependencies = {
     isThreadSqlAutoApproved: IsThreadSqlAutoApprovedFn;
     listSqlApprovalDecisions: ListSqlApprovalDecisionsFn;
     trackSqlApprovalTimeout: TrackSqlApprovalTimeoutFn;
-    // Persists results of resumed calls, which onStepFinish never sees.
+    // Persists results of resumed calls, which onStepEnd never sees.
     storeToolResults: StoreToolResultsFn;
     autoApproveSql: boolean;
     autoApproveSqlUserUuid: string | null;
@@ -255,7 +255,7 @@ export const createSqlApprovalGate = (
             await recordAutoApproval(prompt.threadUuid);
         };
 
-        /** Stores the result of a resumed call; onStepFinish never sees it. */
+        /** Stores the result of a resumed call; onStepEnd never sees it. */
         const persistIfResumed = async <T extends ToolOutput>(
             output: T,
         ): Promise<T> => {

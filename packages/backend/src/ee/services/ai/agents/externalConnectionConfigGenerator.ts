@@ -312,7 +312,7 @@ export async function generateExternalConnectionConfigProposal(
             ...telemetry,
             output: Output.object({ schema: ProposalSchema }),
             abortSignal: AbortSignal.timeout(PROPOSAL_TIMEOUT_MS),
-            system: systemPrompt,
+            instructions: systemPrompt,
             messages: [
                 { role: 'user', content: userContent },
                 ...extraMessages,
