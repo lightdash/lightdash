@@ -52,7 +52,7 @@ export type AgentOnboardingRunEvent = {
 
 export type AgentOnboardingHandoff = {
     summary: string | null;
-    dashboardUrl: string | null;
+    starterQuestions: string[];
 };
 
 export type AgentOnboardingUsage = {

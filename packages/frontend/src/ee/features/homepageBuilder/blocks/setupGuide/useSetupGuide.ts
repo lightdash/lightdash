@@ -3,19 +3,16 @@ import {
     FeatureFlags,
     isAgentOnboardingRunTerminal,
     isSemanticLayerExplore,
-    type DashboardBasicDetails,
 } from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { useLocalStorage } from 'react-use';
 import { useExternalConnections } from '../../../../../features/externalConnections/hooks/useExternalConnections';
 import { useExternalSources } from '../../../../../features/externalSources/hooks/useExternalSources';
-import { useDashboards } from '../../../../../hooks/dashboard/useDashboards';
 import { useOrganizationBrand } from '../../../../../hooks/organization/useOrganizationBrand';
 import { useExplores } from '../../../../../hooks/useExplores';
 import { useOrganizationUsers } from '../../../../../hooks/useOrganizationUsers';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
-import { useSpaceSummaries } from '../../../../../hooks/useSpaces';
 import useApp from '../../../../../providers/App/useApp';
 import {
     useActiveAgentOnboardingRun,
@@ -26,27 +23,6 @@ import { getAgentOnboardingRunUrl } from '../../../agentOnboarding/utils';
 import { useCanManageProject } from '../../hooks/useHomepageAbilities';
 import { type RecommendedActionsState } from '../useRecommendedActions';
 import { buildSetupGuide } from './setupGuideModel';
-
-const STARTER_SPACE_SLUG = 'lightdash-starter';
-
-const latestDashboard = (dashboards: DashboardBasicDetails[]) =>
-    dashboards.reduce<DashboardBasicDetails | null>(
-        (latest, dashboard) =>
-            latest === null ||
-            new Date(dashboard.updatedAt) > new Date(latest.updatedAt)
-                ? dashboard
-                : latest,
-        null,
-    );
-
-// The agent run drafts into the starter space; any newest dashboard stands in otherwise
-const starterDashboard = (
-    dashboards: DashboardBasicDetails[],
-    starterSpaceUuid: string | undefined,
-) =>
-    latestDashboard(
-        dashboards.filter(({ spaceUuid }) => spaceUuid === starterSpaceUuid),
-    ) ?? latestDashboard(dashboards);
 
 export const useSetupGuide = (
     projectUuid: string,
@@ -88,9 +64,6 @@ export const useSetupGuide = (
             queryKey: ['tables', projectUuid],
         });
         void queryClient.invalidateQueries({
-            queryKey: ['dashboards', projectUuid],
-        });
-        void queryClient.invalidateQueries({
             queryKey: ['agent-onboarding-latest-run', projectUuid],
         });
     }, [isRunTerminal, projectUuid, queryClient]);
@@ -98,8 +71,6 @@ export const useSetupGuide = (
     const gatedProjectUuid = isEligible ? projectUuid : undefined;
     const connections = useExternalConnections(gatedProjectUuid);
     const sources = useExternalSources(gatedProjectUuid);
-    const dashboards = useDashboards(projectUuid, enabled);
-    const spaces = useSpaceSummaries(projectUuid, true, enabled);
     const brand = useOrganizationBrand(enabled);
     const users = useOrganizationUsers(enabled);
 
@@ -115,7 +86,7 @@ export const useSetupGuide = (
         canManageProject &&
         (newOnboardingFlag.isInitialLoading ||
             actions.isLoading ||
-            [explores, activeRun, dashboards, brand].some(
+            [explores, activeRun, brand].some(
                 (query) => query.isInitialLoading,
             ));
 
@@ -149,10 +120,6 @@ export const useSetupGuide = (
             ...liveConnections.map(({ name }) => name),
             ...(sources.data ?? []).map(({ name }) => name),
         ],
-        starterDashboard: starterDashboard(
-            dashboards.data ?? [],
-            spaces.data?.find(({ slug }) => slug === STARTER_SPACE_SLUG)?.uuid,
-        ),
         brand: brand.data ?? null,
         teammateCount: (users.data ?? []).filter(
             (member) => member.userUuid !== userUuid,

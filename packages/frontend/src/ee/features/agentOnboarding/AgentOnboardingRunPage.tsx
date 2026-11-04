@@ -49,11 +49,7 @@ import {
     useStartAgentOnboardingRun,
 } from './hooks/useAgentOnboarding';
 import { useNow } from './hooks/useNow';
-import {
-    formatStageDuration,
-    getAgentOnboardingDashboardUrl,
-    getAgentOnboardingRunUrl,
-} from './utils';
+import { formatStageDuration, getAgentOnboardingRunUrl } from './utils';
 import { setWatchedAgentOnboardingRun } from './watchedRunStore';
 
 const RUN_COPY: Record<
@@ -195,10 +191,10 @@ const RunActions: FC<{
                 <Button
                     size="sm"
                     component={Link}
-                    to={getAgentOnboardingDashboardUrl(run.projectUuid)}
+                    to={`/projects/${run.projectUuid}`}
                     rightSection={<MantineIcon icon={IconArrowRight} />}
                 >
-                    Open starter dashboard
+                    Ask your first question
                 </Button>
                 {menu}
             </Group>
@@ -435,9 +431,7 @@ const AgentOnboardingRunPage: FC = () => {
                         )}
                     </Paper>
 
-                    {run.status === 'completed' && (
-                        <RunSummary run={run} onViewCode={viewFile} />
-                    )}
+                    {run.status === 'completed' && <RunSummary run={run} />}
 
                     <RunSemanticLayer
                         run={run}

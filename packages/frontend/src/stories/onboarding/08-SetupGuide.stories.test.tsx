@@ -29,21 +29,16 @@ describe('homepage setup guide stories', () => {
         expect(screen.queryByText('Skipped')).not.toBeInTheDocument();
     });
 
-    it('uses the real expandable progress component while building', async () => {
+    it('shows the semantic layer building in the dock', async () => {
         render(
             <MantineProvider>
                 <Building />
             </MantineProvider>,
         );
-        await userEvent.click(
-            await screen.findByRole('button', { name: 'Watch' }),
-        );
         expect(
-            await screen.findByRole('list', { name: 'Setup stages' }),
+            await screen.findByText('Drafting models from your tables'),
         ).toBeInTheDocument();
-        expect(
-            screen.getByText('Building the semantic layer'),
-        ).toBeInTheDocument();
+        expect(screen.getByLabelText('In progress')).toBeInTheDocument();
     });
 
     it('shows readiness evidence alongside skipped steps', async () => {
@@ -53,10 +48,6 @@ describe('homepage setup guide stories', () => {
             </MantineProvider>,
         );
         expect(await screen.findAllByText('Skipped')).toHaveLength(2);
-        await userEvent.click(screen.getByText(/of \d+ done/));
-        expect(
-            screen.getByText('3 models ready to explore'),
-        ).toBeInTheDocument();
-        expect(screen.getByText('Coffee overview')).toBeInTheDocument();
+        expect(screen.getByText(/of \d+ steps done/)).toBeInTheDocument();
     });
 });

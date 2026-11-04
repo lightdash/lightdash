@@ -87,14 +87,15 @@ export const OnboardingRunActivity: FC<{
     const endedAt = run.completedAt ? Date.parse(run.completedAt) : now;
 
     const title = isDone
-        ? 'Your semantic layer and starter dashboard are ready'
+        ? 'Your semantic layer and starter questions are ready'
         : isFailed
           ? `${AI_NAME} couldn't finish project setup`
           : `${AI_NAME} is building your semantic layer`;
     const counts = [
         summary.tables > 0 && plural(summary.tables, 'table'),
         summary.models > 0 && plural(summary.models, 'model'),
-        summary.charts > 0 && plural(summary.charts, 'chart'),
+        !!run.handoff?.starterQuestions.length &&
+            plural(run.handoff.starterQuestions.length, 'starter question'),
     ].filter((count): count is string => !!count);
     const stageLine = isFailed
         ? 'You can try again from home.'

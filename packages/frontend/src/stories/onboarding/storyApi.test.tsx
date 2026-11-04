@@ -76,7 +76,7 @@ describe('agent run story fixtures', () => {
         const completed = storyAgentRun(true);
         expect(completed.status).toBe('completed');
         expect(completed.events.at(-1)?.stage).toBe('handoff');
-        expect(completed.handoff?.dashboardUrl).toBeTruthy();
+        expect(completed.handoff?.starterQuestions).toHaveLength(3);
         expect(completed.files.map(({ path }) => path)).toContain('handoff.md');
         expect(
             completed.events.every(

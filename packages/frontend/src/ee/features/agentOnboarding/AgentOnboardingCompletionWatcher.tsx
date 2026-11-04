@@ -97,7 +97,7 @@ export const AgentOnboardingCompletionWatcher: FC = () => {
             key: runToastKey(agentOnboardingRunUuid),
             autoClose: false,
             title: 'Your project is ready',
-            subtitle: 'Your semantic layer and starter dashboard are built.',
+            subtitle: 'Your semantic layer and starter questions are ready.',
             action: {
                 children: 'Open home',
                 onClick: () => {

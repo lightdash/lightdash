@@ -26,7 +26,7 @@ export const AGENT_ONBOARDING_PROGRESS_STAGES = [
         sourceStages: ['deploying_semantic_layer'],
     },
     {
-        stage: 'dashboard',
+        stage: 'questions',
         sourceStages: ['building_dashboard'],
     },
     {
@@ -47,7 +47,7 @@ export const AGENT_ONBOARDING_STAGE_LABELS: Record<
 > = {
     explore: 'Explore warehouse',
     semantic_layer: 'Build semantic layer',
-    dashboard: 'Create dashboard',
+    questions: 'Write starter questions',
     ready: 'Verify',
 };
 
@@ -353,18 +353,13 @@ export const getAgentOnboardingRunUrl = (
 ): string =>
     `/projects/${encodeURIComponent(projectUuid)}/onboarding/runs/${encodeURIComponent(runUuid)}`;
 
-const AGENT_ONBOARDING_DASHBOARD_SLUG = 'agent-starter-dashboard';
-
-export const getAgentOnboardingDashboardUrl = (projectUuid: string): string =>
-    `/projects/${encodeURIComponent(projectUuid)}/dashboards/${AGENT_ONBOARDING_DASHBOARD_SLUG}/view`;
-
 export const AGENT_ONBOARDING_STAGE_ACTIVE_LABELS: Record<
     AgentOnboardingProgressStage,
     string
 > = {
     explore: 'Exploring your warehouse',
     semantic_layer: 'Building the semantic layer',
-    dashboard: 'Creating a starter dashboard',
+    questions: 'Writing starter questions',
     ready: 'Verifying and handing off',
 };
 
@@ -391,15 +386,11 @@ export const describeAgentOnboardingEvent = (
     if (/^lightdash sql\b/.test(text)) return 'Profiled the data with a query';
     const model = text.match(/^Write: \S*models\/(\S+)$/)?.[1];
     if (model) return `Wrote the ${fileName(model)} model`;
-    const chart = text.match(/^Write: \S*charts\/(\S+)$/)?.[1];
-    if (chart) return `Drafted ${humanizeSlug(fileName(chart))}`;
-    if (/^Write: \S*dashboards\//.test(text))
-        return 'Laid out the starter dashboard';
-    const checked = text.match(/run-chart.*charts\/(\S+)/)?.[1];
-    if (checked) return `Checked ${humanizeSlug(fileName(checked))}`;
+    if (/^Write: \S*lightdash-starter-questions\.ya?ml$/.test(text))
+        return 'Wrote the starter questions';
+    if (/^Write: \S*tmp\//.test(text)) return 'Drafted a chart for a question';
+    if (/run-chart/.test(text)) return 'Checked a question returns data';
     if (/^lightdash deploy\b/.test(text)) return 'Deployed the semantic layer';
-    if (/^lightdash upload\b/.test(text))
-        return 'Uploaded the charts and dashboard';
     if (/^lightdash validate\b/.test(text)) return 'Validated the project';
     if (/^lightdash lint\b/.test(text)) return 'Checked the YAML';
     if (/^Preparing\b/.test(text)) return 'Getting ready';
@@ -409,7 +400,6 @@ export const describeAgentOnboardingEvent = (
 export type AgentOnboardingRunArtifacts = {
     tables: string[];
     models: string[];
-    charts: string[];
 };
 
 /** What the run has produced so far, named the way a person would say it */
@@ -426,27 +416,19 @@ export const collectAgentOnboardingArtifacts = (
     return {
         tables: collect(/warehouse-catalog.*--table\s+(\S+)/),
         models: collect(/^Write: \S*models\/(\S+)$/).map(fileName),
-        charts: collect(/^Write: \S*charts\/(\S+)$/).map((chart) =>
-            humanizeSlug(fileName(chart)),
-        ),
     };
 };
 
 export type AgentOnboardingRunSummary = {
     tables: number;
     models: number;
-    charts: number;
 };
 
 export const summarizeAgentOnboardingEvents = (
     events: AgentOnboardingRunEvent[],
 ): AgentOnboardingRunSummary => {
-    const { tables, models, charts } = collectAgentOnboardingArtifacts(events);
-    return {
-        tables: tables.length,
-        models: models.length,
-        charts: charts.length,
-    };
+    const { tables, models } = collectAgentOnboardingArtifacts(events);
+    return { tables: tables.length, models: models.length };
 };
 
 export type SemanticLayerField = {

@@ -4,10 +4,10 @@ import {
 } from '@lightdash/common';
 import { Box, Text } from '@mantine/core';
 import {
-    IconChartBar,
     IconCheck,
     IconDatabaseSearch,
     IconLayersLinked,
+    IconMessageQuestion,
     type Icon,
 } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
@@ -37,10 +37,10 @@ const STAGE_CONFIG: Record<
         description: 'Turns your data into reusable metrics and dimensions.',
         icon: IconLayersLinked,
     },
-    dashboard: {
-        label: 'Create a starter dashboard',
-        description: 'Puts the first charts and filters together for you.',
-        icon: IconChartBar,
+    questions: {
+        label: 'Write starter questions',
+        description: 'Checks a few questions your data can answer right away.',
+        icon: IconMessageQuestion,
     },
     ready: {
         label: 'Verify and hand off',

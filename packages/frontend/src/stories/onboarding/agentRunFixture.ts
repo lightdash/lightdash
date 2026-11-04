@@ -15,8 +15,12 @@ export const storyAgentRun = (completed: boolean): AgentOnboardingRun => ({
     handoff: completed
         ? {
               summary:
-                  'Your orders, customers and revenue models are ready. Open the starter dashboard to explore weekly sales and repeat purchases.',
-              dashboardUrl: `/projects/${PROJECT_UUID}/dashboards/coffee-overview`,
+                  'Your orders, customers and revenue models are ready. Ask a starter question from home to explore weekly sales and repeat purchases.',
+              starterQuestions: [
+                  'How have weekly sales changed this quarter?',
+                  'Which products bring customers back most often?',
+                  'What share of revenue comes from repeat customers?',
+              ],
           }
         : null,
     events: [
@@ -55,19 +59,19 @@ export const storyAgentRun = (completed: boolean): AgentOnboardingRun => ({
                   {
                       eventType: 'stage',
                       stage: 'building_dashboard',
-                      message: 'Created the coffee overview dashboard',
+                      message: 'Wrote three starter questions',
                       createdAt: minutesFromNow(-1.8),
                   },
                   {
                       eventType: 'stage',
                       stage: 'verifying',
-                      message: 'Checked the models and dashboard queries',
+                      message: 'Checked the models and starter questions',
                       createdAt: minutesFromNow(-1.5),
                   },
                   {
                       eventType: 'stage',
                       stage: 'handoff',
-                      message: 'Your starter dashboard is ready to explore',
+                      message: 'Your starter questions are ready to ask',
                       createdAt: minutesFromNow(-1),
                   },
               ] as const)

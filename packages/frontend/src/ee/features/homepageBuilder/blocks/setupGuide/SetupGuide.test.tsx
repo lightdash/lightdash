@@ -79,7 +79,6 @@ const fresh: SetupGuideFacts = {
     completedRun: null,
     appSourceNames: [],
     canAddLiveSources: true,
-    starterDashboard: null,
     brand: null,
     teammateCount: 0,
 };
@@ -103,7 +102,6 @@ const allDone: SetupGuideFacts = {
     },
     semanticModelCount: 48,
     appSourceNames: ['PostHog'],
-    starterDashboard: { uuid: 'd1', name: 'Product overview' },
     brand,
     teammateCount: 3,
 };
@@ -149,7 +147,7 @@ describe('buildSetupGuide', () => {
         expect(sections.map(({ title }) => title)).toEqual([
             'Your data',
             'Your semantic layer',
-            'Starter content',
+            'Your brand',
             'Your team',
             'More data',
         ]);
@@ -171,7 +169,7 @@ describe('buildSetupGuide', () => {
         );
         expect(countProgress(rowsOf(fresh))).toEqual({
             completed: 0,
-            total: 7,
+            total: 6,
         });
     });
 
@@ -184,7 +182,6 @@ describe('buildSetupGuide', () => {
             status: 'building',
             preview: { kind: 'agent-run', run },
         });
-        expect(rowById(building, 'starter-dashboard')?.status).toBe('building');
     });
 
     it('bases the semantic layer on explores, not the dbt connection', () => {
@@ -226,12 +223,8 @@ describe('buildSetupGuide', () => {
 
     it('completes every row once everything exists', () => {
         expect(countProgress(rowsOf(allDone))).toEqual({
-            completed: 7,
-            total: 7,
-        });
-        expect(rowById(allDone, 'starter-dashboard')).toMatchObject({
-            status: 'ready',
-            action: { label: 'Review', to: '/projects/p1/dashboards/d1' },
+            completed: 6,
+            total: 6,
         });
         expect(rowById(allDone, 'brand')?.evidence?.swatches).toEqual([
             '#ff0000',
@@ -244,7 +237,7 @@ describe('buildSetupGuide', () => {
         expect(rowById(someSkipped, 'slack')?.status).toBe('skipped');
         expect(countProgress(rowsOf(someSkipped))).toEqual({
             completed: 1,
-            total: 5,
+            total: 4,
         });
     });
 });
@@ -255,7 +248,7 @@ describe('SetupGuideView', () => {
         expect(
             screen.getByRole('region', { name: 'Getting started' }),
         ).toBeInTheDocument();
-        expect(screen.getByText('0 of 7 steps done')).toBeInTheDocument();
+        expect(screen.getByText('0 of 6 steps done')).toBeInTheDocument();
         expect(
             screen.getByRole('link', { name: /Define metrics and dimensions/ }),
         ).toHaveAttribute('href', '/setup');
@@ -263,12 +256,12 @@ describe('SetupGuideView', () => {
 
     it('marks background work as in progress', () => {
         renderGuide(building);
-        expect(screen.getAllByLabelText('In progress')).toHaveLength(2);
+        expect(screen.getByLabelText('In progress')).toBeInTheDocument();
     });
 
     it('counts finished steps', () => {
         renderGuide({ ...allDone, teammateCount: 0 });
-        expect(screen.getByText('6 of 7 steps done')).toBeInTheDocument();
+        expect(screen.getByText('5 of 6 steps done')).toBeInTheDocument();
     });
 
     it('hides once nothing is pending, counting skipped as settled', () => {
@@ -330,7 +323,7 @@ describe('SetupGuideView', () => {
         ).toBeNull();
         await userEvent.click(
             screen.getByRole('button', {
-                name: 'Getting started, 0 of 7 done',
+                name: 'Getting started, 0 of 6 done',
             }),
         );
         expect(onMinimizedChange).toHaveBeenCalledWith(false);

@@ -83,15 +83,6 @@ const SCENES: Record<SetupGuideRowId, () => ReactNode> = {
             <Box className={classes.diff}>+ format: usd</Box>
         </Box>
     ),
-    'starter-dashboard': () => (
-        <Box className={classes.board}>
-            <Box className={classes.kpi}>$1.2M</Box>
-            <Box className={classes.kpi}>151</Box>
-            <Box className={classes.wide}>
-                <Bars heights={[40, 62, 50, 78, 92]} />
-            </Box>
-        </Box>
-    ),
     brand: () => (
         <Box className={classes.palette}>
             <Box className={classes.type}>Aa</Box>

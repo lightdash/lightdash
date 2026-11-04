@@ -23,13 +23,14 @@ describe('describeAgentOnboardingEvent', () => {
             'Listed the tables in jaffle',
         ],
         ['Write: lightdash/models/orders.yml', 'Wrote the orders model'],
+        ['Write: tmp/revenue-by-month.yml', 'Drafted a chart for a question'],
         [
-            'Write: lightdash/charts/agent-starter-total-amount.yml',
-            'Drafted Total amount',
+            'lightdash run-chart -p tmp/revenue-by-month.yml',
+            'Checked a question returns data',
         ],
         [
-            'lightdash run-chart -p lightdash/charts/agent-starter-amount-by-source.yml',
-            'Checked Amount by source',
+            'Write: lightdash-starter-questions.yml',
+            'Wrote the starter questions',
         ],
         ['lightdash deploy --project abc', 'Deployed the semantic layer'],
     ])('describes %s', (message, expected) => {
@@ -45,7 +46,7 @@ describe('describeAgentOnboardingEvent', () => {
 });
 
 describe('summarizeAgentOnboardingEvents', () => {
-    it('counts distinct tables, models and charts', () => {
+    it('counts distinct tables and models', () => {
         expect(
             summarizeAgentOnboardingEvents([
                 event(
@@ -58,10 +59,8 @@ describe('summarizeAgentOnboardingEvents', () => {
                     'lightdash warehouse-catalog --schema s --table b --json',
                 ),
                 event('Write: lightdash/models/a.yml'),
-                event('Write: lightdash/charts/x.yml'),
-                event('Write: lightdash/charts/y.yml'),
             ]),
-        ).toEqual({ tables: 2, models: 1, charts: 2 });
+        ).toEqual({ tables: 2, models: 1 });
     });
 });
 

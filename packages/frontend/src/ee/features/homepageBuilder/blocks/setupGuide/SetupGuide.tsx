@@ -20,7 +20,6 @@ import {
     IconDots,
     IconGitBranch,
     IconLayersLinked,
-    IconLayoutDashboard,
     IconListCheck,
     IconPalette,
     IconPlugConnected,
@@ -70,11 +69,6 @@ const ROW_COPY: Record<
         icon: IconGitBranch,
         pitch: 'Keep your models in Git and review changes as pull requests.',
         time: '3 min',
-    },
-    'starter-dashboard': {
-        icon: IconLayoutDashboard,
-        pitch: 'Give people somewhere to begin.',
-        time: '2 min',
     },
     brand: {
         icon: IconPalette,

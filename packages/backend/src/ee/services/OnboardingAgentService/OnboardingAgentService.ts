@@ -83,8 +83,10 @@ import {
     containsOnboardingSecret,
     hasCompleteOnboardingOutput,
     isOnboardingOutputFile,
+    parseStarterQuestions,
     parseWorkspaceFileListing,
     sanitizeOnboardingMessage,
+    STARTER_QUESTIONS_PATH,
     validateOnboardingOutputFileLimits,
 } from './utils';
 
@@ -112,7 +114,11 @@ const toRun = (run: DbAgentOnboardingRun): AgentOnboardingRun => ({
     status: run.status,
     stage: run.stage,
     events: run.events,
-    handoff: run.handoff,
+    handoff: run.handoff && {
+        summary: run.handoff.summary,
+        // Runs from before starter questions stored a dashboard link instead
+        starterQuestions: run.handoff.starterQuestions ?? [],
+    },
     usage: run.usage,
     files: run.files.map(({ path, sizeBytes, updatedAt }) => ({
         path,
@@ -931,9 +937,28 @@ export class OnboardingAgentService extends BaseService {
         return { assistantText, files: knownFiles, usage };
     }
 
+    private async readStarterQuestions(
+        files: DbAgentOnboardingFile[],
+    ): Promise<string[]> {
+        const file = files.find(({ path }) =>
+            STARTER_QUESTIONS_PATH.test(path),
+        );
+        if (!file) return [];
+        try {
+            const contents = await this.fileStore.get(file.s3Key);
+            return parseStarterQuestions(contents.toString('utf8'));
+        } catch (error) {
+            this.logger.warn(
+                `OnboardingAgent: could not read starter questions: ${getErrorMessage(error)}`,
+            );
+            return [];
+        }
+    }
+
     private buildHandoff(
         rawAssistantText: string,
         sensitiveValues: string[],
+        starterQuestions: string[],
     ): AgentOnboardingHandoff {
         const siteUrl = this.lightdashConfig.siteUrl.replace(/\/+$/, '');
         const assistantText = sanitizeOnboardingMessage(
@@ -943,12 +968,11 @@ export class OnboardingAgentService extends BaseService {
             ),
             sensitiveValues,
         );
-        const urlPattern = new RegExp(
-            `${siteUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^\\s)\`"']*dashboards[^\\s)\`"']*`,
-        );
         return {
             summary: assistantText.trim() || null,
-            dashboardUrl: assistantText.match(urlPattern)?.[0] ?? null,
+            starterQuestions: starterQuestions.map((question) =>
+                sanitizeOnboardingMessage(question, sensitiveValues),
+            ),
         };
     }
 
@@ -1085,8 +1109,12 @@ export class OnboardingAgentService extends BaseService {
                         this.lightdashConfig,
                     ),
                 });
-            const handoff = this.buildHandoff(assistantText, sensitiveValues());
-            if (!hasCompleteOnboardingOutput(files) || !handoff.dashboardUrl) {
+            const handoff = this.buildHandoff(
+                assistantText,
+                sensitiveValues(),
+                await this.readStarterQuestions(files),
+            );
+            if (!hasCompleteOnboardingOutput(files)) {
                 this.logger.warn(
                     `OnboardingAgent: incomplete output (${files.length} files, ${usage?.numTurns ?? 0} turns), last message: ${assistantText.slice(-600)}`,
                 );

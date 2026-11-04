@@ -64,10 +64,6 @@ const Guide = ({ state }: { state: GuideState }) => {
         canAddLiveSources: true,
         appSourceNames:
             state === 'mostly-done' ? ['PostHog', 'Wholesale accounts'] : [],
-        starterDashboard:
-            state === 'mostly-done'
-                ? { uuid: 'coffee-overview', name: 'Coffee overview' }
-                : null,
         brand: null,
         teammateCount: state === 'mostly-done' ? 2 : 0,
     };

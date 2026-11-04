@@ -32,15 +32,17 @@ describe('agent onboarding run stories', () => {
         ).toBeInTheDocument();
     });
 
-    it('renders the completed run with handoff file and dashboard action', async () => {
+    it('renders the completed run with handoff file and ask action', async () => {
         render(
             <MantineProvider>
                 <Completed />
             </MantineProvider>,
         );
         expect(
-            await screen.findByRole('link', { name: 'Open starter dashboard' }),
-        ).toHaveAttribute('href', expect.stringContaining('/dashboards'));
+            await screen.findByRole('link', {
+                name: 'Ask your first question',
+            }),
+        ).toHaveAttribute('href', expect.stringContaining('/projects/'));
         await userEvent.click(
             screen.getByRole('button', { name: 'More setup options' }),
         );

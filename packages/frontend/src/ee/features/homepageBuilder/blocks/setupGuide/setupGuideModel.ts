@@ -25,7 +25,6 @@ export type SetupGuideRowId =
     | 'app-data'
     | 'semantic-layer'
     | 'source-control'
-    | 'starter-dashboard'
     | 'brand'
     | 'slack'
     | 'invite-team';
@@ -50,7 +49,7 @@ export type SetupGuideRow = {
 };
 
 export type SetupGuideSection = {
-    id: 'data' | 'semantic-layer' | 'starter-content' | 'team' | 'more-data';
+    id: 'data' | 'semantic-layer' | 'brand' | 'team' | 'more-data';
     title: string;
     why: string;
     rows: SetupGuideRow[];
@@ -69,7 +68,6 @@ export type SetupGuideFacts = {
     appSourceNames: string[];
     // The live sources settings page only exists behind its flag and permission
     canAddLiveSources: boolean;
-    starterDashboard: { uuid: string; name: string } | null;
     brand: OrganizationBrand | null;
     teammateCount: number;
 };
@@ -230,44 +228,6 @@ const semanticLayerRow = ({
     };
 };
 
-const starterDashboardRow = ({
-    projectUuid,
-    activeRun,
-    starterDashboard,
-}: SetupGuideFacts): SetupGuideRow => {
-    const common = {
-        id: 'starter-dashboard',
-        title: 'Create a starter dashboard',
-        actionKey: null,
-        preview: null,
-    } as const;
-    if (starterDashboard) {
-        return {
-            ...common,
-            status: 'ready',
-            evidence: evidence(starterDashboard.name),
-            action: {
-                label: 'Review',
-                to: `/projects/${projectUuid}/dashboards/${starterDashboard.uuid}`,
-            },
-        };
-    }
-    if (activeRun) {
-        return {
-            ...common,
-            status: 'building',
-            evidence: evidence('Starts once your models are ready'),
-            action: null,
-        };
-    }
-    return {
-        ...common,
-        status: 'suggested',
-        evidence: null,
-        action: { label: 'Create', to: `/projects/${projectUuid}/dashboards` },
-    };
-};
-
 const MAX_SWATCHES = 4;
 
 const brandRow = ({ brand }: SetupGuideFacts): SetupGuideRow => ({
@@ -325,10 +285,10 @@ export const buildSetupGuide = (
             rows: [semanticLayerRow(facts)],
         },
         {
-            id: 'starter-content',
-            title: 'Starter content',
-            why: 'A first dashboard in your colors gives people somewhere to begin.',
-            rows: [starterDashboardRow(facts), brandRow(facts)],
+            id: 'brand',
+            title: 'Your brand',
+            why: 'Your colors and logo on every chart and dashboard.',
+            rows: [brandRow(facts)],
         },
         {
             id: 'team',

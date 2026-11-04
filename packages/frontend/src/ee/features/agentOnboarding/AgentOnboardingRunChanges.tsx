@@ -5,9 +5,9 @@ import {
 } from '@lightdash/common';
 import { Box, Stack, Text, UnstyledButton } from '@mantine/core';
 import {
-    IconChartBar,
     IconCheck,
     IconChevronDown,
+    IconMessageQuestion,
     IconTable,
     type Icon as TablerIcon,
 } from '@tabler/icons-react';
@@ -139,13 +139,16 @@ export const RunChanges: FC<{
     // Off where the semantic layer has its own section
     withModels: boolean;
 }> = ({ run, withModels }) => {
-    const { tables, models, charts } = useMemo(
+    const { tables, models } = useMemo(
         () => collectAgentOnboardingArtifacts(run.events),
         [run.events],
     );
     const isDone = run.status === 'completed';
 
-    if (tables.length === 0 && charts.length === 0 && !withModels) return null;
+    const questions = run.handoff?.starterQuestions ?? [];
+
+    if (tables.length === 0 && questions.length === 0 && !withModels)
+        return null;
 
     return (
         <Stack gap="md">
@@ -164,12 +167,12 @@ export const RunChanges: FC<{
                 />
             )}
             <ChangeRow
-                label="Charts"
-                items={charts}
+                label="Starter questions"
+                items={questions}
                 hrefFor={null}
-                icon={IconChartBar}
+                icon={IconMessageQuestion}
                 countLabel={(count) =>
-                    count === 1 ? '1 chart' : `${count} charts`
+                    count === 1 ? '1 question' : `${count} questions`
                 }
             />
             <ChangeRow

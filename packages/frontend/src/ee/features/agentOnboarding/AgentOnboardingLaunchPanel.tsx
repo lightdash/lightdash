@@ -223,8 +223,8 @@ export const AgentOnboardingLaunchPanel: FC<
                                 </Title>
                                 <Text c="dimmed">
                                     We’ll explore your warehouse, create a
-                                    semantic layer, and build a starter
-                                    dashboard. You can follow every step.
+                                    semantic layer, and write a few starter
+                                    questions. You can follow every step.
                                 </Text>
                             </Stack>
                         </Group>

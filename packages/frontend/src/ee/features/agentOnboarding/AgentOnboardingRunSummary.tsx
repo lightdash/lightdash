@@ -11,9 +11,8 @@ import {
 import {
     Icon123,
     IconAbc,
-    IconChartBar,
     IconChevronDown,
-    IconLayoutDashboard,
+    IconMessageQuestion,
     IconTable,
     type Icon as TablerIcon,
 } from '@tabler/icons-react';
@@ -28,7 +27,6 @@ import classes from './AgentOnboardingRunSummary.module.css';
 import { useRunSemanticLayer } from './hooks/useAgentOnboarding';
 import {
     collectAgentOnboardingArtifacts,
-    describeAgentOnboardingFile,
     SEMANTIC_LAYER_ANCHOR,
 } from './utils';
 
@@ -133,27 +131,18 @@ const Stat: FC<{
 /** What a finished run built, in one card: the agent's summary, the counts, and its suggested next step */
 export const RunSummary: FC<{
     run: AgentOnboardingRun;
-    onViewCode: (path: string) => void;
-}> = ({ run, onViewCode }) => {
+}> = ({ run }) => {
     const { tables } = useMemo(
         () => collectAgentOnboardingArtifacts(run.events),
         [run.events],
     );
-    const contentFiles = run.files.flatMap(({ path }) => {
-        const { kind, label } = describeAgentOnboardingFile(path);
-        return kind === 'chart' || kind === 'dashboard'
-            ? [{ path, kind, label }]
-            : [];
-    });
-    const chartCount = contentFiles.filter(
-        ({ kind }) => kind === 'chart',
-    ).length;
+    const questions = run.handoff?.starterQuestions ?? [];
     const showSemanticLayer = () =>
         document
             .getElementById(SEMANTIC_LAYER_ANCHOR)
             ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     const { metricCount, dimensionCount } = useRunSemanticLayer(run);
-    const [isChartsOpen, setIsChartsOpen] = useState(false);
+    const [isQuestionsOpen, setIsQuestionsOpen] = useState(false);
     const [isNotesOpen, setIsNotesOpen] = useState(false);
 
     const blocks = (run.handoff?.summary ?? '')
@@ -201,38 +190,31 @@ export const RunSummary: FC<{
                     isOpen={null}
                 />
                 <Stat
-                    icon={IconChartBar}
+                    icon={IconMessageQuestion}
                     kind="plain"
-                    value={chartCount}
-                    label={chartCount === 1 ? 'chart' : 'charts'}
+                    value={questions.length}
+                    label={
+                        questions.length === 1
+                            ? 'starter question'
+                            : 'starter questions'
+                    }
                     detail={[]}
                     onClick={
-                        contentFiles.length > 0
-                            ? () => setIsChartsOpen((value) => !value)
+                        questions.length > 0
+                            ? () => setIsQuestionsOpen((value) => !value)
                             : null
                     }
-                    isOpen={isChartsOpen}
+                    isOpen={isQuestionsOpen}
                 />
             </Box>
 
-            {isChartsOpen && (
+            {isQuestionsOpen && (
                 <Box className={classes.chips}>
-                    {contentFiles.map(({ path, kind, label }) => (
-                        <UnstyledButton
-                            key={path}
-                            className={classes.chip}
-                            onClick={() => onViewCode(path)}
-                        >
-                            <MantineIcon
-                                icon={
-                                    kind === 'dashboard'
-                                        ? IconLayoutDashboard
-                                        : IconChartBar
-                                }
-                                size={12}
-                            />
-                            {label}
-                        </UnstyledButton>
+                    {questions.map((question) => (
+                        <Box key={question} className={classes.chip}>
+                            <MantineIcon icon={IconMessageQuestion} size={12} />
+                            {question}
+                        </Box>
                     ))}
                 </Box>
             )}
