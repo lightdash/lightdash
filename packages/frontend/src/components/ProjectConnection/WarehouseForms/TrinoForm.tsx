@@ -11,18 +11,20 @@ import StartOfWeekSelect from '../Inputs/StartOfWeekSelect';
 import { useProjectFormContext } from '../useProjectFormContext';
 import DataTimezoneField from './DataTimezoneField';
 import { TrinoDefaultValues } from './defaultValues';
+import { useFieldHint } from './useFieldHint';
 
 export const TrinoSchemaInput: FC<{
     disabled: boolean;
     description?: ReactNode;
 }> = ({ disabled, description }) => {
+    const fieldHint = useFieldHint();
     const form = useFormContext();
 
     return (
         <TextInput
             name="warehouse.schema"
             label="Schema"
-            description={description ?? 'This is the schema name.'}
+            description={description ?? fieldHint('This is the schema name.')}
             required
             {...form.getInputProps('warehouse.schema')}
             disabled={disabled}
@@ -33,6 +35,7 @@ export const TrinoSchemaInput: FC<{
 const TrinoForm: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
+    const fieldHint = useFieldHint();
     const [isOpen, toggleOpen] = useToggle(false);
     const { savedProject } = useProjectFormContext();
     const requireSecrets: boolean =
@@ -44,7 +47,9 @@ const TrinoForm: FC<{
                 <TextInput
                     name="warehouse.host"
                     label="Host"
-                    description="This is the host where the database is running."
+                    description={fieldHint(
+                        'This is the host where the database is running.',
+                    )}
                     required
                     {...form.getInputProps('warehouse.host')}
                     disabled={disabled}
@@ -53,7 +58,7 @@ const TrinoForm: FC<{
                 <TextInput
                     name="warehouse.user"
                     label="User"
-                    description="This is the database user name."
+                    description={fieldHint('This is the database user name.')}
                     required={requireSecrets}
                     {...form.getInputProps('warehouse.user')}
                     placeholder={
@@ -66,7 +71,9 @@ const TrinoForm: FC<{
                 <PasswordInput
                     name="warehouse.password"
                     label="Password"
-                    description="This is the database user password."
+                    description={fieldHint(
+                        'This is the database user password.',
+                    )}
                     required={requireSecrets}
                     placeholder={
                         disabled || !requireSecrets
@@ -79,7 +86,7 @@ const TrinoForm: FC<{
                 <TextInput
                     name="warehouse.dbname"
                     label="DB name"
-                    description="This is the database name."
+                    description={fieldHint('This is the database name.')}
                     required
                     {...form.getInputProps('warehouse.dbname')}
                     disabled={disabled}
@@ -105,7 +112,9 @@ const TrinoForm: FC<{
                             {...form.getInputProps('warehouse.port')}
                             defaultValue={TrinoDefaultValues.port}
                             label="Port"
-                            description="This is the database name."
+                            description={fieldHint(
+                                'This is the database name.',
+                            )}
                             required
                             disabled={disabled}
                         />

@@ -1,4 +1,5 @@
 import {
+    DbtProjectType,
     isApiError,
     isCreateProjectJob,
     JobStatusType,
@@ -7,7 +8,7 @@ import {
     WarehouseTypes,
     type CreateWarehouseCredentials,
 } from '@lightdash/common';
-import { Button, Group, Loader } from '@mantine/core';
+import { Box, Button, Group, Loader } from '@mantine/core';
 import {
     useCallback,
     useEffect,
@@ -15,8 +16,10 @@ import {
     useRef,
     useState,
     type FC,
+    type ReactNode,
 } from 'react';
 import { useLocation } from 'react-router';
+import { withViewTransition } from '../../features/apps/utils/viewTransition';
 import {
     getInFlightJobUuidFromError,
     useActiveCreateProjectJob,
@@ -26,19 +29,28 @@ import useActiveJob from '../../providers/ActiveJob/useActiveJob';
 import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
+import { ConnectionFormSkeleton } from './ConnectionFormSkeleton';
 import classes from './CreateProjectconnection.module.css';
-import CreateProjectJobProgress from './CreateProjectJobProgress';
+import CreateProjectJobProgress, {
+    OnboardingConnectionProgress,
+} from './CreateProjectJobProgress';
 import { dbtDefaults, noneDefaultValues } from './DbtForms/defaultValues';
 import { dbtFormValidators } from './DbtForms/validators';
 import { FormContainer } from './FormContainer';
 import { FormProvider, useForm } from './formContext';
+import { getWarehouseLabel } from './ProjectConnectFlow/utils';
 import { ProjectForm } from './ProjectForm';
 import { ProjectFormProvider } from './ProjectFormProvider';
 import { type ProjectConnectionForm } from './types';
 import { useCreateProjectSuccessRedirect } from './useCreateProjectSuccessRedirect';
 import { useOnProjectError } from './useOnProjectError';
-import { warehouseDefaultValues } from './WarehouseForms/defaultValues';
+import {
+    onboardingWarehouseDefaultValues,
+    warehouseDefaultValues,
+} from './WarehouseForms/defaultValues';
 import { createWarehouseValueValidators } from './WarehouseForms/validators';
+
+export type ConnectionFormStep = 'warehouse' | 'dbt';
 
 interface CreateProjectConnectionProps {
     isCreatingFirstProject: boolean;
@@ -47,7 +59,20 @@ interface CreateProjectConnectionProps {
     successRedirect?: (projectUuid: string) => string;
     /** Fire a confetti burst when the connection is saved successfully. */
     celebrateOnSuccess?: boolean;
+    footerStart?: ReactNode;
+    alwaysShowProjectName?: boolean;
+    /** Splits the warehouse and dbt fields into two steps of the same form */
+    steps?: {
+        current: ConnectionFormStep;
+        onChange: (step: ConnectionFormStep) => void;
+    } | null;
+    /** Rendered after the warehouse fields, above the footer */
+    warehouseStepEnd?: ReactNode;
 }
+
+// The schema input is rendered with the dbt settings, so it belongs to the dbt step
+const isDbtField = (path: string) =>
+    path.startsWith('dbt') || path === 'warehouse.schema';
 
 const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
     isCreatingFirstProject,
@@ -55,18 +80,24 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
     warehouseOnly = false,
     successRedirect,
     celebrateOnSuccess = false,
+    footerStart = null,
+    alwaysShowProjectName = false,
+    steps = null,
+    warehouseStepEnd = null,
 }) => {
     const { pathname } = useLocation();
     const onboardingFlow = pathname.startsWith('/onboarding/')
         ? 'new'
         : 'legacy';
+    const isNewOnboarding = onboardingFlow === 'new';
     const { user, health } = useApp();
     const [createProjectJobId, setCreateProjectJobId] = useState<string>();
     const { activeJob, setActiveJobId, setQuietActiveJobId } = useActiveJob();
     const { isLoading: isSaving, mutateAsync } = useCreateMutation({
         quietJobToast: warehouseOnly,
-        warehouseOnly,
     });
+    // Skipping dbt submits without a repo even when the form offered one
+    const submittedWarehouseOnly = useRef(warehouseOnly);
     const onProjectError = useOnProjectError();
 
     const resumeJob = useCallback(
@@ -104,6 +135,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
     // The first project is named after the organization; every later one
     // needs its own name, otherwise its slug becomes "<org>-2", "<org>-3".
     const asksForProjectName = !isCreatingFirstProject;
+    const showsProjectName = asksForProjectName || alwaysShowProjectName;
     const form = useForm({
         initialValues: {
             name: asksForProjectName ? '' : user.data?.organizationName || '',
@@ -113,12 +145,14 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                       ...dbtDefaults.formValues[dbtType],
                       ...health.data?.defaultProject,
                   },
-            warehouse: warehouseDefaultValues[warehouseType],
+            warehouse: (isNewOnboarding
+                ? onboardingWarehouseDefaultValues
+                : warehouseDefaultValues)[warehouseType],
             dbtVersion: dbtDefaults.dbtVersion,
         },
         validate: {
             name: (value) =>
-                asksForProjectName && value.trim() === ''
+                showsProjectName && value.trim() === ''
                     ? 'Project name is required'
                     : null,
             warehouse: createWarehouseValueValidators[warehouseType],
@@ -126,6 +160,25 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         },
         validateInputOnBlur: true,
     });
+
+    // warehouseOnly can flip while the form is open, so swap the dbt values with it
+    const isFirstRender = useRef(true);
+    useEffect(() => {
+        if (isFirstRender.current) {
+            isFirstRender.current = false;
+            return;
+        }
+        form.setFieldValue(
+            'dbt',
+            warehouseOnly
+                ? noneDefaultValues
+                : {
+                      ...dbtDefaults.formValues[dbtType],
+                      ...health.data?.defaultProject,
+                  },
+        );
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [warehouseOnly]);
 
     const { track } = useTracking();
 
@@ -136,6 +189,8 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
             warehouse: warehouseConnection,
             dbtVersion,
         } = formValues;
+        submittedWarehouseOnly.current =
+            dbtConnection.type === DbtProjectType.NONE;
         track({
             name: EventName.CREATE_PROJECT_BUTTON_CLICKED,
             properties: {
@@ -144,7 +199,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                     'authenticationType' in warehouseConnection
                         ? warehouseConnection.authenticationType
                         : undefined,
-                warehouseOnly,
+                warehouseOnly: submittedWarehouseOnly.current,
                 onboardingFlow,
             },
         });
@@ -175,8 +230,33 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         }
     };
 
+    // Creates the project from the warehouse alone; the repo can be connected later from home
+    const skipDbt = () => {
+        const { errors } = form.validate();
+        if (Object.keys(errors).some((path) => !path.startsWith('dbt'))) {
+            handleError(errors);
+            return;
+        }
+        form.clearErrors();
+        void handleSubmit({ ...form.values, dbt: noneDefaultValues });
+    };
+
     const handleError = (errors: typeof form.errors) => {
+        if (steps && Object.keys(errors).some((path) => !isDbtField(path))) {
+            steps.onChange('warehouse');
+        }
         onProjectError(errors);
+    };
+
+    const goToDbtStep = () => {
+        if (!steps) return;
+        const { errors } = form.validate();
+        const warehouseErrors = Object.keys(errors).filter(
+            (path) => !isDbtField(path),
+        );
+        if (warehouseErrors.length > 0) return;
+        form.clearErrors();
+        steps.onChange('dbt');
     };
 
     useCreateProjectSuccessRedirect({
@@ -184,6 +264,8 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         createProjectJobId,
         successRedirect,
         celebrateOnSuccess,
+        // Let the inline success state register before the next step slides in
+        successHoldMs: isNewOnboarding && warehouseOnly ? 900 : 0,
         submitButtonRef,
     });
 
@@ -207,8 +289,9 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                 name: EventName.CREATE_PROJECT_FAILED,
                 properties: {
                     warehouse: selectedWarehouse ?? form.values.warehouse.type,
-                    errorType: failedStep?.stepType ?? 'unknown',
-                    warehouseOnly,
+                    failedStep: failedStep?.stepType ?? null,
+                    errorCategory: 'unknown',
+                    warehouseOnly: submittedWarehouseOnly.current,
                     onboardingFlow,
                 },
             });
@@ -217,7 +300,6 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         activeJob,
         createProjectJobId,
         selectedWarehouse,
-        warehouseOnly,
         onboardingFlow,
         track,
         form.values.warehouse.type,
@@ -238,56 +320,154 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         [isSaving, createProjectJobId, hasThisJobFailed],
     );
 
-    const thisJob =
+    const latestJob =
         createProjectJobId &&
         createProjectJobId === activeJob?.jobUuid &&
         isCreateProjectJob(activeJob)
             ? activeJob
             : undefined;
 
-    const hideForm = !!thisJob && thisJob.jobStatus !== JobStatusType.ERROR;
+    // Swap form and progress card inside a view transition so the card morphs instead of snapping
+    const [shown, setShown] = useState<{
+        jobUuid: string;
+        hidesForm: boolean;
+    } | null>(null);
+    const latestJobUuid = latestJob?.jobUuid;
+    const latestHidesForm =
+        !!latestJob && latestJob.jobStatus !== JobStatusType.ERROR;
+    useEffect(() => {
+        if (
+            !isNewOnboarding ||
+            !latestJobUuid ||
+            (shown?.jobUuid === latestJobUuid &&
+                shown.hidesForm === latestHidesForm)
+        ) {
+            return;
+        }
+        const next = { jobUuid: latestJobUuid, hidesForm: latestHidesForm };
+        // Onboarding keeps the form in place, so there is no layout swap to animate
+        if (steps) setShown(next);
+        else withViewTransition(() => setShown(next));
+    }, [isNewOnboarding, latestJobUuid, latestHidesForm, shown, steps]);
+    const thisJob =
+        !isNewOnboarding || latestJob?.jobUuid === shown?.jobUuid
+            ? latestJob
+            : undefined;
+
+    const lockForm =
+        !!thisJob && (isNewOnboarding ? !!shown?.hidesForm : latestHidesForm);
+    const hideForm = lockForm && !steps;
 
     if (isCheckingInFlightJob) {
-        return (
+        return isNewOnboarding ? (
+            <ConnectionFormSkeleton />
+        ) : (
             <Group justify="center" p="xl">
                 <Loader color="gray" />
             </Group>
         );
     }
 
+    const isWarehouseStep = steps?.current === 'warehouse';
+    const submitButton = isWarehouseStep ? (
+        <Button className={classes.submitButton} onClick={goToDbtStep}>
+            Next
+        </Button>
+    ) : (
+        <Button
+            ref={submitButtonRef}
+            className={classes.submitButton}
+            type="submit"
+            loading={isSavingProject}
+            disabled={!form.isValid()}
+        >
+            {warehouseOnly ? 'Test & save' : 'Test & deploy project'}
+        </Button>
+    );
+
     return (
         <FormProvider form={form}>
             <form
                 className={classes.form}
+                data-form-step={steps?.current}
                 onSubmit={form.onSubmit(handleSubmit, handleError)}
             >
                 <FormContainer>
-                    <ProjectFormProvider>
-                        {thisJob && <CreateProjectJobProgress job={thisJob} />}
+                    <ProjectFormProvider revealAfterSignIn={!!steps}>
+                        {thisJob &&
+                            (isNewOnboarding ? (
+                                <OnboardingConnectionProgress
+                                    job={thisJob}
+                                    warehouseLabel={
+                                        selectedWarehouse
+                                            ? getWarehouseLabel(
+                                                  selectedWarehouse,
+                                              )
+                                            : null
+                                    }
+                                />
+                            ) : (
+                                <CreateProjectJobProgress job={thisJob} />
+                            ))}
 
                         {!hideForm && (
-                            <>
+                            <Box
+                                className={classes.formBody}
+                                data-locked={lockForm}
+                                inert={lockForm}
+                            >
                                 <ProjectForm
-                                    showGeneralSettings={asksForProjectName}
+                                    showGeneralSettings={showsProjectName}
                                     disabled={isSavingProject}
                                     defaultType={
                                         health.data?.defaultProject?.type
                                     }
                                     warehouseOnly={warehouseOnly}
+                                    dbtTypePicker={steps ? 'tiles' : 'select'}
                                 />
 
-                                <Button
-                                    ref={submitButtonRef}
-                                    className={classes.submitButton}
-                                    type="submit"
-                                    loading={isSavingProject}
-                                    disabled={!form.isValid()}
-                                >
-                                    {warehouseOnly
-                                        ? 'Test & save'
-                                        : 'Test & deploy project'}
-                                </Button>
-                            </>
+                                {(!steps || isWarehouseStep) &&
+                                    warehouseStepEnd}
+
+                                {footerStart ? (
+                                    <Group
+                                        justify="space-between"
+                                        data-form-footer
+                                    >
+                                        {steps && !isWarehouseStep ? (
+                                            <Button
+                                                variant="transparent"
+                                                color="gray"
+                                                px={0}
+                                                onClick={() =>
+                                                    steps.onChange('warehouse')
+                                                }
+                                            >
+                                                Back
+                                            </Button>
+                                        ) : (
+                                            footerStart
+                                        )}
+                                        {steps && !isWarehouseStep ? (
+                                            <Group gap="xs">
+                                                <Button
+                                                    variant="subtle"
+                                                    color="gray"
+                                                    onClick={skipDbt}
+                                                    disabled={isSavingProject}
+                                                >
+                                                    Skip for now
+                                                </Button>
+                                                {submitButton}
+                                            </Group>
+                                        ) : (
+                                            submitButton
+                                        )}
+                                    </Group>
+                                ) : (
+                                    submitButton
+                                )}
+                            </Box>
                         )}
                     </ProjectFormProvider>
                 </FormContainer>
