@@ -8260,6 +8260,7 @@ export class AsyncQueryService extends ProjectService {
             userAttributeOverrides: {},
             invalidateCache: invalidateCache ?? false,
             plans: { [totalsNodeId]: plan },
+            aiAttribution: null,
         });
         const totals = queries.find((query) => query.nodeId === totalsNodeId);
         if (!totals) {
@@ -14813,6 +14814,7 @@ export class AsyncQueryService extends ProjectService {
                     userAttributeOverrides: userAttributeOverrides ?? {},
                     invalidateCache: invalidateCache ?? false,
                     plans: { [joinNodeId]: plan },
+                    aiAttribution: null,
                 }),
         );
         const join = queries.find((query) => query.nodeId === joinNodeId);

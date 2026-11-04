@@ -36,6 +36,7 @@ import type { DocumentQueryContext } from '../DocumentService/DocumentQueryConte
 import type { QuerySourceRegistry } from './QuerySourceRegistry';
 import type {
     QuerySourceClient,
+    SourceQueryAiAttribution,
     SourceQueryExecutionContext,
     SourceQuerySubmissionResult,
 } from './types';
@@ -423,11 +424,13 @@ export class QuerySourceService extends BaseService {
         parameters,
         userAttributeOverrides,
         invalidateCache,
+        aiAttribution,
     }: SourceQueryExecutionContext & {
         account: Account;
         projectUuid: string;
         queries: SourceQuery[];
         context: QueryExecutionContext;
+        aiAttribution: SourceQueryAiAttribution | null;
     }): Promise<ApiExecuteSourceQueriesResults> {
         await this.throwIfComposeSqlRunnerDisabled(account);
         await this.throwIfCannotRunQueries(account, projectUuid);
@@ -442,6 +445,7 @@ export class QuerySourceService extends BaseService {
             userAttributeOverrides,
             invalidateCache,
             plans: {},
+            aiAttribution,
         });
         return {
             queries: submitted.queries.map(
@@ -471,6 +475,7 @@ export class QuerySourceService extends BaseService {
         invalidateCache,
         plans,
         documentQueryContext,
+        aiAttribution,
     }: SourceQueryExecutionContext & {
         documentQueryContext?: DocumentQueryContext;
         account: Account;
@@ -478,6 +483,7 @@ export class QuerySourceService extends BaseService {
         queries: SourceQuery[];
         context: QueryExecutionContext;
         plans: Record<string, DuckdbQueryPlan>;
+        aiAttribution: SourceQueryAiAttribution | null;
     }): Promise<{ queries: InternalSourceQuerySubmission[] }> {
         const ordered = this.validateQueries(queries, plans);
         QuerySourceService.assertPlansNameDuckdbNodes(ordered, plans);
@@ -530,7 +536,13 @@ export class QuerySourceService extends BaseService {
             });
         }
 
-        this.trackSubmitted(account, projectUuid, context, submissions);
+        this.trackSubmitted(
+            account,
+            projectUuid,
+            context,
+            aiAttribution,
+            submissions,
+        );
         return { queries: submissions };
     }
 
@@ -538,6 +550,7 @@ export class QuerySourceService extends BaseService {
         account: Account,
         projectUuid: string,
         context: QueryExecutionContext,
+        aiAttribution: SourceQueryAiAttribution | null,
         submissions: InternalSourceQuerySubmission[],
     ): void {
         const { organizationUuid } = account.organization;
@@ -550,6 +563,9 @@ export class QuerySourceService extends BaseService {
                 organizationId: organizationUuid,
                 projectId: projectUuid,
                 context,
+                aiAgentId: aiAttribution?.aiAgentUuid ?? null,
+                threadId: aiAttribution?.threadUuid ?? null,
+                promptId: aiAttribution?.promptUuid ?? null,
                 nodeCount: submissions.length,
                 semanticLayerNodeCount: count(QuerySourceType.SEMANTIC_LAYER),
                 sqlNodeCount: count(QuerySourceType.SQL),

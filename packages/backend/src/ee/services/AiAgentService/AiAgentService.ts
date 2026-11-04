@@ -10402,6 +10402,11 @@ export class AiAgentService extends BaseService {
                         runtimeOptions?.userAttributeOverrides ?? {},
                     invalidateCache: false,
                     plans: {},
+                    aiAttribution: {
+                        aiAgentUuid: agentUuid,
+                        threadUuid: artifact.threadUuid,
+                        promptUuid: artifact.promptUuid,
+                    },
                 });
             const submissions = allSubmissions.filter(
                 ({ nodeId }) => nodeId !== stageNodeId,
@@ -11047,6 +11052,11 @@ export class AiAgentService extends BaseService {
                             runtimeOptions?.userAttributeOverrides ?? {},
                         invalidateCache: false,
                         plans: {},
+                        aiAttribution: {
+                            aiAgentUuid: args.agentUuid,
+                            threadUuid: args.threadUuid,
+                            promptUuid: args.messageUuid,
+                        },
                     },
                 );
                 return {

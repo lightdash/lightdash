@@ -4783,6 +4783,11 @@ export class AiAgentToolsService extends BaseService {
                                 context.userAttributeOverrides ?? {},
                             invalidateCache:
                                 context.invalidateQueryCache ?? false,
+                            aiAttribution: {
+                                aiAgentUuid: context.agentUuid ?? null,
+                                threadUuid: context.threadUuid ?? null,
+                                promptUuid: context.promptUuid ?? null,
+                            },
                         }));
                 } catch (error) {
                     const message =

@@ -34,6 +34,13 @@ export type SourceQueryExecutionContext = {
     invalidateCache: boolean;
 };
 
+/** The AI agent run a batch belongs to, for analytics. Null ids are unknown. */
+export type SourceQueryAiAttribution = {
+    aiAgentUuid: string | null;
+    threadUuid: string | null;
+    promptUuid: string | null;
+};
+
 export type SubmitSourceQueryArgs = SourceQueryExecutionContext & {
     documentQueryContext?: DocumentQueryContext;
     account: Account;
