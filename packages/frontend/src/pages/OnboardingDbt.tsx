@@ -229,7 +229,7 @@ const DbtCliWaiting: FC = () => {
                 // The destination reads these itself if priming failed
             }
             showToastSuccess({ title: 'Your dbt project is connected!' });
-            void navigate(`/projects/${detectedProjectUuid}/home`, {
+            void navigate(`/onboarding/tools/${detectedProjectUuid}`, {
                 replace: true,
             });
         })();

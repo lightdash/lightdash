@@ -57,7 +57,7 @@ const renderAt = (path: string, healthOverrides?: Partial<HealthState>) =>
                     element={<OnboardingDbt />}
                 />
                 <Route
-                    path="/projects/:projectUuid/home"
+                    path="/onboarding/tools/:projectUuid"
                     element={<LocationProbe />}
                 />
                 <Route
@@ -153,7 +153,7 @@ describe('OnboardingDbt', () => {
         ).toBeInTheDocument();
     });
 
-    it('moves on to the project once the existing project has explores', async () => {
+    it('moves on to the tools step once the existing project has explores', async () => {
         mockWarehouseProject(null);
         mockExplores([
             {
@@ -167,12 +167,12 @@ describe('OnboardingDbt', () => {
 
         await waitFor(() =>
             expect(screen.getByTestId('location')).toHaveTextContent(
-                '/projects/project-1/home',
+                '/onboarding/tools/project-1',
             ),
         );
     });
 
-    it('moves on to the project once a new project is detected', async () => {
+    it('moves on to the tools step once a new project is detected', async () => {
         const { rerender } = renderAt('/onboarding/dbt/cli');
 
         expect(await screen.findByText('Waiting for data')).toBeInTheDocument();
@@ -186,7 +186,7 @@ describe('OnboardingDbt', () => {
                         element={<OnboardingDbt />}
                     />
                     <Route
-                        path="/projects/:projectUuid/home"
+                        path="/onboarding/tools/:projectUuid"
                         element={<LocationProbe />}
                     />
                 </Routes>
@@ -195,7 +195,7 @@ describe('OnboardingDbt', () => {
 
         await waitFor(() =>
             expect(screen.getByTestId('location')).toHaveTextContent(
-                '/projects/project-2/home',
+                '/onboarding/tools/project-2',
             ),
         );
     });

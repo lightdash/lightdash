@@ -21,6 +21,7 @@ import {
     type FC,
 } from 'react';
 import {
+    useLocation,
     useNavigate,
     useOutletContext,
     useParams,
@@ -153,6 +154,7 @@ const AiAgentNewThreadPage: FC = () => {
     const { agent, agents, navigateFromAgentChat } =
         useOutletContext<AgentContext>();
     const navigate = useNavigate();
+    const location = useLocation();
     const battleModeAvailable = useAiAgentBattleModeEnabled() && !isEmbed;
     const [battleMode, setBattleMode] = useState(false);
     const speedBattleAvailable = useAiAgentSpeedBattleAvailable();
@@ -382,6 +384,31 @@ const AiAgentNewThreadPage: FC = () => {
             aiAgentThreadSetup,
         ],
     );
+
+    const autoSubmitPrompt =
+        typeof location.state?.autoSubmitPrompt === 'string'
+            ? location.state.autoSubmitPrompt.trim()
+            : '';
+    const consumedAutoSubmitKeyRef = useRef<string | null>(null);
+    useEffect(() => {
+        if (!autoSubmitPrompt || !agentUuid || !isPinnedContextReady) return;
+        if (consumedAutoSubmitKeyRef.current === location.key) return;
+        consumedAutoSubmitKeyRef.current = location.key;
+        void navigate(
+            { pathname: location.pathname, search: location.search },
+            { replace: true, state: undefined },
+        );
+        onSubmit({ message: autoSubmitPrompt, toolHints: [] });
+    }, [
+        autoSubmitPrompt,
+        agentUuid,
+        isPinnedContextReady,
+        location.key,
+        location.pathname,
+        location.search,
+        navigate,
+        onSubmit,
+    ]);
 
     const onStartDeepResearch = useCallback(
         async ({ question }: StartDeepResearchArgs) => {
