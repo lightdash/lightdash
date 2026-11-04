@@ -12,11 +12,15 @@ export const ModelSourceQuestion: FC<{
 }> = ({ value, onChange }) => (
     <Radio.Group
         label="How should we set up your models?"
+        description="Models turn tables into things your team can ask about, like revenue by month or orders by country, without writing SQL."
         value={value}
         onChange={(next) => onChange(next === 'dbt' ? 'dbt' : 'tables')}
-        classNames={{ label: classes.questionLabel }}
+        classNames={{
+            label: classes.questionLabel,
+            description: classes.questionDescription,
+        }}
     >
-        <SimpleGrid cols={2} spacing="xs">
+        <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="xs">
             <Radio.Card value="tables" className={classes.choiceCard}>
                 <Group gap="sm" wrap="nowrap">
                     <Box className={classes.tileLogo}>
@@ -27,7 +31,8 @@ export const ModelSourceQuestion: FC<{
                             Let us handle it
                         </Text>
                         <Text c="dimmed" size="xs">
-                            We'll draft your models
+                            We'll read your tables and draft them in a few
+                            minutes
                         </Text>
                     </Box>
                     <Radio.Indicator size="xs" />
@@ -43,7 +48,8 @@ export const ModelSourceQuestion: FC<{
                             I have a dbt project
                         </Text>
                         <Text c="dimmed" size="xs">
-                            From a repo or dbt Cloud
+                            Use the models you already have, from a repo or dbt
+                            Cloud
                         </Text>
                     </Box>
                     <Radio.Indicator size="xs" />

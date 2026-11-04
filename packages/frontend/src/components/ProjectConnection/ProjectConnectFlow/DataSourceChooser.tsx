@@ -116,11 +116,37 @@ export const DataSourceChooser: FC = () => {
 
     return (
         <Stack gap="xl">
+            {canUseSampleWorkspace && (
+                <UnstyledButton
+                    className={classes.tile}
+                    disabled={isOpeningSample}
+                    onClick={() => void openSampleWorkspace()}
+                >
+                    <Box className={classes.tileLogo}>
+                        {isOpeningSample ? (
+                            <Loader size={14} color="gray" />
+                        ) : (
+                            <LogoIcon width={14} height={14} />
+                        )}
+                    </Box>
+                    <Box flex={1} miw={0}>
+                        <Text fw={500} size="sm">
+                            Try the demo project
+                        </Text>
+                        <Text c="dimmed" size="xs">
+                            Explore sample data first, no setup needed
+                        </Text>
+                    </Box>
+                </UnstyledButton>
+            )}
+
             <Stack gap="xs">
                 <Text fw={500} size="sm">
-                    Where does your data live?
+                    {canUseSampleWorkspace
+                        ? 'Or connect where your data lives'
+                        : 'Where does your data live?'}
                 </Text>
-                <SimpleGrid cols={2} spacing="sm">
+                <SimpleGrid cols={{ base: 2, xs: 3 }} spacing="sm">
                     {WAREHOUSES.map((key) => (
                         <UnstyledButton
                             key={key}
@@ -139,28 +165,6 @@ export const DataSourceChooser: FC = () => {
                             </Text>
                         </UnstyledButton>
                     ))}
-                    {canUseSampleWorkspace && (
-                        <UnstyledButton
-                            className={classes.tile}
-                            disabled={isOpeningSample}
-                            onClick={() => void openSampleWorkspace()}
-                        >
-                            <Box className={classes.tileLogo}>
-                                {isOpeningSample ? (
-                                    <Loader size={14} color="gray" />
-                                ) : (
-                                    <LogoIcon width={14} height={14} />
-                                )}
-                            </Box>
-                            <Text
-                                fw={500}
-                                size="sm"
-                                className={classes.tileLabel}
-                            >
-                                Try the demo project
-                            </Text>
-                        </UnstyledButton>
-                    )}
                 </SimpleGrid>
             </Stack>
 

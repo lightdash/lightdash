@@ -7,12 +7,11 @@
 }
 
 .root[data-variant='toast'] {
-    gap: var(--mantine-spacing-sm);
-    padding: var(--mantine-spacing-md);
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
     border: 1px solid var(--mantine-color-default-border);
-    border-radius: var(--mantine-radius-lg);
+    border-radius: var(--mantine-radius-md);
     background: var(--mantine-color-body);
-    box-shadow: var(--mantine-shadow-lg);
+    box-shadow: var(--mantine-shadow-md);
 }
 
 /* Spinner and elapsed time sit on the title's line */
@@ -78,52 +77,5 @@
     }
     to {
         background-position: -100% 0;
-    }
-}
-
-.steps {
-    display: flex;
-    flex-direction: column;
-    gap: var(--mantine-spacing-xs);
-    margin: 0;
-    padding: 0;
-    list-style: none;
-}
-
-.step {
-    display: grid;
-    grid-template-columns: 16px minmax(0, 1fr);
-    gap: var(--mantine-spacing-xs);
-    align-items: start;
-    color: var(--mantine-color-dimmed);
-}
-
-.step[data-current='true'] {
-    color: var(--mantine-color-text);
-}
-
-.stepGlyph {
-    display: grid;
-    place-items: center;
-    height: 18px;
-}
-
-.pulse {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--mantine-color-text);
-}
-
-@media (prefers-reduced-motion: no-preference) {
-    .pulse {
-        animation: pulse 1.2s ease-in-out infinite;
-    }
-}
-
-@keyframes pulse {
-    50% {
-        opacity: 0.3;
-        transform: scale(0.7);
     }
 }

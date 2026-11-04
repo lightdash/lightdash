@@ -110,7 +110,7 @@ const ToolRow: FC<{
                     <ConnectedStatus detail={connectedDetail} />
                 ) : (
                     <Group gap={4} wrap="nowrap" miw={0}>
-                        <Text fz="xs" c="dimmed" truncate>
+                        <Text fz="xs" c="dimmed" lineClamp={2}>
                             {description}
                         </Text>
                         {info && (
@@ -362,86 +362,103 @@ const TeamStep: FC<{
                     {copy.subtitle && <Text c="dimmed">{copy.subtitle}</Text>}
                 </Stack>
 
-                <ToolGroup title={null}>
-                    {hasSlack && (
-                        <ToolRow
-                            icon={<SlackSvg width={24} height={24} />}
-                            label="Slack"
-                            description="Schedule dashboards, get alerts and ask questions in any channel"
-                            info={null}
-                            connectedDetail={null}
-                            action={connectButton(
-                                '/api/v1/slack/install/',
-                                false,
-                            )}
-                        />
-                    )}
-                    {hasSlack && hasTeams && <Divider />}
-                    {hasTeams && (
-                        <ToolRow
-                            icon={<MsTeamsSvg width={24} height={24} />}
-                            label="Microsoft Teams"
-                            description="Send dashboards and alerts to your team's channels"
-                            info={null}
-                            connectedDetail={null}
-                            action={connectButton(
-                                '/generalSettings/integrations',
-                                true,
-                            )}
-                        />
-                    )}
-                    {(hasSlack || hasTeams) && (hasGithub || hasGitlab) && (
-                        <Divider />
-                    )}
-                    {hasGithub && (
-                        <ToolRow
-                            icon={
-                                <MantineIcon icon={IconBrandGithub} size={24} />
-                            }
-                            label="GitHub"
-                            description="Save new metrics, charts and dashboards as pull requests"
-                            info={null}
-                            connectedDetail={
-                                isGithubInstalled
-                                    ? 'GitHub app installed'
-                                    : null
-                            }
-                            action={
-                                !isGithubInstalled && (
-                                    // Same tab, so GitHub brings the user back to this step
-                                    <Button
-                                        size="xs"
-                                        variant="default"
-                                        component="a"
-                                        href={`/api/v1/github/install?redirect=${encodeURIComponent(
-                                            `/onboarding/tools/${projectUuid}?step=team`,
-                                        )}`}
-                                    >
-                                        Connect
-                                    </Button>
-                                )
-                            }
-                        />
-                    )}
-                    {hasGithub && hasGitlab && <Divider />}
-                    {hasGitlab && (
-                        <ToolRow
-                            icon={
-                                <Image src={gitlabIcon} alt="" w={24} h={24} />
-                            }
-                            label="GitLab"
-                            description="Save new metrics, charts and dashboards as merge requests"
-                            info={null}
-                            connectedDetail={
-                                isGitlabInstalled ? 'GitLab connected' : null
-                            }
-                            action={
-                                !isGitlabInstalled &&
-                                connectButton('/api/v1/gitlab/install', false)
-                            }
-                        />
-                    )}
-                </ToolGroup>
+                {(hasSlack || hasTeams) && (
+                    <ToolGroup title="Share answers">
+                        {hasSlack && (
+                            <ToolRow
+                                icon={<SlackSvg width={24} height={24} />}
+                                label="Slack"
+                                description="Schedule dashboards, get alerts and ask questions in any channel"
+                                info={null}
+                                connectedDetail={null}
+                                action={connectButton(
+                                    '/api/v1/slack/install/',
+                                    false,
+                                )}
+                            />
+                        )}
+                        {hasSlack && hasTeams && <Divider />}
+                        {hasTeams && (
+                            <ToolRow
+                                icon={<MsTeamsSvg width={24} height={24} />}
+                                label="Microsoft Teams"
+                                description="Send dashboards and alerts to your team's channels"
+                                info={null}
+                                connectedDetail={null}
+                                action={connectButton(
+                                    '/generalSettings/integrations',
+                                    true,
+                                )}
+                            />
+                        )}
+                    </ToolGroup>
+                )}
+
+                {(hasGithub || hasGitlab) && (
+                    <ToolGroup title="Review changes">
+                        {hasGithub && (
+                            <ToolRow
+                                icon={
+                                    <MantineIcon
+                                        icon={IconBrandGithub}
+                                        size={24}
+                                    />
+                                }
+                                label="GitHub"
+                                description="Save new metrics, charts and dashboards as pull requests"
+                                info={null}
+                                connectedDetail={
+                                    isGithubInstalled
+                                        ? 'GitHub app installed'
+                                        : null
+                                }
+                                action={
+                                    !isGithubInstalled && (
+                                        // Same tab, so GitHub brings the user back to this step
+                                        <Button
+                                            size="xs"
+                                            variant="default"
+                                            component="a"
+                                            href={`/api/v1/github/install?redirect=${encodeURIComponent(
+                                                `/onboarding/tools/${projectUuid}?step=team`,
+                                            )}`}
+                                        >
+                                            Connect
+                                        </Button>
+                                    )
+                                }
+                            />
+                        )}
+                        {hasGithub && hasGitlab && <Divider />}
+                        {hasGitlab && (
+                            <ToolRow
+                                icon={
+                                    <Image
+                                        src={gitlabIcon}
+                                        alt=""
+                                        w={24}
+                                        h={24}
+                                    />
+                                }
+                                label="GitLab"
+                                description="Save new metrics, charts and dashboards as merge requests"
+                                info={null}
+                                connectedDetail={
+                                    isGitlabInstalled
+                                        ? 'GitLab connected'
+                                        : null
+                                }
+                                action={
+                                    !isGitlabInstalled &&
+                                    connectButton(
+                                        '/api/v1/gitlab/install',
+                                        false,
+                                    )
+                                }
+                            />
+                        )}
+                    </ToolGroup>
+                )}
 
                 <Group justify="flex-end">
                     {backPath && (

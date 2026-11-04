@@ -1,7 +1,4 @@
-import {
-    isAgentOnboardingRunTerminal,
-    type AgentOnboardingRun,
-} from '@lightdash/common';
+import { isAgentOnboardingRunTerminal } from '@lightdash/common';
 import { Box, Group, Loader, Text } from '@mantine/core';
 import { IconAlertTriangle, IconCheck } from '@tabler/icons-react';
 import { type FC } from 'react';
@@ -13,52 +10,11 @@ import classes from './OnboardingRunActivity.module.css';
 import {
     AGENT_ONBOARDING_PROGRESS_STAGES,
     AGENT_ONBOARDING_STAGE_ACTIVE_LABELS,
-    describeAgentOnboardingEvent,
     formatStageDuration,
     plural,
     getAgentOnboardingProgressStageTimings,
     summarizeAgentOnboardingEvents,
 } from './utils';
-
-const RECENT_STEPS = 1;
-
-type Step = { label: string; createdAt: string };
-
-const getSteps = (run: AgentOnboardingRun): Step[] =>
-    run.events.flatMap(({ message, createdAt }) => {
-        const label = describeAgentOnboardingEvent(message);
-        return label ? [{ label, createdAt }] : [];
-    });
-
-const StepList: FC<{
-    steps: Step[];
-    isLive: boolean;
-}> = ({ steps, isLive }) => (
-    <Box component="ol" className={classes.steps}>
-        {steps.map(({ label, createdAt }, index) => {
-            const isCurrent = isLive && index === steps.length - 1;
-            return (
-                <Box
-                    component="li"
-                    key={`${createdAt}-${label}`}
-                    className={classes.step}
-                    data-current={isCurrent}
-                >
-                    <Box className={classes.stepGlyph} aria-hidden>
-                        {isCurrent ? (
-                            <Box className={classes.pulse} />
-                        ) : (
-                            <MantineIcon icon={IconCheck} size={12} />
-                        )}
-                    </Box>
-                    <Text fz="xs" truncate miw={0}>
-                        {label}
-                    </Text>
-                </Box>
-            );
-        })}
-    </Box>
-);
 
 type Variant = 'toast' | 'grouped';
 
@@ -82,15 +38,19 @@ export const OnboardingRunActivity: FC<{
     );
     const activeStage = AGENT_ONBOARDING_PROGRESS_STAGES[activeIndex].stage;
     const summary = summarizeAgentOnboardingEvents(run.events);
-    const steps = getSteps(run);
     const startedAt = Date.parse(run.startedAt ?? run.createdAt);
     const endedAt = run.completedAt ? Date.parse(run.completedAt) : now;
 
+    const isToast = variant === 'toast';
     const title = isDone
-        ? 'Your semantic layer and starter questions are ready'
-        : isFailed
-          ? `${AI_NAME} couldn't finish project setup`
-          : `${AI_NAME} is building your semantic layer`;
+        ? isToast
+            ? 'Your data is ready to explore'
+            : 'Your semantic layer and starter questions are ready'
+        : isToast
+          ? 'Getting your data ready'
+          : isFailed
+            ? `${AI_NAME} couldn't finish project setup`
+            : `${AI_NAME} is building your semantic layer`;
     const counts = [
         summary.tables > 0 && plural(summary.tables, 'table'),
         summary.models > 0 && plural(summary.models, 'model'),
@@ -101,7 +61,9 @@ export const OnboardingRunActivity: FC<{
         ? 'You can try again from home.'
         : isDone
           ? counts.join(' · ')
-          : `${AGENT_ONBOARDING_STAGE_ACTIVE_LABELS[activeStage]}, ${activeIndex + 1} of ${timings.length}`;
+          : isToast
+            ? 'Keep going, this takes a few minutes'
+            : `${AGENT_ONBOARDING_STAGE_ACTIVE_LABELS[activeStage]}, ${activeIndex + 1} of ${timings.length}`;
 
     return (
         <Box
@@ -132,16 +94,18 @@ export const OnboardingRunActivity: FC<{
                     <Text fz="sm" fw={500}>
                         {title}
                     </Text>
-                    <Text fz="xs" c="dimmed" truncate={variant === 'toast'}>
+                    <Text fz="xs" c="dimmed" truncate={isToast}>
                         {stageLine}
                     </Text>
                 </Box>
-                <Text fz="xs" c="dimmed" className={classes.elapsed}>
-                    {formatStageDuration(endedAt - startedAt)}
-                </Text>
+                {!isToast && (
+                    <Text fz="xs" c="dimmed" className={classes.elapsed}>
+                        {formatStageDuration(endedAt - startedAt)}
+                    </Text>
+                )}
             </Group>
 
-            {!isAgentOnboardingRunTerminal(run.status) && (
+            {!isToast && !isAgentOnboardingRunTerminal(run.status) && (
                 <Box component="ol" className={classes.bar} aria-hidden>
                     {timings.map(({ stage, state }) => (
                         <Box
@@ -152,10 +116,6 @@ export const OnboardingRunActivity: FC<{
                         />
                     ))}
                 </Box>
-            )}
-
-            {variant === 'toast' && steps.length > 0 && (
-                <StepList steps={steps.slice(-RECENT_STEPS)} isLive={isLive} />
             )}
         </Box>
     );

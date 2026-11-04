@@ -59,8 +59,12 @@
 }
 
 .questionLabel {
-    margin-bottom: var(--mantine-spacing-xs);
+    margin-bottom: 2px;
     font-weight: 500;
+}
+
+.questionDescription {
+    margin-bottom: var(--mantine-spacing-sm);
 }
 
 .choiceCard {
