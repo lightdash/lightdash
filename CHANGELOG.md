@@ -1,3 +1,11 @@
+## [3.146.2](https://github.com/lightdash/lightdash/compare/3.146.1...3.146.2) (2026-11-04)
+
+
+### Bug Fixes
+
+* **frontend:** unify settings layout on organization settings pages ([#32046](https://github.com/lightdash/lightdash/issues/32046)) ([4d889d8](https://github.com/lightdash/lightdash/commit/4d889d8579aa555eb8fcafdb9fc9bb233bf288de))
+* **frontend:** unify settings layout on personal settings pages ([#32045](https://github.com/lightdash/lightdash/issues/32045)) ([893ae88](https://github.com/lightdash/lightdash/commit/893ae88221ba94168d2a0d2ac1b414dd2c6c7ae3))
+
 ## [3.146.1](https://github.com/lightdash/lightdash/compare/3.146.0...3.146.1) (2026-11-04)
 
 
