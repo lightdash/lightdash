@@ -14,6 +14,6 @@ export const ONBOARDING_STEP_COPY = {
     team: {
         title: 'Share answers and review changes',
         subtitle:
-            'Send dashboards and alerts to Slack, and save changes to GitHub as pull requests.',
+            'Get answers where your team already talks, and review every change before it goes live.',
     },
 } as const satisfies Record<string, { title: string; subtitle: string | null }>;
