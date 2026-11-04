@@ -236,7 +236,8 @@ export class GithubAppService extends BaseService {
                     }
                 }, 1000 * 60);
 
-                return `${redirectUrl.href}?status=github_request_sent`;
+                redirectUrl.searchParams.set('status', 'github_request_sent');
+                return redirectUrl.href;
             }
 
             if (!selectedInstallationId) {
