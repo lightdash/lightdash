@@ -231,9 +231,14 @@ export const YourData: FC<{
     return (
         <Paper p="md" className={classes.panel}>
             <Group justify="space-between" align="center" wrap="nowrap">
-                <Text fz="sm" fw={600}>
-                    Your data is ready to explore
-                </Text>
+                <Box>
+                    <Text fz="sm" fw={600}>
+                        Your data is connected
+                    </Text>
+                    <Text fz="xs" c="dimmed">
+                        Pick a way to build your first chart.
+                    </Text>
+                </Box>
                 <Tooltip label="Hide">
                     <ActionIcon
                         size="sm"
