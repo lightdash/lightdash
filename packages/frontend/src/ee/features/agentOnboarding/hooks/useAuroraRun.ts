@@ -9,9 +9,12 @@ import {
 
 /** The project's latest Aurora run, kept after it finishes so the outcome stays visible */
 export const useAuroraRun = (projectUuid: string) => {
-    const isAgentOnboardingOn =
+    const isCodingAgentOnboardingOn =
         useServerFeatureFlag(FeatureFlags.CodingAgentOnboarding).data
             ?.enabled === true;
+    const isNewOnboardingOn =
+        useServerFeatureFlag(FeatureFlags.NewOnboarding).data?.enabled === true;
+    const isAgentOnboardingOn = isCodingAgentOnboardingOn && isNewOnboardingOn;
     const enabled = { enabled: isAgentOnboardingOn };
     const activeRun = useActiveAgentOnboardingRun(projectUuid, enabled);
     const [lastRunUuid, setLastRunUuid] = useSessionStorage<string | null>({
