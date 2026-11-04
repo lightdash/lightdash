@@ -53,6 +53,7 @@ const setup = (
             exploreName: null,
             jobId: 'job-1',
             bytesProcessed: 100,
+            bytesBilled: 200,
             stats: { referencedTables, partitionsProcessed },
         });
     const loggedEvent = () => info.mock.calls.at(-1)?.[1];
@@ -77,6 +78,7 @@ describe('observePartitionScan', () => {
             warehouseType: 'bigquery',
             jobId: 'job-1',
             bytesProcessed: 100,
+            bytesBilled: 200,
             referencedTableCount: 2,
             partitionedTableCount: 1,
             unknownTableCount: 0,
@@ -129,15 +131,16 @@ describe('observePartitionScan', () => {
         });
     });
 
-    it('caches table partitioning across queries', async () => {
+    it('caches table partitioning, failed lookups included, across queries', async () => {
         const { observe, getTablePartitioning } = setup({
             events: dayPartitioned(30),
+            users: new Error('permission denied'),
         });
 
-        await observe([events], 1);
-        await observe([events, events], 1);
+        await observe([events, users], 1);
+        await observe([events, events, users], 1);
 
-        expect(getTablePartitioning).toHaveBeenCalledTimes(1);
+        expect(getTablePartitioning).toHaveBeenCalledTimes(2);
     });
 
     it('does not log when the query referenced no tables', async () => {

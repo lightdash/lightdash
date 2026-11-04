@@ -11416,19 +11416,20 @@ describe('AsyncQueryService', () => {
                 queryCreatedAt: new Date(),
                 displayTimezone: null,
             });
-            const events = info.mock.calls.filter(
-                ([message]) => message === 'partition_scan.observed',
-            );
+            const events = () =>
+                info.mock.calls.filter(
+                    ([message]) => message === 'partition_scan.observed',
+                );
             if (logged) {
-                expect(events).toHaveLength(1);
-                expect(events[0][1]).toMatchObject({
+                await vi.waitFor(() => expect(events()).toHaveLength(1));
+                expect(events()[0][1]).toMatchObject({
                     queryUuid: 'partition-query',
                     queryContext: context,
                     totalPartitions: 10,
                     pruned: true,
                 });
             } else {
-                expect(events).toHaveLength(0);
+                expect(events()).toHaveLength(0);
             }
         },
     );

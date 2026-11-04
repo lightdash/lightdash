@@ -5642,8 +5642,8 @@ export class AsyncQueryService extends ProjectService {
                     executionStats?.cacheHit !== true &&
                     isAiAccessQueryContext(queryTags.query_context)
                 ) {
-                    // After READY, so pollers never wait on table metadata lookups.
-                    await observePartitionScan({
+                    // Not awaited: table metadata lookups must not delay the query's caller.
+                    void observePartitionScan({
                         warehouseClient: completedClient,
                         cache: this.tablePartitioningCache,
                         logger: this.logger,
@@ -5653,6 +5653,7 @@ export class AsyncQueryService extends ProjectService {
                         exploreName: queryTags.explore_name ?? null,
                         jobId: executionStats?.jobId ?? null,
                         bytesProcessed: executionStats?.bytesProcessed ?? null,
+                        bytesBilled: executionStats?.bytesBilled ?? null,
                         stats: partitionScanStats,
                     }).catch((error: unknown) => {
                         this.logger.warn('partition_scan.failed', {

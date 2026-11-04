@@ -9,10 +9,14 @@ import {
 import NodeCache from 'node-cache';
 import type Logger from '../../logging/logger';
 
+export type TablePartitioningLookup =
+    | { status: 'found'; partitioning: TablePartitioning | null }
+    | { status: 'failed' };
+
 const tableKey = ({ database, schema, table }: WarehouseTableReference) =>
     `${database}.${schema}.${table}`;
 
-/** Table partitioning by project and warehouse table, so lookups stay off the per-query path. */
+// Failed lookups are cached too, so a table the credentials cannot read is not retried per query.
 export class TablePartitioningCache {
     private readonly cache = new NodeCache({
         stdTTL: 60 * 60,
@@ -23,18 +27,18 @@ export class TablePartitioningCache {
     async get(
         projectUuid: string,
         table: WarehouseTableReference,
-        load: () => Promise<TablePartitioning | null>,
-    ): Promise<TablePartitioning | null> {
+        load: () => Promise<TablePartitioningLookup>,
+    ): Promise<TablePartitioningLookup> {
         const key = `${projectUuid}:${tableKey(table)}`;
-        const cached = this.cache.get<{ value: TablePartitioning | null }>(key);
-        if (cached) return cached.value;
-        const value = await load();
+        const cached = this.cache.get<TablePartitioningLookup>(key);
+        if (cached) return cached;
+        const lookup = await load();
         try {
-            this.cache.set(key, { value });
+            this.cache.set(key, lookup);
         } catch {
             // Full cache: serve uncached until entries expire.
         }
-        return value;
+        return lookup;
     }
 }
 
@@ -48,10 +52,10 @@ type ObservePartitionScanArgs = {
     exploreName: string | null;
     jobId: string | null;
     bytesProcessed: number | null;
+    bytesBilled: number | null;
     stats: WarehousePartitionScanStats;
 };
 
-/** Logs one `partition_scan.observed` event comparing partitions read with partitions the referenced tables have. */
 export const observePartitionScan = async ({
     warehouseClient,
     cache,
@@ -62,6 +66,7 @@ export const observePartitionScan = async ({
     exploreName,
     jobId,
     bytesProcessed,
+    bytesBilled,
     stats,
 }: ObservePartitionScanArgs): Promise<void> => {
     const tables = [
@@ -71,31 +76,39 @@ export const observePartitionScan = async ({
     ];
     if (tables.length === 0) return;
 
-    const partitionings = await Promise.all(
+    const lookups = await Promise.all(
         tables.map((table) =>
-            cache
-                .get(projectUuid, table, () =>
-                    warehouseClient.getTablePartitioning(
+            cache.get(projectUuid, table, () =>
+                warehouseClient
+                    .getTablePartitioning(
                         table.table,
                         table.schema,
                         table.database,
-                    ),
-                )
-                .catch((error: unknown) => {
-                    logger.warn('partition_scan.table_lookup_failed', {
-                        projectUuid,
-                        queryUuid,
-                        error: getErrorMessage(error),
-                    });
-                    return 'unknown' as const;
-                }),
+                    )
+                    .then(
+                        (partitioning): TablePartitioningLookup => ({
+                            status: 'found',
+                            partitioning,
+                        }),
+                    )
+                    .catch((error: unknown): TablePartitioningLookup => {
+                        logger.warn('partition_scan.table_lookup_failed', {
+                            projectUuid,
+                            queryUuid,
+                            error: getErrorMessage(error),
+                        });
+                        return { status: 'failed' };
+                    }),
+            ),
         ),
     );
-    const partitioned = partitionings.filter(
-        (p): p is TablePartitioning => p !== null && p !== 'unknown',
+    const partitioned = lookups.flatMap((lookup) =>
+        lookup.status === 'found' && lookup.partitioning
+            ? [lookup.partitioning]
+            : [],
     );
-    const unknownTableCount = partitionings.filter(
-        (p) => p === 'unknown',
+    const unknownTableCount = lookups.filter(
+        (lookup) => lookup.status === 'failed',
     ).length;
     const totalPartitions =
         unknownTableCount === 0 &&
@@ -118,6 +131,7 @@ export const observePartitionScan = async ({
         warehouseType: warehouseClient.credentials.type,
         jobId,
         bytesProcessed,
+        bytesBilled,
         referencedTableCount: tables.length,
         partitionedTableCount: partitioned.length,
         unknownTableCount,
