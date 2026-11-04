@@ -69,7 +69,7 @@ const Tool: FC<{ icon: ReactNode; label: string; index: number }> = ({
 const Diagram: FC = () => (
     <Box className={classes.flow} aria-hidden>
         <Text fz={10} fw={500} className={classes.caption}>
-            Warehouse
+            Data sources
         </Text>
         <span />
         <Text fz={10} fw={500} className={classes.caption}>
