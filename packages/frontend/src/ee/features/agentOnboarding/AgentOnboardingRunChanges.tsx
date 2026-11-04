@@ -84,7 +84,8 @@ const ChangeRow: FC<{
 }> = ({ label, items, hrefFor, icon, countLabel }) => {
     const [isOpen, setIsOpen] = useState(false);
     if (items.length === 0) return null;
-    const extra = items.length - MAX_CHIPS;
+    const visibleItems = isOpen ? items : items.slice(0, MAX_CHIPS);
+    const extra = items.length - visibleItems.length;
     const isFolded = countLabel !== null && !isOpen;
     return (
         <Box className={classes.row}>
@@ -103,7 +104,7 @@ const ChangeRow: FC<{
                 </UnstyledButton>
             ) : (
                 <Box className={classes.chips}>
-                    {items.slice(0, MAX_CHIPS).map((item) =>
+                    {visibleItems.map((item) =>
                         hrefFor ? (
                             <Box
                                 component={Link}

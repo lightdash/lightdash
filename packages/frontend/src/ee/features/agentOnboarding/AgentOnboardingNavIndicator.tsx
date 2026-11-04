@@ -42,8 +42,10 @@ export const AgentOnboardingNavIndicator: FC<
         timings.findIndex(({ state }) => state === 'active'),
         0,
     );
-    const stageLabel =
-        AGENT_ONBOARDING_STAGE_ACTIVE_LABELS[timings[activeIndex].stage];
+    const isQueued = run.status === 'queued';
+    const stageLabel = isQueued
+        ? 'Waiting for a free worker'
+        : AGENT_ONBOARDING_STAGE_ACTIVE_LABELS[timings[activeIndex].stage];
 
     return (
         <Box className={className} visibleFrom={visibleFrom}>
@@ -65,8 +67,16 @@ export const AgentOnboardingNavIndicator: FC<
                         leftSection={<Loader size={10} color="blue" />}
                         aria-label={`Project setup: ${stageLabel}`}
                     >
-                        <span className={classes.buttonWord}>Setting up </span>
-                        {activeIndex + 1}/{timings.length}
+                        {isQueued ? (
+                            'Queued'
+                        ) : (
+                            <>
+                                <span className={classes.buttonWord}>
+                                    Setting up{' '}
+                                </span>
+                                {activeIndex + 1}/{timings.length}
+                            </>
+                        )}
                     </Button>
                 </Popover.Target>
                 <Popover.Dropdown p={0}>

@@ -6,6 +6,7 @@ import AgentOnboardingStartPage from './AgentOnboardingStartPage';
 
 const state = vi.hoisted(() => ({
     isFlagEnabled: true,
+    isNewOnboardingEnabled: false,
     project: {
         projectUuid: 'project-uuid',
         warehouseConnection: { type: 'postgres' },
@@ -21,8 +22,13 @@ vi.mock('../../../hooks/useProjectUuid', () => ({
 }));
 
 vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: () => ({
-        data: { enabled: state.isFlagEnabled },
+    useServerFeatureFlag: (flag: string) => ({
+        data: {
+            enabled:
+                flag === 'new-onboarding'
+                    ? state.isNewOnboardingEnabled
+                    : state.isFlagEnabled,
+        },
         isInitialLoading: false,
     }),
 }));
@@ -45,8 +51,17 @@ vi.mock('../aiCopilot/hooks/useIsCopilotEnabled', () => ({
 }));
 
 vi.mock('./hooks/useAgentOnboarding', () => ({
-    useActiveAgentOnboardingRun: () => ({
-        data: null,
+    useActiveAgentOnboardingRun: (
+        _projectUuid: string,
+        { enabled }: { enabled: boolean },
+    ) => ({
+        data: enabled
+            ? {
+                  agentOnboardingRunUuid: 'run-uuid',
+                  projectUuid: 'project-uuid',
+                  status: 'running',
+              }
+            : undefined,
         isInitialLoading: false,
     }),
     useStartAgentOnboardingRun: () => ({
@@ -71,6 +86,10 @@ const renderPage = () =>
                         element={<AgentOnboardingStartPage />}
                     />
                     <Route
+                        path="/projects/:projectUuid/onboarding/runs/:runUuid"
+                        element={<div>run page</div>}
+                    />
+                    <Route
                         path="/generalSettings/projectManagement/:projectUuid/settings"
                         element={<div>project settings</div>}
                     />
@@ -82,6 +101,7 @@ const renderPage = () =>
 describe('AgentOnboardingStartPage', () => {
     beforeEach(() => {
         state.isFlagEnabled = true;
+        state.isNewOnboardingEnabled = false;
         state.project = {
             projectUuid: 'project-uuid',
             warehouseConnection: { type: 'postgres' },
@@ -107,6 +127,23 @@ describe('AgentOnboardingStartPage', () => {
 
     it('redirects to project settings when the project has no warehouse connection', () => {
         state.project = { projectUuid: 'project-uuid' };
+
+        renderPage();
+
+        expect(screen.getByText('project settings')).toBeInTheDocument();
+    });
+
+    it('resumes a live run only in the new onboarding flow', () => {
+        state.isNewOnboardingEnabled = true;
+
+        renderPage();
+
+        expect(screen.getByText('run page')).toBeInTheDocument();
+    });
+
+    it('checks the coding agent flag before resuming a live run', () => {
+        state.isNewOnboardingEnabled = true;
+        state.isFlagEnabled = false;
 
         renderPage();
 

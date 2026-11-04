@@ -99,10 +99,14 @@ export const AgentOnboardingCompletionWatcher: FC = () => {
         showToastSuccess({
             key: runToastKey(agentOnboardingRunUuid),
             autoClose: false,
-            title: 'Your project is ready',
-            subtitle: 'Your semantic layer and starter questions are ready.',
+            title: isNewOnboarding
+                ? 'Your project is ready'
+                : 'Your Lightdash project is ready',
+            subtitle: isNewOnboarding
+                ? 'Your semantic layer and starter questions are ready.'
+                : 'The semantic layer and starter dashboard have been generated.',
             action: {
-                children: 'Open home',
+                children: isNewOnboarding ? 'Open home' : 'Open project',
                 onClick: () => {
                     track({
                         name: EventName.AGENT_ONBOARDING_COMPLETION_TOAST_CLICKED,
