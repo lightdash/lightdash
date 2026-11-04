@@ -16,11 +16,11 @@ export const useTileVirtualViewSavedParameters = (
     );
     const isEnabled = dashboardControlsFlag?.enabled === true;
     useEffect(() => {
-        if (isEnabled && explore) {
-            setTileVirtualViewSavedParameters(
-                tileUuid,
-                explore.savedParameterValues ?? {},
-            );
-        }
+        if (!isEnabled) return;
+        // No explore (still loading or failed) clears values from an earlier one
+        setTileVirtualViewSavedParameters(
+            tileUuid,
+            explore?.savedParameterValues ?? {},
+        );
     }, [explore, isEnabled, setTileVirtualViewSavedParameters, tileUuid]);
 };
