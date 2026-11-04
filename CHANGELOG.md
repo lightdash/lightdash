@@ -1,3 +1,11 @@
+## [3.148.1](https://github.com/lightdash/lightdash/compare/3.148.0...3.148.1) (2026-11-04)
+
+
+### Bug Fixes
+
+* adjust query history and scheduler migration lock timeouts ([#32053](https://github.com/lightdash/lightdash/issues/32053)) ([fc69f39](https://github.com/lightdash/lightdash/commit/fc69f3980cfd6208c3ef48891e643edb07e2795f))
+* **ai:** serve a skill or resource once per thread from loadSkill ([#32015](https://github.com/lightdash/lightdash/issues/32015)) ([562ca5a](https://github.com/lightdash/lightdash/commit/562ca5a5d08cf29ff140ac90eb67bb55fa55d772))
+
 # [3.148.0](https://github.com/lightdash/lightdash/compare/3.147.0...3.148.0) (2026-11-04)
 
 
