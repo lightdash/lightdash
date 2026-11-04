@@ -5668,50 +5668,57 @@ export class ProjectService
         method: RequestMethod,
         provisioningSource: InternalProvisioningSource | null,
     ): Promise<void> {
-        const onboardingFlow = await this.getOnboardingFlow(user);
-        const customerProjects =
-            createProject.type === ProjectType.DEFAULT &&
-            provisioningSource === null &&
-            user.organizationUuid
-                ? (
-                      await this.projectModel.getAllByOrganizationUuid(
-                          user.organizationUuid,
+        // Analytics only: never fail project creation
+        try {
+            const onboardingFlow = await this.getOnboardingFlow(user);
+            const customerProjects =
+                createProject.type === ProjectType.DEFAULT &&
+                provisioningSource === null &&
+                user.organizationUuid
+                    ? (
+                          await this.projectModel.getAllByOrganizationUuid(
+                              user.organizationUuid,
+                          )
+                      ).filter(
+                          (project) =>
+                              project.type === ProjectType.DEFAULT &&
+                              !project.provisioningSource,
                       )
-                  ).filter(
-                      (project) =>
-                          project.type === ProjectType.DEFAULT &&
-                          !project.provisioningSource,
-                  )
-                : [];
-        const isFirstProject =
-            customerProjects.length === 1 &&
-            customerProjects[0].projectUuid === projectUuid;
-        this.analytics.track({
-            event: 'project.created',
-            userId: user.userUuid,
-            properties: {
-                ...ProjectService.getAnalyticProperties(
-                    createProject,
-                    projectUuid,
-                    user,
-                    method,
-                    onboardingFlow,
-                ),
-                provisioningSource,
-                isFirstProject,
-            },
-        });
-        if (isFirstProject && createProject.warehouseConnection) {
+                    : [];
+            const isFirstProject =
+                customerProjects.length === 1 &&
+                customerProjects[0].projectUuid === projectUuid;
             this.analytics.track({
-                event: 'onboarding.step_completed',
+                event: 'project.created',
                 userId: user.userUuid,
                 properties: {
-                    step: 'warehouse_connected',
-                    stepIndex: 4,
-                    onboardingFlow,
-                    organizationId: user.organizationUuid,
+                    ...ProjectService.getAnalyticProperties(
+                        createProject,
+                        projectUuid,
+                        user,
+                        method,
+                        onboardingFlow,
+                    ),
+                    provisioningSource,
+                    isFirstProject,
                 },
             });
+            if (isFirstProject && createProject.warehouseConnection) {
+                this.analytics.track({
+                    event: 'onboarding.step_completed',
+                    userId: user.userUuid,
+                    properties: {
+                        step: 'warehouse_connected',
+                        stepIndex: 4,
+                        onboardingFlow,
+                        organizationId: user.organizationUuid,
+                    },
+                });
+            }
+        } catch (error) {
+            this.logger.warn(
+                `Failed to track project creation for ${projectUuid}: ${getErrorMessage(error)}`,
+            );
         }
     }
 
@@ -19611,6 +19618,7 @@ export class ProjectService
                 keyfileContents,
             );
         } catch (error) {
+            if (error instanceof ParameterError) throw error;
             this.logger.warn(
                 `getBigqueryDatasetsFromKeyfile error: ${getErrorMessage(error)}`,
             );
