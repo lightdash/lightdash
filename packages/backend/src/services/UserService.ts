@@ -928,6 +928,10 @@ export class UserService extends BaseService {
         this.analytics.track({
             userId: user.userUuid,
             event: 'invite_link.created',
+            properties: {
+                organizationId: organizationUuid,
+                purpose,
+            },
         });
 
         const organization = await this.organizationModel.get(organizationUuid);

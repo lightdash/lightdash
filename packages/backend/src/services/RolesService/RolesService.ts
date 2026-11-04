@@ -926,6 +926,10 @@ export class RolesService extends BaseService {
         this.analytics.track({
             userId: account.user.userUuid,
             event: 'invite_link.created',
+            properties: {
+                organizationId: organizationUuid,
+                purpose: InviteLinkPurpose.Member,
+            },
         });
         return UserAsCodeInvitationStatus.SENT;
     }

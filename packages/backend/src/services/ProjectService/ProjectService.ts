@@ -602,6 +602,7 @@ import {
     createAnalyticsClient,
 } from './analyticsProject/analyticsProjectClient';
 import { createAnalyticsExplores } from './analyticsProject/createAnalyticsExplores';
+import { classifyConnectionTestError } from './classifyConnectionTestError';
 import {
     credentialsForListedDatabase,
     findListedCatalogDatabase,
@@ -633,6 +634,7 @@ import {
 import { projectMergedManifest } from './projectMergedManifest';
 import { TRAINING_SPACE } from './provisionTrainingProject';
 import { applyCurrentGithubInstallationId } from './resolveGithubInstallationId';
+import { trackFirstQuery } from './trackFirstQuery';
 import {
     buildConnectionTestResults,
     tunnelHopsAllOk,
@@ -1359,6 +1361,21 @@ export class ProjectService
                     }),
                 ),
             trigger,
+        });
+    }
+
+    protected async trackFirstQuery(
+        account: Account,
+        organizationUuid: string,
+        onboardingFlow: OnboardingFlow,
+    ): Promise<void> {
+        await trackFirstQuery({
+            account,
+            organizationUuid,
+            onboardingFlow,
+            onboardingModel: this.onboardingModel,
+            userModel: this.userModel,
+            analytics: this.analytics,
         });
     }
 
@@ -5223,21 +5240,16 @@ export class ProjectService
             }
         }
 
-        const onboardingFlow = await this.getOnboardingFlow(user);
         // Do not give this user admin permissions on this new project,
         // as it could be an interactive viewer creating a preview
         // and we don't want to allow users to acces sql runner or leak admin data
-        this.analytics.track({
-            event: 'project.created',
-            userId: user.userUuid,
-            properties: ProjectService.getAnalyticProperties(
-                createProject,
-                projectUuid,
-                user,
-                method,
-                onboardingFlow,
-            ),
-        });
+        await this.trackProjectCreated(
+            createProject,
+            projectUuid,
+            user,
+            method,
+            internalProvisioning?.source ?? null,
+        );
 
         await this.runPostProjectCreationProvisioning(
             user,
@@ -5640,6 +5652,77 @@ export class ProjectService
         return new Date(Date.now() + clampedHours * 60 * 60 * 1000);
     }
 
+    private async trackProjectCreated(
+        createProject: Pick<
+            CreateProjectOptionalCredentials,
+            'warehouseConnection' | 'name' | 'dbtConnection' | 'type'
+        >,
+        projectUuid: string,
+        user: SessionUser,
+        method: RequestMethod,
+        provisioningSource: InternalProvisioningSource | null,
+    ): Promise<void> {
+        const onboardingFlow = await this.getOnboardingFlow(user);
+        const customerProjects =
+            createProject.type === ProjectType.DEFAULT &&
+            provisioningSource === null &&
+            user.organizationUuid
+                ? (
+                      await this.projectModel.getAllByOrganizationUuid(
+                          user.organizationUuid,
+                      )
+                  ).filter(
+                      (project) =>
+                          project.type === ProjectType.DEFAULT &&
+                          !project.provisioningSource,
+                  )
+                : [];
+        const isFirstProject =
+            customerProjects.length === 1 &&
+            customerProjects[0].projectUuid === projectUuid;
+        this.analytics.track({
+            event: 'project.created',
+            userId: user.userUuid,
+            properties: {
+                ...ProjectService.getAnalyticProperties(
+                    createProject,
+                    projectUuid,
+                    user,
+                    method,
+                    onboardingFlow,
+                ),
+                provisioningSource,
+                isFirstProject,
+            },
+        });
+        if (isFirstProject && createProject.warehouseConnection) {
+            this.analytics.track({
+                event: 'onboarding.step_completed',
+                userId: user.userUuid,
+                properties: {
+                    step: 'warehouse_connected',
+                    stepIndex: 4,
+                    onboardingFlow,
+                    organizationId: user.organizationUuid,
+                },
+            });
+        }
+    }
+
+    static getWarehouseAuthenticationType(
+        warehouseConnection: CreateProjectOptionalCredentials['warehouseConnection'],
+    ): string | undefined {
+        const warehouseType = warehouseConnection?.type;
+        return warehouseType === WarehouseTypes.BIGQUERY ||
+            warehouseType === WarehouseTypes.SNOWFLAKE ||
+            warehouseType === WarehouseTypes.REDSHIFT
+            ? (warehouseConnection?.authenticationType ??
+                  (warehouseType === WarehouseTypes.REDSHIFT
+                      ? RedshiftAuthenticationType.PASSWORD
+                      : undefined))
+            : undefined;
+    }
+
     static getAnalyticProperties(
         createProject: Pick<
             CreateProjectOptionalCredentials,
@@ -5650,16 +5733,10 @@ export class ProjectService
         method: RequestMethod,
         onboardingFlow: OnboardingFlow,
     ): ProjectEvent['properties'] {
-        const warehouseType = createProject.warehouseConnection?.type;
         const authenticationType =
-            warehouseType === WarehouseTypes.BIGQUERY ||
-            warehouseType === WarehouseTypes.SNOWFLAKE ||
-            warehouseType === WarehouseTypes.REDSHIFT
-                ? (createProject.warehouseConnection?.authenticationType ??
-                  (warehouseType === WarehouseTypes.REDSHIFT
-                      ? RedshiftAuthenticationType.PASSWORD
-                      : undefined))
-                : undefined;
+            ProjectService.getWarehouseAuthenticationType(
+                createProject.warehouseConnection,
+            );
         return {
             projectName: createProject.name,
             projectId: projectUuid,
@@ -5902,18 +5979,13 @@ export class ProjectService
                     true,
                 );
             }
-            const onboardingFlow = await this.getOnboardingFlow(user);
-            this.analytics.track({
-                event: 'project.created',
-                userId: user.userUuid,
-                properties: ProjectService.getAnalyticProperties(
-                    createProject,
-                    projectUuid,
-                    user,
-                    method,
-                    onboardingFlow,
-                ),
-            });
+            await this.trackProjectCreated(
+                createProject,
+                projectUuid,
+                user,
+                method,
+                null,
+            );
 
             await this.runPostProjectCreationProvisioning(
                 user,
@@ -7250,6 +7322,19 @@ export class ProjectService
         dbtTargetPolicy: DbtTargetPolicy;
     }> {
         const onboardingFlow = await this.getOnboardingFlow(user);
+        const testedConnectionProperties = {
+            organizationId:
+                projectOrganizationUuid ?? user.organizationUuid ?? null,
+            projectId: projectUuid,
+            warehouseType: data.warehouseConnection.credentials.type,
+            authenticationType:
+                ProjectService.getWarehouseAuthenticationType(
+                    data.warehouseConnection.credentials,
+                ) ?? null,
+            context,
+            method,
+            onboardingFlow,
+        };
         let lease: WarehouseConnectionLease | null = null;
         let adapter: ProjectAdapter | undefined;
         try {
@@ -7417,25 +7502,15 @@ export class ProjectService
                 event: 'warehouse_connection.tested',
                 userId: user.userUuid,
                 properties: {
-                    warehouseType: data.warehouseConnection.credentials.type,
+                    ...testedConnectionProperties,
                     result: 'success',
-                    context,
-                    method,
-                    onboardingFlow,
+                    stage:
+                        data.dbtConnection.type === DbtProjectType.NONE
+                            ? 'warehouse'
+                            : 'dbt',
+                    errorCategory: null,
                 },
             });
-            if (context === 'project_create') {
-                this.analytics.track({
-                    event: 'onboarding.step_completed',
-                    userId: user.userUuid,
-                    properties: {
-                        step: 'warehouse_connected',
-                        stepIndex: 4,
-                        onboardingFlow,
-                        organizationId: user.organizationUuid,
-                    },
-                });
-            }
             return {
                 adapter,
                 lease,
@@ -7454,12 +7529,10 @@ export class ProjectService
                 event: 'warehouse_connection.tested',
                 userId: user.userUuid,
                 properties: {
-                    warehouseType: data.warehouseConnection.credentials.type,
+                    ...testedConnectionProperties,
                     result: 'failure',
                     errorType,
-                    context,
-                    method,
-                    onboardingFlow,
+                    ...classifyConnectionTestError(error),
                 },
             });
             Logger.error(`Error testing project adapter: ${error}`);
@@ -12282,29 +12355,11 @@ export class ProjectService
                                         account.organization.organizationUuid,
                                 },
                             );
-                            const onboardingRecord =
-                                await this.onboardingModel.getByOrganizationUuid(
-                                    account.organization.organizationUuid,
-                                );
-                            if (!onboardingRecord.ranQueryAt) {
-                                await this.onboardingModel.update(
-                                    account.organization.organizationUuid,
-                                    {
-                                        ranQueryAt: new Date(),
-                                    },
-                                );
-                                this.analytics.trackAccount(account, {
-                                    event: 'onboarding.step_completed',
-                                    properties: {
-                                        step: 'first_query',
-                                        stepIndex: 5,
-                                        onboardingFlow,
-                                        organizationId:
-                                            account.organization
-                                                .organizationUuid,
-                                    },
-                                });
-                            }
+                            await this.trackFirstQuery(
+                                account,
+                                account.organization.organizationUuid,
+                                onboardingFlow,
+                            );
 
                             this.analytics.trackAccount(account, {
                                 event: 'query.executed',

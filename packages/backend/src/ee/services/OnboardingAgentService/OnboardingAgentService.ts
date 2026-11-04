@@ -17,9 +17,14 @@ import {
     type AgentOnboardingUsage,
     type SessionUser,
 } from '@lightdash/common';
+import {
+    type LightdashAnalytics,
+    type OnboardingAgentRunFailureCategory,
+} from '../../../analytics/LightdashAnalytics';
 import { fromSession } from '../../../auth/account';
 import { assertOAuthCredentialOperationAllowed } from '../../../auth/oauthScopes/credentials';
 import { type LightdashConfig } from '../../../config/parseConfig';
+import { ONBOARDING_AGENT_PAT_DESCRIPTION_PREFIX } from '../../../models/OnboardingModel/OnboardingModel';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../../../services/BaseService';
 import { type PersonalAccessTokenService } from '../../../services/PersonalAccessTokenService';
@@ -92,6 +97,7 @@ import {
 
 type Dependencies = {
     lightdashConfig: LightdashConfig;
+    analytics: LightdashAnalytics;
     agentOnboardingRunModel: AgentOnboardingRunModel;
     sandboxRegistryModel: SandboxRegistryModel;
     projectModel: ProjectModel;
@@ -136,6 +142,8 @@ const toRun = (run: DbAgentOnboardingRun): AgentOnboardingRun => ({
 export class OnboardingAgentService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
 
+    private readonly analytics: LightdashAnalytics;
+
     private readonly agentOnboardingRunModel: AgentOnboardingRunModel;
 
     private readonly sandboxRegistryModel: SandboxRegistryModel;
@@ -157,6 +165,7 @@ export class OnboardingAgentService extends BaseService {
     constructor(dependencies: Dependencies) {
         super();
         this.lightdashConfig = dependencies.lightdashConfig;
+        this.analytics = dependencies.analytics;
         this.agentOnboardingRunModel = dependencies.agentOnboardingRunModel;
         this.sandboxRegistryModel = dependencies.sandboxRegistryModel;
         this.projectModel = dependencies.projectModel;
@@ -257,10 +266,19 @@ export class OnboardingAgentService extends BaseService {
                 userUuid: run.created_by_user_uuid,
             });
         } catch (error) {
-            await this.agentOnboardingRunModel.markFailed(
-                run.agent_onboarding_run_uuid,
-                'Could not start the onboarding agent. Please try again.',
-            );
+            if (
+                await this.agentOnboardingRunModel.markFailed(
+                    run.agent_onboarding_run_uuid,
+                    'Could not start the onboarding agent. Please try again.',
+                )
+            ) {
+                await this.trackRunFinished(
+                    run.agent_onboarding_run_uuid,
+                    'failed',
+                    'schedule_failed',
+                    null,
+                );
+            }
             throw error;
         }
         return toRun(run);
@@ -281,6 +299,12 @@ export class OnboardingAgentService extends BaseService {
             'The setup run stopped responding.',
         );
         if (!failed) return run;
+        await this.trackRunFinished(
+            run.agent_onboarding_run_uuid,
+            'failed',
+            'abandoned',
+            null,
+        );
         return (
             (await this.agentOnboardingRunModel.findByUuid(
                 run.agent_onboarding_run_uuid,
@@ -430,10 +454,58 @@ export class OnboardingAgentService extends BaseService {
     }
 
     async markRunTimedOut(agentOnboardingRunUuid: string): Promise<void> {
-        await this.agentOnboardingRunModel.markFailed(
-            agentOnboardingRunUuid,
-            'The onboarding agent took too long and was stopped.',
-        );
+        if (
+            await this.agentOnboardingRunModel.markFailed(
+                agentOnboardingRunUuid,
+                'The onboarding agent took too long and was stopped.',
+            )
+        ) {
+            await this.trackRunFinished(
+                agentOnboardingRunUuid,
+                'failed',
+                'timeout',
+                null,
+            );
+        }
+    }
+
+    private async trackRunFinished(
+        agentOnboardingRunUuid: string,
+        status: 'completed' | 'failed' | 'cancelled',
+        failureCategory: OnboardingAgentRunFailureCategory | null,
+        numTurns: number | null,
+    ): Promise<void> {
+        try {
+            const run = await this.agentOnboardingRunModel.findByUuid(
+                agentOnboardingRunUuid,
+            );
+            if (!run) return;
+            const startedAt = run.started_at ?? run.created_at;
+            const finishedAt = run.completed_at ?? new Date();
+            this.analytics.track({
+                event: 'onboarding_agent.run_finished',
+                userId: run.created_by_user_uuid,
+                properties: {
+                    organizationId: run.organization_uuid,
+                    projectId: run.project_uuid,
+                    agentOnboardingRunId: run.agent_onboarding_run_uuid,
+                    status,
+                    failureCategory,
+                    lastStage: run.stage,
+                    durationSeconds: Math.max(
+                        0,
+                        Math.round(
+                            (finishedAt.getTime() - startedAt.getTime()) / 1000,
+                        ),
+                    ),
+                    numTurns: numTurns ?? run.usage?.numTurns ?? null,
+                },
+            });
+        } catch (error) {
+            this.logger.warn(
+                `OnboardingAgent: could not track run outcome: ${getErrorMessage(error)}`,
+            );
+        }
     }
 
     private getSandboxManager(): SandboxManager {
@@ -996,6 +1068,8 @@ export class OnboardingAgentService extends BaseService {
         let manager: SandboxManager | null = null;
         let sandbox: { sandboxUuid: string; handle: SandboxHandle } | undefined;
         let cancelled = false;
+        let incompleteOutput = false;
+        let numTurns: number | null = null;
         let stopCancellationPoll = () => {};
         let destroyPromise: Promise<void> | null = null;
 
@@ -1056,7 +1130,7 @@ export class OnboardingAgentService extends BaseService {
                 await this.personalAccessTokenService.createPersonalAccessToken(
                     account,
                     {
-                        description: `Agent onboarding run ${run.agent_onboarding_run_uuid}`,
+                        description: `${ONBOARDING_AGENT_PAT_DESCRIPTION_PREFIX}${run.agent_onboarding_run_uuid}`,
                         expiresAt: new Date(
                             Date.now() + RUN_TIMEOUT_MS + PAT_EXPIRY_GRACE_MS,
                         ),
@@ -1111,12 +1185,14 @@ export class OnboardingAgentService extends BaseService {
                         this.lightdashConfig,
                     ),
                 });
+            numTurns = usage?.numTurns ?? null;
             const handoff = this.buildHandoff(
                 assistantText,
                 sensitiveValues(),
                 await this.readStarterQuestions(files),
             );
             if (!hasCompleteOnboardingOutput(files)) {
+                incompleteOutput = true;
                 this.logger.warn(
                     `OnboardingAgent: incomplete output (${files.length} files, ${usage?.numTurns ?? 0} turns), last message: ${assistantText.slice(-600)}`,
                 );
@@ -1132,15 +1208,31 @@ export class OnboardingAgentService extends BaseService {
                     stage: 'handoff',
                 },
             );
-            if (!completed) {
+            if (completed) {
+                await this.trackRunFinished(
+                    run.agent_onboarding_run_uuid,
+                    'completed',
+                    null,
+                    numTurns,
+                );
+            } else {
                 const current = await this.agentOnboardingRunModel.findByUuid(
                     run.agent_onboarding_run_uuid,
                 );
                 if (current?.cancellation_requested_at) {
                     cancelled = true;
-                    await this.agentOnboardingRunModel.markCancelled(
-                        run.agent_onboarding_run_uuid,
-                    );
+                    if (
+                        await this.agentOnboardingRunModel.markCancelled(
+                            run.agent_onboarding_run_uuid,
+                        )
+                    ) {
+                        await this.trackRunFinished(
+                            run.agent_onboarding_run_uuid,
+                            'cancelled',
+                            null,
+                            numTurns,
+                        );
+                    }
                 }
             }
         } catch (error) {
@@ -1149,9 +1241,18 @@ export class OnboardingAgentService extends BaseService {
                 .catch(() => undefined);
             if (cancelled || current?.cancellation_requested_at) {
                 cancelled = true;
-                await this.agentOnboardingRunModel.markCancelled(
-                    run.agent_onboarding_run_uuid,
-                );
+                if (
+                    await this.agentOnboardingRunModel.markCancelled(
+                        run.agent_onboarding_run_uuid,
+                    )
+                ) {
+                    await this.trackRunFinished(
+                        run.agent_onboarding_run_uuid,
+                        'cancelled',
+                        null,
+                        numTurns,
+                    );
+                }
             } else {
                 const sanitizedMessage = sanitizeOnboardingMessage(
                     getErrorMessage(error),
@@ -1168,10 +1269,28 @@ export class OnboardingAgentService extends BaseService {
                         ? `OnboardingAgent run failed (sandbox connection): ${sanitizedMessage}`
                         : `OnboardingAgent run failed: ${sanitizedMessage}`,
                 );
-                await this.agentOnboardingRunModel.markFailed(
-                    run.agent_onboarding_run_uuid,
-                    message,
-                );
+                if (
+                    await this.agentOnboardingRunModel.markFailed(
+                        run.agent_onboarding_run_uuid,
+                        message,
+                    )
+                ) {
+                    let failureCategory: OnboardingAgentRunFailureCategory =
+                        'unknown';
+                    if (sandboxConnectionFailure) {
+                        failureCategory = 'sandbox_connection';
+                    } else if (incompleteOutput) {
+                        failureCategory = 'incomplete_output';
+                    } else if (error instanceof SandboxTimeoutError) {
+                        failureCategory = 'timeout';
+                    }
+                    await this.trackRunFinished(
+                        run.agent_onboarding_run_uuid,
+                        'failed',
+                        failureCategory,
+                        numTurns,
+                    );
+                }
             }
         } finally {
             stopCancellationPoll();

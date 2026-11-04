@@ -6514,29 +6514,11 @@ export class AsyncQueryService extends ProjectService {
                         userUuid: account.user.id,
                         organizationUuid: account.organization.organizationUuid,
                     });
-                    const onboardingRecord =
-                        await this.onboardingModel.getByOrganizationUuid(
-                            account.organization.organizationUuid,
-                        );
-
-                    if (!onboardingRecord.ranQueryAt) {
-                        await this.onboardingModel.update(
-                            account.organization.organizationUuid,
-                            {
-                                ranQueryAt: new Date(),
-                            },
-                        );
-                        this.analytics.trackAccount(account, {
-                            event: 'onboarding.step_completed',
-                            properties: {
-                                step: 'first_query',
-                                stepIndex: 5,
-                                onboardingFlow,
-                                organizationId:
-                                    account.organization.organizationUuid,
-                            },
-                        });
-                    }
+                    await this.trackFirstQuery(
+                        account,
+                        account.organization.organizationUuid,
+                        onboardingFlow,
+                    );
 
                     // Mirrors runAsyncWarehouseQuery's resolvedDataTimezone:
                     // the session (data) timezone changes results without

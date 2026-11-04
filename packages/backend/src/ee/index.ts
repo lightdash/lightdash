@@ -516,6 +516,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
             }) =>
                 new OnboardingAgentService({
                     lightdashConfig: context.lightdashConfig,
+                    analytics: context.lightdashAnalytics,
                     agentOnboardingRunModel:
                         models.getAgentOnboardingRunModel<AgentOnboardingRunModel>(),
                     sandboxRegistryModel:
