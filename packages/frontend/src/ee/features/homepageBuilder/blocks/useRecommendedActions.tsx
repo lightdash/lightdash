@@ -88,9 +88,9 @@ const resolveWarehouse = (
     organization: Organization | undefined,
     projects: OrganizationProject[] | undefined,
     project: Project | undefined,
-    canConnectLater: boolean,
+    isNewOnboarding: boolean,
 ) => {
-    const hasRealWarehouseProject =
+    const hasRealProject =
         organization?.needsProject === false &&
         (projects ?? []).some(
             ({ type, provisioningSource }) =>
@@ -98,40 +98,38 @@ const resolveWarehouse = (
                 !isPlaygroundProvisioningSource(provisioningSource),
         );
     const warehouseType =
-        hasRealWarehouseProject &&
+        hasRealProject &&
         !isPlaygroundProvisioningSource(project?.provisioningSource)
             ? project?.warehouseConnection?.type
             : undefined;
     // Only new-onboarding projects start from live sources and add a warehouse in settings later
     const needsWarehouse =
-        canConnectLater &&
+        isNewOnboarding &&
         !!project &&
         !isPlaygroundProvisioningSource(project.provisioningSource) &&
         !project.warehouseConnection;
-    return { hasRealWarehouseProject, warehouseType, needsWarehouse };
+    return { hasRealProject, warehouseType, needsWarehouse };
 };
 
 const warehouseStatus = (
     {
-        hasRealWarehouseProject,
+        hasRealProject,
         warehouseType,
         needsWarehouse,
     }: ReturnType<typeof resolveWarehouse>,
     settingsProjectUuid: string | null,
-): ActionStatus => {
-    return {
-        isVisible: true,
-        isComplete: hasRealWarehouseProject && !needsWarehouse,
-        annotation: warehouseType ? getWarehouseLabel(warehouseType) : null,
-        doneIcon: warehouseType ? getWarehouseIcon(warehouseType, 14) : null,
-        // Once a project exists, the onboarding page would only start a second one
-        url:
-            hasRealWarehouseProject && settingsProjectUuid
-                ? `/generalSettings/projectManagement/${settingsProjectUuid}/settings`
-                : '/onboarding/data-source',
-        ctaLabel: needsWarehouse ? 'Connect' : DEFAULT_CTA_LABEL,
-    };
-};
+): ActionStatus => ({
+    isVisible: true,
+    isComplete: hasRealProject && !needsWarehouse,
+    annotation: warehouseType ? getWarehouseLabel(warehouseType) : null,
+    doneIcon: warehouseType ? getWarehouseIcon(warehouseType, 14) : null,
+    // Once a project exists, the onboarding page would only start a second one
+    url:
+        hasRealProject && settingsProjectUuid
+            ? `/generalSettings/projectManagement/${settingsProjectUuid}/settings`
+            : '/onboarding/data-source',
+    ctaLabel: needsWarehouse ? 'Connect' : DEFAULT_CTA_LABEL,
+});
 
 // An agent run left mid-flight is resumable, so the step points at the run
 // instead of restarting the flow
@@ -313,7 +311,7 @@ const useActionStatuses = (
                     organizationQuery.data,
                     projectsQuery.data,
                     projectQuery.data,
-                    settingsProjectUuid !== null,
+                    isNewOnboarding,
                 ),
                 settingsProjectUuid,
             ),
