@@ -45,8 +45,9 @@ export const RunJourney: FC<{ run: AgentOnboardingRun }> = ({ run }) => {
                                 gap={6}
                                 wrap="nowrap"
                                 justify="space-between"
+                                align="flex-start"
                             >
-                                <Text fz="xs" fw={500} truncate>
+                                <Text fz="xs" fw={500} lineClamp={2}>
                                     {AGENT_ONBOARDING_STAGE_LABELS[stage]}
                                 </Text>
                                 {durationMs !== null && (

@@ -42,6 +42,7 @@ const SwitchAccountButton: FC = () => {
                 color="gray"
                 size="compact-xs"
                 fw={400}
+                className={classes.accountButton}
                 loading={logout.isLoading}
                 onClick={() => logout.mutate()}
             >

@@ -5,6 +5,7 @@ import {
     isAgentOnboardingRunTerminal,
     isSemanticLayerExplore,
 } from '@lightdash/common';
+import { useMatches } from '@mantine/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { useLocalStorage } from 'react-use';
@@ -85,9 +86,13 @@ export const useSetupGuide = (
     );
 
     // ponytail: dismissal is per user and project in localStorage, the server skip table only accepts checklist keys
-    const [isDismissed, setIsDismissed] = useLocalStorage(
+    const [isDismissed, setIsDismissed] = useLocalStorage<boolean>(
         `homepage-setup-guide-dismissed-${userUuid ?? 'anon'}-${projectUuid}`,
-        false,
+    );
+    // Below xl the open dock overlaps the centred hero, so it starts as a pill
+    const isNarrow = useMatches(
+        { base: true, xl: false },
+        { getInitialValueInEffect: false },
     );
 
     // ponytail: same per-browser store for steps the server skip table can't hold
@@ -157,7 +162,7 @@ export const useSetupGuide = (
                   completedRun.projectUuid,
               )
             : null,
-        isDismissed: isDismissed === true,
+        isDismissed: isDismissed ?? isNarrow,
         setIsDismissed: (next: boolean) => setIsDismissed(next),
         skipRow: (id: SetupGuideRowId) =>
             setSkippedRows([...(skippedRows ?? []), id]),

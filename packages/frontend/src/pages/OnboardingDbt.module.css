@@ -68,3 +68,10 @@
     color: inherit;
     text-align: left;
 }
+
+@media (max-width: $mantine-breakpoint-xs) {
+    .command {
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+    }
+}

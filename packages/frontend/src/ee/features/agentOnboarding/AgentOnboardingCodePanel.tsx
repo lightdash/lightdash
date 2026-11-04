@@ -146,7 +146,7 @@ const FileTree: FC<{
                             size={13}
                             className={classes.treeIcon}
                         />
-                        <Text fz={11} truncate title={node.name}>
+                        <Text fz="xs" truncate title={node.name}>
                             {node.name}
                         </Text>
                     </UnstyledButton>
@@ -276,6 +276,7 @@ export const AgentOnboardingCodePanel: FC<{
                     variant="subtle"
                     color="gray"
                     size="sm"
+                    visibleFrom="sm"
                     onClick={onClose}
                     aria-label="Close code panel"
                 >

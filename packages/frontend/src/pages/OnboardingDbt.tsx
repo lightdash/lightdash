@@ -258,6 +258,7 @@ const DbtCliWaiting: FC = () => {
                             <CodeBlock
                                 code={npmInstall}
                                 language="bash"
+                                classNames={{ code: classes.command }}
                                 onCopy={handleCopy}
                             />
                         </Tabs.Panel>
@@ -265,6 +266,7 @@ const DbtCliWaiting: FC = () => {
                             <CodeBlock
                                 code={brewInstall}
                                 language="bash"
+                                classNames={{ code: classes.command }}
                                 onCopy={handleCopy}
                             />
                         </Tabs.Panel>
@@ -273,6 +275,7 @@ const DbtCliWaiting: FC = () => {
                     <CodeBlock
                         code={npmInstall}
                         language="bash"
+                        classNames={{ code: classes.command }}
                         onCopy={handleCopy}
                     />
                 ),
@@ -283,6 +286,7 @@ const DbtCliWaiting: FC = () => {
                 <CodeBlock
                     code={`lightdash login ${siteUrl}`}
                     language="bash"
+                    classNames={{ code: classes.command }}
                     onCopy={handleCopy}
                 />
             ),
@@ -297,6 +301,7 @@ const DbtCliWaiting: FC = () => {
                             : 'lightdash deploy --create'
                     }
                     language="bash"
+                    classNames={{ code: classes.command }}
                     onCopy={handleCopy}
                 />
             ),

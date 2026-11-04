@@ -8,3 +8,7 @@
 .toolGroup {
     overflow: hidden;
 }
+
+.action {
+    flex-shrink: 0;
+}

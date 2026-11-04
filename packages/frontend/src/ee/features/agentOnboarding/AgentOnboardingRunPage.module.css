@@ -1,8 +1,15 @@
 .page {
-    min-height: calc(100vh - var(--navbar-height));
+    min-height: calc(100dvh - var(--navbar-height));
     margin: calc(-1 * var(--mantine-spacing-md));
     padding: var(--mantine-spacing-lg) var(--mantine-spacing-md) rem(80px);
     background: var(--ld-color-page);
+}
+
+/* Page pads by sm below sm, so cancel only that much or the page scrolls sideways */
+@media (max-width: $mantine-breakpoint-sm) {
+    .page {
+        margin: calc(-1 * var(--mantine-spacing-sm));
+    }
 }
 
 .column {

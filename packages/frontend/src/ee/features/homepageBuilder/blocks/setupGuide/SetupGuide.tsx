@@ -9,7 +9,10 @@ import {
     Skeleton,
     Text,
     Tooltip,
+    getDefaultZIndex,
+    useMantineTheme,
 } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import {
     IconArrowBackUp,
     IconArrowDownLeft,
@@ -169,6 +172,11 @@ const GuideRow: FC<
     { row: SetupGuideRow; projectUuid: string } & RowHandlers
 > = ({ row, projectUuid, ...handlers }) => {
     const { track } = useTracking();
+    const theme = useMantineTheme();
+    // The preview needs hover and room beside the dock; the row link still acts without it
+    const canPreview = useMediaQuery(
+        `(min-width: ${theme.breakpoints.md}) and (hover: hover)`,
+    );
     const trackClick = (
         choice: SetupGuideChoice['kind'] | null,
         destination: string | null,
@@ -188,7 +196,7 @@ const GuideRow: FC<
                 <MantineIcon icon={copy.icon} size={14} />
             </Box>
             <Box className={classes.grow}>
-                <Text fz="sm" truncate className={classes.rowTitle}>
+                <Text fz="sm" lineClamp={2} className={classes.rowTitle}>
                     {row.title}
                 </Text>
                 {row.status === 'building' && row.evidence && (
@@ -207,6 +215,7 @@ const GuideRow: FC<
     const { action } = row;
     return (
         <HoverCard
+            disabled={!canPreview}
             position="right-start"
             offset={24}
             width={row.choices.length > 0 ? 360 : 280}
@@ -351,7 +360,10 @@ export const SetupGuideView: FC<SetupGuideViewProps> = ({
         ...rows.filter((row) => row.status === 'skipped'),
     ];
     return (
-        <Affix position={{ bottom: 16, left: 16 }}>
+        <Affix
+            position={{ bottom: 16, left: 16 }}
+            zIndex={getDefaultZIndex('app')}
+        >
             {isMinimized ? (
                 <Button
                     variant="default"

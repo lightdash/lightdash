@@ -119,6 +119,11 @@ const ToolRow: FC<{
                                 multiline
                                 w={280}
                                 withinPortal
+                                events={{
+                                    hover: true,
+                                    focus: false,
+                                    touch: true,
+                                }}
                             >
                                 <MantineIcon
                                     icon={IconInfoCircle}
@@ -131,7 +136,7 @@ const ToolRow: FC<{
                 )}
             </Stack>
         </Group>
-        {action}
+        <Box className={classes.action}>{action}</Box>
     </Group>
 );
 

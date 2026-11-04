@@ -132,7 +132,7 @@ export const OnboardingRunActivity: FC<{
                     <Text fz="sm" fw={500}>
                         {title}
                     </Text>
-                    <Text fz="xs" c="dimmed" truncate>
+                    <Text fz="xs" c="dimmed" truncate={variant === 'toast'}>
                         {stageLine}
                     </Text>
                 </Box>

@@ -533,6 +533,10 @@
     min-width: 0;
 }
 
+.accountButton {
+    flex-shrink: 0;
+}
+
 /* A fixed drop, not centering, so the title stays put when the form swaps for progress */
 .splitBody {
     margin-top: clamp(0px, calc(20dvh - 6rem), 4rem);
@@ -549,6 +553,11 @@
 @media (max-width: $mantine-breakpoint-md) {
     .splitVisual {
         display: none;
+    }
+
+    /* The page scrolls here, so leave room to lift the last button clear of the toast */
+    .splitRoot:has(.activityToast) .splitForm {
+        padding-bottom: rem(176px);
     }
 }
 

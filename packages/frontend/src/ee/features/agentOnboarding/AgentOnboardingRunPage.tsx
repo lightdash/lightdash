@@ -339,7 +339,7 @@ const AgentOnboardingRunPage: FC = () => {
             noRightSidebarPadding
             rightSidebarWidthProps={{
                 defaultWidth: 760,
-                minWidth: 480,
+                minWidth: 320,
                 maxWidth: 1100,
             }}
         >
