@@ -238,8 +238,7 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                 )}
                 {isApp && format === SchedulerFormat.PDF && (
                     <Text size="xs" c="dimmed">
-                        Sends the PDF built by the app's own Download PDF button
-                        — the delivery fails if the app doesn't have one.
+                        Sends the report from the app's Download PDF button
                     </Text>
                 )}
                 {isImageDisabled && (
