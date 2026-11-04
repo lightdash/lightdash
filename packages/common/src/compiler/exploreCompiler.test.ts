@@ -1861,7 +1861,13 @@ describe('Explore compilation with model-level parameters', () => {
                 ...extra,
             });
 
-            const compileWithJoinFields = (fields: string[]) =>
+            const compileWithJoinFields = (
+                fields: string[],
+                extraFields: Pick<Table, 'dimensions' | 'metrics'> = {
+                    dimensions: {},
+                    metrics: {},
+                },
+            ) =>
                 compiler.compileExplore({
                     name: 'a',
                     label: 'a',
@@ -1907,6 +1913,7 @@ describe('Explore compilation with model-level parameters', () => {
                                             'order_date',
                                     },
                                 ),
+                                ...extraFields.dimensions,
                             },
                             metrics: {
                                 count_b: {
@@ -1919,6 +1926,7 @@ describe('Explore compilation with model-level parameters', () => {
                                     sql: '${TABLE}.dim1',
                                     hidden: false,
                                 },
+                                ...extraFields.metrics,
                             },
                             lineageGraph: {},
                             sets: {
@@ -1999,6 +2007,96 @@ describe('Explore compilation with model-level parameters', () => {
                     visibleFields(['name', 'email', '-contact_fields*']),
                 ).toEqual(['name']);
                 expect(visibleFields([])).toEqual([]);
+            });
+
+            describe('dependent fields', () => {
+                const dependentFields: Pick<Table, 'dimensions' | 'metrics'> = {
+                    dimensions: {
+                        email_domain: dimension('b', 'email_domain', {
+                            sql: "SPLIT_PART(${email}, '@', 2)",
+                        }),
+                        email_domain_upper: dimension(
+                            'b',
+                            'email_domain_upper',
+                            { sql: 'UPPER(${b.email_domain})' },
+                        ),
+                    },
+                    metrics: {
+                        half_count_b: {
+                            fieldType: FieldType.METRIC,
+                            type: MetricType.NUMBER,
+                            name: 'half_count_b',
+                            label: 'half_count_b',
+                            table: 'b',
+                            tableLabel: 'b',
+                            sql: '${count_b} / 2',
+                            hidden: false,
+                        },
+                        count_with_phone: {
+                            fieldType: FieldType.METRIC,
+                            type: MetricType.COUNT,
+                            name: 'count_with_phone',
+                            label: 'count_with_phone',
+                            table: 'b',
+                            tableLabel: 'b',
+                            sql: '${TABLE}.dim1',
+                            hidden: false,
+                            filters: [
+                                {
+                                    id: 'phone_not_null',
+                                    target: { fieldRef: 'phone' },
+                                    operator: FilterOperator.NOT_NULL,
+                                },
+                            ],
+                        },
+                    },
+                };
+
+                it('should keep excluded fields that kept fields depend on as hidden fields', () => {
+                    const explore = compileWithJoinFields(
+                        ['-email', '-email_domain', '-count_b', '-phone'],
+                        dependentFields,
+                    );
+                    const table = explore.tables.b;
+
+                    expect(explore.warnings).toBeUndefined();
+                    // email_domain_upper -> email_domain -> email
+                    expect(table.dimensions.email_domain_upper.hidden).toBe(
+                        false,
+                    );
+                    expect(table.dimensions.email_domain.hidden).toBe(true);
+                    expect(table.dimensions.email.hidden).toBe(true);
+                    // half_count_b -> count_b
+                    expect(table.metrics.half_count_b.hidden).toBe(false);
+                    expect(table.metrics.count_b.hidden).toBe(true);
+                    // count_with_phone filters on phone
+                    expect(table.metrics.count_with_phone.hidden).toBe(false);
+                    expect(table.dimensions.phone.hidden).toBe(true);
+                });
+
+                it('should keep fields that listed fields depend on in include lists', () => {
+                    const table = compileWithJoinFields(
+                        ['email_domain'],
+                        dependentFields,
+                    ).tables.b;
+
+                    expect(table.dimensions.email_domain.hidden).toBe(false);
+                    expect(table.dimensions.email.hidden).toBe(true);
+                    expect(table.dimensions).not.toHaveProperty('phone');
+                });
+
+                it('should still remove excluded fields nothing depends on', () => {
+                    const table = compileWithJoinFields(
+                        ['-email_domain_upper', '-half_count_b'],
+                        dependentFields,
+                    ).tables.b;
+
+                    expect(table.dimensions).not.toHaveProperty(
+                        'email_domain_upper',
+                    );
+                    expect(table.metrics).not.toHaveProperty('half_count_b');
+                    expect(table.metrics.count_b.hidden).toBe(false);
+                });
             });
         });
     });

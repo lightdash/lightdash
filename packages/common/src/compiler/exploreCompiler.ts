@@ -342,6 +342,38 @@ export const parseAllReferences = (
 ): Reference[] =>
     getAllReferences(raw).map((ref) => getParsedReference(ref, currentTable));
 
+/**
+ * Returns the fields of `table` that `fieldNames` depend on through their SQL
+ * or metric filters, following references transitively.
+ */
+const getFieldDependenciesInTable = (
+    fieldNames: string[],
+    table: Table,
+): Set<string> => {
+    const dependencies = new Set<string>();
+    const toVisit = [...fieldNames];
+    let fieldName = toVisit.pop();
+    while (fieldName !== undefined) {
+        const field = table.dimensions[fieldName] ?? table.metrics[fieldName];
+        const references = field
+            ? [
+                  ...parseAllReferences(field.sql, table.name),
+                  ...(table.metrics[fieldName]?.filters ?? []).map((filter) =>
+                      getParsedReference(filter.target.fieldRef, table.name),
+                  ),
+              ]
+            : [];
+        references.forEach(({ refTable, refName }) => {
+            if (refTable === table.name && !dependencies.has(refName)) {
+                dependencies.add(refName);
+                toVisit.push(refName);
+            }
+        });
+        fieldName = toVisit.pop();
+    }
+    return dependencies;
+};
+
 export type UncompiledExplore = {
     name: string;
     label: string;
@@ -581,6 +613,42 @@ export class ExploreCompiler {
             }, []);
 
             const tableDimensions = tables[join.table].dimensions;
+            const isFieldListed = (fieldName: string) =>
+                !!fieldSelection?.fields.includes(fieldName);
+            const isDimensionVisible = (dimensionKey: string) => {
+                const dimension = tableDimensions[dimensionKey];
+                // Time interval dimensions follow their base dimension
+                const isTimeIntervalBaseDimensionListed =
+                    (dimension.timeInterval || dimension.customTimeInterval) &&
+                    dimension.timeIntervalBaseDimensionName
+                        ? isFieldListed(dimension.timeIntervalBaseDimensionName)
+                        : false;
+                return isSelected(
+                    isFieldListed(dimensionKey) ||
+                        isTimeIntervalBaseDimensionListed,
+                );
+            };
+            const isMetricVisible = (metricKey: string) =>
+                isSelected(isFieldListed(metricKey));
+
+            // Fields that the join or the visible fields depend on are kept
+            // as hidden fields so they still compile
+            const requiredFieldNames = new Set(requiredDimensionsForJoin);
+            if (fieldSelection) {
+                getFieldDependenciesInTable(
+                    [
+                        ...requiredDimensionsForJoin,
+                        ...Object.keys(tableDimensions).filter(
+                            isDimensionVisible,
+                        ),
+                        ...Object.keys(tables[join.table].metrics).filter(
+                            isMetricVisible,
+                        ),
+                    ],
+                    tables[join.table],
+                ).forEach((fieldName) => requiredFieldNames.add(fieldName));
+            }
+
             includedTables[join.alias || join.table] = {
                 ...tables[join.table],
                 originalName:
@@ -603,23 +671,8 @@ export class ExploreCompiler {
                     Record<string, Dimension>
                 >((acc, dimensionKey) => {
                     const dimension = tableDimensions[dimensionKey];
-                    const isRequired =
-                        requiredDimensionsForJoin.includes(dimensionKey);
-
-                    // Time interval dimensions follow their base dimension
-                    const isTimeIntervalBaseDimensionListed =
-                        (dimension.timeInterval ||
-                            dimension.customTimeInterval) &&
-                        dimension.timeIntervalBaseDimensionName
-                            ? !!fieldSelection?.fields.includes(
-                                  dimension.timeIntervalBaseDimensionName,
-                              )
-                            : false;
-
-                    const isVisible = isSelected(
-                        !!fieldSelection?.fields.includes(dimensionKey) ||
-                            isTimeIntervalBaseDimensionListed,
-                    );
+                    const isRequired = requiredFieldNames.has(dimensionKey);
+                    const isVisible = isDimensionVisible(dimensionKey);
 
                     if (isRequired || isVisible) {
                         acc[dimensionKey] = {
@@ -634,8 +687,9 @@ export class ExploreCompiler {
                 }, {}),
                 metrics: Object.fromEntries(
                     Object.keys(tables[join.table].metrics)
-                        .filter((d) =>
-                            isSelected(!!fieldSelection?.fields.includes(d)),
+                        .filter(
+                            (d) =>
+                                isMetricVisible(d) || requiredFieldNames.has(d),
                         )
                         .map((metricKey): [string, Metric] => {
                             const metric =
@@ -644,7 +698,10 @@ export class ExploreCompiler {
                                 metricKey,
                                 {
                                     ...metric,
-                                    hidden: !!join.hidden || metric.hidden,
+                                    hidden:
+                                        !!join.hidden ||
+                                        metric.hidden ||
+                                        !isMetricVisible(metricKey),
                                     table: joinTableName,
                                     tableLabel: joinTableLabel,
                                 },
