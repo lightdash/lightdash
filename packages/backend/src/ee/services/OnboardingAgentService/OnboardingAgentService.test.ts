@@ -10,6 +10,7 @@ import { type DbAgentOnboardingRun } from '../../database/entities/agentOnboardi
 import { SandboxConnectionError, SandboxTimeoutError } from '../SandboxRuntime';
 import { MockSandbox } from '../SandboxRuntime/SandboxRuntime.mock';
 import { pollDetachedAgentRun } from './agentStreamPoller';
+import { CANCELLATION_POLL_INTERVAL_MS } from './constants';
 import { OnboardingAgentService } from './OnboardingAgentService';
 import { hasCompleteOnboardingOutput } from './utils';
 
@@ -57,8 +58,11 @@ const dbRun = (
     ...overrides,
 });
 
-const setup = () => {
+const setup = ({ newOnboarding = true } = {}) => {
     const analytics = { track: vi.fn() };
+    const promptService = {
+        getProjectOnboardingPrompt: vi.fn(async () => 'prompt'),
+    };
     const agentOnboardingRunModel = {
         create: vi.fn(async () => dbRun({ status: 'queued', stage: null })),
         claimQueuedRun: vi.fn(async () => dbRun()),
@@ -70,6 +74,7 @@ const setup = () => {
         markFailedIfIdle: vi.fn(async () => true),
         markCompleted: vi.fn(async () => true),
         markCancelled: vi.fn(async () => true),
+        heartbeat: vi.fn(async () => undefined),
         update: vi.fn(async () => undefined),
         appendEvent: vi.fn(async () => true),
         replaceFiles: vi.fn(async () => undefined),
@@ -123,7 +128,10 @@ const setup = () => {
             })),
             deletePersonalAccessToken: vi.fn(async () => undefined),
         },
-        promptService: { getPrompt: vi.fn(async () => 'prompt') },
+        featureFlagModel: {
+            get: vi.fn(async () => ({ enabled: newOnboarding })),
+        },
+        promptService,
         userService: {
             getSessionByUserUuidAndOrg: vi.fn(async () => sessionUser),
         },
@@ -141,6 +149,7 @@ const setup = () => {
         agentOnboardingRunModel,
         sandboxManager,
         schedulerClient,
+        promptService,
     };
 };
 
@@ -179,6 +188,77 @@ describe('OnboardingAgentService run_finished analytics', () => {
                 numTurns: 12,
             }),
         );
+    });
+
+    test('builds the starter dashboard when new onboarding is off', async () => {
+        vi.mocked(pollDetachedAgentRun).mockImplementation(
+            async ({ onLine }) => {
+                onLine(
+                    JSON.stringify({
+                        type: 'assistant',
+                        message: {
+                            content: [
+                                {
+                                    type: 'text',
+                                    text: `Done: ${lightdashConfigMock.siteUrl}/projects/${PROJECT_UUID}/dashboards/agent-starter-dashboard/view`,
+                                },
+                            ],
+                        },
+                    }),
+                );
+                return { exitCode: 0 };
+            },
+        );
+        const { service, promptService, agentOnboardingRunModel } = setup({
+            newOnboarding: false,
+        });
+        await service.executeRun({ agentOnboardingRunUuid: RUN_UUID });
+        expect(promptService.getProjectOnboardingPrompt).toHaveBeenCalledWith(
+            false,
+        );
+        expect(agentOnboardingRunModel.markCompleted).toHaveBeenCalledWith(
+            RUN_UUID,
+            expect.objectContaining({
+                handoff: expect.objectContaining({
+                    dashboardUrl: `${lightdashConfigMock.siteUrl}/projects/${PROJECT_UUID}/dashboards/agent-starter-dashboard/view`,
+                    starterQuestions: [],
+                }),
+            }),
+        );
+    });
+
+    test('fails a legacy run that reports no dashboard', async () => {
+        const { service, agentOnboardingRunModel } = setup({
+            newOnboarding: false,
+        });
+        await service.executeRun({ agentOnboardingRunUuid: RUN_UUID });
+        expect(agentOnboardingRunModel.markCompleted).not.toHaveBeenCalled();
+        expect(agentOnboardingRunModel.markFailed).toHaveBeenCalled();
+    });
+
+    test('heartbeats a running run while the agent works', async () => {
+        vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+        try {
+            const { service, agentOnboardingRunModel } = setup();
+            agentOnboardingRunModel.findByUuid.mockResolvedValue(
+                dbRun({ updated_at: new Date(0) }),
+            );
+            vi.mocked(pollDetachedAgentRun).mockImplementation(async () => {
+                await vi.advanceTimersByTimeAsync(
+                    CANCELLATION_POLL_INTERVAL_MS,
+                );
+                await vi.waitFor(() =>
+                    expect(
+                        agentOnboardingRunModel.heartbeat,
+                    ).toHaveBeenCalledWith(RUN_UUID),
+                );
+                return { exitCode: 0 };
+            });
+            await service.executeRun({ agentOnboardingRunUuid: RUN_UUID });
+            expect(agentOnboardingRunModel.heartbeat).toHaveBeenCalled();
+        } finally {
+            vi.useRealTimers();
+        }
     });
 
     test('tracks incomplete output as a failure', async () => {

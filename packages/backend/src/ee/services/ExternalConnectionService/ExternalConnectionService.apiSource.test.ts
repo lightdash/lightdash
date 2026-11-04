@@ -1,5 +1,6 @@
 import {
     ApiConnectorType,
+    FeatureFlags,
     ForbiddenError,
     ParameterError,
     QueryExecutionContext,
@@ -66,6 +67,7 @@ const buildService = ({
     canView = true,
     canManage = canView,
     liveSourcesEnabled = true,
+    newOnboardingEnabled = true,
     deletedSources = [],
     takenExploreNames = [],
     namesHeldAtClaim = [],
@@ -75,6 +77,7 @@ const buildService = ({
     canView?: boolean;
     canManage?: boolean;
     liveSourcesEnabled?: boolean;
+    newOnboardingEnabled?: boolean;
     deletedSources?: DeletedLiveSource[];
     takenExploreNames?: string[];
     /** Names other sources store between the list and the claim. */
@@ -185,7 +188,12 @@ const buildService = ({
         analytics,
         schedulerClient,
         featureFlagModel: {
-            get: vi.fn().mockResolvedValue({ enabled: liveSourcesEnabled }),
+            get: vi.fn(async ({ featureFlagId }) => ({
+                enabled:
+                    featureFlagId === FeatureFlags.NewOnboarding
+                        ? newOnboardingEnabled
+                        : liveSourcesEnabled,
+            })),
         },
     } as never);
     vi.spyOn(
@@ -532,6 +540,19 @@ describe('ExternalConnectionService api source schema scans', () => {
         expect(tables.map(({ reference }) => reference)).toEqual(['conn-1']);
     });
 
+    it('lists no schema tables while new onboarding is off', async () => {
+        const { service, externalConnectionModel } = buildService({
+            newOnboardingEnabled: false,
+        });
+
+        await expect(
+            service.listApiSourceSchemaTables(account, 'proj-1'),
+        ).resolves.toEqual([]);
+        expect(
+            externalConnectionModel.getApiSourceSchemas,
+        ).not.toHaveBeenCalled();
+    });
+
     it('refuses the schema while live sources are off', async () => {
         const { service } = buildService({ liveSourcesEnabled: false });
         await expect(
@@ -570,6 +591,33 @@ describe('ExternalConnectionService live source writes', () => {
             userUuid: account.user.id,
             externalConnectionUuid: 'conn-1',
         });
+    });
+
+    it('does not queue a schema scan while new onboarding is off', async () => {
+        const { service, externalConnectionModel, schedulerClient } =
+            buildService({ newOnboardingEnabled: false });
+        await service.create(account, 'proj-1', postHogCreate);
+
+        expect(
+            externalConnectionModel.setApiSourceSchema,
+        ).not.toHaveBeenCalled();
+        expect(schedulerClient.scanApiSourceSchema).not.toHaveBeenCalled();
+    });
+
+    it('marks the scan failed when it cannot be queued', async () => {
+        const { service, externalConnectionModel, schedulerClient } =
+            buildService();
+        schedulerClient.scanApiSourceSchema.mockRejectedValueOnce(
+            new Error('queue down'),
+        );
+        await service.create(account, 'proj-1', postHogCreate);
+
+        expect(
+            externalConnectionModel.setApiSourceSchema,
+        ).toHaveBeenLastCalledWith(
+            'conn-1',
+            expect.objectContaining({ status: 'failed' }),
+        );
     });
 
     it('tracks a live source by kind and connector', async () => {

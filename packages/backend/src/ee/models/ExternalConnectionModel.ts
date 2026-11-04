@@ -98,12 +98,29 @@ const apiSourceSchemaScanSchema = z.discriminatedUnion('status', [
     }),
 ]);
 
-const parseApiSourceSchemaScan = (
+export const API_SOURCE_SCHEMA_SCAN_TIMEOUT_MS = 5 * 60 * 1000;
+// Leaves room for queue wait; a scan pending longer lost its worker
+const STALE_PENDING_SCAN_MS = 3 * API_SOURCE_SCHEMA_SCAN_TIMEOUT_MS;
+
+export const parseApiSourceSchemaScan = (
     value: unknown,
+    now: Date = new Date(),
 ): ApiSourceSchemaScan | null => {
     if (value === null) return null;
     const parsed = apiSourceSchemaScanSchema.safeParse(value);
-    return parsed.success ? parsed.data : null;
+    if (!parsed.success) return null;
+    const scan = parsed.data;
+    if (
+        scan.status === 'pending' &&
+        now.getTime() - scan.requestedAt.getTime() > STALE_PENDING_SCAN_MS
+    ) {
+        return {
+            status: 'failed',
+            scannedAt: scan.requestedAt,
+            error: 'The schema scan did not finish',
+        };
+    }
+    return scan;
 };
 
 /**

@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    FeatureFlags,
     ForbiddenError,
     getConnectionDefaults,
     getErrorMessage,
@@ -24,6 +25,7 @@ import {
 import { fromSession } from '../../../auth/account';
 import { assertOAuthCredentialOperationAllowed } from '../../../auth/oauthScopes/credentials';
 import { type LightdashConfig } from '../../../config/parseConfig';
+import { type FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { ONBOARDING_AGENT_PAT_DESCRIPTION_PREFIX } from '../../../models/OnboardingModel/OnboardingModel';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../../../services/BaseService';
@@ -77,6 +79,7 @@ import {
     FILE_SYNC_INTERVAL_MS,
     PAT_EXPIRY_GRACE_MS,
     PROMPT_PATH,
+    RUN_HEARTBEAT_INTERVAL_MS,
     RUN_TIMEOUT_MS,
     SANDBOX_TIMEOUT_MS,
     WORKDIR,
@@ -101,6 +104,7 @@ type Dependencies = {
     agentOnboardingRunModel: AgentOnboardingRunModel;
     sandboxRegistryModel: SandboxRegistryModel;
     projectModel: ProjectModel;
+    featureFlagModel: FeatureFlagModel;
     personalAccessTokenService: PersonalAccessTokenService;
     promptService: PromptService;
     userService: UserService;
@@ -122,8 +126,8 @@ const toRun = (run: DbAgentOnboardingRun): AgentOnboardingRun => ({
     events: run.events,
     handoff: run.handoff && {
         summary: run.handoff.summary,
-        dashboardUrl: null,
-        // Runs from before starter questions stored a dashboard link instead
+        dashboardUrl: run.handoff.dashboardUrl,
+        // Runs that built a starter dashboard stored no questions
         starterQuestions: run.handoff.starterQuestions ?? [],
     },
     usage: run.usage,
@@ -150,6 +154,8 @@ export class OnboardingAgentService extends BaseService {
 
     private readonly projectModel: ProjectModel;
 
+    private readonly featureFlagModel: FeatureFlagModel;
+
     private readonly personalAccessTokenService: PersonalAccessTokenService;
 
     private readonly promptService: PromptService;
@@ -169,6 +175,7 @@ export class OnboardingAgentService extends BaseService {
         this.agentOnboardingRunModel = dependencies.agentOnboardingRunModel;
         this.sandboxRegistryModel = dependencies.sandboxRegistryModel;
         this.projectModel = dependencies.projectModel;
+        this.featureFlagModel = dependencies.featureFlagModel;
         this.personalAccessTokenService =
             dependencies.personalAccessTokenService;
         this.promptService = dependencies.promptService;
@@ -606,12 +613,15 @@ export class OnboardingAgentService extends BaseService {
         warehouseType: string;
         database: string | undefined;
         schema: string | undefined;
+        writesStarterQuestions: boolean;
     }): Promise<string> {
-        const basePrompt =
-            await this.promptService.getPrompt('project-onboarding');
+        const { writesStarterQuestions, ...promptArgs } = args;
+        const basePrompt = await this.promptService.getProjectOnboardingPrompt(
+            writesStarterQuestions,
+        );
         const siteUrl = this.lightdashConfig.siteUrl.replace(/\/+$/, '');
         return buildManagedOnboardingPrompt({
-            ...args,
+            ...promptArgs,
             basePrompt,
             siteUrl,
         });
@@ -624,7 +634,7 @@ export class OnboardingAgentService extends BaseService {
         const timer = setInterval(() => {
             void this.agentOnboardingRunModel
                 .findByUuid(agentOnboardingRunUuid)
-                .then((run) => {
+                .then(async (run) => {
                     // A run marked abandoned by a status poll must stop its sandbox too
                     if (
                         run &&
@@ -632,6 +642,16 @@ export class OnboardingAgentService extends BaseService {
                             isAgentOnboardingRunTerminal(run.status))
                     ) {
                         onCancel();
+                        return;
+                    }
+                    if (
+                        run &&
+                        Date.now() - run.updated_at.getTime() >=
+                            RUN_HEARTBEAT_INTERVAL_MS
+                    ) {
+                        await this.agentOnboardingRunModel.heartbeat(
+                            agentOnboardingRunUuid,
+                        );
                     }
                 })
                 .catch((error) => {
@@ -751,12 +771,14 @@ export class OnboardingAgentService extends BaseService {
         sandbox: SandboxHandle;
         patToken: string;
         anthropic: ClaudeCodeAnthropicConfig;
+        writesStarterQuestions: boolean;
     }): Promise<{
         assistantText: string;
         files: DbAgentOnboardingFile[];
         usage: AgentOnboardingUsage | null;
     }> {
-        const { run, sandbox, patToken, anthropic } = args;
+        const { run, sandbox, patToken, anthropic, writesStarterQuestions } =
+            args;
         this.fileStore.assertConfigured();
         const { warehouseConnection } =
             await this.projectModel.getWithSensitiveFields(run.project_uuid);
@@ -771,6 +793,7 @@ export class OnboardingAgentService extends BaseService {
             warehouseType: warehouseConnection.type,
             database: connectionDefaults.database,
             schema: connectionDefaults.schema,
+            writesStarterQuestions,
         });
         const sensitiveValues = [patToken, anthropic.apiKey];
 
@@ -1032,6 +1055,7 @@ export class OnboardingAgentService extends BaseService {
     private buildHandoff(
         rawAssistantText: string,
         sensitiveValues: string[],
+        writesStarterQuestions: boolean,
         starterQuestions: string[],
     ): AgentOnboardingHandoff {
         const siteUrl = this.lightdashConfig.siteUrl.replace(/\/+$/, '');
@@ -1042,9 +1066,14 @@ export class OnboardingAgentService extends BaseService {
             ),
             sensitiveValues,
         );
+        const urlPattern = new RegExp(
+            `${siteUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^\\s)\`"']*dashboards[^\\s)\`"']*`,
+        );
         return {
             summary: assistantText.trim() || null,
-            dashboardUrl: null,
+            dashboardUrl: writesStarterQuestions
+                ? null
+                : (assistantText.match(urlPattern)?.[0] ?? null),
             starterQuestions: starterQuestions.map((question) =>
                 sanitizeOnboardingMessage(question, sensitiveValues),
             ),
@@ -1177,6 +1206,14 @@ export class OnboardingAgentService extends BaseService {
                 throw new Error('Onboarding run cancelled');
             }
 
+            const { enabled: writesStarterQuestions } =
+                await this.featureFlagModel.get({
+                    user: {
+                        userUuid: run.created_by_user_uuid,
+                        organizationUuid: run.organization_uuid,
+                    },
+                    featureFlagId: FeatureFlags.NewOnboarding,
+                });
             const { assistantText, files, usage } =
                 await this.runAgentInSandbox({
                     run,
@@ -1185,14 +1222,21 @@ export class OnboardingAgentService extends BaseService {
                     anthropic: resolveSandboxAnthropicConfig(
                         this.lightdashConfig,
                     ),
+                    writesStarterQuestions,
                 });
             numTurns = usage?.numTurns ?? null;
             const handoff = this.buildHandoff(
                 assistantText,
                 sensitiveValues(),
-                await this.readStarterQuestions(files),
+                writesStarterQuestions,
+                writesStarterQuestions
+                    ? await this.readStarterQuestions(files)
+                    : [],
             );
-            if (!hasCompleteOnboardingOutput(files)) {
+            if (
+                !hasCompleteOnboardingOutput(files) ||
+                (!writesStarterQuestions && !handoff.dashboardUrl)
+            ) {
                 incompleteOutput = true;
                 this.logger.warn(
                     `OnboardingAgent: incomplete output (${files.length} files, ${usage?.numTurns ?? 0} turns), last message: ${assistantText.slice(-600)}`,

@@ -292,6 +292,15 @@ export class AgentOnboardingRunModel {
         return updated > 0;
     }
 
+    async heartbeat(agentOnboardingRunUuid: string): Promise<void> {
+        await this.database<AgentOnboardingRunsTable>(
+            AgentOnboardingRunsTableName,
+        )
+            .where('agent_onboarding_run_uuid', agentOnboardingRunUuid)
+            .where('status', 'running')
+            .update({ updated_at: new Date() });
+    }
+
     async markCancelled(agentOnboardingRunUuid: string): Promise<boolean> {
         const updated = await this.database<AgentOnboardingRunsTable>(
             AgentOnboardingRunsTableName,
