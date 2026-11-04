@@ -105,6 +105,7 @@ const buildService = () => {
         },
         aiOrganizationSettingsService: {
             isAiAgentMemoryEnabled: vi.fn().mockResolvedValue(false),
+            isAiAgentReviewsEnabled: vi.fn().mockResolvedValue(false),
         },
         orgAiCopilotConfigResolver: {
             getDecisionClient: vi.fn().mockResolvedValue(undefined),
