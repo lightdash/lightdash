@@ -1,12 +1,4 @@
-import {
-    Box,
-    Divider,
-    Group,
-    Loader,
-    Switch,
-    Text,
-    Title,
-} from '@mantine/core';
+import { Divider, Loader, Switch } from '@mantine/core';
 import { SlackChannelSelect } from '../../../../../../components/common/SlackChannelSelect';
 import { useGetSlack } from '../../../../../../hooks/slack/useSlack';
 import useApp from '../../../../../../providers/App/useApp';
@@ -16,6 +8,7 @@ import {
 } from '../../../hooks/useReviewNotificationSettings';
 import { JiraReviewSettings } from './JiraReviewSettings';
 import { LinearReviewSettings } from './LinearReviewSettings';
+import { SettingRow } from './SettingRow';
 
 /** Notification and issue destinations shown only while AI agent reviews run. */
 export const ReviewNotificationsSettings = () => {
@@ -32,41 +25,31 @@ export const ReviewNotificationsSettings = () => {
         <>
             {hasSlack && (
                 <>
-                    <Divider mx="calc(var(--mantine-spacing-md) * -1)" />
-                    <Group
-                        justify="space-between"
-                        wrap="nowrap"
-                        align="flex-start"
-                        gap="md"
-                    >
-                        <Box maw={620}>
-                            <Title order={6} mb={4}>
-                                Slack notifications
-                            </Title>
-                            <Text c="dimmed" fz="xs">
-                                Post to a Slack channel when a review run
-                                surfaces findings that need review. Assignment
-                                notifications are always sent as a direct
-                                message and in the in-app bell.
-                            </Text>
-                        </Box>
-                        {isInitialLoading || !settings ? (
-                            <Loader size="sm" />
-                        ) : (
-                            <Switch
-                                size="md"
-                                aria-label="Post AI review findings to Slack"
-                                checked={settings.enabled}
-                                disabled={!canEdit || isUpdating}
-                                onChange={(event) =>
-                                    updateSettings({
-                                        enabled: event.currentTarget.checked,
-                                        slackChannelId: settings.slackChannelId,
-                                    })
-                                }
-                            />
-                        )}
-                    </Group>
+                    <Divider />
+                    <SettingRow
+                        title="Slack notifications"
+                        description="Post to a Slack channel when a review run surfaces findings that need review. Assignment notifications are always sent as a direct message and in the in-app bell."
+                        control={
+                            isInitialLoading || !settings ? (
+                                <Loader size="sm" />
+                            ) : (
+                                <Switch
+                                    size="md"
+                                    aria-label="Post AI review findings to Slack"
+                                    checked={settings.enabled}
+                                    disabled={!canEdit || isUpdating}
+                                    onChange={(event) =>
+                                        updateSettings({
+                                            enabled:
+                                                event.currentTarget.checked,
+                                            slackChannelId:
+                                                settings.slackChannelId,
+                                        })
+                                    }
+                                />
+                            )
+                        }
+                    />
 
                     {settings?.enabled && (
                         <SlackChannelSelect

@@ -1,0 +1,8 @@
+.text {
+    flex: 1 1 20rem;
+    max-width: 40rem;
+}
+
+.description {
+    text-wrap: pretty;
+}

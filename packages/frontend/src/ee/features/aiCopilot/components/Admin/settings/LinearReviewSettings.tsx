@@ -183,7 +183,7 @@ export const LinearReviewSettings = () => {
 
     return (
         <>
-            <Divider mx="calc(var(--mantine-spacing-md) * -1)" />
+            <Divider />
             <Group
                 justify="space-between"
                 wrap="nowrap"

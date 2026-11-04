@@ -168,7 +168,7 @@ export const JiraReviewSettings = () => {
 
     return (
         <>
-            <Divider mx="calc(var(--mantine-spacing-md) * -1)" />
+            <Divider />
             <Group justify="space-between" wrap="nowrap" align="flex-start">
                 <Box maw={620}>
                     <Group gap="xs" mb={4}>

@@ -1,25 +1,15 @@
 import { type SlackSettings } from '@lightdash/common';
-import {
-    Badge,
-    Box,
-    Divider,
-    Group,
-    Stack,
-    Switch,
-    Text,
-    Title,
-} from '@mantine/core';
+import { Divider, Stack, Switch, Text } from '@mantine/core';
 import {
     IconApps,
     IconBrandSlack,
     IconLayoutDashboard,
-    IconSparkles,
     type Icon,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
-import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { SettingsCard } from '../../../../../../components/common/Settings/SettingsCard';
+import { SettingRow } from './SettingRow';
 
 const SurfaceRow: FC<{
     icon: Icon;
@@ -29,21 +19,20 @@ const SurfaceRow: FC<{
     disabled: boolean;
     onChange: (checked: boolean) => void;
 }> = ({ icon, name, description, checked, disabled, onChange }) => (
-    <Group wrap="nowrap" align="flex-start" gap="sm">
-        <MantineIcon icon={icon} size="lg" color="ldGray.7" />
-        <Stack gap={2} flex={1}>
-            <Title order={6}>{name}</Title>
-            <Text c="dimmed" fz="xs">
-                {description}
-            </Text>
-        </Stack>
-        <Switch
-            size="md"
-            checked={checked}
-            disabled={disabled}
-            onChange={(event) => onChange(event.currentTarget.checked)}
-        />
-    </Group>
+    <SettingRow
+        icon={icon}
+        title={name}
+        description={description}
+        control={
+            <Switch
+                aria-label={name}
+                size="md"
+                checked={checked}
+                disabled={disabled}
+                onChange={(event) => onChange(event.currentTarget.checked)}
+            />
+        }
+    />
 );
 
 type AiSurfacesCardProps = {
@@ -52,7 +41,6 @@ type AiSurfacesCardProps = {
     showDataAppRuntimeAi: boolean;
     slackInstallation: SlackSettings | undefined;
     slackAgentsEnabled: boolean;
-    isTrial: boolean;
     disabled: boolean;
     isUpdatingSlack: boolean;
     onUpdateAiAgentsVisible: (checked: boolean) => void;
@@ -64,7 +52,6 @@ export const AiSurfacesCard: FC<AiSurfacesCardProps> = ({
     showDataAppRuntimeAi,
     slackInstallation,
     slackAgentsEnabled,
-    isTrial,
     disabled,
     isUpdatingSlack,
     onUpdateAiAgentsVisible,
@@ -75,28 +62,6 @@ export const AiSurfacesCard: FC<AiSurfacesCardProps> = ({
     return (
         <SettingsCard>
             <Stack gap="md">
-                <Box>
-                    <Group gap="xs">
-                        <Title order={5}>Visibility</Title>
-                        {isTrial && (
-                            <Badge
-                                leftSection={
-                                    <MantineIcon
-                                        icon={IconSparkles}
-                                        size={12}
-                                    />
-                                }
-                                size="sm"
-                            >
-                                Free trial
-                            </Badge>
-                        )}
-                    </Group>
-                    <Text c="dimmed" fz="xs">
-                        Where agents can be reached. Per-agent access still
-                        applies on every surface.
-                    </Text>
-                </Box>
                 <SurfaceRow
                     icon={IconLayoutDashboard}
                     name="Lightdash UI"
@@ -108,19 +73,16 @@ export const AiSurfacesCard: FC<AiSurfacesCardProps> = ({
                 {showDataAppRuntimeAi && (
                     <>
                         <Divider />
-                        <Group wrap="nowrap" align="flex-start" gap="sm">
-                            <MantineIcon
-                                icon={IconApps}
-                                size="lg"
-                                color="ldGray.7"
-                            />
-                            <Stack gap={2} flex={1}>
-                                <Title order={6}>Data apps</Title>
-                                <Text c="dimmed" fz="xs">
+                        <SettingRow
+                            icon={IconApps}
+                            title="Data apps"
+                            description={
+                                <>
                                     AI analysis inside data apps is configured
                                     under{' '}
                                     <Text
                                         span
+                                        inherit
                                         component={Link}
                                         to="/generalSettings/dataApps/aiAnalysis"
                                         td="underline"
@@ -128,9 +90,9 @@ export const AiSurfacesCard: FC<AiSurfacesCardProps> = ({
                                         Data apps · AI analysis
                                     </Text>
                                     .
-                                </Text>
-                            </Stack>
-                        </Group>
+                                </>
+                            }
+                        />
                     </>
                 )}
                 <Divider />
