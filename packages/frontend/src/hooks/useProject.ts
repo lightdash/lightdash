@@ -217,6 +217,7 @@ export const useCreateMutation = (options?: { quietJobToast?: boolean }) => {
                     name: EventName.CREATE_PROJECT_FAILED,
                     properties: {
                         warehouse: data.warehouseConnection.type,
+                        errorType: error.name,
                         failedStep: null,
                         errorCategory: getCreateProjectErrorCategory(error),
                         warehouseOnly:

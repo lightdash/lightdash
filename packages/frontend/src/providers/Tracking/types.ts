@@ -907,6 +907,7 @@ type CreateProjectFailedEvent = {
     name: EventName.CREATE_PROJECT_FAILED;
     properties: {
         warehouse: WarehouseTypes;
+        errorType: string;
         // The create job's failed step, null for sync API errors
         failedStep: JobStepType | null;
         errorCategory: CreateProjectErrorCategory;

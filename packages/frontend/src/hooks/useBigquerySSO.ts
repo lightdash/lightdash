@@ -95,7 +95,12 @@ export const useBigqueryKeyfileDatasets = (
     const clientEmail = keyfileContents?.client_email;
     return useQuery<ApiBigqueryDatasets['results'], ApiError>({
         // The key itself stays out of the cache key
-        queryKey: ['bigquery-keyfile-datasets', projectId, clientEmail],
+        queryKey: [
+            'bigquery-keyfile-datasets',
+            projectId,
+            clientEmail,
+            keyfileContents?.private_key_id,
+        ],
         queryFn: () => getKeyfileDatasets(lightdashApi, keyfileContents!),
         enabled:
             typeof projectId === 'string' &&
