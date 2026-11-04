@@ -270,12 +270,6 @@ export const AiAgentFormSetup = ({
         }),
     );
 
-    const scrollToKnowledgeAndData = useCallback(() => {
-        document
-            .getElementById('knowledge-and-data')
-            ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, []);
-
     const handleDeleteClick = useCallback(() => {
         setDeleteModalOpen(true);
     }, []);
@@ -1028,20 +1022,6 @@ export const AiAgentFormSetup = ({
                                 />
                             )}
                         </Stack>
-
-                        <Text size="xs" c="dimmed">
-                            Which explores, spaces and documents it can read is
-                            set in{' '}
-                            <Anchor
-                                component="button"
-                                type="button"
-                                size="xs"
-                                onClick={scrollToKnowledgeAndData}
-                            >
-                                Knowledge &amp; data
-                            </Anchor>
-                            .
-                        </Text>
                     </AgentSettingsSection>
 
                     <AgentSettingsSection
