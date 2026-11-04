@@ -1,4 +1,5 @@
 import {
+    BinType,
     CustomDimensionType,
     DEFAULT_SPOTLIGHT_CONFIG,
     DimensionType,
@@ -17,23 +18,17 @@ import {
 import { compileMetricQuery } from '../../queryCompiler';
 import { MetricQueryBuilder } from './MetricQueryBuilder';
 import {
-    CUSTOM_SQL_DIMENSION,
     EXPLORE,
-    EXPLORE_JOIN_CHAIN,
-    EXPLORE_WITH_REQUIRED_FILTERS,
-    EXPLORE_WITH_SQL_FILTER,
     INTRINSIC_USER_ATTRIBUTES,
     METRIC_QUERY,
-    METRIC_QUERY_JOIN_CHAIN,
     METRIC_QUERY_TWO_TABLES,
-    METRIC_QUERY_WITH_ADDITIONAL_METRIC,
-    METRIC_QUERY_WITH_CUSTOM_SQL_DIMENSION,
-    METRIC_QUERY_WITH_FILTER,
-    METRIC_QUERY_WITH_METRIC_FILTER,
     QUERY_BUILDER_UTC_TIMEZONE,
     warehouseClientMock,
 } from './MetricQueryBuilder.mock';
 
+const tableParameters: NonNullable<LightdashProjectConfig['parameters']> = {
+    tier: { label: 'Tier' },
+};
 const projectParameters: NonNullable<LightdashProjectConfig['parameters']> = {
     region: { label: 'Region' },
     schema: { label: 'Schema' },
@@ -42,7 +37,13 @@ const projectParameters: NonNullable<LightdashProjectConfig['parameters']> = {
     currency: { label: 'Currency' },
     status: { label: 'Status' },
 };
+// Model parameters go by their dotted name once compiled
+const parameterDefinitions = {
+    ...projectParameters,
+    'table1.tier': tableParameters.tier,
+};
 const parameters: ParametersValuesMap = {
+    'table1.tier': 'gold',
     region: 'EU',
     schema: 'public',
     threshold: 18,
@@ -71,33 +72,66 @@ const compilerParameterReferences = (
             explore,
             metricQuery,
             warehouseSqlBuilder: warehouseClientMock,
-            availableParameters: Object.keys(projectParameters),
+            availableParameters: Object.keys(parameterDefinitions),
         }),
         warehouseSqlBuilder: warehouseClientMock,
         userAttributes: { country: ['US'] },
         intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
         timezone: QUERY_BUILDER_UTC_TIMEZONE,
         parameters,
-        parameterDefinitions: projectParameters,
+        parameterDefinitions,
     }).compileQuery().parameterReferences;
 
 const { table1 } = EXPLORE.tables;
 const { table2 } = EXPLORE.tables;
+// The mock explore is already compiled; references to a dimension that still
+// carries compiledSql reuse it instead of compiling its sql again
+const { compiledSql, tablesReferences, ...sharedDimension } =
+    table1.dimensions.shared;
 const regionDimension = {
-    ...table1.dimensions.shared,
+    ...sharedDimension,
     name: 'region',
     label: 'region',
     sql: "CASE WHEN ${TABLE}.shared = ${lightdash.parameters.region} THEN 'home' ELSE 'away' END",
 };
+const scaledDimension = {
+    ...sharedDimension,
+    type: DimensionType.NUMBER,
+    name: 'scaled',
+    label: 'scaled',
+    sql: '${TABLE}.dim1 * ${lightdash.parameters.factor}',
+};
+const table1WithRegion = {
+    ...table1,
+    dimensions: {
+        ...table1.dimensions,
+        region: regionDimension,
+        scaled: scaledDimension,
+    },
+};
 const exploreWithRegionDimension = compileExplore({
-    tables: {
-        ...EXPLORE.tables,
-        table1: {
-            ...table1,
-            dimensions: { ...table1.dimensions, region: regionDimension },
+    tables: { ...EXPLORE.tables, table1: table1WithRegion },
+});
+const table2WithRegion = {
+    ...table2,
+    dimensions: {
+        ...table2.dimensions,
+        region: { ...regionDimension, table: 'table2' },
+    },
+};
+const table1WithTier = {
+    ...table1,
+    parameters: tableParameters,
+    dimensions: {
+        ...table1.dimensions,
+        tier: {
+            ...sharedDimension,
+            name: 'tier',
+            label: 'tier',
+            sql: "CASE WHEN ${TABLE}.shared = ${lightdash.parameters.table1.tier} THEN 'top' ELSE 'rest' END",
         },
     },
-});
+};
 
 type ParityCase = {
     name: string;
@@ -178,6 +212,161 @@ const parameterCases: ParityCase[] = [
         explore: exploreWithRegionDimension,
         metricQuery: METRIC_QUERY,
         expected: [],
+    },
+    {
+        name: 'filter on an unselected parameterised dimension',
+        explore: exploreWithRegionDimension,
+        metricQuery: {
+            ...METRIC_QUERY,
+            filters: {
+                dimensions: {
+                    id: 'f',
+                    and: [
+                        {
+                            id: 'r',
+                            target: { fieldId: 'table1_region' },
+                            operator: FilterOperator.EQUALS,
+                            values: ['home'],
+                        },
+                    ],
+                },
+            },
+        },
+        expected: ['region'],
+    },
+    {
+        name: 'model required filter on a parameterised dimension',
+        explore: compileExplore({
+            tables: {
+                ...EXPLORE.tables,
+                table1: {
+                    ...table1WithRegion,
+                    requiredFilters: [
+                        {
+                            id: 'required',
+                            target: { fieldRef: 'table1.region' },
+                            operator: FilterOperator.EQUALS,
+                            values: ['home'],
+                            required: true,
+                        },
+                    ],
+                },
+            },
+        }),
+        metricQuery: METRIC_QUERY,
+        expected: ['region'],
+    },
+    {
+        name: 'always join whose sql_from carries a parameter',
+        explore: compileExplore({
+            joinedTables: [{ ...EXPLORE.joinedTables[0], always: true }],
+            tables: {
+                ...EXPLORE.tables,
+                table2: {
+                    ...table2,
+                    sqlTable: '"db".${ld.parameters.schema}."table2"',
+                },
+            },
+        }),
+        metricQuery: METRIC_QUERY,
+        expected: ['schema'],
+    },
+    {
+        name: "base sql_where on a joined table's parameterised dimension",
+        explore: compileExplore({
+            tables: {
+                ...EXPLORE.tables,
+                table1: { ...table1, sqlWhere: "${table2.region} = 'home'" },
+                table2: table2WithRegion,
+            },
+        }),
+        metricQuery: METRIC_QUERY,
+        expected: ['region'],
+    },
+    {
+        name: 'custom SQL dimension on a parameterised dimension',
+        explore: exploreWithRegionDimension,
+        metricQuery: {
+            ...METRIC_QUERY,
+            dimensions: ['table1_dim1', 'is_home'],
+            customDimensions: [
+                {
+                    id: 'is_home',
+                    name: 'Is home',
+                    table: 'table1',
+                    type: CustomDimensionType.SQL,
+                    sql: "${table1.region} = 'home'",
+                    dimensionType: DimensionType.BOOLEAN,
+                },
+            ],
+        },
+        expected: ['region'],
+    },
+    {
+        name: 'custom metric aggregating a parameterised dimension',
+        explore: exploreWithRegionDimension,
+        metricQuery: {
+            ...METRIC_QUERY,
+            metrics: ['table1_home_count'],
+            sorts: [],
+            tableCalculations: [],
+            additionalMetrics: [
+                {
+                    type: MetricType.COUNT_DISTINCT,
+                    table: 'table1',
+                    name: 'home_count',
+                    sql: '',
+                    baseDimensionName: 'region',
+                },
+            ],
+        },
+        expected: ['region'],
+    },
+    {
+        name: 'custom bin dimension on a parameterised dimension',
+        explore: exploreWithRegionDimension,
+        metricQuery: {
+            ...METRIC_QUERY,
+            dimensions: ['table1_dim1', 'scaled_bins'],
+            customDimensions: [
+                {
+                    id: 'scaled_bins',
+                    name: 'Scaled bins',
+                    table: 'table1',
+                    type: CustomDimensionType.BIN,
+                    dimensionId: 'table1_scaled',
+                    binType: BinType.FIXED_NUMBER,
+                    binNumber: 3,
+                },
+            ],
+        },
+        expected: ['factor'],
+    },
+    {
+        name: 'model parameter in a selected dimension',
+        explore: compileExplore({
+            tables: { ...EXPLORE.tables, table1: table1WithTier },
+        }),
+        metricQuery: {
+            ...METRIC_QUERY,
+            dimensions: ['table1_dim1', 'table1_tier'],
+        },
+        expected: ['table1.tier'],
+    },
+    {
+        name: 'model parameter in sql_where',
+        explore: compileExplore({
+            tables: {
+                ...EXPLORE.tables,
+                table1: {
+                    ...table1,
+                    parameters: tableParameters,
+                    sqlWhere: '${TABLE}.shared = ${ld.parameters.table1.tier}',
+                },
+            },
+        }),
+        metricQuery: METRIC_QUERY,
+        expected: ['table1.tier'],
     },
     {
         name: 'custom SQL dimension',
@@ -274,40 +463,12 @@ const parameterCases: ParityCase[] = [
     },
 ];
 
-const existingFixtures: ParityCase[] = (
-    [
-        [EXPLORE, METRIC_QUERY],
-        [EXPLORE, METRIC_QUERY_TWO_TABLES],
-        [EXPLORE, METRIC_QUERY_WITH_FILTER],
-        [EXPLORE, METRIC_QUERY_WITH_METRIC_FILTER],
-        [EXPLORE, METRIC_QUERY_WITH_ADDITIONAL_METRIC],
-        [
-            EXPLORE,
-            {
-                ...METRIC_QUERY_WITH_CUSTOM_SQL_DIMENSION,
-                customDimensions: [CUSTOM_SQL_DIMENSION],
-            },
-        ],
-        [EXPLORE_WITH_SQL_FILTER, METRIC_QUERY],
-        [EXPLORE_WITH_REQUIRED_FILTERS, METRIC_QUERY],
-        [EXPLORE_JOIN_CHAIN, METRIC_QUERY_JOIN_CHAIN],
-    ] satisfies [Explore, MetricQuery][]
-).map(([explore, metricQuery], index) => ({
-    name: `MetricQueryBuilder fixture ${index + 1} (${explore.name})`,
-    explore,
-    metricQuery,
-    expected: [],
-}));
-
 describe('getQueryParameterReferences matches MetricQueryBuilder.compileQuery', () => {
-    it.each([...parameterCases, ...existingFixtures])(
-        '$name',
-        ({ explore, metricQuery, expected }) => {
-            const compiled = compilerParameterReferences(explore, metricQuery);
-            expect(compiled).toEqual(new Set(expected));
-            expect(
-                new Set(getQueryParameterReferences(explore, metricQuery)),
-            ).toEqual(compiled);
-        },
-    );
+    it.each(parameterCases)('$name', ({ explore, metricQuery, expected }) => {
+        const compiled = compilerParameterReferences(explore, metricQuery);
+        expect(compiled).toEqual(new Set(expected));
+        expect(
+            new Set(getQueryParameterReferences(explore, metricQuery)),
+        ).toEqual(compiled);
+    });
 });
