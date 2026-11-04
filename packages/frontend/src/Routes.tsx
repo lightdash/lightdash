@@ -770,6 +770,23 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
         },
     },
     {
+        path: 'semantic-layer/*',
+        handle: { hideAILauncher: true },
+        lazy: async () => {
+            const SemanticStudio = await loadLazyRouteDefault(
+                './features/semanticStudio/SemanticStudioPage',
+                () => import('./features/semanticStudio/SemanticStudioPage'),
+            );
+            return {
+                Component: () => (
+                    <TrackPage name={PageName.SEMANTIC_STUDIO}>
+                        <SemanticStudio />
+                    </TrackPage>
+                ),
+            };
+        },
+    },
+    {
         path: 'funnel-builder',
         handle: { hideAILauncher: true },
         lazy: async () => {
