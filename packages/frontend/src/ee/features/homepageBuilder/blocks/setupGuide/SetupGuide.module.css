@@ -35,6 +35,10 @@
     background: var(--mantine-color-text);
 }
 
+.preview {
+    overflow: hidden;
+}
+
 .rows {
     margin: 0;
     padding: 0;

@@ -5,6 +5,7 @@ import {
     Box,
     Button,
     Group,
+    HoverCard,
     Menu,
     Paper,
     Skeleton,
@@ -28,6 +29,7 @@ import {
 } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
+import { AI_NAME } from '../../../../../components/common/aiName';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
@@ -41,18 +43,54 @@ import {
     type SetupGuideRowId,
     type SetupGuideSection,
 } from './setupGuideModel';
+import { StepArt } from './StepArt';
 import { useSetupGuide } from './useSetupGuide';
 import { YourData } from './YourData';
 
-const ROW_ICONS: Record<SetupGuideRowId, Icon> = {
-    warehouse: IconDatabase,
-    'app-data': IconPlugConnected,
-    'semantic-layer': IconLayersLinked,
-    'source-control': IconGitBranch,
-    'starter-dashboard': IconLayoutDashboard,
-    brand: IconPalette,
-    slack: IconBrandSlack,
-    'invite-team': IconUsers,
+const ROW_COPY: Record<
+    SetupGuideRowId,
+    { icon: Icon; pitch: string; time: string }
+> = {
+    warehouse: {
+        icon: IconDatabase,
+        pitch: `${AI_NAME} answers by querying your warehouse.`,
+        time: '3 min',
+    },
+    'app-data': {
+        icon: IconPlugConnected,
+        pitch: `${AI_NAME} can combine PostHog or GA4 with your metrics.`,
+        time: '2 min',
+    },
+    'semantic-layer': {
+        icon: IconLayersLinked,
+        pitch: 'Define revenue once and reuse it in charts and answers.',
+        time: '5 min',
+    },
+    'source-control': {
+        icon: IconGitBranch,
+        pitch: 'Keep your models in Git and review changes as pull requests.',
+        time: '3 min',
+    },
+    'starter-dashboard': {
+        icon: IconLayoutDashboard,
+        pitch: 'Give people somewhere to begin.',
+        time: '2 min',
+    },
+    brand: {
+        icon: IconPalette,
+        pitch: 'Your colors and logo on every chart and dashboard.',
+        time: '1 min',
+    },
+    slack: {
+        icon: IconBrandSlack,
+        pitch: `Tag @${AI_NAME} in any channel and get answers in the thread.`,
+        time: '1 min',
+    },
+    'invite-team': {
+        icon: IconUsers,
+        pitch: 'Teammates can answer their own questions.',
+        time: '1 min',
+    },
 };
 
 type RowHandlers = {
@@ -123,10 +161,11 @@ const GuideRow: FC<{ row: SetupGuideRow } & RowHandlers> = ({
     ...handlers
 }) => {
     const { track } = useTracking();
+    const copy = ROW_COPY[row.id];
     const content: ReactNode = (
         <>
             <Box className={classes.rowIcon}>
-                <MantineIcon icon={ROW_ICONS[row.id]} size={14} />
+                <MantineIcon icon={copy.icon} size={14} />
             </Box>
             <Box className={classes.grow}>
                 <Text fz="sm" truncate className={classes.rowTitle}>
@@ -143,36 +182,60 @@ const GuideRow: FC<{ row: SetupGuideRow } & RowHandlers> = ({
     );
     const { action } = row;
     return (
-        <Box
-            component="li"
-            className={classes.row}
-            data-status={row.status}
-            title={row.evidence?.text}
+        <HoverCard
+            position="right-start"
+            offset={24}
+            width={280}
+            openDelay={120}
+            closeDelay={80}
         >
-            {action && row.status !== 'skipped' ? (
-                <Link
-                    to={action.to}
-                    className={classes.rowLink}
-                    onClick={() => {
-                        if (!row.actionKey) return;
-                        track({
-                            name: EventName.HOMEPAGE_RECOMMENDED_ACTION_CLICKED,
-                            properties: {
-                                actionKey: row.actionKey,
-                                destination: action.to,
-                            },
-                        });
-                    }}
+            <HoverCard.Target>
+                <Box
+                    component="li"
+                    className={classes.row}
+                    data-status={row.status}
                 >
-                    {content}
-                </Link>
-            ) : (
-                <Box className={classes.rowLink}>{content}</Box>
-            )}
-            <Box className={classes.reveal}>
-                <RowMenu row={row} {...handlers} />
-            </Box>
-        </Box>
+                    {action && row.status !== 'skipped' ? (
+                        <Link
+                            to={action.to}
+                            className={classes.rowLink}
+                            onClick={() => {
+                                if (!row.actionKey) return;
+                                track({
+                                    name: EventName.HOMEPAGE_RECOMMENDED_ACTION_CLICKED,
+                                    properties: {
+                                        actionKey: row.actionKey,
+                                        destination: action.to,
+                                    },
+                                });
+                            }}
+                        >
+                            {content}
+                        </Link>
+                    ) : (
+                        <Box className={classes.rowLink}>{content}</Box>
+                    )}
+                    <Box className={classes.reveal}>
+                        <RowMenu row={row} {...handlers} />
+                    </Box>
+                </Box>
+            </HoverCard.Target>
+            <HoverCard.Dropdown p={0} className={classes.preview}>
+                <StepArt
+                    id={row.id}
+                    badge={isCompletedStatus(row.status) ? 'Done' : copy.time}
+                    size="lg"
+                />
+                <Box p="sm">
+                    <Text fz="sm" fw={600}>
+                        {row.title}
+                    </Text>
+                    <Text fz="xs" c="dimmed">
+                        {row.evidence?.text ?? copy.pitch}
+                    </Text>
+                </Box>
+            </HoverCard.Dropdown>
+        </HoverCard>
     );
 };
 
