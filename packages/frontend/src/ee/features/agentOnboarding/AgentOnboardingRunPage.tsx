@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     isAgentOnboardingRunTerminal,
     type AgentOnboardingRun,
     type AgentOnboardingRunStatus,
@@ -33,6 +34,7 @@ import Page from '../../../components/common/Page/Page';
 import PageBreadcrumbs from '../../../components/common/PageBreadcrumbs';
 import PageSpinner from '../../../components/PageSpinner';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import {
     AgentOnboardingCodePanel,
     type CodePanelView,
@@ -41,6 +43,7 @@ import { AgentOnboardingDemoOffer } from './AgentOnboardingDemoOffer';
 import { RunChanges } from './AgentOnboardingRunChanges';
 import { RunJourney } from './AgentOnboardingRunOverview';
 import classes from './AgentOnboardingRunPage.module.css';
+import { AgentOnboardingRunPageLegacy } from './AgentOnboardingRunPageLegacy';
 import { RunSummary } from './AgentOnboardingRunSummary';
 import { RunSemanticLayer } from './AgentOnboardingSemanticLayer';
 import {
@@ -446,4 +449,14 @@ const AgentOnboardingRunPage: FC = () => {
     );
 };
 
-export default AgentOnboardingRunPage;
+const AgentOnboardingRunRoute: FC = () => {
+    const newOnboardingFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
+    if (newOnboardingFlag.isInitialLoading) return <PageSpinner />;
+    return newOnboardingFlag.data?.enabled === true ? (
+        <AgentOnboardingRunPage />
+    ) : (
+        <AgentOnboardingRunPageLegacy />
+    );
+};
+
+export default AgentOnboardingRunRoute;

@@ -21,15 +21,33 @@ const AgentOnboardingStartPage: FC = () => {
     const codingAgentOnboardingFlag = useServerFeatureFlag(
         FeatureFlags.CodingAgentOnboarding,
     );
-    const activeRun = useActiveAgentOnboardingRun(projectUuid);
+    const newOnboardingFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
+    const activeRun = useActiveAgentOnboardingRun(projectUuid, {
+        enabled: newOnboardingFlag.data?.enabled === true,
+    });
 
     if (
         codingAgentOnboardingFlag.isInitialLoading ||
+        newOnboardingFlag.isInitialLoading ||
         isLoadingProject ||
         health.isInitialLoading ||
         activeRun.isInitialLoading
     ) {
         return <PageSpinner />;
+    }
+
+    if (
+        codingAgentOnboardingFlag.data?.enabled !== true ||
+        !project ||
+        !project.warehouseConnection ||
+        !health.data
+    ) {
+        return (
+            <Navigate
+                to={`/generalSettings/projectManagement/${projectUuid}/settings`}
+                replace
+            />
+        );
     }
 
     if (
@@ -42,20 +60,6 @@ const AgentOnboardingStartPage: FC = () => {
                     activeRun.data.agentOnboardingRunUuid,
                     activeRun.data.projectUuid,
                 )}
-                replace
-            />
-        );
-    }
-
-    if (
-        codingAgentOnboardingFlag.data?.enabled !== true ||
-        !project ||
-        !project.warehouseConnection ||
-        !health.data
-    ) {
-        return (
-            <Navigate
-                to={`/generalSettings/projectManagement/${projectUuid}/settings`}
                 replace
             />
         );

@@ -31,11 +31,14 @@ const agentOnboardingRunQueryKey = (
 const agentOnboardingActiveRunQueryKey = (projectUuid: string | undefined) =>
     ['agent-onboarding-active-run', projectUuid] as const;
 
-const getAgentOnboardingRefetchInterval = (
+const isRunGoneError = (error: ApiError | null) =>
+    error !== null && [403, 404].includes(error.error.statusCode);
+
+export const getAgentOnboardingRefetchInterval = (
     run: AgentOnboardingRun | undefined,
     query: Query<AgentOnboardingRun, ApiError>,
 ): number | false =>
-    query.state.status !== 'error' &&
+    !isRunGoneError(query.state.error) &&
     (!run || !isAgentOnboardingRunTerminal(run.status))
         ? POLL_INTERVAL_MS
         : false;

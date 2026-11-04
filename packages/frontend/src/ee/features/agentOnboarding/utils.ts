@@ -350,6 +350,11 @@ export const getAgentOnboardingRunUrl = (
 ): string =>
     `/projects/${encodeURIComponent(projectUuid)}/onboarding/runs/${encodeURIComponent(runUuid)}`;
 
+const AGENT_ONBOARDING_DASHBOARD_SLUG = 'agent-starter-dashboard';
+
+export const getAgentOnboardingDashboardUrl = (projectUuid: string): string =>
+    `/projects/${encodeURIComponent(projectUuid)}/dashboards/${AGENT_ONBOARDING_DASHBOARD_SLUG}/view`;
+
 export const AGENT_ONBOARDING_STAGE_ACTIVE_LABELS: Record<
     AgentOnboardingProgressStage,
     string
