@@ -1,3 +1,46 @@
+## [3.146.1](https://github.com/lightdash/lightdash/compare/3.146.0...3.146.1) (2026-11-04)
+
+
+### Bug Fixes
+
+* **frontend:** unify settings layout on AI, MCP and data apps settings pages ([#32044](https://github.com/lightdash/lightdash/issues/32044)) ([dfeac97](https://github.com/lightdash/lightdash/commit/dfeac97cd2f09b6faf528deede7cace2b02ffdaa))
+
+# [3.146.0](https://github.com/lightdash/lightdash/compare/3.145.0...3.146.0) (2026-11-04)
+
+
+### Features
+
+* **live-sources:** curate live data source fields from a Fields page ([#32026](https://github.com/lightdash/lightdash/issues/32026)) ([f08797c](https://github.com/lightdash/lightdash/commit/f08797c16c0d45b42dbd8e5bd66e0d7ff4a41370))
+
+# [3.145.0](https://github.com/lightdash/lightdash/compare/3.144.1...3.145.0) (2026-11-04)
+
+
+### Features
+
+* **embed:** render source-space charts and dashboards for embedded AI agents ([#32038](https://github.com/lightdash/lightdash/issues/32038)) ([d105966](https://github.com/lightdash/lightdash/commit/d105966a7cd0c4158d051bd33bab5601d25412c5))
+
+## [3.144.1](https://github.com/lightdash/lightdash/compare/3.144.0...3.144.1) (2026-11-04)
+
+
+### Bug Fixes
+
+* unify typography on Ask AI general settings ([#32037](https://github.com/lightdash/lightdash/issues/32037)) ([d65029c](https://github.com/lightdash/lightdash/commit/d65029cb76b5140796e7e90d00bae1dbf8278865))
+
+# [3.144.0](https://github.com/lightdash/lightdash/compare/3.143.0...3.144.0) (2026-11-04)
+
+
+### Bug Fixes
+
+* **content-review:** reject managed personal-space root targets ([#32031](https://github.com/lightdash/lightdash/issues/32031)) ([22062c6](https://github.com/lightdash/lightdash/commit/22062c6e25b49b31cbb0e6c2d54eb4c774ff5a0b))
+* **data-apps:** Chart Studio builds fail on Codex with 'oneOf' not permitted ([#32033](https://github.com/lightdash/lightdash/issues/32033)) ([a92487e](https://github.com/lightdash/lightdash/commit/a92487edb18e09438f94775cafe8b4fcc7ca5e85))
+* **projects:** improve permission checks in project settings ([#32032](https://github.com/lightdash/lightdash/issues/32032)) ([d0150fd](https://github.com/lightdash/lightdash/commit/d0150fda589f926503f838dc4dd84ab3acf18803))
+
+
+### Features
+
+* **sql:** discover SQL columns via BigQuery dry run ([#31998](https://github.com/lightdash/lightdash/issues/31998)) ([6d5bc8d](https://github.com/lightdash/lightdash/commit/6d5bc8d1f8d0c20543b04c254ef79db1223f0321))
+* support exclusion-only lists in join fields ([#32034](https://github.com/lightdash/lightdash/issues/32034)) ([b6d207a](https://github.com/lightdash/lightdash/commit/b6d207a1ce120145aada280b942cab2e5dbb0b3c))
+
 # [3.143.0](https://github.com/lightdash/lightdash/compare/3.142.1...3.143.0) (2026-11-04)
 
 

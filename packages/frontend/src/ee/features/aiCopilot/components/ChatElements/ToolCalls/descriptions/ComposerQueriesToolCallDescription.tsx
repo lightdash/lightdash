@@ -26,6 +26,10 @@ import { clsx } from 'clsx';
 import { useMemo, useState, type FC } from 'react';
 import CodeBlock from '../../../../../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../../../../../components/common/MantineIcon';
+import {
+    useApiSourceExploreConnectionUuid,
+    useLiveSourceExplore,
+} from '../../../../../../../features/externalConnections/liveSources/apiSourceExplore';
 import { getLiveSource } from '../../../../../../../features/externalConnections/liveSources/liveSourceCatalog';
 import { LiveSourceIcon } from '../../../../../../../features/externalConnections/liveSources/LiveSourceIcon';
 import { useLiveSourceConnection } from '../../../../../../../features/externalConnections/liveSources/useLiveSourceConnection';
@@ -62,6 +66,14 @@ const referenceAliases = (items: string[] | Record<string, string>) =>
 // Reads of nodes from earlier versions have no title in this submission
 const referenceTargets = (items: string[] | Record<string, string>) =>
     Array.isArray(items) ? items : Object.values(items);
+
+// One look for every query on a live data source, through its explore or an
+// api node from an older thread.
+const LIVE_SOURCE_PRESENTATION = {
+    icon: IconApi,
+    badge: 'Live data source',
+    detail: '',
+} as const;
 
 const getNodePresentation = (
     node: ToolComposerQueryNode,
@@ -109,12 +121,18 @@ const getNodePresentation = (
             } as const;
         }
         case QuerySourceType.API:
-            return {
-                icon: IconApi,
-                badge: 'Live data source',
-                detail: '',
-            } as const;
+            return LIVE_SOURCE_PRESENTATION;
     }
+};
+
+/** A live data source explore reads by its label, e.g. "Events". */
+const NodeExploreName: FC<{ exploreName: string }> = ({ exploreName }) => {
+    const liveSource = useLiveSourceExplore(exploreName);
+    return (
+        <Text size="xs" c="dimmed">
+            {liveSource?.label ?? exploreName}
+        </Text>
+    );
 };
 
 const NodeBody: FC<{ node: ToolComposerQueryNode }> = ({ node }) => {
@@ -123,9 +141,7 @@ const NodeBody: FC<{ node: ToolComposerQueryNode }> = ({ node }) => {
     if (node.sourceType === QuerySourceType.SEMANTIC_LAYER) {
         return (
             <Group gap={4} wrap="wrap">
-                <Text size="xs" c="dimmed">
-                    {node.exploreName}
-                </Text>
+                <NodeExploreName exploreName={node.exploreName} />
                 {[...node.dimensions, ...node.metrics].map((fieldId) => (
                     <ToolCallChip key={fieldId}>{fieldId}</ToolCallChip>
                 ))}
@@ -182,10 +198,19 @@ const ComposerQueryNode: FC<{
     nodeStatus?: ComposerQueryNodeStatus;
     approval?: SqlApprovalTarget;
 }> = ({ node, titlesByNodeId, nodeStatus, approval }) => {
-    const presentation = getNodePresentation(node, titlesByNodeId);
-    const liveSource = useLiveSourceConnection(
-        node.sourceType === QuerySourceType.API ? node.connectionUuid : null,
+    const exploreConnectionUuid = useApiSourceExploreConnectionUuid(
+        node.sourceType === QuerySourceType.SEMANTIC_LAYER
+            ? node.exploreName
+            : null,
     );
+    const liveSourceConnectionUuid =
+        node.sourceType === QuerySourceType.API
+            ? node.connectionUuid
+            : exploreConnectionUuid;
+    const liveSource = useLiveSourceConnection(liveSourceConnectionUuid);
+    const presentation = liveSourceConnectionUuid
+        ? LIVE_SOURCE_PRESENTATION
+        : getNodePresentation(node, titlesByNodeId);
     const active = isActiveStatus(nodeStatus);
     // Only nodes awaiting approval open by default; a user toggle wins until
     // the status changes.
@@ -229,7 +254,7 @@ const ComposerQueryNode: FC<{
                     {nodeStatus ? (
                         <NodeStatusIndicator status={nodeStatus.status} />
                     ) : null}
-                    {node.sourceType === QuerySourceType.API ? (
+                    {liveSourceConnectionUuid ? (
                         <Tooltip
                             label={
                                 liveSource

@@ -2,6 +2,7 @@ import {
     ApiConnectorType,
     DimensionType,
     ExploreType,
+    FilterOperator,
     getItemMap,
     UnexpectedServerError,
     type Explore,
@@ -10,22 +11,37 @@ import {
 import {
     buildApiSourceExplores,
     compileApiSourceMetricQuery,
+    getApiSourceExploreNames,
+    getLegacyLiveSourceName,
+    getLiveSourceNameBase,
     toApiSourceResult,
+    toScannedLiveSourceFields,
+    type ApiSourceScan,
 } from './apiSourceExplores';
 import { compileSearchConsoleQuery } from './google/searchConsoleCompiler';
 import { SEARCH_CONSOLE_MAX_QUERY_ROWS } from './google/SearchConsoleConnector';
+import { getInitialLiveSourceFieldEdits } from './liveSourceFields';
 
 const CONNECTION_UUID = '03386598-7a51-45b2-b1f9-5ef55bd09016';
 
 const buildOne = (
     apiSource: Parameters<typeof buildApiSourceExplores>[0]['apiSource'],
-    scan: Parameters<typeof buildApiSourceExplores>[0]['scan'] = {},
+    scan: ApiSourceScan = {},
 ): Explore => {
+    const scannedFields = toScannedLiveSourceFields(apiSource.connector, scan);
     const [explore, ...rest] = buildApiSourceExplores({
         connectionUuid: CONNECTION_UUID,
+        sourceName: getLegacyLiveSourceName(
+            apiSource.connector,
+            CONNECTION_UUID,
+        ),
         name: 'Marketing site',
         apiSource,
-        scan,
+        scannedFields,
+        edits: getInitialLiveSourceFieldEdits({
+            scannedFields,
+            isExistingSource: true,
+        }),
     });
     expect(rest).toEqual([]);
     return explore;
@@ -54,6 +70,50 @@ const query = (
     limit: 10,
     tableCalculations: [],
     ...overrides,
+});
+
+describe('live source names', () => {
+    test('a stored source name prefixes every explore of the source', () => {
+        const [explore] = buildApiSourceExplores({
+            connectionUuid: CONNECTION_UUID,
+            sourceName: 'posthog',
+            name: 'PostHog',
+            apiSource: { connector: ApiConnectorType.POSTHOG, projectId: '42' },
+            scannedFields: [],
+            edits: {},
+        });
+        expect(explore.name).toBe('posthog_events');
+        expect(
+            getApiSourceExploreNames(ApiConnectorType.POSTHOG, 'posthog'),
+        ).toEqual(['posthog_events']);
+    });
+
+    test('a new name comes from the source name, as a lowercase identifier', () => {
+        expect(
+            getLiveSourceNameBase(ApiConnectorType.GA4, 'Google Analytics'),
+        ).toBe('google_analytics');
+        expect(
+            getLiveSourceNameBase(
+                ApiConnectorType.POSTHOG,
+                'Product analytics',
+            ),
+        ).toBe('product_analytics');
+    });
+
+    test('a name that is no identifier falls back to the integration', () => {
+        expect(
+            getLiveSourceNameBase(ApiConnectorType.POSTHOG, '2024 events'),
+        ).toBe('posthog');
+    });
+
+    test('sources from before stored names keep their id-based name', () => {
+        expect(
+            getLegacyLiveSourceName(
+                ApiConnectorType.SEARCH_CONSOLE,
+                CONNECTION_UUID,
+            ),
+        ).toBe('search_console_03386598');
+    });
 });
 
 describe('buildApiSourceExplores', () => {
@@ -182,6 +242,67 @@ describe('compileApiSourceMetricQuery', () => {
             now,
         });
         expect(hogql).toMatch(/^SELECT .* AS c0, .* AS c1\nFROM \(/);
+    });
+
+    test('refuses a field the source scanned but has not put in use', () => {
+        const apiSource = {
+            connector: ApiConnectorType.POSTHOG,
+            projectId: '42',
+        } as const;
+        const scannedFields = toScannedLiveSourceFields(apiSource.connector, {
+            posthogProperties: {
+                event: { results: [{ name: 'plan' }] },
+                person: { results: [] },
+            },
+        });
+        const [explore] = buildApiSourceExplores({
+            connectionUuid: CONNECTION_UUID,
+            sourceName: 'posthog',
+            name: 'PostHog',
+            apiSource,
+            scannedFields,
+            edits: getInitialLiveSourceFieldEdits({
+                scannedFields,
+                isExistingSource: false,
+            }),
+        });
+        const plan = `${explore.name}_property_plan`;
+        const event = `${explore.name}_event`;
+        expect(Object.keys(getItemMap(explore))).not.toContain(plan);
+
+        const compile = (overrides: Partial<MetricQuery>) => () =>
+            compileApiSourceMetricQuery({
+                explore,
+                metricQuery: query(
+                    explore,
+                    { dimensions: ['event'], metrics: ['event_count'] },
+                    overrides,
+                ),
+                timezone: 'UTC',
+                now,
+            });
+        const refusal = `"${plan}" isn't available from this live data source.`;
+        expect(compile({ dimensions: [event, plan] })).toThrow(refusal);
+        expect(
+            compile({
+                filters: {
+                    dimensions: {
+                        id: 'filters',
+                        and: [
+                            {
+                                id: 'plan-is-pro',
+                                target: { fieldId: plan },
+                                operator: FilterOperator.EQUALS,
+                                values: ['pro'],
+                            },
+                        ],
+                    },
+                },
+            }),
+        ).toThrow(refusal);
+        expect(
+            compile({ sorts: [{ fieldId: plan, descending: false }] }),
+        ).toThrow(refusal);
     });
 
     test('refuses an explore that is not a live data source', () => {

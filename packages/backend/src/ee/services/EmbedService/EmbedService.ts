@@ -45,6 +45,7 @@ import {
     getFilterInteractivityValue,
     getHiddenFilterableFieldIds,
     getItemId,
+    hasAiAgentAccessToSpace,
     InteractivityOptions,
     IntrinsicUserAttributes,
     isAiAgentContent,
@@ -136,6 +137,7 @@ import { QueryComposer } from '../../../utils/QueryBuilder/QueryComposer';
 import { getResultEntitlementFingerprint } from '../../../utils/queryResultProducer';
 import { SubtotalsCalculator } from '../../../utils/SubtotalsCalculator';
 import { EmbedDashboardViewed, EmbedQueryViewed } from '../../analytics';
+import { AiAgentModel } from '../../models/AiAgentModel';
 import { EmbedModel } from '../../models/EmbedModel';
 import { ExternalConnectionModel } from '../../models/ExternalConnectionModel';
 import { getBundleServableChecker } from '../AppGenerateService/appBundleStorage';
@@ -172,6 +174,7 @@ type Dependencies = {
     featureFlagModel: FeatureFlagModel;
     organizationModel: OrganizationModel;
     externalConnectionModel: ExternalConnectionModel;
+    aiAgentModel: AiAgentModel;
 };
 
 export class EmbedService extends BaseService {
@@ -209,6 +212,8 @@ export class EmbedService extends BaseService {
 
     private readonly externalConnectionModel: ExternalConnectionModel;
 
+    private readonly aiAgentModel: AiAgentModel;
+
     private readonly asyncQueryService: AsyncQueryService;
 
     private readonly permissionsService: PermissionsService;
@@ -234,6 +239,7 @@ export class EmbedService extends BaseService {
         this.featureFlagModel = dependencies.featureFlagModel;
         this.organizationModel = dependencies.organizationModel;
         this.externalConnectionModel = dependencies.externalConnectionModel;
+        this.aiAgentModel = dependencies.aiAgentModel;
     }
 
     /** Embedded chart types follow the same usage gate as the app, with Chart Studio from this instance's runtime. */
@@ -2988,9 +2994,9 @@ export class EmbedService extends BaseService {
             { project_uuid: projectUuid },
             async () => {
                 const embed = await this.getEmbeddingByProjectId(projectUuid);
-                const decodedToken = decodeLightdashJwt(
-                    encodedJwt,
-                    embed.encodedSecret,
+                const decodedToken = await this.narrowAiAgentSourceSpaces(
+                    decodeLightdashJwt(encodedJwt, embed.encodedSecret),
+                    projectUuid,
                 );
                 if (
                     isAiAgentContent(decodedToken.content) &&
@@ -3084,9 +3090,41 @@ export class EmbedService extends BaseService {
         );
     }
 
+    /** An AI agent token may only read the source spaces its agent can use. */
+    private async narrowAiAgentSourceSpaces(
+        decodedToken: CreateEmbedJwt,
+        projectUuid: string,
+    ): Promise<CreateEmbedJwt> {
+        const { content, writeActions } = decodedToken;
+        if (
+            !isAiAgentContent(content) ||
+            !writeActions?.sourceSpaceUuids?.length
+        ) {
+            return decodedToken;
+        }
+        const agentSpaceAccess = await this.aiAgentModel.findSpaceAccess(
+            content.agentUuid,
+            projectUuid,
+        );
+        return {
+            ...decodedToken,
+            writeActions: {
+                ...writeActions,
+                sourceSpaceUuids: writeActions.sourceSpaceUuids.filter(
+                    (spaceUuid) =>
+                        agentSpaceAccess !== undefined &&
+                        hasAiAgentAccessToSpace(
+                            { spaceAccess: agentSpaceAccess },
+                            spaceUuid,
+                        ),
+                ),
+            },
+        };
+    }
+
     /**
-     * An embedded AI agent opens a saved dashboard from its write space as a
-     * read-only dashboard viewer: the request is authorized as the write actor
+     * An embedded AI agent opens a saved dashboard from its write or source
+     * spaces as a read-only dashboard viewer: the request is authorized as the write actor
      * (space + view access) and then served exactly like a dashboard embed
      * limited to that one dashboard, with the token's user attributes applied.
      */
@@ -3131,7 +3169,10 @@ export class EmbedService extends BaseService {
             { projectUuid },
         );
         if (
-            !getEmbedWriteSpaceUuids(writeActions).includes(dashboard.spaceUuid)
+            ![
+                ...getEmbedWriteSpaceUuids(writeActions),
+                ...(writeActions.sourceSpaceUuids ?? []),
+            ].includes(dashboard.spaceUuid)
         ) {
             throw new ForbiddenError('Dashboard is outside the embedded space');
         }

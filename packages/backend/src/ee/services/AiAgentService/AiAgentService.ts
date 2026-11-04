@@ -216,7 +216,6 @@ import {
     type ApiAiAgentComposerArtifactVizQuery,
     type ApiGetAsyncQueryResults,
     type AppGeneratePipelineJobPayload,
-    type ComposerApiConnection,
     type ComposerStoredChartVizConfig,
     type DataAppVizChart,
     type DuckdbSourceQuery,
@@ -553,6 +552,7 @@ import {
 import {
     AiAgentArgs,
     AiAgentDependencies,
+    type AgentLiveSource,
     type AiAgentDeepResearchRunContext,
     type AiAgentExecutionConfig,
     type AiAgentMcpServer,
@@ -11743,10 +11743,10 @@ export class AiAgentService extends BaseService {
     }
 
     /** The project's API connections the user may query, offered as composer api nodes. */
-    private async getComposerApiConnections(
+    private async getAgentLiveSources(
         user: SessionUser,
         projectUuid: string,
-    ): Promise<ComposerApiConnection[]> {
+    ): Promise<AgentLiveSource[]> {
         const { enabled } = await this.featureFlagService.get({
             user,
             featureFlagId: FeatureFlags.ApiQuerySources,
@@ -16883,11 +16883,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                         standardToolAllowlist !== undefined,
                     battleProfile,
                 });
-                const composerApiConnections = enableComposerQueries
-                    ? await this.getComposerApiConnections(
-                          user,
-                          prompt.projectUuid,
-                      )
+                const liveSources = hasTrustedPromptUserIdentity
+                    ? await this.getAgentLiveSources(user, prompt.projectUuid)
                     : [];
                 const { enabled: filterExpressionsEnabled } =
                     await this.featureFlagService.get({
@@ -17375,7 +17372,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     repoFsSupportsCodeSearch,
                     canRunSql,
                     enableComposerQueries,
-                    composerApiConnections,
+                    liveSources,
                     canCreateDashboards,
                     canCreateScheduledDeliveries,
                     autoApproveSql:

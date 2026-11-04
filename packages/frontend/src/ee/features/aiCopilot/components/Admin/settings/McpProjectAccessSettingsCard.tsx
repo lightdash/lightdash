@@ -1,14 +1,9 @@
 import { assertUnreachable, type McpProjectAccess } from '@lightdash/common';
-import {
-    MultiSelect,
-    SegmentedControl,
-    Stack,
-    Text,
-    Title,
-} from '@mantine/core';
+import { MultiSelect, SegmentedControl, Stack, Text } from '@mantine/core';
 import { useState } from 'react';
 import Callout from '../../../../../../components/common/Callout';
 import InlineErrorState from '../../../../../../components/common/InlineErrorState';
+import { SettingRow } from '../../../../../../components/common/Settings/SettingLayout';
 import { SettingsCard } from '../../../../../../components/common/Settings/SettingsCard';
 import { useProjects } from '../../../../../../hooks/useProjects';
 import {
@@ -54,100 +49,103 @@ export const McpProjectAccessSettingsCard = () => {
 
     return (
         <SettingsCard>
-            <Stack gap="sm">
-                <Title order={5}>Project access</Title>
-                <Text c="dimmed" fz="xs">
-                    Choose which projects MCP clients can access. Users keep
-                    their normal project access in the app. With only selected
-                    projects, new projects stay unavailable to MCP clients until
-                    added here.
-                </Text>
-                <SegmentedControl<McpProjectAccess['mode']>
-                    aria-label="MCP project access"
-                    value={isSelectionDraft ? 'selected' : policy.mode}
-                    data={[
-                        { value: 'all', label: 'All projects' },
-                        { value: 'selected', label: 'Only selected projects' },
-                    ]}
-                    disabled={disabled}
-                    onChange={(mode) => {
-                        switch (mode) {
-                            case 'all':
-                                setSelectionDraftFor(undefined);
-                                if (!isSelectionDraft) {
-                                    updateSettings({
-                                        mcpProjectAccess: { mode },
-                                    });
+            <SettingRow
+                title="Project access"
+                description="Choose which projects MCP clients can access. Users keep their normal project access in the app. With only selected projects, new projects stay unavailable to MCP clients until added here."
+            >
+                <Stack gap="sm" mt="sm">
+                    <SegmentedControl<McpProjectAccess['mode']>
+                        aria-label="MCP project access"
+                        value={isSelectionDraft ? 'selected' : policy.mode}
+                        data={[
+                            { value: 'all', label: 'All projects' },
+                            {
+                                value: 'selected',
+                                label: 'Only selected projects',
+                            },
+                        ]}
+                        disabled={disabled}
+                        onChange={(mode) => {
+                            switch (mode) {
+                                case 'all':
+                                    setSelectionDraftFor(undefined);
+                                    if (!isSelectionDraft) {
+                                        updateSettings({
+                                            mcpProjectAccess: { mode },
+                                        });
+                                    }
+                                    break;
+                                case 'selected':
+                                    setSelectionDraftFor(settings);
+                                    break;
+                                default:
+                                    assertUnreachable(
+                                        mode,
+                                        'Unknown MCP project access mode',
+                                    );
+                            }
+                        }}
+                    />
+                    {selectedProjectUuids !== undefined && (
+                        <>
+                            <MultiSelect
+                                label="Allowed projects"
+                                placeholder={
+                                    isProjectsLoading
+                                        ? 'Loading projects'
+                                        : 'Select projects'
                                 }
-                                break;
-                            case 'selected':
-                                setSelectionDraftFor(settings);
-                                break;
-                            default:
-                                assertUnreachable(
-                                    mode,
-                                    'Unknown MCP project access mode',
-                                );
-                        }
-                    }}
-                />
-                {selectedProjectUuids !== undefined && (
-                    <>
-                        <MultiSelect
-                            label="Allowed projects"
-                            placeholder={
-                                isProjectsLoading
-                                    ? 'Loading projects'
-                                    : 'Select projects'
-                            }
-                            data={projects.map((project) => ({
-                                value: project.projectUuid,
-                                label: project.name,
-                            }))}
-                            value={selectedProjectUuids}
-                            searchable
-                            nothingFoundMessage="No projects found"
-                            disabled={
-                                disabled || isProjectsLoading || isProjectsError
-                            }
-                            onChange={(projectUuids) => {
-                                if (
-                                    isSelectionDraft &&
-                                    projectUuids.length === 0
-                                )
-                                    return;
-                                updateSettings({
-                                    mcpProjectAccess: {
-                                        mode: 'selected',
-                                        projectUuids,
-                                    },
-                                });
-                            }}
-                        />
-                        {isProjectsError && (
-                            <InlineErrorState
-                                message="Could not load projects"
-                                onRetry={() => void refetchProjects()}
+                                data={projects.map((project) => ({
+                                    value: project.projectUuid,
+                                    label: project.name,
+                                }))}
+                                value={selectedProjectUuids}
+                                searchable
+                                nothingFoundMessage="No projects found"
+                                disabled={
+                                    disabled ||
+                                    isProjectsLoading ||
+                                    isProjectsError
+                                }
+                                onChange={(projectUuids) => {
+                                    if (
+                                        isSelectionDraft &&
+                                        projectUuids.length === 0
+                                    )
+                                        return;
+                                    updateSettings({
+                                        mcpProjectAccess: {
+                                            mode: 'selected',
+                                            projectUuids,
+                                        },
+                                    });
+                                }}
                             />
-                        )}
-                        {isSelectionDraft && (
-                            <Text c="dimmed" fz="xs">
-                                Select at least one project to apply
-                            </Text>
-                        )}
-                        {!isSelectionDraft &&
-                            selectedProjectUuids.length === 0 && (
-                                <Callout
-                                    variant="warning"
-                                    title="No projects allowed"
-                                >
-                                    MCP clients cannot access any projects until
-                                    you select at least one project.
-                                </Callout>
+                            {isProjectsError && (
+                                <InlineErrorState
+                                    message="Could not load projects"
+                                    onRetry={() => void refetchProjects()}
+                                />
                             )}
-                    </>
-                )}
-            </Stack>
+                            {isSelectionDraft && (
+                                <Text c="dimmed" fz="xs">
+                                    Select at least one project to apply
+                                </Text>
+                            )}
+                            {!isSelectionDraft &&
+                                selectedProjectUuids.length === 0 && (
+                                    <Callout
+                                        variant="warning"
+                                        title="No projects allowed"
+                                    >
+                                        MCP clients cannot access any projects
+                                        until you select at least one project.
+                                    </Callout>
+                                )}
+                        </>
+                    )}
+                </Stack>
+            </SettingRow>
         </SettingsCard>
     );
 };

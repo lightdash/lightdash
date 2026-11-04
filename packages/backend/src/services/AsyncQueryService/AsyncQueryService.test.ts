@@ -1857,9 +1857,11 @@ describe('AsyncQueryService', () => {
         const CONNECTION_UUID = '03386598-7a51-45b2-b1f9-5ef55bd09016';
         const [apiExplore] = buildApiSourceExplores({
             connectionUuid: CONNECTION_UUID,
+            sourceName: 'ga4_03386598',
             name: 'Marketing site',
             apiSource: { connector: ApiConnectorType.GA4, propertyId: '123' },
-            scan: {},
+            scannedFields: [],
+            edits: {},
         });
         const channel = `${apiExplore.name}_session_default_channel_group`;
         const sessions = `${apiExplore.name}_sessions`;
@@ -14913,10 +14915,12 @@ describe('AsyncQueryService', () => {
 
         const buildAiAgentAccount = ({
             spaceUuid = writeSpaceUuid,
+            sourceSpaceUuids,
             embedWriteUser = buildWriteActor(true),
             canUseAiAgent = true,
         }: {
             spaceUuid?: string;
+            sourceSpaceUuids?: string[];
             embedWriteUser?: ReturnType<typeof buildWriteActor> | null;
             canUseAiAgent?: boolean;
         } = {}) =>
@@ -14934,7 +14938,11 @@ describe('AsyncQueryService', () => {
                     type: 'jwt',
                     data: {
                         content: { type: 'aiAgent', agentUuid: 'agent-uuid' },
-                        writeActions: { userUuid: writeActorUuid, spaceUuid },
+                        writeActions: {
+                            userUuid: writeActorUuid,
+                            spaceUuid,
+                            sourceSpaceUuids,
+                        },
                     },
                 },
                 embedWriteUser: embedWriteUser ?? undefined,
@@ -15048,13 +15056,43 @@ describe('AsyncQueryService', () => {
             );
         });
 
-        test('rejects a chart outside the write space', async () => {
+        test('rejects a chart outside the write and source spaces', async () => {
             const { service, prepareSpy } = buildService();
 
             await expect(
-                run(service, buildAiAgentAccount({ spaceUuid: 'other-space' })),
+                run(
+                    service,
+                    buildAiAgentAccount({
+                        spaceUuid: 'other-space',
+                        sourceSpaceUuids: ['another-space'],
+                    }),
+                ),
             ).rejects.toThrow(ForbiddenError);
             expect(prepareSpy).not.toHaveBeenCalled();
+        });
+
+        test('runs a chart from a source space as the write actor', async () => {
+            const {
+                service,
+                prepareSpy,
+                resolveAccess,
+                checkEmbedPermissions,
+            } = buildService();
+
+            await run(
+                service,
+                buildAiAgentAccount({
+                    spaceUuid: 'other-space',
+                    sourceSpaceUuids: [writeSpaceUuid],
+                }),
+            );
+
+            expect(checkEmbedPermissions).not.toHaveBeenCalled();
+            expect(resolveAccess).toHaveBeenCalledWith(
+                writeActorUuid,
+                expect.objectContaining({ spaceUuid: writeSpaceUuid }),
+            );
+            expect(prepareSpy).toHaveBeenCalled();
         });
 
         test('rejects a token without a write actor', async () => {

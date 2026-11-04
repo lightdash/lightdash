@@ -15229,6 +15229,11 @@
                     "hasSecret": {
                         "type": "boolean"
                     },
+                    "liveSourceName": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Prefix of a live source's explore names, such as `posthog`. Set once on\nits first build and never changed, because saved charts reference it.\nOptional for compatibility with older servers during rolling upgrades."
+                    },
                     "apiSource": {
                         "allOf": [
                             {
@@ -16144,6 +16149,176 @@
             "UpdateExternalConnection": {
                 "$ref": "#/components/schemas/Partial_CreateExternalConnection_",
                 "description": "Omitted/blank `secret` means the stored secret is left unchanged."
+            },
+            "LiveSourceFieldEditor": {
+                "properties": {
+                    "at": {
+                        "type": "string",
+                        "description": "ISO timestamp."
+                    },
+                    "userName": {
+                        "type": "string"
+                    },
+                    "userUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["at", "userName", "userUuid"],
+                "type": "object",
+                "description": "Who last edited a live source field."
+            },
+            "LiveSourceField": {
+                "properties": {
+                    "lastEdit": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/LiveSourceFieldEditor"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "usedByChartCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "inUse": {
+                        "type": "boolean"
+                    },
+                    "isRequired": {
+                        "type": "boolean",
+                        "description": "Every query needs it, so it can't be taken out of use."
+                    },
+                    "isInternal": {
+                        "type": "boolean",
+                        "description": "The integration's own bookkeeping field, hidden by default."
+                    },
+                    "isBuiltIn": {
+                        "type": "boolean",
+                        "description": "Written by Lightdash for the integration, not found by a scan."
+                    },
+                    "group": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "aiHint": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string"
+                    },
+                    "kind": {
+                        "type": "string",
+                        "enum": ["dimension", "metric"]
+                    },
+                    "apiName": {
+                        "type": "string",
+                        "description": "What the integration calls the field, shown as \"Source\"."
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Stable within the explore; the field id is `<explore name>_<name>`."
+                    }
+                },
+                "required": [
+                    "lastEdit",
+                    "usedByChartCount",
+                    "inUse",
+                    "isRequired",
+                    "isInternal",
+                    "isBuiltIn",
+                    "group",
+                    "aiHint",
+                    "description",
+                    "label",
+                    "type",
+                    "kind",
+                    "apiName",
+                    "name"
+                ],
+                "type": "object",
+                "description": "One field of a live data source, in use or available."
+            },
+            "LiveSourceFields": {
+                "properties": {
+                    "fields": {
+                        "items": {
+                            "$ref": "#/components/schemas/LiveSourceField"
+                        },
+                        "type": "array"
+                    },
+                    "scannedAt": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "ISO timestamp of the last scan, or null when the source was never scanned."
+                    },
+                    "exploreName": {
+                        "type": "string"
+                    }
+                },
+                "required": ["fields", "scannedAt", "exploreName"],
+                "type": "object"
+            },
+            "ApiLiveSourceFieldsResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/LiveSourceFields"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "LiveSourceFieldChange": {
+                "properties": {
+                    "group": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "aiHint": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "label": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "inUse": {
+                        "type": "boolean"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name"],
+                "type": "object",
+                "description": "One field change; unset keys stay as they are, null clears an override."
+            },
+            "ApiUpdateLiveSourceFieldsRequest": {
+                "properties": {
+                    "changes": {
+                        "items": {
+                            "$ref": "#/components/schemas/LiveSourceFieldChange"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["changes"],
+                "type": "object"
             },
             "ApiAppExternalConnectionListResponse": {
                 "properties": {
@@ -75142,7 +75317,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.143.0",
+        "version": "3.146.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"

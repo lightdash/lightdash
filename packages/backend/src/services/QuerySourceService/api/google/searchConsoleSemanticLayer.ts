@@ -62,8 +62,14 @@ export const SEARCH_CONSOLE_PERFORMANCE_EXPLORE: ApiSourceExploreDefinition = {
                 FilterOperator.IN_BETWEEN,
                 FilterOperator.EQUALS,
             ],
+            description:
+                'Day of the search, in Pacific Time. Queries without a date filter read the last 28 days.',
         },
-        dimension('query', 'Query'),
+        dimension(
+            'query',
+            'Query',
+            'What people searched for. Google hides rare queries for privacy, so query totals are lower than site totals.',
+        ),
         dimension(
             'page',
             'Page',

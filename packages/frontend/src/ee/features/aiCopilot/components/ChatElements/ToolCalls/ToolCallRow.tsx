@@ -18,8 +18,8 @@ import { useState, type FC } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { ToolCallDescription } from './descriptions/ToolCallDescription';
 import { ToolCallChip } from './ToolCallChip';
-import { ToolCallIcon } from './ToolCallIcon';
 import styles from './ToolCallRow.module.css';
+import { ToolCallRowIcon } from './ToolCallRowIcon';
 import { getToolCallChipLabel } from './utils/getToolCallChipLabel';
 import { getToolCallDisplayMessage } from './utils/getToolCallDisplayMessage';
 import {
@@ -183,8 +183,9 @@ export const ToolCallRow: FC<Props> = ({
 
     const head = (
         <Group gap={8} align="center" wrap="nowrap" className={styles.head}>
-            <ToolCallIcon
+            <ToolCallRowIcon
                 toolName={toolName}
+                toolCalls={toolCalls}
                 size={13}
                 stroke={1.6}
                 className={styles.icon}

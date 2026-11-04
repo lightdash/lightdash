@@ -5,6 +5,7 @@ import {
     ContentReviewRequestView,
     ContentType,
     DashboardTileTypes,
+    DEFAULT_USER_SPACES_PARENT_NAME,
     DirectAccessPrincipalType,
     DirectAccessResourceType,
     ForbiddenError,
@@ -220,6 +221,7 @@ const buildService = () => {
     };
     const projectModel = {
         getSummary: vi.fn().mockResolvedValue({ organizationUuid: ORG }),
+        getProjectsWithDefaultUserSpaces: vi.fn().mockResolvedValue([]),
     };
     const aiService = {
         isAmbientAiEnabled: vi.fn().mockResolvedValue(true),
@@ -311,6 +313,7 @@ const buildService = () => {
         directAccessModel,
         documentService,
         groupsModel,
+        projectModel,
         savedChartService,
         spacePermissionService,
         analytics,
@@ -554,6 +557,112 @@ describe('ContentReviewRequestService', () => {
             await expect(
                 service.submit(requester, PROJECT, submitBody),
             ).rejects.toThrow('Only content in your personal space');
+        });
+
+        test('rejects the managed Default User Spaces parent as the target before granting access', async () => {
+            const {
+                service,
+                contentReviewRequestModel,
+                projectModel,
+                directAccessModel,
+                contentReviewNotificationService,
+            } = buildService();
+            contentReviewRequestModel.findSpaceInfo.mockResolvedValue(
+                new Map([
+                    ...spaces,
+                    [
+                        SHARED_SPACE,
+                        {
+                            ...spaces.get(SHARED_SPACE)!,
+                            name: DEFAULT_USER_SPACES_PARENT_NAME,
+                        },
+                    ],
+                ]),
+            );
+            projectModel.getProjectsWithDefaultUserSpaces.mockResolvedValue([
+                {
+                    projectId: 1,
+                    projectUuid: PROJECT,
+                    parentSpaceUuid: SHARED_SPACE,
+                    parentPath: 'default_user_spaces',
+                },
+            ]);
+
+            await expect(
+                service.submit(requester, PROJECT, submitBody),
+            ).rejects.toThrow('Choose a shared space');
+            expect(
+                projectModel.getProjectsWithDefaultUserSpaces,
+            ).toHaveBeenCalledWith(ORG);
+            expect(directAccessModel.upsertAccess).not.toHaveBeenCalled();
+            expect(contentReviewRequestModel.create).not.toHaveBeenCalled();
+            expect(
+                contentReviewNotificationService.notifySubmitted,
+            ).not.toHaveBeenCalled();
+        });
+
+        test.each([
+            ['default user spaces are disabled', []],
+            [
+                'the managed parent is a different space',
+                [
+                    {
+                        projectId: 1,
+                        projectUuid: PROJECT,
+                        parentSpaceUuid: 'reserved-parent',
+                        parentPath: 'default_user_spaces',
+                    },
+                ],
+            ],
+            [
+                'the managed parent belongs to another project',
+                [
+                    {
+                        projectId: 2,
+                        projectUuid: 'other-project',
+                        parentSpaceUuid: SHARED_SPACE,
+                        parentPath: 'default_user_spaces',
+                    },
+                ],
+            ],
+        ])(
+            'allows a shared target with the reserved name when %s',
+            async (_reason, managedProjects) => {
+                const { service, contentReviewRequestModel, projectModel } =
+                    buildService();
+                contentReviewRequestModel.findSpaceInfo.mockResolvedValue(
+                    new Map([
+                        ...spaces,
+                        [
+                            SHARED_SPACE,
+                            {
+                                ...spaces.get(SHARED_SPACE)!,
+                                name: DEFAULT_USER_SPACES_PARENT_NAME,
+                            },
+                        ],
+                    ]),
+                );
+                projectModel.getProjectsWithDefaultUserSpaces.mockResolvedValue(
+                    managedProjects,
+                );
+
+                await expect(
+                    service.submit(requester, PROJECT, submitBody),
+                ).resolves.toMatchObject({
+                    targetSpaceUuid: SHARED_SPACE,
+                });
+                expect(contentReviewRequestModel.create).toHaveBeenCalledOnce();
+            },
+        );
+
+        test('does not query managed parents for an ordinary shared target', async () => {
+            const { service, projectModel } = buildService();
+
+            await service.submit(requester, PROJECT, submitBody);
+
+            expect(
+                projectModel.getProjectsWithDefaultUserSpaces,
+            ).not.toHaveBeenCalled();
         });
 
         test('rejects a personal space as the target', async () => {

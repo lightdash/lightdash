@@ -3031,6 +3031,31 @@ export class AiAgentModel {
         return this.getUserAccess(agentUuid, { trx });
     }
 
+    /** Undefined when the agent is not in the project; empty when it is not space-restricted. */
+    async findSpaceAccess(
+        agentUuid: AiAgent['uuid'],
+        projectUuid: string,
+    ): Promise<NonNullable<AiAgent['spaceAccess']> | undefined> {
+        const row: { space_uuids: string[] } | undefined = await this.database(
+            AiAgentTableName,
+        )
+            .leftJoin(
+                AiAgentSpaceAccessTableName,
+                `${AiAgentSpaceAccessTableName}.ai_agent_uuid`,
+                `${AiAgentTableName}.ai_agent_uuid`,
+            )
+            .where(`${AiAgentTableName}.ai_agent_uuid`, agentUuid)
+            .andWhere(`${AiAgentTableName}.project_uuid`, projectUuid)
+            .groupBy(`${AiAgentTableName}.ai_agent_uuid`)
+            .select(
+                this.database.raw(
+                    `COALESCE(array_agg(${AiAgentSpaceAccessTableName}.space_uuid::text) FILTER (WHERE ${AiAgentSpaceAccessTableName}.space_uuid IS NOT NULL), '{}') AS space_uuids`,
+                ),
+            )
+            .first();
+        return row?.space_uuids;
+    }
+
     private async getSpaceAccess(
         agentUuid: AiAgent['uuid'],
         { trx = this.database }: { trx?: Knex } = {},

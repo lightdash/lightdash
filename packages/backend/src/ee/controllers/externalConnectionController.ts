@@ -5,6 +5,7 @@ import {
     type ApiExternalConnectionApiUsageResponse,
     type ApiListExternalConnectionLinkedAppsResponse,
     type ApiListExternalConnectionSamplesResponse,
+    type ApiLiveSourceFieldsResponse,
     type ApiProposeExternalConnectionConfigRequest,
     type ApiProposeExternalConnectionConfigResponse,
     type ApiSaveExternalConnectionSampleRequest,
@@ -12,6 +13,7 @@ import {
     type ApiTestExternalConnectionConfigRequest,
     type ApiTestExternalConnectionRequest,
     type ApiTestExternalConnectionResponse,
+    type ApiUpdateLiveSourceFieldsRequest,
     type CreateExternalConnection,
     type ExternalConnection,
     type ExternalConnectionListItem,
@@ -275,6 +277,64 @@ export class ExternalConnectionController extends BaseController {
         );
         this.setStatus(200);
         return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * List every field of a live data source, in use or available, with how
+     * many charts use each. Needs the same access as editing the source.
+     * @summary List live data source fields
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('external-connections/{connectionUuid}/fields')
+    @OperationId('getLiveSourceFields')
+    async getLiveSourceFields(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() connectionUuid: string,
+    ): Promise<ApiLiveSourceFieldsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getService().getLiveSourceFields(
+                req.account,
+                projectUuid,
+                connectionUuid,
+            ),
+        };
+    }
+
+    /**
+     * Put fields of a live data source in or out of use, or change their
+     * label, group, description or AI hint
+     * @summary Update live data source fields
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('external-connections/{connectionUuid}/fields')
+    @OperationId('updateLiveSourceFields')
+    async updateLiveSourceFields(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() connectionUuid: string,
+        @Body() body: ApiUpdateLiveSourceFieldsRequest,
+    ): Promise<ApiLiveSourceFieldsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getService().updateLiveSourceFields(
+                req.account,
+                projectUuid,
+                connectionUuid,
+                body.changes,
+            ),
+        };
     }
 
     /**
