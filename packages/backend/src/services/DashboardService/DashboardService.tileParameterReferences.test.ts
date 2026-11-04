@@ -2,6 +2,7 @@ import {
     AuthorizationError,
     DashboardTileTypes,
     DimensionType,
+    ExploreType,
     FeatureFlags,
     FieldType,
     ForbiddenError,
@@ -446,6 +447,74 @@ describe('DashboardService.getTileParameterReferences', () => {
                 parameterReferences: ['orders.region', 'required.region'],
                 error: null,
             },
+        ]);
+    });
+
+    it('fails only the chart whose stored merge cannot be rebuilt', async () => {
+        const { service } = setup();
+        charts.corrupt = savedChart({
+            uuid: 'corrupt',
+            merge: { ...merge, keys: null as never },
+        });
+
+        const results = await service.getTileParameterReferences(
+            account,
+            projectUuid,
+            [chartTile('tile-1', 'corrupt'), chartTile('tile-2', 'plain')],
+        );
+
+        expect(results[0]).toEqual({
+            tileUuid: 'tile-1',
+            parameterReferences: null,
+            error: expect.stringContaining('null'),
+        });
+        expect(results[1]).toEqual({
+            tileUuid: 'tile-2',
+            parameterReferences: ['orders.region'],
+            error: null,
+        });
+    });
+
+    it('skips a selected field the explore no longer has', async () => {
+        const { service } = setup();
+        charts.stale = savedChart({
+            uuid: 'stale',
+            metricQuery: {
+                ...chart.metricQuery,
+                dimensions: [
+                    `${chart.tableName}_amount`,
+                    `${chart.tableName}_gone`,
+                ],
+            },
+        });
+
+        await expect(
+            service.getTileParameterReferences(account, projectUuid, [
+                chartTile('tile-1', 'stale'),
+            ]),
+        ).resolves.toEqual([
+            {
+                tileUuid: 'tile-1',
+                parameterReferences: ['orders.min_amount', 'orders.region'],
+                error: null,
+            },
+        ]);
+    });
+
+    it('lists no parameters for a chart on an API source explore', async () => {
+        const { service } = setup();
+        explores.api = {
+            ...exploreWithParameters('api', []),
+            type: ExploreType.API_SOURCE,
+        };
+        charts.api = savedChart({ uuid: 'api', tableName: 'api' });
+
+        await expect(
+            service.getTileParameterReferences(account, projectUuid, [
+                chartTile('tile-1', 'api'),
+            ]),
+        ).resolves.toEqual([
+            { tileUuid: 'tile-1', parameterReferences: [], error: null },
         ]);
     });
 

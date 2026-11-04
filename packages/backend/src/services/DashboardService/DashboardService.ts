@@ -216,10 +216,10 @@ type ParameterReferencesLookup = (
 const toError = (e: unknown): Error =>
     e instanceof Error ? e : new Error(getErrorMessage(e));
 
+type ChartQuery = { exploreName: string; metricQuery: MetricQuery };
+
 /** The queries a chart runs, each against its own explore; a merge runs one per metric source. */
-const getChartQueries = (
-    chart: SavedChartDAO,
-): { exploreName: string; metricQuery: MetricQuery }[] =>
+const getChartQueries = (chart: SavedChartDAO): ChartQuery[] =>
     chart.merge
         ? buildMergeQueryFromMergeDefinition(chart.metricQuery, chart.merge)
               .sources.filter(isMergeMetricSource)
@@ -230,11 +230,11 @@ const getChartQueries = (
         : [{ exploreName: chart.tableName, metricQuery: chart.metricQuery }];
 
 const getChartParameterReferences = (
-    chart: SavedChartDAO,
+    queries: ChartQuery[],
     explores: Map<string, Explore | ExploreError | Error>,
 ): string[] =>
     uniq(
-        getChartQueries(chart).flatMap(({ exploreName, metricQuery }) => {
+        queries.flatMap(({ exploreName, metricQuery }) => {
             const explore = explores.get(exploreName);
             if (explore instanceof Error) throw explore;
             if (!explore || isExploreError(explore)) {
@@ -1136,6 +1136,15 @@ export class DashboardService
         );
         if (charts.length === 0) return results;
 
+        // A stored merge that can't be rebuilt fails its own tile only
+        const chartQueries = new Map<string, ChartQuery[]>();
+        charts.forEach((chart) => {
+            try {
+                chartQueries.set(chart.uuid, getChartQueries(chart));
+            } catch (e) {
+                results.set(chart.uuid, parameterReferencesFailure(e));
+            }
+        });
         const [viewableChartUuids, explores] = await Promise.all([
             // Embed charts come from the token's dashboard, checked once above
             isJwtUser(account)
@@ -1145,8 +1154,8 @@ export class DashboardService
                 account,
                 projectUuid,
                 uniq(
-                    charts
-                        .flatMap(getChartQueries)
+                    [...chartQueries.values()]
+                        .flat()
                         .map(({ exploreName }) => exploreName),
                 ),
             ),
@@ -1161,10 +1170,12 @@ export class DashboardService
                 );
                 return;
             }
+            const queries = chartQueries.get(chart.uuid);
+            if (!queries) return;
             try {
                 results.set(chart.uuid, {
                     parameterReferences: getChartParameterReferences(
-                        chart,
+                        queries,
                         explores,
                     ),
                     error: null,
