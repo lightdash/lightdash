@@ -12,7 +12,7 @@ const IndexName = 'query_history_project_explore_created_at_idx';
 
 export async function up(knex: Knex): Promise<void> {
     await knex.raw('SET statement_timeout = 0');
-    await knex.raw("SET lock_timeout = '5s'");
+    await knex.raw('SET lock_timeout = 0');
     try {
         const invalidIndex = await knex.raw<{ rowCount: number }>(
             `SELECT 1
@@ -37,7 +37,7 @@ export async function up(knex: Knex): Promise<void> {
 }
 
 export async function down(knex: Knex): Promise<void> {
-    await knex.raw("SET lock_timeout = '5s'");
+    await knex.raw('SET lock_timeout = 0');
     try {
         await knex.raw(`DROP INDEX CONCURRENTLY IF EXISTS ${IndexName}`);
     } finally {
