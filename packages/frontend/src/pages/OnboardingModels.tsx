@@ -25,7 +25,7 @@ const OnboardingModelsContent: FC<{ projectUuid: string }> = ({
     const { data: project } = useProject(projectUuid);
 
     const goToTools = useCallback(
-        () => onboardingNavigate(`/projects/${projectUuid}/home`),
+        () => onboardingNavigate(`/onboarding/tools/${projectUuid}`),
         [onboardingNavigate, projectUuid],
     );
 
