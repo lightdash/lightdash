@@ -1,3 +1,10 @@
+# [3.153.0](https://github.com/lightdash/lightdash/compare/3.152.0...3.153.0) (2026-11-04)
+
+
+### Features
+
+* **dashboard-controls:** refine popovers and section add ([#32081](https://github.com/lightdash/lightdash/issues/32081)) ([64e4f6a](https://github.com/lightdash/lightdash/commit/64e4f6a7607bc14dd6fb0fce11b15aa0e2cf0844))
+
 # [3.152.0](https://github.com/lightdash/lightdash/compare/3.151.1...3.152.0) (2026-11-04)
 
 
