@@ -75,8 +75,8 @@ export class ProjectDashboardControllerV2 extends BaseController {
     }
 
     /**
-     * List the parameters each dashboard tile uses, compiled without running
-     * its query. Tiles that can't be viewed or compiled report an error.
+     * List the parameters each dashboard tile uses, read from its saved query
+     * without running it. Tiles that can't be loaded or viewed report an error.
      *
      * Embed tokens can call this with the `Lightdash-Embed-Token` header. The
      * token must embed a dashboard: only that dashboard's tiles are listed,
