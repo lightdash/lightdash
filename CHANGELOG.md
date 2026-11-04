@@ -1,3 +1,10 @@
+## [3.148.2](https://github.com/lightdash/lightdash/compare/3.148.1...3.148.2) (2026-11-04)
+
+
+### Bug Fixes
+
+* **projects:** align preview upstream settings with preview creation ([#32054](https://github.com/lightdash/lightdash/issues/32054)) ([00e0134](https://github.com/lightdash/lightdash/commit/00e0134a52c727b4f42312ce20c6de608b5c3569))
+
 ## [3.148.1](https://github.com/lightdash/lightdash/compare/3.148.0...3.148.1) (2026-11-04)
 
 
