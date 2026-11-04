@@ -1,23 +1,53 @@
-import { Box, Group, Text, Title } from '@mantine/core';
+import { Box, Group, Stack, Text, Title } from '@mantine/core';
 import { type Icon } from '@tabler/icons-react';
 import { type FC, type PropsWithChildren, type ReactNode } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
-import classes from './SettingRow.module.css';
+import classes from './SettingLayout.module.css';
+
+type SettingsSectionProps = {
+    label: string;
+    description: string | null;
+    titleAddon?: ReactNode;
+};
+
+export const SettingsSection: FC<PropsWithChildren<SettingsSectionProps>> = ({
+    label,
+    description,
+    titleAddon,
+    children,
+}) => (
+    <Stack gap="sm">
+        <Box className={classes.measure}>
+            <Group gap="xs">
+                <Title order={5}>{label}</Title>
+                {titleAddon}
+            </Group>
+            {description && (
+                <Text c="dimmed" fz="xs" mt="xxs" className={classes.pretty}>
+                    {description}
+                </Text>
+            )}
+        </Box>
+        {children}
+    </Stack>
+);
 
 type SettingRowProps = {
     title: string;
     description: ReactNode;
-    // Badges or logos rendered next to the title.
+    // Logos rendered before the title.
+    titlePrefix?: ReactNode;
+    // Badges rendered after the title.
     titleAddon?: ReactNode;
     icon?: Icon;
-    // The row's control (switch, select); wraps below the text when narrow.
+    // Wraps below the text when the card is narrow.
     control?: ReactNode;
 };
 
-/** One labelled setting inside a SettingsCard: h6 title, xs description, control. */
 export const SettingRow: FC<PropsWithChildren<SettingRowProps>> = ({
     title,
     description,
+    titlePrefix,
     titleAddon,
     icon,
     control,
@@ -33,10 +63,11 @@ export const SettingRow: FC<PropsWithChildren<SettingRowProps>> = ({
             {icon && <MantineIcon icon={icon} size="lg" color="ldGray.7" />}
             <Box>
                 <Group gap="xs" wrap="nowrap">
+                    {titlePrefix}
                     <Title order={6}>{title}</Title>
                     {titleAddon}
                 </Group>
-                <Text c="dimmed" fz="xs" mt={2} className={classes.description}>
+                <Text c="dimmed" fz="xs" mt="xxs" className={classes.pretty}>
                     {description}
                 </Text>
                 {children}

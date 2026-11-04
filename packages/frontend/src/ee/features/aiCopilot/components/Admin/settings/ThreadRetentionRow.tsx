@@ -10,7 +10,7 @@ import {
 } from '../../../hooks/useAiOrganizationSettings';
 import { formatRetentionHours } from '../../../utils/threadRetention';
 import { ThreadRetentionSelect } from '../../ThreadRetentionSelect';
-import { SettingRow } from './SettingRow';
+import { SettingRow } from './SettingLayout';
 
 export const ThreadRetentionRow = ({
     current,

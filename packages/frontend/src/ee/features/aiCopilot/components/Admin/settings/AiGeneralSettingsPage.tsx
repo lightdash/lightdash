@@ -2,7 +2,6 @@ import { FeatureFlags } from '@lightdash/common';
 import {
     Anchor,
     Badge,
-    Box,
     Divider,
     Group,
     Loader,
@@ -10,10 +9,8 @@ import {
     Stack,
     Switch,
     Text,
-    Title,
 } from '@mantine/core';
 import { IconSparkles } from '@tabler/icons-react';
-import { type FC, type PropsWithChildren, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { BetaBadge } from '../../../../../../components/common/BetaBadge';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
@@ -47,31 +44,8 @@ import { AiProvidersCard } from './AiProvidersCard';
 import { AiRouterInstructionsCard } from './AiRouterInstructionsCard';
 import { AiSurfacesCard } from './AiSurfacesCard';
 import { ReviewNotificationsSettings } from './ReviewNotificationsSettings';
-import { SettingRow } from './SettingRow';
+import { SettingRow, SettingsSection } from './SettingLayout';
 import { ThreadRetentionRow } from './ThreadRetentionRow';
-
-const Section: FC<
-    PropsWithChildren<{
-        label: string;
-        description: ReactNode;
-        titleAddon?: ReactNode;
-    }>
-> = ({ label, description, titleAddon, children }) => (
-    <Stack gap="sm">
-        <Box maw={640}>
-            <Group gap="xs">
-                <Title order={5}>{label}</Title>
-                {titleAddon}
-            </Group>
-            {description && (
-                <Text c="dimmed" fz="xs" mt={2}>
-                    {description}
-                </Text>
-            )}
-        </Box>
-        {children}
-    </Stack>
-);
 
 export const AiGeneralSettingsPage = () => {
     const { data: settings, isInitialLoading: isSettingsLoading } =
@@ -163,7 +137,7 @@ export const AiGeneralSettingsPage = () => {
                 </Group>
             ) : (
                 <>
-                    <Section
+                    <SettingsSection
                         label="Visibility"
                         description="Where agents can be reached. Per-agent access still applies on every surface."
                         titleAddon={
@@ -197,9 +171,9 @@ export const AiGeneralSettingsPage = () => {
                             }
                             onUpdateSlackAgentsEnabled={handleSlackAgentsToggle}
                         />
-                    </Section>
+                    </SettingsSection>
 
-                    <Section
+                    <SettingsSection
                         label="Agent behaviour"
                         description="Applies on every surface."
                     >
@@ -245,7 +219,7 @@ export const AiGeneralSettingsPage = () => {
                                     description="Choose the model and reasoning default for new AI agent chats. Users can still change it in each chat."
                                     control={
                                         <Select
-                                            w={260}
+                                            w={{ base: '100%', sm: 260 }}
                                             aria-label="Default AI model"
                                             size="xs"
                                             value={selectedDefaultModelKey}
@@ -352,11 +326,11 @@ export const AiGeneralSettingsPage = () => {
                                 )}
                             </Stack>
                         </SettingsCard>
-                    </Section>
+                    </SettingsSection>
 
                     {settings.isCopilotEnabled &&
                         customProvidersFlag.data?.enabled === true && (
-                            <Section
+                            <SettingsSection
                                 label="Providers & models"
                                 description="Use your organization's own Anthropic, Google Gemini, or OpenAI API key for AI features, and control which models users can pick. Keys are stored encrypted and never shown again after saving; when set, they take precedence over the instance-level keys. Agents already using a hidden model keep working — it just can't be selected again."
                             >
@@ -400,10 +374,13 @@ export const AiGeneralSettingsPage = () => {
                                         })
                                     }
                                 />
-                            </Section>
+                            </SettingsSection>
                         )}
 
-                    <Section label="Quality & review" description={null}>
+                    <SettingsSection
+                        label="Quality & review"
+                        description={null}
+                    >
                         <SettingsCard>
                             <Stack gap="md">
                                 <SettingRow
@@ -453,7 +430,7 @@ export const AiGeneralSettingsPage = () => {
                                     }
                                 >
                                     {reviewsPausedByByok && (
-                                        <Text c="dimmed" fz="xs" mt={4}>
+                                        <Text c="dimmed" fz="xs" mt="xxs">
                                             Paused — your AI provider key
                                             can&apos;t run the review model
                                             (Claude Haiku). Reviews run on your
@@ -468,7 +445,7 @@ export const AiGeneralSettingsPage = () => {
                                 )}
                             </Stack>
                         </SettingsCard>
-                    </Section>
+                    </SettingsSection>
                 </>
             )}
         </SettingsPage>

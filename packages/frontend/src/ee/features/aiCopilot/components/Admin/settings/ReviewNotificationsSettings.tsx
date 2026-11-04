@@ -8,7 +8,7 @@ import {
 } from '../../../hooks/useReviewNotificationSettings';
 import { JiraReviewSettings } from './JiraReviewSettings';
 import { LinearReviewSettings } from './LinearReviewSettings';
-import { SettingRow } from './SettingRow';
+import { SettingRow } from './SettingLayout';
 
 /** Notification and issue destinations shown only while AI agent reviews run. */
 export const ReviewNotificationsSettings = () => {
