@@ -305,7 +305,11 @@ const SqlRunnerNewPage = ({
         );
     }
     if (!project.warehouseConnection) {
-        return <NoWarehouseState project={project} />;
+        return (
+            <Page title="SQL Runner" withFullHeight noContentPadding>
+                <NoWarehouseState project={project} />
+            </Page>
+        );
     }
 
     return (
