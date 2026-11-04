@@ -245,6 +245,9 @@ export const getStageStates = (
     return states;
 };
 
+export const plural = (count: number, word: string) =>
+    `${count} ${word}${count === 1 ? '' : 's'}`;
+
 export const formatStageDuration = (durationMs: number | null): string => {
     if (durationMs === null) return '';
     const totalSeconds = Math.max(0, Math.floor(durationMs / 1_000));
