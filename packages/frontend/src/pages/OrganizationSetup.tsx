@@ -490,19 +490,10 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                                         ))}
                                                 </Group>
                                             )}
-                                            <Stack gap={0}>
-                                                <Text size="sm" fw={500}>
-                                                    We've pulled your branding
-                                                    from {detectedBrand.domain}
-                                                </Text>
-                                                <Text size="xs" c="dimmed">
-                                                    {detectedColors.length > 0
-                                                        ? 'Your logo and chart colors will match it. '
-                                                        : 'Your logo will match it. '}
-                                                    Change it anytime in
-                                                    Appearance settings.
-                                                </Text>
-                                            </Stack>
+                                            <Text size="sm" fw={500}>
+                                                We've pulled your branding from{' '}
+                                                {detectedBrand.domain}
+                                            </Text>
                                         </Group>
                                     </>
                                 )}
