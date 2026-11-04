@@ -80,7 +80,11 @@ describe('AiAgentService.provisionDefaultAgent', () => {
             'Aurora',
             "You are Aurora, this organization's analytics agent.",
         ],
-        [true, 'Lightdash', "You are this organization's analytics agent."],
+        [
+            true,
+            'Analytics agent',
+            "You are this organization's analytics agent.",
+        ],
     ])(
         'names the default agent by the new onboarding flag (%s)',
         async (isNewOnboarding, name, opening) => {
@@ -121,7 +125,7 @@ describe('AiAgentService.provisionDefaultAgent', () => {
         expect(createAgent).toHaveBeenCalledWith(
             user,
             {
-                name: 'Lightdash',
+                name: 'Analytics agent',
                 projectUuid: PROJECT_UUID,
                 description: null,
                 integrations: [],

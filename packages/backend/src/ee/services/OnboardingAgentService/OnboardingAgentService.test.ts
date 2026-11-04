@@ -248,6 +248,16 @@ describe('OnboardingAgentService run_finished analytics', () => {
         );
     });
 
+    test('does not abandon a queued run waiting on the worker', async () => {
+        const { service, analytics, agentOnboardingRunModel } = setup();
+        agentOnboardingRunModel.findActiveRunForProject.mockResolvedValueOnce(
+            dbRun({ status: 'queued', stage: null, updated_at: new Date(0) }),
+        );
+        await service.getActiveRun(sessionUser, PROJECT_UUID);
+        expect(agentOnboardingRunModel.markFailedIfIdle).not.toHaveBeenCalled();
+        expect(analytics.track).not.toHaveBeenCalled();
+    });
+
     test('tracks a run that could not be scheduled', async () => {
         const { service, analytics, schedulerClient } = setup();
         const scheduleError = new Error('queue down');

@@ -278,7 +278,7 @@ export class AgentOnboardingRunModel {
             AgentOnboardingRunsTableName,
         )
             .where('agent_onboarding_run_uuid', agentOnboardingRunUuid)
-            .whereIn('status', [...AGENT_ONBOARDING_ACTIVE_STATUSES])
+            .where('status', 'running')
             .whereRaw('updated_at < now() - ?::interval', [
                 `${idleMs} milliseconds`,
             ])

@@ -6015,7 +6015,7 @@ export class AiAgentService extends BaseService {
             await this.createAgent(
                 user,
                 {
-                    name: isNewOnboarding ? 'Lightdash' : 'Aurora',
+                    name: isNewOnboarding ? 'Analytics agent' : 'Aurora',
                     projectUuid,
                     description: null,
                     integrations: [],
