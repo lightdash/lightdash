@@ -497,15 +497,24 @@ export class UserService extends BaseService {
         inviteCode: string,
         activateUser: ActivateUser | OpenIdUser,
     ): Promise<LightdashUser> {
-        const inviteLink = await this.inviteLinkModel.getByCode(inviteCode);
-        return this.activateUserFromInviteLink(inviteLink, activateUser);
+        const { inviteLink, invitedByUserUuid } =
+            await this.inviteLinkModel.getByCodeWithInviter(inviteCode);
+        return this.activateUserFromInviteLink(
+            inviteLink,
+            invitedByUserUuid,
+            activateUser,
+        );
     }
 
     async activateUserFromInviteWithoutPassword(
         inviteCode: string,
     ): Promise<SessionUser> {
-        const inviteLink = await this.getInviteLink(inviteCode);
-        const user = await this.activateUserFromInviteLink(inviteLink);
+        const { inviteLink, invitedByUserUuid } =
+            await this.inviteLinkModel.getByCodeWithInviter(inviteCode);
+        const user = await this.activateUserFromInviteLink(
+            inviteLink,
+            invitedByUserUuid,
+        );
         // The invite link was delivered to this address, so opening it proves
         // mailbox ownership — same trust as OpenID email verification.
         await this.tryVerifyUserEmail(user, inviteLink.email, 'link');
@@ -514,6 +523,7 @@ export class UserService extends BaseService {
 
     private async activateUserFromInviteLink(
         inviteLink: InviteLink,
+        invitedByUserUuid: string | null,
         activateUser?: ActivateUser | OpenIdUser,
     ): Promise<LightdashUser> {
         const userEmail =
@@ -569,10 +579,6 @@ export class UserService extends BaseService {
             : await this.userModel.activateUserWithoutPassword(
                   inviteLink.userUuid,
               );
-        const invitedByUserUuid =
-            await this.inviteLinkModel.findInvitedByUserUuid(
-                inviteLink.inviteCode,
-            );
         await this.inviteLinkModel.deleteByCode(inviteLink.inviteCode);
 
         // Apply default project memberships from allowed email domains config.

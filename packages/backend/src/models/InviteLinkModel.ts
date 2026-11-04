@@ -76,6 +76,13 @@ export class InviteLinkModel {
     }
 
     async getByCode(inviteCode: string): Promise<InviteLink> {
+        const { inviteLink } = await this.getByCodeWithInviter(inviteCode);
+        return inviteLink;
+    }
+
+    async getByCodeWithInviter(
+        inviteCode: string,
+    ): Promise<{ inviteLink: InviteLink; invitedByUserUuid: string | null }> {
         const inviteCodeHash = InviteLinkModel._hash(inviteCode);
         const inviteLinks = await this.database(InviteLinkTableName)
             .leftJoin(
@@ -106,7 +113,10 @@ export class InviteLinkModel {
             await this.deleteByCode(inviteCode);
             throw new ExpiredError('Invite link expired');
         }
-        return inviteLink;
+        return {
+            inviteLink,
+            invitedByUserUuid: inviteLinks[0].invited_by_user_uuid,
+        };
     }
 
     async upsert(
@@ -137,13 +147,6 @@ export class InviteLinkModel {
             .onConflict('user_uuid')
             .merge();
         return this.getByCode(inviteCode);
-    }
-
-    async findInvitedByUserUuid(inviteCode: string): Promise<string | null> {
-        const row = await this.database(InviteLinkTableName)
-            .where('invite_code_hash', InviteLinkModel._hash(inviteCode))
-            .first('invited_by_user_uuid');
-        return row?.invited_by_user_uuid ?? null;
     }
 
     async hasValidInviteLink(

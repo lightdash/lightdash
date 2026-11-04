@@ -5049,9 +5049,18 @@ describe('ProjectService', () => {
             organizationProjects: Awaited<
                 ReturnType<ProjectModel['getAllByOrganizationUuid']>
             >,
+            newOnboardingEnabled = true,
         ) => {
             const trackingService = getMockedProjectService(
                 lightdashConfigWithGoogleOAuthMock,
+            );
+            vi.mocked(trackingService.featureFlagModel.get).mockImplementation(
+                async ({ featureFlagId }) => ({
+                    id: featureFlagId,
+                    enabled:
+                        featureFlagId === FeatureFlags.NewOnboarding &&
+                        newOnboardingEnabled,
+                }),
             );
             projectModel.createWithOptionalCredentials.mockResolvedValueOnce(
                 createdProjectUuid,
@@ -5110,6 +5119,18 @@ describe('ProjectService', () => {
                     }),
                 }),
             ]);
+        });
+
+        test('leaves the warehouse step to the connection test in the legacy flow', async () => {
+            const events = await createAndTrack(
+                [{ ...defaultProject, projectUuid: createdProjectUuid }],
+                false,
+            );
+            expect(
+                events.some(
+                    (payload) => payload.event === 'onboarding.step_completed',
+                ),
+            ).toBe(false);
         });
 
         test('does not repeat the warehouse step for a later project', async () => {
@@ -22605,6 +22626,51 @@ describe('compile adapter connection credentials', () => {
             await tested.lease.release();
         }
     });
+
+    it.each([
+        ['legacy', false, 1],
+        ['new', true, 0],
+    ])(
+        'testProjectAdapter on project_create in the %s flow tracks the warehouse step %i time(s)',
+        async (_flow, newOnboardingEnabled, expectedCount) => {
+            const flaggedService = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+            );
+            vi.mocked(flaggedService.featureFlagModel.get).mockImplementation(
+                async ({ featureFlagId }) => ({
+                    id: featureFlagId,
+                    enabled:
+                        featureFlagId === FeatureFlags.NewOnboarding &&
+                        newOnboardingEnabled,
+                }),
+            );
+            const service = flaggedService as unknown as CompileInternals;
+            const track = vi.spyOn(analyticsMock, 'track');
+            track.mockClear();
+            const tested = await service.testProjectAdapter(
+                {
+                    ...projectWithSensitiveFields,
+                    warehouseConnection: {
+                        kind: 'submitted_resolved',
+                        credentials: ducklakeCredentials,
+                    },
+                    dbtConnection: { type: DbtProjectType.NONE },
+                },
+                caller,
+                'project_create',
+                RequestMethod.WEB_APP,
+                null,
+                null,
+            );
+            await tested.lease.release();
+            expect(
+                track.mock.calls.filter(
+                    ([payload]) =>
+                        payload.event === 'onboarding.step_completed',
+                ),
+            ).toHaveLength(expectedCount);
+        },
+    );
 
     it('buildSourceAdapter derives from original DuckLake credentials with the source location', async () => {
         const service = getMockedProjectService(
