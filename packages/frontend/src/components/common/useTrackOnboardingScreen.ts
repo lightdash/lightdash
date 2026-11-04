@@ -9,6 +9,8 @@ import { EventName } from '../../types/Events';
 let lastScreenViewedAt: number | null = null;
 let hiddenSince: number | null = null;
 let hiddenMs = 0;
+// Identify once per page load so onboarding events join the user's profile
+let identifiedUserUuid: string | null = null;
 
 // Time in a background tab is not time on the screen
 document.addEventListener('visibilitychange', () => {
@@ -33,8 +35,11 @@ const takeSecondsOnPreviousScreen = (now: number): number | null => {
 };
 
 export const useTrackOnboardingScreen = (screen: OnboardingScreen | null) => {
-    const track = useTracking({ failSilently: true })?.track;
+    const tracking = useTracking({ failSilently: true });
+    const track = tracking?.track;
+    const identify = tracking?.identify;
     const { user } = useApp();
+    const userUuid = user.data?.userUuid ?? null;
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const organizationId = user.data?.organizationUuid ?? null;
     const projectId = projectUuid ?? null;
@@ -43,6 +48,10 @@ export const useTrackOnboardingScreen = (screen: OnboardingScreen | null) => {
         if (trackedScreen.current === screen) return;
         trackedScreen.current = screen;
         if (!screen || !track) return;
+        if (identify && userUuid && userUuid !== identifiedUserUuid) {
+            identifiedUserUuid = userUuid;
+            identify({ id: userUuid });
+        }
         track({
             name: EventName.ONBOARDING_SCREEN_VIEWED,
             properties: {
@@ -54,5 +63,5 @@ export const useTrackOnboardingScreen = (screen: OnboardingScreen | null) => {
                 ),
             },
         });
-    }, [screen, track, organizationId, projectId]);
+    }, [screen, track, identify, userUuid, organizationId, projectId]);
 };
