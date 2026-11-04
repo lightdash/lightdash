@@ -2086,6 +2086,7 @@ export class AsyncQueryService extends ProjectService {
             switch (nodeKind) {
                 case 'sql':
                 case 'derived':
+                case 'api':
                     break;
                 case 'semantic': {
                     if (!node.metricQuery?.exploreName) break;
@@ -6198,6 +6199,7 @@ export class AsyncQueryService extends ProjectService {
         switch (kind) {
             case 'derived':
             case 'sql':
+            case 'api':
                 return undefined;
             case 'semantic':
                 break;

@@ -22899,6 +22899,80 @@ describe('fresh stored result read boundary', () => {
         ).resolves.toMatchObject({ rows: [{}] });
     });
 
+    test('a live data source result is readable without looking up its placeholder explore', async () => {
+        const f = setupRead();
+        vi.mocked(f.service.projectModel.getExploreFromCache).mockRejectedValue(
+            new NotFoundError(
+                `Explore "${SQL_QUERY_MOCK_EXPLORER_NAME}" does not exist.`,
+            ),
+        );
+        vi.mocked(f.service.featureFlagModel.get).mockImplementation(
+            async ({ featureFlagId }) => ({
+                id: featureFlagId,
+                enabled:
+                    featureFlagId === FeatureFlags.AgentIdentity ||
+                    featureFlagId === FeatureFlags.ApiQuerySources,
+            }),
+        );
+        Object.assign(f.service.queryHistoryModel, {
+            findMostRecentByCacheKey: vi.fn(async () => ({
+                queryHistory: {
+                    status: QueryHistoryStatus.READY,
+                    warehouseExecutionTimeMs: 10,
+                },
+                totalRowCount: 1,
+                resultsFileName: 'api-results.jsonl',
+                resultsCreatedAt: new Date(),
+                resultsUpdatedAt: new Date(),
+                resultsExpiresAt: null,
+                columns: null,
+            })),
+        });
+        const { queryUuid } = await f.service.executeAsyncApiQuery({
+            account: f.account,
+            projectUuid,
+            context: QueryExecutionContext.AI,
+            connectionUuid: 'connection-uuid',
+            connector: {
+                describe: () => ({ connector: 'posthog' }),
+                execute: vi.fn(),
+                usage: () => ({
+                    apiCalls: 0,
+                    responseBytes: 0,
+                    providerStatus: null,
+                }),
+                logCall: vi.fn(async () => undefined),
+            } as never,
+            payload: { kind: 'query', query: 'select 1' },
+        });
+        const [, created] = vi
+            .mocked(f.service.queryHistoryModel.create)
+            .mock.calls.at(-1)!;
+        const [, , , producer] = vi
+            .mocked(f.service.queryHistoryModel.recordResultProducer)
+            .mock.calls.at(-1)!;
+        f.history.queryUuid = queryUuid;
+        f.history.metricQuery = created.metricQuery;
+        f.history.requestParameters = {
+            ...created.requestParameters,
+            resultProducer: producer,
+        };
+        expect(f.history.metricQuery.exploreName).toBe(
+            SQL_QUERY_MOCK_EXPLORER_NAME,
+        );
+
+        await expect(
+            f.service.getRawAsyncQueryResults({
+                account: f.account,
+                projectUuid,
+                queryUuid,
+            }),
+        ).resolves.toMatchObject({ rows: [{}] });
+        expect(
+            f.service.projectModel.getExploreFromCache,
+        ).not.toHaveBeenCalledWith(projectUuid, SQL_QUERY_MOCK_EXPLORER_NAME);
+    });
+
     test('a derived row with an incompatible source refuses before opening S3', async () => {
         const f = setupRead();
         f.history.requestParameters.resultProducer!.credentialOwner = {
