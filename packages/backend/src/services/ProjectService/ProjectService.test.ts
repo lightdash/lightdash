@@ -12201,7 +12201,7 @@ describe('ProjectService', () => {
                 explore,
                 dashboardValues,
                 chartSavedValues,
-                untargetedKeys: [],
+                excludedKeys: [],
                 preloadedProjectParameters: [],
             });
 
@@ -12268,7 +12268,7 @@ describe('ProjectService', () => {
                     explore: statusExplore(false),
                     dashboardValues: {},
                     chartSavedValues: { region: 'US' },
-                    untargetedKeys: [],
+                    excludedKeys: [],
                     preloadedProjectParameters: null,
                 }),
             ).resolves.toEqual({ region: 'EU' });
@@ -12284,7 +12284,7 @@ describe('ProjectService', () => {
                         ...cancelledChart,
                         year: '2024',
                     },
-                    untargetedKeys: [],
+                    excludedKeys: [],
                 }),
             ).resolves.toEqual({ tier: 'gold', year: '2024' });
         });

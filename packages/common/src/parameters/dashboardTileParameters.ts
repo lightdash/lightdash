@@ -18,8 +18,8 @@ export type ParameterFallbackSources = {
 export type DashboardTileParameterInputs = {
     dashboardValues: ParametersValuesMap;
     chartSavedValues: ParametersValuesMap;
-    // Keys this tile does not take from the dashboard
-    untargetedKeys: string[];
+    // Keys this tile is excluded from: it ignores the dashboard's value and default, chart-saved value first
+    excludedKeys: string[];
 };
 
 const resolveDefinitionDefaults = (
@@ -82,12 +82,12 @@ export const canUseChartSavedParameterValue = ({
     definitions[key]?.default === undefined;
 
 // Targeted key: dashboard value, else chart-saved only when the definition has no default.
-// Untargeted key: chart-saved value only.
+// Excluded key: chart-saved value only.
 export const getDashboardTileParameterOverrides = ({
     definitions,
     dashboardValues: rawDashboardValues,
     chartSavedValues: rawChartSavedValues,
-    untargetedKeys,
+    excludedKeys,
 }: DashboardTileParameterInputs & {
     definitions: ParameterDefinitions;
 }): ParametersValuesMap => {
@@ -100,14 +100,14 @@ export const getDashboardTileParameterOverrides = ({
         rawChartSavedValues,
         definitions,
     );
-    const untargeted = new Set(untargetedKeys);
+    const excluded = new Set(excludedKeys);
     const keys = new Set([
         ...Object.keys(chartSavedValues),
         ...Object.keys(dashboardValues),
     ]);
     return [...keys].reduce<ParametersValuesMap>((acc, key) => {
         const chartSavedValue = chartSavedValues[key];
-        if (untargeted.has(key)) {
+        if (excluded.has(key)) {
             return chartSavedValue === undefined
                 ? acc
                 : { ...acc, [key]: chartSavedValue };
@@ -164,7 +164,7 @@ export const getDashboardTileParameterSource = ({
         inputs.dashboardValues,
         inputs.definitions,
     );
-    return !inputs.untargetedKeys.includes(key) &&
+    return !inputs.excludedKeys.includes(key) &&
         dashboardValues[key] !== undefined
         ? DashboardTileParameterSource.DASHBOARD
         : DashboardTileParameterSource.CHART;
