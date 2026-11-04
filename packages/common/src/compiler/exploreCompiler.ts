@@ -47,8 +47,8 @@ import { type WarehouseSqlBuilder } from '../types/warehouse';
 import { getItemId } from '../utils/item';
 import { timeFrameConfigs } from '../utils/timeFrames';
 import {
-    expandFieldsWithSets,
     expandFieldsWithSetsLenient,
+    expandJoinFields,
 } from './fieldSetExpander';
 import { renderFilterRuleSqlFromField } from './filtersCompiler';
 import {
@@ -545,13 +545,29 @@ export class ExploreCompiler {
                     ? join.description
                     : tables[join.table].description;
 
-            // Expand field sets if join.fields contains set references
-            let expandedFields: string[] | undefined;
-            if (join.fields) {
-                expandedFields = expandFieldsWithSets(
-                    join.fields,
-                    tables[join.table],
+            const fieldSelection = join.fields
+                ? expandJoinFields(join.fields, tables[join.table])
+                : undefined;
+            const isSelected = (isListed: boolean) =>
+                fieldSelection === undefined ||
+                (fieldSelection.mode === 'include' ? isListed : !isListed);
+
+            if (fieldSelection?.mode === 'exclude') {
+                const unknownExclusions = fieldSelection.fields.filter(
+                    (field) =>
+                        !tables[join.table].dimensions[field] &&
+                        !tables[join.table].metrics[field],
                 );
+                if (unknownExclusions.length > 0) {
+                    exploreWarnings.push({
+                        type: InlineErrorType.FIELD_ERROR,
+                        message: `Join "${joinTableName}" excludes unknown field${
+                            unknownExclusions.length > 1 ? 's' : ''
+                        } ${unknownExclusions
+                            .map((field) => `"${field}"`)
+                            .join(', ')} from table "${join.table}"`,
+                    });
+                }
             }
 
             const requiredDimensionsForJoin = parseAllReferences(
@@ -590,22 +606,20 @@ export class ExploreCompiler {
                     const isRequired =
                         requiredDimensionsForJoin.includes(dimensionKey);
 
-                    const isTimeIntervalBaseDimensionVisible =
+                    // Time interval dimensions follow their base dimension
+                    const isTimeIntervalBaseDimensionListed =
                         (dimension.timeInterval ||
                             dimension.customTimeInterval) &&
-                        dimension.timeIntervalBaseDimensionName &&
-                        expandedFields
-                            ? expandedFields.includes(
+                        dimension.timeIntervalBaseDimensionName
+                            ? !!fieldSelection?.fields.includes(
                                   dimension.timeIntervalBaseDimensionName,
                               )
                             : false;
 
-                    const isVisible =
-                        expandedFields === undefined ||
-                        expandedFields.includes(dimensionKey) ||
-                        (dimension.group !== undefined &&
-                            expandedFields.includes(dimension.group)) ||
-                        isTimeIntervalBaseDimensionVisible;
+                    const isVisible = isSelected(
+                        !!fieldSelection?.fields.includes(dimensionKey) ||
+                            isTimeIntervalBaseDimensionListed,
+                    );
 
                     if (isRequired || isVisible) {
                         acc[dimensionKey] = {
@@ -620,10 +634,8 @@ export class ExploreCompiler {
                 }, {}),
                 metrics: Object.fromEntries(
                     Object.keys(tables[join.table].metrics)
-                        .filter(
-                            (d) =>
-                                expandedFields === undefined ||
-                                expandedFields.includes(d),
+                        .filter((d) =>
+                            isSelected(!!fieldSelection?.fields.includes(d)),
                         )
                         .map((metricKey): [string, Metric] => {
                             const metric =
