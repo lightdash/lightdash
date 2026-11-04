@@ -1,98 +1,63 @@
-import {
-    type ExternalConnectionListItem,
-    type SummaryExplore,
-} from '@lightdash/common';
+import { type ExternalConnectionListItem } from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
     Box,
     Button,
     Group,
-    Loader,
     Paper,
     Text,
     Tooltip,
+    UnstyledButton,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
+    IconArrowRight,
     IconDatabase,
     IconExternalLink,
+    IconHelpCircle,
+    IconInfoCircle,
     IconLayersLinked,
     IconPlugConnected,
-    IconTable,
     IconX,
 } from '@tabler/icons-react';
 import { useState, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { useLocalStorage } from 'react-use';
+import { AI_NAME } from '../../../../../components/common/aiName';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
-import { useLiveSourceExplores } from '../../../../../features/externalConnections/hooks/useLiveSourceExplores';
 import { getLiveSource } from '../../../../../features/externalConnections/liveSources/liveSourceCatalog';
 import { LiveSourceIcon } from '../../../../../features/externalConnections/liveSources/LiveSourceIcon';
 import useApp from '../../../../../providers/App/useApp';
-import {
-    getAgentOnboardingRunUrl,
-    plural,
-} from '../../../agentOnboarding/utils';
+import { getAgentOnboardingRunUrl } from '../../../agentOnboarding/utils';
 import { type RecommendedActionsState } from '../useRecommendedActions';
 import {
     SEMANTIC_LAYER_STEP_COUNT,
     SemanticLayerExplainer,
 } from './SemanticLayerExplainer';
 import guideClasses from './SetupGuide.module.css';
+import { ChoiceArt } from './StepArt';
 import { type SetupGuideState } from './useSetupGuide';
 import classes from './YourData.module.css';
 
 const SEMANTIC_LAYER_DOCS_URL = 'https://docs.lightdash.com/semantic-layer';
-const MAX_CHIPS = 4;
 
-const ExploreChips: FC<{
-    projectUuid: string;
-    explores: { name: string; label: string }[];
-}> = ({ projectUuid, explores }) => (
-    <Group gap={6} wrap="nowrap" className={classes.chips}>
-        {explores.slice(0, MAX_CHIPS).map(({ name, label }) => (
-            <Button
-                key={name}
-                component={Link}
-                to={`/projects/${projectUuid}/tables/${name}`}
-                variant="default"
-                size="compact-xs"
-                leftSection={<MantineIcon icon={IconTable} size={12} />}
-            >
-                {label}
-            </Button>
-        ))}
-        {explores.length > MAX_CHIPS && (
-            <Button
-                component={Link}
-                to={`/projects/${projectUuid}/tables`}
-                variant="subtle"
-                color="gray"
-                size="compact-xs"
-            >
-                +{explores.length - MAX_CHIPS} more
-            </Button>
-        )}
-    </Group>
-);
-
-const SourceRow: FC<{
+const SourceTag: FC<{
     icon: ReactNode;
-    title: string;
-    detail: ReactNode;
-    children: ReactNode;
-}> = ({ icon, title, detail, children }) => (
-    <Group gap="sm" wrap="nowrap" className={classes.row}>
-        <Box className={classes.rowIcon}>{icon}</Box>
-        <Text fz="sm" fw={500} className={classes.rowTitle}>
-            {title}
+    name: string;
+    detail: ReactNode | null;
+}> = ({ icon, name, detail }) => (
+    <Group gap={6} wrap="nowrap" className={classes.pill}>
+        <Box className={classes.sourceIcon}>{icon}</Box>
+        <Text fz="xs" fw={500}>
+            {name}
         </Text>
-        <Text fz="xs" c="dimmed" component="div" className={classes.rowDetail}>
-            {detail}
-        </Text>
-        {children}
+        {detail && (
+            <Text fz="xs" c="dimmed" component="div">
+                {detail}
+            </Text>
+        )}
     </Group>
 );
 
@@ -112,7 +77,10 @@ const HowItWorks: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                     open();
                 }}
             >
-                How models work
+                <Group gap={4} wrap="nowrap">
+                    <MantineIcon icon={IconHelpCircle} size={14} />
+                    How models work
+                </Group>
             </Anchor>
             <MantineModal
                 opened={isOpen}
@@ -205,52 +173,47 @@ const SemanticLayerDetail: FC<{ guide: SetupGuideState }> = ({ guide }) => {
             'No models yet'
         );
     }
-    return plural(semanticExplores.length, 'model');
+    return null;
 };
 
-const LiveSourceBlock: FC<{
-    projectUuid: string;
-    connection: ExternalConnectionListItem;
-}> = ({ projectUuid, connection }) => {
-    const { data: explores, isError } = useLiveSourceExplores({
-        projectUuid,
-        connectionUuid: connection.externalConnectionUuid,
-    });
+const liveSourceTag = (connection: ExternalConnectionListItem) => {
     const { apiSource } = connection;
     return (
-        <SourceRow
+        <SourceTag
+            key={connection.externalConnectionUuid}
             icon={
                 apiSource ? (
-                    <LiveSourceIcon connector={apiSource.connector} size={18} />
+                    <LiveSourceIcon connector={apiSource.connector} size={14} />
                 ) : (
-                    <MantineIcon icon={IconPlugConnected} />
+                    <MantineIcon icon={IconPlugConnected} size={14} />
                 )
             }
-            title={
+            name={
                 apiSource
                     ? getLiveSource(apiSource.connector).label
                     : connection.name
             }
-            detail="Live"
-        >
-            {explores?.length ? (
-                <ExploreChips projectUuid={projectUuid} explores={explores} />
-            ) : (
-                !isError && <Loader size="xs" />
-            )}
-        </SourceRow>
+            detail={null}
+        />
     );
 };
 
-const toChips = (explores: SummaryExplore[]) =>
-    explores.map(({ name, label }) => ({ name, label }));
+const PathLabel: FC<{ label: string }> = ({ label }) => (
+    <Group justify="space-between" wrap="nowrap" px="sm" py={8}>
+        <Text fz="sm" fw={500}>
+            {label}
+        </Text>
+        <MantineIcon icon={IconArrowRight} size={14} color="dimmed" />
+    </Group>
+);
 
-/** What is connected and modelled, each a way into building something */
+/** What is connected, and the two ways to start building on it */
 export const YourData: FC<{
     projectUuid: string;
     actions: RecommendedActionsState;
     guide: SetupGuideState;
-}> = ({ projectUuid, actions, guide }) => {
+    onAsk: () => void;
+}> = ({ projectUuid, actions, guide, onAsk }) => {
     const { user } = useApp();
     const [isDismissed, setIsDismissed] = useLocalStorage(
         `homepage-your-data-dismissed-${user.data?.userUuid ?? 'anon'}-${projectUuid}`,
@@ -260,46 +223,64 @@ export const YourData: FC<{
     if (!warehouse.isComplete || isDismissed) return null;
     return (
         <Paper p="md" className={classes.panel}>
-            <Group justify="space-between" wrap="nowrap" mb={4}>
-                <Text fz="sm" fw={500}>
-                    Explore your data
-                </Text>
-                <Group gap="xs" wrap="nowrap">
-                    {guide.semanticExplores.length > 0 && (
-                        <HowItWorks projectUuid={projectUuid} />
-                    )}
-                    <Tooltip label="Hide">
-                        <ActionIcon
-                            size="sm"
-                            variant="subtle"
-                            color="gray"
-                            aria-label="Hide your data"
-                            onClick={() => setIsDismissed(true)}
-                        >
-                            <MantineIcon icon={IconX} />
-                        </ActionIcon>
-                    </Tooltip>
-                </Group>
-            </Group>
-            <SourceRow
-                icon={warehouse.doneIcon ?? <MantineIcon icon={IconDatabase} />}
-                title={warehouse.annotation ?? 'Warehouse'}
-                detail={<SemanticLayerDetail guide={guide} />}
-            >
-                {guide.semanticExplores.length > 0 && (
-                    <ExploreChips
-                        projectUuid={projectUuid}
-                        explores={toChips(guide.semanticExplores)}
+            <Group justify="space-between" align="center" wrap="nowrap">
+                <Group gap={6} wrap="nowrap">
+                    <MantineIcon
+                        icon={IconInfoCircle}
+                        size={16}
+                        color="dimmed"
                     />
-                )}
-            </SourceRow>
-            {guide.liveConnections.map((connection) => (
-                <LiveSourceBlock
-                    key={connection.externalConnectionUuid}
-                    projectUuid={projectUuid}
-                    connection={connection}
+                    <Text fz="sm" fw={600}>
+                        Your data is ready to explore
+                    </Text>
+                </Group>
+                <Tooltip label="Hide">
+                    <ActionIcon
+                        size="sm"
+                        variant="subtle"
+                        color="gray"
+                        aria-label="Hide your data"
+                        className={classes.hide}
+                        onClick={() => setIsDismissed(true)}
+                    >
+                        <MantineIcon icon={IconX} />
+                    </ActionIcon>
+                </Tooltip>
+            </Group>
+            <Group gap={6} mt="xs">
+                <SourceTag
+                    icon={
+                        warehouse.doneIcon ?? (
+                            <MantineIcon icon={IconDatabase} size={14} />
+                        )
+                    }
+                    name={warehouse.annotation ?? 'Warehouse'}
+                    detail={
+                        guide.activeRun ? (
+                            <SemanticLayerDetail guide={guide} />
+                        ) : null
+                    }
                 />
-            ))}
+                {guide.liveConnections.map(liveSourceTag)}
+            </Group>
+            <Box className={classes.paths}>
+                <UnstyledButton className={classes.path} onClick={onAsk}>
+                    <ChoiceArt kind="ask" />
+                    <PathLabel label={`Ask ${AI_NAME}`} />
+                </UnstyledButton>
+                <Link
+                    to={`/projects/${projectUuid}/tables`}
+                    className={classes.path}
+                >
+                    <ChoiceArt kind="explore" />
+                    <PathLabel label="Build in Explore" />
+                </Link>
+            </Box>
+            {guide.semanticExplores.length > 0 && (
+                <Group justify="flex-end" mt="sm">
+                    <HowItWorks projectUuid={projectUuid} />
+                </Group>
+            )}
         </Paper>
     );
 };

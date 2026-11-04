@@ -391,6 +391,7 @@ export const SetupGuide: FC<{
                 projectUuid={projectUuid}
                 actions={actions}
                 guide={guide}
+                onAsk={onAsk}
             />
             <SetupGuideView
                 sections={guide.sections}
