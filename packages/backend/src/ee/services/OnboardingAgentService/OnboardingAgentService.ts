@@ -565,23 +565,6 @@ export class OnboardingAgentService extends BaseService {
         }
     }
 
-    getMissingInfrastructure(): string | null {
-        try {
-            this.getSandboxTemplateRef();
-            const { sandboxProvider, e2bApiKey } =
-                this.lightdashConfig.appRuntime;
-            if (sandboxProvider === 'e2b' && !e2bApiKey) {
-                return 'E2B API key is not configured';
-            }
-            resolveSandboxAnthropicConfig(this.lightdashConfig);
-            this.fileStore.assertConfigured();
-            return null;
-        } catch (error) {
-            if (error instanceof MissingConfigError) return error.message;
-            throw error;
-        }
-    }
-
     private getSandboxFacingSiteUrl(): string {
         if (this.lightdashConfig.appRuntime.sandboxProvider !== 'docker') {
             return this.lightdashConfig.siteUrl;
