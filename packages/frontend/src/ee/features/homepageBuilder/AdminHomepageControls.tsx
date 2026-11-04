@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { type HomepageOpening } from '@lightdash/common';
+import { FeatureFlags, type HomepageOpening } from '@lightdash/common';
 import {
     Box,
     Button,
@@ -21,7 +21,9 @@ import { useNavigate } from 'react-router';
 import { useLocalStorage } from 'react-use';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
+import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useContentAuthoringEnabled } from '../../../hooks/useContentAuthoringEnabled';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { Can } from '../../../providers/Ability';
 import classes from './adminHomepageControls.module.css';
 import { getGreeting } from './greeting';
@@ -33,6 +35,7 @@ import {
 import { PresetCard } from './TryNewHomepagePromo';
 
 const DEFAULT_NOTICE_STORAGE_KEY = 'homepage-v2-default-notice-closed';
+const NEW_ORG_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
 
 type Props = {
     projectUuid: string;
@@ -61,8 +64,20 @@ const OpeningMenu: FC<{
         DEFAULT_NOTICE_STORAGE_KEY,
         false,
     );
+    // A brand-new org never saw the classic homepage, so there is nothing to announce
+    const { data: organization } = useOrganization();
+    const isNewOnboarding =
+        useServerFeatureFlag(FeatureFlags.NewOnboarding).data?.enabled === true;
+    const isNewOrg =
+        isNewOnboarding &&
+        !!organization?.createdAt &&
+        Date.now() - new Date(organization.createdAt).getTime() <
+            NEW_ORG_WINDOW_MS;
     const showNotice =
-        !noticeClosed && !!settings.data?.enabled && current === null;
+        !noticeClosed &&
+        !isNewOrg &&
+        !!settings.data?.enabled &&
+        current === null;
     const closeNotice = () => setNoticeClosed(true);
 
     const choose = (value: HomepageOpening | null) =>
@@ -309,56 +324,66 @@ export const AdminHomepageControls: FC<Props> = ({
             pageRoot.removeEventListener('scroll', updateScrolledState);
     }, []);
 
-    if (!contentAuthoringEnabled) return null;
-
     return (
         <div className={classes.corner} data-page-scrolled={isPageScrolled}>
-            <OpeningMenu
-                projectUuid={projectUuid}
-                organizationUuid={organizationUuid}
-            />
-            <SwitchBackButton organizationUuid={organizationUuid} />
-            <Can
-                I="manage"
-                this={subject('ProjectHomepage', {
-                    organizationUuid,
-                    projectUuid,
-                })}
-            >
-                {showNewHomepage && (
-                    <button
-                        type="button"
-                        className={classes.tbBtn}
-                        aria-label="New homepage"
-                        onClick={() =>
-                            navigate(
-                                `/projects/${projectUuid}/homepage-builder?create=1`,
-                            )
-                        }
+            {contentAuthoringEnabled && (
+                <>
+                    <OpeningMenu
+                        projectUuid={projectUuid}
+                        organizationUuid={organizationUuid}
+                    />
+                    <SwitchBackButton organizationUuid={organizationUuid} />
+                    <Can
+                        I="manage"
+                        this={subject('ProjectHomepage', {
+                            organizationUuid,
+                            projectUuid,
+                        })}
                     >
-                        <MantineIcon icon={IconPlus} size={15} />
-                        <span className={classes.tbBtnLabel} aria-hidden="true">
-                            New homepage
-                        </span>
-                    </button>
-                )}
-                <button
-                    type="button"
-                    className={classes.tbBtn}
-                    aria-label="Customize homepage"
-                    // Anchor for scope walkthroughs (data-tour-via)
-                    data-tour-anchor="customize-homepage"
-                    data-tour-hint="Click Customize homepage"
-                    onClick={() =>
-                        navigate(`/projects/${projectUuid}/homepage-builder`)
-                    }
-                >
-                    <MantineIcon icon={IconEdit} size={15} />
-                    <span className={classes.tbBtnLabel} aria-hidden="true">
-                        Customize homepage
-                    </span>
-                </button>
-            </Can>
+                        {showNewHomepage && (
+                            <button
+                                type="button"
+                                className={classes.tbBtn}
+                                aria-label="New homepage"
+                                onClick={() =>
+                                    navigate(
+                                        `/projects/${projectUuid}/homepage-builder?create=1`,
+                                    )
+                                }
+                            >
+                                <MantineIcon icon={IconPlus} size={15} />
+                                <span
+                                    className={classes.tbBtnLabel}
+                                    aria-hidden="true"
+                                >
+                                    New homepage
+                                </span>
+                            </button>
+                        )}
+                        <button
+                            type="button"
+                            className={classes.tbBtn}
+                            aria-label="Customize homepage"
+                            // Anchor for scope walkthroughs (data-tour-via)
+                            data-tour-anchor="customize-homepage"
+                            data-tour-hint="Click Customize homepage"
+                            onClick={() =>
+                                navigate(
+                                    `/projects/${projectUuid}/homepage-builder`,
+                                )
+                            }
+                        >
+                            <MantineIcon icon={IconEdit} size={15} />
+                            <span
+                                className={classes.tbBtnLabel}
+                                aria-hidden="true"
+                            >
+                                Customize homepage
+                            </span>
+                        </button>
+                    </Can>
+                </>
+            )}
         </div>
     );
 };
