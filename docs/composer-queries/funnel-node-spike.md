@@ -165,6 +165,9 @@ Seen in the run and fixed or noted:
   `step_order`; a funnel-aware chart kind is the real fix.
 - The results toggle showed the raw table only; `AiComposerNodeResult` now
   renders the result strip above the table for funnel nodes.
+- The default Anthropic model now rejects `thinking: disabled`; the agent
+  needed `modelConfig.reasoning: true` before any run (funnel or not) would
+  stream. Not a funnel issue, but it blocks a fresh preview env.
 
 ## Reference conventions
 
