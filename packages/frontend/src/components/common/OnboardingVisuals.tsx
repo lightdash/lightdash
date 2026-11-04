@@ -257,6 +257,49 @@ export const ToolsVisual: FC<{ warehouse: WarehouseTypes | null }> = ({
     );
 };
 
+export type PreviewField = { id: string; label: string; isMetric: boolean };
+
+const PREVIEW_FIELD_COUNT = 8;
+
+export const LiveSourceFieldsVisual: FC<{
+    connector: ApiConnectorType;
+    source: string;
+    connectionDetail: string;
+    fields: PreviewField[];
+}> = ({ connector, source, connectionDetail, fields }) => {
+    const shown = fields.slice(0, PREVIEW_FIELD_COUNT);
+    return (
+        <Figure
+            title={`${fields.length} fields from ${source}`}
+            body={`Pulled from your ${source} connection. Queries read ${source} live, so nothing is copied.`}
+        >
+            <Box className={classes.card} __vars={{ '--i': '0' }}>
+                <Group gap={8} wrap="nowrap" className={classes.cardHeader}>
+                    <LiveSourceIcon connector={connector} size={14} />
+                    <Text fz="xs" fw={500} truncate>
+                        {connectionDetail}
+                    </Text>
+                </Group>
+                {shown.map((field) => (
+                    <Box key={field.id} className={classes.sourceRow}>
+                        <Text fz="xs" fw={500} truncate>
+                            {field.label}
+                        </Text>
+                        <Box component="span" className={classes.tag}>
+                            {field.isMetric ? 'metric' : 'dimension'}
+                        </Box>
+                    </Box>
+                ))}
+                {fields.length > shown.length && (
+                    <Text fz="xs" c="dimmed" mt={4}>
+                        +{fields.length - shown.length} more
+                    </Text>
+                )}
+            </Box>
+        </Figure>
+    );
+};
+
 const TeamVisual: FC = () => (
     <Figure
         title={null}

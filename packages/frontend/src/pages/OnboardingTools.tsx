@@ -2,7 +2,9 @@ import { subject } from '@casl/ability';
 import {
     ApiConnectorType,
     FeatureFlags,
+    type ApiExploreResults,
     type ExternalConnectionListItem,
+    type WarehouseTypes,
 } from '@lightdash/common';
 import {
     Box,
@@ -18,7 +20,6 @@ import {
 } from '@mantine/core';
 import {
     IconBrandGithub,
-    IconArrowUpRight,
     IconCircleCheck,
     IconInfoCircle,
 } from '@tabler/icons-react';
@@ -34,8 +35,10 @@ import {
     ONBOARDING_STEP_COPY,
 } from '../components/common/onboardingSteps';
 import {
+    LiveSourceFieldsVisual,
     StepVisual,
     ToolsVisual,
+    type PreviewField,
 } from '../components/common/OnboardingVisuals';
 import { useOnboardingNavigate } from '../components/common/viewTransition';
 import { ConnectionFormSkeleton } from '../components/ProjectConnection/ConnectionFormSkeleton';
@@ -131,6 +134,26 @@ const ToolRow: FC<{
     </Group>
 );
 
+const visibleFields = (explores: ApiExploreResults[]): PreviewField[] =>
+    explores
+        .flatMap((explore) => Object.values(explore.tables))
+        .flatMap((table) => [
+            ...Object.values(table.metrics).map((field) => ({
+                field,
+                isMetric: true,
+            })),
+            ...Object.values(table.dimensions).map((field) => ({
+                field,
+                isMetric: false,
+            })),
+        ])
+        .filter(({ field }) => !field.hidden)
+        .map(({ field, isMetric }) => ({
+            id: `${field.table}.${field.name}`,
+            label: field.label,
+            isMetric,
+        }));
+
 const LiveSourceReadyRow: FC<{
     projectUuid: string;
     connection: ExternalConnectionListItem;
@@ -140,19 +163,12 @@ const LiveSourceReadyRow: FC<{
         projectUuid,
         connectionUuid: connection.externalConnectionUuid,
     });
-    const explore = explores?.[0];
-    const fieldCount = (explores ?? [])
-        .flatMap((e) => Object.values(e.tables))
-        .flatMap((table) => [
-            ...Object.values(table.dimensions),
-            ...Object.values(table.metrics),
-        ])
-        .filter((field) => !field.hidden).length;
+    const isReady = !!explores?.length;
 
     const status = isError
         ? 'Fields are still being prepared'
-        : explore
-          ? `${fieldCount} fields ready to explore`
+        : isReady
+          ? `${visibleFields(explores).length} fields ready to explore`
           : 'Preparing fields…';
 
     return (
@@ -165,21 +181,39 @@ const LiveSourceReadyRow: FC<{
             <Text fz="xs" c="dimmed" truncate>
                 {showName ? `${connection.name}: ${status}` : status}
             </Text>
-            {explore ? (
-                <Button
-                    component={Link}
-                    to={`/projects/${projectUuid}/tables/${explore.name}`}
-                    target="_blank"
-                    size="compact-xs"
-                    variant="subtle"
-                    rightSection={<MantineIcon icon={IconArrowUpRight} />}
-                >
-                    Explore
-                </Button>
-            ) : (
-                !isError && <Loader size="xs" />
-            )}
+            {!isReady && !isError && <Loader size="xs" />}
         </Group>
+    );
+};
+
+const ToolsAside: FC<{
+    projectUuid: string;
+    connection: ExternalConnectionListItem | null;
+    warehouse: WarehouseTypes | null;
+}> = ({ projectUuid, connection, warehouse }) => {
+    const { data: explores } = useLiveSourceExplores(
+        connection
+            ? {
+                  projectUuid,
+                  connectionUuid: connection.externalConnectionUuid,
+              }
+            : null,
+    );
+    const fields = visibleFields(explores ?? []);
+    const connector = connection?.apiSource?.connector;
+
+    if (!connection || !connector || fields.length === 0) {
+        return <ToolsVisual warehouse={warehouse} />;
+    }
+    return (
+        <LiveSourceFieldsVisual
+            connector={connector}
+            source={getLiveSource(connector).label}
+            connectionDetail={
+                describeConnections([connection]) ?? connection.name
+            }
+            fields={fields}
+        />
     );
 };
 
@@ -527,9 +561,11 @@ const OnboardingToolsContent: FC<{
         connections,
         ApiConnectorType.POSTHOG,
     );
-    const hasConnected = connections.some(
+    const liveSources = connections.filter(
         (connection) => connection.kind === 'live_source',
     );
+    const hasConnected = liveSources.length > 0;
+    const latestLiveSource = liveSources[liveSources.length - 1] ?? null;
     const connectLabel = (isConnected: boolean) =>
         isConnected ? 'Add another' : 'Connect';
 
@@ -540,7 +576,9 @@ const OnboardingToolsContent: FC<{
             stackDepth={2}
             activity={<OnboardingRunActivity projectUuid={projectUuid} />}
             aside={
-                <ToolsVisual
+                <ToolsAside
+                    projectUuid={projectUuid}
+                    connection={latestLiveSource}
                     warehouse={project?.warehouseConnection?.type ?? null}
                 />
             }
