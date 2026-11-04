@@ -54,7 +54,7 @@
     color: var(--mantine-color-gray-1);
     border-radius: var(--mantine-radius-md);
     padding: var(--mantine-spacing-md);
-    padding-right: 48px;
+    padding-right: var(--mantine-spacing-3xl);
     font-family: var(--mantine-font-family-monospace);
     font-size: var(--mantine-font-size-sm);
     line-height: 1.6;
@@ -92,7 +92,7 @@
     min-width: 0;
     border: 1px solid var(--mantine-color-default-border);
     border-radius: var(--mantine-radius-md);
-    padding: 8px 10px;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
 }
 
 .chipText {
@@ -100,17 +100,14 @@
 }
 
 .chipLabel {
-    font-size: 10.5px;
-    font-weight: 600;
-    line-height: 1.4;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 500;
     color: var(--mantine-color-dimmed);
 }
 
 .chipValue {
     font-family: var(--mantine-font-family-monospace);
-    font-size: 12.5px;
+    font-size: var(--mantine-font-size-xs);
     color: var(--mantine-color-text);
     white-space: nowrap;
     overflow: hidden;
@@ -126,22 +123,8 @@
     padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
 }
 
-.tokenCardTitle {
-    font-size: var(--mantine-font-size-sm);
-    font-weight: 600;
+.tokenText {
     color: var(--mantine-color-green-light-color);
-}
-
-.tokenCardMeta {
-    font-size: var(--mantine-font-size-xs);
-    color: var(--mantine-color-green-light-color);
-    opacity: 0.85;
-}
-
-.tokenCardHint {
-    font-size: var(--mantine-font-size-xs);
-    color: var(--mantine-color-green-light-color);
-    opacity: 0.85;
 }
 
 .tokenField {
@@ -160,23 +143,4 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-}
-
-.tokenCopyBtn {
-    flex: none;
-    height: 36px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 0 var(--mantine-spacing-sm);
-    border: 1px solid var(--mantine-color-green-light-hover);
-    border-radius: var(--mantine-radius-sm);
-    background-color: var(--mantine-color-body);
-    color: var(--mantine-color-green-light-color);
-    font-size: var(--mantine-font-size-sm);
-    font-weight: 600;
-}
-
-.tokenCopyBtn:hover {
-    background-color: var(--mantine-color-green-light);
 }

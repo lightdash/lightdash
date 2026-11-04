@@ -1,20 +1,11 @@
 import { type Project, type UpdateSchedulerSettings } from '@lightdash/common';
-import {
-    Group,
-    Stack,
-    Switch,
-    Text,
-    TextInput,
-    Title,
-    Tooltip,
-} from '@mantine/core';
+import { Box, Divider, Stack, Switch, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useDebouncedCallback } from '@mantine/hooks';
-import { IconHelp } from '@tabler/icons-react';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { type FC } from 'react';
 import { type z } from 'zod';
-import MantineIcon from '../common/MantineIcon';
+import { SettingRow } from '../common/Settings/SettingLayout';
 import TimeZonePicker from '../common/TimeZonePicker';
 import { schedulerSettingsSchema } from './types';
 
@@ -62,95 +53,104 @@ export const SchedulerSettingsForm: FC<Props> = ({ project, onChange }) => {
 
     return (
         <Stack gap="md">
-            <TimeZonePicker
-                label={
-                    <Group display="inline-flex" gap="xs">
-                        Default time zone
-                        <Tooltip
-                            maw={400}
-                            label={
-                                <Text fz="xs">
-                                    Default time zone for the project's
-                                    scheduled deliveries
-                                </Text>
-                            }
-                            multiline
-                        >
-                            <MantineIcon
-                                icon={IconHelp}
-                                color="dimmed"
-                                size="sm"
-                            />
-                        </Tooltip>
-                    </Group>
+            <SettingRow
+                title="Default time zone"
+                description="Time zone the project's scheduled deliveries run in."
+                control={
+                    <TimeZonePicker
+                        aria-label="Default time zone"
+                        size="xs"
+                        variant="default"
+                        w={{ base: '100%', sm: 260 }}
+                        maw="100%"
+                        searchable
+                        {...form.getInputProps('timezone')}
+                        onChange={(value) => {
+                            if (!value || value === form.values.timezone)
+                                return;
+                            form.setFieldValue('timezone', value);
+                            onChange({ schedulerTimezone: value });
+                        }}
+                    />
                 }
-                size="xs"
-                variant="default"
-                maw="100%"
-                searchable
-                {...form.getInputProps('timezone')}
-                onChange={(value) => {
-                    if (!value || value === form.values.timezone) return;
-                    form.setFieldValue('timezone', value);
-                    onChange({ schedulerTimezone: value });
-                }}
             />
 
-            <Stack gap="sm">
-                <Title order={6}>Error handling</Title>
+            <Divider />
 
-                <Switch
-                    size="xs"
-                    label="Notify recipients if a delivery fails"
-                    description="When a scheduled delivery fails, send a minimal failure message to every recipient (in addition to the existing email to the delivery owner)."
-                    checked={notifyEnabled}
-                    onChange={(event) => {
-                        const next = event.currentTarget.checked;
-                        form.setFieldValue(
-                            'schedulerFailureNotifyRecipients',
-                            next,
-                        );
-                        onChange({ schedulerFailureNotifyRecipients: next });
-                    }}
-                />
-
-                {notifyEnabled && (
+            <SettingRow
+                title="Notify recipients if a delivery fails"
+                description="When a scheduled delivery fails, send a minimal failure message to every recipient (in addition to the existing email to the delivery owner)."
+                control={
                     <Switch
-                        size="xs"
-                        label="Include a contact in failure messages"
-                        description="Add a line telling recipients who to contact about the failure."
-                        checked={contactIncluded}
+                        aria-label="Notify recipients if a delivery fails"
+                        size="md"
+                        checked={notifyEnabled}
                         onChange={(event) => {
                             const next = event.currentTarget.checked;
                             form.setFieldValue(
-                                'schedulerFailureIncludeContact',
+                                'schedulerFailureNotifyRecipients',
                                 next,
                             );
                             onChange({
-                                schedulerFailureIncludeContact: next,
+                                schedulerFailureNotifyRecipients: next,
                             });
                         }}
                     />
-                )}
+                }
+            />
 
-                {notifyEnabled && contactIncluded && (
-                    <TextInput
-                        size="xs"
-                        label="Custom contact sentence (optional)"
-                        description={`Replaces the default "You can also reach out to <delivery owner> for details." line appended to the failure message.`}
-                        placeholder="You can also reach out to data-support@example.com for details."
-                        value={form.values.schedulerFailureContactOverride}
-                        onChange={(event) => {
-                            const next = event.currentTarget.value;
-                            form.setFieldValue(
-                                'schedulerFailureContactOverride',
-                                next,
-                            );
-                            persistContactOverrideDebounced(next);
-                        }}
-                    />
-                )}
-            </Stack>
+            {notifyEnabled && (
+                <>
+                    <Divider />
+                    <Box pl="xl">
+                        <SettingRow
+                            title="Include a contact in failure messages"
+                            description="Add a line telling recipients who to contact about the failure."
+                            control={
+                                <Switch
+                                    aria-label="Include a contact in failure messages"
+                                    size="md"
+                                    checked={contactIncluded}
+                                    onChange={(event) => {
+                                        const next =
+                                            event.currentTarget.checked;
+                                        form.setFieldValue(
+                                            'schedulerFailureIncludeContact',
+                                            next,
+                                        );
+                                        onChange({
+                                            schedulerFailureIncludeContact:
+                                                next,
+                                        });
+                                    }}
+                                />
+                            }
+                        >
+                            {contactIncluded && (
+                                <TextInput
+                                    mt="sm"
+                                    size="xs"
+                                    label="Custom contact sentence (optional)"
+                                    description={`Replaces the default "You can also reach out to <delivery owner> for details." line appended to the failure message.`}
+                                    placeholder="You can also reach out to data-support@example.com for details."
+                                    value={
+                                        form.values
+                                            .schedulerFailureContactOverride
+                                    }
+                                    onChange={(event) => {
+                                        const next = event.currentTarget.value;
+                                        form.setFieldValue(
+                                            'schedulerFailureContactOverride',
+                                            next,
+                                        );
+                                        persistContactOverrideDebounced(next);
+                                    }}
+                                />
+                            )}
+                        </SettingRow>
+                    </Box>
+                </>
+            )}
         </Stack>
     );
 };

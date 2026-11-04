@@ -19,14 +19,12 @@ import {
     Badge,
     Box,
     Button,
-    Card,
     Group,
     Loader,
     Menu,
     Stack,
     Text,
     TextInput,
-    Title,
     Tooltip,
 } from '@mantine/core';
 import { useForm as useMantineForm } from '@mantine/form';
@@ -51,8 +49,11 @@ import {
     useWarehouseConnections,
 } from '../../hooks/useWarehouseConnections';
 import useApp from '../../providers/App/useApp';
+import InlineErrorState from '../common/InlineErrorState';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
+import { SettingRow } from '../common/Settings/SettingLayout';
+import { SettingsCard } from '../common/Settings/SettingsCard';
 import { ConnectionFields } from './ConnectionFields';
 import { unusedDbtFormValues } from './connectionFormDefaults';
 import classes from './ConnectionsPanel.module.css';
@@ -79,13 +80,13 @@ const ConnectionRow: FC<{
             className={classes.mark}
         />
         <Box className={classes.info}>
-            <Group gap={6} wrap="nowrap">
-                <Text fw={600} size="sm" truncate>
+            <Group gap="xs" wrap="nowrap">
+                <Text fw={500} fz="sm" truncate>
                     {connection.name}
                 </Text>
                 {connection.isOriginal && <Badge size="sm">Original</Badge>}
             </Group>
-            <Text className={classes.meta} c="dimmed" truncate>
+            <Text fz="xs" c="dimmed" truncate>
                 {getWarehouseLabel(connection.warehouseType)}
             </Text>
         </Box>
@@ -544,18 +545,45 @@ const ConnectionsPanelContent: FC<{
     const closeAction = () => setAction(null);
 
     return (
-        <Card padding="lg">
+        <SettingsCard>
             <Stack gap="md">
-                <Title order={5}>Connections</Title>
+                <SettingRow
+                    title="Connections"
+                    description="Warehouse connections this project can query."
+                    control={
+                        <Tooltip
+                            w={300}
+                            disabled={
+                                canAddConnection || !data?.capabilities.reason
+                            }
+                            label={data?.capabilities.reason}
+                        >
+                            <Box>
+                                <Button
+                                    variant="default"
+                                    size="xs"
+                                    leftSection={
+                                        <MantineIcon icon={IconPlus} />
+                                    }
+                                    disabled={
+                                        !canAddConnection ||
+                                        !originalWarehouseType
+                                    }
+                                    onClick={() => setIsAddOpen(true)}
+                                >
+                                    Add connection
+                                </Button>
+                            </Box>
+                        </Tooltip>
+                    }
+                />
                 {isInitialLoading && (
                     <Group justify="center" py="md">
                         <Loader size="sm" />
                     </Group>
                 )}
                 {error && (
-                    <Text size="sm" c="red">
-                        Failed to load connections.
-                    </Text>
+                    <InlineErrorState message="Failed to load connections." />
                 )}
                 {data && (
                     <Stack gap={0}>
@@ -579,28 +607,6 @@ const ConnectionsPanelContent: FC<{
                         ))}
                     </Stack>
                 )}
-                <Group justify="flex-end">
-                    <Tooltip
-                        w={300}
-                        disabled={
-                            canAddConnection || !data?.capabilities.reason
-                        }
-                        label={data?.capabilities.reason}
-                    >
-                        <Box>
-                            <Button
-                                variant="default"
-                                leftSection={<MantineIcon icon={IconPlus} />}
-                                disabled={
-                                    !canAddConnection || !originalWarehouseType
-                                }
-                                onClick={() => setIsAddOpen(true)}
-                            >
-                                Add connection
-                            </Button>
-                        </Box>
-                    </Tooltip>
-                </Group>
             </Stack>
 
             {isAddOpen && originalWarehouseType && (
@@ -620,7 +626,7 @@ const ConnectionsPanelContent: FC<{
                     onClose={closeAction}
                 />
             )}
-        </Card>
+        </SettingsCard>
     );
 };
 

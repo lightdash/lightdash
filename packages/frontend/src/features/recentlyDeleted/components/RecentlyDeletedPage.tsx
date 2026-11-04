@@ -10,13 +10,11 @@ import {
 import {
     ActionIcon,
     Box,
-    Card,
+    Button,
     Group,
     Text,
     TextInput,
-    Title,
     Tooltip,
-    useMantineTheme,
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import {
@@ -34,15 +32,16 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import { useEffect, useMemo, useRef, useState, type FC } from 'react';
-import Callout from '../../../components/common/Callout';
 import {
     ContentTable,
     useContentTable,
     type ContentTableColumnDef,
     type ContentTableVirtualizer,
 } from '../../../components/common/ContentTable';
+import InlineErrorState from '../../../components/common/InlineErrorState';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { ChartIcon, IconBox } from '../../../components/common/ResourceIcon';
+import { SettingsPage } from '../../../components/common/Settings/SettingsPage';
 import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
@@ -134,7 +133,6 @@ const formatDaysRemaining = (
 };
 
 const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
-    const theme = useMantineTheme();
     const rowVirtualizerInstanceRef =
         useRef<ContentTableVirtualizer<HTMLDivElement, HTMLTableRowElement>>(
             null,
@@ -308,7 +306,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                         <Group gap="sm" wrap="nowrap">
                             {resourceIcon}
                             <Box>
-                                <Text fw={600} fz="sm" lineClamp={1}>
+                                <Text fw={500} fz="sm" lineClamp={1}>
                                     {row.original.name}
                                 </Text>
                                 {description && (
@@ -388,7 +386,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                     );
                     const isExpired = remaining === 'Expired';
                     return (
-                        <Text fz="xs" c={isExpired ? 'red' : 'ldGray.6'}>
+                        <Text fz="xs" c={isExpired ? 'red' : 'dimmed'}>
                             {remaining}
                         </Text>
                     );
@@ -519,14 +517,9 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
             highlightOnHover: true,
             withColumnBorders: Boolean(flatData.length),
         },
-        mantineTableHeadCellProps: { px: 'xl' },
-        mantineTableBodyCellProps: { h: 72, py: 'md', px: 'xl' },
+        mantineTableBodyCellProps: { py: 'sm' },
         renderTopToolbar: () => (
-            <Group
-                justify="space-between"
-                p={`${theme.spacing.sm} ${theme.spacing.md}`}
-                wrap="nowrap"
-            >
+            <Group justify="space-between" px="md" py="sm" wrap="nowrap">
                 <Group gap="xs" wrap="nowrap" flex={1} miw={0}>
                     <Tooltip label="Search by item name">
                         <TextInput
@@ -578,7 +571,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
             </Group>
         ),
         rowVirtualizerInstanceRef,
-        rowVirtualizerProps: { estimateSize: () => 72, overscan: 10 },
+        rowVirtualizerProps: { estimateSize: () => 56, overscan: 10 },
         state: {
             isLoading,
             showAlertBanner: isError,
@@ -587,41 +580,31 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
         },
     });
 
-    if (isError) {
-        return (
-            <Card>
-                <Callout variant="danger">
-                    Failed to load deleted content. Please try again.
-                </Callout>
-            </Card>
-        );
-    }
-
     return (
-        <>
-            <Card>
-                <Group justify="space-between">
-                    <Box>
-                        <Title order={5}>Recently Deleted</Title>
-                        <Text size="sm" c="dimmed">
-                            Items are permanently deleted after {retentionDays}{' '}
-                            days
-                        </Text>
-                    </Box>
-                    <Tooltip label="Click to refresh the list">
-                        <ActionIcon onClick={() => refetch()} size="xs">
-                            <MantineIcon
-                                icon={IconRefresh}
-                                color="dimmed"
-                                stroke={2}
-                            />
-                        </ActionIcon>
-                    </Tooltip>
-                </Group>
-            </Card>
-
-            <ContentTable table={table} />
-        </>
+        <SettingsPage
+            title="Recently deleted"
+            description={
+                retentionDays === undefined
+                    ? 'Review and restore recently deleted project content.'
+                    : `Review and restore recently deleted project content. Items are permanently deleted after ${retentionDays} days.`
+            }
+            actions={
+                <Button
+                    variant="default"
+                    size="xs"
+                    leftSection={<MantineIcon icon={IconRefresh} />}
+                    onClick={() => refetch()}
+                >
+                    Refresh
+                </Button>
+            }
+        >
+            {isError ? (
+                <InlineErrorState message="Failed to load deleted content. Please try again." />
+            ) : (
+                <ContentTable table={table} />
+            )}
+        </SettingsPage>
     );
 };
 

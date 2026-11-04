@@ -1,5 +1,5 @@
 .row {
-    padding: 12px 4px;
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-xs);
     border-top: 1px solid var(--mantine-color-default-border);
 }
 
@@ -19,8 +19,4 @@
 .info {
     flex: 1 1 auto;
     min-width: 0;
-}
-
-.meta {
-    font-size: 11.5px;
 }

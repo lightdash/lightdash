@@ -6,8 +6,8 @@ import {
     type CreateWarehouseCredentials,
     type Project,
 } from '@lightdash/common';
-import { Alert, Anchor, Box, Button, Flex, Card } from '@mantine/core';
-import { IconExclamationCircle, IconExternalLink } from '@tabler/icons-react';
+import { Anchor, Box, Button, Flex, Card } from '@mantine/core';
+import { IconExternalLink } from '@tabler/icons-react';
 import { type FC } from 'react';
 import {
     useProject,
@@ -20,6 +20,7 @@ import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
 import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
+import Callout from '../common/Callout';
 import MantineIcon from '../common/MantineIcon';
 import ConnectionTestResults from './ConnectionTestResults';
 import { dbtDefaults } from './DbtForms/defaultValues';
@@ -141,22 +142,18 @@ const UpdateProjectConnection: FC<{
     return (
         <FormProvider form={form}>
             {project?.type === ProjectType.PREVIEW && (
-                <Alert
-                    color="orange"
-                    icon={<MantineIcon icon={IconExclamationCircle} />}
-                    title="Developer previews are temporary Lightdash projects where settings cannot be changed."
-                >
-                    Read docs{' '}
+                <Callout variant="warning">
+                    Developer previews are temporary projects where settings
+                    cannot be changed.{' '}
                     <Anchor
                         inherit
                         href="https://docs.lightdash.com/guides/cli/how-to-use-lightdash-preview"
                         target="_blank"
                         rel="noreferrer"
                     >
-                        here
-                    </Anchor>{' '}
-                    to know more.
-                </Alert>
+                        Read the docs
+                    </Anchor>
+                </Callout>
             )}
             <form onSubmit={form.onSubmit(handleSubmit, handleError)}>
                 <FormContainer>
@@ -184,11 +181,7 @@ const UpdateProjectConnection: FC<{
                         />
                     )}
 
-                    <Card
-                        className={classes.stickyFooter}
-                        shadow="sm"
-                        radius="sm"
-                    >
+                    <Card className={classes.stickyFooter} shadow="sm">
                         <Box>
                             {latestCompilationLog && (
                                 <Button

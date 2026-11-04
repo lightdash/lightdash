@@ -1,15 +1,13 @@
 import { ProjectType, DbtProjectType } from '@lightdash/common';
-import { TextInput, Flex, Stack, Title, Avatar } from '@mantine/core';
+import { TextInput, Stack } from '@mantine/core';
 import { type FC } from 'react';
-import LightdashLogo from '../../svgs/logo-icon.svg';
-import { SettingsGridCard } from '../common/Settings/SettingsCard';
+import { SettingsSection } from '../common/Settings/SettingLayout';
+import { SettingsCard } from '../common/Settings/SettingsCard';
 import DocumentationHelpButton from '../DocumentationHelpButton';
 import ConnectionsPanel from './ConnectionsPanel';
 import DbtSettingsForm from './DbtSettingsForm';
 import DbtSourcesPanel from './DbtSourcesPanel';
 import { useFormContext } from './formContext';
-import DbtLogo from './ProjectConnectFlow/Assets/dbt.svg';
-import { getWarehouseIcon } from './ProjectConnectFlow/utils';
 import { useProjectFormContext } from './useProjectFormContext';
 import WarehouseSchemaInput from './WarehouseSchemaInput';
 import WarehouseSettingsForm from './WarehouseSettingsForm';
@@ -38,14 +36,10 @@ export const ProjectForm: FC<Props> = ({
         form.values.dbt.semanticLayer === 'lightdash';
 
     return (
-        <Stack gap="xl">
+        <Stack gap="lg">
             {showGeneralSettings && (
-                <SettingsGridCard>
-                    <div>
-                        <Title order={5}>General settings</Title>
-                    </div>
-
-                    <div>
+                <SettingsSection label="General" description={null}>
+                    <SettingsCard>
                         <TextInput
                             name="name"
                             label="Project name"
@@ -53,24 +47,21 @@ export const ProjectForm: FC<Props> = ({
                             disabled={disabled}
                             {...form.getInputProps('name')}
                         />
-                    </div>
-                </SettingsGridCard>
+                    </SettingsCard>
+                </SettingsSection>
             )}
 
-            <SettingsGridCard p={warehouseOnly ? 'xl' : 'md'}>
-                <div>
-                    {warehouse && getWarehouseIcon(warehouse)}
-                    <Flex align="center" gap={2}>
-                        <Title order={5}>Warehouse connection</Title>
-                        <DocumentationHelpButton
-                            href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#warehouse-connection"
-                            pos="relative"
-                            top="2px"
-                        />
-                    </Flex>
-                </div>
-
-                <div>
+            <SettingsSection
+                label="Warehouse connection"
+                description="Credentials this project uses to query your data warehouse."
+                titleAddon={
+                    <DocumentationHelpButton
+                        href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#warehouse-connection"
+                        display="flex"
+                    />
+                }
+            >
+                <SettingsCard>
                     <WarehouseSettingsForm
                         allowMixedWarehouseTypes={false}
                         disabled={disabled}
@@ -84,38 +75,30 @@ export const ProjectForm: FC<Props> = ({
                             />
                         )}
                     </WarehouseSettingsForm>
-                </div>
-            </SettingsGridCard>
+                </SettingsCard>
+
+                <ConnectionsPanel savedProject={savedProject} />
+            </SettingsSection>
 
             {!warehouseOnly && (
-                <SettingsGridCard>
-                    <div>
-                        <Avatar
-                            size="md"
-                            src={isNative ? LightdashLogo : DbtLogo}
-                            alt={isNative ? 'Lightdash icon' : 'dbt icon'}
+                <SettingsSection
+                    label="Semantic layer connection"
+                    description="Where this project's models and metrics are loaded from."
+                    titleAddon={
+                        <DocumentationHelpButton
+                            href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project"
+                            display="flex"
                         />
-
-                        <Flex align="center" gap={2}>
-                            <Title order={5}>Semantic layer connection</Title>
-                            <DocumentationHelpButton
-                                href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project"
-                                pos="relative"
-                                top="2px"
-                            />
-                        </Flex>
-                    </div>
-
-                    <div>
+                    }
+                >
+                    <SettingsCard>
                         <DbtSettingsForm
                             disabled={disabled}
                             defaultType={defaultType}
                         />
-                    </div>
-                </SettingsGridCard>
+                    </SettingsCard>
+                </SettingsSection>
             )}
-
-            <ConnectionsPanel savedProject={savedProject} />
 
             {savedProject &&
                 savedProject.type !== ProjectType.PREVIEW &&

@@ -366,7 +366,7 @@ const SnowflakeForm: FC<{
                         description={
                             isSsoEnabled &&
                             isLoadingAuth ? null : isAuthenticated ? (
-                                <Text mt="0" c="gray" fs="xs">
+                                <Text span inherit>
                                     You are connected to Snowflake,{' '}
                                     <Anchor
                                         inherit
@@ -389,7 +389,7 @@ const SnowflakeForm: FC<{
                     />
                     {isAuthenticated && (
                         <Tooltip label="You are connected to Snowflake">
-                            <Group mt="40px">
+                            <Group mt="3xl">
                                 <MantineIcon icon={IconCheck} color="green" />
                             </Group>
                         </Tooltip>

@@ -265,7 +265,7 @@ const DatabricksForm: FC<{
                         description={
                             isSsoEnabled &&
                             isLoadingAuth ? null : isAuthenticated ? (
-                                <Text mt="0" c="gray" fs="xs">
+                                <Text span inherit>
                                     You are connected to Databricks,{' '}
                                     <Anchor
                                         inherit
@@ -288,7 +288,7 @@ const DatabricksForm: FC<{
                     />
                     {isAuthenticated && (
                         <Tooltip label="You are connected to Databricks">
-                            <Group mt="40px">
+                            <Group mt="3xl">
                                 <MantineIcon icon={IconCheck} color="green" />
                             </Group>
                         </Tooltip>

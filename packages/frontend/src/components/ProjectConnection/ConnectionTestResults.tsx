@@ -4,13 +4,14 @@ import {
     type WarehouseConnectionHop,
     type WarehouseConnectionTestResults,
 } from '@lightdash/common';
-import { Group, Paper, Stack, Text } from '@mantine/core';
+import { Group, Stack, Text } from '@mantine/core';
 import {
     IconCircleCheck,
     IconCircleDashed,
     IconCircleX,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
+import Callout from '../common/Callout';
 import MantineIcon from '../common/MantineIcon';
 
 const HopIcon: FC<{ status: WarehouseConnectionHop['status'] }> = ({
@@ -31,15 +32,13 @@ const HopIcon: FC<{ status: WarehouseConnectionHop['status'] }> = ({
 const ConnectionTestResults: FC<{
     results: WarehouseConnectionTestResults;
 }> = ({ results }) => (
-    <Paper p="md" withBorder>
+    <Callout
+        variant={results.ok ? 'success' : 'danger'}
+        title={results.ok ? 'Connection test passed' : 'Connection test failed'}
+    >
         <Stack gap="xs">
-            <Text fw={600}>
-                {results.ok
-                    ? 'Connection test passed'
-                    : 'Connection test failed'}
-            </Text>
             {results.hops.map((hop) => (
-                <Stack key={hop.stage} gap={2}>
+                <Stack key={hop.stage} gap="xxs">
                     <Group gap="xs" wrap="nowrap">
                         <HopIcon status={hop.status} />
                         <Text
@@ -58,7 +57,7 @@ const ConnectionTestResults: FC<{
                 </Stack>
             ))}
         </Stack>
-    </Paper>
+    </Callout>
 );
 
 export default ConnectionTestResults;

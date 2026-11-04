@@ -13,7 +13,6 @@ import {
     ActionIcon,
     Badge,
     Button,
-    Card,
     Group,
     Loader,
     Menu,
@@ -27,7 +26,6 @@ import { useForm as useMantineForm } from '@mantine/form';
 import {
     IconAlertTriangle,
     IconDots,
-    IconInfoCircle,
     IconPencil,
     IconPlus,
     IconTrash,
@@ -42,8 +40,11 @@ import {
     useProjectDbtSources,
     useUpdateProjectDbtSourceMutation,
 } from '../../hooks/useProjectDbtSources';
+import InlineErrorState from '../common/InlineErrorState';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
+import { SettingsSection } from '../common/Settings/SettingLayout';
+import { SettingsCard } from '../common/Settings/SettingsCard';
 import { dbtDefaults } from './DbtForms/defaultValues';
 import { dbtFormValidators } from './DbtForms/validators';
 import DbtSettingsForm from './DbtSettingsForm';
@@ -116,8 +117,8 @@ const DbtSourceRow: FC<{
     <div className={classes.row}>
         <img className={classes.mark} src={DbtLogo} alt="" />
         <div className={classes.info}>
-            <Group gap={6} wrap="nowrap">
-                <Text fw={600} size="sm" truncate>
+            <Group gap="xs" wrap="nowrap">
+                <Text fw={500} fz="sm" truncate>
                     {source.name}
                 </Text>
                 {source.hasCredentialError && (
@@ -133,7 +134,7 @@ const DbtSourceRow: FC<{
                     </Tooltip>
                 )}
             </Group>
-            <Text className={classes.meta} c="dimmed" truncate>
+            <Text className={classes.meta} fz="xs" c="dimmed" truncate>
                 {sourceIdentity(source)}
             </Text>
         </div>
@@ -468,108 +469,96 @@ const DbtSourcesPanel: FC<{
     );
 
     return (
-        <Card shadow="xs" padding="lg" radius="md" className={classes.panel}>
-            <Badge className={classes.beta} color="violet" size="sm">
-                Beta
-            </Badge>
-            <Stack gap="md">
-                <Group gap={6}>
-                    <Title order={5}>dbt sources</Title>
-                    <Tooltip
-                        w={300}
-                        position="right"
-                        label="Merge models from other git-backed dbt projects. They're combined with this project's dbt connection on every deploy. If a model or metric name exists in more than one source, each one is renamed to <source>__<name>."
-                    >
-                        <ActionIcon size="sm" aria-label="About dbt sources">
-                            <MantineIcon icon={IconInfoCircle} />
-                        </ActionIcon>
-                    </Tooltip>
-                </Group>
+        <SettingsSection
+            label="dbt sources"
+            description="Merge models from other git-backed dbt projects. They're combined with this project's dbt connection on every deploy. If a model or metric name exists in more than one source, each one is renamed to <source>__<name>."
+            titleAddon={
+                <Badge color="violet" size="sm">
+                    Beta
+                </Badge>
+            }
+        >
+            <SettingsCard>
+                <Stack gap="md">
+                    {isInitialLoading && (
+                        <Group justify="center" py="md">
+                            <Loader size="sm" />
+                        </Group>
+                    )}
 
-                {isInitialLoading && (
-                    <Group justify="center" py="md">
-                        <Loader size="sm" />
-                    </Group>
-                )}
+                    {isError && (
+                        <InlineErrorState message="Failed to load dbt sources." />
+                    )}
 
-                {isError && (
-                    <Text size="sm" c="red">
-                        Failed to load dbt sources.
-                    </Text>
-                )}
-
-                {!isInitialLoading && !isError && primarySource && (
-                    <Stack gap={4}>
-                        <Text size="sm" fw={600}>
-                            Source name
-                        </Text>
-                        <div className={classes.rows}>
-                            <DbtSourceRow
-                                source={primarySource}
-                                onEdit={setPrimarySourceToRename}
-                                connection={
-                                    bindings && (
-                                        <PrimaryDbtSourceConnection
-                                            bindings={bindings}
-                                        />
-                                    )
-                                }
-                            />
-                        </div>
-                    </Stack>
-                )}
-
-                <Text size="sm" fw={600}>
-                    Additional dbt sources
-                </Text>
-
-                {!isInitialLoading &&
-                    !isError &&
-                    (additionalSources.length > 0 ? (
-                        <div className={classes.rows}>
-                            {additionalSources.map((source) => (
+                    {!isInitialLoading && !isError && primarySource && (
+                        <Stack gap="xs">
+                            <Title order={6}>Source name</Title>
+                            <div className={classes.rows}>
                                 <DbtSourceRow
-                                    key={source.projectDbtSourceUuid}
-                                    source={source}
-                                    onEdit={setSourceToEdit}
-                                    onRemove={setSourceToRemove}
+                                    source={primarySource}
+                                    onEdit={setPrimarySourceToRename}
                                     connection={
                                         bindings && (
-                                            <DbtSourceConnectionSelect
-                                                projectUuid={projectUuid}
-                                                source={source}
+                                            <PrimaryDbtSourceConnection
                                                 bindings={bindings}
-                                                onRebound={setRebound}
                                             />
                                         )
                                     }
                                 />
-                            ))}
-                        </div>
-                    ) : (
-                        <Text size="sm" c="dimmed">
-                            No additional sources yet. Add one to combine models
-                            from another dbt project.
-                        </Text>
-                    ))}
+                            </div>
+                        </Stack>
+                    )}
 
-                {rebound && (
-                    <DbtSourceReboundNote
-                        rebound={rebound}
-                        onDismiss={() => setRebound(null)}
-                    />
-                )}
+                    <Title order={6}>Additional dbt sources</Title>
 
-                <Group justify="flex-end">
-                    <Button
-                        variant="default"
-                        leftSection={<MantineIcon icon={IconPlus} />}
-                        onClick={() => setIsAddOpen(true)}
-                    >
-                        Add source
-                    </Button>
-                </Group>
-            </Stack>
+                    {!isInitialLoading &&
+                        !isError &&
+                        (additionalSources.length > 0 ? (
+                            <div className={classes.rows}>
+                                {additionalSources.map((source) => (
+                                    <DbtSourceRow
+                                        key={source.projectDbtSourceUuid}
+                                        source={source}
+                                        onEdit={setSourceToEdit}
+                                        onRemove={setSourceToRemove}
+                                        connection={
+                                            bindings && (
+                                                <DbtSourceConnectionSelect
+                                                    projectUuid={projectUuid}
+                                                    source={source}
+                                                    bindings={bindings}
+                                                    onRebound={setRebound}
+                                                />
+                                            )
+                                        }
+                                    />
+                                ))}
+                            </div>
+                        ) : (
+                            <Text fz="xs" c="dimmed">
+                                No additional sources yet. Add one to combine
+                                models from another dbt project.
+                            </Text>
+                        ))}
+
+                    {rebound && (
+                        <DbtSourceReboundNote
+                            rebound={rebound}
+                            onDismiss={() => setRebound(null)}
+                        />
+                    )}
+
+                    <Group justify="flex-end">
+                        <Button
+                            variant="default"
+                            leftSection={<MantineIcon icon={IconPlus} />}
+                            onClick={() => setIsAddOpen(true)}
+                        >
+                            Add source
+                        </Button>
+                    </Group>
+                </Stack>
+            </SettingsCard>
 
             <AddDbtSourceModal
                 projectUuid={projectUuid}
@@ -615,7 +604,7 @@ const DbtSourcesPanel: FC<{
                     ? Its models will drop from this project on the next deploy.
                 </Text>
             </MantineModal>
-        </Card>
+        </SettingsSection>
     );
 };
 

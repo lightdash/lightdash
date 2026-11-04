@@ -3,14 +3,15 @@ import {
     isApiError,
     type UpdateSchedulerSettings,
 } from '@lightdash/common';
-import { Box, LoadingOverlay, Stack, Text, Title } from '@mantine/core';
+import { LoadingOverlay } from '@mantine/core';
 import { useCallback, type FC } from 'react';
 import useToaster from '../../hooks/toaster/useToaster';
 import {
     useProject,
     useProjectUpdateSchedulerSettings,
 } from '../../hooks/useProject';
-import { SettingsGridCard } from '../common/Settings/SettingsCard';
+import { SettingsSection } from '../common/Settings/SettingLayout';
+import { SettingsCard } from '../common/Settings/SettingsCard';
 import SchedulersView from '../SchedulersView';
 import { SchedulerSettingsForm } from './SchedulerSettingsForm';
 
@@ -61,27 +62,24 @@ const SettingsScheduler: FC<SettingsSchedulerProps> = ({ projectUuid }) => {
     );
 
     return (
-        <Stack gap="sm" pos="relative">
-            <LoadingOverlay visible={isLoadingProject} />
-            <SettingsGridCard>
-                <Stack gap="xs">
-                    <Title order={5}>Delivery defaults</Title>
-                    <Text c="dimmed" fz="sm">
-                        Default settings applied to all of this project's
-                        scheduled deliveries. Owners can override these
-                        per-delivery when creating or editing a scheduler.
-                    </Text>
-                </Stack>
-                <Box>
+        <>
+            <SettingsSection
+                label="Delivery defaults"
+                description="Applied to all of this project's scheduled deliveries. Owners can override these per delivery when creating or editing a scheduler."
+            >
+                <SettingsCard pos="relative">
+                    <LoadingOverlay visible={isLoadingProject} />
                     <SchedulerSettingsForm
                         project={project}
                         onChange={handleChange}
                     />
-                </Box>
-            </SettingsGridCard>
+                </SettingsCard>
+            </SettingsSection>
 
-            <SchedulersView projectUuid={projectUuid} />
-        </Stack>
+            <SettingsSection label="Deliveries" description={null}>
+                <SchedulersView projectUuid={projectUuid} />
+            </SettingsSection>
+        </>
     );
 };
 

@@ -1,33 +1,21 @@
-import {
-    ActionIcon,
-    Button,
-    Card,
-    Group,
-    Stack,
-    Tabs,
-    Title,
-    Tooltip,
-} from '@mantine/core';
+import { Button, Tabs } from '@mantine/core';
 import { IconClock, IconRefresh, IconSend } from '@tabler/icons-react';
-import { useQueryClient } from '@tanstack/react-query';
 import { useState, type FC } from 'react';
 import { useSearchParams } from 'react-router';
 import { useGetSlackChannelName } from '../../hooks/slack/useGetSlackChannelName';
-import useToaster from '../../hooks/toaster/useToaster';
 import MantineIcon from '../common/MantineIcon';
 import { SettingsPage } from '../common/Settings/SettingsPage';
 import LogsTable from './LogsTable';
 import SchedulersTable from './SchedulersTable';
-import classes from './SchedulersView.module.css';
 import { SchedulersViewTab } from './SchedulersViewConstants';
+import { useRefreshSchedulers } from './useRefreshSchedulers';
 
 const SchedulersView: FC<{ projectUuid?: string; isUserScope?: boolean }> = ({
     projectUuid,
     isUserScope = false,
 }) => {
     const [searchParams, setSearchParams] = useSearchParams();
-    const queryClient = useQueryClient();
-    const { showToastSuccess } = useToaster();
+    const handleRefresh = useRefreshSchedulers();
 
     const activeTab =
         searchParams.get('tab') === SchedulersViewTab.RUN_HISTORY
@@ -50,19 +38,6 @@ const SchedulersView: FC<{ projectUuid?: string; isUserScope?: boolean }> = ({
             newParams.delete('tab');
         }
         setSearchParams(newParams);
-    };
-
-    const handleRefresh = async () => {
-        const invalidateQueries = [
-            queryClient.invalidateQueries(['paginatedSchedulers']),
-            queryClient.invalidateQueries(['schedulerRuns']),
-        ];
-
-        await Promise.all(invalidateQueries);
-
-        showToastSuccess({
-            title: 'Scheduled deliveries refreshed successfully',
-        });
     };
 
     if (isUserScope) {
@@ -91,66 +66,43 @@ const SchedulersView: FC<{ projectUuid?: string; isUserScope?: boolean }> = ({
     }
 
     return (
-        <Card>
-            <Stack gap="sm">
-                <Tabs
-                    keepMounted={false}
-                    value={activeTab}
-                    onChange={handleTabChange}
-                    variant="pills"
+        <Tabs
+            keepMounted={false}
+            value={activeTab}
+            onChange={handleTabChange}
+            variant="pills"
+        >
+            <Tabs.List>
+                <Tabs.Tab
+                    value={SchedulersViewTab.ALL_SCHEDULERS}
+                    leftSection={<MantineIcon icon={IconSend} />}
                 >
-                    <Group
-                        gap="xs"
-                        align="center"
-                        justify="space-between"
-                        className={classes.header}
-                    >
-                        <Title order={5}>Scheduled Deliveries</Title>
-                        <Tooltip label="Click to refresh the status of the scheduled deliveries">
-                            <ActionIcon onClick={handleRefresh} size="xs">
-                                <MantineIcon
-                                    icon={IconRefresh}
-                                    color="dimmed"
-                                    stroke={2}
-                                />
-                            </ActionIcon>
-                        </Tooltip>
-                    </Group>
-                    <Tabs.List>
-                        <Tabs.Tab
-                            value={SchedulersViewTab.ALL_SCHEDULERS}
-                            leftSection={<MantineIcon icon={IconSend} />}
-                        >
-                            All schedulers
-                        </Tabs.Tab>
-                        <Tabs.Tab
-                            value={SchedulersViewTab.RUN_HISTORY}
-                            leftSection={<MantineIcon icon={IconClock} />}
-                        >
-                            Run history
-                        </Tabs.Tab>
-                    </Tabs.List>
+                    All schedulers
+                </Tabs.Tab>
+                <Tabs.Tab
+                    value={SchedulersViewTab.RUN_HISTORY}
+                    leftSection={<MantineIcon icon={IconClock} />}
+                >
+                    Run history
+                </Tabs.Tab>
+            </Tabs.List>
 
-                    <Tabs.Panel value={SchedulersViewTab.ALL_SCHEDULERS}>
-                        {projectUuid ? (
-                            <SchedulersTable
-                                projectUuid={projectUuid}
-                                getSlackChannelName={getSlackChannelName}
-                                onSlackChannelIdsChange={
-                                    setSchedulerSlackChannelIds
-                                }
-                            />
-                        ) : null}
-                    </Tabs.Panel>
-                    <Tabs.Panel value={SchedulersViewTab.RUN_HISTORY}>
-                        <LogsTable
-                            projectUuid={projectUuid}
-                            getSlackChannelName={getSlackChannelName}
-                        />
-                    </Tabs.Panel>
-                </Tabs>
-            </Stack>
-        </Card>
+            <Tabs.Panel value={SchedulersViewTab.ALL_SCHEDULERS} pt="sm">
+                {projectUuid ? (
+                    <SchedulersTable
+                        projectUuid={projectUuid}
+                        getSlackChannelName={getSlackChannelName}
+                        onSlackChannelIdsChange={setSchedulerSlackChannelIds}
+                    />
+                ) : null}
+            </Tabs.Panel>
+            <Tabs.Panel value={SchedulersViewTab.RUN_HISTORY} pt="sm">
+                <LogsTable
+                    projectUuid={projectUuid}
+                    getSlackChannelName={getSlackChannelName}
+                />
+            </Tabs.Panel>
+        </Tabs>
     );
 };
 

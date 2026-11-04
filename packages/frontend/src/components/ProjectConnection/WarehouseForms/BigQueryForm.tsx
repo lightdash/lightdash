@@ -476,7 +476,7 @@ const BigQueryForm: FC<{
     ];
     return (
         <>
-            <Stack mt={8}>
+            <Stack mt="xs">
                 {
                     <Group gap="sm" align="flex-end">
                         <Select
@@ -536,7 +536,7 @@ const BigQueryForm: FC<{
                             label="Authentication Type"
                             description={
                                 isAuthenticated ? (
-                                    <Text mt="0" c="gray" fs="xs">
+                                    <Text span inherit>
                                         You are connected to BigQuery,{' '}
                                         <Anchor
                                             inherit
@@ -559,7 +559,7 @@ const BigQueryForm: FC<{
                         />
                         {isAuthenticated && (
                             <Tooltip label="You are connected to BigQuery">
-                                <Group mb={10}>
+                                <Group mb="xs">
                                     <MantineIcon
                                         icon={IconCheck}
                                         color="green"
@@ -717,7 +717,7 @@ const BigQueryForm: FC<{
                             )}
                             {hasDatasets && (
                                 <Tooltip label="You have access to this project">
-                                    <Group mb={10}>
+                                    <Group mb="xs">
                                         <MantineIcon
                                             icon={IconCheck}
                                             color="green"
@@ -852,7 +852,7 @@ const BigQueryForm: FC<{
                             <></>
                         )}
                         <FormSection isOpen={isOpen} name="advanced">
-                            <Stack mt={8}>
+                            <Stack mt="xs">
                                 <Switch
                                     name="warehouse.requireUserCredentials"
                                     {...form.getInputProps(

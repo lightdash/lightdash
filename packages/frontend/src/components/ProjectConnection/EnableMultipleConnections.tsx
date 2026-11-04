@@ -12,13 +12,10 @@ import {
     Alert,
     Box,
     Button,
-    Card,
-    Group,
     List,
     Stack,
     Text,
     TextInput,
-    Title,
     Tooltip,
 } from '@mantine/core';
 import { IconAlertTriangle, IconPlus } from '@tabler/icons-react';
@@ -31,6 +28,8 @@ import {
 } from '../../hooks/useWarehouseConnectionSwitch';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
+import { SettingRow } from '../common/Settings/SettingLayout';
+import { SettingsCard } from '../common/Settings/SettingsCard';
 import { ConnectionFields } from './ConnectionFields';
 import { unusedDbtFormValues } from './connectionFormDefaults';
 import { useForm } from './formContext';
@@ -308,18 +307,15 @@ export const EnableMultipleConnectionsCard: FC<{
     if (!data) return null;
 
     return (
-        <Card padding="lg">
-            <Stack gap="md">
-                <Title order={5}>Connections</Title>
-                <Text size="sm" c="dimmed">
-                    This project uses one warehouse connection.{' '}
-                    {mixedWarehouseFlag.data?.enabled === true
+        <SettingsCard>
+            <SettingRow
+                title="Connections"
+                description={`This project uses one warehouse connection. ${
+                    mixedWarehouseFlag.data?.enabled === true
                         ? 'Add connections of any warehouse type to query several warehouses from this project.'
-                        : 'Add more connections of the same warehouse type to query several warehouses from this project.'}{' '}
-                    Everything that exists today keeps using the current
-                    connection.
-                </Text>
-                <Group justify="flex-end">
+                        : 'Add more connections of the same warehouse type to query several warehouses from this project.'
+                } Everything that exists today keeps using the current connection.`}
+                control={
                     <Tooltip
                         w={300}
                         disabled={data.canSwitch || !data.reason}
@@ -328,6 +324,7 @@ export const EnableMultipleConnectionsCard: FC<{
                         <Box>
                             <Button
                                 variant="default"
+                                size="xs"
                                 leftSection={<MantineIcon icon={IconPlus} />}
                                 disabled={
                                     !data.canSwitch ||
@@ -340,8 +337,8 @@ export const EnableMultipleConnectionsCard: FC<{
                             </Button>
                         </Box>
                     </Tooltip>
-                </Group>
-            </Stack>
+                }
+            />
             {isOpen && data.originalWarehouseType && (
                 <EnableMultipleConnectionsModal
                     projectUuid={projectUuid}
@@ -352,6 +349,6 @@ export const EnableMultipleConnectionsCard: FC<{
                     onClose={() => setIsOpen(false)}
                 />
             )}
-        </Card>
+        </SettingsCard>
     );
 };

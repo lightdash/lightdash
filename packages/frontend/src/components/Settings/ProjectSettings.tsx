@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { FeatureFlags } from '@lightdash/common';
-import { Box, Stack, Text, Title } from '@mantine/core';
+import { Stack, Text, Title } from '@mantine/core';
 import * as Sentry from '@sentry/react';
 import {
     useMemo,
@@ -37,6 +37,7 @@ import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import { DocumentTitle } from '../common/DocumentTitle';
+import EmptyStateLoader from '../common/EmptyStateLoader';
 import ErrorState from '../common/ErrorState';
 import PageBreadcrumbs from '../common/PageBreadcrumbs';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
@@ -45,7 +46,6 @@ import {
     SettingsPageContainer,
     SettingsPageDocumentationLink,
 } from '../common/Settings/SettingsPage';
-import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import CompilationHistory from '../CompilationHistory';
 import { DataOps } from '../DataOps';
 import { DefaultUserSpaces } from '../DefaultUserSpaces';
@@ -59,6 +59,7 @@ import ProjectParameters from '../ProjectParameters';
 import ProjectPreviewExpiration from '../ProjectPreviewExpiration';
 import ProjectResultsCache from '../ProjectResultsCache';
 import ProjectTablesConfiguration from '../ProjectTablesConfiguration/ProjectTablesConfiguration';
+import { RefreshSchedulersButton } from '../SchedulersView/RefreshSchedulersButton';
 import SettingsAgentDataScope from '../SettingsAgentDataScope';
 import SettingsQueryTimezone from '../SettingsQueryTimezone';
 import SettingsScheduler from '../SettingsScheduler';
@@ -195,14 +196,7 @@ const ProjectSettings: FC<{
             },
             recentlyDeleted: {
                 path: '/recentlyDeleted',
-                element: (
-                    <ProjectSettingsPage
-                        title="Recently deleted"
-                        description="Review and restore recently deleted project content."
-                    >
-                        <RecentlyDeletedPage projectUuid={projectUuid} />
-                    </ProjectSettingsPage>
-                ),
+                element: <RecentlyDeletedPage projectUuid={projectUuid} />,
             },
         };
         if (projectSettingsAccess.type === 'limited') {
@@ -328,6 +322,7 @@ const ProjectSettings: FC<{
                     <ProjectSettingsPage
                         title="Syncs & scheduled deliveries"
                         description="Configure delivery defaults and manage this project's schedules."
+                        actions={<RefreshSchedulersButton />}
                     >
                         <SettingsScheduler projectUuid={projectUuid} />
                     </ProjectSettingsPage>
@@ -471,7 +466,7 @@ const ProjectSettings: FC<{
                           element: (
                               <ProjectSettingsPage
                                   title="Semantic layer"
-                                  description="Configure this project's semantic layer connection."
+                                  description="Query this project's metrics from BI tools and SQL clients over the Postgres wire protocol."
                               >
                                   <SemanticLayerConnectionPanel
                                       projectUuid={projectUuid}
@@ -520,7 +515,7 @@ const ProjectSettings: FC<{
                           element: (
                               <ProjectSettingsPage
                                   title="Results caching"
-                                  description="Choose how long charts and dashboards in this project load from cached results before Lightdash queries the warehouse again."
+                                  description="Choose how long charts and dashboards in this project load from cached results before querying the warehouse again."
                               >
                                   <ProjectResultsCache
                                       projectUuid={projectUuid}
@@ -580,7 +575,7 @@ const ProjectSettings: FC<{
                           element: (
                               <ProjectSettingsPage
                                   title="CORS"
-                                  description="Control which external browser origins can call the Lightdash API."
+                                  description="Control which external browser origins can call this instance's API. Applies to the whole organization."
                                   actions={
                                       <SettingsPageDocumentationLink
                                           href="https://docs.lightdash.com/guides/embedding/how-to-embed-content#cors"
@@ -594,10 +589,8 @@ const ProjectSettings: FC<{
                                               Allowed origins
                                           </Title>
                                           <Text c="dimmed" fz="xs">
-                                              CORS controls which external
-                                              browser origins can call the
-                                              Lightdash API. Add exact origins
-                                              like https://app.example.com or
+                                              Add exact origins like
+                                              https://app.example.com or
                                               wildcard subdomains like
                                               *.example.com. Use regex only for
                                               advanced patterns.
@@ -727,11 +720,7 @@ const ProjectSettings: FC<{
         isAwaitingAgentIdentityRoute ||
         isAwaitingReviewRequestsRoute
     ) {
-        return (
-            <Box mt="lg">
-                <SuboptimalState title="Loading project" loading />
-            </Box>
-        );
+        return <EmptyStateLoader title="Loading project" mt="lg" />;
     }
 
     return (
@@ -743,7 +732,7 @@ const ProjectSettings: FC<{
                 <ScopeTourHost />
             </Sentry.ErrorBoundary>
 
-            <Stack gap="xl">
+            <Stack gap="xs">
                 <SettingsPageContainer>
                     <PageBreadcrumbs
                         items={[
