@@ -14,8 +14,6 @@ import {
 } from '@lightdash/common';
 import {
     Box,
-    ActionIcon,
-    Tooltip,
     Button,
     Checkbox,
     Group,
@@ -26,7 +24,6 @@ import {
     Title,
 } from '@mantine/core';
 import { useForm, type FormErrors } from '@mantine/form';
-import { IconInfoCircle } from '@tabler/icons-react';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import {
     type ChangeEventHandler,
@@ -38,7 +35,6 @@ import {
 } from 'react';
 import { Navigate, useSearchParams } from 'react-router';
 import { DocumentTitle } from '../components/common/DocumentTitle';
-import MantineIcon from '../components/common/MantineIcon';
 import OnboardingLayout from '../components/common/OnboardingLayout';
 import { useOnboardingNavigate } from '../components/common/viewTransition';
 import PageSpinner from '../components/PageSpinner';
@@ -452,38 +448,21 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                 )}
 
                                 {canEnableEmailDomainAccess && (
-                                    <Group gap={4} wrap="nowrap">
-                                        <Checkbox
-                                            label={
-                                                <>
-                                                    Let anyone with an{' '}
-                                                    <Text span inherit fw={600}>
-                                                        @{emailDomain}
-                                                    </Text>{' '}
-                                                    email join
-                                                </>
-                                            }
-                                            {...form.getInputProps(
-                                                'enableEmailDomainAccess',
-                                                { type: 'checkbox' },
-                                            )}
-                                        />
-                                        <Tooltip
-                                            label="They join as viewers. You can change this later in settings."
-                                            multiline
-                                            maw={280}
-                                        >
-                                            <ActionIcon
-                                                aria-label="About joining by email domain"
-                                                size="sm"
-                                            >
-                                                <MantineIcon
-                                                    icon={IconInfoCircle}
-                                                    size={16}
-                                                />
-                                            </ActionIcon>
-                                        </Tooltip>
-                                    </Group>
+                                    <Checkbox
+                                        label={
+                                            <>
+                                                Let anyone with an{' '}
+                                                <Text span inherit fw={600}>
+                                                    @{emailDomain}
+                                                </Text>{' '}
+                                                email join
+                                            </>
+                                        }
+                                        {...form.getInputProps(
+                                            'enableEmailDomainAccess',
+                                            { type: 'checkbox' },
+                                        )}
+                                    />
                                 )}
 
                                 <Group justify="flex-end" mt="md">
