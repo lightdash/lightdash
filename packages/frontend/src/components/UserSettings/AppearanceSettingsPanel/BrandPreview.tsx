@@ -3,7 +3,7 @@ import {
     type OrganizationBrandFont,
     type OrganizationBrandLogo,
 } from '@lightdash/common';
-import { Box, Group, Paper, Stack, Text } from '@mantine/core';
+import { Box, Group, Paper, Stack, Text, Table } from '@mantine/core';
 import { useEffect, type FC } from 'react';
 // TODO: re-enable browser chrome + nav header preview
 // import { IconSearch } from '@tabler/icons-react';
@@ -73,6 +73,12 @@ const BAR_VALUES = [55, 78, 48, 88, 60, 96, 72];
 
 const PIE_VALUES = [32, 24, 18, 14, 12];
 
+const CHANNEL_REVENUE: [string, number][] = [
+    ['Direct', 480],
+    ['Search', 390],
+    ['Email', 210],
+];
+
 const pieSlicePaths = (
     values: number[],
     cx: number,
@@ -108,6 +114,7 @@ const linePath = (points: number[]): string => {
 };
 
 type BrandPreviewProps = {
+    compact?: boolean;
     name: string | null;
     logos: OrganizationBrandLogo[];
     colors: OrganizationBrandColor[];
@@ -119,6 +126,7 @@ type BrandPreviewProps = {
 
 export const BrandPreview: FC<BrandPreviewProps> = ({
     colors,
+    compact = false,
     titleFont,
     bodyFont,
     paletteColors,
@@ -141,7 +149,7 @@ export const BrandPreview: FC<BrandPreviewProps> = ({
     );
 
     return (
-        <Paper radius="md" className={classes.window}>
+        <Paper radius="md" className={classes.window} data-compact={compact}>
             {/* TODO: re-enable browser chrome header preview
             <Group className={classes.chrome} gap="xs" wrap="nowrap">
                 <Group gap={6} wrap="nowrap">
@@ -199,7 +207,7 @@ export const BrandPreview: FC<BrandPreviewProps> = ({
                     <Stack gap={2}>
                         <Text
                             fw={600}
-                            fz={22}
+                            fz={compact ? 'sm' : 22}
                             ff={titleFamily}
                             className={classes.title}
                         >
@@ -223,7 +231,11 @@ export const BrandPreview: FC<BrandPreviewProps> = ({
                         <Text size="xs" c="dimmed" ff={bodyFamily}>
                             Total revenue
                         </Text>
-                        <Text fw={600} fz={24} ff={titleFamily}>
+                        <Text
+                            fw={600}
+                            fz={compact ? 'lg' : 24}
+                            ff={titleFamily}
+                        >
                             $1.24M
                         </Text>
                         <Text size="xs" c="teal" ff={bodyFamily}>
@@ -263,27 +275,78 @@ export const BrandPreview: FC<BrandPreviewProps> = ({
                             ))}
                         </Box>
                     </Paper>
-                    <Paper radius="md" className={classes.card}>
-                        <Text size="xs" c="dimmed" mb="xs" ff={bodyFamily}>
-                            Revenue share
-                        </Text>
-                        <svg viewBox="0 0 100 100" width="100%" height={90}>
-                            {pieSlicePaths(PIE_VALUES, 50, 50, 46).map(
-                                (path, index) => (
-                                    <path
-                                        key={`slice-${index}`}
-                                        d={path}
-                                        fill={
-                                            chartColors[
-                                                index % chartColors.length
-                                            ]
-                                        }
-                                        stroke="var(--mantine-color-body)"
-                                        strokeWidth={1.5}
-                                    />
-                                ),
-                            )}
-                        </svg>
+                    <Paper
+                        radius="md"
+                        className={classes.card}
+                        data-table-card={compact}
+                    >
+                        {compact ? (
+                            <Table
+                                aria-label="Revenue by channel"
+                                fz="xs"
+                                withColumnBorders
+                                horizontalSpacing={10}
+                                verticalSpacing={5}
+                                className={classes.table}
+                            >
+                                <Table.Thead>
+                                    <Table.Tr>
+                                        <Table.Th>Channel</Table.Th>
+                                        <Table.Th ta="right">Revenue</Table.Th>
+                                    </Table.Tr>
+                                </Table.Thead>
+                                <Table.Tbody>
+                                    {CHANNEL_REVENUE.map(([channel, value]) => (
+                                        <Table.Tr key={channel}>
+                                            <Table.Td>{channel}</Table.Td>
+                                            <Table.Td
+                                                ta="right"
+                                                className={classes.heatCell}
+                                                __vars={{
+                                                    '--heat-color': primary,
+                                                    '--heat': `${Math.round((value / CHANNEL_REVENUE[0][1]) * 32)}%`,
+                                                }}
+                                            >
+                                                ${value}k
+                                            </Table.Td>
+                                        </Table.Tr>
+                                    ))}
+                                </Table.Tbody>
+                            </Table>
+                        ) : (
+                            <>
+                                <Text
+                                    size="xs"
+                                    c="dimmed"
+                                    mb="xs"
+                                    ff={bodyFamily}
+                                >
+                                    Revenue share
+                                </Text>
+                                <svg
+                                    viewBox="0 0 100 100"
+                                    width="100%"
+                                    height={90}
+                                >
+                                    {pieSlicePaths(PIE_VALUES, 50, 50, 46).map(
+                                        (path, index) => (
+                                            <path
+                                                key={`slice-${index}`}
+                                                d={path}
+                                                fill={
+                                                    chartColors[
+                                                        index %
+                                                            chartColors.length
+                                                    ]
+                                                }
+                                                stroke="var(--mantine-color-body)"
+                                                strokeWidth={1.5}
+                                            />
+                                        ),
+                                    )}
+                                </svg>
+                            </>
+                        )}
                     </Paper>
                 </Group>
             </Box>
