@@ -13,10 +13,8 @@ import {
 } from '@tabler/icons-react';
 import { useState, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
-import { AI_NAME } from '../../../../../components/common/aiName';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
-import { getApiSourceTarget } from '../../../../../components/Settings/LiveDataSourcesPanel/googleConnection';
 import { useLiveSourceExplores } from '../../../../../features/externalConnections/hooks/useLiveSourceExplores';
 import { getLiveSource } from '../../../../../features/externalConnections/liveSources/liveSourceCatalog';
 import { LiveSourceIcon } from '../../../../../features/externalConnections/liveSources/LiveSourceIcon';
@@ -34,13 +32,13 @@ import { type SetupGuideState } from './useSetupGuide';
 import classes from './YourData.module.css';
 
 const SEMANTIC_LAYER_DOCS_URL = 'https://docs.lightdash.com/semantic-layer';
-const MAX_CHIPS = 8;
+const MAX_CHIPS = 4;
 
 const ExploreChips: FC<{
     projectUuid: string;
     explores: { name: string; label: string }[];
 }> = ({ projectUuid, explores }) => (
-    <Group gap={6} mt="xs">
+    <Group gap={6} wrap="nowrap" className={classes.chips}>
         {explores.slice(0, MAX_CHIPS).map(({ name, label }) => (
             <Button
                 key={name}
@@ -67,23 +65,21 @@ const ExploreChips: FC<{
     </Group>
 );
 
-const SourceBlock: FC<{
+const SourceRow: FC<{
     icon: ReactNode;
     title: string;
     detail: ReactNode;
     children: ReactNode;
 }> = ({ icon, title, detail, children }) => (
-    <Group gap="sm" wrap="nowrap" align="flex-start" className={classes.source}>
-        <Box className={classes.sourceIcon}>{icon}</Box>
-        <Box className={guideClasses.grow}>
-            <Text fz="sm" fw={500}>
-                {title}
-            </Text>
-            <Text fz="xs" c="dimmed" component="div">
-                {detail}
-            </Text>
-            {children}
-        </Box>
+    <Group gap="sm" wrap="nowrap" className={classes.row}>
+        <Box className={classes.rowIcon}>{icon}</Box>
+        <Text fz="sm" fw={500} className={classes.rowTitle}>
+            {title}
+        </Text>
+        <Text fz="xs" c="dimmed" component="div" className={classes.rowDetail}>
+            {detail}
+        </Text>
+        {children}
     </Group>
 );
 
@@ -97,12 +93,13 @@ const HowItWorks: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                 component="button"
                 type="button"
                 fz="xs"
+                c="dimmed"
                 onClick={() => {
                     setStep(0);
                     open();
                 }}
             >
-                How it works
+                How models work
             </Anchor>
             <MantineModal
                 opened={isOpen}
@@ -163,16 +160,13 @@ const HowItWorks: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     );
 };
 
-const SemanticLayerDetail: FC<{
-    projectUuid: string;
-    guide: SetupGuideState;
-}> = ({ projectUuid, guide }) => {
-    const { activeRun, semanticExplores, completedRunUrl } = guide;
+const SemanticLayerDetail: FC<{ guide: SetupGuideState }> = ({ guide }) => {
+    const { activeRun, semanticExplores } = guide;
     if (activeRun) {
         return (
             <Group gap={6} wrap="nowrap">
                 <Box className={guideClasses.liveDot} aria-hidden />
-                {AI_NAME} is drafting models from your tables.
+                Drafting models
                 <Anchor
                     component={Link}
                     to={getAgentOnboardingRunUrl(
@@ -190,31 +184,15 @@ const SemanticLayerDetail: FC<{
         const action = guide.sections
             .flatMap(({ rows }) => rows)
             .find(({ id }) => id === 'semantic-layer')?.action;
-        return (
-            <>
-                No metrics yet.{' '}
-                {action && (
-                    <Anchor component={Link} to={action.to} fz="xs">
-                        Define metrics
-                    </Anchor>
-                )}
-            </>
+        return action ? (
+            <Anchor component={Link} to={action.to} fz="xs">
+                Add models
+            </Anchor>
+        ) : (
+            'No models yet'
         );
     }
-    return (
-        <Group gap={6}>
-            {plural(semanticExplores.length, 'model')}
-            {completedRunUrl && (
-                <>
-                    {` built by ${AI_NAME}`}
-                    <Anchor component={Link} to={completedRunUrl} fz="xs">
-                        See how
-                    </Anchor>
-                </>
-            )}
-            <HowItWorks projectUuid={projectUuid} />
-        </Group>
-    );
+    return plural(semanticExplores.length, 'model');
 };
 
 const LiveSourceBlock: FC<{
@@ -227,7 +205,7 @@ const LiveSourceBlock: FC<{
     });
     const { apiSource } = connection;
     return (
-        <SourceBlock
+        <SourceRow
             icon={
                 apiSource ? (
                     <LiveSourceIcon connector={apiSource.connector} size={18} />
@@ -240,18 +218,14 @@ const LiveSourceBlock: FC<{
                     ? getLiveSource(apiSource.connector).label
                     : connection.name
             }
-            detail={
-                apiSource
-                    ? `${getApiSourceTarget(apiSource)}, queried live`
-                    : 'Queried live'
-            }
+            detail="Live"
         >
             {explores?.length ? (
                 <ExploreChips projectUuid={projectUuid} explores={explores} />
             ) : (
-                !isError && <Loader size="xs" mt="xs" />
+                !isError && <Loader size="xs" />
             )}
-        </SourceBlock>
+        </SourceRow>
     );
 };
 
@@ -268,23 +242,18 @@ export const YourData: FC<{
     if (!warehouse.isComplete) return null;
     return (
         <Paper p="md" className={classes.panel}>
-            <Group justify="space-between" wrap="nowrap" mb="xs">
+            <Group justify="space-between" wrap="nowrap" mb={4}>
                 <Text fz="sm" fw={500}>
                     Your data
                 </Text>
-                <Text fz="xs" c="dimmed" truncate>
-                    Open a model to build a chart, or ask about it above
-                </Text>
+                {guide.semanticExplores.length > 0 && (
+                    <HowItWorks projectUuid={projectUuid} />
+                )}
             </Group>
-            <SourceBlock
+            <SourceRow
                 icon={warehouse.doneIcon ?? <MantineIcon icon={IconDatabase} />}
                 title={warehouse.annotation ?? 'Warehouse'}
-                detail={
-                    <SemanticLayerDetail
-                        projectUuid={projectUuid}
-                        guide={guide}
-                    />
-                }
+                detail={<SemanticLayerDetail guide={guide} />}
             >
                 {guide.semanticExplores.length > 0 && (
                     <ExploreChips
@@ -292,7 +261,7 @@ export const YourData: FC<{
                         explores={toChips(guide.semanticExplores)}
                     />
                 )}
-            </SourceBlock>
+            </SourceRow>
             {guide.liveConnections.map((connection) => (
                 <LiveSourceBlock
                     key={connection.externalConnectionUuid}

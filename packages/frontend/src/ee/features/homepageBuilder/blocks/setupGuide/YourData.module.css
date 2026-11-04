@@ -2,21 +2,42 @@
     width: 100%;
 }
 
-.source {
-    padding-block: var(--mantine-spacing-sm);
+.row {
+    min-height: 44px;
+    padding-block: 6px;
 }
 
-.source + .source {
+.row + .row {
     border-top: 1px solid var(--mantine-color-default-border);
 }
 
-.sourceIcon {
+.rowIcon {
     display: grid;
     place-items: center;
     flex-shrink: 0;
-    width: 32px;
-    height: 32px;
-    border: 1px solid var(--mantine-color-default-border);
-    border-radius: var(--mantine-radius-sm);
+    width: 20px;
+    height: 20px;
     color: var(--mantine-color-dimmed);
+}
+
+.rowIcon :global(.mantine-Avatar-root) {
+    width: 18px;
+    min-width: 18px;
+    height: 18px;
+}
+
+.rowTitle {
+    flex-shrink: 0;
+}
+
+.rowDetail {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.chips {
+    flex: 1;
+    min-width: 0;
+    justify-content: flex-end;
+    overflow: hidden;
 }
