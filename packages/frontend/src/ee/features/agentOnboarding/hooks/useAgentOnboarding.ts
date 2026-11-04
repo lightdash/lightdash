@@ -31,7 +31,7 @@ const agentOnboardingRunQueryKey = (
 const agentOnboardingActiveRunQueryKey = (projectUuid: string | undefined) =>
     ['agent-onboarding-active-run', projectUuid] as const;
 
-const isRunGoneError = (error: ApiError | null) =>
+export const isRunGoneError = (error: ApiError | null) =>
     error !== null && [403, 404].includes(error.error.statusCode);
 
 export const getAgentOnboardingRefetchInterval = (

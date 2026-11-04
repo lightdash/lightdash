@@ -8,7 +8,10 @@ import useToaster from '../../../hooks/toaster/useToaster';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
-import { useAgentOnboardingRun } from './hooks/useAgentOnboarding';
+import {
+    isRunGoneError,
+    useAgentOnboardingRun,
+} from './hooks/useAgentOnboarding';
 import { getAgentOnboardingRunUrl } from './utils';
 import {
     clearWatchedAgentOnboardingRun,
@@ -37,7 +40,8 @@ export const AgentOnboardingCompletionWatcher: FC = () => {
         watched?.agentOnboardingRunUuid,
     );
 
-    const { data: run, isError } = runQuery;
+    const { data: run } = runQuery;
+    const isRunGone = isRunGoneError(runQuery.error);
     const organizationUuid = organization?.organizationUuid;
     const { pathname } = location;
     // The run page and the setup steps show the run inline, so no toast there
@@ -51,7 +55,7 @@ export const AgentOnboardingCompletionWatcher: FC = () => {
                 ));
 
     useEffect(() => {
-        if (isError) {
+        if (isRunGone) {
             clearWatchedAgentOnboardingRun();
             return;
         }
@@ -122,7 +126,7 @@ export const AgentOnboardingCompletionWatcher: FC = () => {
         });
     }, [
         run,
-        isError,
+        isRunGone,
         isShownInline,
         isNewOnboarding,
         organizationUuid,

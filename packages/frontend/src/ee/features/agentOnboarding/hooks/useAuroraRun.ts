@@ -3,6 +3,7 @@ import { useSessionStorage } from '@mantine/hooks';
 import { useEffect } from 'react';
 import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import {
+    isRunGoneError,
     useActiveAgentOnboardingRun,
     useAgentOnboardingRun,
 } from './useAgentOnboarding';
@@ -32,13 +33,13 @@ export const useAuroraRun = (projectUuid: string) => {
         activeRunUuid ?? lastRunUuid ?? undefined,
         enabled,
     );
-    const isWatchedRunGone = watchedRun.isError;
+    const isWatchedRunGone = isRunGoneError(watchedRun.error);
     useEffect(() => {
         if (isWatchedRunGone) setLastRunUuid(null);
     }, [isWatchedRunGone, setLastRunUuid]);
-    // A deleted run keeps its last data in the cache, so a failed refetch drops it
+    // A deleted run keeps its last data in the cache, so a 403 or 404 drops it
     const run =
-        (watchedRun.isError ? null : watchedRun.data) ?? activeRun.data ?? null;
+        (isWatchedRunGone ? null : watchedRun.data) ?? activeRun.data ?? null;
     return {
         run,
         isLive: !!run && !isAgentOnboardingRunTerminal(run.status),
