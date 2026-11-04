@@ -20,7 +20,8 @@
     border-bottom: 1px solid var(--mantine-color-default-border);
     padding-block: var(--mantine-spacing-sm);
 }
-.footer {
-    border-top: 1px solid var(--mantine-color-default-border);
-    padding-top: var(--mantine-spacing-md);
+.note {
+    flex: 1 1 20rem;
+    max-width: 40rem;
+    text-wrap: pretty;
 }

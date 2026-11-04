@@ -438,7 +438,9 @@ describe('Agents page loading boundary', () => {
         renderPage();
         await screen.findByText('Permissions');
         expect(screen.getByText('Organization settings')).toBeInTheDocument();
-        expect(screen.getAllByText('Agents')).toHaveLength(2);
+        expect(
+            screen.getByRole('heading', { level: 4, name: 'Agents' }),
+        ).toBeInTheDocument();
         expect(
             screen.getByText(
                 'Who agents run as, and what they may do. Agents are Ask AI, the Slack agent, MCP clients and the CLI.',

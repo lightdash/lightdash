@@ -1,3 +1,17 @@
+## [3.146.1](https://github.com/lightdash/lightdash/compare/3.146.0...3.146.1) (2026-11-04)
+
+
+### Bug Fixes
+
+* **frontend:** unify settings layout on AI, MCP and data apps settings pages ([#32044](https://github.com/lightdash/lightdash/issues/32044)) ([dfeac97](https://github.com/lightdash/lightdash/commit/dfeac97cd2f09b6faf528deede7cace2b02ffdaa))
+
+# [3.146.0](https://github.com/lightdash/lightdash/compare/3.145.0...3.146.0) (2026-11-04)
+
+
+### Features
+
+* **live-sources:** curate live data source fields from a Fields page ([#32026](https://github.com/lightdash/lightdash/issues/32026)) ([f08797c](https://github.com/lightdash/lightdash/commit/f08797c16c0d45b42dbd8e5bd66e0d7ff4a41370))
+
 # [3.145.0](https://github.com/lightdash/lightdash/compare/3.144.1...3.145.0) (2026-11-04)
 
 
