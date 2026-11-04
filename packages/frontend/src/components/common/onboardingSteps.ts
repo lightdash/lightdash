@@ -14,6 +14,6 @@ export const ONBOARDING_STEP_COPY = {
     team: {
         title: 'Share answers and review changes',
         subtitle:
-            'Get answers where your team already talks, and review every change before it goes live.',
+            'Ask questions from chat, and approve new metrics before your team sees them.',
     },
 } as const satisfies Record<string, { title: string; subtitle: string | null }>;
