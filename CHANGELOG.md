@@ -1,3 +1,10 @@
+## [3.148.3](https://github.com/lightdash/lightdash/compare/3.148.2...3.148.3) (2026-11-04)
+
+
+### Bug Fixes
+
+* **ldenv:** get warm spares ready and ignore stale foreground leases ([#32058](https://github.com/lightdash/lightdash/issues/32058)) ([bf94634](https://github.com/lightdash/lightdash/commit/bf94634253a4c9a00b053bee72cd5e37f1031692))
+
 ## [3.148.2](https://github.com/lightdash/lightdash/compare/3.148.1...3.148.2) (2026-11-04)
 
 
