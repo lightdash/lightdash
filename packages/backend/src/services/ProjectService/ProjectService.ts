@@ -5703,7 +5703,11 @@ export class ProjectService
                     isFirstProject,
                 },
             });
-            if (isFirstProject && createProject.warehouseConnection) {
+            if (
+                onboardingFlow === 'new' &&
+                isFirstProject &&
+                createProject.warehouseConnection
+            ) {
                 this.analytics.track({
                     event: 'onboarding.step_completed',
                     userId: user.userUuid,
@@ -7524,6 +7528,18 @@ export class ProjectService
                     errorCategory: null,
                 },
             });
+            if (context === 'project_create' && onboardingFlow === 'legacy') {
+                this.analytics.track({
+                    event: 'onboarding.step_completed',
+                    userId: user.userUuid,
+                    properties: {
+                        step: 'warehouse_connected',
+                        stepIndex: 4,
+                        onboardingFlow,
+                        organizationId: user.organizationUuid,
+                    },
+                });
+            }
             return {
                 adapter,
                 lease,
@@ -19592,7 +19608,7 @@ export class ProjectService
 
     async getBigqueryDatasetsFromKeyfile(
         user: SessionUser,
-        keyfileContents: Record<string, string>,
+        keyfileContents: Record<string, unknown>,
     ) {
         const { organizationUuid } = user;
         if (!organizationUuid) {
@@ -19609,9 +19625,6 @@ export class ProjectService
             )
         ) {
             throw new ForbiddenError();
-        }
-        if (typeof keyfileContents.project_id !== 'string') {
-            throw new ParameterError('The key file has no project_id');
         }
         try {
             return await BigqueryWarehouseClient.getDatasetsWithKeyfile(

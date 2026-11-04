@@ -30,6 +30,7 @@ import {
     getWarehouseTableType,
     Metric,
     MetricType,
+    ParameterError,
     PartitionColumn,
     PartitionGranularity,
     PartitionType,
@@ -1363,12 +1364,16 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
 
     /** Lists datasets with a service account key; a metadata call, no queries run */
     static async getDatasetsWithKeyfile(
-        keyfileContents: Record<string, string>,
+        keyfileContents: Record<string, unknown>,
     ): Promise<BigqueryDataset[]> {
+        const credentials = getBigqueryKeyfileCredentials(keyfileContents);
         const projectId = keyfileContents.project_id;
+        if (typeof projectId !== 'string') {
+            throw new ParameterError('The key file has no project_id');
+        }
         const [datasets] = await new BigQuery({
             projectId,
-            credentials: getBigqueryKeyfileCredentials(keyfileContents),
+            credentials,
         }).getDatasets({ autoPaginate: false, maxResults: 1000 });
         return datasets.map((dataset) => ({
             projectId: dataset.projectId ?? projectId,

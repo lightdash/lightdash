@@ -6,6 +6,7 @@ import {
     type QueryRowsResponse,
 } from '@google-cloud/bigquery';
 import {
+    BIGQUERY_UNSUPPORTED_KEYFILE_MESSAGE,
     BigqueryAuthenticationType,
     BigqueryTokenError,
     DimensionType,
@@ -1284,6 +1285,16 @@ describe('BigqueryWarehouseClient key file credentials', () => {
                     },
                 }),
         ).toThrow(WarehouseConnectionError);
+    });
+
+    it('rejects an unsupported key file before listing datasets', async () => {
+        await expect(
+            BigqueryWarehouseClient.getDatasetsWithKeyfile({
+                type: 'external_account',
+                audience: 'audience',
+                credential_source: { file: '/var/run/token' },
+            }),
+        ).rejects.toThrow(BIGQUERY_UNSUPPORTED_KEYFILE_MESSAGE);
     });
 });
 

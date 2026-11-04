@@ -39,7 +39,7 @@ export class BigqueryController extends BaseController {
     @Post('/datasets')
     @OperationId('GetBigQueryDatasetsFromKeyfile')
     async getBigQueryDatasetsFromKeyfile(
-        @Body() body: { keyfileContents: Record<string, string> },
+        @Body() body: { keyfileContents: Record<string, unknown> },
         @Request() req: express.Request,
     ): Promise<ApiBigqueryDatasets> {
         assertRegisteredAccount(req.account);
