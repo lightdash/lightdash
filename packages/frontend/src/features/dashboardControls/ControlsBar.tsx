@@ -2,6 +2,7 @@ import { Box } from '@mantine/core';
 import { type ComponentProps, type FC, type ReactNode } from 'react';
 import {
     selectControlSections,
+    selectParameterControls,
     useDashboardSelector,
 } from '../dashboard/store';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
@@ -9,9 +10,12 @@ import { AddControl } from './AddControl';
 import classes from './ControlsBar.module.css';
 import { FilterPills } from './FilterPills';
 import { MappingRow } from './MappingRow';
+import { ParameterPills } from './ParameterPills';
 import { SectionedFilters } from './SectionedFilters';
 import { SettledFilterFields } from './SettledFilterFields';
 import { useControlsSidebarSelector } from './useControlsSidebar';
+
+const NO_PARAMETERS = {};
 
 type Props = Omit<
     ComponentProps<typeof DashboardFiltersBar>,
@@ -20,6 +24,7 @@ type Props = Omit<
 
 // The shipped bar with its filter area swapped, in edit and view mode alike
 export const ControlsBar: FC<Props> = (props) => {
+    const controls = useDashboardSelector(selectParameterControls);
     const isSidebarOpen = useControlsSidebarSelector((c) => c.isSidebarOpen);
     const hasSections = useDashboardSelector(
         (state) => selectControlSections(state).length > 0,
@@ -27,6 +32,8 @@ export const ControlsBar: FC<Props> = (props) => {
     const filterRow = (
         <DashboardFiltersBar
             {...props}
+            // Parameters are controls on this bar, after the filters
+            parameters={controls === null ? props.parameters : NO_PARAMETERS}
             // The rail is on the page: a drawer over it would hide it
             isCompactDrawerSuppressed={isSidebarOpen}
             // The flat bar's items share each line's centre with the
@@ -45,6 +52,7 @@ export const ControlsBar: FC<Props> = (props) => {
                         <>
                             <AddControl />
                             <FilterPills activeTabUuid={props.activeTabUuid} />
+                            <ParameterPills />
                         </>
                     )}
                 </SettledFilterFields>

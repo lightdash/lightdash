@@ -4,6 +4,10 @@ import { type ComponentProps } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type DashboardHeader from '../../components/common/Dashboard/DashboardHeader';
 import { DashboardHeaderGuard } from './DashboardHeaderGuard';
+import {
+    ParameterEditorContext,
+    type ParameterEditorValue,
+} from './useParameterEditor';
 
 const mockSidebar = vi.hoisted(() => ({
     current: { isSidebarOpen: true, isViewer: false },
@@ -52,6 +56,43 @@ describe('DashboardHeaderGuard', () => {
         expect(button('Save changes').closest('[inert]')).not.toBeNull();
         expect(button('Cancel').closest('[inert]')).not.toBeNull();
     });
+
+    it.each([
+        [false, true],
+        [true, false],
+    ])(
+        'locks the header while a parameter control is edited (viewer %s: %s)',
+        (isViewer, isLocked) => {
+            mockSidebar.current = { isSidebarOpen: false, isViewer };
+            const noop = vi.fn();
+            const editor: ParameterEditorValue = {
+                editingId: 'region',
+                draft: null,
+                isNeedsValue: false,
+                isViewer,
+                isAsking: false,
+                open: noop,
+                update: noop,
+                apply: noop,
+                cancel: noop,
+                resolvePending: noop,
+                move: noop,
+                remove: noop,
+            };
+            render(
+                <MantineProvider>
+                    <ParameterEditorContext.Provider value={editor}>
+                        <DashboardHeaderGuard
+                            {...({} as ComponentProps<typeof DashboardHeader>)}
+                        />
+                    </ParameterEditorContext.Provider>
+                </MantineProvider>,
+            );
+            expect(button('Save changes').closest('[inert]') !== null).toBe(
+                isLocked,
+            );
+        },
+    );
 
     it('never locks the header while a viewer edits their filters', () => {
         mockSidebar.current = { isSidebarOpen: true, isViewer: true };

@@ -11,15 +11,17 @@ import { EditorPopover } from './FilterEditor';
 import classes from './FilterPills.module.css';
 import { isNewFilterIn, isPickingNewField } from './sidebarState';
 import { useControlsSidebarSelector } from './useControlsSidebar';
+import { useIsControlEdited } from './useIsControlEdited';
 
 const noop = () => {};
 
 // The bar's controls that would start something else: inert and dimmed while
-// a filter is edited, so Apply or Cancel ends that first. Pills stay live
+// a filter or a parameter control is edited, so Apply or Cancel ends that
+// first. Pills stay live
 export const InertWhileEditing: FC<{ children: ReactNode }> = ({
     children,
 }) => {
-    const isEditing = useControlsSidebarSelector((c) => c.isSidebarOpen);
+    const isEditing = useIsControlEdited();
     return (
         <Box
             display="contents"

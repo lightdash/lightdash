@@ -53,3 +53,12 @@ export const focusStartOnMount = (node: HTMLElement | null) => {
     input?.setAttribute('data-autofocus', '');
     input?.focus({ preventScroll: true });
 };
+
+/** A parameter's value is its whole popover: its first input, even one whose list opens on focus. */
+export const focusParameterValueOnMount = (node: HTMLElement | null) => {
+    const input = node?.querySelector<HTMLInputElement>(
+        'input:not([type="hidden"]):not(:disabled)',
+    );
+    input?.setAttribute('data-autofocus', '');
+    input?.focus({ preventScroll: true });
+};

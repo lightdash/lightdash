@@ -19,6 +19,8 @@ export type DashboardParametersState = {
     parametersHaveChanged: boolean;
     /** Values set by key from outside the controls (URL, viewer, scheduler); null: cleared in edit mode */
     parameterPicks: Record<string, ParameterValue | null>;
+    parameterControlPicks: Record<string, ParameterValue | null>;
+    parameterTilePicks: Record<string, ParametersValuesMap>;
     pinnedParameters: string[];
     havePinnedParametersChanged: boolean;
     parameterOrder: string[];
@@ -47,6 +49,8 @@ export const initialDashboardParametersState: DashboardParametersState = {
     parameters: {},
     parametersHaveChanged: false,
     parameterPicks: {},
+    parameterControlPicks: {},
+    parameterTilePicks: {},
     pinnedParameters: [],
     havePinnedParametersChanged: false,
     parameterOrder: [],
@@ -78,6 +82,15 @@ export const dashboardParametersActions = {
     setParameterPicks: createAction<ParametersValuesMap>(
         'dashboardParameters/setParameterPicks',
     ),
+    setParameterControlPick: createAction<{
+        id: string;
+        value: ParameterValue | null;
+    }>('dashboardParameters/setParameterControlPick'),
+    setParameterTilePicks: createAction<{
+        key: string;
+        value: ParameterValue | null;
+        tileUuids: string[];
+    }>('dashboardParameters/setParameterTilePicks'),
     setPinnedParameters: createAction<string[]>(
         'dashboardParameters/setPinnedParameters',
     ),
@@ -262,6 +275,10 @@ export const dashboardParametersReducer = (
             ...state,
             isEditMode: action.payload,
             parameterPicks: action.payload ? {} : state.parameterPicks,
+            parameterControlPicks: action.payload
+                ? {}
+                : state.parameterControlPicks,
+            parameterTilePicks: action.payload ? {} : state.parameterTilePicks,
         };
         return withParameters(
             next,
@@ -339,14 +356,42 @@ export const dashboardParametersReducer = (
               )
             : {};
         return withParameters(
-            isEqual(parameterPicks, state.parameterPicks)
+            isEqual(parameterPicks, state.parameterPicks) &&
+                Object.keys(state.parameterControlPicks).length === 0 &&
+                Object.keys(state.parameterTilePicks).length === 0
                 ? state
-                : { ...state, parameterPicks },
+                : {
+                      ...state,
+                      parameterPicks,
+                      parameterControlPicks: {},
+                      parameterTilePicks: {},
+                  },
             state.isEditMode ? {} : state.savedParameters,
         );
     }
     if (dashboardParametersActions.setParameterPicks.match(action)) {
         return { ...state, parameterPicks: action.payload };
+    }
+    if (dashboardParametersActions.setParameterControlPick.match(action)) {
+        const { id, value } = action.payload;
+        return {
+            ...state,
+            parameterControlPicks: {
+                ...state.parameterControlPicks,
+                [id]: value,
+            },
+        };
+    }
+    if (dashboardParametersActions.setParameterTilePicks.match(action)) {
+        const { key, value, tileUuids } = action.payload;
+        const parameterTilePicks = { ...state.parameterTilePicks };
+        tileUuids.forEach((tileUuid) => {
+            const { [key]: _previous, ...rest } =
+                parameterTilePicks[tileUuid] ?? {};
+            parameterTilePicks[tileUuid] =
+                value === null ? rest : { ...rest, [key]: value };
+        });
+        return { ...state, parameterTilePicks };
     }
     if (dashboardParametersActions.setPinnedParameters.match(action)) {
         return {

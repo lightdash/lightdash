@@ -94,6 +94,58 @@ describe('getTileDashboardParameterInputs', () => {
         ]);
     });
 
+    it('keeps control picks independent while outside key values reach both setters', () => {
+        const resolve = (tileUuid: string, picks = {}) =>
+            getTileDashboardParameterInputs({
+                controlInputs: getParameterControlInputs(
+                    sharedKeyControls,
+                    picks,
+                    [],
+                    { ops: 'friday' },
+                ),
+                tileUuid,
+                tileParameterReferences,
+                dashboardValues: {},
+            }).dashboardValues;
+        expect(resolve('sales')).toEqual({ week_start: 'monday' });
+        expect(resolve('ops')).toEqual({ week_start: 'friday' });
+        expect(resolve('sales', { week_start: 'tuesday' })).toEqual({
+            week_start: 'tuesday',
+        });
+        expect(resolve('ops', { week_start: 'tuesday' })).toEqual({
+            week_start: 'tuesday',
+        });
+    });
+
+    it('uses a safety-net value only on unassigned tiles', () => {
+        const inputs = getParameterControlInputs(
+            sharedKeyControls,
+            {},
+            [],
+            {},
+            { sales: { week_start: 'wrong' }, other: { week_start: 'local' } },
+        );
+        expect(
+            getTileDashboardParameterInputs({
+                controlInputs: inputs,
+                tileUuid: 'sales',
+                tileParameterReferences,
+                dashboardValues: {},
+            }).dashboardValues,
+        ).toEqual({ week_start: 'monday' });
+        expect(
+            getTileDashboardParameterInputs({
+                controlInputs: inputs,
+                tileUuid: 'other',
+                tileParameterReferences,
+                dashboardValues: {},
+            }),
+        ).toEqual({
+            dashboardValues: { week_start: 'local' },
+            excludedKeys: [],
+        });
+    });
+
     it('gives each tile the value of the control that sets it', () => {
         const controlInputs = getParameterControlInputs(
             sharedKeyControls,

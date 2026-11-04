@@ -603,6 +603,25 @@ describe('ControlsSidebarProvider', () => {
             expect(result.current.editing).toEqual({ filterId: 'b' });
         });
 
+        it("a parameter control's pill switches a clean edit and asks over a dirty one", () => {
+            const { result } = setup();
+            const proceed = vi.fn();
+            act(() => result.current.open('a'));
+            act(() => result.current.requestSwitch(proceed));
+            expect(result.current.isSidebarOpen).toBe(false);
+            expect(proceed).toHaveBeenCalledTimes(1);
+
+            act(() => result.current.open('a'));
+            act(() => result.current.updateFilter(rule('a', ['9'])));
+            act(() => result.current.requestSwitch(proceed));
+            expect(result.current.isAsking).toBe(true);
+            expect(proceed).toHaveBeenCalledTimes(1);
+            act(() => result.current.resolvePending(true));
+            expect(latest.filters.dimensions[0].values).toEqual(['9']);
+            expect(result.current.isSidebarOpen).toBe(false);
+            expect(proceed).toHaveBeenCalledTimes(2);
+        });
+
         it('a new filter with no field has nothing to lose: another pill drops it and opens', () => {
             const { result } = setup();
             act(() => result.current.openNew());
@@ -2952,7 +2971,7 @@ describe('ControlsSidebarProvider', () => {
                 ),
             );
         const initial = callbacks();
-        expect(Object.keys(initial)).toHaveLength(23);
+        expect(Object.keys(initial)).toHaveLength(24);
         expect(initial).toHaveProperty('endMapping');
         expect(initial).toHaveProperty('updateOtherFilters');
         // A pill hover marks tiles only; nothing in the sidebar follows it

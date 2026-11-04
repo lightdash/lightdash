@@ -32,6 +32,7 @@ import {
     VisuallyHidden,
 } from '@mantine/core';
 import {
+    IconAdjustmentsHorizontal,
     IconChevronDown,
     IconChevronRight,
     IconFilter,
@@ -74,12 +75,18 @@ import {
     useFilterTabPlacement,
 } from '../dashboardFilters/ActiveFilters/useFilterTabPlacement';
 import { AddControl, InertWhileEditing } from './AddControl';
-import { BarSelectionContext, type BarSelection } from './barSelection';
+import {
+    BarSelectionContext,
+    formatPickedCount,
+    type BarSelection,
+} from './barSelection';
 import { formatSectionCount } from './fieldLabels';
 import { EditorPopover } from './FilterEditor';
 import { FilterPills } from './FilterPills';
 import pillClasses from './FilterPills.module.css';
 import { focusAfterNaming, useRefocusAfter, type NameExit } from './nameFocus';
+import { PARAMETER_DRAG } from './parameterControlsBar';
+import { ParameterPills } from './ParameterPills';
 import classes from './SectionedFilters.module.css';
 import { SectionMenu } from './SectionMenu';
 import { SectionNameInput } from './SectionNameInput';
@@ -112,6 +119,12 @@ import { SelectionBar } from './SelectionBar';
 import { isEditingIn, isNewFilterIn, removeFilterRule } from './sidebarState';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { hasOpenLayer } from './useEditorDismiss';
+import { useIsControlEdited } from './useIsControlEdited';
+import {
+    getParameterEntryName,
+    useParameterBarControls,
+} from './useParameterBarControls';
+import { useParameterEditorSelector } from './useParameterEditor';
 
 const ADD_FILTER_SELECTOR =
     '[data-filter-actions] > button[data-dashboard-filter-control]';
@@ -156,6 +169,9 @@ type CapsuleProps = {
     actions: CapsuleActions | null;
     /** Another capsule dragged over this one: the side it would land on */
     dropSide: 'before' | 'after' | undefined;
+    /** Its parameter controls on the tab in view, drawn after its filters. */
+    parameterCount: number;
+    withParameters: boolean;
 };
 
 const SectionCapsule: FC<CapsuleProps> = ({
@@ -170,6 +186,8 @@ const SectionCapsule: FC<CapsuleProps> = ({
     triggerClassName,
     actions,
     dropSide,
+    parameterCount,
+    withParameters,
 }) => {
     const getUiString = useUiStrings();
     const summaryId = useId();
@@ -202,7 +220,7 @@ const SectionCapsule: FC<CapsuleProps> = ({
         { section: section.name },
     );
     // Nothing to show on this tab (an editor's bar only): the member count
-    const hasVisible = visibleRules.length > 0;
+    const hasVisible = visibleRules.length > 0 || parameterCount > 0;
     const isFolded = !(isOpen && hasVisible);
     const isEditorOnAdd = useControlsSidebarSelector(
         (c) =>
@@ -210,12 +228,16 @@ const SectionCapsule: FC<CapsuleProps> = ({
             (isFolded && isEditingIn(c, section.id)),
     );
     const summary = !hasVisible
-        ? formatSectionCount(getUiString, rules.length)
+        ? formatSectionCount(getUiString, rules.length, parameterCount)
         : changedCount > 0
           ? interpolateUiString(getUiString('filters.sectionChanged'), {
                 changed: changedCount,
             })
-          : formatSectionCount(getUiString, visibleRules.length);
+          : formatSectionCount(
+                getUiString,
+                visibleRules.length,
+                parameterCount,
+            );
 
     const headNode =
         actions === null ? (
@@ -366,11 +388,19 @@ const SectionCapsule: FC<CapsuleProps> = ({
                     {summary}
                 </Text>
             ) : (
-                <FilterPills
-                    activeTabUuid={activeTabUuid}
-                    sectionId={section.id}
-                    triggerClassName={triggerClassName}
-                />
+                <>
+                    <FilterPills
+                        activeTabUuid={activeTabUuid}
+                        sectionId={section.id}
+                        triggerClassName={triggerClassName}
+                    />
+                    {withParameters && (
+                        <ParameterPills
+                            sectionId={section.id}
+                            isInBarContext={actions !== null}
+                        />
+                    )}
+                </>
             )}
             {actionsNode}
         </Box>
@@ -508,6 +538,8 @@ type Props = {
     viewerActions?: ReactNode;
     /** An embed's class contract hook on each pill (default none). */
     triggerClassName?: string;
+    /** Parameter controls after the filters in each pass (default true; an embed may hide them). */
+    withParameters?: boolean;
 };
 
 const LOOSE_START = 'loose-start';
@@ -524,6 +556,7 @@ export const SectionedFilters: FC<Props> = ({
     activeTabUuid,
     viewerActions = <AddControl />,
     triggerClassName,
+    withParameters = true,
 }) => {
     const [flippedIds, setFlippedIds] = useState<Set<string>>(() => new Set());
     const [draggedId, setDraggedId] = useState<string | null>(null);
@@ -551,7 +584,8 @@ export const SectionedFilters: FC<Props> = ({
         setFlipsMode(isViewer);
         setFlippedIds(new Set());
     }
-    const isEditing = useControlsSidebarSelector((c) => c.isSidebarOpen);
+    // A filter or a parameter control: either locks the section controls
+    const isEditing = useIsControlEdited();
     // A filter being created is no move: Cancel takes it out
     const newFilterId = useControlsSidebarSelector((c) =>
         c.isNew ? (c.editing?.filterId ?? null) : null,
@@ -635,6 +669,23 @@ export const SectionedFilters: FC<Props> = ({
         (c) => c.allFilterableMetricsMap,
     );
     const { getTabsUsingFilter } = useFilterTabPlacement();
+    const parameterBar = useParameterBarControls();
+    // A hidden control is an editor's: a viewer's section of only hidden ones has no pill, so no capsule
+    const parameterEntries = withParameters
+        ? parameterBar.entries.filter(
+              ({ isNeedsValue, control }) =>
+                  !isNeedsValue && !(isViewer && control.hidden),
+          )
+        : [];
+    const parameterCountOf = (sectionId: string | null) =>
+        parameterEntries.filter((entry) => entry.sectionId === sectionId)
+            .length;
+    const moveParameter = useParameterEditorSelector((c) => c.move);
+    const removeParameter = useParameterEditorSelector((c) => c.remove);
+    const editedParameterId = useParameterEditorSelector((c) => c.editingId);
+    const editedParameterSectionId =
+        parameterEntries.find(({ control }) => control.id === editedParameterId)
+            ?.sectionId ?? null;
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
         useSensor(KeyboardSensor, {
@@ -667,7 +718,9 @@ export const SectionedFilters: FC<Props> = ({
                                   activeTabUuid,
                               ),
                       );
-                  return visibleRules.length === 0 && isViewer
+                  return visibleRules.length === 0 &&
+                      parameterCountOf(section.id) === 0 &&
+                      isViewer
                       ? []
                       : [{ section, rules, visibleRules }];
               },
@@ -698,12 +751,23 @@ export const SectionedFilters: FC<Props> = ({
     looseEnds[metricsEnd] = [looseEnds[metricsEnd], 'metrics']
         .filter(Boolean)
         .join(' ');
+    // Each pass's filters, then its parameter controls
+    const parameterIdsIn = (sectionId: string | null) =>
+        parameterEntries
+            .filter((entry) => entry.sectionId === sectionId)
+            .map(({ control }) => control.id);
     const barOrder = [
-        ...looseOnTab.map(({ rule }) => rule),
+        ...looseOnTab.map(({ rule }) => rule.id),
+        ...parameterIdsIn(null),
         ...groups.flatMap(({ section, rules, visibleRules }) =>
-            isOpen(section, rules.length) ? visibleRules : [],
+            isOpen(section, rules.length)
+                ? [
+                      ...visibleRules.map(({ id }) => id),
+                      ...parameterIdsIn(section.id),
+                  ]
+                : [],
         ),
-    ].map((rule) => rule.id);
+    ];
     const latestBarOrder = useRef(barOrder);
     useLayoutEffect(() => {
         latestBarOrder.current = barOrder;
@@ -789,7 +853,11 @@ export const SectionedFilters: FC<Props> = ({
             rules={rules}
             visibleRules={visibleRules}
             isChanged={isChanged}
-            isOpen={isOpen(section, rules.length)}
+            // The edited parameter's section stays open, so its editor does
+            isOpen={
+                isOpen(section, rules.length) ||
+                editedParameterSectionId === section.id
+            }
             onToggle={() => {
                 // An editor's fold is the saved way to start; back at the size
                 // rule's value with nothing saved, it follows the rule again
@@ -831,6 +899,8 @@ export const SectionedFilters: FC<Props> = ({
             }}
             activeTabUuid={activeTabUuid}
             triggerClassName={triggerClassName}
+            parameterCount={parameterCountOf(section.id)}
+            withParameters={withParameters}
             actions={
                 isViewer
                     ? null
@@ -924,12 +994,17 @@ export const SectionedFilters: FC<Props> = ({
         </Box>
     ));
     const pills = (
-        <FilterPills
-            activeTabUuid={activeTabUuid}
-            sectionId={null}
-            looseEnds={isViewer ? undefined : looseEnds}
-            triggerClassName={triggerClassName}
-        />
+        <>
+            <FilterPills
+                activeTabUuid={activeTabUuid}
+                sectionId={null}
+                looseEnds={isViewer ? undefined : looseEnds}
+                triggerClassName={triggerClassName}
+            />
+            {withParameters && (
+                <ParameterPills sectionId={null} isInBarContext={!isViewer} />
+            )}
+        </>
     );
 
     // Sections always sit below the filters outside any section, each new
@@ -955,6 +1030,15 @@ export const SectionedFilters: FC<Props> = ({
                                   null,
                               )
                             : 0;
+                    // The parameter controls it takes, once the section exists
+                    moveParametersTo(
+                        naming.moveIds.filter((id) =>
+                            parameterEntries.some(
+                                ({ control }) => control.id === id,
+                            ),
+                        ),
+                        section.id,
+                    );
                     track({
                         name: EventName.DASHBOARD_SECTION_CREATED,
                         properties: {
@@ -999,6 +1083,7 @@ export const SectionedFilters: FC<Props> = ({
         ({ rules }) => rules,
     );
     // The bar's end: a capsule that starts a section, once there is a filter
+    // Once there is a filter: a parameter dropped on it starts no section
     const isGhostShown = allRules.length > 0;
     const fieldOf = ({ rule, group }: SectionRule) =>
         getDashboardFilterField<DashboardFilterableField>(
@@ -1012,6 +1097,10 @@ export const SectionedFilters: FC<Props> = ({
         if (id === UNSECTIONED_TARGET_ID || id === BAR_SPACE_TARGET_ID)
             return 'the space outside any section';
         if (id === NEW_SECTION_TARGET_ID) return 'a new section';
+        const parameterEntry = parameterEntries.find(
+            ({ control }) => control.id === id,
+        );
+        if (parameterEntry) return getParameterEntryName(parameterEntry);
         const section = sections.find((s) => s.id === id);
         if (section)
             return `section ${section.name || getUiString('controls.untitledSection')}`;
@@ -1026,14 +1115,23 @@ export const SectionedFilters: FC<Props> = ({
     const selected = allRules
         .map(({ rule }) => rule.id)
         .filter((id) => selectedIds.includes(id));
+    // Picked parameter controls, in list order
+    const selectedParameters = parameterEntries.filter(({ control }) =>
+        selectedIds.includes(control.id),
+    );
+    const selectedParameterIds = selectedParameters.map(
+        ({ control }) => control.id,
+    );
+    const allSelected = [...selected, ...selectedParameterIds];
     const sectionOfRule = (rule: DashboardFilterRule) =>
         isRuleInSection(rule, null, sections) ? null : (rule.sectionId ?? null);
     const selectedSectionIds = [
-        ...new Set(
-            allRules
+        ...new Set([
+            ...allRules
                 .filter(({ rule }) => selected.includes(rule.id))
                 .map(({ rule }) => sectionOfRule(rule)),
-        ),
+            ...selectedParameters.map((entry) => entry.sectionId),
+        ]),
     ];
     // A bar write that changed sections, tracked with how many filters moved
     const trackMoved = (count: number, method: DashboardFiltersMovedMethod) => {
@@ -1079,15 +1177,35 @@ export const SectionedFilters: FC<Props> = ({
         if (method !== null) trackMoved(count, method);
         return count;
     };
+    // Parameter controls into a section (null: out of theirs), each last in it
+    const moveParametersTo = (ids: string[], sectionId: string | null) => {
+        ids.forEach((id) => moveParameter(id, { sectionId }));
+        if (
+            ids[0] !== undefined &&
+            focusAfter.current?.[0] === ADD_FILTER_SELECTOR
+        )
+            focusAfter.current = [
+                `[data-parameter-pill="${ids[0]}"]`,
+                ADD_FILTER_SELECTOR,
+            ];
+    };
     const moveSelected = (
         sectionId: string | null,
         method: DashboardFiltersMovedMethod,
-    ) => moveToSection(selected, sectionId, sections, method);
+    ) => {
+        const parameterIds = selectedParameterIds;
+        const count = moveToSection(selected, sectionId, sections, method);
+        moveParametersTo(parameterIds, sectionId);
+        return count;
+    };
     const removeSelected = () => {
-        setDashboardFilters((filters) =>
-            selected.reduce(removeFilterRule, filters),
-        );
-        setHaveFiltersChanged(true);
+        if (selected.length > 0) {
+            setDashboardFilters((filters) =>
+                selected.reduce(removeFilterRule, filters),
+            );
+            setHaveFiltersChanged(true);
+        }
+        selectedParameterIds.forEach(removeParameter);
         clearSelection();
         focusAfter.current = [ADD_FILTER_SELECTOR];
     };
@@ -1103,8 +1221,8 @@ export const SectionedFilters: FC<Props> = ({
     };
     const isSelectionDragged =
         draggedId !== null &&
-        selected.length > 1 &&
-        selected.includes(draggedId);
+        allSelected.length > 1 &&
+        allSelected.includes(draggedId);
     // A capsule over a capsule lands on the side of its centre the dragged
     // copy's centre is; over the gap between lines, on a line of its own
     const sectionPlacementOf = (
@@ -1147,33 +1265,58 @@ export const SectionedFilters: FC<Props> = ({
                 arrange(activeId, placeSection(sections, activeId, placement));
             return;
         }
+        const isParameterDrag = active.data?.current?.kind === PARAMETER_DRAG;
+        // A picked pill carries the selection, filters and parameters alike
+        const isCarryingSelection =
+            allSelected.length > 1 && allSelected.includes(activeId);
         // Onto the New section capsule: name it, then the pill (or the
         // selection it carries) moves in; no section starts during an edit
         if (over && String(over.id) === NEW_SECTION_TARGET_ID) {
-            if (isEditing) return;
+            if (isEditing || (isParameterDrag && !isCarryingSelection)) return;
             setNaming({
-                moveIds:
-                    selected.length > 1 && selected.includes(activeId)
-                        ? selected
-                        : [activeId],
+                moveIds: isCarryingSelection ? allSelected : [activeId],
                 source: 'new_section_drop',
             });
             return;
         }
-        // A picked pill carries the selection: all of them join the target's section
-        if (over && selected.length > 1 && selected.includes(activeId)) {
+        // All of the selection joins the target's section: a pill's (a
+        // parameter's too), a capsule's, or none; anything else moves nothing
+        if (over && isCarryingSelection) {
             const overId = String(over.id);
             // Dropped back on itself: nothing moves
             if (overId === activeId) return;
             const overRule = allRules.find(({ rule }) => rule.id === overId);
-            moveSelected(
-                isUnsectionTarget(overId)
-                    ? null
-                    : overRule
-                      ? sectionOfRule(overRule.rule)
-                      : overId,
-                'drag',
+            const overParameter = parameterEntries.find(
+                ({ control }) => control.id === overId,
             );
+            const target = isUnsectionTarget(overId)
+                ? null
+                : overRule
+                  ? sectionOfRule(overRule.rule)
+                  : overParameter
+                    ? overParameter.sectionId
+                    : sections.some(({ id }) => id === overId)
+                      ? overId
+                      : undefined;
+            if (target !== undefined) moveSelected(target, 'drag');
+            return;
+        }
+        // A parameter control moves among parameter controls, into a
+        // section or out of one; never into a new section
+        if (isParameterDrag) {
+            if (!over || over.id === active.id) return;
+            const overId = String(over.id);
+            const overRule = allRules.find(({ rule }) => rule.id === overId);
+            if (parameterEntries.some(({ control }) => control.id === overId))
+                moveParameter(activeId, { controlId: overId });
+            else if (isUnsectionTarget(overId))
+                moveParameter(activeId, { sectionId: null });
+            else if (sections.some(({ id }) => id === overId))
+                moveParameter(activeId, { sectionId: overId });
+            else if (overRule)
+                moveParameter(activeId, {
+                    sectionId: sectionOfRule(overRule.rule),
+                });
             return;
         }
         if (!over || active.id === over.id) return;
@@ -1206,6 +1349,9 @@ export const SectionedFilters: FC<Props> = ({
     };
     const dragged = allRules.find(({ rule }) => rule.id === draggedId);
     const draggedSection = sections.find(({ id }) => id === draggedId);
+    const draggedParameter = parameterEntries.find(
+        ({ control }) => control.id === draggedId,
+    );
     const draggedField = dragged ? fieldOf(dragged) : null;
     const barEnd = (
         <>
@@ -1219,7 +1365,7 @@ export const SectionedFilters: FC<Props> = ({
                             isDisabled={isEditing}
                             onClick={() =>
                                 setNaming({
-                                    moveIds: selected,
+                                    moveIds: allSelected,
                                     source: 'new_section_capsule',
                                 })
                             }
@@ -1282,6 +1428,20 @@ export const SectionedFilters: FC<Props> = ({
                                     {draggedSection.name}
                                 </Text>
                             </Group>
+                        ) : draggedParameter ? (
+                            <Group
+                                gap="xs"
+                                wrap="nowrap"
+                                className={classes.dragPreview}
+                            >
+                                <MantineIcon
+                                    icon={IconAdjustmentsHorizontal}
+                                    size={14}
+                                />
+                                <Text fz="xs" fw={500} truncate>
+                                    {getParameterEntryName(draggedParameter)}
+                                </Text>
+                            </Group>
                         ) : isSelectionDragged ? (
                             <Group
                                 gap="xs"
@@ -1290,7 +1450,10 @@ export const SectionedFilters: FC<Props> = ({
                             >
                                 <MantineIcon icon={IconFilter} size={14} />
                                 <Text fz="xs" fw={500}>
-                                    {selected.length} filters
+                                    {formatPickedCount(
+                                        selected.length,
+                                        selectedParameterIds.length,
+                                    )}
                                 </Text>
                             </Group>
                         ) : (
@@ -1320,16 +1483,24 @@ export const SectionedFilters: FC<Props> = ({
                     </DragOverlay>,
                     document.body,
                 )}
-                {selected.length > 0 && !isEditing && (
+                {allSelected.length > 0 && !isEditing && (
                     <SelectionBar
-                        count={selected.length}
+                        filterCount={selected.length}
+                        parameterCount={selectedParameterIds.length}
                         sections={groupRulesBySection(
                             dashboardFilters,
                             sections,
                         ).flatMap(({ section, rules }) =>
                             section === null
                                 ? []
-                                : [{ ...section, count: rules.length }],
+                                : [
+                                      {
+                                          ...section,
+                                          count:
+                                              rules.length +
+                                              parameterCountOf(section.id),
+                                      },
+                                  ],
                         )}
                         sharedSectionId={
                             selectedSectionIds.length === 1
@@ -1343,7 +1514,7 @@ export const SectionedFilters: FC<Props> = ({
                             moveSelected(sectionId, 'selection_bar')
                         }
                         onMoveToNewSection={(source) =>
-                            setNaming({ moveIds: selected, source })
+                            setNaming({ moveIds: allSelected, source })
                         }
                         onRemove={removeSelected}
                         onClear={clearSelection}

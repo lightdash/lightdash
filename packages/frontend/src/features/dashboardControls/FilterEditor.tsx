@@ -12,7 +12,7 @@ import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
     selectActiveTabUuid,
     selectDashboardTiles,
-    selectParameterValues,
+    selectDashboardEffectiveParameterValues,
     selectSqlChartTilesMetadata,
     useDashboardAllFilters,
     useDashboardSelector,
@@ -199,7 +199,9 @@ const EditorFiltersProvider: FC<{ children: ReactNode }> = ({ children }) => {
         (c) => c.allFilterableFieldsMap,
     );
     const dashboardTiles = useDashboardSelector(selectDashboardTiles);
-    const parameterValues = useDashboardSelector(selectParameterValues);
+    const parameterValues = useDashboardSelector(
+        selectDashboardEffectiveParameterValues,
+    );
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );
