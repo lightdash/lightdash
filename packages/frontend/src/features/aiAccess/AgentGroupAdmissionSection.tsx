@@ -4,14 +4,15 @@ import {
 } from '@lightdash/common';
 import {
     Button,
+    Divider,
     Group,
     MultiSelect,
     Radio,
     Stack,
     Text,
-    Title,
 } from '@mantine/core';
 import Callout from '../../components/common/Callout';
+import { SettingRow } from '../../components/common/Settings/SettingLayout';
 
 interface GroupPickerProps {
     groups: OrganizationGroup[];
@@ -65,8 +66,10 @@ const AgentGroupPicker = ({
                     <Group wrap="nowrap">
                         <Radio.Indicator />
                         <Stack gap={0}>
-                            <Text fw={500}>Everyone whose role allows AI</Text>
-                            <Text size="sm" c="dimmed">
+                            <Text fz="sm" fw={500}>
+                                Everyone whose role allows AI
+                            </Text>
+                            <Text fz="xs" c="dimmed">
                                 Anyone with a role that allows AI can use
                                 agents.
                             </Text>
@@ -85,8 +88,10 @@ const AgentGroupPicker = ({
                     <Group wrap="nowrap">
                         <Radio.Indicator />
                         <Stack gap={0}>
-                            <Text fw={500}>Only these groups</Text>
-                            <Text size="sm" c="dimmed">
+                            <Text fz="sm" fw={500}>
+                                Only these groups
+                            </Text>
+                            <Text fz="xs" c="dimmed">
                                 People must belong to at least one of these
                                 groups. Their role must also allow AI.
                             </Text>
@@ -111,7 +116,7 @@ const AgentGroupPicker = ({
                 {groups.length === 0 && (
                     <Text size="sm">No groups available</Text>
                 )}
-                <Text size="sm" c="dimmed">
+                <Text fz="xs" c="dimmed">
                     Only members of these groups can use Ask AI, the Slack
                     agent, MCP clients and the CLI.
                 </Text>
@@ -137,32 +142,43 @@ export const AgentGroupAdmissionSection = ({
     ) : null;
     if (!available)
         return (
-            <Stack gap="sm">
-                <Text size="sm">
-                    Groups are unavailable. The saved group restriction still
-                    applies.
-                </Text>
-                {notice}
-                <Button
-                    variant="default"
-                    disabled={disabled || selection === null}
-                    onClick={() => onChange(null)}
-                >
-                    Allow everyone
-                </Button>
-            </Stack>
+            <>
+                <Divider />
+                <Stack gap="sm">
+                    <SettingRow
+                        title="Who can use agents"
+                        description="Groups are unavailable. The saved group restriction still applies."
+                        control={
+                            <Button
+                                variant="default"
+                                disabled={disabled || selection === null}
+                                onClick={() => onChange(null)}
+                            >
+                                Allow everyone
+                            </Button>
+                        }
+                    />
+                    {notice}
+                </Stack>
+            </>
         );
     return (
-        <Stack gap="sm">
-            <Title order={5}>Who can use agents</Title>
-            {notice}
-            <AgentGroupPicker
-                groups={groups}
-                selection={selection}
-                onChange={onChange}
-                disabled={disabled}
-                invalid={invalid}
-            />
-        </Stack>
+        <>
+            <Divider />
+            <Stack gap="sm">
+                <SettingRow
+                    title="Who can use agents"
+                    description="Limit agents to members of specific groups."
+                />
+                {notice}
+                <AgentGroupPicker
+                    groups={groups}
+                    selection={selection}
+                    onChange={onChange}
+                    disabled={disabled}
+                    invalid={invalid}
+                />
+            </Stack>
+        </>
     );
 };
