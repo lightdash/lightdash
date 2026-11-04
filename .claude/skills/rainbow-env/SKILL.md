@@ -2,7 +2,7 @@
 name: rainbow-env
 metadata:
   internal: true
-description: Run and verify Lightdash on a Rainbow preview environment (`rainbow.toml`, rainbowmachine MCP). Use when testing a change on a live env, redeploying a branch, calling the app's API or database inside an env, or checking UI on real data.
+description: Interact with Rainbow Machine PR preview environments for Lightdash (`rainbow.toml`, rainbowmachine MCP). Use when an agent needs to create or redeploy a preview env, run commands or call the API or database inside one, or verify a change on it.
 ---
 
 # Rainbow environments
