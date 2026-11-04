@@ -35,7 +35,7 @@ export class FunnelController extends BaseController {
      * @param projectUuid The project UUID
      * @param exploreName The explore to query
      * @param eventDimensionId The dimension containing event names
-     * @param timestampFieldId The timestamp dimension used to filter to last 30 days
+     * @param timestampFieldId The timestamp dimension used to filter to recent events (last 30 days, falling back to all time)
      * @param req Express request
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])

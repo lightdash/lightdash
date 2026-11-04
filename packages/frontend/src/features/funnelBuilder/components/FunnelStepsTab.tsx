@@ -16,7 +16,9 @@ import {
     removeStep,
     selectConversionWindowUnit,
     selectConversionWindowValue,
+    selectEventNameFieldId,
     selectEventNames,
+    selectEventNamesError,
     selectEventNamesLoading,
     selectSteps,
     setConversionWindowUnit,
@@ -30,6 +32,8 @@ export const FunnelStepsTab: FC = () => {
     const steps = useAppSelector(selectSteps);
     const eventNames = useAppSelector(selectEventNames);
     const isLoadingEventNames = useAppSelector(selectEventNamesLoading);
+    const eventNamesError = useAppSelector(selectEventNamesError);
+    const eventNameFieldId = useAppSelector(selectEventNameFieldId);
     const conversionWindowValue = useAppSelector(selectConversionWindowValue);
     const conversionWindowUnit = useAppSelector(selectConversionWindowUnit);
 
@@ -40,6 +44,16 @@ export const FunnelStepsTab: FC = () => {
             </Text>
 
             {isLoadingEventNames && <Loader size="sm" />}
+
+            {!isLoadingEventNames &&
+                !eventNamesError &&
+                eventNameFieldId &&
+                eventNames.length === 0 && (
+                    <Text size="sm" c="dimmed">
+                        No events found for the selected event name field. Check
+                        that the field and timestamp have data.
+                    </Text>
+                )}
 
             {steps.map((step, index) => {
                 // Filter out events already selected in previous steps

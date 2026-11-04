@@ -112,7 +112,7 @@ export class FunnelService extends BaseService {
         return field;
     }
 
-    private static generateFunnelSql(
+    static generateFunnelSql(
         request: FunnelQueryRequest,
         explore: Explore,
         sqlBuilder: WarehouseSqlBuilder,
@@ -273,7 +273,7 @@ WITH filtered_events AS (
             timestampField.compiledSql
         } AS ${fieldQuote}event_timestamp${fieldQuote}
         ${breakdownSelect}
-    FROM ${baseTable}
+    FROM ${baseTable} AS ${fieldQuote}${explore.baseTable}${fieldQuote}
     WHERE ${timestampField.compiledSql} >= ${sqlBuilder.castToTimestamp(start)}
       AND ${timestampField.compiledSql} < ${sqlBuilder.castToTimestamp(end)}
       AND ${eventNameField.compiledSql} IN (${stepNames.join(', ')})
@@ -386,46 +386,57 @@ ORDER BY ${
                     );
                 const sqlBuilder = warehouseSqlBuilderFromType(type);
 
-                // Filter to last 30 days to limit scan cost
-                const thirtyDaysAgo = new Date();
-                thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
                 const quoteChar = sqlBuilder.getFieldQuoteChar();
-
-                const sql = `
+                const buildSql = (since: Date | null) => `
             SELECT DISTINCT ${
                 eventField.compiledSql
             } AS ${quoteChar}event_name${quoteChar}
             FROM ${baseTableSql} AS ${quoteChar}${baseTableName}${quoteChar}
-            WHERE ${eventField.compiledSql} IS NOT NULL
+            WHERE ${eventField.compiledSql} IS NOT NULL${
+                since
+                    ? `
               AND ${timestampField.compiledSql} >= ${sqlBuilder.castToTimestamp(
-                  thirtyDaysAgo,
-              )}
+                  since,
+              )}`
+                    : ''
+            }
             ORDER BY ${quoteChar}event_name${quoteChar}
             LIMIT 1000
         `;
 
-                try {
-                    const results = await this.projectService.runSqlQuery(
-                        user,
-                        projectUuid,
-                        sql,
-                        exploreBinding,
-                    );
-
-                    return results.rows
-                        .map((r) => r.event_name as string)
-                        .filter(
-                            (val): val is string =>
-                                val !== null && val !== undefined,
+                const runEventNamesQuery = async (since: Date | null) => {
+                    const sql = buildSql(since);
+                    try {
+                        const results = await this.projectService.runSqlQuery(
+                            user,
+                            projectUuid,
+                            sql,
+                            exploreBinding,
                         );
-                } catch (error) {
-                    this.logger.error('Failed to fetch event names', {
-                        sql,
-                        error,
-                    });
-                    throw error;
+                        return results.rows
+                            .map((r) => r.event_name as string)
+                            .filter(
+                                (val): val is string =>
+                                    val !== null && val !== undefined,
+                            );
+                    } catch (error) {
+                        this.logger.error('Failed to fetch event names', {
+                            sql,
+                            error,
+                        });
+                        throw error;
+                    }
+                };
+
+                // Last 30 days first to limit scan cost; fall back to all time for sparse tables
+                const thirtyDaysAgo = new Date();
+                thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+                const recentEventNames =
+                    await runEventNamesQuery(thirtyDaysAgo);
+                if (recentEventNames.length > 0) {
+                    return recentEventNames;
                 }
+                return runEventNamesQuery(null);
             },
         );
     }
