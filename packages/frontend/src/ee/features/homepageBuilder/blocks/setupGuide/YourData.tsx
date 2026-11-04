@@ -253,25 +253,6 @@ export const YourData: FC<{
                     </ActionIcon>
                 </Tooltip>
             </Group>
-            <Group gap={6} mt="xs">
-                <Text fz="xs" c="dimmed" mr={2}>
-                    Connected
-                </Text>
-                <SourceTag
-                    icon={
-                        warehouse.doneIcon ?? (
-                            <MantineIcon icon={IconDatabase} size={14} />
-                        )
-                    }
-                    name={warehouse.annotation ?? 'Warehouse'}
-                    detail={
-                        guide.activeRun ? (
-                            <SemanticLayerDetail guide={guide} />
-                        ) : null
-                    }
-                />
-                {guide.liveConnections.map(liveSourceTag)}
-            </Group>
             <Box className={classes.paths}>
                 <UnstyledButton className={classes.path} onClick={onAsk}>
                     <ChoiceArt kind="ask" />
@@ -291,11 +272,30 @@ export const YourData: FC<{
                     />
                 </Link>
             </Box>
-            {guide.semanticExplores.length > 0 && (
-                <Group justify="flex-end" mt="sm">
-                    <HowItWorks projectUuid={projectUuid} />
+            <Group justify="space-between" mt="sm" gap="sm">
+                <Group gap={6}>
+                    <Text fz="xs" c="dimmed" mr={2}>
+                        Using
+                    </Text>
+                    <SourceTag
+                        icon={
+                            warehouse.doneIcon ?? (
+                                <MantineIcon icon={IconDatabase} size={14} />
+                            )
+                        }
+                        name={warehouse.annotation ?? 'Warehouse'}
+                        detail={
+                            guide.activeRun ? (
+                                <SemanticLayerDetail guide={guide} />
+                            ) : null
+                        }
+                    />
+                    {guide.liveConnections.map(liveSourceTag)}
                 </Group>
-            )}
+                {guide.semanticExplores.length > 0 && (
+                    <HowItWorks projectUuid={projectUuid} />
+                )}
+            </Group>
         </Paper>
     );
 };
