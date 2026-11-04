@@ -123,7 +123,11 @@ export const DataSourceChooser: FC = () => {
             {
                 name: user.data?.organizationName || 'My project',
                 type: ProjectType.DEFAULT,
-                dbtConnection: { type: DbtProjectType.NONE },
+                // No dbt project to refresh, so skip the CLI deploy hint
+                dbtConnection: {
+                    type: DbtProjectType.NONE,
+                    hideRefreshButton: true,
+                },
                 dbtVersion: DefaultSupportedDbtVersion,
             },
             {
