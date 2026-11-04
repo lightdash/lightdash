@@ -131,7 +131,6 @@ import { OnboardingAgentService } from './services/OnboardingAgentService/Onboar
 import { ProjectContextService } from './services/ProjectContextService/ProjectContextService';
 import { ProjectHomepageService } from './services/ProjectHomepageService';
 import { createPlaygroundAppFileStore } from './services/ProjectService/playgroundAppFiles';
-import { provisionOnboardingHomepage } from './services/ProjectService/provisionOnboardingHomepage';
 import { provisionPlaygroundProject } from './services/ProjectService/provisionPlaygroundProject';
 import { seedTrainingCopyAgentDocuments } from './services/ProjectService/seedPlaygroundAgentDocuments';
 import { seedPlaygroundContent } from './services/ProjectService/seedPlaygroundContent';
@@ -1356,34 +1355,20 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         method,
                         provisioningSource,
                     }) => {
-                        await Promise.all([
-                            provisionOnboardingHomepage({
-                                user,
-                                projectUuid,
-                                projectType,
-                                provisioningSource,
-                                featureFlagService:
-                                    repository.getFeatureFlagService(),
-                                projectModel: models.getProjectModel(),
-                                projectHomepageModel:
-                                    models.getProjectHomepageModel<ProjectHomepageModel>(),
-                                analytics: context.lightdashAnalytics,
-                            }),
-                            autoStartOnboardingAgentRun({
-                                user,
-                                projectUuid,
-                                projectType,
-                                dbtProjectType,
-                                method,
-                                provisioningSource,
-                                featureFlagService:
-                                    repository.getFeatureFlagService(),
-                                projectModel: models.getProjectModel(),
-                                onboardingAgentService:
-                                    repository.getOnboardingAgentService<OnboardingAgentService>(),
-                                analytics: context.lightdashAnalytics,
-                            }),
-                        ]);
+                        await autoStartOnboardingAgentRun({
+                            user,
+                            projectUuid,
+                            projectType,
+                            dbtProjectType,
+                            method,
+                            provisioningSource,
+                            featureFlagService:
+                                repository.getFeatureFlagService(),
+                            projectModel: models.getProjectModel(),
+                            onboardingAgentService:
+                                repository.getOnboardingAgentService<OnboardingAgentService>(),
+                            analytics: context.lightdashAnalytics,
+                        });
                     },
                     provisionPlaygroundProject: ({
                         user,
