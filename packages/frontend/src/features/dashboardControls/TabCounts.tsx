@@ -113,7 +113,7 @@ export const TabCounts: FC<Props> = ({ hasTabSlots = false }) => {
                     return [
                         tab.uuid,
                         interpolateUiString(
-                            getUiString('filters.rail.tabFraction'),
+                            getUiString('controls.tabFraction'),
                             { applied: n, total: n },
                         ),
                     ];
@@ -124,7 +124,7 @@ export const TabCounts: FC<Props> = ({ hasTabSlots = false }) => {
 
     if (!isEnabled) return null;
 
-    const subject = getUiString('filters.rail.thisFilter');
+    const subject = getUiString('controls.thisFilter');
 
     return (
         <>
@@ -150,8 +150,8 @@ export const TabCounts: FC<Props> = ({ hasTabSlots = false }) => {
                             interpolateUiString(
                                 getUiString(
                                     countValues.total === 1
-                                        ? 'filters.rail.tabCountTooltip.singular'
-                                        : 'filters.rail.tabCountTooltip.plural',
+                                        ? 'controls.tabCountTooltip.singular'
+                                        : 'controls.tabCountTooltip.plural',
                                 ),
                                 { ...countValues, subject },
                             )
@@ -171,15 +171,13 @@ export const TabCounts: FC<Props> = ({ hasTabSlots = false }) => {
                                 <>
                                     <span aria-hidden="true">
                                         {interpolateUiString(
-                                            getUiString(
-                                                'filters.rail.tabFraction',
-                                            ),
+                                            getUiString('controls.tabFraction'),
                                             countValues,
                                         )}
                                     </span>
                                     <VisuallyHidden>
                                         {interpolateUiString(
-                                            getUiString('filters.rail.countOf'),
+                                            getUiString('controls.countOf'),
                                             countValues,
                                         )}
                                     </VisuallyHidden>

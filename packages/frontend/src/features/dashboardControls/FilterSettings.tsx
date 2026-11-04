@@ -272,7 +272,7 @@ export const FilterSettings: FC<Props> = ({
                         >
                             <Text fz="xs">
                                 {interpolateUiString(
-                                    getUiString('filters.rail.appliesTo'),
+                                    getUiString('controls.appliesTo'),
                                     {
                                         tiles: formatTileCount(
                                             getUiString,
@@ -286,7 +286,7 @@ export const FilterSettings: FC<Props> = ({
                                 size="xs"
                                 onClick={startMapping}
                             >
-                                {getUiString('filters.rail.chooseTiles')}
+                                {getUiString('controls.chooseTiles')}
                             </Button>
                         </Group>
                     )}

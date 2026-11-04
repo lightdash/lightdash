@@ -425,8 +425,7 @@ export const FilterPopover: FC<Props> = ({
 
     const fieldName =
         field?.label ?? (rule.target.isSqlColumn ? rule.target.fieldId : null);
-    const name =
-        rule.label ?? fieldName ?? getUiString('filters.rail.filterName');
+    const name = rule.label ?? fieldName ?? getUiString('controls.filterName');
     const canChooseTiles = !isViewer || isOwnFilter;
     const hasSingleValueSetting =
         !isViewer && supportsSingleValue(filterType, rule.operator);
@@ -453,10 +452,9 @@ export const FilterPopover: FC<Props> = ({
         appliedTileCount === 0 || appliedTileCount === totalTileCount
             ? formatTileCount(getUiString, appliedTileCount)
             : `${tilesOf.count} ${tilesOf.noun}`;
-    const appliesTo = interpolateUiString(
-        getUiString('filters.rail.appliesTo'),
-        { tiles: tileCount },
-    );
+    const appliesTo = interpolateUiString(getUiString('controls.appliesTo'), {
+        tiles: tileCount,
+    });
     const settingsSummary = getSettingsSummary({
         rule,
         filters,
@@ -466,7 +464,7 @@ export const FilterPopover: FC<Props> = ({
     });
     const isRow = footerLayout === 'row';
 
-    const chooseTiles = getUiString('filters.rail.chooseTiles');
+    const chooseTiles = getUiString('controls.chooseTiles');
     const tilesChip = canChooseTiles && (
         <Tooltip fz="xs" label={chooseTiles} disabled={isRow}>
             <Button
@@ -762,7 +760,7 @@ export const FilterPopover: FC<Props> = ({
                 >
                     <Text fz="xs" role="status">
                         {interpolateUiString(
-                            getUiString('filters.rail.applyChangesFirst'),
+                            getUiString('controls.applyChangesFirst'),
                             { filter: name },
                         )}
                     </Text>
@@ -772,7 +770,7 @@ export const FilterPopover: FC<Props> = ({
                             size="xs"
                             onClick={() => onResolvePending(false)}
                         >
-                            {getUiString('filters.rail.discard')}
+                            {getUiString('controls.discard')}
                         </Button>
                         <Button
                             variant="default"

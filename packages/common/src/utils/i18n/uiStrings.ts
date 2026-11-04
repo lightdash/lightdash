@@ -412,6 +412,37 @@ export const DEFAULT_UI_STRINGS = {
     'filters.rail.mappingFilters': 'filters',
     'filters.rail.backToFilter': 'Back to filter',
     'filters.rail.mappingUsing': 'using',
+    'controls.newFilter': 'New filter',
+    'controls.filterName': 'Filter name',
+    'controls.removeFilter': 'Remove filter',
+    'controls.onlyYouSeeFilter': 'Only you see this filter',
+    'controls.collapse': 'Collapse',
+    'controls.tileCount.singular': '{count} tile',
+    'controls.tileCount.plural': '{count} tiles',
+    'controls.countOf': '{applied} of {total}',
+    'controls.tabFraction': '{applied}/{total}',
+    'controls.searchFields': 'Search fields',
+    'controls.noOtherField': 'No tile has another field this filter could use',
+    'controls.sqlColumn': 'SQL column',
+    'controls.thisFilter': 'this filter',
+    'controls.tabCountTooltip.singular':
+        '{applied} of {total} tile on this tab is filtered by {subject}',
+    'controls.tabCountTooltip.plural':
+        '{applied} of {total} tiles on this tab are filtered by {subject}',
+    'controls.sectionCount.singular': '{count} filter',
+    'controls.sectionCount.plural': '{count} filters',
+    'controls.untitledSection': 'Untitled section',
+    'controls.collapseSection': 'Collapse section {section}',
+    'controls.expandSection': 'Expand section {section}',
+    'controls.add': 'Add',
+    'controls.discard': 'Discard',
+    'controls.applyChangesFirst': 'Apply changes to {filter} first?',
+    'controls.appliesTo': 'Applies to {tiles}',
+    'controls.chooseTiles': 'Choose tiles',
+    'controls.addField': 'Add a field',
+    'controls.mappingFilters': 'filters',
+    'controls.backToFilter': 'Back to filter',
+    'controls.mappingUsing': 'using',
     'filters.tileCard.locked': 'Tiles are locked while a filter is edited',
     'filters.tileCard.unreachable':
         'This tile has no field this filter can use',
@@ -520,6 +551,52 @@ export type UiStringKey = keyof typeof DEFAULT_UI_STRINGS;
 export type SdkUiOverrides = Partial<Record<UiStringKey, string>>;
 
 export type UiStringResolver = (key: UiStringKey) => string;
+
+const LEGACY_CONTROL_KEYS: Partial<Record<UiStringKey, UiStringKey>> = {
+    'controls.newFilter': 'filters.rail.newFilter',
+    'controls.filterName': 'filters.rail.filterName',
+    'controls.removeFilter': 'filters.rail.removeFilter',
+    'controls.onlyYouSeeFilter': 'filters.rail.onlyYouSeeFilter',
+    'controls.collapse': 'filters.rail.collapse',
+    'controls.tileCount.singular': 'filters.rail.tileCount.singular',
+    'controls.tileCount.plural': 'filters.rail.tileCount.plural',
+    'controls.countOf': 'filters.rail.countOf',
+    'controls.tabFraction': 'filters.rail.tabFraction',
+    'controls.searchFields': 'filters.rail.searchFields',
+    'controls.noOtherField': 'filters.rail.noOtherField',
+    'controls.sqlColumn': 'filters.rail.sqlColumn',
+    'controls.thisFilter': 'filters.rail.thisFilter',
+    'controls.tabCountTooltip.singular':
+        'filters.rail.tabCountTooltip.singular',
+    'controls.tabCountTooltip.plural': 'filters.rail.tabCountTooltip.plural',
+    'controls.sectionCount.singular': 'filters.rail.sectionCount.singular',
+    'controls.sectionCount.plural': 'filters.rail.sectionCount.plural',
+    'controls.untitledSection': 'filters.rail.untitledSection',
+    'controls.collapseSection': 'filters.rail.collapseSection',
+    'controls.expandSection': 'filters.rail.expandSection',
+    'controls.add': 'filters.rail.add',
+    'controls.discard': 'filters.rail.discard',
+    'controls.applyChangesFirst': 'filters.rail.applyChangesFirst',
+    'controls.appliesTo': 'filters.rail.appliesTo',
+    'controls.chooseTiles': 'filters.rail.chooseTiles',
+    'controls.addField': 'filters.rail.addField',
+    'controls.mappingFilters': 'filters.rail.mappingFilters',
+    'controls.backToFilter': 'filters.rail.backToFilter',
+    'controls.mappingUsing': 'filters.rail.mappingUsing',
+};
+
+/** Prefer the current override, then the equivalent shipped SDK key. */
+export const resolveUiString = (
+    key: UiStringKey,
+    override?: (key: UiStringKey) => string | undefined,
+): string => {
+    const legacyKey = LEGACY_CONTROL_KEYS[key];
+    return (
+        override?.(key) ??
+        (legacyKey === undefined ? undefined : override?.(legacyKey)) ??
+        DEFAULT_UI_STRINGS[key]
+    );
+};
 
 export const interpolateUiString = (
     template: string,

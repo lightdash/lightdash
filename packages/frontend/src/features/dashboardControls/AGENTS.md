@@ -197,7 +197,7 @@ Each one has broken before or would break silently.
 ## Strings
 
 Viewers and embeds see the editor, tile cards, field bar and tab counts, so
-their copy lives in `DEFAULT_UI_STRINGS` (`filters.rail.*`,
+their copy lives in `DEFAULT_UI_STRINGS` (`controls.*`,
 `filters.tileCard.*`, `filters.fieldBar.*`, or a shipped key that fits),
 read with `useUiStrings`; counts go through `formatTileCount` /
 `formatFieldCount` in `fieldLabels.ts`. Add every new key to both locale
@@ -243,7 +243,7 @@ Every flag-on pill is the default white pill; only these change it, all in
   ink border, the extra 0.5px inset so the box keeps its size.
 - Not saved for everyone (`data-temporary`: a viewer's own filter, or an
   editor's filter not in the saved dashboard, or a temporary pill): dashed.
-  "Only you see this filter" (`filters.rail.onlyYouSeeFilter`) or "Not saved
+  "Only you see this filter" (`controls.onlyYouSeeFilter`) or "Not saved
   yet" is the first line of the tooltip the pill already has: the select
   hint, else the tables tooltip (`tablesTooltipNote`).
 - Picked (edit mode): blue fill and a check, the only blue.

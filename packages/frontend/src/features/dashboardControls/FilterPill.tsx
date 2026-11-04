@@ -115,7 +115,7 @@ export const FilterPill: FC<Props> = memo(
             isSelected && isSidebarOpen
                 ? null
                 : kind === 'viewerOwn'
-                  ? getUiString('filters.rail.onlyYouSeeFilter')
+                  ? getUiString('controls.onlyYouSeeFilter')
                   : isDraft
                     ? 'Not saved yet'
                     : null;
@@ -239,9 +239,7 @@ export const FilterPill: FC<Props> = memo(
                                           removeFilterById(filter.id);
                                       }
                             }
-                            removeLabel={getUiString(
-                                'filters.rail.removeFilter',
-                            )}
+                            removeLabel={getUiString('controls.removeFilter')}
                             // One tooltip at a time: the hint takes the pill's
                             isTablesTooltipDisabled={isSelected || isSelectable}
                             tablesTooltipNote={tablesTooltipNote}

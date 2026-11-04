@@ -53,7 +53,7 @@ const TemporaryPills: FC<Props> = ({ activeTabUuid }) => {
             <TemporaryFilters
                 isEditMode
                 isPlain
-                tablesTooltipNote={getUiString('filters.rail.onlyYouSeeFilter')}
+                tablesTooltipNote={getUiString('controls.onlyYouSeeFilter')}
                 activeTabUuid={activeTabUuid}
                 openPopoverId={openPopoverId}
                 onPopoverOpen={setOpenPopoverId}

@@ -34,7 +34,7 @@ export const SectionSetting: FC<{
                         value: section.id,
                         label:
                             section.name ||
-                            getUiString('filters.rail.untitledSection'),
+                            getUiString('controls.untitledSection'),
                     })),
                 ]}
                 value={

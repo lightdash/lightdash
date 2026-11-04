@@ -64,8 +64,7 @@ const SectionSelect: FC<{ rule: DashboardFilterRule }> = ({ rule }) => {
                 ...sections.map((section) => ({
                     value: section.id,
                     label:
-                        section.name ||
-                        getUiString('filters.rail.untitledSection'),
+                        section.name || getUiString('controls.untitledSection'),
                 })),
             ]}
             value={value}
@@ -112,7 +111,7 @@ const Prompt: FC<{ name: string; applyBlockedReason: string | null }> = ({
         >
             <Text fz="xs" role="status">
                 {interpolateUiString(
-                    getUiString('filters.rail.applyChangesFirst'),
+                    getUiString('controls.applyChangesFirst'),
                     { filter: name },
                 )}
             </Text>
@@ -122,7 +121,7 @@ const Prompt: FC<{ name: string; applyBlockedReason: string | null }> = ({
                     size="xs"
                     onClick={() => resolvePending(false)}
                 >
-                    {getUiString('filters.rail.discard')}
+                    {getUiString('controls.discard')}
                 </Button>
                 <Button
                     variant="default"
@@ -310,10 +309,10 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
         (filterRule.target.isSqlColumn ? filterRule.target.fieldId : null);
     const name =
         isPlaceholder && isNew
-            ? getUiString('filters.rail.newFilter')
+            ? getUiString('controls.newFilter')
             : (filterRule.label ??
               (isPlaceholder ? emptiedFieldLabel : fieldName) ??
-              getUiString('filters.rail.filterName'));
+              getUiString('controls.filterName'));
     const focusOnMount = useCallback(
         (node: HTMLElement | null) => focusStartOnMount(node),
         [],
@@ -349,7 +348,7 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
                                 label={label}
                                 fallback={
                                     fieldName ??
-                                    getUiString('filters.rail.filterName')
+                                    getUiString('controls.filterName')
                                 }
                                 placeholder={
                                     field
