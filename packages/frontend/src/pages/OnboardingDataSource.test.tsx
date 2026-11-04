@@ -32,15 +32,7 @@ const healthWithGoogleAuth = (enabled: boolean): Partial<HealthState> => ({
     },
 });
 
-const renderDataSourcePicker = (isGoogleAuthEnabled: boolean) =>
-    renderWithProviders(
-        <MemoryRouter>
-            <OnboardingDataSource />
-        </MemoryRouter>,
-        { health: healthWithGoogleAuth(isGoogleAuthEnabled) },
-    );
-
-const renderWithoutProjectCreation = () =>
+const renderChooser = ({ canCreateProject }: { canCreateProject: boolean }) =>
     renderWithProviders(
         <MemoryRouter initialEntries={['/onboarding/data-source']}>
             <Routes>
@@ -48,13 +40,17 @@ const renderWithoutProjectCreation = () =>
                     path="/onboarding/data-source"
                     element={<OnboardingDataSource />}
                 />
+                <Route
+                    path="/onboarding/data-source/postgres"
+                    element={<div>postgres form</div>}
+                />
                 <Route path="/" element={<div>home</div>} />
                 <Route path="/no-access" element={<div>no access</div>} />
             </Routes>
         </MemoryRouter>,
         {
             health: healthWithGoogleAuth(false),
-            user: { abilityRules: [] },
+            ...(canCreateProject ? {} : { user: { abilityRules: [] } }),
         },
     );
 
@@ -66,33 +62,22 @@ describe('OnboardingDataSource', () => {
         } as ReturnType<typeof useServerFeatureFlag>);
     });
 
-    it('asks for the warehouse and model setup on one screen', async () => {
-        renderDataSourcePicker(false);
+    it('opens the warehouse form straight from its tile', async () => {
+        renderChooser({ canCreateProject: true });
 
-        const continueButton = await screen.findByRole('button', {
-            name: 'Continue',
-        });
-        expect(screen.getByText('BigQuery')).toBeInTheDocument();
         expect(
-            screen.getByRole('radiogroup', {
+            screen.queryByRole('radiogroup', {
                 name: 'How should we set up your models?',
             }),
-        ).toBeInTheDocument();
-        expect(continueButton).toBeDisabled();
-
+        ).not.toBeInTheDocument();
         await userEvent.click(
-            screen.getByRole('radio', { name: /PostgreSQL/ }),
+            await screen.findByRole('button', { name: /PostgreSQL/ }),
         );
-        expect(continueButton).toBeDisabled();
-
-        await userEvent.click(
-            screen.getByRole('radio', { name: /From my tables/ }),
-        );
-        expect(continueButton).toBeEnabled();
+        expect(await screen.findByText('postgres form')).toBeInTheDocument();
     });
 
     it('sends a user who cannot create a project to the no access page', async () => {
-        renderWithoutProjectCreation();
+        renderChooser({ canCreateProject: false });
 
         expect(await screen.findByText('no access')).toBeInTheDocument();
         expect(screen.queryByText('home')).not.toBeInTheDocument();

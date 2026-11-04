@@ -18,6 +18,10 @@ import { type ConnectionFormStep } from '../components/ProjectConnection/CreateP
 import { DataSourceChooser } from '../components/ProjectConnection/ProjectConnectFlow/DataSourceChooser';
 import { LiveSourcesNote } from '../components/ProjectConnection/ProjectConnectFlow/LiveSourcesTeaser';
 import {
+    ModelSourceQuestion,
+    type ModelSource,
+} from '../components/ProjectConnection/ProjectConnectFlow/ModelSourceQuestion';
+import {
     getWarehouseIcon,
     getWarehouseLabel,
     OTHER_ROUTE_PARAM,
@@ -67,11 +71,13 @@ const REPO_MODE = 'repo';
 
 const WarehouseConnect: FC<{
     selectedWarehouse: WarehouseTypes;
-    withDbt: boolean;
-}> = ({ selectedWarehouse, withDbt }) => {
+    initialModelSource: ModelSource | null;
+}> = ({ selectedWarehouse, initialModelSource }) => {
     const goBack = useBackToChooser();
     const onboardingNavigate = useOnboardingNavigate();
     const [step, setStep] = useState<ConnectionFormStep>('warehouse');
+    const [modelSource, setModelSource] = useState(initialModelSource);
+    const withDbt = modelSource === 'dbt';
     const isDbtStep = withDbt && step === 'dbt';
     const {
         isInitialLoading: isLoadingOrganization,
@@ -132,7 +138,7 @@ const WarehouseConnect: FC<{
                         )}
                     </Stack>
                 </Group>
-                <ProjectFormProvider key={withDbt ? REPO_MODE : 'fresh'}>
+                <ProjectFormProvider>
                     <CreateProjectConnection
                         isCreatingFirstProject={!hasRealProject}
                         selectedWarehouse={selectedWarehouse}
@@ -149,6 +155,13 @@ const WarehouseConnect: FC<{
                                 : null
                         }
                         alwaysShowProjectName
+                        warehouseStepEnd={
+                            <ModelSourceQuestion
+                                value={modelSource}
+                                onChange={setModelSource}
+                            />
+                        }
+                        canSubmit={modelSource !== null}
                         successRedirect={(projectUuid) =>
                             `/onboarding/tools/${projectUuid}`
                         }
@@ -235,7 +248,7 @@ const OnboardingDataSourceContent: FC = () => {
             {selectedWarehouse ? (
                 <WarehouseConnect
                     selectedWarehouse={selectedWarehouse}
-                    withDbt={mode === REPO_MODE}
+                    initialModelSource={mode === REPO_MODE ? 'dbt' : null}
                 />
             ) : warehouse === OTHER_ROUTE_PARAM ? (
                 <OtherWarehouseConnect />

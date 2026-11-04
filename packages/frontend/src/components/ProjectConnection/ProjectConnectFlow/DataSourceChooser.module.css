@@ -109,7 +109,3 @@
 .teaserIcon + .teaserIcon {
     margin-left: -8px;
 }
-
-.tile[data-checked] {
-    border-color: var(--mantine-color-text);
-}

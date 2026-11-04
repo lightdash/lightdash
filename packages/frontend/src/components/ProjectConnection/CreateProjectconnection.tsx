@@ -65,6 +65,9 @@ interface CreateProjectConnectionProps {
         current: ConnectionFormStep;
         onChange: (step: ConnectionFormStep) => void;
     } | null;
+    /** Rendered after the warehouse fields, above the footer */
+    warehouseStepEnd?: ReactNode;
+    canSubmit?: boolean;
 }
 
 // The schema input is rendered with the dbt settings, so it belongs to the dbt step
@@ -80,6 +83,8 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
     footerStart = null,
     alwaysShowProjectName = false,
     steps = null,
+    warehouseStepEnd = null,
+    canSubmit = true,
 }) => {
     const { pathname } = useLocation();
     const onboardingFlow = pathname.startsWith('/onboarding/')
@@ -155,6 +160,25 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         },
         validateInputOnBlur: true,
     });
+
+    // warehouseOnly can flip while the form is open, so swap the dbt values with it
+    const isFirstRender = useRef(true);
+    useEffect(() => {
+        if (isFirstRender.current) {
+            isFirstRender.current = false;
+            return;
+        }
+        form.setFieldValue(
+            'dbt',
+            warehouseOnly
+                ? noneDefaultValues
+                : {
+                      ...dbtDefaults.formValues[dbtType],
+                      ...health.data?.defaultProject,
+                  },
+        );
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [warehouseOnly]);
 
     const { track } = useTracking();
 
@@ -344,7 +368,11 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
 
     const isWarehouseStep = steps?.current === 'warehouse';
     const submitButton = isWarehouseStep ? (
-        <Button className={classes.submitButton} onClick={goToDbtStep}>
+        <Button
+            className={classes.submitButton}
+            onClick={goToDbtStep}
+            disabled={!canSubmit}
+        >
             Next
         </Button>
     ) : (
@@ -353,7 +381,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
             className={classes.submitButton}
             type="submit"
             loading={isSavingProject}
-            disabled={!form.isValid()}
+            disabled={!canSubmit || !form.isValid()}
         >
             {warehouseOnly ? 'Test & save' : 'Test & deploy project'}
         </Button>
@@ -399,6 +427,9 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                                     warehouseOnly={warehouseOnly}
                                     dbtTypePicker={steps ? 'tiles' : 'select'}
                                 />
+
+                                {(!steps || isWarehouseStep) &&
+                                    warehouseStepEnd}
 
                                 {footerStart ? (
                                     <Group
