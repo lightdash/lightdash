@@ -423,6 +423,11 @@
     height: 18px;
 }
 
+.sheet[data-labels] .field {
+    font-family: inherit;
+    font-size: 10px;
+}
+
 .field[data-picked]::before {
     content: '✓ ';
 }

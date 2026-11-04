@@ -90,12 +90,12 @@ const SCENES: Record<SetupGuideRowId, () => ReactNode> = {
                 orders by month?
             </Box>
             <ChartCard />
-            <Box className={classes.sheet} data-fields>
+            <Box className={classes.sheet} data-fields data-labels>
                 <Box className={classes.field} data-kind="metric">
-                    order_count
+                    Order count
                 </Box>
                 <Box className={classes.field} data-kind="dimension">
-                    order_month
+                    Order month
                 </Box>
             </Box>
         </Box>
@@ -172,19 +172,19 @@ const CHOICE_SCENES: Record<'ask' | 'explore', () => ReactNode> = {
     ),
     explore: () => (
         <Box className={classes.model}>
-            <Box className={classes.sheet}>
+            <Box className={classes.sheet} data-labels>
                 <Box className={classes.field} data-kind="metric" data-picked>
-                    order_count
+                    Order count
                 </Box>
                 <Box
                     className={classes.field}
                     data-kind="dimension"
                     data-picked
                 >
-                    order_month
+                    Order month
                 </Box>
                 <Box className={classes.field} data-kind="dimension">
-                    status
+                    Status
                 </Box>
             </Box>
             <Box className={classes.metricCard}>

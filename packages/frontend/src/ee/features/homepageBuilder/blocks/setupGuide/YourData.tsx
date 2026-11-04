@@ -277,7 +277,7 @@ export const YourData: FC<{
                     <ChoiceArt kind="ask" />
                     <PathLabel
                         label={`Ask ${AI_NAME}`}
-                        description="Type a question in plain words and get a chart back."
+                        description="Ask in plain words, get a chart back."
                     />
                 </UnstyledButton>
                 <Link
@@ -287,7 +287,7 @@ export const YourData: FC<{
                     <ChoiceArt kind="explore" />
                     <PathLabel
                         label="Build in Explore"
-                        description="Pick a metric and a dimension, then choose a chart type."
+                        description="Pick fields, then choose a chart type."
                     />
                 </Link>
             </Box>

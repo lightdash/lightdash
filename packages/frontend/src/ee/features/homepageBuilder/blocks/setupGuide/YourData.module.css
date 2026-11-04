@@ -50,7 +50,17 @@
 }
 
 .path [data-size='choice'] {
-    height: 108px;
+    height: 96px;
+}
+
+.path [data-size='choice'] > * {
+    transform: scale(1.15);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .path:hover [data-size='choice'] > * {
+        transform: translateY(-2px) scale(1.18);
+    }
 }
 
 @media (hover: hover) and (pointer: fine) {
