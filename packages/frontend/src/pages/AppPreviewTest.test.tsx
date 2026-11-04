@@ -82,6 +82,7 @@ vi.mock('../hooks/organization/useWhiteLabelBrand', () => ({
         logoUrl: null,
         name: null,
         isResolved: true,
+        isInstanceBrandResolved: true,
     }),
 }));
 

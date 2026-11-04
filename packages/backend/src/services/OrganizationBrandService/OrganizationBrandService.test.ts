@@ -9,6 +9,7 @@ import fetch, { Response } from 'node-fetch';
 import { Readable } from 'node:stream';
 import { buildAccount } from '../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { type LightdashConfig } from '../../config/parseConfig';
 import { OrganizationBrandModel } from '../../models/OrganizationBrandModel';
 import { InstanceBrandService } from '../InstanceBrandService/InstanceBrandService';
 import { LicenseService } from '../LicenseService/LicenseService';
@@ -339,7 +340,9 @@ describe('favicon', () => {
             validLicense: true,
             instanceLogo: true,
         });
-        expect(await service.getFaviconUrl(account)).toBe(instanceLogoUrl);
+        expect(await service.getFaviconUrl(account, true)).toBe(
+            instanceLogoUrl,
+        );
         expect(organizationBrandModel.findBrand).not.toHaveBeenCalled();
     });
 
@@ -348,7 +351,7 @@ describe('favicon', () => {
             await buildService({
                 validLicense: true,
                 instanceLogo: false,
-            }).getFaviconUrl(undefined),
+            }).getFaviconUrl(undefined, true),
         ).toBe('/favicon.ico');
     });
 
@@ -357,7 +360,7 @@ describe('favicon', () => {
             await buildService({
                 validLicense: false,
                 instanceLogo: false,
-            }).getFaviconUrl(buildAccount()),
+            }).getFaviconUrl(buildAccount(), true),
         ).toBe('/favicon.ico');
         expect(organizationBrandModel.findBrand).not.toHaveBeenCalled();
     });
@@ -370,7 +373,7 @@ describe('favicon', () => {
             await buildService({
                 validLicense: true,
                 instanceLogo: true,
-            }).getFaviconUrl(buildAccount()),
+            }).getFaviconUrl(buildAccount(), true),
         ).toBe(instanceLogoUrl);
     });
 
@@ -386,10 +389,33 @@ describe('favicon', () => {
             await buildService({
                 validLicense: true,
                 instanceLogo: true,
-            }).getFaviconUrl(account),
+            }).getFaviconUrl(account, true),
         ).toBe(logoUrl);
         expect(organizationBrandModel.findBrand).toHaveBeenCalledWith(
             account.organization.organizationUuid,
         );
+    });
+
+    it('uses the instance logo for unverified users when email is configured', async () => {
+        const service = new OrganizationBrandService({
+            lightdashConfig: {
+                ...lightdashConfigMock,
+                smtp: {} as LightdashConfig['smtp'],
+            },
+            organizationBrandModel,
+            instanceBrandService: {
+                getInstanceBrand: () => ({
+                    logoUrl: instanceLogoUrl,
+                    name: null,
+                }),
+            },
+            licenseService: {
+                getLicenseStatus: () => ({ valid: true, hasLicenseKey: true }),
+            },
+        });
+        expect(await service.getFaviconUrl(buildAccount(), false)).toBe(
+            instanceLogoUrl,
+        );
+        expect(organizationBrandModel.findBrand).not.toHaveBeenCalled();
     });
 });

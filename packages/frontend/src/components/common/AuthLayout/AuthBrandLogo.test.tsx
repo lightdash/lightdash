@@ -7,6 +7,7 @@ const brand = vi.hoisted(() => ({
     logoUrl: null as string | null,
     name: null as string | null,
     isResolved: true,
+    isInstanceBrandResolved: true,
 }));
 vi.mock('../../../hooks/organization/useWhiteLabelBrand', () => ({
     useWhiteLabelBrand: () => brand,
@@ -23,6 +24,7 @@ beforeEach(() => {
     brand.logoUrl = 'https://cdn.example.com/logo.png';
     brand.name = 'Acme Analytics';
     brand.isResolved = true;
+    brand.isInstanceBrandResolved = true;
 });
 
 describe('AuthBrandLogo', () => {
@@ -31,6 +33,12 @@ describe('AuthBrandLogo', () => {
         brand.name = null;
         renderLogo();
         expect(screen.getByText('Lightdash')).toBeInTheDocument();
+    });
+
+    it('does not wait for the organization brand', () => {
+        brand.isResolved = false;
+        renderLogo();
+        expect(screen.getByAltText('Acme Analytics logo')).toBeInTheDocument();
     });
 
     it('keeps the name when the logo fails to load', () => {

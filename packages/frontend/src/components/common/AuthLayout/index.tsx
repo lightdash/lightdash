@@ -130,7 +130,7 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
         if (panel) panel.dataset.stage = 'submitting';
     };
 
-    if (isInitialLoading || !whiteLabelBrand.isResolved) {
+    if (isInitialLoading || !whiteLabelBrand.isInstanceBrandResolved) {
         return <PageSpinner />;
     }
 

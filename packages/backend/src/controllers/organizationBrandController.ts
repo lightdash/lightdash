@@ -171,7 +171,7 @@ export class OrganizationBrandController extends BaseController {
     ): Promise<void> {
         const url = await this.services
             .getOrganizationBrandService()
-            .getFaviconUrl(req.account);
+            .getFaviconUrl(req.account, req.user?.isEmailVerified === true);
         const { res } = req as express.Request & { res: express.Response };
         res.setHeader('Cache-Control', 'private, no-cache');
         res.redirect(302, url);

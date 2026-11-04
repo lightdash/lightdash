@@ -8,6 +8,7 @@ export const useWhiteLabelBrand = (): {
     logoUrl: string | null;
     name: string | null;
     isResolved: boolean;
+    isInstanceBrandResolved: boolean;
 } => {
     const { health, user } = useApp();
     const isEmbedded = useIsEmbedded();
@@ -34,5 +35,7 @@ export const useWhiteLabelBrand = (): {
             null,
         name: brand?.name?.trim() || instanceBrand?.name || null,
         isResolved,
+        // Auth pages can't wait for the org brand: the user query may never run there
+        isInstanceBrandResolved: health.isError || !!health.data,
     };
 };

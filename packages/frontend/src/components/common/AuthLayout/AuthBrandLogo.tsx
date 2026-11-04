@@ -9,10 +9,10 @@ type Props = {
 };
 
 const AuthBrandLogo: FC<Props> = ({ fallback, className }) => {
-    const { logoUrl, name, isResolved } = useWhiteLabelBrand();
+    const { logoUrl, name, isInstanceBrandResolved } = useWhiteLabelBrand();
     const [failedUrl, setFailedUrl] = useState<string | null>(null);
 
-    if (!isResolved) return null;
+    if (!isInstanceBrandResolved) return null;
     if (!logoUrl && !name) return fallback;
     const showLogo = !!logoUrl && logoUrl !== failedUrl;
     if (!showLogo && !name) return null;

@@ -384,12 +384,19 @@ export class OrganizationBrandService extends BaseService {
         return { url: `${BRAND_LOGO_FILE_URL_PREFIX}${logoFileUuid}`, format };
     }
 
-    async getFaviconUrl(account: Account | undefined): Promise<string> {
+    async getFaviconUrl(
+        account: Account | undefined,
+        isEmailVerified: boolean,
+    ): Promise<string> {
         const fallback =
             this.dependencies.instanceBrandService.getInstanceBrand()
                 ?.logoUrl ?? DEFAULT_FAVICON_URL;
+        // Unverified sessions can't load the organization's logo when email is configured
+        const isRestrictedSession =
+            !!this.dependencies.lightdashConfig.smtp && !isEmailVerified;
         if (
             !account?.isSessionUser() ||
+            isRestrictedSession ||
             !this.dependencies.licenseService.getLicenseStatus().valid
         ) {
             return fallback;
