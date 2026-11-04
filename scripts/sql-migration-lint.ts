@@ -824,7 +824,7 @@ export function evaluateMigrationSource(
                 file,
                 1,
                 'missing-lock-timeout',
-                `DDL on table(s) ${tables.length > 0 ? tables.join(', ') : '<dynamic or unknown>'} has no SET LOCAL lock_timeout or SET lock_timeout protection; use a finite lock_timeout defaulting to '30s' (see packages/backend/src/database/migrations/AGENTS.md)`,
+                `DDL on table(s) ${tables.length > 0 ? tables.join(', ') : '<dynamic or unknown>'} has no SET LOCAL lock_timeout or SET lock_timeout protection; use a finite lock_timeout defaulting to '60s' (see packages/backend/src/database/migrations/AGENTS.md)`,
                 'warning',
             ),
         );
