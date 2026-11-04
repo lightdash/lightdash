@@ -20,7 +20,7 @@ import {
     IconPlugConnected,
     IconX,
 } from '@tabler/icons-react';
-import { useState, type FC, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { useLocalStorage } from 'react-use';
 import { AI_NAME } from '../../../../../components/common/aiName';
@@ -29,6 +29,8 @@ import MantineModal from '../../../../../components/common/MantineModal';
 import { getLiveSource } from '../../../../../features/externalConnections/liveSources/liveSourceCatalog';
 import { LiveSourceIcon } from '../../../../../features/externalConnections/liveSources/LiveSourceIcon';
 import useApp from '../../../../../providers/App/useApp';
+import useTracking from '../../../../../providers/Tracking/useTracking';
+import { EventName } from '../../../../../types/Events';
 import { getAgentOnboardingRunUrl } from '../../../agentOnboarding/utils';
 import { type RecommendedActionsState } from '../useRecommendedActions';
 import {
@@ -226,8 +228,40 @@ export const YourData: FC<{
         `homepage-your-data-dismissed-${user.data?.userUuid ?? 'anon'}-${projectUuid}`,
         false,
     );
+    const { track } = useTracking();
     const warehouse = actions.statuses['connect-warehouse'];
-    if (!warehouse.isComplete || isDismissed) return null;
+    const isShown = warehouse.isComplete && !isDismissed;
+    const bannerProperties = {
+        surface: 'first_chart_banner',
+        projectId: projectUuid,
+        rowId: 'first-chart',
+        actionKey: null,
+    } as const;
+    const hasTrackedImpression = useRef(false);
+    useEffect(() => {
+        if (!isShown || hasTrackedImpression.current) return;
+        hasTrackedImpression.current = true;
+        track({
+            name: EventName.HOMEPAGE_RECOMMENDED_ACTION_IMPRESSION,
+            properties: {
+                surface: 'first_chart_banner',
+                projectId: projectUuid,
+                rowId: 'first-chart',
+                actionKey: null,
+                choice: null,
+            },
+        });
+    }, [isShown, track, projectUuid]);
+    const trackChoice = (
+        choice: 'ask' | 'explore',
+        destination: string | null,
+    ) =>
+        track({
+            name: EventName.HOMEPAGE_RECOMMENDED_ACTION_CLICKED,
+            properties: { ...bannerProperties, choice, destination },
+        });
+    const exploreTo = `/projects/${projectUuid}/tables`;
+    if (!isShown) return null;
     return (
         <Paper p="md" className={classes.panel}>
             <Group justify="space-between" align="center" wrap="nowrap">
@@ -247,14 +281,29 @@ export const YourData: FC<{
                         color="gray"
                         aria-label="Hide this card"
                         className={classes.hide}
-                        onClick={() => setIsDismissed(true)}
+                        onClick={() => {
+                            setIsDismissed(true);
+                            track({
+                                name: EventName.HOMEPAGE_RECOMMENDED_ACTION_SKIPPED,
+                                properties: {
+                                    ...bannerProperties,
+                                    choice: null,
+                                },
+                            });
+                        }}
                     >
                         <MantineIcon icon={IconX} />
                     </ActionIcon>
                 </Tooltip>
             </Group>
             <Box className={classes.paths}>
-                <UnstyledButton className={classes.path} onClick={onAsk}>
+                <UnstyledButton
+                    className={classes.path}
+                    onClick={() => {
+                        trackChoice('ask', null);
+                        onAsk();
+                    }}
+                >
                     <ChoiceArt kind="ask" />
                     <PathLabel
                         label={`Ask ${AI_NAME}`}
@@ -262,8 +311,9 @@ export const YourData: FC<{
                     />
                 </UnstyledButton>
                 <Link
-                    to={`/projects/${projectUuid}/tables`}
+                    to={exploreTo}
                     className={classes.path}
+                    onClick={() => trackChoice('explore', exploreTo)}
                 >
                     <ChoiceArt kind="explore" />
                     <PathLabel

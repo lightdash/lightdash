@@ -3,7 +3,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
     useEffect,
     useLayoutEffect,
-    useRef,
     useState,
     type FC,
     type PropsWithChildren,
@@ -13,13 +12,12 @@ import { useNavigate } from 'react-router';
 import useLogoutMutation from '../../hooks/user/useUserLogoutMutation';
 import useApp from '../../providers/App/useApp';
 import { type OnboardingScreen } from '../../providers/Tracking/types';
-import useTracking from '../../providers/Tracking/useTracking';
-import { EventName } from '../../types/Events';
 import LightdashWordmark from './AuthLayout/LightdashWordmark';
 import OnboardingControlPanel from './OnboardingControlPanel';
 import classes from './OnboardingLayout.module.css';
 import { StepVisual } from './OnboardingVisuals';
 import { PixelField } from './PixelField';
+import { useTrackOnboardingScreen } from './useTrackOnboardingScreen';
 
 const SwitchAccountButton: FC = () => {
     const navigate = useNavigate();
@@ -98,30 +96,6 @@ const useStackDirection = (stackDepth: number) => {
     }, [stackDepth]);
 };
 
-// Module scope so time on a screen survives the page swap to the next one
-let lastScreenViewedAt: number | null = null;
-
-const useTrackScreen = (screen: OnboardingScreen | null) => {
-    const track = useTracking({ failSilently: true })?.track;
-    const trackedScreen = useRef<OnboardingScreen | null>(null);
-    useEffect(() => {
-        if (!screen || !track || trackedScreen.current === screen) return;
-        trackedScreen.current = screen;
-        const now = Date.now();
-        track({
-            name: EventName.ONBOARDING_SCREEN_VIEWED,
-            properties: {
-                screen,
-                secondsOnPreviousScreen:
-                    lastScreenViewedAt === null
-                        ? null
-                        : Math.round((now - lastScreenViewedAt) / 1000),
-            },
-        });
-        lastScreenViewedAt = now;
-    }, [screen, track]);
-};
-
 type Props = PropsWithChildren<{
     screen?: OnboardingScreen | null;
     size?: 'standard' | 'wide';
@@ -152,7 +126,7 @@ const OnboardingLayout: FC<Props> = ({
     activity = null,
 }) => {
     useStackDirection(stackDepth);
-    useTrackScreen(screen);
+    useTrackOnboardingScreen(screen);
     const aside =
         asideProp ?? (centered ? null : <StepVisual step="welcome" />);
     const controlPanel = import.meta.env.DEV && <OnboardingControlPanel />;

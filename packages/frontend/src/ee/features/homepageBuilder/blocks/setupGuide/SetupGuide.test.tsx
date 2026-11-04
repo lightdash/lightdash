@@ -6,7 +6,11 @@ import { MantineProvider } from '@mantine/core';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
-import { type ActionStatus } from '../useRecommendedActions';
+import { EventName } from '../../../../../types/Events';
+import {
+    type ActionStatus,
+    type RecommendedActionsState,
+} from '../useRecommendedActions';
 import { SetupGuideView } from './SetupGuide';
 import {
     buildSetupGuide,
@@ -14,10 +18,23 @@ import {
     type SetupGuideFacts,
     type SetupGuideRow,
 } from './setupGuideModel';
+import { type SetupGuideState } from './useSetupGuide';
+import { YourData } from './YourData';
+
+const track = vi.hoisted(() => vi.fn());
 
 vi.mock('../../../../../providers/Tracking/useTracking', () => ({
-    default: () => ({ track: vi.fn() }),
+    default: () => ({ track }),
 }));
+
+vi.mock('../../../../../providers/App/useApp', () => ({
+    default: () => ({ user: { data: { userUuid: 'u1' } } }),
+}));
+
+beforeEach(() => {
+    track.mockClear();
+    localStorage.clear();
+});
 
 const status = (overrides: Partial<ActionStatus> = {}): ActionStatus => ({
     isVisible: true,
@@ -120,29 +137,32 @@ const rowsOf = (facts: SetupGuideFacts): SetupGuideRow[] =>
 const rowById = (facts: SetupGuideFacts, id: SetupGuideRow['id']) =>
     rowsOf(facts).find((row) => row.id === id);
 
-const renderGuide = (
-    facts: SetupGuideFacts,
-    handlers: {
-        onSkip?: (row: SetupGuideRow) => void;
-        onRestore?: (row: SetupGuideRow) => void;
-        onMinimizedChange?: (isMinimized: boolean) => void;
-        isMinimized?: boolean;
-    } = {},
-) =>
-    render(
-        <MantineProvider env="test">
-            <MemoryRouter>
-                <SetupGuideView
-                    sections={buildSetupGuide(facts)}
-                    isMinimized={handlers.isMinimized ?? false}
-                    onMinimizedChange={handlers.onMinimizedChange ?? vi.fn()}
-                    onAsk={vi.fn()}
-                    onSkip={handlers.onSkip ?? vi.fn()}
-                    onRestore={handlers.onRestore ?? vi.fn()}
-                />
-            </MemoryRouter>
-        </MantineProvider>,
-    );
+type GuideHandlers = {
+    onAsk?: () => void;
+    onSkip?: (row: SetupGuideRow) => void;
+    onRestore?: (row: SetupGuideRow) => void;
+    onMinimizedChange?: (isMinimized: boolean) => void;
+    isMinimized?: boolean;
+};
+
+const guideTree = (facts: SetupGuideFacts, handlers: GuideHandlers = {}) => (
+    <MantineProvider env="test">
+        <MemoryRouter>
+            <SetupGuideView
+                projectUuid="p1"
+                sections={buildSetupGuide(facts)}
+                isMinimized={handlers.isMinimized ?? false}
+                onMinimizedChange={handlers.onMinimizedChange ?? vi.fn()}
+                onAsk={handlers.onAsk ?? vi.fn()}
+                onSkip={handlers.onSkip ?? vi.fn()}
+                onRestore={handlers.onRestore ?? vi.fn()}
+            />
+        </MemoryRouter>
+    </MantineProvider>
+);
+
+const renderGuide = (facts: SetupGuideFacts, handlers: GuideHandlers = {}) =>
+    render(guideTree(facts, handlers));
 
 describe('buildSetupGuide', () => {
     it('groups rows into outcome sections, hiding integrations the instance lacks', () => {
@@ -349,5 +369,149 @@ describe('SetupGuideView', () => {
             }),
         );
         expect(onMinimizedChange).toHaveBeenCalledWith(false);
+    });
+});
+
+const eventsNamed = (name: EventName) =>
+    track.mock.calls
+        .map(([event]) => event)
+        .filter((event) => event.name === name);
+
+describe('setup guide tracking', () => {
+    it('sends one impression per mount with progress', () => {
+        const { rerender } = renderGuide(building);
+        rerender(guideTree(building, { isMinimized: true }));
+        expect(
+            eventsNamed(EventName.HOMEPAGE_RECOMMENDED_ACTION_IMPRESSION),
+        ).toEqual([
+            {
+                name: EventName.HOMEPAGE_RECOMMENDED_ACTION_IMPRESSION,
+                properties: {
+                    surface: 'setup_guide',
+                    projectId: 'p1',
+                    rowId: null,
+                    actionKey: null,
+                    choice: null,
+                    completedCount: 1,
+                    totalCount: 7,
+                    isMinimized: false,
+                },
+            },
+        ]);
+    });
+
+    it('reports every row click, with the choice when it fills the composer', async () => {
+        const onAsk = vi.fn();
+        renderGuide(fresh, { onAsk });
+        await userEvent.click(
+            screen.getByRole('link', { name: /Build your first chart/ }),
+        );
+        expect(onAsk).toHaveBeenCalled();
+        await userEvent.click(
+            screen.getByRole('link', { name: /Invite your team/ }),
+        );
+        expect(
+            eventsNamed(EventName.HOMEPAGE_RECOMMENDED_ACTION_CLICKED).map(
+                ({ properties }) => properties,
+            ),
+        ).toEqual([
+            {
+                surface: 'setup_guide',
+                projectId: 'p1',
+                rowId: 'first-chart',
+                actionKey: null,
+                choice: 'ask',
+                destination: null,
+            },
+            {
+                surface: 'setup_guide',
+                projectId: 'p1',
+                rowId: 'invite-team',
+                actionKey: null,
+                choice: null,
+                destination: '/generalSettings/userManagement?to=invite',
+            },
+        ]);
+    });
+});
+
+const bannerActions: RecommendedActionsState = {
+    statuses: {
+        'connect-warehouse': status({ isComplete: true }),
+        'add-semantic-layer': status(),
+        'connect-source-control': status(),
+        'connect-slack': status(),
+    },
+    isLoading: false,
+    skippedActions: [],
+    skipAction: vi.fn(),
+    restoreAction: vi.fn(),
+    visibleActions: [],
+    hasPendingActions: false,
+};
+
+const bannerGuide: SetupGuideState = {
+    isEligible: true,
+    isLoading: false,
+    sections: [],
+    semanticExplores: [],
+    liveConnections: [],
+    activeRun: null,
+    completedRunUrl: null,
+    isDismissed: false,
+    setIsDismissed: vi.fn(),
+    skipRow: vi.fn(),
+    restoreRow: vi.fn(),
+    skipAction: vi.fn(),
+    restoreAction: vi.fn(),
+};
+
+describe('first chart banner tracking', () => {
+    it('reports the impression, an Explore pick and the dismiss', async () => {
+        render(
+            <MantineProvider env="test">
+                <MemoryRouter>
+                    <YourData
+                        projectUuid="p1"
+                        actions={bannerActions}
+                        guide={bannerGuide}
+                        onAsk={vi.fn()}
+                    />
+                </MemoryRouter>
+            </MantineProvider>,
+        );
+        await userEvent.click(
+            screen.getByRole('link', { name: /Build in Explore/ }),
+        );
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Hide this card' }),
+        );
+        const banner = {
+            surface: 'first_chart_banner',
+            projectId: 'p1',
+            rowId: 'first-chart',
+            actionKey: null,
+        };
+        expect(track.mock.calls.map(([event]) => event)).toEqual([
+            {
+                name: EventName.HOMEPAGE_RECOMMENDED_ACTION_IMPRESSION,
+                properties: { ...banner, choice: null },
+            },
+            {
+                name: EventName.HOMEPAGE_RECOMMENDED_ACTION_CLICKED,
+                properties: {
+                    ...banner,
+                    choice: 'explore',
+                    destination: '/projects/p1/tables',
+                },
+            },
+            {
+                name: EventName.HOMEPAGE_RECOMMENDED_ACTION_SKIPPED,
+                properties: { ...banner, choice: null },
+            },
+        ]);
+        expect(
+            screen.queryByRole('button', { name: 'Hide this card' }),
+        ).toBeNull();
     });
 });

@@ -11,6 +11,7 @@ import {
     ONBOARDING_STEP_COPY,
 } from '../components/common/onboardingSteps';
 import { WarehouseVisual } from '../components/common/OnboardingVisuals';
+import { useTrackOnboardingScreen } from '../components/common/useTrackOnboardingScreen';
 import { useOnboardingNavigate } from '../components/common/viewTransition';
 import { CreateProjectConnection } from '../components/ProjectConnection';
 import { ConnectionFormSkeleton } from '../components/ProjectConnection/ConnectionFormSkeleton';
@@ -79,6 +80,7 @@ const WarehouseConnect: FC<{
     const [modelSource, setModelSource] = useState(initialModelSource);
     const withDbt = modelSource === 'dbt';
     const isDbtStep = withDbt && step === 'dbt';
+    useTrackOnboardingScreen(isDbtStep ? 'dbt_repo' : 'warehouse_form');
     const {
         isInitialLoading: isLoadingOrganization,
         data: organization,
@@ -237,7 +239,13 @@ const OnboardingDataSourceContent: FC = () => {
 
     return (
         <OnboardingLayout
-            screen={warehouse ? 'warehouse_form' : 'choose_source'}
+            screen={
+                selectedWarehouse
+                    ? null
+                    : warehouse
+                      ? 'warehouse_form'
+                      : 'choose_source'
+            }
             journey={{
                 currentStep: warehouse ? 2 : 1,
                 steps: ONBOARDING_DATA_STEPS,

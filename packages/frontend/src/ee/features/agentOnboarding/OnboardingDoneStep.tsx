@@ -13,6 +13,9 @@ import { WarehouseTypeLabels } from '../../../components/ProjectConnection/Proje
 import { useExternalConnections } from '../../../features/externalConnections/hooks/useExternalConnections';
 import { LiveSourceIcon } from '../../../features/externalConnections/liveSources/LiveSourceIcon';
 import { useProject } from '../../../hooks/useProject';
+import useApp from '../../../providers/App/useApp';
+import useTracking from '../../../providers/Tracking/useTracking';
+import { EventName } from '../../../types/Events';
 import { markHomepageTourSeen } from '../homepageBuilder/onboarding';
 import { useAuroraRun } from './hooks/useAuroraRun';
 import { useAskAurora } from './hooks/useFirstQuestions';
@@ -53,6 +56,19 @@ export const OnboardingDoneStep: FC<{ projectUuid: string }> = ({
             AGENT_ONBOARDING_STAGES.indexOf(run.stage) >
                 AGENT_ONBOARDING_STAGES.indexOf('deploying_semantic_layer'));
     const { data: project } = useProject(projectUuid);
+    const { user } = useApp();
+    const { track } = useTracking();
+    const trackAction = (action: 'ask_first_question' | 'look_around') =>
+        track({
+            name: EventName.ONBOARDING_DONE_ACTION_CLICKED,
+            properties: {
+                organizationId: user.data?.organizationUuid ?? null,
+                projectId: projectUuid,
+                action,
+                areMetricsLive,
+                runStatus: run?.status ?? null,
+            },
+        });
     const { data: connections = [] } = useExternalConnections(projectUuid);
 
     const warehouse = WarehouseTypeLabels.find(
@@ -130,7 +146,10 @@ export const OnboardingDoneStep: FC<{ projectUuid: string }> = ({
                             size="md"
                             fullWidth
                             disabled={!areMetricsLive}
-                            onClick={() => ask(FIRST_QUESTION)}
+                            onClick={() => {
+                                trackAction('ask_first_question');
+                                ask(FIRST_QUESTION);
+                            }}
                             rightSection={<MantineIcon icon={IconArrowRight} />}
                         >
                             Ask your first question
@@ -144,6 +163,7 @@ export const OnboardingDoneStep: FC<{ projectUuid: string }> = ({
                         component={Link}
                         to={`/projects/${projectUuid}/home`}
                         viewTransition
+                        onClick={() => trackAction('look_around')}
                     >
                         I'll look around first
                     </Button>

@@ -6,7 +6,9 @@ import {
     type ApiJobStartedResults,
     type ApiWarehouseConnectionTestBody,
     type WarehouseConnectionTestResults,
+    type ApiErrorDetail,
     type CreateProject,
+    DbtProjectType,
     omitEmptySecrets,
     type CreateWarehouseCredentials,
     type DataTimezonePreviewRequest,
@@ -28,6 +30,7 @@ import { useLocation } from 'react-router';
 import { type LightdashApi } from '../api';
 import useActiveJob from '../providers/ActiveJob/useActiveJob';
 import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
+import { type CreateProjectErrorCategory } from '../providers/Tracking/types';
 import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
 import useToaster from './toaster/useToaster';
@@ -154,10 +157,27 @@ export const useUpdateMutation = (uuid: string) => {
     );
 };
 
-export const useCreateMutation = (options?: {
-    quietJobToast?: boolean;
-    warehouseOnly?: boolean;
-}) => {
+const getCreateProjectErrorCategory = ({
+    name,
+    statusCode,
+}: ApiErrorDetail): CreateProjectErrorCategory => {
+    if (name === 'NetworkError') return 'network';
+    switch (statusCode) {
+        case 401:
+            return 'authentication';
+        case 403:
+            return 'permission';
+        case 404:
+            return 'not_found';
+        case 408:
+        case 504:
+            return 'timeout';
+        default:
+            return 'unknown';
+    }
+};
+
+export const useCreateMutation = (options?: { quietJobToast?: boolean }) => {
     const lightdashApi = useLightdashApi();
     const { setActiveJobId, setQuietActiveJobId } = useActiveJob();
     const { showToastApiError, showToastInfo } = useToaster();
@@ -197,8 +217,10 @@ export const useCreateMutation = (options?: {
                     name: EventName.CREATE_PROJECT_FAILED,
                     properties: {
                         warehouse: data.warehouseConnection.type,
-                        errorType: error.name,
-                        warehouseOnly: options?.warehouseOnly,
+                        failedStep: null,
+                        errorCategory: getCreateProjectErrorCategory(error),
+                        warehouseOnly:
+                            data.dbtConnection.type === DbtProjectType.NONE,
                         onboardingFlow,
                     },
                 });

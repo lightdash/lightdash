@@ -27,7 +27,7 @@ import {
     IconX,
     type Icon,
 } from '@tabler/icons-react';
-import { type FC, type ReactNode } from 'react';
+import { useEffect, useRef, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { AI_NAME } from '../../../../../components/common/aiName';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -96,6 +96,13 @@ const ROW_COPY: Record<
 
 const isAskChoice = (choice: SetupGuideChoice) => choice.kind === 'ask';
 
+const rowProperties = (row: SetupGuideRow, projectUuid: string) => ({
+    surface: 'setup_guide' as const,
+    projectId: projectUuid,
+    rowId: row.id,
+    actionKey: row.actionKey,
+});
+
 type RowHandlers = {
     // Ask rows fill the composer on this page instead of leaving it
     onAsk: () => void;
@@ -158,11 +165,22 @@ const RowStatus: FC<{ row: SetupGuideRow }> = ({ row }) => {
     return null;
 };
 
-const GuideRow: FC<{ row: SetupGuideRow } & RowHandlers> = ({
-    row,
-    ...handlers
-}) => {
+const GuideRow: FC<
+    { row: SetupGuideRow; projectUuid: string } & RowHandlers
+> = ({ row, projectUuid, ...handlers }) => {
     const { track } = useTracking();
+    const trackClick = (
+        choice: SetupGuideChoice['kind'] | null,
+        destination: string | null,
+    ) =>
+        track({
+            name: EventName.HOMEPAGE_RECOMMENDED_ACTION_CLICKED,
+            properties: {
+                ...rowProperties(row, projectUuid),
+                choice,
+                destination,
+            },
+        });
     const copy = ROW_COPY[row.id];
     const content: ReactNode = (
         <>
@@ -208,17 +226,11 @@ const GuideRow: FC<{ row: SetupGuideRow } & RowHandlers> = ({
                             onClick={(event) => {
                                 if (row.choices.some(isAskChoice)) {
                                     event.preventDefault();
+                                    trackClick('ask', null);
                                     handlers.onAsk();
                                     return;
                                 }
-                                if (!row.actionKey) return;
-                                track({
-                                    name: EventName.HOMEPAGE_RECOMMENDED_ACTION_CLICKED,
-                                    properties: {
-                                        actionKey: row.actionKey,
-                                        destination: action.to,
-                                    },
-                                });
+                                trackClick(null, action.to);
                             }}
                         >
                             {content}
@@ -248,8 +260,12 @@ const GuideRow: FC<{ row: SetupGuideRow } & RowHandlers> = ({
                                     to={choice.to}
                                     className={classes.choice}
                                     onClick={(event) => {
-                                        if (!isAskChoice(choice)) return;
+                                        if (!isAskChoice(choice)) {
+                                            trackClick(choice.kind, choice.to);
+                                            return;
+                                        }
                                         event.preventDefault();
+                                        trackClick(choice.kind, null);
                                         handlers.onAsk();
                                     }}
                                 >
@@ -288,6 +304,7 @@ const GuideRow: FC<{ row: SetupGuideRow } & RowHandlers> = ({
 };
 
 type SetupGuideViewProps = {
+    projectUuid: string;
     sections: SetupGuideSection[];
     isMinimized: boolean;
     onMinimizedChange: (isMinimized: boolean) => void;
@@ -295,15 +312,36 @@ type SetupGuideViewProps = {
 
 /** The setup checklist, docked in the corner so the chat keeps the page */
 export const SetupGuideView: FC<SetupGuideViewProps> = ({
+    projectUuid,
     sections,
     isMinimized,
     onMinimizedChange,
     ...handlers
 }) => {
+    const { track } = useTracking();
     const rows = sections.flatMap((section) => section.rows);
     const { completed, total } = countProgress(rows);
     // Skipped rows are out of the total, so this means nothing is left to do
-    if (completed === total) return null;
+    const isHidden = completed === total;
+    const hasTrackedImpression = useRef(false);
+    useEffect(() => {
+        if (isHidden || hasTrackedImpression.current) return;
+        hasTrackedImpression.current = true;
+        track({
+            name: EventName.HOMEPAGE_RECOMMENDED_ACTION_IMPRESSION,
+            properties: {
+                surface: 'setup_guide',
+                projectId: projectUuid,
+                rowId: null,
+                actionKey: null,
+                choice: null,
+                completedCount: completed,
+                totalCount: total,
+                isMinimized,
+            },
+        });
+    }, [isHidden, track, projectUuid, completed, total, isMinimized]);
+    if (isHidden) return null;
     // Done steps lead, then what is left, then skipped steps at the bottom
     const orderedRows = [
         ...rows.filter((row) => isCompletedStatus(row.status)),
@@ -362,7 +400,12 @@ export const SetupGuideView: FC<SetupGuideViewProps> = ({
                     </Box>
                     <Box component="ul" className={classes.rows}>
                         {orderedRows.map((row) => (
-                            <GuideRow key={row.id} row={row} {...handlers} />
+                            <GuideRow
+                                key={row.id}
+                                row={row}
+                                projectUuid={projectUuid}
+                                {...handlers}
+                            />
                         ))}
                     </Box>
                 </Paper>
@@ -389,32 +432,37 @@ export const SetupGuide: FC<{
                 onAsk={onAsk}
             />
             <SetupGuideView
+                projectUuid={projectUuid}
                 sections={guide.sections}
                 isMinimized={guide.isDismissed}
                 onMinimizedChange={guide.setIsDismissed}
                 onAsk={onAsk}
                 onSkip={(row) => {
-                    if (!row.actionKey) {
+                    if (row.actionKey) {
+                        guide.skipAction(row.actionKey);
+                    } else {
                         guide.skipRow(row.id);
-                        return;
                     }
-                    const { actionKey } = row;
-                    guide.skipAction(actionKey);
                     track({
                         name: EventName.HOMEPAGE_RECOMMENDED_ACTION_SKIPPED,
-                        properties: { actionKey },
+                        properties: {
+                            ...rowProperties(row, projectUuid),
+                            choice: null,
+                        },
                     });
                 }}
                 onRestore={(row) => {
-                    if (!row.actionKey) {
+                    if (row.actionKey) {
+                        guide.restoreAction(row.actionKey);
+                    } else {
                         guide.restoreRow(row.id);
-                        return;
                     }
-                    const { actionKey } = row;
-                    guide.restoreAction(actionKey);
                     track({
                         name: EventName.HOMEPAGE_RECOMMENDED_ACTION_RESTORED,
-                        properties: { actionKey },
+                        properties: {
+                            ...rowProperties(row, projectUuid),
+                            choice: null,
+                        },
                     });
                 }}
             />

@@ -27,13 +27,16 @@ type PendingTrack = (analytics: typeof rudderSDK) => void;
 
 const pendingTracks: PendingTrack[] = [];
 
+// Nested providers share one session, so the user is identified once per page load
+let identifiedUserUuid: string | null = null;
+
 const TrackingProviderMain: FC<React.PropsWithChildren<TrackingData>> = ({
     rudder,
     page: pageContext,
     section: sectionContext,
     children,
 }) => {
-    const { health } = useApp();
+    const { health, user } = useApp();
     const [rudderAnalytics, setRudderAnalytics] = useState<typeof rudderSDK>();
 
     const {
@@ -144,12 +147,31 @@ const TrackingProviderMain: FC<React.PropsWithChildren<TrackingData>> = ({
     );
     const identify = useCallback(
         ({ id, traits }: IdentifyData) => {
-            if (mode && mode !== LightdashMode.DEMO) {
-                rudderAnalytics?.identify(id, traits, lightdashContext);
+            if (!mode || mode === LightdashMode.DEMO) return;
+            const sendIdentify: PendingTrack = (analytics) =>
+                analytics.identify(id, traits, lightdashContext);
+            if (rudderAnalytics) {
+                sendIdentify(rudderAnalytics);
+            } else if (rudder || (writeKey && dataPlaneUrl)) {
+                pendingTracks.push(sendIdentify);
             }
         },
-        [lightdashContext, mode, rudderAnalytics],
+        [
+            lightdashContext,
+            mode,
+            rudderAnalytics,
+            rudder,
+            writeKey,
+            dataPlaneUrl,
+        ],
     );
+
+    const sessionUserUuid = user.data?.userUuid ?? null;
+    useEffect(() => {
+        if (!sessionUserUuid || sessionUserUuid === identifiedUserUuid) return;
+        identifiedUserUuid = sessionUserUuid;
+        identify({ id: sessionUserUuid });
+    }, [sessionUserUuid, identify]);
 
     const context = useMemo(
         () => ({

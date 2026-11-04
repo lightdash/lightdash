@@ -1,4 +1,5 @@
 import {
+    DbtProjectType,
     isApiError,
     isCreateProjectJob,
     JobStatusType,
@@ -94,8 +95,9 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
     const { activeJob, setActiveJobId, setQuietActiveJobId } = useActiveJob();
     const { isLoading: isSaving, mutateAsync } = useCreateMutation({
         quietJobToast: warehouseOnly,
-        warehouseOnly,
     });
+    // Skipping dbt submits without a repo even when the form offered one
+    const submittedWarehouseOnly = useRef(warehouseOnly);
     const onProjectError = useOnProjectError();
 
     const resumeJob = useCallback(
@@ -187,6 +189,8 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
             warehouse: warehouseConnection,
             dbtVersion,
         } = formValues;
+        submittedWarehouseOnly.current =
+            dbtConnection.type === DbtProjectType.NONE;
         track({
             name: EventName.CREATE_PROJECT_BUTTON_CLICKED,
             properties: {
@@ -195,7 +199,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                     'authenticationType' in warehouseConnection
                         ? warehouseConnection.authenticationType
                         : undefined,
-                warehouseOnly,
+                warehouseOnly: submittedWarehouseOnly.current,
                 onboardingFlow,
             },
         });
@@ -285,8 +289,9 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                 name: EventName.CREATE_PROJECT_FAILED,
                 properties: {
                     warehouse: selectedWarehouse ?? form.values.warehouse.type,
-                    errorType: failedStep?.stepType ?? 'unknown',
-                    warehouseOnly,
+                    failedStep: failedStep?.stepType ?? null,
+                    errorCategory: 'unknown',
+                    warehouseOnly: submittedWarehouseOnly.current,
                     onboardingFlow,
                 },
             });
@@ -295,7 +300,6 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         activeJob,
         createProjectJobId,
         selectedWarehouse,
-        warehouseOnly,
         onboardingFlow,
         track,
         form.values.warehouse.type,

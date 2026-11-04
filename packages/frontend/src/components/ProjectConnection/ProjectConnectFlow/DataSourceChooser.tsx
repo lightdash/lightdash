@@ -95,7 +95,7 @@ export const DataSourceChooser: FC = () => {
             });
             track({
                 name: EventName.PLAYGROUND_PROJECT_ENTERED,
-                properties: { organizationId: organizationUuid ?? '' },
+                properties: { organizationId: organizationUuid ?? null },
             });
             void navigate(`/projects/${projectUuid}/home`);
         } catch (error) {
@@ -104,7 +104,7 @@ export const DataSourceChooser: FC = () => {
             track({
                 name: EventName.PLAYGROUND_PROJECT_SETUP_FAILED,
                 properties: {
-                    organizationId: organizationUuid ?? '',
+                    organizationId: organizationUuid ?? null,
                     failureType: getPlaygroundSetupFailure(error),
                 },
             });

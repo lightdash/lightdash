@@ -421,6 +421,27 @@ const DayOneAskInputInner: FC<Props> = ({
         starterQuestions,
     });
 
+    const prefill =
+        prefillRequest > 0
+            ? (suggestions.chips.find(isChartChip)?.label ?? 'Make a chart of ')
+            : undefined;
+
+    const trackAskSubmitted = (
+        source: 'typed' | 'guide_prefill' | 'starter_chip',
+        prefillEdited: boolean,
+    ) =>
+        track({
+            name: EventName.HOMEPAGE_ASK_SUBMITTED,
+            properties: {
+                organizationId: user.data?.organizationUuid ?? null,
+                projectId: projectUuid,
+                mode: activeSelection === 'auto' ? 'auto' : 'agent',
+                hasProject: !!projectUuid,
+                source,
+                prefillEdited,
+            },
+        });
+
     const submitPrompt = (
         prompt: string,
         toolHints: string[] = [],
@@ -468,13 +489,10 @@ const DayOneAskInputInner: FC<Props> = ({
     }) => {
         const prompt = message.trim();
         if (!prompt) return;
-        track({
-            name: EventName.HOMEPAGE_ASK_SUBMITTED,
-            properties: {
-                mode: activeSelection === 'auto' ? 'auto' : 'agent',
-                hasProject: !!projectUuid,
-            },
-        });
+        trackAskSubmitted(
+            prefill === undefined ? 'typed' : 'guide_prefill',
+            prefill !== undefined && prompt !== prefill.trim(),
+        );
         setHasAsked(true);
         submitPrompt(prompt, toolHints, context, optimisticContext);
     };
@@ -501,6 +519,7 @@ const DayOneAskInputInner: FC<Props> = ({
             void navigate(chip.url);
             return;
         }
+        trackAskSubmitted('starter_chip', false);
         setHasAsked(true);
         submitPrompt(chip.label, [chip.tool]);
     };
@@ -512,10 +531,6 @@ const DayOneAskInputInner: FC<Props> = ({
             : suggestions.chips.findIndex(isChartChip);
     const starterChip =
         starterIndex >= 0 ? suggestions.chips[starterIndex] : null;
-    const prefill =
-        prefillRequest > 0
-            ? (suggestions.chips.find(isChartChip)?.label ?? 'Make a chart of ')
-            : undefined;
 
     if (hasNoAgents) {
         return (

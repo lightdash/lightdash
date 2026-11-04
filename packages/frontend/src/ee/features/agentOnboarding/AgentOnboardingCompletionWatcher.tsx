@@ -88,7 +88,7 @@ export const AgentOnboardingCompletionWatcher: FC = () => {
         toastedRunUuids.add(agentOnboardingRunUuid);
 
         const properties = {
-            organizationId: organizationUuid ?? '',
+            organizationId: organizationUuid ?? null,
             projectUuid,
             agentOnboardingRunUuid,
         };

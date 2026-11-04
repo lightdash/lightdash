@@ -12,6 +12,7 @@ import AuthLayout from '../components/common/AuthLayout';
 import { useAuthLayoutVariant } from '../components/common/AuthLayout/useAuthLayoutVariant';
 import MantineIcon from '../components/common/MantineIcon';
 import MantineModal from '../components/common/MantineModal';
+import { useTrackOnboardingScreen } from '../components/common/useTrackOnboardingScreen';
 import { useOnboardingNavigate } from '../components/common/viewTransition';
 import PageSpinner from '../components/PageSpinner';
 import VerifyEmailForm from '../components/RegisterForms/VerifyEmailForm';
@@ -79,6 +80,13 @@ const VerifyEmailPage: FC = () => {
     );
     const isEmailOnlySignup = emailOnlySignupFlag.data?.enabled ?? false;
     const isVerifiedEmailOnlySignup = isEmailOnlySignup && !!data?.isVerified;
+    useTrackOnboardingScreen(
+        isEmailOnlySignup &&
+            !!health.data?.isAuthenticated &&
+            data?.isVerified === false
+            ? 'verify_email'
+            : null,
+    );
 
     const continueAfterVerification = useCallback(() => {
         if (redirectTo === null) {

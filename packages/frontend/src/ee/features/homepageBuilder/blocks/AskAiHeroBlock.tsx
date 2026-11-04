@@ -87,7 +87,10 @@ export const AskAiHero: FC<{
                     </Box>
                 ) : isReady ? (
                     actions.hasPendingActions && (
-                        <RecommendedActionsChecklist actions={actions} />
+                        <RecommendedActionsChecklist
+                            projectUuid={projectUuid}
+                            actions={actions}
+                        />
                     )
                 ) : (
                     <RecommendedActionsChecklistPlaceholder

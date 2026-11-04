@@ -76,6 +76,7 @@ const Guide = ({ state }: { state: GuideState }) => {
             <Stack gap="lg">
                 <Title order={2}>Welcome, Maya</Title>
                 <SetupGuideView
+                    projectUuid={PROJECT_UUID}
                     sections={buildSetupGuide(facts)}
                     isMinimized={isDismissed}
                     onMinimizedChange={setIsDismissed}

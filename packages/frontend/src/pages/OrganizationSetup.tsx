@@ -265,11 +265,6 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
 
         const values = form.values;
 
-        track({
-            name: EventName.ORGANIZATION_SETUP_STEP_COMPLETED,
-            properties: { step: 'about_you' },
-        });
-
         if (!canEnterOrganizationName) {
             // Joining an existing org: no org name to set, and the brand
             // belongs to the org (which a joiner — often a viewer — has no
@@ -598,8 +593,15 @@ const OrganizationSetup: FC = () => {
                   isHomepageBuilderEnabled: homepageBuilderFlag.isEnabled,
               })
             : redirectTo;
+    const { track } = useTracking();
     const completeMutation = useUserCompleteMutation({
-        onSuccess: () => onboardingNavigate(landingPath),
+        onSuccess: () => {
+            track({
+                name: EventName.ORGANIZATION_SETUP_STEP_COMPLETED,
+                properties: { step: 'about_you' },
+            });
+            onboardingNavigate(landingPath);
+        },
     });
     const isCompletingSetup =
         completeMutation.isLoading || completeMutation.isSuccess;

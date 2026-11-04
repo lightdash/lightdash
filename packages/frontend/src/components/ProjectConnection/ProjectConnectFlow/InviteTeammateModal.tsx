@@ -63,7 +63,10 @@ export const InviteTeammateModal: FC<{
         });
         track({
             name: EventName.SETUP_INVITE_SENT,
-            properties: { organizationId: organizationUuid },
+            properties: {
+                organizationId: organizationUuid,
+                surface: 'data_source_chooser',
+            },
         });
         showToastSuccess({
             title: `Invite sent to ${values.email}`,
