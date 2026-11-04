@@ -1,3 +1,18 @@
+# [3.144.0](https://github.com/lightdash/lightdash/compare/3.143.0...3.144.0) (2026-11-04)
+
+
+### Bug Fixes
+
+* **content-review:** reject managed personal-space root targets ([#32031](https://github.com/lightdash/lightdash/issues/32031)) ([22062c6](https://github.com/lightdash/lightdash/commit/22062c6e25b49b31cbb0e6c2d54eb4c774ff5a0b))
+* **data-apps:** Chart Studio builds fail on Codex with 'oneOf' not permitted ([#32033](https://github.com/lightdash/lightdash/issues/32033)) ([a92487e](https://github.com/lightdash/lightdash/commit/a92487edb18e09438f94775cafe8b4fcc7ca5e85))
+* **projects:** improve permission checks in project settings ([#32032](https://github.com/lightdash/lightdash/issues/32032)) ([d0150fd](https://github.com/lightdash/lightdash/commit/d0150fda589f926503f838dc4dd84ab3acf18803))
+
+
+### Features
+
+* **sql:** discover SQL columns via BigQuery dry run ([#31998](https://github.com/lightdash/lightdash/issues/31998)) ([6d5bc8d](https://github.com/lightdash/lightdash/commit/6d5bc8d1f8d0c20543b04c254ef79db1223f0321))
+* support exclusion-only lists in join fields ([#32034](https://github.com/lightdash/lightdash/issues/32034)) ([b6d207a](https://github.com/lightdash/lightdash/commit/b6d207a1ce120145aada280b942cab2e5dbb0b3c))
+
 # [3.143.0](https://github.com/lightdash/lightdash/compare/3.142.1...3.143.0) (2026-11-04)
 
 
