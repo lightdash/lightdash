@@ -46,7 +46,7 @@ import {
     IconSearch,
     IconX,
 } from '@tabler/icons-react';
-import uniqBy from 'lodash/uniqBy';
+import { uniqBy } from 'es-toolkit/compat';
 import {
     useCallback,
     useMemo,

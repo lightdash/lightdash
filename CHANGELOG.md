@@ -1,3 +1,33 @@
+# [3.143.0](https://github.com/lightdash/lightdash/compare/3.142.1...3.143.0) (2026-11-04)
+
+
+### Bug Fixes
+
+* revert explicitly disable thinking on adaptive models when reasoning is off ([#32036](https://github.com/lightdash/lightdash/issues/32036)) ([1fbb71b](https://github.com/lightdash/lightdash/commit/1fbb71b05c3cb8702d6375dd5f885ef93e4ec5dd)), closes [#32005](https://github.com/lightdash/lightdash/issues/32005)
+
+
+### Features
+
+* **ai:** load content read tools without content write access ([#32016](https://github.com/lightdash/lightdash/issues/32016)) ([1d77d6f](https://github.com/lightdash/lightdash/commit/1d77d6f14dc365cb14f6780bb5137a88f60d5c37))
+* **sql:** discover SQL columns via BigQuery dry run ([#31998](https://github.com/lightdash/lightdash/issues/31998)) ([61ee69a](https://github.com/lightdash/lightdash/commit/61ee69a6d7892c02cba7507e66b00b2e69ca9cc6))
+* **sql:** instrument SQL column discovery ([#32001](https://github.com/lightdash/lightdash/issues/32001)) ([18f6d47](https://github.com/lightdash/lightdash/commit/18f6d47767f994907d053aafa46bdf0835402193))
+
+# [3.143.0](https://github.com/lightdash/lightdash/compare/3.142.1...3.143.0) (2026-11-04)
+
+
+### Features
+
+* **ai:** load content read tools without content write access ([#32016](https://github.com/lightdash/lightdash/issues/32016)) ([1d77d6f](https://github.com/lightdash/lightdash/commit/1d77d6f14dc365cb14f6780bb5137a88f60d5c37))
+* **sql:** discover SQL columns via BigQuery dry run ([#31998](https://github.com/lightdash/lightdash/issues/31998)) ([61ee69a](https://github.com/lightdash/lightdash/commit/61ee69a6d7892c02cba7507e66b00b2e69ca9cc6))
+* **sql:** instrument SQL column discovery ([#32001](https://github.com/lightdash/lightdash/issues/32001)) ([18f6d47](https://github.com/lightdash/lightdash/commit/18f6d47767f994907d053aafa46bdf0835402193))
+
+## [3.142.1](https://github.com/lightdash/lightdash/compare/3.142.0...3.142.1) (2026-11-03)
+
+
+### Performance Improvements
+
+* replace lodash with es-toolkit ([#32020](https://github.com/lightdash/lightdash/issues/32020)) ([e7b814a](https://github.com/lightdash/lightdash/commit/e7b814aa9dc134a981624d1b5bb08500f7291d0c))
+
 # [3.142.0](https://github.com/lightdash/lightdash/compare/3.141.0...3.142.0) (2026-11-03)
 
 

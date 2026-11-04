@@ -1,8 +1,10 @@
-import castArray from 'lodash/castArray';
-import isEmpty from 'lodash/isEmpty';
-import isPlainObject from 'lodash/isPlainObject';
-import isString from 'lodash/isString';
-import keys from 'lodash/keys';
+import {
+    castArray,
+    isEmpty,
+    isPlainObject,
+    isString,
+    keys,
+} from 'es-toolkit/compat';
 import type { DbtPreAggregateDef } from '../types/dbt';
 import { ParseError } from '../types/errors';
 import { parseFilters } from '../types/filterGrammar';

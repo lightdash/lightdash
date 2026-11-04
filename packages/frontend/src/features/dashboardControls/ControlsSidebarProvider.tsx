@@ -12,9 +12,7 @@ import {
     type ResultColumn,
 } from '@lightdash/common';
 import { VisuallyHidden } from '@mantine/core';
-import isEqual from 'lodash/isEqual';
-import omit from 'lodash/omit';
-import omitBy from 'lodash/omitBy';
+import { isEqual, omit, omitBy } from 'es-toolkit/compat';
 import {
     useCallback,
     useEffect,

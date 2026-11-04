@@ -1,5 +1,4 @@
-import merge from 'lodash/merge';
-import partition from 'lodash/partition';
+import { merge, partition } from 'es-toolkit/compat';
 import {
     getDeferredExploreName,
     getManifestNamespaceKey,

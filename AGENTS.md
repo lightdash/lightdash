@@ -64,17 +64,17 @@ When the backend creates a presigned URL for browser-direct upload, it uses `S3_
 
 **Code Quality:**
 
+Linter is oxlint, formatter is oxfmt, installed per package: run them through package scripts.
+
 ```bash
-pnpm -F common lint
-pnpm -F visualization lint
-pnpm -F backend lint
-pnpm -F frontend lint
-pnpm -F common typecheck
-pnpm -F visualization typecheck
-pnpm -F backend typecheck
-pnpm -F frontend typecheck
-pnpm -F warehouses typecheck
+pnpm -F <pkg> lint                                  # whole package; fix-lint to autofix
+pnpm -F <pkg> format                                # whole package; fix-format to write
+pnpm -F <pkg> run linter --fix src/a.ts src/b.ts    # specific files, paths relative to the package
+pnpm -F <pkg> run formatter src/a.ts src/b.ts       # add --check to only check
+pnpm -F <pkg> typecheck
 ```
+
+`git commit` lints and formats staged files via lint-staged, so a commit needs no separate format pass; `pnpm exec lint-staged` runs the same pass before committing.
 
 **Testing:**
 
@@ -256,6 +256,7 @@ refresh/restart behavior, and remove temporary ENV overrides after rollout.
     -   API design patterns where omission has semantic meaning
     -   Configuration objects with sensible defaults
 -   **Always wrap `JSON.parse` in try/catch**: Parse errors crash the app. On failure, considering showing a warning toast or falling back to a sensible default.
+-   **Use `es-toolkit/compat`, not lodash**: import lodash-style helpers as `import { groupBy } from 'es-toolkit/compat';`. It matches lodash's behaviour; the main `es-toolkit` API does not (null handling, `startCase`, `merge`, `round` differ), so don't switch to it without checking each call site. Never add `lodash` back as a dependency.
 -   **Keep code comments minimal**: 1–2 lines at most, only when the code isn't self-explanatory. No long explanatory blocks, no ticket references (PROD-XXXX, #issue) in comments.
 
 ## TypeScript Utilities
@@ -322,6 +323,7 @@ examples are in [docs/white-label-copy.md](docs/white-label-copy.md).
 ## Development Troubleshooting
 
 -   If there are issues running dbt, make sure there is a python3 venv in the root of the repo, which has dbt-core and dbt-postgres installed
+-   TS6305, `Cannot find module` from a workspace package, or `oxlint: command not found` (fresh worktree, or a rebase that changed `pnpm-lock.yaml`): run `scripts/t3-setup-worktree.sh` to install and build dependency packages. T3 runs it in the background on worktree creation (`t3.json`); while `pgrep -f t3-setup-worktree` finds it, wait for it instead.
 
 ## Checking the local database for debugging
 
@@ -387,6 +389,6 @@ Processes: `<instance>-api`, `-api-routes-watch`, `-scheduler`, `-frontend`, `-c
 
 ### Non-obvious caveats
 
-- Node: use Node 24.18 (pinned by `.nvmrc`). The VM's default `node` on `PATH` is a v22 tool-runtime at `/exec-daemon/node`; the nvm 24.18 build is prepended for interactive shells via `~/.bashrc`, and the update script sources nvm explicitly. Run dev commands from a login shell so 24.18 is active — native modules are built against it.
+- Node: use the version pinned in `.nvmrc`. The VM's default `node` on `PATH` is a v22 tool-runtime at `/exec-daemon/node`; the nvm build from `.nvmrc` is prepended for interactive shells via `~/.bashrc`, and the update script sources nvm explicitly. Run dev commands from a login shell so it is active — native modules are built against it.
 - dbt venv must be Python 3.11: `dbt-core==1.7.0` imports `distutils`, which was removed in Python 3.12 (the VM's default `python3`). The venv at `./venv` is built with `python3.11`. If it must be recreated, use `python3.11 -m venv venv`, NOT `python3`. Note `scripts/dev-fast-start.sh` recreates the venv with `python3` only when it is missing — the snapshot ships a working `python3.11` venv so that path is normally skipped; if you delete the venv, rebuild it with `python3.11` before re-running the script.
 - Backend lint runs out of heap with the default Node memory limit and aborts (exit 134). Run it with a larger heap: `NODE_OPTIONS="--max-old-space-size=8192" pnpm -F backend lint`.

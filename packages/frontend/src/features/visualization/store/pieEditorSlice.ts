@@ -6,9 +6,7 @@ import {
     type PieChartValueOptions,
 } from '@lightdash/common';
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import isEmpty from 'lodash/isEmpty';
-import mapValues from 'lodash/mapValues';
-import omitBy from 'lodash/omitBy';
+import { isEmpty, mapValues, omitBy } from 'es-toolkit/compat';
 import {
     editorCaseReducers,
     renamedFieldId,

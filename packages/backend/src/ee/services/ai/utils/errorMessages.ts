@@ -1,6 +1,6 @@
 import { AiCreditsPausedError, MissingConfigError } from '@lightdash/common';
 import { APICallError, RetryError, type FinishReason } from 'ai';
-import { get, isPlainObject } from 'lodash';
+import { get, isPlainObject } from 'es-toolkit/compat';
 import type { AiKeyManagement } from '../../../../analytics/aiUsage';
 import type { AiDecisionClient } from '../decisions/AiDecisionClient';
 import {

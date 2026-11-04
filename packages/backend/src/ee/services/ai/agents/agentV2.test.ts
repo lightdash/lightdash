@@ -120,6 +120,7 @@ const buildAgentArgs = (
         debugLoggingEnabled: false,
         deepResearchRuns: [],
         enableAiWriteback: false,
+        enableContentReads: false,
         enableContentTools: false,
         enableDataAccess: false,
         enableDataAnswerFastResponse: false,
@@ -2195,6 +2196,7 @@ describe('getAgentTools workstream tool gate', () => {
         canCreateScheduledDeliveries?: boolean;
         canRunSql?: boolean;
         enableComposerQueries?: boolean;
+        enableContentReads?: boolean;
         enableContentTools?: boolean;
         enableDocuments?: boolean;
         enableDataAccess?: boolean;
@@ -2221,6 +2223,7 @@ describe('getAgentTools workstream tool gate', () => {
             canRunSql: true,
             composerApiConnections: [],
             debugLoggingEnabled: false,
+            enableContentReads: flags.enableContentTools ?? false,
             enableContentTools: false,
             enableDataAccess: false,
             enableEditProjectContext: false,
@@ -2655,6 +2658,33 @@ describe('getAgentTools workstream tool gate', () => {
         expect(legacyTools.findContent.description).not.toContain(
             '"readContent"',
         );
+    });
+
+    it('offers content reads to users who cannot author content', () => {
+        const names = toolNames({
+            enableAiWriteback: false,
+            enableDataAccess: true,
+            enableContentReads: true,
+            enableContentTools: false,
+            canCreateDashboards: false,
+        });
+
+        expect(names).toEqual(
+            expect.arrayContaining([
+                'readContent',
+                'listContent',
+                'runContentQuery',
+            ]),
+        );
+        for (const name of [
+            'createContent',
+            'editContent',
+            'createScheduledDelivery',
+            'getDashboardCharts',
+            'generateDashboard',
+        ]) {
+            expect(names).not.toContain(name);
+        }
     });
 
     it('withholds generateDashboard from users who cannot save one', () => {

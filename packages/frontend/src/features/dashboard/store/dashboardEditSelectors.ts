@@ -7,7 +7,7 @@ import {
     type SavedChartsInfoForDashboardAvailableFilters,
 } from '@lightdash/common';
 import { createSelector } from '@reduxjs/toolkit';
-import isEqual from 'lodash/isEqual';
+import { isEqual } from 'es-toolkit/compat';
 import { type DashboardStoreState } from '.';
 import {
     isDateZoomConfigDraftCurrent,

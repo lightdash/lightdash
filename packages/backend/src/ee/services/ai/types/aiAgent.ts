@@ -276,6 +276,8 @@ export type AiAgentArgs = AnyAiModel & {
     telemetryEnabled: boolean;
     enableDataAccess: boolean;
     enableSelfImprovement: boolean;
+    // Content setting on; read tools enforce view access per item, so authoring isn't required.
+    enableContentReads: boolean;
     enableContentTools: boolean;
     enableDocuments: boolean;
     // Data apps enabled + user may create them + content tools (trusted identity).

@@ -18,8 +18,7 @@ import {
     type AgentAsCodeUpsertChanges,
     type SessionUser,
 } from '@lightdash/common';
-import isEqual from 'lodash/isEqual';
-import sumBy from 'lodash/sumBy';
+import { isEqual, sumBy } from 'es-toolkit/compat';
 import { validate as isValidUuid } from 'uuid';
 import { fromSession } from '../../../auth/account';
 import { type LightdashConfig } from '../../../config/parseConfig';

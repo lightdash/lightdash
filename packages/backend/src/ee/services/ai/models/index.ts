@@ -83,7 +83,7 @@ const withKeyManagement = <P extends AiProvider>(
 
 // Fast models for lightweight tasks (text generation, summaries, etc.)
 // These are cheaper and faster than default models
-const FAST_MODELS = {
+export const FAST_MODELS = {
     openai: DEFAULT_OPENAI_FAST_MODEL_NAME,
     anthropic: DEFAULT_ANTHROPIC_FAST_MODEL_NAME,
     google: DEFAULT_GOOGLE_FAST_MODEL_NAME,

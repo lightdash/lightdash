@@ -5,8 +5,8 @@ import {
     SlackSettings,
 } from '@lightdash/common';
 import { Installation, InstallationQuery } from '@slack/bolt';
+import { isNil } from 'es-toolkit/compat';
 import { Knex } from 'knex';
-import isNil from 'lodash/isNil';
 import {
     DbSlackAuthTokens,
     SlackAuthTokensTableName,

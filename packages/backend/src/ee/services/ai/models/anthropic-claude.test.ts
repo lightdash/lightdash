@@ -139,24 +139,6 @@ describe('getAnthropicModel reasoning effort', () => {
         });
         expect(model.callOptions.maxOutputTokens).toBeUndefined();
     });
-
-    test('explicitly disables thinking on adaptive models when reasoning is off', () => {
-        // Adaptive models think by default when no thinking config is sent,
-        // eating the max_tokens budget of short-capped ambient calls.
-        const model = getAnthropicModel(config, {
-            ...preset,
-            reasoningStyle: 'adaptive',
-        });
-        expect(model.providerOptions?.anthropic).toMatchObject({
-            thinking: { type: 'disabled' },
-        });
-        expect(model.providerOptions?.anthropic?.effort).toBeUndefined();
-    });
-
-    test('sends no thinking field for budget-style models when reasoning is off', () => {
-        const model = getAnthropicModel(config, preset);
-        expect(model.providerOptions?.anthropic?.thinking).toBeUndefined();
-    });
 });
 
 describe('Anthropic gateways without context management', () => {

@@ -20,7 +20,7 @@ import {
 import { useForm } from '@mantine/form';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconChartAreaLine } from '@tabler/icons-react';
-import uniqBy from 'lodash/uniqBy';
+import { uniqBy } from 'es-toolkit/compat';
 import React, {
     useEffect,
     useLayoutEffect,

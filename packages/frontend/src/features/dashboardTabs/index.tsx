@@ -14,8 +14,8 @@ import {
 import { Button, Group, Tabs, Tooltip } from '@mantine/core';
 import { useMergedRef } from '@mantine/hooks';
 import { IconPlus } from '@tabler/icons-react';
+import { cloneDeep } from 'es-toolkit/compat';
 import { produce } from 'immer';
-import cloneDeep from 'lodash/cloneDeep';
 import {
     Activity,
     memo,

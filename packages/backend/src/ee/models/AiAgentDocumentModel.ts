@@ -8,8 +8,8 @@ import {
     NotFoundError,
     ProjectType,
 } from '@lightdash/common';
+import { omit } from 'es-toolkit/compat';
 import { Knex } from 'knex';
-import { omit } from 'lodash';
 import { ProjectTableName } from '../../database/entities/projects';
 import {
     AiAgentDocumentAccessTableName,

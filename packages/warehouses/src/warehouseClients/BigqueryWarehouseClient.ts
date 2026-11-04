@@ -1242,6 +1242,32 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         }
     }
 
+    async getQueryFields(
+        sql: string,
+        { tags, values }: { tags: Record<string, string>; values?: AnyType[] },
+    ): Promise<WarehouseResults['fields']> {
+        try {
+            const [job] = await this.createJob(sql, {
+                values,
+                tags,
+                dryRun: true,
+            });
+            return BigqueryWarehouseClient.getFieldsFromResponse(
+                job.metadata?.statistics?.query,
+            );
+        } catch (e: unknown) {
+            this.throwIfGoogleOauthTokenError(e);
+            if (BigqueryWarehouseClient.isBigqueryError(e)) {
+                const responseError: bigquery.IErrorProto | undefined =
+                    e?.errors[0];
+                if (responseError) {
+                    throw this.parseError(responseError, sql);
+                }
+            }
+            throw e;
+        }
+    }
+
     async executeAsyncQuery(
         {
             sql,
