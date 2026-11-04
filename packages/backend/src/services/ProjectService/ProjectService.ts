@@ -645,6 +645,15 @@ import {
     type WarehouseSqlBuilderSettings,
 } from './warehouseSqlBuilderSettings';
 
+// Only shapes the query for a live source in a project without a warehouse; it can never open a connection
+const LIVE_SOURCE_ONLY_CREDENTIALS: CreateWarehouseCredentials = {
+    type: WarehouseTypes.DUCKDB,
+    connectionType: DuckdbConnectionType.MOTHERDUCK,
+    database: '',
+    schema: '',
+    token: '',
+};
+
 const manifestWithCompilationSelection = (
     manifest: DbtManifest,
     selectedModelIds?: string[],
@@ -3002,6 +3011,18 @@ export class ProjectService
         );
     }
 
+    private async isLiveSourceExplore(
+        projectUuid: string,
+        binding: ConnectionBinding,
+    ): Promise<boolean> {
+        if (binding.kind !== 'explore') return false;
+        const explore = await this.projectModel.getExploreFromCache(
+            projectUuid,
+            binding.exploreName,
+        );
+        return explore.type === ExploreType.API_SOURCE;
+    }
+
     protected async getWarehouseCredentialsWithConnection({
         binding,
         ...args
@@ -3019,8 +3040,24 @@ export class ProjectService
         };
         switch (target.kind) {
             case 'original': {
-                const resolvedCredentials =
-                    await this.getSingleRouteWarehouseCredentials(args);
+                const resolvedCredentials: ResolvedWarehouseCredentials =
+                    await this.getSingleRouteWarehouseCredentials(args).catch(
+                        async (error: unknown) => {
+                            if (
+                                error instanceof NotFoundError &&
+                                (await this.isLiveSourceExplore(
+                                    args.projectUuid,
+                                    binding,
+                                ))
+                            ) {
+                                return {
+                                    ...LIVE_SOURCE_ONLY_CREDENTIALS,
+                                    userWarehouseCredentialsUuid: undefined,
+                                };
+                            }
+                            throw error;
+                        },
+                    );
                 const { aiPlan, ...warehouseCredentials } = resolvedCredentials;
                 return {
                     warehouseCredentials: copyWarehouseCredentialVersions(
