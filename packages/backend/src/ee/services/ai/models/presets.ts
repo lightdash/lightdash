@@ -29,6 +29,11 @@ export type ModelPreset<P extends SelectableModelProvider> = {
     // `thinking.type: 'enabled'` + `budgetTokens` API; 'adaptive' uses the newer
     // `effort` API (required by Claude Opus 4.7+). Ignored unless supportsReasoning.
     reasoningStyle?: ReasoningStyle;
+    // Whether the API accepts an explicit thinking opt-out
+    // (`thinking.type: 'disabled'`) when reasoning is off. Opus 5.5 and
+    // Sonnet 5.5 reject it with a 400 at every effort level — thinking cannot
+    // be disabled on those models — so they must omit the field instead.
+    supportsDisabledThinking?: boolean;
     // Excluded from model pickers unless the org's own provider key can access it
     hiddenUnlessKeyAccess?: boolean;
     // Kept resolvable for existing configurations, but hidden from new selections
@@ -260,6 +265,7 @@ export const MODEL_PRESETS: {
             contextWindowTokens: 200000,
             supportsReasoning: true,
             reasoningStyle: 'adaptive',
+            supportsDisabledThinking: true,
             deprecated: true,
             supersededBy: 'claude-sonnet-5-5',
             callOptions: {},
@@ -274,6 +280,7 @@ export const MODEL_PRESETS: {
             contextWindowTokens: 200000,
             supportsReasoning: true,
             reasoningStyle: 'adaptive',
+            supportsDisabledThinking: true,
             deprecated: true,
             supersededBy: 'claude-opus-5-5',
             callOptions: {},
@@ -288,6 +295,7 @@ export const MODEL_PRESETS: {
             contextWindowTokens: 200000,
             supportsReasoning: true,
             reasoningStyle: 'adaptive',
+            supportsDisabledThinking: true,
             hiddenUnlessKeyAccess: true,
             deprecated: true,
             supersededBy: 'claude-opus-5',
@@ -303,6 +311,7 @@ export const MODEL_PRESETS: {
             contextWindowTokens: 200000,
             supportsReasoning: true,
             reasoningStyle: 'adaptive',
+            supportsDisabledThinking: true,
             deprecated: true,
             supersededBy: 'claude-opus-4-8',
             callOptions: {},
@@ -369,6 +378,7 @@ export const MODEL_PRESETS: {
             contextWindowTokens: 200000,
             supportsReasoning: true,
             reasoningStyle: 'adaptive',
+            supportsDisabledThinking: true,
             callOptions: {},
             providerOptions: undefined,
         },
@@ -434,6 +444,7 @@ export const MODEL_PRESETS: {
             contextWindowTokens: 200000,
             supportsReasoning: true,
             reasoningStyle: 'adaptive',
+            supportsDisabledThinking: true,
             callOptions: {},
             providerOptions: undefined,
         },
@@ -471,6 +482,7 @@ export const MODEL_PRESETS: {
             contextWindowTokens: 200000,
             supportsReasoning: true,
             reasoningStyle: 'adaptive',
+            supportsDisabledThinking: true,
             deprecated: true,
             supersededBy: 'claude-sonnet-5-5',
             callOptions: {},
@@ -485,6 +497,7 @@ export const MODEL_PRESETS: {
             contextWindowTokens: 200000,
             supportsReasoning: true,
             reasoningStyle: 'adaptive',
+            supportsDisabledThinking: true,
             deprecated: true,
             supersededBy: 'claude-opus-5-5',
             callOptions: {},
@@ -523,6 +536,7 @@ export const MODEL_PRESETS: {
             contextWindowTokens: 200000,
             supportsReasoning: true,
             reasoningStyle: 'adaptive',
+            supportsDisabledThinking: true,
             callOptions: {},
             providerOptions: undefined,
         },

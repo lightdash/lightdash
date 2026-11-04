@@ -197,6 +197,20 @@ describe('getBedrockModel reasoning off', () => {
         });
     });
 
+    test('omits the reasoning config on adaptive models that reject disabled', () => {
+        // Opus 5.5 / Sonnet 5.5 return a 400 for a disabled reasoning config
+        // at every effort level — reasoning off must send no config field.
+        const opusPreset = MODEL_PRESETS.bedrock.find(
+            (candidate) => candidate.name === 'claude-opus-5-5',
+        );
+        if (!opusPreset) throw new Error('Missing Opus 5.5 preset');
+        const { providerOptions } = getBedrockModel(
+            { ...config, modelName: opusPreset.name },
+            opusPreset,
+        );
+        expect(providerOptions?.bedrock?.reasoningConfig).toBeUndefined();
+    });
+
     test('sends no reasoning config for budget-style models', () => {
         const budgetPreset = MODEL_PRESETS.bedrock.find(
             (candidate) => candidate.name === 'claude-haiku-4-5',
