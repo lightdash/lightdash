@@ -288,7 +288,8 @@ export class OnboardingAgentService extends BaseService {
     private async failIfAbandoned(
         run: DbAgentOnboardingRun,
     ): Promise<DbAgentOnboardingRun> {
-        if (isAgentOnboardingRunTerminal(run.status)) return run;
+        // Queued runs wait on the worker queue, so only a silent running run is abandoned
+        if (run.status !== 'running') return run;
         // Skips the write on every poll; the guarded UPDATE still settles races
         if (Date.now() - run.updated_at.getTime() < ABANDONED_RUN_IDLE_MS) {
             return run;
