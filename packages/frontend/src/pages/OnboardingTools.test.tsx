@@ -17,13 +17,17 @@ vi.mock('../hooks/slack/useSlack', () => ({
 const project = vi.hoisted(() => ({
     data: undefined as { warehouseConnection: null } | undefined,
     explores: [] as { name: string; type: string }[],
+    isLoadingExplores: false,
 }));
 vi.mock('../hooks/useProject', async (importOriginal) => ({
     ...(await importOriginal<object>()),
     useProject: () => ({ data: project.data }),
 }));
 vi.mock('../hooks/useExplores', () => ({
-    useExplores: () => ({ data: project.explores }),
+    useExplores: () => ({
+        data: project.isLoadingExplores ? undefined : project.explores,
+        isInitialLoading: project.isLoadingExplores,
+    }),
 }));
 vi.mock('../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: vi.fn(),
@@ -93,6 +97,7 @@ describe('OnboardingTools', () => {
         slack.data = undefined;
         project.data = undefined;
         project.explores = [];
+        project.isLoadingExplores = false;
         vi.mocked(useExternalConnections).mockReturnValue({
             data: [],
         } as unknown as ReturnType<typeof useExternalConnections>);
@@ -170,6 +175,17 @@ describe('OnboardingTools', () => {
             await screen.findByRole('heading', { name: 'Connect your tools' }),
         ).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled();
+    });
+
+    it('holds the button until it knows the project has models', async () => {
+        mockFlags({ [FeatureFlags.ApiQuerySources]: true });
+        project.data = { warehouseConnection: null };
+        project.isLoadingExplores = true;
+        renderPage({});
+
+        expect(
+            await screen.findByRole('button', { name: 'Skip for now' }),
+        ).toBeDisabled();
     });
 
     it('keeps skip for a CLI-deployed project without stored credentials', async () => {

@@ -267,7 +267,9 @@ export const YourData: FC<{
             <Group justify="space-between" align="center" wrap="nowrap">
                 <Box>
                     <Text fz="sm" fw={600}>
-                        Build your first chart
+                        {(guide.chartCount ?? 0) > 0
+                            ? 'Build a chart'
+                            : 'Build your first chart'}
                     </Text>
                     <Text fz="xs" c="dimmed">
                         Save it to share with your team or add it to a

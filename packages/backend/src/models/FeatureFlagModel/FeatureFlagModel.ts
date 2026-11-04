@@ -170,7 +170,15 @@ export class FeatureFlagModel {
         if (newOnboarding.enabled) {
             return { id: args.featureFlagId, enabled: true };
         }
-        return this.getWithEnvFallback(args, false, options);
+        // No override applies, so only the flag default is left
+        const flag = await (options.trx ?? this.database)(FeatureFlagsTableName)
+            .where('flag_id', args.featureFlagId)
+            .first()
+            .catch(() => undefined);
+        return {
+            id: args.featureFlagId,
+            enabled: flag?.default_enabled ?? false,
+        };
     }
 
     // DB value (user override → org override → flag default) wins. Falls

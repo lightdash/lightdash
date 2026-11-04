@@ -539,11 +539,15 @@ const OnboardingToolsContent: FC<{
     const showGoogle =
         showLiveSources && health.data?.hasGoogleLiveSources === true;
 
-    const { data: project } = useProject(projectUuid);
+    const { data: project, isInitialLoading: isLoadingProject } =
+        useProject(projectUuid);
     const hasNoWarehouse = !!project && !project.warehouseConnection;
-    const { data: explores } = useExplores(projectUuid, true, false, {
-        enabled: hasNoWarehouse,
-    });
+    const { data: explores, isInitialLoading: isLoadingExplores } = useExplores(
+        projectUuid,
+        true,
+        false,
+        { enabled: hasNoWarehouse },
+    );
     const { data: connections = [] } = useExternalConnections(
         showLiveSources ? projectUuid : undefined,
     );
@@ -736,7 +740,9 @@ const OnboardingToolsContent: FC<{
                     )}
                     <Button
                         variant={canContinue ? 'filled' : 'default'}
-                        disabled={mustConnect}
+                        disabled={
+                            mustConnect || isLoadingProject || isLoadingExplores
+                        }
                         onClick={() => {
                             if (!hasConnected) {
                                 track({

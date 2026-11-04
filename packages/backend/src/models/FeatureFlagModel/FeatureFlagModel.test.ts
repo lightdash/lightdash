@@ -695,6 +695,14 @@ describe('FeatureFlagModel', () => {
             const model = buildModel({}, buildFakeDatabase({}));
             expect((await getLiveSources(model)).enabled).toBe(false);
         });
+
+        it('follows the flag default without the new onboarding', async () => {
+            const model = buildModel(
+                {},
+                buildFakeDatabase({ flag: { default_enabled: true } }),
+            );
+            expect((await getLiveSources(model)).enabled).toBe(true);
+        });
     });
 
     describe('EnableTimezoneSupport defaults to on', () => {
