@@ -4877,7 +4877,41 @@ export class ProjectService
                 'Project is not a preview and has no upstream project to compare against',
             );
         }
+        await this.getViewableUpstreamProject(
+            account,
+            organizationUuid,
+            upstreamProjectUuid,
+        );
         return upstreamProjectUuid;
+    }
+
+    /**
+     * An upstream link is trusted by previews, promotion and the upstream
+     * diff, so it must name a project in the same organization that the
+     * caller can view.
+     */
+    private async getViewableUpstreamProject(
+        account: Account | SessionUser,
+        organizationUuid: string,
+        upstreamProjectUuid: string,
+    ): Promise<ProjectSummary> {
+        const upstream =
+            await this.projectModel.getSummary(upstreamProjectUuid);
+        if (
+            upstream.organizationUuid !== organizationUuid ||
+            this.createAuditedAbility(account).cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid: upstream.organizationUuid,
+                    projectUuid: upstream.projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                "You don't have access to the upstream project",
+            );
+        }
+        return upstream;
     }
 
     /**
@@ -16650,11 +16684,18 @@ export class ProjectService
             throw new ForbiddenError();
         }
         if (data.upstreamProjectUuid) {
-            // Pointing a preview at the training project would dress it up
-            // as a training copy; only the training service makes those.
-            const upstream = await this.projectModel.getSummary(
+            if (data.upstreamProjectUuid === projectUuid) {
+                throw new ParameterError(
+                    'A project cannot be its own upstream project',
+                );
+            }
+            const upstream = await this.getViewableUpstreamProject(
+                user,
+                organizationUuid,
                 data.upstreamProjectUuid,
             );
+            // Pointing a preview at the training project would dress it up
+            // as a training copy; only the training service makes those.
             if (upstream.type === ProjectType.TRAINING) {
                 throw new ForbiddenError(
                     'A preview cannot be re-parented to the training project',
