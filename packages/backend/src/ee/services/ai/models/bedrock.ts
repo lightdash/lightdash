@@ -90,8 +90,11 @@ export const getBedrockModel = (
             // Adaptive models think by default when the request carries no
             // reasoning config, and that thinking spends the shared max_tokens
             // budget — short-capped calls come back truncated. Reasoning off
-            // must be an explicit opt-out, not an absent field.
-            return reasoningStyle === 'adaptive'
+            // is an explicit opt-out where the model allows one; models that
+            // reject a disabled reasoning config (Opus 5.5, Sonnet 5.5 — 400
+            // at every effort level) must omit the field instead.
+            return reasoningStyle === 'adaptive' &&
+                preset.supportsDisabledThinking
                 ? { reasoningConfig: { type: 'disabled' as const } }
                 : {};
         }

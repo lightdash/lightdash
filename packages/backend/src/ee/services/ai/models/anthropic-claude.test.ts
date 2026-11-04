@@ -146,11 +146,22 @@ describe('getAnthropicModel reasoning effort', () => {
         const model = getAnthropicModel(config, {
             ...preset,
             reasoningStyle: 'adaptive',
+            supportsDisabledThinking: true,
         });
         expect(model.providerOptions?.anthropic).toMatchObject({
             thinking: { type: 'disabled' },
         });
         expect(model.providerOptions?.anthropic?.effort).toBeUndefined();
+    });
+
+    test('omits the thinking field on adaptive models that reject disabled', () => {
+        // Opus 5.5 / Sonnet 5.5 return a 400 for `thinking.type: 'disabled'`
+        // at every effort level — reasoning off must send no thinking field.
+        const model = getAnthropicModel(config, {
+            ...preset,
+            reasoningStyle: 'adaptive',
+        });
+        expect(model.providerOptions?.anthropic?.thinking).toBeUndefined();
     });
 
     test('sends no thinking field for budget-style models when reasoning is off', () => {
