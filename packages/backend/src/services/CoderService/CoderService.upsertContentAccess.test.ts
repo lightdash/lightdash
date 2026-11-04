@@ -130,7 +130,9 @@ const buildService = () =>
         schedulerModel: {} as AnyType,
         schedulerService: {} as AnyType,
         savedChartService: {} as AnyType,
-        dashboardService: {} as AnyType,
+        dashboardService: {
+            areDashboardControlsEnabled: vi.fn(async () => true),
+        } as AnyType,
         schedulerClient: {} as AnyType,
         promoteService: {
             getPromoteCharts: vi.fn(),
@@ -1510,6 +1512,146 @@ const registerContentAccessTests = (
             dashboards: [{ action: PromotionAction.CREATE }],
         });
         expect(service.dashboardModel.create).toHaveBeenCalled();
+    });
+
+    describe('parameter controls', () => {
+        const upsertWithControls = async (
+            projectParameters: { name: string; config: AnyType }[],
+            enabled = true,
+        ) => {
+            const service = buildService();
+            vi.mocked(
+                service.dashboardService.areDashboardControlsEnabled,
+            ).mockResolvedValue(enabled);
+            service.projectService = {
+                projectParametersModel: {
+                    find: vi.fn(async () => projectParameters),
+                },
+            } as AnyType;
+            (service as AnyType).projectModel.findExploresFromCache = vi.fn(
+                async () => ({}),
+            );
+            vi.mocked(service.savedChartModel.get).mockResolvedValue({
+                tableName: 'orders',
+            } as AnyType);
+            vi.spyOn(service, 'getOrCreateSpace').mockResolvedValue({
+                space: { uuid: SPACE_UUID } as AnyType,
+                created: false,
+            });
+            vi.mocked(service.savedChartModel.find).mockResolvedValue([
+                {
+                    uuid: 'accessible-chart-uuid',
+                    slug: 'accessible-chart',
+                    spaceUuid: SPACE_UUID,
+                } as AnyType,
+            ]);
+            vi.mocked(service.dashboardModel.create).mockResolvedValue({
+                uuid: 'dashboard-uuid',
+                tiles: [],
+            } as AnyType);
+            const user = makeUser([
+                { subject: 'ContentAsCode', action: 'create' },
+                {
+                    subject: 'Dashboard',
+                    action: 'create',
+                    conditions: { projectUuid: PROJECT_UUID },
+                },
+                {
+                    subject: 'SavedChart',
+                    action: 'view',
+                    conditions: { projectUuid: PROJECT_UUID },
+                },
+            ]);
+
+            await service.upsertDashboard(
+                user,
+                PROJECT_UUID,
+                dashboardAsCode.slug,
+                {
+                    ...dashboardAsCode,
+                    parameters: {
+                        week_start: {
+                            parameterName: 'week_start',
+                            value: 'stale',
+                        },
+                        currency: { parameterName: 'currency', value: 'EUR' },
+                    },
+                    config: {
+                        isDateZoomDisabled: false,
+                        parameterControls: [
+                            {
+                                id: 'control-uuid',
+                                label: null,
+                                value: 'monday',
+                                valueType: { type: 'string', multiple: false },
+                                parameters: {
+                                    week_start: {
+                                        except: ['accessible-chart'],
+                                    },
+                                },
+                            },
+                        ],
+                    },
+                    tiles: [
+                        {
+                            type: DashboardTileTypes.SAVED_CHART,
+                            x: 0,
+                            y: 0,
+                            h: 3,
+                            w: 3,
+                            properties: { chartSlug: 'accessible-chart' },
+                        },
+                    ],
+                } as unknown as DashboardAsCode,
+            );
+            return vi.mocked(service.dashboardModel.create).mock.calls[0][1];
+        };
+
+        it('creates a dashboard with tile targets on tile uuids and control values mirrored', async () => {
+            const created = await upsertWithControls([
+                { name: 'week_start', config: { label: 'Week start' } },
+            ]);
+            const tileUuid = created.tiles[0].uuid!;
+            expect(created.parameters).toEqual({
+                week_start: { parameterName: 'week_start', value: 'monday' },
+            });
+            expect(created.config?.parameterControls?.[0].parameters).toEqual({
+                week_start: { except: [tileUuid] },
+            });
+        });
+
+        it('uses legacy values and ignores incoming controls when disabled', async () => {
+            const created = await upsertWithControls([], false);
+            expect(created.parameters).toEqual({
+                week_start: { parameterName: 'week_start', value: 'stale' },
+                currency: { parameterName: 'currency', value: 'EUR' },
+            });
+            expect(created.config?.parameterControls).toBeUndefined();
+        });
+
+        it('rejects values outside a known fixed option set', async () => {
+            await expect(
+                upsertWithControls([
+                    {
+                        name: 'week_start',
+                        config: { type: 'string', options: ['tuesday'] },
+                    },
+                ]),
+            ).rejects.toThrow('has a value outside its allowed options');
+        });
+
+        it('rejects a control whose parameter type differs from its value type', async () => {
+            await expect(
+                upsertWithControls([
+                    {
+                        name: 'week_start',
+                        config: { label: 'Week start', type: 'date' },
+                    },
+                ]),
+            ).rejects.toThrow(
+                'Parameter week_start does not take the values of control week_start',
+            );
+        });
     });
 
     it('allows chart create to create a placeholder dashboard in the same allowed space', async () => {

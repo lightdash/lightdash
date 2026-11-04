@@ -27,6 +27,7 @@ import {
     getDashboardDeleteAccess,
     getErrorMessage,
     getItemId,
+    getParameterMirror,
     getParameterReferences,
     getQueryParameterReferences,
     getSchedulerResourceTypeAndId,
@@ -116,7 +117,10 @@ import {
     type ContentDraftBase,
 } from '../../models/ContentDraftModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
-import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import {
+    DashboardModel,
+    validateAndPruneDashboardConfig,
+} from '../../models/DashboardModel/DashboardModel';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
@@ -985,6 +989,17 @@ export class DashboardService
      * explore without compiling. A tile that can't be loaded or viewed
      * reports its own error.
      */
+    async areDashboardControlsEnabled(
+        user: SessionUser,
+        organizationUuid: string,
+    ): Promise<boolean> {
+        const { enabled } = await this.featureFlagModel.get({
+            user: { organizationUuid, userUuid: user.userUuid },
+            featureFlagId: FeatureFlags.DashboardControls,
+        });
+        return enabled;
+    }
+
     async getTileParameterReferences(
         account: Account,
         projectUuid: string,
@@ -1989,10 +2004,35 @@ export class DashboardService
             );
         }
 
-        const createDashboard = {
+        let createDashboard = {
             ...dashboard,
             slug: generateSlug(dashboard.name),
         };
+        if (dashboard.config?.parameterControls !== undefined) {
+            const { enabled } = await this.featureFlagModel.get({
+                user: {
+                    organizationUuid: space.organizationUuid,
+                    userUuid: user.userUuid,
+                },
+                featureFlagId: FeatureFlags.DashboardControls,
+            });
+            if (enabled) {
+                const controls = dashboard.config.parameterControls;
+                const config = validateAndPruneDashboardConfig(
+                    dashboard.config,
+                    dashboard.tiles,
+                );
+                createDashboard = {
+                    ...createDashboard,
+                    config,
+                    parameters: getParameterMirror(controls),
+                };
+            } else {
+                const { parameterControls: _ignored, ...config } =
+                    dashboard.config;
+                createDashboard = { ...createDashboard, config };
+            }
+        }
         const newDashboard = await this.dashboardModel.create(
             space.uuid,
             createDashboard,
@@ -2283,17 +2323,19 @@ export class DashboardService
                 }),
             );
 
-            const remapTileTargets = (
-                tileTargets: Record<string, DashboardTileTarget> | undefined,
-            ): Record<string, DashboardTileTarget> | undefined => {
-                if (!tileTargets) return undefined;
-                return Object.fromEntries(
-                    Object.entries(tileTargets).map(([key, value]) => [
+            const remapTileUuidKeys = <T>(
+                byTileUuid: Record<string, T>,
+            ): Record<string, T> =>
+                Object.fromEntries(
+                    Object.entries(byTileUuid).map(([key, value]) => [
                         tileUuidMap.get(key) ?? key,
                         value,
                     ]),
                 );
-            };
+            const remapTileTargets = (
+                tileTargets: Record<string, DashboardTileTarget> | undefined,
+            ): Record<string, DashboardTileTarget> | undefined =>
+                tileTargets && remapTileUuidKeys(tileTargets);
 
             const remappedFilters: typeof newDashboard.filters = {
                 dimensions: newDashboard.filters.dimensions.map((filter) => ({
@@ -2319,23 +2361,51 @@ export class DashboardService
                     filters: remappedFilters,
                     tabs: newTabs,
                     parameters: newDashboard.parameters,
-                    config: newDashboard.config?.dateZoomConfig
-                        ? {
-                              ...newDashboard.config,
-                              dateZoomConfig: {
-                                  ...newDashboard.config.dateZoomConfig,
-                                  tileTargets: Object.fromEntries(
-                                      Object.entries(
-                                          newDashboard.config.dateZoomConfig
-                                              .tileTargets,
-                                      ).map(([key, value]) => [
-                                          tileUuidMap.get(key) ?? key,
-                                          value,
-                                      ]),
-                                  ),
-                              },
-                          }
-                        : newDashboard.config,
+                    config: newDashboard.config && {
+                        ...newDashboard.config,
+                        ...(newDashboard.config.dateZoomConfig && {
+                            dateZoomConfig: {
+                                ...newDashboard.config.dateZoomConfig,
+                                tileTargets: remapTileUuidKeys(
+                                    newDashboard.config.dateZoomConfig
+                                        .tileTargets,
+                                ),
+                            },
+                        }),
+                        ...(newDashboard.config.parameterControls && {
+                            parameterControls:
+                                newDashboard.config.parameterControls.map(
+                                    (control) => ({
+                                        ...control,
+                                        parameters: Object.fromEntries(
+                                            Object.entries(
+                                                control.parameters,
+                                            ).map(([key, target]) => {
+                                                if (target === 'all') {
+                                                    return [key, target];
+                                                }
+                                                const remap = (id: string) =>
+                                                    tileUuidMap.get(id) ?? id;
+                                                return [
+                                                    key,
+                                                    'only' in target
+                                                        ? {
+                                                              only: target.only.map(
+                                                                  remap,
+                                                              ),
+                                                          }
+                                                        : {
+                                                              except: target.except.map(
+                                                                  remap,
+                                                              ),
+                                                          },
+                                                ];
+                                            }),
+                                        ),
+                                    }),
+                                ),
+                        }),
+                    },
                 },
                 user,
                 projectUuid,
@@ -2720,7 +2790,8 @@ export class DashboardService
                 projectUuid: options?.projectUuid,
             },
         );
-        const { preserveVerification, ...dashboardFields } = dashboard;
+        const { preserveVerification, ...incomingFields } = dashboard;
+        let dashboardFields = incomingFields;
 
         const currentSpace = await this.spacePermissionService.resolveAccess(
             user.userUuid,
@@ -2751,6 +2822,46 @@ export class DashboardService
             projectUuid: existingDashboardDao.projectUuid,
             organizationUuid: existingDashboardDao.organizationUuid,
         });
+
+        if (
+            isDashboardVersionedFields(incomingFields) &&
+            incomingFields.config
+        ) {
+            const incomingControls = incomingFields.config.parameterControls;
+            const savedControls =
+                existingDashboardDao.config?.parameterControls;
+            if (incomingControls !== undefined || savedControls !== undefined) {
+                const { enabled } = await this.featureFlagModel.get({
+                    user: {
+                        organizationUuid: existingDashboardDao.organizationUuid,
+                        userUuid: user.userUuid,
+                    },
+                    featureFlagId: FeatureFlags.DashboardControls,
+                });
+                if (enabled && incomingControls !== undefined) {
+                    validateAndPruneDashboardConfig(
+                        incomingFields.config,
+                        incomingFields.tiles,
+                    );
+                    dashboardFields = {
+                        ...incomingFields,
+                        parameters: getParameterMirror(incomingControls),
+                    };
+                } else {
+                    const { parameterControls: _ignored, ...config } =
+                        incomingFields.config;
+                    dashboardFields = {
+                        ...incomingFields,
+                        config: {
+                            ...config,
+                            ...(savedControls !== undefined && {
+                                parameterControls: savedControls,
+                            }),
+                        },
+                    };
+                }
+            }
+        }
 
         const draftResult = await this.maybeStoreDraft(
             user,

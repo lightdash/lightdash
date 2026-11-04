@@ -5,8 +5,9 @@ import { type ContentVerificationInfo } from './contentVerification';
 import { type FilterableDimension, type Metric } from './field';
 import { type DashboardFieldTarget, type DashboardFilters } from './filter';
 import { type KnexPaginatedData } from './knex-paginate';
+import { type LightdashProjectParameter } from './lightdashProjectConfig';
 import { type AdditionalMetric } from './metricQuery';
-import { type DashboardParameters } from './parameters';
+import { type DashboardParameters, type ParameterValue } from './parameters';
 import { type ProjectType } from './projects';
 import {
     type ChartKind,
@@ -257,6 +258,21 @@ export type DateZoomConfig = {
     tileTargets: Record<string, DateZoomTileTarget>;
 };
 
+export type DashboardParameterTarget<TileRef extends string = string> =
+    | 'all'
+    | { only: TileRef[] }
+    | { except: TileRef[] };
+
+export type DashboardParameterControl = {
+    id: string;
+    label: string | null;
+    value: ParameterValue | null;
+    valueType: Required<Pick<LightdashProjectParameter, 'type' | 'multiple'>>;
+    sectionId?: string;
+    parameters: Record<string, DashboardParameterTarget>;
+    hidden?: boolean;
+};
+
 export type DashboardConfig = {
     isDateZoomDisabled: boolean;
     isAddFilterDisabled?: boolean;
@@ -275,6 +291,8 @@ export type DashboardConfig = {
     controlSections?: DashboardControlSection[];
     /** Parameter name to section id. Parameters have no saved object of their own. */
     parameterSections?: { [parameterName: string]: string };
+    /** Absent: filled from the parameters tiles use. Present (even empty): exactly these. */
+    parameterControls?: DashboardParameterControl[];
 };
 
 export type DashboardOwner = {
