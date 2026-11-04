@@ -2892,9 +2892,32 @@ export class DashboardService
                         incomingFields.config,
                         incomingFields.tiles,
                     );
+                    const savedSlugs = new Map<string, string>(
+                        (savedControls ?? []).flatMap((control) =>
+                            control.slug === undefined
+                                ? []
+                                : [[control.id, control.slug] as const],
+                        ),
+                    );
+                    const controls = incomingControls.map((control) => ({
+                        ...control,
+                        ...(control.slug === undefined &&
+                            savedSlugs.has(control.id) && {
+                                slug: savedSlugs.get(control.id),
+                            }),
+                    }));
+                    const config = {
+                        ...incomingFields.config,
+                        parameterControls: controls,
+                    };
+                    validateAndPruneDashboardConfig(
+                        config,
+                        incomingFields.tiles,
+                    );
                     dashboardFields = {
                         ...incomingFields,
-                        parameters: getParameterMirror(incomingControls),
+                        config,
+                        parameters: getParameterMirror(controls),
                     };
                 } else {
                     const { parameterControls: _ignored, ...config } =

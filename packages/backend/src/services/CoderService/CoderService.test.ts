@@ -24,6 +24,7 @@ import {
     getConfigWithParameterControlTileUuids,
     withTileWarnings,
 } from './dashboardReferences';
+import { getParameterControlsWithIds } from './parameterControlSlugs';
 
 describe('CoderService', () => {
     describe('getMissingIds', () => {
@@ -1961,10 +1962,22 @@ describe('CoderService', () => {
                 new Set(importedTiles.map((tile: AnyType) => tile.tileSlug))
                     .size,
             ).toBe(3);
+            expect(exported.config.parameterControls[0]).toMatchObject({
+                slug: 'region',
+            });
+            expect(exported.config.parameterControls[0].id).toBeUndefined();
             const imported = getConfigWithParameterControlTileUuids(
-                exported.config,
+                {
+                    ...exported.config,
+                    parameterControls: getParameterControlsWithIds(
+                        exported.config.parameterControls,
+                        dashboard.config
+                            .parameterControls as DashboardParameterControl[],
+                    ),
+                },
                 importedTiles,
             );
+            expect(imported.parameterControls?.[0].id).toBe('region');
             expect(imported.parameterControls?.[0].parameters.region).toEqual({
                 only: ['imported-0', 'imported-2'],
             });

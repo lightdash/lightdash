@@ -891,4 +891,66 @@ describe('AddControl with parameters', () => {
             parameters: { 'orders.region': { only: [] } },
         });
     });
+
+    it('starts a second control unset even when the dashboard has a value', async () => {
+        const { user, store } = setup({
+            controls: [
+                {
+                    id: 'first',
+                    label: 'Region',
+                    value: 'APAC',
+                    valueType: { type: 'string', multiple: false },
+                    parameters: { 'orders.region': 'all' },
+                },
+            ],
+        });
+        act(() => {
+            store.dispatch(
+                dashboardParametersActions.setParameter({
+                    key: 'orders.region',
+                    value: 'APAC',
+                }),
+            );
+        });
+        await openParameterPicker(user);
+        await user.click(
+            await screen.findByRole('option', {
+                name: 'Region, Orders, 2 tiles',
+            }),
+        );
+        const dialog = await screen.findByRole('dialog', { name: 'Region' });
+        await user.click(within(dialog).getByRole('button', { name: 'Apply' }));
+        expect(
+            store.getState().parameters.parameterControls?.[1],
+        ).toMatchObject({
+            value: null,
+            parameters: { 'orders.region': { only: [] } },
+        });
+    });
+
+    it('prefills the first control from the dashboard value', async () => {
+        const { user, store } = setup();
+        act(() => {
+            store.dispatch(
+                dashboardParametersActions.setParameter({
+                    key: 'orders.region',
+                    value: 'APAC',
+                }),
+            );
+        });
+        await openParameterPicker(user);
+        await user.click(
+            await screen.findByRole('option', {
+                name: 'Region, Orders, 2 tiles',
+            }),
+        );
+        const dialog = await screen.findByRole('dialog', { name: 'Region' });
+        await user.click(within(dialog).getByRole('button', { name: 'Apply' }));
+        expect(
+            store.getState().parameters.parameterControls?.[0],
+        ).toMatchObject({
+            value: 'APAC',
+            parameters: { 'orders.region': 'all' },
+        });
+    });
 });

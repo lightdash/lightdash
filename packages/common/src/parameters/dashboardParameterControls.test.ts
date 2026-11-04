@@ -100,6 +100,19 @@ describe('parameter control targeting', () => {
             validateParameterControls([control('a', {}), control('a', {})]),
         ).toHaveLength(1);
     });
+    it('rejects duplicate and malformed stored portable slugs', () => {
+        expect(
+            validateParameterControls([
+                { ...control('a', {}), slug: 'region' },
+                { ...control('b', {}), slug: 'region' },
+            ]),
+        ).toContain('Parameter control slug "region" is duplicated');
+        expect(
+            getMalformedParameterControlMessages([
+                { ...control('a', {}), slug: 'Invalid slug' },
+            ]),
+        ).toHaveLength(1);
+    });
     it('prunes stale tiles, deduplicates lists and canonicalizes empty exceptions', () => {
         expect(
             pruneParameterControls(

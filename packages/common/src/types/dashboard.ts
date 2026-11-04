@@ -269,6 +269,8 @@ export type DashboardParameterTarget<TileRef extends string = string> =
 
 export type DashboardParameterControl = {
     id: string;
+    /** Portable identity supplied by content as code. */
+    slug?: string;
     label: string | null;
     value: ParameterValue | null;
     valueType: Required<Pick<LightdashProjectParameter, 'type' | 'multiple'>>;

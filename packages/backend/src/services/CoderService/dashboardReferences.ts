@@ -141,10 +141,12 @@ export const withTileWarnings = (
 ): DashboardAsCodeUpsertResult =>
     warnings.length > 0 ? { ...changes, warnings } : changes;
 
-export const getConfigWithDateZoomTileUuids = (
-    config: DashboardConfig,
+export const getConfigWithDateZoomTileUuids = <
+    T extends Pick<DashboardConfig, 'dateZoomConfig'>,
+>(
+    config: T,
     tiles: DashboardTileWithSlug[],
-): DashboardConfig => {
+): T => {
     if (!config.dateZoomConfig) return config;
     const tileTargets = Object.entries(
         config.dateZoomConfig.tileTargets ?? {},
