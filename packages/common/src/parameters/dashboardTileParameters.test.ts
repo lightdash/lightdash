@@ -87,7 +87,7 @@ describe('resolveDashboardTileParameters', () => {
             }),
             dashboardValues: dashboard === null ? {} : { status: dashboard },
             chartSavedValues: chartSaved === null ? {} : { status: chartSaved },
-            untargetedKeys: [],
+            excludedKeys: [],
         }).status;
 
     it.each([
@@ -133,7 +133,7 @@ describe('resolveDashboardTileParameters', () => {
                     year: '2024',
                     tier: 'silver',
                 },
-                untargetedKeys: [],
+                excludedKeys: [],
             }),
         ).toEqual({
             status: 'all',
@@ -151,7 +151,7 @@ describe('resolveDashboardTileParameters', () => {
                 }),
                 dashboardValues: {},
                 chartSavedValues: { status: 'Cancelled' },
-                untargetedKeys: [],
+                excludedKeys: [],
             }),
         ).toEqual({ status: 'all' });
     });
@@ -165,7 +165,7 @@ describe('resolveDashboardTileParameters', () => {
                 }),
                 dashboardValues: {},
                 chartSavedValues: { status: 'Cancelled' },
-                untargetedKeys: [],
+                excludedKeys: [],
             }),
         ).toEqual({ status: 'Cancelled' });
     });
@@ -179,7 +179,7 @@ describe('resolveDashboardTileParameters', () => {
                 }),
                 dashboardValues: {},
                 chartSavedValues: { status: 'Cancelled' },
-                untargetedKeys: [],
+                excludedKeys: [],
             }).status,
         ).toBe('Cancelled');
     });
@@ -193,7 +193,7 @@ describe('resolveDashboardTileParameters', () => {
                 }),
                 dashboardValues: {},
                 chartSavedValues: { status: 'Cancelled' },
-                untargetedKeys: [],
+                excludedKeys: [],
             }).status,
         ).toBe('view');
     });
@@ -213,7 +213,7 @@ describe('resolveDashboardTileParameters', () => {
                 }),
                 dashboardValues: {},
                 chartSavedValues: { period_to: '2025-01-01' },
-                untargetedKeys: [],
+                excludedKeys: [],
             }),
         ).toEqual({ period_to: '2026-09-18' });
     });
@@ -224,12 +224,12 @@ describe('resolveDashboardTileParameters', () => {
                 fallbackSources: fallbackSources(),
                 dashboardValues: { unknown: 'x' },
                 chartSavedValues: { other: 'y' },
-                untargetedKeys: [],
+                excludedKeys: [],
             }),
         ).toEqual({ unknown: 'x', other: 'y' });
     });
 
-    it('ignores dashboard values and the default rule on an untargeted tile', () => {
+    it('ignores dashboard values and the default rule on an excluded tile', () => {
         expect(
             resolveDashboardTileParameters({
                 fallbackSources: fallbackSources({
@@ -240,7 +240,7 @@ describe('resolveDashboardTileParameters', () => {
                 }),
                 dashboardValues: { status: 'Shipped', region: 'US' },
                 chartSavedValues: { status: 'Cancelled' },
-                untargetedKeys: ['status', 'region'],
+                excludedKeys: ['status', 'region'],
             }),
         ).toEqual({ status: 'Cancelled', region: 'EU' });
     });
@@ -256,7 +256,7 @@ describe('getDashboardTileParameterOverrides', () => {
                 },
                 dashboardValues: {},
                 chartSavedValues: { status: 'Cancelled', region: 'US' },
-                untargetedKeys: [],
+                excludedKeys: [],
             }),
         ).toEqual({ region: 'US' });
     });
@@ -279,7 +279,7 @@ describe('getDashboardTileParameterSource', () => {
             definitions,
             dashboardValues: dashboard === null ? {} : { status: dashboard },
             chartSavedValues: chartSaved === null ? {} : { status: chartSaved },
-            untargetedKeys: isTargeted ? [] : ['status'],
+            excludedKeys: isTargeted ? [] : ['status'],
         });
 
     it.each([
@@ -343,7 +343,7 @@ describe('getDashboardTileParameterSource', () => {
             definitions: {},
             dashboardValues: { unknown: 'x' },
             chartSavedValues: { other: 'y' },
-            untargetedKeys: [],
+            excludedKeys: [],
         };
         expect(
             getDashboardTileParameterSource({ ...inputs, key: 'unknown' }),
@@ -371,7 +371,7 @@ describe('dashboard parameter status', () => {
                     parameterReferences: ['status'],
                     chartSavedValues: { status: 'Cancelled' },
                     dashboardValues: {},
-                    untargetedKeys: [],
+                    excludedKeys: [],
                     virtualViewSavedValues: {},
                 },
             ],
@@ -387,7 +387,7 @@ describe('dashboard parameter status', () => {
                     parameterReferences: ['status'],
                     chartSavedValues: {},
                     dashboardValues: {},
-                    untargetedKeys: [],
+                    excludedKeys: [],
                     virtualViewSavedValues: {},
                 },
             ],
@@ -405,14 +405,14 @@ describe('dashboard parameter status', () => {
                     parameterReferences: ['currency'],
                     chartSavedValues: { currency: 'EUR' },
                     dashboardValues: {},
-                    untargetedKeys: [],
+                    excludedKeys: [],
                     virtualViewSavedValues: {},
                 },
                 {
                     parameterReferences: ['currency'],
                     chartSavedValues: {},
                     dashboardValues: {},
-                    untargetedKeys: [],
+                    excludedKeys: [],
                     virtualViewSavedValues: {},
                 },
             ],
@@ -428,7 +428,7 @@ describe('dashboard parameter status', () => {
                     parameterReferences: ['status'],
                     chartSavedValues: {},
                     dashboardValues: { status: 'Completed' },
-                    untargetedKeys: [],
+                    excludedKeys: [],
                     virtualViewSavedValues: {},
                 },
             ],
@@ -444,14 +444,14 @@ describe('dashboard parameter status', () => {
                     parameterReferences: ['status', 'region'],
                     chartSavedValues: { status: 'Cancelled', region: 'EU' },
                     dashboardValues: {},
-                    untargetedKeys: [],
+                    excludedKeys: [],
                     virtualViewSavedValues: {},
                 },
                 {
                     parameterReferences: ['status', 'region'],
                     chartSavedValues: { status: 'Completed' },
                     dashboardValues: {},
-                    untargetedKeys: [],
+                    excludedKeys: [],
                     virtualViewSavedValues: {},
                 },
             ],
@@ -464,17 +464,17 @@ describe('dashboard parameter status', () => {
 
     it.each([
         ['a targeted', []],
-        ['an untargeted', ['status']],
+        ['an excluded', ['status']],
     ])(
         'does not flag %s key the tile resolves from its virtual view',
-        (_name, untargetedKeys) => {
+        (_name, excludedKeys) => {
             const inputs: DashboardParameterStatusInputs = {
                 tiles: [
                     {
                         parameterReferences: ['status'],
                         chartSavedValues: {},
                         dashboardValues: {},
-                        untargetedKeys,
+                        excludedKeys,
                         virtualViewSavedValues: { status: 'Shipped' },
                     },
                 ],
@@ -491,14 +491,14 @@ describe('dashboard parameter status', () => {
                     parameterReferences: ['status', 'date_zoom'],
                     chartSavedValues: {},
                     dashboardValues: {},
-                    untargetedKeys: [],
+                    excludedKeys: [],
                     virtualViewSavedValues: {},
                 },
                 {
                     parameterReferences: [],
                     chartSavedValues: { status: 'Cancelled' },
                     dashboardValues: {},
-                    untargetedKeys: [],
+                    excludedKeys: [],
                     virtualViewSavedValues: {},
                 },
             ],
@@ -580,7 +580,7 @@ describe("values outside a parameter's fixed options", () => {
                 }),
                 dashboardValues: { zoom: 'true' },
                 chartSavedValues: {},
-                untargetedKeys: [],
+                excludedKeys: [],
             }),
         ).toEqual({ zoom: 'monthly' });
     });
@@ -590,7 +590,7 @@ describe("values outside a parameter's fixed options", () => {
             definitions,
             dashboardValues: { region: 'apac' },
             chartSavedValues: { region: 'eu' },
-            untargetedKeys: [],
+            excludedKeys: [],
         };
         expect(getDashboardTileParameterOverrides(inputs)).toEqual({
             region: 'eu',
@@ -606,7 +606,7 @@ describe("values outside a parameter's fixed options", () => {
                 definitions,
                 dashboardValues: {},
                 chartSavedValues: { region: 'apac' },
-                untargetedKeys: ['region'],
+                excludedKeys: ['region'],
             }),
         ).toEqual({});
     });
@@ -631,7 +631,7 @@ describe("values outside a parameter's fixed options", () => {
                         parameterReferences: ['region'],
                         chartSavedValues: { region: 'latam' },
                         dashboardValues: { region: 'apac' },
-                        untargetedKeys: [],
+                        excludedKeys: [],
                         virtualViewSavedValues: {},
                     },
                 ],
@@ -640,18 +640,18 @@ describe("values outside a parameter's fixed options", () => {
     });
 });
 
-describe('untargeted keys', () => {
+describe('excluded keys', () => {
     const definitions: ParameterDefinitions = {
         status: { label: 'Status' },
         region: { label: 'Region' },
     };
 
-    it('uses the chart-saved value for an untargeted key and the dashboard value for the rest', () => {
+    it('uses the chart-saved value for an excluded key and the dashboard value for the rest', () => {
         const inputs = {
             definitions,
             dashboardValues: { status: 'Shipped', region: 'US' },
             chartSavedValues: { status: 'Cancelled', region: 'EU' },
-            untargetedKeys: ['status'],
+            excludedKeys: ['status'],
         };
         expect(getDashboardTileParameterOverrides(inputs)).toEqual({
             status: 'Cancelled',
@@ -669,20 +669,20 @@ describe('untargeted keys', () => {
         [statusWithDefault, 'all'],
         [statusWithoutDefault, undefined],
     ])(
-        'falls back for an untargeted key without a chart value (definitions %o resolve %s)',
+        'falls back for an excluded key without a chart value (definitions %o resolve %s)',
         (exploreDefinitions, expected) => {
             expect(
                 resolveDashboardTileParameters({
                     fallbackSources: fallbackSources({ exploreDefinitions }),
                     dashboardValues: { status: 'Shipped' },
                     chartSavedValues: {},
-                    untargetedKeys: ['status'],
+                    excludedKeys: ['status'],
                 }).status,
             ).toBe(expected);
         },
     );
 
-    it('flags a key resolved on one tile but missing on an untargeted tile', () => {
+    it('flags a key resolved on one tile but missing on an excluded tile', () => {
         expect(
             getMissingRequiredDashboardParameters({
                 definitions,
@@ -691,14 +691,14 @@ describe('untargeted keys', () => {
                         parameterReferences: ['status'],
                         chartSavedValues: {},
                         dashboardValues: { status: 'Shipped' },
-                        untargetedKeys: [],
+                        excludedKeys: [],
                         virtualViewSavedValues: {},
                     },
                     {
                         parameterReferences: ['status'],
                         chartSavedValues: {},
                         dashboardValues: { status: 'Shipped' },
-                        untargetedKeys: ['status'],
+                        excludedKeys: ['status'],
                         virtualViewSavedValues: {},
                     },
                 ],
@@ -706,7 +706,7 @@ describe('untargeted keys', () => {
         ).toEqual(['status']);
     });
 
-    it('does not flag an untargeted key with a definition default', () => {
+    it('does not flag an excluded key with a definition default', () => {
         expect(
             getMissingRequiredDashboardParameters({
                 definitions: statusWithDefault,
@@ -715,7 +715,7 @@ describe('untargeted keys', () => {
                         parameterReferences: ['status'],
                         chartSavedValues: {},
                         dashboardValues: {},
-                        untargetedKeys: ['status'],
+                        excludedKeys: ['status'],
                         virtualViewSavedValues: {},
                     },
                 ],
@@ -728,7 +728,7 @@ describe('untargeted keys', () => {
             parameterReferences: ['status'],
             chartSavedValues: {},
             dashboardValues: status === null ? {} : { status },
-            untargetedKeys: [],
+            excludedKeys: [],
             virtualViewSavedValues: {},
         });
         expect(
