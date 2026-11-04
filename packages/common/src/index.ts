@@ -734,6 +734,8 @@ export const hasSpecialCharacters = (text: string) => /[^a-zA-Z ]/g.test(text);
 
 export const CompleteUserSchema = z.object({
     organizationName: getOrganizationNameSchema().optional(),
+    firstName: getUserNameSchema().optional(),
+    lastName: getUserNameSchema().optional(),
     jobTitle: z.string().min(0),
     // Only collected from the person creating the organization; invited
     // members skip it (their onboarding omits this field from the schema).

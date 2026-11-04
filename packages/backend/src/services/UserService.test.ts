@@ -985,6 +985,41 @@ describe('UserService', () => {
             });
         });
 
+        test('saves the trimmed first and last name', async () => {
+            await userService.completeUserSetup(sessionUser, {
+                firstName: ' Ada ',
+                lastName: 'Lovelace ',
+                jobTitle: '',
+                enableEmailDomainAccess: false,
+                isMarketingOptedIn: true,
+                isTrackingAnonymized: false,
+            });
+
+            expect(vi.mocked(userModel.updateUser)).toHaveBeenCalledWith(
+                sessionUser.userUuid,
+                undefined,
+                expect.objectContaining({
+                    firstName: 'Ada',
+                    lastName: 'Lovelace',
+                    isSetupComplete: true,
+                }),
+            );
+        });
+
+        test('rejects a name with HTML', async () => {
+            await expect(
+                userService.completeUserSetup(sessionUser, {
+                    firstName: '<b>Ada</b>',
+                    lastName: 'Lovelace',
+                    jobTitle: '',
+                    enableEmailDomainAccess: false,
+                    isMarketingOptedIn: true,
+                    isTrackingAnonymized: false,
+                }),
+            ).rejects.toThrow(ParameterError);
+            expect(vi.mocked(userModel.updateUser)).not.toHaveBeenCalled();
+        });
+
         test('does not track when the referral answer is omitted (invited member)', async () => {
             await userService.completeUserSetup(sessionUser, {
                 jobTitle: '',
