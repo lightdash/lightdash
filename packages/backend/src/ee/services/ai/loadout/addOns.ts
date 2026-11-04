@@ -131,13 +131,6 @@ export const ADD_ONS: Record<AddOnName, AddOnDefinition> = {
         section: null,
         skills: [],
     },
-    liveSourceFields: {
-        description: "List a live data source's fields, in use and available",
-        when: (input) => input.liveSources.length > 0,
-        tools: ['listLiveSourceFields'],
-        section: null,
-        skills: [],
-    },
     readAttachments: {
         description: 'Read files attached to the thread',
         when: (input) => input.enableReadAttachments,

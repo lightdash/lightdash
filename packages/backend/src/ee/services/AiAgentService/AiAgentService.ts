@@ -571,7 +571,6 @@ import {
     ExportCustomChartTypeImageFn,
     GetPromptFn,
     GetPullRequestDiffFn,
-    ListLiveSourceFieldsFn,
     ListWorkstreamsFn,
     ReadAttachmentsFn,
     RecordMcpToolCallFn,
@@ -982,7 +981,7 @@ type AiAgentServiceDependencies = {
     querySourceService: Pick<QuerySourceService, 'submitQueries'>;
     externalConnectionService: Pick<
         ExternalConnectionService,
-        'listApiSourceConnections' | 'getLiveSourceFields'
+        'listApiSourceConnections'
     >;
     queryHistoryModel: Pick<QueryHistoryModel, 'pollForQueryCompletion'>;
     catalogService: CatalogService;
@@ -14682,13 +14681,6 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
 
         const discoverRepos: DiscoverReposFn = listAuthorizedRepos;
 
-        const listLiveSourceFields: ListLiveSourceFieldsFn = (connectionUuid) =>
-            this.externalConnectionService.getLiveSourceFields(
-                fromSession(user),
-                projectUuid,
-                connectionUuid,
-            );
-
         // Deterministic project_context.yml writeback (no sandbox). Only wired
         // into review-remediation work threads; the source thread is linked
         // from the PR body so a reviewer can trace the entry.
@@ -14813,7 +14805,6 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             searchFieldValues: toolsRuntime.searchFieldValues,
             editDbtProject,
             editProjectContext,
-            listLiveSourceFields,
             exploreRepo,
             readAttachments,
             discoverRepos,
@@ -17069,7 +17060,6 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     searchFieldValues,
                     editDbtProject,
                     editProjectContext,
-                    listLiveSourceFields,
                     exploreRepo,
                     readAttachments,
                     discoverRepos,
@@ -17576,7 +17566,6 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     searchFieldValues,
                     editDbtProject,
                     editProjectContext,
-                    listLiveSourceFields,
                     exploreRepo,
                     readAttachments,
                     discoverRepos,
@@ -19458,8 +19447,6 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     return 'Saving the changes...';
                 case 'loadProjectContext':
                     return 'Reviewing the project context...';
-                case 'listLiveSourceFields':
-                    return 'Reviewing the live data source fields...';
                 case 'findContent':
                 case 'findCharts':
                 case 'findCustomChartTypes':

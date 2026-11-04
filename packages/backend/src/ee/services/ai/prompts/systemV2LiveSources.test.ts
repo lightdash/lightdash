@@ -18,8 +18,9 @@ describe('getLiveSourcesSection', () => {
         expect(section).toContain(
             'Funnels, retention and user paths are not available',
         );
-        expect(section).toContain('connectionUuid="conn-1"');
+        expect(section).toContain('name="Product analytics"');
         expect(section).toContain('integration="PostHog"');
-        expect(section).toContain('an admin can put it in use');
+        expect(section).toContain('an admin can add fields');
+        expect(section).not.toContain('conn-1');
     });
 });

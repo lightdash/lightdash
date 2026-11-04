@@ -125,7 +125,6 @@ import { getListKnowledgeDocuments } from '../tools/listKnowledgeDocuments';
 import { getListProjects } from '../tools/listProjects';
 import { getListWarehouseTables } from '../tools/listWarehouseTables';
 import { getListWorkstreams } from '../tools/listWorkstreams';
-import { getListLiveSourceFields } from '../tools/liveSourceFields';
 import { getLoadAgentTools } from '../tools/loadAgentTools';
 import { getLoadMcpTools } from '../tools/loadMcpTools';
 import { getLoadProjectContext } from '../tools/loadProjectContext';
@@ -1939,10 +1938,6 @@ export const getAgentTools = (
         listKnowledgeDocuments: () =>
             getListKnowledgeDocuments({
                 listKnowledgeDocuments: dependencies.listKnowledgeDocuments,
-            }),
-        listLiveSourceFields: () =>
-            getListLiveSourceFields({
-                listLiveSourceFields: dependencies.listLiveSourceFields,
             }),
         getKnowledgeDocumentContent: () =>
             getGetKnowledgeDocumentContent({

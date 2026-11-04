@@ -8,6 +8,7 @@ import {
 import {
     ActionIcon,
     Badge,
+    Box,
     Button,
     Code,
     Group,
@@ -62,7 +63,9 @@ export const getFieldsColumns = ({
         size: 270,
         Cell: ({ row }) => (
             <Group gap="sm" wrap="nowrap" align="center">
-                <FieldIcon item={toIconItem(row.original)} />
+                <Box flex="none" display="flex">
+                    <FieldIcon item={toIconItem(row.original)} />
+                </Box>
                 <Stack gap={2} miw={0}>
                     <Text fz="sm" fw={500} truncate>
                         {row.original.label}

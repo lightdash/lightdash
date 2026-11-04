@@ -281,7 +281,7 @@ export class ExternalConnectionController extends BaseController {
 
     /**
      * List every field of a live data source, in use or available, with how
-     * many charts use each
+     * many charts use each. Needs the same access as editing the source.
      * @summary List live data source fields
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])

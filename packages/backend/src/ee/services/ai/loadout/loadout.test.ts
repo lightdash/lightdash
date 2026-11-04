@@ -1,4 +1,4 @@
-import { ApiConnectorType, WarehouseTypes } from '@lightdash/common';
+import { WarehouseTypes } from '@lightdash/common';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
@@ -84,13 +84,6 @@ const fullInput: LoadoutInput = {
         groups: [],
         isServiceAccount: false,
     },
-    liveSources: [
-        {
-            connectionUuid: 'live-source-1',
-            name: 'Product analytics',
-            connector: ApiConnectorType.POSTHOG,
-        },
-    ],
     mcpToolNames: ['mcp_linear__search_issues'],
     attachedMcpServerCount: 1,
     customChartTypeCount: 2,
@@ -116,7 +109,6 @@ const minimalInput: LoadoutInput = {
     projectContextEnabled: false,
     aiAgentMemoryEnabled: false,
     requestingUser: null,
-    liveSources: [],
     mcpToolNames: [],
     attachedMcpServerCount: 0,
     customChartTypeCount: 0,

@@ -92,7 +92,6 @@ export const AGENT_TOOL_CAPABILITIES = {
     listDataAppThemes: [AgentCapability.ReadDiscover],
     listDataAppConnections: [AgentCapability.ReadDiscover],
     listKnowledgeDocuments: [AgentCapability.ReadDiscover],
-    listLiveSourceFields: [AgentCapability.ReadDiscover],
     listProjects: [AgentCapability.ReadDiscover],
     listWarehouseTables: [AgentCapability.RawSql],
     listWorkstreams: [AgentCapability.ReadDiscover],
@@ -876,7 +875,7 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.ReadDiscover,
     ],
     'ExternalConnectionController.getLiveSourceFields': [
-        AgentCapability.ReadDiscover,
+        AgentCapability.Administration,
     ],
     'ExternalConnectionController.linkAppExternalConnection': [
         AgentCapability.Administration,

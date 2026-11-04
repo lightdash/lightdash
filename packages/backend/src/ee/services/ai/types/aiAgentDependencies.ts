@@ -32,7 +32,6 @@ import {
     Filters,
     ItemsMap,
     KnexPaginateArgs,
-    LiveSourceFields,
     McpDocumentAsCode,
     McpDocumentEdit,
     McpDocumentRead,
@@ -969,10 +968,6 @@ export type GetDataAppBuildStatusFn = (args: {
 
 // Applies a structured project-context entry to lightdash.project_context.yml
 // via the deterministic GitHub-API merge (no sandbox) and opens/updates a PR.
-export type ListLiveSourceFieldsFn = (
-    connectionUuid: string,
-) => Promise<LiveSourceFields>;
-
 export type EditProjectContextFn = (
     entry: AiAgentJudgeProjectContextEntry,
 ) => Promise<{ prUrl: string; prAction: 'opened' | 'updated' }>;

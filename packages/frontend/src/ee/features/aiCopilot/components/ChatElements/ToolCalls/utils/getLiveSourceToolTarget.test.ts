@@ -17,13 +17,17 @@ const semanticNode = (nodeId: string, exploreName: string) => ({
 });
 
 describe('getLiveSourceToolTarget', () => {
-    it('reads the connection a field listing names', () => {
+    it('reads the connection of an api node from an older thread', () => {
         expect(
             getLiveSourceToolTarget([
-                call('listLiveSourceFields', {
-                    connectionUuid: 'conn-1',
-                    status: 'all',
-                    search: null,
+                call('runComposerQueries', {
+                    queries: [
+                        {
+                            nodeId: 'a',
+                            sourceType: QuerySourceType.API,
+                            connectionUuid: 'conn-1',
+                        },
+                    ],
                 }),
             ]),
         ).toEqual({ kind: 'connection', connectionUuid: 'conn-1' });

@@ -79,7 +79,6 @@ import {
     ListDataAppThemesFn,
     ListExploresFn,
     ListKnowledgeDocumentsFn,
-    ListLiveSourceFieldsFn,
     ListProjectsFn,
     ListSqlApprovalDecisionsFn,
     ListThreadComposerQueryNodesFn,
@@ -456,7 +455,6 @@ export type AiAgentDependencies = {
     listDataAppConnections: ListDataAppConnectionsFn;
     editDbtProject: EditDbtProjectFn;
     editProjectContext: EditProjectContextFn;
-    listLiveSourceFields: ListLiveSourceFieldsFn;
     syncDbtProject: SyncDbtProjectFn;
     exploreRepo: ExploreRepoFn;
     discoverRepos: DiscoverReposFn;

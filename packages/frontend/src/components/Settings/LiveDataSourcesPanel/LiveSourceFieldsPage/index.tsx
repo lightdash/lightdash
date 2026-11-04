@@ -167,7 +167,7 @@ const LiveSourceFieldsPage: FC<Props> = ({ projectUuid }) => {
 
     return (
         <SettingsPage
-            title={integration?.label ?? 'Fields'}
+            title={connection?.name ?? integration?.label ?? 'Fields'}
             breadcrumbs={[{ title: 'Live data sources', to: listUrl }]}
             description={copy?.description}
             actions={

@@ -2,6 +2,7 @@ import {
     ApiConnectorType,
     DimensionType,
     ExploreType,
+    FilterOperator,
     getItemMap,
     UnexpectedServerError,
     type Explore,
@@ -241,6 +242,67 @@ describe('compileApiSourceMetricQuery', () => {
             now,
         });
         expect(hogql).toMatch(/^SELECT .* AS c0, .* AS c1\nFROM \(/);
+    });
+
+    test('refuses a field the source scanned but has not put in use', () => {
+        const apiSource = {
+            connector: ApiConnectorType.POSTHOG,
+            projectId: '42',
+        } as const;
+        const scannedFields = toScannedLiveSourceFields(apiSource.connector, {
+            posthogProperties: {
+                event: { results: [{ name: 'plan' }] },
+                person: { results: [] },
+            },
+        });
+        const [explore] = buildApiSourceExplores({
+            connectionUuid: CONNECTION_UUID,
+            sourceName: 'posthog',
+            name: 'PostHog',
+            apiSource,
+            scannedFields,
+            edits: getInitialLiveSourceFieldEdits({
+                scannedFields,
+                isExistingSource: false,
+            }),
+        });
+        const plan = `${explore.name}_property_plan`;
+        const event = `${explore.name}_event`;
+        expect(Object.keys(getItemMap(explore))).not.toContain(plan);
+
+        const compile = (overrides: Partial<MetricQuery>) => () =>
+            compileApiSourceMetricQuery({
+                explore,
+                metricQuery: query(
+                    explore,
+                    { dimensions: ['event'], metrics: ['event_count'] },
+                    overrides,
+                ),
+                timezone: 'UTC',
+                now,
+            });
+        const refusal = `"${plan}" isn't available from this live data source.`;
+        expect(compile({ dimensions: [event, plan] })).toThrow(refusal);
+        expect(
+            compile({
+                filters: {
+                    dimensions: {
+                        id: 'filters',
+                        and: [
+                            {
+                                id: 'plan-is-pro',
+                                target: { fieldId: plan },
+                                operator: FilterOperator.EQUALS,
+                                values: ['pro'],
+                            },
+                        ],
+                    },
+                },
+            }),
+        ).toThrow(refusal);
+        expect(
+            compile({ sorts: [{ fieldId: plan, descending: false }] }),
+        ).toThrow(refusal);
     });
 
     test('refuses an explore that is not a live data source', () => {

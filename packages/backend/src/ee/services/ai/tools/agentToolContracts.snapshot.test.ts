@@ -41,7 +41,6 @@ import { getListKnowledgeDocuments } from './listKnowledgeDocuments';
 import { getListProjects } from './listProjects';
 import { getListWarehouseTables } from './listWarehouseTables';
 import { getListWorkstreams } from './listWorkstreams';
-import { getListLiveSourceFields } from './liveSourceFields';
 import { getLoadAgentTools } from './loadAgentTools';
 import { getLoadMcpTools } from './loadMcpTools';
 import { getLoadSkill } from './loadSkill';
@@ -128,9 +127,6 @@ const makeAgentTools = (enableFilterExpressions = false) => {
         }),
         getProjectInfo: getGetProjectInfo({ getProjectInfo: noop }),
         listContent: getListContent({ listContent: noop }),
-        listLiveSourceFields: getListLiveSourceFields({
-            listLiveSourceFields: noop,
-        }),
         listKnowledgeDocuments: getListKnowledgeDocuments({
             listKnowledgeDocuments: noop,
         }),

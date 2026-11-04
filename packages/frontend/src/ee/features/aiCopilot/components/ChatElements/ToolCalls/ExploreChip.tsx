@@ -12,17 +12,21 @@ type Props = Omit<ComponentProps<typeof ToolCallChip>, 'children'> & {
 
 /**
  * An explore a tool call reads. A live data source explore shows its
- * integration's icon and the explore's label; any other shows its name.
+ * integration's icon and the explore's label; any other shows its name, in
+ * the caller's font (`ff`), since a raw name reads as code and a label doesn't.
  */
 export const ExploreChip: FC<Props> = ({
     exploreName,
     liveOnly = false,
+    ff,
     ...chipProps
 }) => {
     const liveSource = useLiveSourceExplore(exploreName);
     if (!liveSource) {
         return liveOnly ? null : (
-            <ToolCallChip {...chipProps}>{exploreName}</ToolCallChip>
+            <ToolCallChip ff={ff} {...chipProps}>
+                {exploreName}
+            </ToolCallChip>
         );
     }
     return (

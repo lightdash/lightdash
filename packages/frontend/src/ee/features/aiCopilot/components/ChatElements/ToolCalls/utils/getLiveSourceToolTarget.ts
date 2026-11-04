@@ -72,12 +72,6 @@ const getCallSources = ({
     toolArgs,
 }: ToolCallSummary): CallSource[] => {
     switch (toolName) {
-        case 'listLiveSourceFields': {
-            const connectionUuid = getStringArg(toolArgs, 'connectionUuid');
-            return connectionUuid
-                ? [{ kind: 'connection', connectionUuid }]
-                : [];
-        }
         case 'query':
         case 'runComposerQueries':
             return getArrayArg(toolArgs, 'queries').flatMap(

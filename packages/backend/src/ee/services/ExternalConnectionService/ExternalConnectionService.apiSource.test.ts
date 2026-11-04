@@ -64,6 +64,7 @@ const account = buildAccount();
 const buildService = ({
     connections = [posthogConnection()],
     canView = true,
+    canManage = canView,
     liveSourcesEnabled = true,
     deletedSources = [],
     takenExploreNames = [],
@@ -72,6 +73,7 @@ const buildService = ({
 }: {
     connections?: ExternalConnection[];
     canView?: boolean;
+    canManage?: boolean;
     liveSourcesEnabled?: boolean;
     deletedSources?: DeletedLiveSource[];
     takenExploreNames?: string[];
@@ -183,7 +185,10 @@ const buildService = ({
     vi.spyOn(
         service as unknown as { createAuditedAbility: () => unknown },
         'createAuditedAbility',
-    ).mockReturnValue({ can: () => canView, cannot: () => !canView });
+    ).mockReturnValue({
+        can: (action: string) => (action === 'view' ? canView : canManage),
+        cannot: (action: string) => !(action === 'view' ? canView : canManage),
+    });
     return {
         service,
         externalConnectionModel,
@@ -676,6 +681,13 @@ describe('ExternalConnectionService live source explores', () => {
                 service.updateLiveSourceFields(account, 'proj-1', 'conn-1', [
                     { name: 'property_plan', inUse: true },
                 ]),
+            ).rejects.toThrow(ForbiddenError);
+        });
+
+        it('shows the field list only to people who manage the source', async () => {
+            const { service } = buildService({ canManage: false });
+            await expect(
+                service.getLiveSourceFields(account, 'proj-1', 'conn-1'),
             ).rejects.toThrow(ForbiddenError);
         });
 

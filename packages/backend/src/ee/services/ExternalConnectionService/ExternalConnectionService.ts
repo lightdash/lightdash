@@ -1223,13 +1223,16 @@ export class ExternalConnectionService extends BaseService {
         );
     }
 
-    /** Every field of a live source, in use or available. */
+    /**
+     * Every field of a live source, in use or available. Admins only: everyone
+     * else sees just the fields in use, through the source's explore.
+     */
     async getLiveSourceFields(
         account: RegisteredAccount,
         projectUuid: string,
         connectionUuid: string,
     ): Promise<LiveSourceFields> {
-        const connection = await this.getViewableConnection(
+        const connection = await this.getOwnedConnection(
             account,
             projectUuid,
             connectionUuid,
