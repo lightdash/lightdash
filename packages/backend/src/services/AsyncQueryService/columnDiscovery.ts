@@ -13,7 +13,7 @@ import type PrometheusMetrics from '../../prometheus/PrometheusMetrics';
 import { traceSpan } from '../../tracing/tracing';
 import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
 
-export type ColumnDiscoveryMethod = 'limit_1';
+export type ColumnDiscoveryMethod = 'dry_run' | 'limit_1';
 
 export type ColumnDiscoveryOutcome = 'success' | 'empty' | 'error';
 
@@ -128,6 +128,19 @@ const discoverWithLimitOne = (args: ColumnDiscoveryArgs) => {
     });
 };
 
-export const discoverColumns = (
+export const discoverColumns = async (
     args: ColumnDiscoveryArgs,
-): Promise<DiscoveredColumn[]> => discoverWithLimitOne(args);
+): Promise<DiscoveredColumn[]> => {
+    const dryRun = args.warehouseClient.getQueryFields?.bind(
+        args.warehouseClient,
+    );
+    if (!dryRun) return discoverWithLimitOne(args);
+    const columns = await observeDiscoveryCall(
+        args,
+        'dry_run',
+        args.sql,
+        async () => toColumns(await dryRun(args.sql, { tags: args.tags })),
+    );
+    // Scripts like CREATE TEMP TABLE ...; SELECT ... dry-run with no schema
+    return columns.length > 0 ? columns : discoverWithLimitOne(args);
+};
