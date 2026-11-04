@@ -1,3 +1,19 @@
+# [3.151.0](https://github.com/lightdash/lightdash/compare/3.150.0...3.151.0) (2026-11-04)
+
+
+### Bug Fixes
+
+* **ai:** gate agent Document tools on Document permissions ([#32069](https://github.com/lightdash/lightdash/issues/32069)) ([1205469](https://github.com/lightdash/lightdash/commit/1205469c45d292e271663957cfb338793d7e3b8e))
+* **ai:** give agents absolute content links in tool results ([#32067](https://github.com/lightdash/lightdash/issues/32067)) ([dc7538a](https://github.com/lightdash/lightdash/commit/dc7538a1f52b8be36806a4c1af8f32cccd155a36))
+
+
+### Features
+
+* **data-apps:** register the Download PDF builder for host-requested exports ([#32059](https://github.com/lightdash/lightdash/issues/32059)) ([d442524](https://github.com/lightdash/lightdash/commit/d442524b212ba35807f8c8d19047d7546155c0d5))
+* **data-apps:** request the app's PDF build in minimal exportMode=pdf renders ([#32060](https://github.com/lightdash/lightdash/issues/32060)) ([05e5d2a](https://github.com/lightdash/lightdash/commit/05e5d2aa87ffe7aad3613e3f4978a823b6628bf7))
+* **scheduler:** deliver data-app PDFs from the app's own export ([#32061](https://github.com/lightdash/lightdash/issues/32061)) ([ee85189](https://github.com/lightdash/lightdash/commit/ee85189c8b1efa47fb6a829974dde0c44e52dd16))
+* **scheduler:** offer PDF format for data-app deliveries ([#32062](https://github.com/lightdash/lightdash/issues/32062)) ([c367635](https://github.com/lightdash/lightdash/commit/c36763532ffb41e86fa912838b9f9ac096ec0675))
+
 # [3.150.0](https://github.com/lightdash/lightdash/compare/3.149.1...3.150.0) (2026-11-04)
 
 
