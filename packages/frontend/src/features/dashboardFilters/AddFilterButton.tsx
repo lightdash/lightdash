@@ -221,7 +221,8 @@ const AddFilterButton: FC<Props> = ({
                             leftSection={leadingIcon}
                             className={clsx(
                                 triggerClassName,
-                                !editModeAction && classes.dashed,
+                                classes.dashed,
+                                editModeAction && classes.splitBorder,
                                 hasAttachedButton && classes.attachedLeft,
                             )}
                             size="xs"

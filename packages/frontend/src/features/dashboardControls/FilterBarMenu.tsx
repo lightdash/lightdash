@@ -5,6 +5,7 @@ import {
     IconEyeOff,
     IconListCheck,
 } from '@tabler/icons-react';
+import clsx from 'clsx';
 import { type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -12,6 +13,7 @@ import {
     selectIsAddFilterDisabled,
     useDashboardSelector,
 } from '../dashboard/store';
+import addClasses from '../dashboardFilters/AddFilterButton.module.css';
 import FilterRequirementsButton from '../dashboardFilters/FilterRequirements/FilterRequirementsButton';
 import editorClasses from './FilterEditor.module.css';
 import classes from './FilterPills.module.css';
@@ -45,7 +47,10 @@ export const FilterBarMenu: FC = () => {
                                     size="xs"
                                     variant="default"
                                     color="gray"
-                                    className={classes.joinedMenuTrigger}
+                                    className={clsx(
+                                        classes.joinedMenuTrigger,
+                                        addClasses.splitBorder,
+                                    )}
                                 >
                                     <MantineIcon icon={IconDots} />
                                 </Button>
