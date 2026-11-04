@@ -1,3 +1,10 @@
+# [3.145.0](https://github.com/lightdash/lightdash/compare/3.144.1...3.145.0) (2026-11-04)
+
+
+### Features
+
+* **embed:** render source-space charts and dashboards for embedded AI agents ([#32038](https://github.com/lightdash/lightdash/issues/32038)) ([d105966](https://github.com/lightdash/lightdash/commit/d105966a7cd0c4158d051bd33bab5601d25412c5))
+
 ## [3.144.1](https://github.com/lightdash/lightdash/compare/3.144.0...3.144.1) (2026-11-04)
 
 
