@@ -15,7 +15,6 @@ import { DEFAULT_GREETING_SUBTITLE, getGreeting } from '../greeting';
 import layout from '../homepageLayout.module.css';
 import { useHomepageAiState } from '../hooks/useHomepageAiState';
 import { useHomepageConfigFacts } from '../hooks/useHomepageConfigFacts';
-import { HomepageTour } from '../onboarding';
 import classes from './blockStyles.module.css';
 import { GreetingHero } from './GreetingHero';
 import { getDefaultQuickActions } from './quickActionDefaults';
@@ -83,6 +82,7 @@ export const AskAiHero: FC<{
                             projectUuid={projectUuid}
                             actions={actions}
                             onAsk={() => setPrefillRequest((n) => n + 1)}
+                            withTour={!preview}
                         />
                     </Box>
                 ) : isReady ? (
@@ -97,9 +97,6 @@ export const AskAiHero: FC<{
                         actionCount={actions.visibleActions.length}
                     />
                 ))}
-            {!preview && (
-                <HomepageTour ready={isReady && isWarehouseConnected} />
-            )}
         </Stack>
     );
 };

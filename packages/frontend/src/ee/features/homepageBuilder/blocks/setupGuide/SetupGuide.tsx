@@ -36,6 +36,7 @@ import { AI_NAME } from '../../../../../components/common/aiName';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
+import { HomepageTour } from '../../onboarding';
 import { type RecommendedActionsState } from '../useRecommendedActions';
 import classes from './SetupGuide.module.css';
 import {
@@ -430,7 +431,8 @@ export const SetupGuide: FC<{
     projectUuid: string;
     actions: RecommendedActionsState;
     onAsk: () => void;
-}> = ({ projectUuid, actions, onAsk }) => {
+    withTour: boolean;
+}> = ({ projectUuid, actions, onAsk, withTour }) => {
     const { track } = useTracking();
     const guide = useSetupGuide(projectUuid, actions);
     if (guide.isLoading) return <Skeleton h={120} radius="md" />;
@@ -478,6 +480,11 @@ export const SetupGuide: FC<{
                     });
                 }}
             />
+            {withTour && (
+                <HomepageTour
+                    ready={actions.statuses['connect-warehouse'].isComplete}
+                />
+            )}
         </>
     );
 };

@@ -456,6 +456,7 @@ const bannerGuide: SetupGuideState = {
     sections: [],
     semanticExplores: [],
     liveConnections: [],
+    chartCount: 0,
     activeRun: null,
     completedRunUrl: null,
     isDismissed: false,
@@ -466,20 +467,28 @@ const bannerGuide: SetupGuideState = {
     restoreAction: vi.fn(),
 };
 
-describe('first chart banner tracking', () => {
+const renderBanner = (guide: SetupGuideState) =>
+    render(
+        <MantineProvider env="test">
+            <MemoryRouter>
+                <YourData
+                    projectUuid="p1"
+                    actions={bannerActions}
+                    guide={guide}
+                    onAsk={vi.fn()}
+                />
+            </MemoryRouter>
+        </MantineProvider>,
+    );
+
+describe('first chart banner', () => {
+    it('stays hidden once the project has charts', () => {
+        renderBanner({ ...bannerGuide, chartCount: 3 });
+        expect(screen.queryByText('Build your first chart')).toBeNull();
+    });
+
     it('reports the impression, an Explore pick and the dismiss', async () => {
-        render(
-            <MantineProvider env="test">
-                <MemoryRouter>
-                    <YourData
-                        projectUuid="p1"
-                        actions={bannerActions}
-                        guide={bannerGuide}
-                        onAsk={vi.fn()}
-                    />
-                </MemoryRouter>
-            </MantineProvider>,
-        );
+        renderBanner(bannerGuide);
         await userEvent.click(
             screen.getByRole('link', { name: /Build in Explore/ }),
         );

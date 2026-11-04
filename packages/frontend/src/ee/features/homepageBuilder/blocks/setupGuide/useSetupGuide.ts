@@ -24,6 +24,7 @@ import {
 } from '../../../agentOnboarding/hooks/useAgentOnboarding';
 import { getAgentOnboardingRunUrl } from '../../../agentOnboarding/utils';
 import { useCanManageProject } from '../../hooks/useHomepageAbilities';
+import { useIsNewOnboardingOrg } from '../../hooks/useIsNewOnboardingOrg';
 import { type RecommendedActionsState } from '../useRecommendedActions';
 import { buildSetupGuide, type SetupGuideRowId } from './setupGuideModel';
 
@@ -33,7 +34,7 @@ export const useSetupGuide = (
 ) => {
     const { user } = useApp();
     const userUuid = user.data?.userUuid;
-    const newOnboardingFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
+    const newOnboardingOrg = useIsNewOnboardingOrg();
     const liveSourcesFlag = useServerFeatureFlag(FeatureFlags.ApiQuerySources);
     const codingAgentFlag = useServerFeatureFlag(
         FeatureFlags.CodingAgentOnboarding,
@@ -41,7 +42,7 @@ export const useSetupGuide = (
     const canManageProject = useCanManageProject(projectUuid);
     // visibleActions is empty on the playground, where setup has no place
     const isEligible =
-        newOnboardingFlag.data?.enabled === true &&
+        newOnboardingOrg.isNewOrg &&
         canManageProject &&
         actions.visibleActions.length > 0;
     const enabled = { enabled: isEligible };
@@ -103,14 +104,17 @@ export const useSetupGuide = (
 
     // Hold a slot while eligibility resolves so the guide doesn't push the page down
     const isLoading =
-        newOnboardingFlag.data?.enabled !== false &&
         canManageProject &&
-        (newOnboardingFlag.isInitialLoading ||
-            actions.isLoading ||
-            [explores, activeRun, brand].some(
-                (query) => query.isInitialLoading,
-            ));
+        (newOnboardingOrg.isLoading ||
+            (newOnboardingOrg.isNewOrg &&
+                (actions.isLoading ||
+                    [explores, activeRun, brand].some(
+                        (query) => query.isInitialLoading,
+                    ))));
 
+    const chartCount = charts.data
+        ? (charts.data.pages[0]?.pagination?.totalResults ?? 0)
+        : null;
     const completedRun =
         latestRun.data?.status === 'completed' ? latestRun.data : null;
     const semanticExplores = (explores.data ?? []).filter(
@@ -127,7 +131,7 @@ export const useSetupGuide = (
         skippedActions: actions.skippedActions,
         skippedRows: skippedRows ?? [],
         semanticModelCount: semanticExplores.length,
-        chartCount: charts.data?.pages[0]?.pagination?.totalResults ?? 0,
+        chartCount: chartCount ?? 0,
         activeRun: activeRunOrNull,
         completedRun,
         canAddLiveSources:
@@ -155,6 +159,7 @@ export const useSetupGuide = (
         sections,
         semanticExplores,
         liveConnections,
+        chartCount,
         activeRun: activeRunOrNull,
         completedRunUrl: completedRun
             ? getAgentOnboardingRunUrl(

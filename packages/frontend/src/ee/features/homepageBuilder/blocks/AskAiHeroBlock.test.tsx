@@ -52,7 +52,6 @@ vi.mock('./useRecommendedActions', () => ({
 vi.mock('./setupGuide/SetupGuide', () => ({
     SetupGuide: () => <div data-testid="setup-guide" />,
 }));
-vi.mock('../onboarding', () => ({ HomepageTour: () => null }));
 vi.mock('./RecommendedActionsChecklist', () => ({
     RecommendedActionsChecklist: () => <div data-testid="checklist" />,
     RecommendedActionsChecklistPlaceholder: () => null,
