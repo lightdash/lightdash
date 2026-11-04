@@ -1,3 +1,10 @@
+# [3.154.0](https://github.com/lightdash/lightdash/compare/3.153.1...3.154.0) (2026-11-04)
+
+
+### Features
+
+* **semantic-layer:** add Semantic Layer page behind flag ([#32085](https://github.com/lightdash/lightdash/issues/32085)) ([8d09b8b](https://github.com/lightdash/lightdash/commit/8d09b8bd34e6f99d31000cf84d2f020086f41836))
+
 ## [3.153.1](https://github.com/lightdash/lightdash/compare/3.153.0...3.153.1) (2026-11-04)
 
 
