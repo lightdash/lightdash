@@ -405,6 +405,7 @@ import { ProjectCompileLogModel } from '../../models/ProjectCompileLogModel';
 import { ProjectDbtSourcesModel } from '../../models/ProjectDbtSourcesModel';
 import { type ExploreNaming } from '../../models/ProjectModel/exploreNameAllocation';
 import {
+    LIVE_SOURCE_ONLY_CREDENTIALS,
     ProjectModel,
     type ExploreWriteCheck,
     type PushToPreview,
@@ -644,15 +645,6 @@ import {
     toWarehouseSqlBuilderSettings,
     type WarehouseSqlBuilderSettings,
 } from './warehouseSqlBuilderSettings';
-
-// Only shapes the query for a live source in a project without a warehouse; it can never open a connection
-const LIVE_SOURCE_ONLY_CREDENTIALS: CreateWarehouseCredentials = {
-    type: WarehouseTypes.DUCKDB,
-    connectionType: DuckdbConnectionType.MOTHERDUCK,
-    database: '',
-    schema: '',
-    token: '',
-};
 
 const manifestWithCompilationSelection = (
     manifest: DbtManifest,
@@ -3011,18 +3003,6 @@ export class ProjectService
         );
     }
 
-    private async isLiveSourceExplore(
-        projectUuid: string,
-        binding: ConnectionBinding,
-    ): Promise<boolean> {
-        if (binding.kind !== 'explore') return false;
-        const explore = await this.projectModel.getExploreFromCache(
-            projectUuid,
-            binding.exploreName,
-        );
-        return explore.type === ExploreType.API_SOURCE;
-    }
-
     protected async getWarehouseCredentialsWithConnection({
         binding,
         ...args
@@ -3045,7 +3025,7 @@ export class ProjectService
                         async (error: unknown) => {
                             if (
                                 error instanceof NotFoundError &&
-                                (await this.isLiveSourceExplore(
+                                (await this.projectModel.isLiveSourceExplore(
                                     args.projectUuid,
                                     binding,
                                 ))

@@ -545,6 +545,15 @@ type PreviewChartUuidMapping = {
     previewChartUuid: string;
 };
 
+// Only shapes the query for a live source in a project without a warehouse; it can never open a connection
+export const LIVE_SOURCE_ONLY_CREDENTIALS: CreateWarehouseCredentials = {
+    type: WarehouseTypes.DUCKDB,
+    connectionType: DuckdbConnectionType.MOTHERDUCK,
+    database: '',
+    schema: '',
+    token: '',
+};
+
 export class ProjectModel {
     /** Serializes create-or-get across API pods without relying on a slug. */
     async runInAnalyticsProvisioningLock<T>(
@@ -6178,7 +6187,29 @@ export class ProjectModel {
                 'Extra connection credentials load per user',
             );
         }
-        return this.getWarehouseCredentialsForProject(projectUuid);
+        return this.getWarehouseCredentialsForProject(projectUuid).catch(
+            async (error: unknown) => {
+                if (
+                    error instanceof NotFoundError &&
+                    (await this.isLiveSourceExplore(projectUuid, binding))
+                ) {
+                    return LIVE_SOURCE_ONLY_CREDENTIALS;
+                }
+                throw error;
+            },
+        );
+    }
+
+    async isLiveSourceExplore(
+        projectUuid: string,
+        binding: ConnectionBinding,
+    ): Promise<boolean> {
+        if (binding.kind !== 'explore') return false;
+        const explore = await this.getExploreFromCache(
+            projectUuid,
+            binding.exploreName,
+        );
+        return explore.type === ExploreType.API_SOURCE;
     }
 
     /** The column is the only source; a version copied into stored credentials is ignored. */
