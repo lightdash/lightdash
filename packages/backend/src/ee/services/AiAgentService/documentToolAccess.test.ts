@@ -32,9 +32,19 @@ type PrivateService = {
             stream: false;
             canManageAgent: false;
             aiCreditCheck: null;
+            runtimeOptions?: unknown;
         },
     ) => Promise<unknown>;
 };
+
+const embedRuntimeOptions = (canCreateContent: boolean) => ({
+    writeSpaceUuids: ['space'],
+    externalUserId: null,
+    spaceAccess: ['space'],
+    readOnlySpaceUuids: [],
+    canCreateContent,
+    userAttributeOverrides: {},
+});
 
 describe('Document runtime access', () => {
     test.each([
@@ -66,9 +76,25 @@ describe('Document runtime access', () => {
             authorized: true,
             expected: true,
         },
+        {
+            name: 'embed actor that cannot create in a write space',
+            slack: false,
+            trusted: true,
+            authorized: true,
+            runtimeOptions: embedRuntimeOptions(false),
+            expected: false,
+        },
+        {
+            name: 'embed actor that can create in a write space',
+            slack: false,
+            trusted: true,
+            authorized: false,
+            runtimeOptions: embedRuntimeOptions(true),
+            expected: true,
+        },
     ])(
         '$name passes effective access to discovery and authoring',
-        async ({ slack, trusted, authorized, expected }) => {
+        async ({ slack, trusted, authorized, runtimeOptions, expected }) => {
             const service = new AiAgentService({
                 agentPermissionService: {
                     loadRequest: vi.fn().mockResolvedValue({
@@ -171,6 +197,7 @@ describe('Document runtime access', () => {
                         stream: false,
                         canManageAgent: false,
                         aiCreditCheck: null,
+                        runtimeOptions,
                     },
                 ),
             ).rejects.toBe(stopAtDependencies);

@@ -933,6 +933,8 @@ type EmbedAiAgentRuntimeOptions = {
     spaceAccess: string[];
     // Source spaces the agent may read but not write to.
     readOnlySpaceUuids: string[];
+    // Whether the write actor can create content in a write space; gates the agent's write tools.
+    canCreateContent: boolean;
     userAttributeOverrides: UserAttributeValueMap;
 };
 
@@ -3186,6 +3188,7 @@ export class AiAgentService extends BaseService {
                 readOnlySpaceUuids: chartSpaceUuids.filter(
                     (uuid) => !writeSpaceUuids.includes(uuid),
                 ),
+                canCreateContent: account.embedWriteContext.canCreateSavedChart,
                 userAttributeOverrides:
                     account.access.controls?.userAttributes ?? {},
             },
@@ -6502,6 +6505,7 @@ export class AiAgentService extends BaseService {
                 user,
                 agent,
                 projectUuid,
+                undefined,
             );
             const knowledgeDocuments =
                 await this.aiAgentDocumentModel.findAllForAgent({
@@ -15900,15 +15904,27 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         return agent.enableContentTools && agent.enableDataAccess;
     }
 
+    /** Embedded runs write only to the token's write spaces, so only those count. */
+    private async canAuthorAgentContent(
+        user: SessionUser,
+        projectUuid: string,
+        runtimeOptions: EmbedAiAgentRuntimeOptions | undefined,
+    ): Promise<boolean> {
+        return runtimeOptions
+            ? runtimeOptions.canCreateContent
+            : this.aiAgentToolsService.canAuthorContent({ user, projectUuid });
+    }
+
     /** The agent offers content editing when the setting is on and the user can save content in the project. */
     private async canUseContentTools(
         user: SessionUser,
         agent: Pick<AiAgent, 'enableContentTools' | 'enableDataAccess'>,
         projectUuid: string,
+        runtimeOptions: EmbedAiAgentRuntimeOptions | undefined,
     ): Promise<boolean> {
         return (
             AiAgentService.canReadContent(agent) &&
-            this.aiAgentToolsService.canAuthorContent({ user, projectUuid })
+            this.canAuthorAgentContent(user, projectUuid, runtimeOptions)
         );
     }
 
@@ -15933,7 +15949,12 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         if (
             documentSlug === null ||
             pinsOtherContent ||
-            !(await this.canUseContentTools(user, agent, prompt.projectUuid))
+            !(await this.canUseContentTools(
+                user,
+                agent,
+                prompt.projectUuid,
+                undefined,
+            ))
         ) {
             return null;
         }
@@ -16763,10 +16784,11 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 // anywhere should not have the agent build one for them, only to be
                 // refused at the save step.
                 const canCreateDashboards = hasTrustedPromptUserIdentity
-                    ? await this.aiAgentToolsService.canAuthorContent({
+                    ? await this.canAuthorAgentContent(
                           user,
-                          projectUuid: promptProject.projectUuid,
-                      })
+                          promptProject.projectUuid,
+                          options.runtimeOptions,
+                      )
                     : false;
                 const canCreateScheduledDeliveries =
                     hasTrustedPromptUserIdentity &&
@@ -17005,6 +17027,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                         user,
                         agentSettings,
                         promptProject.projectUuid,
+                        options.runtimeOptions,
                     ));
                 const enableGenerateDataApp =
                     canUseContentTools &&

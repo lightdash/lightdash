@@ -3430,7 +3430,6 @@ export class EmbedService extends BaseService {
             );
             const canUseAiAgent =
                 decodedToken.content.type === 'aiAgent' &&
-                canCreateSavedChart &&
                 canViewProject &&
                 (writeActions.permissionsMode !== 'roles' ||
                     auditedAbility.can(
@@ -3452,7 +3451,6 @@ export class EmbedService extends BaseService {
                     : EmbedService.getEmbedAiAgentErrorMessage({
                           isAiAgentToken:
                               decodedToken.content.type === 'aiAgent',
-                          canCreateSavedChart,
                           canViewProject,
                       }),
             };
@@ -3477,19 +3475,13 @@ export class EmbedService extends BaseService {
 
     private static getEmbedAiAgentErrorMessage({
         isAiAgentToken,
-        canCreateSavedChart,
         canViewProject,
     }: {
         isAiAgentToken: boolean;
-        canCreateSavedChart: boolean;
         canViewProject: boolean;
     }) {
         if (!isAiAgentToken) {
             return 'Embed token content must be an AI agent';
-        }
-
-        if (!canCreateSavedChart) {
-            return 'Embed token write actor cannot create charts in the configured space';
         }
 
         if (!canViewProject) {

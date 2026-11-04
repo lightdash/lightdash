@@ -1277,10 +1277,10 @@ describe('EmbedService', () => {
                 allowed: true,
             },
             {
-                name: 'legacy still requires chart creation',
+                name: 'legacy without chart creation permission',
                 legacy: true,
                 canCreate: false,
-                allowed: false,
+                allowed: true,
             },
             {
                 name: 'legacy still requires project access',
@@ -1320,7 +1320,7 @@ describe('EmbedService', () => {
             {
                 name: 'no chart creation permission',
                 canCreate: false,
-                allowed: false,
+                allowed: true,
             },
             { name: 'no project access', canView: false, allowed: false },
             { name: 'dashboard JWT', dashboard: true, allowed: false },

@@ -228,6 +228,7 @@ describe('AiAgentService SQL artifact visualization query', () => {
                     externalUserId: null,
                     spaceAccess: ['space-uuid'],
                     readOnlySpaceUuids: [],
+                    canCreateContent: true,
                     userAttributeOverrides: {},
                 },
             }),
