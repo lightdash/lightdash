@@ -60,6 +60,7 @@ When the backend creates a presigned URL for browser-direct upload, it uses `S3_
 
 -   Assume the dev-server is always running and watching source files; a separate `api-routes-watch` process regenerates TSOA routes when controllers change, so backend and generated-route changes reload the API automatically.
 -   Always use package-specific commands for faster linting/typechecking/testing.
+-   T3 Code worktrees run `scripts/t3-setup-worktree.sh` on creation (`t3.json`): it copies untracked local files from the main checkout, installs deps, and builds backend/frontend dependency packages.
 
 **Code Quality:**
 
@@ -386,6 +387,6 @@ Processes: `<instance>-api`, `-api-routes-watch`, `-scheduler`, `-frontend`, `-c
 
 ### Non-obvious caveats
 
-- Node: use Node 24.18 (pinned by `.nvmrc`). The VM's default `node` on `PATH` is a v22 tool-runtime at `/exec-daemon/node`; the nvm 24.18 build is prepended for interactive shells via `~/.bashrc`, and the update script sources nvm explicitly. Run dev commands from a login shell so 24.18 is active — native modules are built against it.
+- Node: use the version pinned in `.nvmrc`. The VM's default `node` on `PATH` is a v22 tool-runtime at `/exec-daemon/node`; the nvm build from `.nvmrc` is prepended for interactive shells via `~/.bashrc`, and the update script sources nvm explicitly. Run dev commands from a login shell so it is active — native modules are built against it.
 - dbt venv must be Python 3.11: `dbt-core==1.7.0` imports `distutils`, which was removed in Python 3.12 (the VM's default `python3`). The venv at `./venv` is built with `python3.11`. If it must be recreated, use `python3.11 -m venv venv`, NOT `python3`. Note `scripts/dev-fast-start.sh` recreates the venv with `python3` only when it is missing — the snapshot ships a working `python3.11` venv so that path is normally skipped; if you delete the venv, rebuild it with `python3.11` before re-running the script.
 - Backend lint runs out of heap with the default Node memory limit and aborts (exit 134). Run it with a larger heap: `NODE_OPTIONS="--max-old-space-size=8192" pnpm -F backend lint`.
