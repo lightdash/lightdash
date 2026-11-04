@@ -6,7 +6,7 @@ import {
     type DashboardTileParameterReferencesTile,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import chunk from 'lodash/chunk';
+import { chunk } from 'es-toolkit/compat';
 import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import {
     dashboardParametersActions,
