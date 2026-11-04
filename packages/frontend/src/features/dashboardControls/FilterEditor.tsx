@@ -1,318 +1,61 @@
 import {
-    interpolateUiString,
+    type DashboardFilterableField,
     type DashboardFilterRule,
 } from '@lightdash/common';
-import {
-    ActionIcon,
-    Box,
-    Button,
-    Group,
-    Popover,
-    Select,
-    Text,
-    TextInput,
-    Tooltip,
-} from '@mantine/core';
-import { IconPencil } from '@tabler/icons-react';
-import { omit } from 'es-toolkit/compat';
-import {
-    useCallback,
-    useMemo,
-    useRef,
-    useState,
-    type FC,
-    type ReactNode,
-} from 'react';
-import MantineIcon from '../../components/common/MantineIcon';
+import { Box, Group, Popover } from '@mantine/core';
+import { useCallback, useMemo, type FC, type ReactNode } from 'react';
+import FiltersProvider from '../../components/common/Filters/FiltersProvider';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
+import { useProjectUuid } from '../../hooks/useProjectUuid';
+import useApp from '../../providers/App/useApp';
+import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
-    selectControlSections,
+    selectActiveTabUuid,
+    selectDashboardTiles,
+    selectParameterValues,
+    selectSqlChartTilesMetadata,
+    useDashboardAllFilters,
     useDashboardSelector,
 } from '../dashboard/store';
+import {
+    getFilterRuleFilterType,
+    getUniqueSqlColumns,
+} from '../dashboardFilters/FilterConfiguration/utils';
+import { useFilterBarPopovers } from '../dashboardFilters/FilterRequirements/useFilterBarPopovers';
+import { focusStartOnMount } from './editorFocus';
 import { FieldsAndTiles } from './FieldsAndTiles';
 import classes from './FilterEditor.module.css';
-import { FilterSettings, type EditorView } from './FilterSettings';
-import { useRefocusAfter, type NameExit } from './nameFocus';
+import { EditorActions, EditorPrompt, FilterPopover } from './FilterPopover';
+import { canTileTakeFilter } from './peers';
 import { useRailContractClasses } from './railContractClasses';
-import { withFilterRuleLabel } from './sidebarState';
+import { findFilterRule } from './sidebarState';
 import { useAppliedTileCount } from './useAppliedTileCount';
 import { useApplyBlockedReason } from './useApplyBlockedReason';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { useFilterRuleField } from './useFilterRuleField';
-import { useLabelDraft } from './useLabelDraft';
+import { useFiltersStartOfWeek } from './useFiltersStartOfWeek';
+import { useSqlColumnsByTile } from './useSqlColumnsByTile';
 
-const NO_SECTION = 'none';
-
-// Which section the filter sits in on the bar: it moves at once, never pending
-const SectionSelect: FC<{ rule: DashboardFilterRule }> = ({ rule }) => {
-    const sections = useDashboardSelector(selectControlSections);
-    const updateFilter = useControlsSidebarSelector((c) => c.updateFilter);
-    const getUiString = useUiStrings();
-    if (sections.length === 0) return null;
-    const value =
-        rule.sectionId !== undefined &&
-        sections.some((section) => section.id === rule.sectionId)
-            ? rule.sectionId
-            : NO_SECTION;
-    return (
-        <Select
-            size="xs"
-            label="Section"
-            allowDeselect={false}
-            data={[
-                { value: NO_SECTION, label: 'No section' },
-                ...sections.map((section) => ({
-                    value: section.id,
-                    label:
-                        section.name || getUiString('controls.untitledSection'),
-                })),
-            ]}
-            value={value}
-            onChange={(next) => {
-                if (next === null || next === value) return;
-                updateFilter(
-                    next === NO_SECTION
-                        ? omit(rule, 'sectionId')
-                        : { ...rule, sectionId: next },
-                );
-            }}
-        />
-    );
-};
-
-// The question takes focus as it appears: Apply, else Discard when Apply
-// cannot answer it
-const focusAnswerOnMount = (node: HTMLElement | null) => {
-    const buttons = [
-        ...(node?.querySelectorAll<HTMLButtonElement>('button') ?? []),
-    ];
-    (
-        buttons.find(
-            (button) =>
-                !button.disabled && button.dataset.controlsApply !== undefined,
-        ) ?? buttons[0]
-    )?.focus({ preventScroll: true });
-};
-
-// At the top while a pill or Add waits on the draft
-const Prompt: FC<{ name: string; applyBlockedReason: string | null }> = ({
-    name,
-    applyBlockedReason,
-}) => {
-    const resolvePending = useControlsSidebarSelector((c) => c.resolvePending);
-    const getUiString = useUiStrings();
-    return (
-        <Group
-            justify="space-between"
-            wrap="nowrap"
-            gap="xs"
-            className={classes.prompt}
-            ref={focusAnswerOnMount}
-        >
-            <Text fz="xs" role="status">
-                {interpolateUiString(
-                    getUiString('controls.applyChangesFirst'),
-                    { filter: name },
-                )}
-            </Text>
-            <Group gap="xs" wrap="nowrap" flex="0 0 auto">
-                <Button
-                    variant="subtle"
-                    size="xs"
-                    onClick={() => resolvePending(false)}
-                >
-                    {getUiString('controls.discard')}
-                </Button>
-                <Button
-                    variant="default"
-                    size="xs"
-                    data-controls-apply
-                    disabled={applyBlockedReason !== null}
-                    onClick={() => resolvePending(true)}
-                >
-                    {getUiString('filters.apply')}
-                </Button>
-            </Group>
-        </Group>
-    );
-};
-
-// Cancel and Apply
-const Footer: FC<{ applyBlockedReason: string | null }> = ({
-    applyBlockedReason,
-}) => {
-    const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
-    const isAsking = useControlsSidebarSelector((c) => c.isAsking);
-    const discard = useControlsSidebarSelector((c) => c.discard);
-    const close = useControlsSidebarSelector((c) => c.close);
-    const getUiString = useUiStrings();
-    return (
-        <Group
-            justify="flex-end"
-            gap="xs"
-            wrap="nowrap"
-            className={classes.footer}
-        >
-            <Button variant="default" size="xs" onClick={discard}>
-                {getUiString('filters.actions.cancel')}
-            </Button>
-            <Tooltip
-                fz="xs"
-                label={applyBlockedReason}
-                disabled={applyBlockedReason === null}
-            >
-                <Box>
-                    <Button
-                        size="xs"
-                        data-controls-apply={!isAsking || undefined}
-                        disabled={isPlaceholder || applyBlockedReason !== null}
-                        onClick={close}
-                    >
-                        {getUiString('filters.apply')}
-                    </Button>
-                </Box>
-            </Tooltip>
-        </Group>
-    );
-};
-
-// The popover's title: the name as text and, for an editor, a pencil that
-// turns it into an input. Blur and Enter commit, Escape reverts
-const FilterName: FC<{
-    label: ReturnType<typeof useLabelDraft>;
-    /** Shown when there is no label: the field's name, as the pill. */
-    fallback: string;
-    /** The empty input's hint, as the shipped "Filter label" input's. */
-    placeholder: string;
-    isEditable: boolean;
-}> = ({ label, fallback, placeholder, isEditable }) => {
-    const [isRenaming, setIsRenaming] = useState(false);
-    const { ref: pencilRef, exit } = useRefocusAfter(isRenaming);
-    const start = useRef('');
-    // Set once naming ends, so a blur as the input unmounts keeps its exit
-    const isDone = useRef(false);
-    const shown = label.draft.trim() === '' ? fallback : label.draft;
-    const finish = (how: NameExit) => {
-        if (isDone.current) return;
-        isDone.current = true;
-        exit.current = how;
-        setIsRenaming(false);
-    };
-    if (!isRenaming)
-        return (
-            <Group gap={4} wrap="nowrap" className={classes.nameRow}>
-                <Text fz="sm" fw={500} truncate className={classes.name}>
-                    {shown}
-                </Text>
-                {isEditable && (
-                    <Tooltip fz="xs" label="Rename">
-                        <ActionIcon
-                            size="sm"
-                            aria-label="Rename"
-                            ref={pencilRef}
-                            onClick={() => {
-                                start.current = label.draft;
-                                isDone.current = false;
-                                setIsRenaming(true);
-                            }}
-                        >
-                            <MantineIcon
-                                icon={IconPencil}
-                                size={14}
-                                strokeWidth={2.25}
-                            />
-                        </ActionIcon>
-                    </Tooltip>
-                )}
-            </Group>
-        );
-    return (
-        <TextInput
-            aria-label="Name"
-            size="xs"
-            className={classes.nameRow}
-            classNames={{ input: classes.nameInput }}
-            // Left empty, the filter goes by its field's name
-            placeholder={placeholder}
-            data-controls-label
-            data-own-escape
-            autoFocus
-            value={label.draft}
-            onFocus={(event) => event.currentTarget.select()}
-            onChange={(event) => label.type(event.currentTarget.value)}
-            // Synchronous, so a click on Apply keeps the label
-            onBlur={(event) => {
-                if (isDone.current) return;
-                label.flush();
-                finish(
-                    event.relatedTarget instanceof HTMLElement &&
-                        event.relatedTarget !== document.body
-                        ? 'elsewhere'
-                        : 'pointer',
-                );
-            }}
-            onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                    event.preventDefault();
-                    label.flush();
-                    finish('keyboard');
-                } else if (event.key === 'Escape') {
-                    event.preventDefault();
-                    if (label.draft !== start.current) label.set(start.current);
-                    finish('keyboard');
-                }
-            }}
-        />
-    );
-};
-
-// A new filter starts at its field search. Marked too, for the popover's
-// focus trap, which hands focus to `data-autofocus` once it is in place
-const focusStartOnMount = (node: HTMLElement | null) => {
-    const input = node?.querySelector<HTMLElement>(
-        '[data-controls-start] input',
-    );
-    input?.setAttribute('data-autofocus', '');
-    input?.focus({ preventScroll: true });
-};
-
-type FilterEditorProps = { rule: DashboardFilterRule };
-
-// Mounted with the filter id as key, so the label draft and the view never
-// carry over to another filter
-const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
+// A filter with no field yet: a new one's field search alone, or an existing
+// one left with no field, which keeps its name and cannot be applied
+const PlaceholderEditor: FC<{ rule: DashboardFilterRule }> = ({ rule }) => {
     const isNew = useControlsSidebarSelector((c) => c.isNew);
     const emptiedFieldLabel = useControlsSidebarSelector(
         (c) => c.emptiedFieldLabel,
     );
-    const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
     const isAsking = useControlsSidebarSelector((c) => c.isAsking);
-    const isViewer = useControlsSidebarSelector((c) => c.isViewer);
-    const updateFilter = useControlsSidebarSelector((c) => c.updateFilter);
+    const resolvePending = useControlsSidebarSelector((c) => c.resolvePending);
+    const discard = useControlsSidebarSelector((c) => c.discard);
+    const close = useControlsSidebarSelector((c) => c.close);
     const getUiString = useUiStrings();
-    const [view, setView] = useState<EditorView>('value');
-    // As the filter was opened: an emptied label goes back to exactly that
-    const [hadLabelKey] = useState(() => 'label' in filterRule);
-    // Held here, so a trip to Settings and back keeps what was typed
-    const label = useLabelDraft(filterRule.label ?? '', (next) =>
-        updateFilter(withFilterRuleLabel(filterRule, next, hadLabelKey)),
-    );
-    const appliedTileCount = useAppliedTileCount(filterRule);
-    const applyBlockedReason = useApplyBlockedReason(filterRule);
-    // No props, so one element: typing a label does not re-render the list
+    const applyBlockedReason = useApplyBlockedReason(rule);
+    // No props, so one element: the list never re-renders on its own
     const fieldsAndTiles = useMemo(() => <FieldsAndTiles />, []);
-
-    // A dimension or a metric, as the shipped bar resolves it
-    const field = useFilterRuleField(filterRule);
-    const fieldName =
-        field?.label ??
-        (filterRule.target.isSqlColumn ? filterRule.target.fieldId : null);
-    const name =
-        isPlaceholder && isNew
-            ? getUiString('controls.newFilter')
-            : (filterRule.label ??
-              (isPlaceholder ? emptiedFieldLabel : fieldName) ??
-              getUiString('controls.filterName'));
+    const name = isNew
+        ? getUiString('controls.newFilter')
+        : (rule.label ??
+          emptiedFieldLabel ??
+          getUiString('controls.filterName'));
     const focusOnMount = useCallback(
         (node: HTMLElement | null) => focusStartOnMount(node),
         [],
@@ -325,48 +68,169 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
             ref={focusOnMount}
         >
             {isAsking && (
-                <Prompt name={name} applyBlockedReason={applyBlockedReason} />
+                <EditorPrompt
+                    name={name}
+                    applyBlockedReason={applyBlockedReason}
+                    onResolvePending={resolvePending}
+                />
             )}
-            {/* While the question is open it is the only live part */}
             <Box
                 className={classes.body}
                 data-dimmed={isAsking || undefined}
                 inert={isAsking || undefined}
             >
-                {isPlaceholder ? (
-                    <Box className={classes.content}>{fieldsAndTiles}</Box>
-                ) : (
-                    <FilterSettings
-                        rule={filterRule}
-                        field={field}
-                        onChange={updateFilter}
-                        view={view}
-                        onViewChange={setView}
-                        appliedTileCount={appliedTileCount}
-                        title={
-                            <FilterName
-                                label={label}
-                                fallback={
-                                    fieldName ??
-                                    getUiString('controls.filterName')
-                                }
-                                placeholder={
-                                    field
-                                        ? `Label for ${field.label}`
-                                        : 'Filter label'
-                                }
-                                isEditable={!isViewer}
-                            />
-                        }
-                        sectionSelect={<SectionSelect rule={filterRule} />}
-                    />
-                )}
+                <Box className={classes.content}>{fieldsAndTiles}</Box>
                 {/* A new filter shows only its field search until a field is picked */}
-                {!(isPlaceholder && isNew) && (
-                    <Footer applyBlockedReason={applyBlockedReason} />
+                {!isNew && (
+                    <Group
+                        justify="flex-end"
+                        wrap="nowrap"
+                        className={classes.footer}
+                    >
+                        <EditorActions
+                            applyBlockedReason={applyBlockedReason}
+                            isApplyDisabled
+                            isAsking={isAsking}
+                            onCancel={discard}
+                            onApply={close}
+                        />
+                    </Group>
                 )}
             </Box>
         </Box>
+    );
+};
+
+// The popover wired to the provider, the only writer
+const FilterEditor: FC<{
+    rule: DashboardFilterRule;
+    field: DashboardFilterableField | null;
+}> = ({ rule, field }) => {
+    const isNew = useControlsSidebarSelector((c) => c.isNew);
+    const isAsking = useControlsSidebarSelector((c) => c.isAsking);
+    const isViewer = useControlsSidebarSelector((c) => c.isViewer);
+    const canChooseTiles = useControlsSidebarSelector((c) => c.canChooseTiles);
+    const editorFilters = useControlsSidebarSelector((c) => c.editorFilters);
+    const updateFilter = useControlsSidebarSelector((c) => c.updateFilter);
+    const updateOtherFilters = useControlsSidebarSelector(
+        (c) => c.updateOtherFilters,
+    );
+    const startMapping = useControlsSidebarSelector((c) => c.startMapping);
+    const resolvePending = useControlsSidebarSelector((c) => c.resolvePending);
+    const discard = useControlsSidebarSelector((c) => c.discard);
+    const close = useControlsSidebarSelector((c) => c.close);
+    const { user } = useApp();
+    const canManageExplore = !!user.data?.ability?.can('manage', 'Explore');
+    const savedFilters = useDashboardContext((c) => c.dashboard?.filters);
+    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
+    const fieldsByTile = useDashboardContext(
+        (c) => c.filterableFieldsByTileUuid,
+    );
+    const sqlColumnsByTile = useSqlColumnsByTile(rule);
+    // As mapping counts: the tiles that can take a filter
+    const takeableTileCount = useMemo(
+        () =>
+            (dashboardTiles ?? []).filter((tile) =>
+                canTileTakeFilter(tile, fieldsByTile, sqlColumnsByTile),
+            ).length,
+        [dashboardTiles, fieldsByTile, sqlColumnsByTile],
+    );
+    const appliedTileCount = useAppliedTileCount(rule);
+    // As the shipped popover reads it: the field's type, else the column's
+    const sqlChartTilesMetadata = useDashboardSelector(
+        selectSqlChartTilesMetadata,
+    );
+    const filterType = useMemo(
+        () =>
+            getFilterRuleFilterType(
+                field ?? undefined,
+                getUniqueSqlColumns(sqlChartTilesMetadata),
+                rule,
+            ),
+        [field, sqlChartTilesMetadata, rule],
+    );
+    // "Filter rules" opens from its button on the bar, which is only there
+    // once the editor has closed
+    const filterBarPopovers = useFilterBarPopovers();
+    const handleEditRules = useMemo(() => {
+        if (!filterBarPopovers) return null;
+        return () => {
+            close();
+            filterBarPopovers.openRulesPopover();
+        };
+    }, [filterBarPopovers, close]);
+    // A viewer's saved filter, as the dashboard was saved: its reset
+    const savedRule =
+        isViewer && !canChooseTiles && savedFilters
+            ? findFilterRule(savedFilters, rule.id)
+            : null;
+    return (
+        <FilterPopover
+            rule={rule}
+            field={field}
+            filterType={filterType}
+            isViewer={isViewer}
+            canChooseTiles={canChooseTiles}
+            isCreatingNew={isViewer && isNew}
+            canManageExplore={canManageExplore}
+            savedRule={savedRule}
+            appliedTileCount={appliedTileCount}
+            totalTileCount={takeableTileCount}
+            filters={editorFilters}
+            isAsking={isAsking}
+            initialView="value"
+            onChange={updateFilter}
+            onChangeOthers={updateOtherFilters}
+            onCancel={discard}
+            onApply={close}
+            onChooseTiles={startMapping}
+            onEditRules={handleEditRules}
+            onResolvePending={resolvePending}
+        />
+    );
+};
+
+// The shipped value inputs read the dashboard's fields, tiles and filters
+const EditorFiltersProvider: FC<{ children: ReactNode }> = ({ children }) => {
+    const projectUuid = useProjectUuid();
+    const startOfWeek = useFiltersStartOfWeek(projectUuid);
+    const allFilters = useDashboardAllFilters();
+    const allFilterableFieldsMap = useDashboardContext(
+        (c) => c.allFilterableFieldsMap,
+    );
+    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
+    const parameterValues = useDashboardSelector(selectParameterValues);
+    const filterableFieldsByTileUuid = useDashboardContext(
+        (c) => c.filterableFieldsByTileUuid,
+    );
+    const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
+    return (
+        <FiltersProvider
+            projectUuid={projectUuid}
+            itemsMap={allFilterableFieldsMap}
+            startOfWeek={startOfWeek}
+            dashboardFilters={allFilters}
+            dashboardTiles={dashboardTiles}
+            filterableFieldsByTileUuid={filterableFieldsByTileUuid}
+            activeTabUuid={activeTabUuid}
+            parameterValues={parameterValues}
+        >
+            {children}
+        </FiltersProvider>
+    );
+};
+
+// Mounted with the filter id as key, so the view and the name never carry
+// over to another filter
+const FilterEditorContent: FC<{ rule: DashboardFilterRule }> = ({ rule }) => {
+    const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
+    // A dimension or a metric, as the shipped bar resolves it
+    const field = useFilterRuleField(rule);
+    if (isPlaceholder) return <PlaceholderEditor rule={rule} />;
+    return (
+        <EditorFiltersProvider>
+            <FilterEditor rule={rule} field={field} />
+        </EditorFiltersProvider>
     );
 };
 
@@ -377,7 +241,7 @@ const EditorContent: FC = () => {
     );
     const editingRule = useControlsSidebarSelector((c) => c.editingRule);
     if (filterId === null || editingRule === null) return null;
-    return <FilterEditor key={filterId} rule={editingRule} />;
+    return <FilterEditorContent key={filterId} rule={editingRule} />;
 };
 
 // Closing is immediate and opening is the dropdown's own CSS arrival, which

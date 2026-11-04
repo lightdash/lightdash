@@ -443,6 +443,13 @@ export const DEFAULT_UI_STRINGS = {
     'controls.mappingFilters': 'filters',
     'controls.backToFilter': 'Back to filter',
     'controls.mappingUsing': 'using',
+    'controls.operatorLabel': 'Operator: {operator}',
+    'controls.sets': 'Sets {tiles}',
+    'controls.setsNoTiles': 'Sets no tiles',
+    'controls.parameter.clearedUsesDefault':
+        'If cleared, tiles use the default, {value}.',
+    'controls.parameter.clearedUsesOwnValue':
+        'If cleared, each tile uses its own value.',
     'filters.tileCard.locked': 'Tiles are locked while a filter is edited',
     'filters.tileCard.unreachable':
         'This tile has no field this filter can use',

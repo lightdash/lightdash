@@ -40,13 +40,47 @@ type Props = {
     field?: DashboardFilterableField;
     filterRule: DashboardFilterRule;
     popoverProps?: Omit<PopoverProps, 'children'>;
-    /** Edit mode's "Provide default value" switch (default shown). */
-    withDefaultValueSwitch?: boolean;
-    /** The note that a required filter's value is dropped on save (default shown). */
-    withRequiredSaveNote?: boolean;
-    /** Keeps a string value list shut on focus, and closes it once an option is picked (default: neither). */
-    isListClosedOnPick?: boolean;
     onChangeFilterRule: (value: DashboardFilterRule) => void;
+};
+
+/** A viewer's X beside the value: back to any value. */
+export const ClearToAnyValueButton: FC<{
+    filterType: FilterType;
+    filterRule: DashboardFilterRule;
+    onChangeFilterRule: (value: DashboardFilterRule) => void;
+}> = ({ filterType, filterRule, onChangeFilterRule }) => {
+    const getUiString = useUiStrings();
+    return (
+        <Tooltip
+            label={getUiString(
+                filterRule.disabled
+                    ? 'filters.config.alreadyAnyValue'
+                    : (filterRule.values?.length ?? 0) === 0
+                      ? 'filters.config.noValueToClear'
+                      : 'filters.config.clearToAnyValue',
+            )}
+        >
+            <ActionIcon
+                size="sm"
+                mt={4}
+                disabled={
+                    filterRule.disabled ||
+                    (filterRule.values?.length ?? 0) === 0
+                }
+                onClick={() =>
+                    onChangeFilterRule({
+                        ...filterRule,
+                        values: [],
+                        ...(filterType === FilterType.DATE
+                            ? { settings: undefined }
+                            : {}),
+                    })
+                }
+            >
+                <MantineIcon icon={IconX} />
+            </ActionIcon>
+        </Tooltip>
+    );
 };
 
 // The value part of the settings form: operator, value and default value
@@ -57,9 +91,6 @@ export const FilterValueSection: FC<Props> = ({
     field,
     filterRule,
     popoverProps,
-    withDefaultValueSwitch = true,
-    withRequiredSaveNote = true,
-    isListClosedOnPick = false,
     onChangeFilterRule,
 }) => {
     const { user } = useApp();
@@ -183,18 +214,7 @@ export const FilterValueSection: FC<Props> = ({
                 <Group gap="xs" wrap="nowrap" align="flex-start">
                     <Box flex={1}>
                         <FilterInputComponent
-                            popoverProps={
-                                // Only the string inputs read it; date pickers
-                                // would hand it to their popover's DOM
-                                isListClosedOnPick &&
-                                filterType === FilterType.STRING
-                                    ? {
-                                          ...popoverProps,
-                                          closeListOnPick: true,
-                                          openListOnFocus: false,
-                                      }
-                                    : popoverProps
-                            }
+                            popoverProps={popoverProps}
                             filterType={filterType}
                             field={field}
                             rule={filterRule}
@@ -212,50 +232,25 @@ export const FilterValueSection: FC<Props> = ({
                             FilterOperator.NULL,
                             FilterOperator.NOT_NULL,
                         ].includes(filterRule.operator) && (
-                            <Tooltip
-                                label={getUiString(
-                                    filterRule.disabled
-                                        ? 'filters.config.alreadyAnyValue'
-                                        : (filterRule.values?.length ?? 0) === 0
-                                          ? 'filters.config.noValueToClear'
-                                          : 'filters.config.clearToAnyValue',
-                                )}
-                            >
-                                <ActionIcon
-                                    size="sm"
-                                    mt={4}
-                                    disabled={
-                                        filterRule.disabled ||
-                                        (filterRule.values?.length ?? 0) === 0
-                                    }
-                                    onClick={() =>
-                                        onChangeFilterRule({
-                                            ...filterRule,
-                                            values: [],
-                                            ...(filterType === FilterType.DATE
-                                                ? { settings: undefined }
-                                                : {}),
-                                        })
-                                    }
-                                >
-                                    <MantineIcon icon={IconX} />
-                                </ActionIcon>
-                            </Tooltip>
+                            <ClearToAnyValueButton
+                                filterType={filterType}
+                                filterRule={filterRule}
+                                onChangeFilterRule={onChangeFilterRule}
+                            />
                         )}
                 </Group>
             )}
 
             {isEditMode && (
                 <>
-                    {withRequiredSaveNote &&
-                        hasRequirement &&
+                    {hasRequirement &&
                         (filterRule?.values || []).length > 0 && (
                             <Text size="xs" c={'ldGray.7'}>
                                 Temporary filter values for required filters
                                 will be removed on dashboard save
                             </Text>
                         )}
-                    {!hasRequirement && withDefaultValueSwitch && (
+                    {!hasRequirement && (
                         <Tooltip
                             position="right"
                             label={

@@ -100,14 +100,16 @@ export const FilterPill: FC<Props> = memo(
             kind === 'editor' && !isSidebarOpen,
             getFieldsByTile,
         );
-        // The lock and the X have tooltips of their own: the pill's waits meanwhile
+        // The X, the lock and the required mark (`data-own-tooltip`) have
+        // tooltips of their own: the pill's waits meanwhile
         const [isOnAction, setIsOnAction] = useState(false);
         const trackAction = (event: PointerEvent<HTMLElement>) =>
             setIsOnAction(
                 event.type === 'pointerover' &&
                     event.target instanceof Element &&
-                    event.target.closest('button:not([data-controls-pill])') !==
-                        null,
+                    event.target.closest(
+                        'button:not([data-controls-pill]), [data-own-tooltip]',
+                    ) !== null,
             );
         // Dashed pills say why first, in the tooltip the pill already has:
         // the select hint, else the tables one. The open pill has its editor

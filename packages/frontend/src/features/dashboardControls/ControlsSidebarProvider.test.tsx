@@ -351,6 +351,24 @@ describe('ControlsSidebarProvider', () => {
         expect(result.current.editing).toBeNull();
     });
 
+    it("applies an editor's required filter left with no value as off, for viewers to set", () => {
+        const { result } = setup();
+        act(() => result.current.open('a'));
+        // As the popover writes it: required, its value emptied
+        act(() =>
+            result.current.updateFilter({ ...rule('a', []), required: true }),
+        );
+        act(() => result.current.close());
+        expect(latest.filters.dimensions[0]).toEqual(
+            expect.objectContaining({
+                required: true,
+                values: [],
+                disabled: true,
+            }),
+        );
+        expect(result.current.editing).toBeNull();
+    });
+
     it('writes nothing on Apply of a clean edit', () => {
         const { result } = setup();
         act(() => result.current.open('a'));
