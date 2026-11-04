@@ -522,7 +522,9 @@ When the user asks for "Open in Google Sheets" (or any Sheets destination), read
 
 A PDF or printable report app always includes a visible **Download PDF** button — the export action is part of the report shape, not an optional extra, and `window.print()` is only ever a secondary Print action. This applies whenever the app is report-shaped, whatever the request's wording: the PDF Report starter template, a "printable" / "document" / "report to share" ask, or an app that already renders `.pdf-page` sections. On edit turns, keep the existing Download PDF button working — an edit that removes it is a regression.
 
-Before wiring the button, read `/app/references/pdf-downloads.md` — it has the required `html-to-image` + `jspdf` pattern and page-capture rules.
+Every app with a Download PDF button also registers the same builder for scheduled deliveries via `registerPdfExport` from `@/lib/pdfExport` (builder resolves to `pdf.output('blob')`). The button and the registration always ship together — an app with one but not the other is incomplete, on first generation and after every edit.
+
+Before wiring the button, read `/app/references/pdf-downloads.md` — it has the required `html-to-image` + `jspdf` pattern, page-capture rules, and the `registerPdfExport` wiring.
 
 ### Underlying data
 
