@@ -10,13 +10,16 @@ import {
 } from '@lightdash/common';
 import {
     useMutation,
+    useQueries,
     useQuery,
     useQueryClient,
+    type Query,
     type UseQueryOptions,
 } from '@tanstack/react-query';
 import { type LightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
+import { isSemanticLayerModelFile, parseSemanticLayerModel } from '../utils';
 
 const POLL_INTERVAL_MS = 2_000;
 
@@ -30,8 +33,10 @@ const agentOnboardingActiveRunQueryKey = (projectUuid: string | undefined) =>
 
 const getAgentOnboardingRefetchInterval = (
     run: AgentOnboardingRun | undefined,
+    query: Query<AgentOnboardingRun, ApiError>,
 ): number | false =>
-    !run || !isAgentOnboardingRunTerminal(run.status)
+    query.state.status !== 'error' &&
+    (!run || !isAgentOnboardingRunTerminal(run.status))
         ? POLL_INTERVAL_MS
         : false;
 
@@ -96,7 +101,6 @@ export const useAgentOnboardingRun = (
         queryFn: () => getRun(lightdashApi, projectUuid!, runUuid!),
         enabled: !!projectUuid && !!runUuid && (options?.enabled ?? true),
         refetchInterval: getAgentOnboardingRefetchInterval,
-        refetchIntervalInBackground: true,
     });
 };
 
@@ -104,7 +108,7 @@ export const useActiveAgentOnboardingRun = (
     projectUuid: string | undefined,
     options?: Pick<
         UseQueryOptions<AgentOnboardingRun | null, ApiError>,
-        'enabled'
+        'enabled' | 'refetchInterval'
     >,
 ) => {
     const lightdashApi = useLightdashApi();
@@ -112,6 +116,7 @@ export const useActiveAgentOnboardingRun = (
         queryKey: agentOnboardingActiveRunQueryKey(projectUuid),
         queryFn: () => getActiveRun(lightdashApi, projectUuid!),
         enabled: !!projectUuid && (options?.enabled ?? true),
+        refetchInterval: options?.refetchInterval,
         // A run can start or finish elsewhere in the app, so this must not be
         // served stale on remount (e.g. after a back navigation)
         staleTime: 0,
@@ -137,6 +142,78 @@ export const useAgentOnboardingFile = (
         enabled: !!projectUuid && !!runUuid && !!file,
         keepPreviousData: true,
     });
+};
+
+/** Several run files at once, sharing the single-file cache */
+const useAgentOnboardingFiles = (
+    projectUuid: string,
+    runUuid: string,
+    files: AgentOnboardingFile[],
+) => {
+    const lightdashApi = useLightdashApi();
+    const queryClient = useQueryClient();
+    return useQueries({
+        queries: files.map((file) => ({
+            queryKey: [
+                'agent-onboarding-file',
+                projectUuid,
+                runUuid,
+                file.path,
+                file.updatedAt,
+            ],
+            queryFn: () =>
+                getFile(lightdashApi, projectUuid, runUuid, file.path),
+            // Show the last version while a rewritten file loads
+            placeholderData: () =>
+                queryClient
+                    .getQueriesData<AgentOnboardingFileContent>([
+                        'agent-onboarding-file',
+                        projectUuid,
+                        runUuid,
+                        file.path,
+                    ])
+                    .map(([, data]) => data)
+                    .findLast((data) => data !== undefined),
+        })),
+    });
+};
+
+// Cached per fetched file object so polling re-renders don't re-parse YAML
+const parsedModels = new WeakMap<
+    AgentOnboardingFileContent,
+    ReturnType<typeof parseSemanticLayerModel>
+>();
+const parseModelFile = (file: AgentOnboardingFileContent) => {
+    const cached = parsedModels.get(file);
+    if (cached !== undefined) return cached;
+    const model = parseSemanticLayerModel(file.path, file.content);
+    parsedModels.set(file, model);
+    return model;
+};
+
+/** The model files a run wrote, with their content and what they define */
+export const useRunSemanticLayer = (run: AgentOnboardingRun) => {
+    const files = run.files.filter(isSemanticLayerModelFile);
+    const queries = useAgentOnboardingFiles(
+        run.projectUuid,
+        run.agentOnboardingRunUuid,
+        files,
+    );
+    const contents = queries.map(({ data }) =>
+        data?.encoding === 'utf8' ? data.content : null,
+    );
+    const models = queries.map(({ data }) =>
+        data?.encoding === 'utf8' ? parseModelFile(data) : null,
+    );
+    const count = (pick: 'metrics' | 'dimensions') =>
+        models.reduce((sum, model) => sum + (model?.[pick].length ?? 0), 0);
+    return {
+        files,
+        contents,
+        models,
+        metricCount: count('metrics'),
+        dimensionCount: count('dimensions'),
+    };
 };
 
 export const useStartAgentOnboardingRun = () => {

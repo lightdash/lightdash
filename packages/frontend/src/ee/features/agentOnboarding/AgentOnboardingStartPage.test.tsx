@@ -45,6 +45,10 @@ vi.mock('../aiCopilot/hooks/useIsCopilotEnabled', () => ({
 }));
 
 vi.mock('./hooks/useAgentOnboarding', () => ({
+    useActiveAgentOnboardingRun: () => ({
+        data: null,
+        isInitialLoading: false,
+    }),
     useStartAgentOnboardingRun: () => ({
         mutateAsync: vi.fn(),
         isLoading: false,
