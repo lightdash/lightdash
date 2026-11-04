@@ -12,7 +12,7 @@ import {
     type Organization,
 } from '@lightdash/common';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { useState, type FC, type ReactNode } from 'react';
+import { useLayoutEffect, useState, type FC, type ReactNode } from 'react';
 import {
     createMemoryRouter,
     Outlet,
@@ -281,12 +281,14 @@ const stubFetch: typeof window.fetch = async (input, init) => {
     });
 };
 
-// isomorphic-fetch restores plain assignments, so pin fetch with a getter
-Object.defineProperty(window, 'fetch', {
-    configurable: true,
-    get: () => stubFetch,
-    set: () => {},
-});
+/** Routes API calls to the story stubs; the returned function puts the previous fetch back */
+export const installStoryFetch = () => {
+    const previousFetch = window.fetch;
+    window.fetch = stubFetch;
+    return () => {
+        window.fetch = previousFetch;
+    };
+};
 
 const RedirectNotice: FC = () => {
     const location = useLocation();
@@ -311,6 +313,8 @@ export const OnboardingStory: FC<OnboardingStoryProps> = ({
     withNavBar = false,
 }) => {
     activeRoutes = { ...defaultRoutes(), ...routes };
+    // Layout effects run before the queries' passive effects fire their first fetch
+    useLayoutEffect(installStoryFetch, []);
     const [queryClient] = useState(() =>
         createQueryClient({
             queries: { retry: false, refetchOnWindowFocus: false },

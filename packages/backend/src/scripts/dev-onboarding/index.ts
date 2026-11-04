@@ -3,12 +3,7 @@ import knex from 'knex';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { chromium } from 'playwright';
-import {
-    assertLocalTarget,
-    TEST_EMAIL,
-    TEST_PASSWORD,
-    TEST_USER_UUID,
-} from './config';
+import { assertLocalTarget, TEST_EMAIL, TEST_PASSWORD } from './config';
 import { resetOnboardingFixture } from './reset';
 
 const root = path.resolve(__dirname, '../../../../..');
@@ -88,18 +83,6 @@ const main = async () => {
                 .map((other) => other.close()),
         );
         await page.goto(siteUrl);
-        if (!args.includes('--resume')) {
-            await page.evaluate((userUuid) => {
-                for (const key of Object.keys(localStorage)) {
-                    if (
-                        key.startsWith(
-                            `homepage-setup-guide-dismissed-${userUuid}-`,
-                        )
-                    )
-                        localStorage.removeItem(key);
-                }
-            }, TEST_USER_UUID);
-        }
         await page.goto(new URL('/organization-setup', siteUrl).href);
         console.info(
             'Dedicated test browser ready. Close its window to finish.',
