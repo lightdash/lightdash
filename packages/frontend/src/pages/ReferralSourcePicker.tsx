@@ -12,6 +12,7 @@ import {
     IconMicrophone2,
     IconSparkles,
     IconUsers,
+    IconWorld,
     type Icon,
 } from '@tabler/icons-react';
 import { useState, type FC, type ReactNode } from 'react';
@@ -43,6 +44,7 @@ const SOURCES: Source[] = [
     { label: 'YouTube', icon: IconBrandYoutube, followUp: null },
     { label: 'Reddit', icon: IconBrandReddit, followUp: null },
     { label: 'GitHub', icon: IconBrandGithub, followUp: null },
+    { label: 'Website', icon: IconWorld, followUp: null },
     {
         label: 'Podcast',
         icon: IconMicrophone2,
