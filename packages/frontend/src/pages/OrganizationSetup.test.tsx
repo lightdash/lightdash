@@ -114,6 +114,17 @@ const mockBrandFetch = (
             };
         });
 
+const pickReferral = async (
+    user: ReturnType<typeof userEvent.setup>,
+    answer: string,
+) => {
+    await user.click(await screen.findByRole('radio', { name: 'Other' }));
+    await user.type(
+        screen.getByRole('textbox', { name: 'Where did you hear about us?' }),
+        answer,
+    );
+};
+
 const selectRole = async (user: ReturnType<typeof userEvent.setup>) => {
     const roleSelect = await screen.findByPlaceholderText('Select your role');
     await user.click(roleSelect);
@@ -152,7 +163,7 @@ describe('OrganizationSetup', () => {
 
         // invited members do not see the referral question
         expect(
-            screen.queryByRole('textbox', {
+            screen.queryByRole('radiogroup', {
                 name: /How did you hear about us/,
             }),
         ).not.toBeInTheDocument();
@@ -207,10 +218,7 @@ describe('OrganizationSetup', () => {
 
         await selectRole(user);
 
-        const referralInput = await screen.findByRole('textbox', {
-            name: /How did you hear about us/,
-        });
-        await user.type(referralInput, '  a podcast  ');
+        await pickReferral(user, '  a podcast  ');
 
         const scope = nock(BASE_API_URL)
             .patch('/api/v1/user/me/complete', {
@@ -267,7 +275,7 @@ describe('OrganizationSetup', () => {
 
         // invited members do not see the referral question
         expect(
-            screen.queryByRole('textbox', {
+            screen.queryByRole('radiogroup', {
                 name: /How did you hear about us/,
             }),
         ).not.toBeInTheDocument();
@@ -301,15 +309,12 @@ describe('OrganizationSetup', () => {
             await screen.findByRole('button', { name: 'Continue' }),
         );
 
-        await screen.findByRole('textbox', {
+        await screen.findByRole('radiogroup', {
             name: /How did you hear about us/,
         });
         await selectRole(user);
 
-        const referralInput = await screen.findByRole('textbox', {
-            name: /How did you hear about us/,
-        });
-        await user.type(referralInput, '   ');
+        await pickReferral(user, '   ');
 
         const submitButton = await screen.findByRole('button', {
             name: 'Continue',
@@ -553,12 +558,7 @@ describe('OrganizationSetup', () => {
                 await screen.findByRole('button', { name: 'Continue' }),
             );
             await selectRole(user);
-            await user.type(
-                await screen.findByRole('textbox', {
-                    name: /How did you hear about us/,
-                }),
-                'A colleague',
-            );
+            await pickReferral(user, 'A colleague');
             await user.click(
                 await screen.findByRole('button', { name: 'Continue' }),
             );
@@ -602,10 +602,7 @@ describe('OrganizationSetup', () => {
         await screen.findByPlaceholderText('Select your role');
         await selectRole(user);
 
-        const referralInput = await screen.findByRole('textbox', {
-            name: /How did you hear about us/,
-        });
-        await user.type(referralInput, 'a podcast');
+        await pickReferral(user, 'a podcast');
 
         releaseBrand();
         await user.click(screen.getByRole('button', { name: 'Back' }));
@@ -693,16 +690,13 @@ describe('OrganizationSetup', () => {
         await screen.findByPlaceholderText('Select your role');
         await selectRole(user);
 
-        const referralInput = await screen.findByRole('textbox', {
-            name: /How did you hear about us/,
-        });
-        await user.type(referralInput, 'a podcast');
+        await user.click(await screen.findByRole('radio', { name: 'Podcast' }));
 
         const scope = nock(BASE_API_URL)
             .patch('/api/v1/user/me/complete', {
                 organizationName: 'Acme Inc',
                 jobTitle: 'Software Engineer',
-                howDidYouHearAboutUs: 'a podcast',
+                howDidYouHearAboutUs: 'Podcast',
                 enableEmailDomainAccess: true,
                 isMarketingOptedIn: true,
                 isTrackingAnonymized: false,
@@ -781,10 +775,7 @@ describe('OrganizationSetup', () => {
         await screen.findByPlaceholderText('Select your role');
         await selectRole(user);
 
-        const referralInput = await screen.findByRole('textbox', {
-            name: /How did you hear about us/,
-        });
-        await user.type(referralInput, 'a podcast');
+        await pickReferral(user, 'a podcast');
 
         const scope = nock(BASE_API_URL)
             .patch('/api/v1/user/me/complete')

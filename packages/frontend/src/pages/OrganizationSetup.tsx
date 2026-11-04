@@ -58,6 +58,7 @@ import { EventName } from '../types/Events';
 import { getNoProjectPath } from '../utils/noProjectPath';
 import { inferOrganizationName } from '../utils/organizationName';
 import classes from './OrganizationSetup.module.css';
+import { ReferralSourcePicker } from './ReferralSourcePicker';
 
 const DEFAULT_COLOR = '#4c6ef5';
 
@@ -493,14 +494,15 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                 />
 
                                 {canEnterOrganizationName && (
-                                    <TextInput
-                                        label="How did you hear about us?"
-                                        placeholder="Google, a colleague, a podcast..."
-                                        size="md"
-                                        required
-                                        {...form.getInputProps(
-                                            'howDidYouHearAboutUs',
-                                        )}
+                                    <ReferralSourcePicker
+                                        value={form.values.howDidYouHearAboutUs}
+                                        onChange={(value) =>
+                                            form.setFieldValue(
+                                                'howDidYouHearAboutUs',
+                                                value,
+                                            )
+                                        }
+                                        error={form.errors.howDidYouHearAboutUs}
                                     />
                                 )}
 
