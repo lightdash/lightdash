@@ -1,18 +1,24 @@
 import {
+    APP_PDF_EXPORT_GLOBAL,
+    APP_PDF_EXPORT_UNSUPPORTED_ERROR,
     DELIVERY_CAPTURE_GLOBAL,
     FeatureFlags,
+    MAX_APP_PDF_BYTES,
     QueryExecutionContext,
+    type AppPdfExportResult,
     type DeliveryCaptureManifest,
 } from '@lightdash/common';
 import { Box, Loader, Stack, Text } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconAppsOff } from '@tabler/icons-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useParams, useSearchParams } from 'react-router';
 import ScreenshotReadyIndicator from '../components/common/ScreenshotReadyIndicator';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import ForbiddenPanel from '../components/ForbiddenPanel';
-import AppIframePreview from '../features/apps/AppIframePreview';
+import AppIframePreview, {
+    type AppIframePreviewHandle,
+} from '../features/apps/AppIframePreview';
 import { createDeliveryCaptureAccumulator } from '../features/apps/deliveryCapture/deliveryCaptureAccumulator';
 import { getVisiblePreviewTokenError } from '../features/apps/hooks/previewTokenQueryOptions';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
@@ -41,6 +47,17 @@ const APP_QUIET_DEBOUNCE_MS = 1_500;
  */
 const SDK_ALIVE_FALLBACK_MS = 8_000;
 
+/** Chunked to stay under the engine's argument-count limit for apply(). */
+const blobToBase64 = async (blob: Blob): Promise<string> => {
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    let binary = '';
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk) {
+        binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+    }
+    return btoa(binary);
+};
+
 /**
  * Chrome-stripped variant of AppPreviewTest used by the headless browser
  * for server-side renders. Renders the latest ready version, consistent with
@@ -64,6 +81,15 @@ export default function MinimalApp() {
         () => (captureMode ? createDeliveryCaptureAccumulator() : undefined),
         [captureMode],
     );
+    // PDF deliveries ask the app for its own Download PDF build instead of
+    // screenshotting the page; the result rides a window global like the
+    // delivery-capture manifest does.
+    const exportMode: 'pdf' | null =
+        searchParams.get('exportMode') === 'pdf' ? 'pdf' : null;
+    const iframeHandleRef = useRef<AppIframePreviewHandle | null>(null);
+    const [pdfExportAvailable, setPdfExportAvailable] = useState(false);
+    const [pdfResult, setPdfResult] = useState<AppPdfExportResult | null>(null);
+    const pdfExportInFlight = useRef(false);
     // The published manifest doubles as the "already published" flag.
     const [manifest, setManifest] = useState<DeliveryCaptureManifest | null>(
         null,
@@ -128,10 +154,19 @@ export default function MinimalApp() {
                 DELIVERY_CAPTURE_GLOBAL
             ];
         }
+        setPdfResult(null);
+        pdfExportInFlight.current = false;
+        delete (window as unknown as Record<string, unknown>)[
+            APP_PDF_EXPORT_GLOBAL
+        ];
     }, [deliveryCapture]);
 
     const handleScreenshotAvailable = useCallback((available: boolean) => {
         setSdkAlive(available);
+    }, []);
+
+    const handlePdfExportAvailable = useCallback((available: boolean) => {
+        setPdfExportAvailable(available);
     }, []);
 
     const handleQueryEvent = useCallback((event: QueryEvent) => {
@@ -240,7 +275,62 @@ export default function MinimalApp() {
         activeQueryIds,
         pendingCaptureCount,
     ]);
-    const indicatorReady = captureMode ? isReady && manifest !== null : isReady;
+    // Runs the app's registered PDF builder once the app has settled, and
+    // publishes the result (or a typed error — never silence) to the global
+    // UnfurlService reads. The availability announce fires at app mount, long
+    // before the quiet debounce elapses, so by isReady it is trustworthy.
+    useEffect(() => {
+        if (
+            exportMode !== 'pdf' ||
+            !isReady ||
+            pdfResult !== null ||
+            pdfExportInFlight.current
+        )
+            return;
+        const publish = (result: AppPdfExportResult) => {
+            (window as unknown as Record<string, unknown>)[
+                APP_PDF_EXPORT_GLOBAL
+            ] = result;
+            setPdfResult(result);
+        };
+        if (!pdfExportAvailable) {
+            publish({
+                status: 'error',
+                error: APP_PDF_EXPORT_UNSUPPORTED_ERROR,
+            });
+            return;
+        }
+        pdfExportInFlight.current = true;
+        void (async () => {
+            try {
+                const handle = iframeHandleRef.current;
+                if (!handle) throw new Error('App iframe not mounted');
+                const blob = await handle.exportPdf();
+                if (blob.size > MAX_APP_PDF_BYTES) {
+                    throw new Error(
+                        `Exported PDF is too large (${blob.size} bytes)`,
+                    );
+                }
+                publish({
+                    status: 'success',
+                    pdfBase64: await blobToBase64(blob),
+                });
+            } catch (e) {
+                publish({
+                    status: 'error',
+                    error: e instanceof Error ? e.message : 'PDF export failed',
+                });
+            } finally {
+                pdfExportInFlight.current = false;
+            }
+        })();
+    }, [exportMode, isReady, pdfResult, pdfExportAvailable]);
+
+    const indicatorReady = (() => {
+        if (captureMode) return isReady && manifest !== null;
+        if (exportMode === 'pdf') return isReady && pdfResult !== null;
+        return isReady;
+    })();
 
     if (dataAppsFlag.isLoading) return null;
     if (!dataAppsFlag.data?.enabled) {
@@ -318,6 +408,7 @@ export default function MinimalApp() {
     return (
         <Box pos="relative" h="100vh" w="100%">
             <AppIframePreview
+                ref={iframeHandleRef}
                 src={previewUrl}
                 previewToken={token}
                 expectedPreviewOrigin={previewOrigin}
@@ -327,6 +418,7 @@ export default function MinimalApp() {
                 onIframeLoad={handleIframeLoad}
                 onQueryEvent={handleQueryEvent}
                 onScreenshotAvailabilityChange={handleScreenshotAvailable}
+                onPdfExportAvailabilityChange={handlePdfExportAvailable}
                 deliveryCapture={deliveryCapture}
                 // Both capture modes need every tab's data mounted: the
                 // slice-2 picker preview must show the same query set the
