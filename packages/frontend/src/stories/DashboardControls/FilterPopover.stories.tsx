@@ -7,7 +7,7 @@ import { StatefulFilterPopover } from './StatefulPopovers';
 import { type DashboardStoryParameters } from './storyParameters';
 
 const meta: Meta<typeof StatefulFilterPopover> = {
-    title: 'Prototypes/Dashboard controls/Filter popover',
+    title: 'Dashboards/Controls/Filter popover',
     component: StatefulFilterPopover,
     parameters: { layout: 'fullscreen' },
     decorators: [withStoryFrame],
@@ -49,9 +49,8 @@ const openOperatorMenu = async (
 ) => {
     // The first load can still be settling: wait for the button, then the menu
     await click(await canvas.findByRole('button', { name: /^Operator:/ }));
-    await expect(
-        await onPage(canvasElement).findByRole('menu', {}, { timeout: 5000 }),
-    ).toBeVisible();
+    const page = onPage(canvasElement);
+    await waitFor(() => expect(page.getByRole('menu')).toBeVisible());
 };
 
 /** Multiple values with suggestions, paste detection and "Edit filter values". */

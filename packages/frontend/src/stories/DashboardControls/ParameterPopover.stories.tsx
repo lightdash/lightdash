@@ -19,7 +19,7 @@ import { StatefulParameterPopover } from './StatefulPopovers';
 import { type DashboardStoryParameters } from './storyParameters';
 
 const meta: Meta<typeof StatefulParameterPopover> = {
-    title: 'Prototypes/Dashboard controls/Parameter popover',
+    title: 'Dashboards/Controls/Parameter popover',
     component: StatefulParameterPopover,
     parameters: { layout: 'fullscreen' },
     decorators: [withStoryFrame],
@@ -173,7 +173,7 @@ export const NumberCustomValues: Story = {
     },
 };
 
-/** A value outside its fixed options reads as unset, as the shipped input shows it: no caption. */
+/** The saved value remains readable when the option list omits it. */
 export const ValueOutsideOptions: Story = {
     name: 'Parameter, value outside its options',
     args: {
@@ -183,7 +183,7 @@ export const ValueOutsideOptions: Story = {
         ),
     },
     play: async ({ canvas }) => {
-        await expect(canvas.queryByText(/^If cleared,/)).toBeNull();
+        await expect(canvas.getByRole('combobox')).toHaveValue('JPY');
     },
 };
 
@@ -276,7 +276,7 @@ export const DuplicateTiles: Story = {
     },
 };
 
-/** No tiles yet: Apply is blocked until a tile is chosen, as a filter at no tiles. */
+/** An editor can map a control that starts with no assigned tiles. */
 export const NoTiles: Story = {
     name: 'Parameter, no tiles yet',
     args: {
@@ -286,23 +286,21 @@ export const NoTiles: Story = {
             [],
         ),
     },
-    play: async ({ canvas, canvasElement, userEvent }) => {
+    play: async ({ canvas, userEvent, args }) => {
         await expect(
             canvas.getByText(`Sets 0 of ${TOTAL_TILE_COUNT} tiles`),
         ).toBeVisible();
-        const apply = canvas.getByRole('button', { name: 'Apply' });
-        await expect(apply).toBeDisabled();
-        // The reason reads as the filter's at no tiles
-        const wrapper = apply.parentElement;
-        await expect(wrapper).not.toBeNull();
-        if (wrapper) await userEvent.hover(wrapper);
+        await userEvent.click(
+            canvas.getByRole('button', { name: /Choose tiles/ }),
+        );
+        await expect(args.onChooseTiles).toHaveBeenCalled();
         await expect(
-            await onPage(canvasElement).findByRole('tooltip'),
-        ).toHaveTextContent('This parameter is not applied to any tiles');
+            canvas.getByText(`Sets 2 of ${TOTAL_TILE_COUNT} tiles`),
+        ).toBeVisible();
     },
 };
 
-/** Settings is the section only; back on the value, the chip names the section and has focus. */
+/** Settings groups editing actions and section placement; Back restores focus. */
 export const Settings: Story = {
     name: 'Parameter, settings',
     args: {
@@ -436,9 +434,8 @@ export const RenameThenCancel: Story = {
         ),
     },
     play: async ({ canvas, userEvent, args }) => {
-        // By keyboard, so no pointer rests on the pencil's tooltip
-        canvas.getByRole('button', { name: 'Rename' }).focus();
-        await userEvent.keyboard('{Enter}');
+        await userEvent.click(canvas.getByRole('button', { name: 'Settings' }));
+        await userEvent.click(canvas.getByRole('button', { name: 'Rename' }));
         await expect(
             canvas.getByRole('textbox', { name: 'Name' }),
         ).toHaveFocus();
