@@ -6,6 +6,7 @@ import { SetupGuideView } from '../../ee/features/homepageBuilder/blocks/setupGu
 import {
     buildSetupGuide,
     type SetupGuideFacts,
+    type SetupGuideRowId,
 } from '../../ee/features/homepageBuilder/blocks/setupGuide/setupGuideModel';
 import { type ActionStatus } from '../../ee/features/homepageBuilder/blocks/useRecommendedActions';
 import { storyAgentRun } from './agentRunFixture';
@@ -30,6 +31,7 @@ const status = (url: string): ActionStatus => ({
 
 const Guide = ({ state }: { state: GuideState }) => {
     const [isDismissed, setIsDismissed] = useState(false);
+    const [skippedRows, setSkippedRows] = useState<SetupGuideRowId[]>([]);
     const [skippedActions, setSkippedActions] = useState<
         HomepageRecommendedActionKey[]
     >(
@@ -58,6 +60,7 @@ const Guide = ({ state }: { state: GuideState }) => {
             'connect-slack',
         ],
         skippedActions,
+        skippedRows,
         semanticModelCount: state === 'mostly-done' ? 3 : 0,
         chartCount: state === 'mostly-done' ? 2 : 0,
         activeRun: state === 'building' ? storyAgentRun(false) : null,
@@ -77,13 +80,19 @@ const Guide = ({ state }: { state: GuideState }) => {
                     isMinimized={isDismissed}
                     onMinimizedChange={setIsDismissed}
                     onAsk={() => undefined}
-                    onSkip={(key) =>
-                        setSkippedActions((keys) => [...keys, key])
+                    onSkip={({ id, actionKey }) =>
+                        actionKey
+                            ? setSkippedActions((keys) => [...keys, actionKey])
+                            : setSkippedRows((ids) => [...ids, id])
                     }
-                    onRestore={(key) =>
-                        setSkippedActions((keys) =>
-                            keys.filter((value) => value !== key),
-                        )
+                    onRestore={({ id, actionKey }) =>
+                        actionKey
+                            ? setSkippedActions((keys) =>
+                                  keys.filter((value) => value !== actionKey),
+                              )
+                            : setSkippedRows((ids) =>
+                                  ids.filter((value) => value !== id),
+                              )
                     }
                 />
             </Stack>

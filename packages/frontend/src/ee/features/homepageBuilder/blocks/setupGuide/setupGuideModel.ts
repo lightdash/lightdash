@@ -76,6 +76,8 @@ export type SetupGuideFacts = {
     statuses: Record<HomepageRecommendedActionKey, ActionStatus>;
     visibleActions: HomepageRecommendedActionKey[];
     skippedActions: HomepageRecommendedActionKey[];
+    // Steps without a server-side skip, skipped in this browser
+    skippedRows: SetupGuideRowId[];
     semanticModelCount: number;
     chartCount: number;
     activeRun: AgentOnboardingRun | null;
@@ -103,10 +105,15 @@ export const isCompletedStatus = (status: SetupGuideStatus): boolean => {
 };
 
 export const isSkippableRow = (row: SetupGuideRow): boolean =>
-    row.actionKey !== null &&
+    row.actionKey === null ||
     (
         SKIPPABLE_HOMEPAGE_RECOMMENDED_ACTION_KEYS as readonly HomepageRecommendedActionKey[]
     ).includes(row.actionKey);
+
+const openStatus = (
+    { skippedRows }: SetupGuideFacts,
+    id: SetupGuideRowId,
+): SetupGuideStatus => (skippedRows.includes(id) ? 'skipped' : 'suggested');
 
 export const countProgress = (rows: SetupGuideRow[]) => ({
     completed: rows.filter((row) => isCompletedStatus(row.status)).length,
@@ -170,16 +177,14 @@ const warehouseRow = (facts: SetupGuideFacts): SetupGuideRow => {
         : row;
 };
 
-const appDataRow = ({
-    projectUuid,
-    appSourceNames,
-}: SetupGuideFacts): SetupGuideRow => {
+const appDataRow = (facts: SetupGuideFacts): SetupGuideRow => {
+    const { projectUuid, appSourceNames } = facts;
     const to = `/generalSettings/projectManagement/${projectUuid}/liveDataSources`;
     const hasSources = appSourceNames.length > 0;
     return {
         id: 'app-data',
         title: 'Add more data sources',
-        status: hasSources ? 'done' : 'suggested',
+        status: hasSources ? 'done' : openStatus(facts, 'app-data'),
         evidence: hasSources
             ? evidence(`${appSourceNames.join(', ')} connected`)
             : null,
@@ -249,79 +254,87 @@ const semanticLayerRow = ({
     };
 };
 
-const firstChartRow = ({
-    projectUuid,
-    chartCount,
-}: SetupGuideFacts): SetupGuideRow => ({
-    id: 'first-chart',
-    title: 'Build your first chart',
-    status: chartCount > 0 ? 'done' : 'suggested',
-    evidence: chartCount > 0 ? evidence(plural(chartCount, 'chart')) : null,
-    action: {
-        label: chartCount > 0 ? 'Browse' : 'Build',
-        to:
+const firstChartRow = (facts: SetupGuideFacts): SetupGuideRow => {
+    const { projectUuid, chartCount } = facts;
+    return {
+        id: 'first-chart',
+        title: 'Build your first chart',
+        status: chartCount > 0 ? 'done' : openStatus(facts, 'first-chart'),
+        evidence: chartCount > 0 ? evidence(plural(chartCount, 'chart')) : null,
+        action: {
+            label: chartCount > 0 ? 'Browse' : 'Build',
+            to:
+                chartCount > 0
+                    ? `/projects/${projectUuid}/spaces`
+                    : `/projects/${projectUuid}/ai-agents`,
+        },
+        actionKey: null,
+        preview: null,
+        choices:
             chartCount > 0
-                ? `/projects/${projectUuid}/spaces`
-                : `/projects/${projectUuid}/ai-agents`,
-    },
-    actionKey: null,
-    preview: null,
-    choices:
-        chartCount > 0
-            ? []
-            : [
-                  {
-                      kind: 'ask',
-                      label: `Ask ${AI_NAME}`,
-                      to: `/projects/${projectUuid}/ai-agents`,
-                  },
-                  {
-                      kind: 'explore',
-                      label: 'Build in Explore',
-                      to: `/projects/${projectUuid}/tables`,
-                  },
-              ],
-});
+                ? []
+                : [
+                      {
+                          kind: 'ask',
+                          label: `Ask ${AI_NAME}`,
+                          to: `/projects/${projectUuid}/ai-agents`,
+                      },
+                      {
+                          kind: 'explore',
+                          label: 'Build in Explore',
+                          to: `/projects/${projectUuid}/tables`,
+                      },
+                  ],
+    };
+};
 
 const MAX_SWATCHES = 4;
 
-const brandRow = ({ brand }: SetupGuideFacts): SetupGuideRow => ({
-    id: 'brand',
-    title: 'Apply your brand',
-    status: brand ? 'done' : 'suggested',
-    evidence: brand
-        ? evidence(brand.name ?? brand.domain, {
-              swatches: brand.colors
-                  .slice(0, MAX_SWATCHES)
-                  .map(({ hex }) => hex),
-          })
-        : null,
-    action: {
-        label: brand ? 'Manage' : 'Set up',
-        to: '/generalSettings/appearance',
-    },
-    actionKey: null,
-    preview: null,
-    choices: [],
-});
+const brandRow = (facts: SetupGuideFacts): SetupGuideRow => {
+    const { brand } = facts;
+    return {
+        id: 'brand',
+        title: 'Apply your brand',
+        status: brand ? 'done' : openStatus(facts, 'brand'),
+        evidence: brand
+            ? evidence(brand.name ?? brand.domain, {
+                  swatches: brand.colors
+                      .slice(0, MAX_SWATCHES)
+                      .map(({ hex }) => hex),
+              })
+            : null,
+        action: {
+            label: brand ? 'Manage' : 'Set up',
+            to: '/generalSettings/appearance',
+        },
+        actionKey: null,
+        preview: null,
+        choices: [],
+    };
+};
 
-const inviteTeamRow = ({ teammateCount }: SetupGuideFacts): SetupGuideRow => ({
-    id: 'invite-team',
-    title: 'Invite your team',
-    status: teammateCount > 0 ? 'done' : 'suggested',
-    evidence:
-        teammateCount > 0 ? evidence(plural(teammateCount, 'teammate')) : null,
-    action:
-        teammateCount > 0
-            ? { label: 'Manage', to: '/generalSettings/userManagement' }
-            : {
-                  label: 'Invite',
-                  to: '/generalSettings/userManagement?to=invite',
-              },
-    actionKey: null,
-    preview: null,
-    choices: [],
-});
+const inviteTeamRow = (facts: SetupGuideFacts): SetupGuideRow => {
+    const { teammateCount } = facts;
+    return {
+        id: 'invite-team',
+        title: 'Invite your team',
+        status: teammateCount > 0 ? 'done' : openStatus(facts, 'invite-team'),
+        evidence:
+            teammateCount > 0
+                ? evidence(plural(teammateCount, 'teammate'))
+                : null,
+        action:
+            teammateCount > 0
+                ? { label: 'Manage', to: '/generalSettings/userManagement' }
+                : {
+                      label: 'Invite',
+                      to: '/generalSettings/userManagement?to=invite',
+                  },
+        actionKey: null,
+        preview: null,
+        choices: [],
+    };
+};
 
 export const buildSetupGuide = (
     facts: SetupGuideFacts,

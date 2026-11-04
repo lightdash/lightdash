@@ -24,7 +24,7 @@ import {
 import { getAgentOnboardingRunUrl } from '../../../agentOnboarding/utils';
 import { useCanManageProject } from '../../hooks/useHomepageAbilities';
 import { type RecommendedActionsState } from '../useRecommendedActions';
-import { buildSetupGuide } from './setupGuideModel';
+import { buildSetupGuide, type SetupGuideRowId } from './setupGuideModel';
 
 export const useSetupGuide = (
     projectUuid: string,
@@ -90,6 +90,12 @@ export const useSetupGuide = (
         false,
     );
 
+    // ponytail: same per-browser store for steps the server skip table can't hold
+    const [skippedRows, setSkippedRows] = useLocalStorage<SetupGuideRowId[]>(
+        `homepage-setup-guide-skipped-${userUuid ?? 'anon'}-${projectUuid}`,
+        [],
+    );
+
     // Hold a slot while eligibility resolves so the guide doesn't push the page down
     const isLoading =
         newOnboardingFlag.data?.enabled !== false &&
@@ -114,6 +120,7 @@ export const useSetupGuide = (
         statuses: actions.statuses,
         visibleActions: actions.visibleActions,
         skippedActions: actions.skippedActions,
+        skippedRows: skippedRows ?? [],
         semanticModelCount: semanticExplores.length,
         chartCount: charts.data?.pages[0]?.pagination?.totalResults ?? 0,
         activeRun: activeRunOrNull,
@@ -152,6 +159,10 @@ export const useSetupGuide = (
             : null,
         isDismissed: isDismissed === true,
         setIsDismissed: (next: boolean) => setIsDismissed(next),
+        skipRow: (id: SetupGuideRowId) =>
+            setSkippedRows([...(skippedRows ?? []), id]),
+        restoreRow: (id: SetupGuideRowId) =>
+            setSkippedRows((skippedRows ?? []).filter((row) => row !== id)),
         skipAction: actions.skipAction,
         restoreAction: actions.restoreAction,
     };

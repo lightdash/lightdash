@@ -1,4 +1,3 @@
-import { type HomepageRecommendedActionKey } from '@lightdash/common';
 import {
     ActionIcon,
     Affix,
@@ -6,26 +5,26 @@ import {
     Button,
     Group,
     HoverCard,
-    Menu,
     Paper,
     Skeleton,
     Text,
     Tooltip,
 } from '@mantine/core';
 import {
+    IconArrowBackUp,
     IconArrowDownLeft,
     IconBrandSlack,
     IconChartBar,
     IconChevronRight,
     IconCircleCheckFilled,
     IconDatabase,
-    IconDots,
     IconGitBranch,
     IconLayersLinked,
     IconListCheck,
     IconPalette,
     IconPlugConnected,
     IconUsers,
+    IconX,
     type Icon,
 } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
@@ -100,42 +99,39 @@ const isAskChoice = (choice: SetupGuideChoice) => choice.kind === 'ask';
 type RowHandlers = {
     // Ask rows fill the composer on this page instead of leaving it
     onAsk: () => void;
-    onSkip: (actionKey: HomepageRecommendedActionKey) => void;
-    onRestore: (actionKey: HomepageRecommendedActionKey) => void;
+    onSkip: (row: SetupGuideRow) => void;
+    onRestore: (row: SetupGuideRow) => void;
 };
 
-const RowMenu: FC<{ row: SetupGuideRow } & RowHandlers> = ({
+const RowDismiss: FC<{ row: SetupGuideRow } & RowHandlers> = ({
     row,
     onSkip,
     onRestore,
 }) => {
-    const { actionKey } = row;
-    if (!actionKey) return null;
-    const canSkip = row.status === 'suggested' && isSkippableRow(row);
-    const canRestore = row.status === 'skipped';
-    if (!canSkip && !canRestore) return null;
-    return (
-        <Menu position="bottom-end" withinPortal>
-            <Menu.Target>
+    if (row.status === 'skipped') {
+        return (
+            <Tooltip label="Add back">
                 <ActionIcon
                     size="sm"
-                    aria-label={`More options for ${row.title}`}
+                    aria-label={`Add back ${row.title}`}
+                    onClick={() => onRestore(row)}
                 >
-                    <MantineIcon icon={IconDots} />
+                    <MantineIcon icon={IconArrowBackUp} />
                 </ActionIcon>
-            </Menu.Target>
-            <Menu.Dropdown>
-                {canSkip ? (
-                    <Menu.Item onClick={() => onSkip(actionKey)}>
-                        Skip for now
-                    </Menu.Item>
-                ) : (
-                    <Menu.Item onClick={() => onRestore(actionKey)}>
-                        Add back to the list
-                    </Menu.Item>
-                )}
-            </Menu.Dropdown>
-        </Menu>
+            </Tooltip>
+        );
+    }
+    if (row.status !== 'suggested' || !isSkippableRow(row)) return null;
+    return (
+        <Tooltip label="Skip for now">
+            <ActionIcon
+                size="sm"
+                aria-label={`Skip ${row.title}`}
+                onClick={() => onSkip(row)}
+            >
+                <MantineIcon icon={IconX} />
+            </ActionIcon>
+        </Tooltip>
     );
 };
 
@@ -231,7 +227,7 @@ const GuideRow: FC<{ row: SetupGuideRow } & RowHandlers> = ({
                         <Box className={classes.rowLink}>{content}</Box>
                     )}
                     <Box className={classes.reveal}>
-                        <RowMenu row={row} {...handlers} />
+                        <RowDismiss row={row} {...handlers} />
                     </Box>
                 </Box>
             </HoverCard.Target>
@@ -341,14 +337,9 @@ export const SetupGuideView: FC<SetupGuideViewProps> = ({
                         wrap="nowrap"
                         className={classes.dockHeader}
                     >
-                        <Box>
-                            <Text fz="sm" fw={600}>
-                                Getting started
-                            </Text>
-                            <Text fz="xs" c="dimmed">
-                                {completed} of {total} steps done
-                            </Text>
-                        </Box>
+                        <Text fz="sm" fw={600}>
+                            Getting started
+                        </Text>
                         <Tooltip label="Minimize">
                             <ActionIcon
                                 size="sm"
@@ -401,14 +392,24 @@ export const SetupGuide: FC<{
                 isMinimized={guide.isDismissed}
                 onMinimizedChange={guide.setIsDismissed}
                 onAsk={onAsk}
-                onSkip={(actionKey) => {
+                onSkip={(row) => {
+                    if (!row.actionKey) {
+                        guide.skipRow(row.id);
+                        return;
+                    }
+                    const { actionKey } = row;
                     guide.skipAction(actionKey);
                     track({
                         name: EventName.HOMEPAGE_RECOMMENDED_ACTION_SKIPPED,
                         properties: { actionKey },
                     });
                 }}
-                onRestore={(actionKey) => {
+                onRestore={(row) => {
+                    if (!row.actionKey) {
+                        guide.restoreRow(row.id);
+                        return;
+                    }
+                    const { actionKey } = row;
                     guide.restoreAction(actionKey);
                     track({
                         name: EventName.HOMEPAGE_RECOMMENDED_ACTION_RESTORED,

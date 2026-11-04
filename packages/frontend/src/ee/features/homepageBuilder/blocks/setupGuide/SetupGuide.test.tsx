@@ -1,6 +1,5 @@
 import {
     type AgentOnboardingRun,
-    type HomepageRecommendedActionKey,
     type OrganizationBrand,
 } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
@@ -74,6 +73,7 @@ const fresh: SetupGuideFacts = {
         'connect-slack',
     ],
     skippedActions: [],
+    skippedRows: [],
     semanticModelCount: 0,
     chartCount: 0,
     activeRun: null,
@@ -123,8 +123,8 @@ const rowById = (facts: SetupGuideFacts, id: SetupGuideRow['id']) =>
 const renderGuide = (
     facts: SetupGuideFacts,
     handlers: {
-        onSkip?: (key: HomepageRecommendedActionKey) => void;
-        onRestore?: (key: HomepageRecommendedActionKey) => void;
+        onSkip?: (row: SetupGuideRow) => void;
+        onRestore?: (row: SetupGuideRow) => void;
         onMinimizedChange?: (isMinimized: boolean) => void;
         isMinimized?: boolean;
     } = {},
@@ -252,7 +252,9 @@ describe('SetupGuideView', () => {
         expect(
             screen.getByRole('region', { name: 'Getting started' }),
         ).toBeInTheDocument();
-        expect(screen.getByText('0 of 7 steps done')).toBeInTheDocument();
+        expect(
+            screen.getByLabelText('Skip Invite your team'),
+        ).toBeInTheDocument();
         expect(
             screen.getByRole('link', { name: /Define metrics and dimensions/ }),
         ).toHaveAttribute('href', '/setup');
@@ -265,7 +267,11 @@ describe('SetupGuideView', () => {
 
     it('counts finished steps', () => {
         renderGuide({ ...allDone, teammateCount: 0 });
-        expect(screen.getByText('6 of 7 steps done')).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', {
+                name: 'Minimize getting started',
+            }),
+        ).toBeInTheDocument();
     });
 
     it('hides once nothing is pending, counting skipped as settled', () => {
@@ -283,33 +289,45 @@ describe('SetupGuideView', () => {
         expect(screen.queryByText(/Getting started/)).toBeNull();
     });
 
-    it('offers restore on skipped rows and skip on skippable suggestions', async () => {
+    it('offers restore on skipped rows and skip on every open step but the warehouse', async () => {
         const onSkip = vi.fn();
         const onRestore = vi.fn();
         const { unmount } = renderGuide(someSkipped, { onSkip, onRestore });
         expect(screen.getAllByText('Skipped')).toHaveLength(2);
-        expect(
-            screen.queryByRole('button', {
-                name: 'More options for Invite your team',
-            }),
-        ).toBeNull();
         await userEvent.click(
             screen.getByRole('button', {
-                name: 'More options for Define metrics and dimensions',
+                name: 'Add back Define metrics and dimensions',
             }),
         );
-        await userEvent.click(await screen.findByText('Add back to the list'));
-        expect(onRestore).toHaveBeenCalledWith('add-semantic-layer');
+        expect(onRestore).toHaveBeenCalledWith(
+            expect.objectContaining({ actionKey: 'add-semantic-layer' }),
+        );
         unmount();
 
         renderGuide(fresh, { onSkip });
-        await userEvent.click(
-            screen.getByRole('button', {
-                name: 'More options for Connect Slack',
+        expect(
+            screen.queryByRole('button', {
+                name: 'Skip Connect your warehouse',
             }),
+        ).toBeNull();
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Skip Connect Slack' }),
         );
-        await userEvent.click(await screen.findByText('Skip for now'));
-        expect(onSkip).toHaveBeenCalledWith('connect-slack');
+        expect(onSkip).toHaveBeenCalledWith(
+            expect.objectContaining({ actionKey: 'connect-slack' }),
+        );
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Skip Invite your team' }),
+        );
+        expect(onSkip).toHaveBeenCalledWith(
+            expect.objectContaining({ id: 'invite-team', actionKey: null }),
+        );
+    });
+
+    it('marks steps skipped in this browser as skipped', () => {
+        expect(
+            rowById({ ...fresh, skippedRows: ['brand'] }, 'brand')?.status,
+        ).toBe('skipped');
     });
 
     it('minimizes to a pill and reopens from it', async () => {
