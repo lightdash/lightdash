@@ -378,7 +378,7 @@ export const buildSetupGuide = (
                               facts,
                               'connect-source-control',
                               'source-control',
-                              'Already use dbt? Connect it',
+                              'Connect your Git repository',
                           ),
                       ]
                     : []),

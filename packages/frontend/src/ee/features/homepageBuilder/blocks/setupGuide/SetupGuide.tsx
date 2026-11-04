@@ -54,12 +54,12 @@ const ROW_COPY: Record<
 > = {
     warehouse: {
         icon: IconDatabase,
-        pitch: `${AI_NAME} answers by querying your warehouse.`,
+        pitch: 'Every chart and answer runs on data in your warehouse.',
         time: '3 min',
     },
     'app-data': {
         icon: IconPlugConnected,
-        pitch: `${AI_NAME} can combine PostHog or GA4 with your metrics.`,
+        pitch: 'Query PostHog or GA4 next to your warehouse metrics.',
         time: '2 min',
     },
     'semantic-layer': {
@@ -79,7 +79,7 @@ const ROW_COPY: Record<
     },
     brand: {
         icon: IconPalette,
-        pitch: 'Your colors and logo on every chart and dashboard.',
+        pitch: 'Use your colors and logo in charts and dashboards.',
         time: '1 min',
     },
     slack: {
@@ -89,7 +89,7 @@ const ROW_COPY: Record<
     },
     'invite-team': {
         icon: IconUsers,
-        pitch: 'Teammates can answer their own questions.',
+        pitch: 'Give teammates access so they can ask their own questions.',
         time: '1 min',
     },
 };
@@ -238,7 +238,8 @@ const GuideRow: FC<{ row: SetupGuideRow } & RowHandlers> = ({
                             {row.title}
                         </Text>
                         <Text fz="xs" c="dimmed" mb="sm">
-                            Two ways to get there
+                            Save it to share with your team or add it to a
+                            dashboard.
                         </Text>
                         <Box className={classes.choices}>
                             {row.choices.map((choice) => (

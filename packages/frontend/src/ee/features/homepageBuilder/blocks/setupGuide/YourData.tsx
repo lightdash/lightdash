@@ -245,7 +245,7 @@ export const YourData: FC<{
                         size="sm"
                         variant="subtle"
                         color="gray"
-                        aria-label="Hide your data"
+                        aria-label="Hide this card"
                         className={classes.hide}
                         onClick={() => setIsDismissed(true)}
                     >
