@@ -11,6 +11,7 @@ import {
 import { tool, type FlexibleSchema } from 'ai';
 import { z } from 'zod';
 import type { EditContentFn } from '../types/aiAgentDependencies';
+import { toAbsoluteHref } from '../utils/absoluteHref';
 import type { ArtifactChartExportAccess } from '../utils/artifactChartAsCode';
 import { getContentWarnings } from '../utils/contentWarnings';
 import { resolveDocumentConversationTags } from '../utils/documentConversationTags';
@@ -26,6 +27,7 @@ import { createSqlChartGate, type SqlChartSaving } from './sqlChartApproval';
 
 type Dependencies = {
     editContent: EditContentFn;
+    siteUrl: string;
     sqlChartSaving?: SqlChartSaving;
     documentsEnabled?: boolean;
     /** False when the actor can save Documents but not charts or dashboards. */
@@ -100,6 +102,7 @@ const toStructuredContent = (
 export const executeEditContent = async (
     {
         editContent,
+        siteUrl,
         sqlChartSaving = { mode: 'disabled' },
         documentsEnabled = false,
         chartsEnabled = true,
@@ -173,10 +176,14 @@ export const executeEditContent = async (
             warnings,
         };
 
+        const absoluteHref = toAbsoluteHref(siteUrl, result.href);
         return {
             result: contentResult({
-                content: result.type === 'document' ? result : result.content,
-                href: metadata.href,
+                content:
+                    result.type === 'document'
+                        ? { ...result, href: absoluteHref }
+                        : result.content,
+                href: absoluteHref,
                 type: result.type,
                 warnings,
             }),
@@ -196,6 +203,7 @@ export const executeEditContent = async (
 
 export const getEditContent = ({
     editContent,
+    siteUrl,
     sqlChartSaving = { mode: 'disabled' },
     documentsEnabled = false,
     chartsEnabled = true,
@@ -216,6 +224,7 @@ export const getEditContent = ({
                 executeEditContent(
                     {
                         editContent,
+                        siteUrl,
                         sqlChartSaving,
                         documentsEnabled,
                         chartsEnabled,

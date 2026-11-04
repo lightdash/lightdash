@@ -13,6 +13,7 @@ import {
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type { CreateContentFn } from '../types/aiAgentDependencies';
+import { toAbsoluteHref } from '../utils/absoluteHref';
 import type { ArtifactChartExportAccess } from '../utils/artifactChartAsCode';
 import { getContentWarnings } from '../utils/contentWarnings';
 import { resolveDocumentConversationTags } from '../utils/documentConversationTags';
@@ -32,6 +33,7 @@ import { createSqlChartGate, type SqlChartSaving } from './sqlChartApproval';
 
 type Dependencies = {
     createContent: CreateContentFn;
+    siteUrl: string;
     sqlChartSaving?: SqlChartSaving;
     documentsEnabled?: boolean;
     /** False when the actor can save Documents but not charts or dashboards. */
@@ -118,6 +120,7 @@ const toCreatedContent = (
 
 export const getCreateContent = ({
     createContent,
+    siteUrl,
     sqlChartSaving = { mode: 'disabled' },
     documentsEnabled = false,
     chartsEnabled = true,
@@ -188,13 +191,14 @@ export const getCreateContent = ({
                             : {}),
                     };
 
+                    const absoluteHref = toAbsoluteHref(siteUrl, created.href);
                     return {
                         result: contentResult({
                             content:
                                 result.type === 'document'
-                                    ? result
+                                    ? { ...result, href: absoluteHref }
                                     : created.content,
-                            href: created.href,
+                            href: absoluteHref,
                             type: created.type,
                             warnings: created.warnings,
                         }),

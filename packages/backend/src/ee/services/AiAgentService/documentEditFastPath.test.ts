@@ -89,6 +89,7 @@ const setup = ({
     };
     const service = new AiAgentService({
         aiAgentModel,
+        lightdashConfig: { siteUrl: 'https://lightdash.example' },
         analytics: { track: vi.fn() },
         featureFlagService: {
             get: vi.fn().mockResolvedValue({ enabled: false }),

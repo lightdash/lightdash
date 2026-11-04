@@ -16070,7 +16070,11 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             },
         };
         const output = await executeEditContent(
-            { editContent: document.editContent, documentsEnabled: true },
+            {
+                editContent: document.editContent,
+                siteUrl: this.lightdashConfig.siteUrl,
+                documentsEnabled: true,
+            },
             toolCall.input,
         );
         if (output.metadata.status !== 'success') {
