@@ -1,3 +1,9 @@
+.page,
+.splitRoot {
+    /* NumberInput controls sit beside the input, so they need the border token too */
+    --input-bd: var(--mantine-color-default-border);
+}
+
 .page {
     min-height: 100dvh;
     display: grid;

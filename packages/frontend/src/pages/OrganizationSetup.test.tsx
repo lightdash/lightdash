@@ -701,7 +701,7 @@ describe('OrganizationSetup', () => {
                 isMarketingOptedIn: true,
                 isTrackingAnonymized: false,
             })
-            .reply(200);
+            .reply(200, { status: 'ok', results: {} });
         const brandScope = nock(BASE_API_URL)
             .put('/api/v1/org/brand', () => true)
             .reply(200, { status: 'ok', results: null });
@@ -727,6 +727,67 @@ describe('OrganizationSetup', () => {
         await waitFor(() => expect(scope.isDone()).toBe(true));
         await waitFor(() => expect(brandScope.isDone()).toBe(true));
         await waitFor(() => expect(paletteScope.isDone()).toBe(true));
+    });
+
+    it('does not create a brand palette when completing setup fails', async () => {
+        const user = userEvent.setup();
+
+        mockOrgApi('');
+        mockBrandFetch('Acme Inc.', undefined, [
+            { hex: '#ff5a1f', type: 'accent', brightness: null },
+        ]);
+
+        renderSetupPage({
+            user: {
+                isSetupComplete: false,
+                organizationName: '',
+                email: 'demo@lightdash.com',
+            },
+            health: {
+                mode: LightdashMode.DEFAULT,
+                hasBrandfetch: true,
+                license: { hasLicenseKey: true, valid: true },
+            },
+        });
+
+        const nameInput = await screen.findByPlaceholderText('Acme Analytics');
+        await waitFor(() => expect(nameInput).toHaveValue('Acme Inc'));
+        await user.click(
+            await screen.findByRole('button', { name: 'Continue' }),
+        );
+
+        await screen.findByPlaceholderText('Select your role');
+        await selectRole(user);
+        await user.click(await screen.findByRole('radio', { name: 'Podcast' }));
+
+        const scope = nock(BASE_API_URL)
+            .patch('/api/v1/user/me/complete')
+            .reply(500, {
+                status: 'error',
+                error: { name: 'Error', statusCode: 500, data: {} },
+            });
+        nock(BASE_API_URL)
+            .put('/api/v1/org/brand', () => true)
+            .optionally()
+            .reply(200, { status: 'ok', results: null });
+        const createPalette = vi.fn(() => ({
+            status: 'ok',
+            results: { colorPaletteUuid: 'palette-1' },
+        }));
+        nock(BASE_API_URL)
+            .post('/api/v1/org/color-palettes')
+            .optionally()
+            .reply(200, createPalette);
+
+        await user.click(
+            await screen.findByRole('button', { name: 'Continue' }),
+        );
+
+        await waitFor(() => expect(scope.isDone()).toBe(true));
+        await waitFor(() =>
+            expect(toasterMocks.showToastApiError).toHaveBeenCalled(),
+        );
+        expect(createPalette).not.toHaveBeenCalled();
     });
 
     it('falls back to the domain-derived name when the brand name has no usable characters', async () => {

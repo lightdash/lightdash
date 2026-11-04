@@ -76,6 +76,24 @@ const JourneySteps: FC<Steps> = ({ currentStep, steps }) => (
     </Box>
 );
 
+const SetupProgress: FC<Steps> = ({ currentStep, steps }) => (
+    <Box
+        component="ol"
+        className={classes.progress}
+        aria-label="Setup progress"
+    >
+        {steps.map((label, index) => (
+            <Box
+                component="li"
+                key={label}
+                className={classes.indicator}
+                aria-current={index + 1 === currentStep ? 'step' : undefined}
+                aria-label={`${label}, step ${index + 1} of ${steps.length}`}
+            />
+        ))}
+    </Box>
+);
+
 // Each step page mounts its own layout, so the last depth outlives them to pick a direction
 let lastStackDepth = 0;
 
@@ -141,6 +159,7 @@ const OnboardingLayout: FC<Props> = ({
                             className={classes.splitHeader}
                         >
                             <LightdashWordmark className={classes.wordmark} />
+                            {progress && <SetupProgress {...progress} />}
                             {withAccountSwitch && <SwitchAccountButton />}
                         </Group>
                         {journey && <JourneySteps {...journey} />}
@@ -188,28 +207,7 @@ const OnboardingLayout: FC<Props> = ({
                                 <LightdashWordmark
                                     className={classes.wordmark}
                                 />
-                                {progress && (
-                                    <Box
-                                        component="ol"
-                                        className={classes.progress}
-                                        aria-label="Setup progress"
-                                    >
-                                        {progress.steps.map((label, index) => (
-                                            <Box
-                                                component="li"
-                                                key={label}
-                                                className={classes.indicator}
-                                                aria-current={
-                                                    index + 1 ===
-                                                    progress.currentStep
-                                                        ? 'step'
-                                                        : undefined
-                                                }
-                                                aria-label={`${label}, step ${index + 1} of ${progress.steps.length}`}
-                                            />
-                                        ))}
-                                    </Box>
-                                )}
+                                {progress && <SetupProgress {...progress} />}
                             </Box>
                             {children}
                         </Box>
