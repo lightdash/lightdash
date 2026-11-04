@@ -122,7 +122,7 @@ describe('OnboardingTools', () => {
 
         expect(
             await screen.findByRole('heading', {
-                name: 'Share answers and review changes',
+                name: 'Bring in your team',
             }),
         ).toBeInTheDocument();
     });

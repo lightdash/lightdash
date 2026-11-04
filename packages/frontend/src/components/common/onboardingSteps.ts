@@ -2,7 +2,7 @@ export const ONBOARDING_DATA_STEPS = [
     'Choose a source',
     'Connect your warehouse',
     'Connect your tools',
-    'Share answers and review changes',
+    'Bring in your team',
 ];
 
 export const ONBOARDING_STEP_COPY = {
@@ -11,9 +11,5 @@ export const ONBOARDING_STEP_COPY = {
         title: 'Connect other tools',
         subtitle: 'You can connect these later in settings.',
     },
-    team: {
-        title: 'Share answers and review changes',
-        subtitle:
-            'Share your insights with your team, and keep improving the data they can use.',
-    },
+    team: { title: 'Bring in your team', subtitle: null },
 } as const satisfies Record<string, { title: string; subtitle: string | null }>;
