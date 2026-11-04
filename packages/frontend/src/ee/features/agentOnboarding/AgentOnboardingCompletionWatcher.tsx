@@ -1,10 +1,11 @@
-import { isAgentOnboardingRunTerminal } from '@lightdash/common';
+import { FeatureFlags, isAgentOnboardingRunTerminal } from '@lightdash/common';
 import { notifications } from '@mantine/notifications';
 import { useEffect, type FC } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { AI_NAME } from '../../../components/common/aiName';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { useAgentOnboardingRun } from './hooks/useAgentOnboarding';
@@ -24,6 +25,8 @@ export const AgentOnboardingCompletionWatcher: FC = () => {
     const location = useLocation();
     const { showToastSuccess, showToastWarning } = useToaster();
     const { track } = useTracking();
+    const isNewOnboarding =
+        useServerFeatureFlag(FeatureFlags.NewOnboarding).data?.enabled === true;
     const { data: organization } = useOrganization({
         queryKey: ['organization'],
         enabled: watched !== null,
@@ -39,7 +42,7 @@ export const AgentOnboardingCompletionWatcher: FC = () => {
     const { pathname } = location;
     // The run page and the setup steps show the run inline, so no toast there
     const isShownInline =
-        pathname.startsWith('/onboarding/') ||
+        (isNewOnboarding && pathname.startsWith('/onboarding/')) ||
         (!!run &&
             pathname ===
                 getAgentOnboardingRunUrl(
@@ -58,7 +61,7 @@ export const AgentOnboardingCompletionWatcher: FC = () => {
         clearWatchedAgentOnboardingRun();
 
         if (status !== 'completed') {
-            if (status === 'failed' && !isShownInline) {
+            if (status === 'failed' && isNewOnboarding && !isShownInline) {
                 showToastWarning({
                     key: runToastKey(agentOnboardingRunUuid),
                     autoClose: false,
@@ -117,6 +120,7 @@ export const AgentOnboardingCompletionWatcher: FC = () => {
         run,
         isError,
         isShownInline,
+        isNewOnboarding,
         organizationUuid,
         showToastSuccess,
         showToastWarning,
