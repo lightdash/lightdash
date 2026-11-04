@@ -8939,17 +8939,15 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError('Chart does not belong to project');
         }
 
-        // An embedded AI agent previews saved charts from its write spaces (chat
-        // chips, saved answers) as the write actor, the same gate the dashboard
-        // tile path applies in checkDashboardChartQueryPermissions. Any other
-        // JWT still needs a chart token for this chart.
+        // An embedded AI agent previews saved charts from its write and source
+        // spaces (chat chips, saved answers) as the write actor, the same gate
+        // the dashboard tile path applies in checkDashboardChartQueryPermissions.
+        // Any other JWT still needs a chart token for this chart.
         const embedAiAgentWriteActor =
             isJwtUser(account) &&
             isAiAgentContent(account.authentication.data.content) &&
             account.embedWriteContext?.canUseAiAgent === true &&
-            getEmbedWriteSpaceUuids(
-                account.authentication.data.writeActions,
-            ).includes(savedChartSpaceUuid)
+            getEmbedActorChartSpaceUuids(account).includes(savedChartSpaceUuid)
                 ? account.embedWriteUser
                 : undefined;
 

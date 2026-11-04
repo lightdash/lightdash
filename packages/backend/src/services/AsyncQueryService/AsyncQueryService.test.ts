@@ -14779,10 +14779,12 @@ describe('AsyncQueryService', () => {
 
         const buildAiAgentAccount = ({
             spaceUuid = writeSpaceUuid,
+            sourceSpaceUuids,
             embedWriteUser = buildWriteActor(true),
             canUseAiAgent = true,
         }: {
             spaceUuid?: string;
+            sourceSpaceUuids?: string[];
             embedWriteUser?: ReturnType<typeof buildWriteActor> | null;
             canUseAiAgent?: boolean;
         } = {}) =>
@@ -14800,7 +14802,11 @@ describe('AsyncQueryService', () => {
                     type: 'jwt',
                     data: {
                         content: { type: 'aiAgent', agentUuid: 'agent-uuid' },
-                        writeActions: { userUuid: writeActorUuid, spaceUuid },
+                        writeActions: {
+                            userUuid: writeActorUuid,
+                            spaceUuid,
+                            sourceSpaceUuids,
+                        },
                     },
                 },
                 embedWriteUser: embedWriteUser ?? undefined,
@@ -14914,13 +14920,43 @@ describe('AsyncQueryService', () => {
             );
         });
 
-        test('rejects a chart outside the write space', async () => {
+        test('rejects a chart outside the write and source spaces', async () => {
             const { service, prepareSpy } = buildService();
 
             await expect(
-                run(service, buildAiAgentAccount({ spaceUuid: 'other-space' })),
+                run(
+                    service,
+                    buildAiAgentAccount({
+                        spaceUuid: 'other-space',
+                        sourceSpaceUuids: ['another-space'],
+                    }),
+                ),
             ).rejects.toThrow(ForbiddenError);
             expect(prepareSpy).not.toHaveBeenCalled();
+        });
+
+        test('runs a chart from a source space as the write actor', async () => {
+            const {
+                service,
+                prepareSpy,
+                resolveAccess,
+                checkEmbedPermissions,
+            } = buildService();
+
+            await run(
+                service,
+                buildAiAgentAccount({
+                    spaceUuid: 'other-space',
+                    sourceSpaceUuids: [writeSpaceUuid],
+                }),
+            );
+
+            expect(checkEmbedPermissions).not.toHaveBeenCalled();
+            expect(resolveAccess).toHaveBeenCalledWith(
+                writeActorUuid,
+                expect.objectContaining({ spaceUuid: writeSpaceUuid }),
+            );
+            expect(prepareSpy).toHaveBeenCalled();
         });
 
         test('rejects a token without a write actor', async () => {
