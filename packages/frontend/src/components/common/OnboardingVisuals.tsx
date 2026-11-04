@@ -52,10 +52,7 @@ const Connector: FC<{ index: number }> = ({ index }) => (
 
 /** A dashed card beside the warehouse for the sources the next step adds */
 export const NextUpCard: FC<{ children: ReactNode }> = ({ children }) => (
-    <>
-        <Box className={classes.nextUpLink} aria-hidden />
-        <Box className={classes.nextUp}>{children}</Box>
-    </>
+    <Box className={classes.nextUp}>{children}</Box>
 );
 
 const Bars: FC<{ heights: number[]; delay: number }> = ({ heights, delay }) => (

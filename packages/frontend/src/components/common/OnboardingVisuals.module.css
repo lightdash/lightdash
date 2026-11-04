@@ -88,7 +88,8 @@
 
 .enrichRow {
     display: flex;
-    align-items: center;
+    align-items: flex-end;
+    gap: 14px;
 }
 
 .enrichRow > .card {
@@ -96,19 +97,23 @@
     min-width: 0;
 }
 
-.nextUpLink {
-    flex-shrink: 0;
-    width: 14px;
-    border-top: 1px dashed var(--mantine-color-ldGray-4);
-    animation: rise 480ms cubic-bezier(0.22, 1, 0.36, 1) 360ms both;
-}
-
 .nextUp {
+    position: relative;
     flex-shrink: 0;
     padding: 10px 12px;
     border: 1px dashed var(--mantine-color-ldGray-4);
     border-radius: var(--mantine-radius-lg);
     animation: rise 480ms cubic-bezier(0.22, 1, 0.36, 1) 450ms both;
+}
+
+/* Drops into the chart below, spanning the same gap as the solid connector */
+.nextUp::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    height: 29px;
+    border-left: 1px dashed var(--mantine-color-ldGray-4);
 }
 
 .packet {
