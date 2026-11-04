@@ -1,3 +1,10 @@
+# [3.150.0](https://github.com/lightdash/lightdash/compare/3.149.1...3.150.0) (2026-11-04)
+
+
+### Features
+
+* **embed:** allow embedded AI agent actors without chart-create permission ([#32057](https://github.com/lightdash/lightdash/issues/32057)) ([48e55ca](https://github.com/lightdash/lightdash/commit/48e55ca0737f6bb619cd8dcb9728904e02842e5b))
+
 ## [3.149.1](https://github.com/lightdash/lightdash/compare/3.149.0...3.149.1) (2026-11-04)
 
 
