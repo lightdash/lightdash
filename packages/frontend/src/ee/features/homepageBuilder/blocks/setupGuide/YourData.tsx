@@ -231,9 +231,15 @@ export const YourData: FC<{
     return (
         <Paper p="md" className={classes.panel}>
             <Group justify="space-between" align="center" wrap="nowrap">
-                <Text fz="sm" fw={600}>
-                    Build your first chart
-                </Text>
+                <Box>
+                    <Text fz="sm" fw={600}>
+                        Build your first chart
+                    </Text>
+                    <Text fz="xs" c="dimmed">
+                        Save it to share with your team or add it to a
+                        dashboard.
+                    </Text>
+                </Box>
                 <Tooltip label="Hide">
                     <ActionIcon
                         size="sm"
