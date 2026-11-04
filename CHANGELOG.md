@@ -1,3 +1,10 @@
+## [3.144.1](https://github.com/lightdash/lightdash/compare/3.144.0...3.144.1) (2026-11-04)
+
+
+### Bug Fixes
+
+* unify typography on Ask AI general settings ([#32037](https://github.com/lightdash/lightdash/issues/32037)) ([d65029c](https://github.com/lightdash/lightdash/commit/d65029cb76b5140796e7e90d00bae1dbf8278865))
+
 # [3.144.0](https://github.com/lightdash/lightdash/compare/3.143.0...3.144.0) (2026-11-04)
 
 
