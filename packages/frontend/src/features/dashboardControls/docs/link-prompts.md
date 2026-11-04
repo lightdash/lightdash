@@ -18,3 +18,11 @@ that could reach it through a field other than their target
   until edit mode ends.
 - Rendered only in edit mode with no filter edited, so it never stacks on
   `TileOverlays`.
+
+- Parameter rows only appear for an explicitly saved or edited control list.
+  A default rule sets new tiles automatically; a deliberate exception stays
+  excluded without a prompt. An unassigned key held only by explicit controls
+  offers those controls and a new control; a key no control holds offers Add.
+- Linking uses `setParameterKeyTiles`, which leaves other keys and existing
+  owners alone. Add opens the normal control draft; Cancel saves nothing.
+- A filter or parameter editor hides all link prompts until it closes.
