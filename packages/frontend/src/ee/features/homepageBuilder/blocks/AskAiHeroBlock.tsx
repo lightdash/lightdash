@@ -13,6 +13,7 @@ import useApp from '../../../../providers/App/useApp';
 import { DayOneAskInput } from '../DayOneAskInput';
 import { DEFAULT_GREETING_SUBTITLE, getGreeting } from '../greeting';
 import layout from '../homepageLayout.module.css';
+import { useHasLiveSources } from '../hooks/useHasLiveSources';
 import { useHomepageAiState } from '../hooks/useHomepageAiState';
 import { useHomepageConfigFacts } from '../hooks/useHomepageConfigFacts';
 import classes from './blockStyles.module.css';
@@ -53,15 +54,16 @@ export const AskAiHero: FC<{
     // render — gating its mount here would stop it fetching until the reveal
     // and land it a beat late.
     const isReady = !actions.isLoading;
-    const isWarehouseConnected =
-        actions.statuses['connect-warehouse'].isComplete;
+    const hasLiveSources = useHasLiveSources(projectUuid, isNewOnboarding);
+    const canAnswer =
+        actions.statuses['connect-warehouse'].isComplete || hasLiveSources;
     const [prefillRequest, setPrefillRequest] = useState(0);
     return (
         <Stack gap={16} align="center" w="100%">
             {showGreeting &&
                 (isReady ? (
                     <Text component="h1" className={layout.heroGreeting}>
-                        {isWarehouseConnected
+                        {canAnswer
                             ? `${getGreeting(user.data?.firstName)}. What do you want to know?`
                             : "Let's get started"}
                     </Text>
