@@ -77,15 +77,22 @@ export default function MinimalApp() {
         captureModeParam === 'delivery' || captureModeParam === 'preview'
             ? captureModeParam
             : null;
-    const deliveryCapture = useMemo(
-        () => (captureMode ? createDeliveryCaptureAccumulator() : undefined),
-        [captureMode],
-    );
     // PDF deliveries ask the app for its own Download PDF build instead of
     // screenshotting the page; the result rides a window global like the
     // delivery-capture manifest does.
     const exportMode: 'pdf' | null =
         searchParams.get('exportMode') === 'pdf' ? 'pdf' : null;
+    // PDF mode has no manifest to publish, but it still needs the
+    // accumulator's pending tracking: a saved-chart POST is in flight before
+    // any QueryEvent exists for it, and without the accumulator a slow first
+    // response lets the quiet window elapse and the PDF captures loading
+    // placeholders.
+    const trackQuietWindow = captureMode !== null || exportMode === 'pdf';
+    const deliveryCapture = useMemo(
+        () =>
+            trackQuietWindow ? createDeliveryCaptureAccumulator() : undefined,
+        [trackQuietWindow],
+    );
     const iframeHandleRef = useRef<AppIframePreviewHandle | null>(null);
     const [pdfExportAvailable, setPdfExportAvailable] = useState(false);
     const [pdfResult, setPdfResult] = useState<AppPdfExportResult | null>(null);
@@ -227,7 +234,7 @@ export default function MinimalApp() {
             // epoch gives the app a full quiet window AFTER the flag on every
             // load — including same-identity reloads, where sdkAlive never
             // flips — else an empty just-reset manifest can publish first.
-            (!captureMode || loadEpochSettled) &&
+            (!trackQuietWindow || loadEpochSettled) &&
             activeQueryIds.size === 0 &&
             // Always 0 outside capture modes (no accumulator, no subscription).
             pendingCaptureCount === 0,
