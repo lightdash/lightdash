@@ -294,6 +294,15 @@ export default function MinimalApp() {
             pdfExportInFlight.current
         )
             return;
+        // Recheck the un-debounced inputs: `isReady` lags them by the quiet
+        // window, so on reload a stale `true` could otherwise start the build
+        // against the new epoch's still-loading queries.
+        if (
+            !loadEpochSettled ||
+            activeQueryIds.size > 0 ||
+            pendingCaptureCount > 0
+        )
+            return;
         const publish = (result: AppPdfExportResult) => {
             (window as unknown as Record<string, unknown>)[
                 APP_PDF_EXPORT_GLOBAL
@@ -331,7 +340,15 @@ export default function MinimalApp() {
                 pdfExportInFlight.current = false;
             }
         })();
-    }, [exportMode, isReady, pdfResult, pdfExportAvailable]);
+    }, [
+        exportMode,
+        isReady,
+        pdfResult,
+        pdfExportAvailable,
+        loadEpochSettled,
+        activeQueryIds,
+        pendingCaptureCount,
+    ]);
 
     const indicatorReady = (() => {
         if (captureMode) return isReady && manifest !== null;
