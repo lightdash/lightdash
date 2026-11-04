@@ -28,8 +28,10 @@ const ConnectManuallyStep2: FC<ConnectManuallyStep2Props> = ({
         <>
             <Stack align="flex-start">
                 <Button
-                    variant="subtle"
-                    size="sm"
+                    variant="transparent"
+                    color="gray"
+                    size="compact-sm"
+                    px={0}
                     leftSection={<MantineIcon icon={IconChevronLeft} />}
                     onClick={onBack}
                 >

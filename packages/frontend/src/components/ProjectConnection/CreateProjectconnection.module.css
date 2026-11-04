@@ -5,3 +5,19 @@
 .submitButton {
     align-self: end;
 }
+
+.formBody {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    transition:
+        opacity 240ms ease,
+        filter 240ms ease;
+}
+
+.formBody[data-locked='true'] {
+    opacity: 0.4;
+    filter: grayscale(1);
+    pointer-events: none;
+    user-select: none;
+}

@@ -54,6 +54,11 @@ const Connector: FC<{ index: number }> = ({ index }) => (
     </Box>
 );
 
+/** A dashed card beside the warehouse for the sources the next step adds */
+export const NextUpCard: FC<{ children: ReactNode }> = ({ children }) => (
+    <Box className={classes.nextUp}>{children}</Box>
+);
+
 const Bars: FC<{ heights: number[]; delay: number }> = ({ heights, delay }) => (
     <Box className={classes.bars} aria-hidden>
         {heights.map((height, index) => (
@@ -92,7 +97,7 @@ const TABLES: [string, string][] = [
     ['subscriptions', '22k rows'],
 ];
 
-const WarehouseVisual: FC<{ nextUp: ReactNode }> = ({ nextUp }) => (
+export const WarehouseVisual: FC<{ nextUp: ReactNode }> = ({ nextUp }) => (
     <Figure
         title="Your data stays where it is"
         body="Charts, dashboards and answers query your warehouse directly."

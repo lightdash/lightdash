@@ -6,6 +6,7 @@ import {
     type CustomFormatType,
     type DataAppTemplate,
     type HomepageRecommendedActionKey,
+    type JobStepType,
     type MapTileBackground,
     type RegistryChartTypeState,
     type SearchItemType,
@@ -93,7 +94,8 @@ type GenericEvent = {
 type SetupInviteSentEvent = {
     name: EventName.SETUP_INVITE_SENT;
     properties: {
-        organizationId: string;
+        organizationId: string | null;
+        surface: 'data_source_chooser' | 'invite_expert';
     };
 };
 
@@ -892,12 +894,23 @@ type CreateProjectButtonClickedEvent = {
     };
 };
 
+export type CreateProjectErrorCategory =
+    | 'authentication'
+    | 'network'
+    | 'permission'
+    | 'not_found'
+    | 'timeout'
+    | 'dbt'
+    | 'unknown';
+
 type CreateProjectFailedEvent = {
     name: EventName.CREATE_PROJECT_FAILED;
     properties: {
         warehouse: WarehouseTypes;
-        errorType: string;
-        warehouseOnly?: boolean;
+        // The create job's failed step, null for sync API errors
+        failedStep: JobStepType | null;
+        errorCategory: CreateProjectErrorCategory;
+        warehouseOnly: boolean;
         onboardingFlow: 'legacy' | 'new';
     };
 };
@@ -939,31 +952,6 @@ type OrganizationBrandDetectedEvent = {
     };
 };
 
-type OnboardingWarehouseSelectedEvent = {
-    name: EventName.ONBOARDING_WAREHOUSE_SELECTED;
-    properties: {
-        organizationId: string | null;
-        warehouse: string;
-        tier: 'popular' | 'all' | 'other';
-        onboardingFlow: 'legacy' | 'new';
-    };
-};
-
-type LiveDataSourceRequestedEvent = {
-    name: EventName.LIVE_DATA_SOURCE_REQUESTED;
-    properties: {
-        organizationId: string | null;
-        projectId: string;
-        integration: string;
-    };
-};
-
-type BigquerySsoSigninCompletedEvent = {
-    name: EventName.BIGQUERY_SSO_SIGNIN_COMPLETED;
-    properties: {
-        success: boolean;
-    };
-};
 export type OnboardingScreen =
     | 'verify_email'
     | 'organization'
@@ -990,6 +978,32 @@ type OnboardingStepSkippedEvent = {
     name: EventName.ONBOARDING_STEP_SKIPPED;
     properties: {
         screen: OnboardingScreen;
+    };
+};
+
+type OnboardingWarehouseSelectedEvent = {
+    name: EventName.ONBOARDING_WAREHOUSE_SELECTED;
+    properties: {
+        organizationId: string | null;
+        warehouse: string;
+        tier: 'popular' | 'all' | 'other';
+        onboardingFlow: 'legacy' | 'new';
+    };
+};
+
+type LiveDataSourceRequestedEvent = {
+    name: EventName.LIVE_DATA_SOURCE_REQUESTED;
+    properties: {
+        organizationId: string | null;
+        projectId: string;
+        integration: string;
+    };
+};
+
+type BigquerySsoSigninCompletedEvent = {
+    name: EventName.BIGQUERY_SSO_SIGNIN_COMPLETED;
+    properties: {
+        success: boolean;
     };
 };
 
@@ -1081,6 +1095,17 @@ type AgentOnboardingCompletionToastProperties = {
     agentOnboardingRunUuid: string;
 };
 
+type OnboardingDoneActionClickedEvent = {
+    name: EventName.ONBOARDING_DONE_ACTION_CLICKED;
+    properties: {
+        organizationId: string | null;
+        projectId: string;
+        action: 'ask_first_question' | 'look_around';
+        areMetricsLive: boolean;
+        runStatus: AgentOnboardingRunStatus | null;
+    };
+};
+
 type AgentOnboardingCompletionToastShownEvent = {
     name: EventName.AGENT_ONBOARDING_COMPLETION_TOAST_SHOWN;
     properties: AgentOnboardingCompletionToastProperties;
@@ -1115,17 +1140,6 @@ type MapTileUsageEvent = {
         minZoom: number | null;
         maxZoom: number | null;
         durationMs: number;
-    };
-};
-
-type OnboardingDoneActionClickedEvent = {
-    name: EventName.ONBOARDING_DONE_ACTION_CLICKED;
-    properties: {
-        organizationId: string | null;
-        projectId: string;
-        action: 'ask_first_question' | 'look_around';
-        areMetricsLive: boolean;
-        runStatus: AgentOnboardingRunStatus | null;
     };
 };
 
@@ -1355,6 +1369,7 @@ export type EventData =
     | AgentOnboardingDemoOfferAcceptedEvent
     | AgentOnboardingCompletionToastShownEvent
     | AgentOnboardingCompletionToastClickedEvent
+    | OnboardingDoneActionClickedEvent
     | SetupInviteSentEvent
     | PlaygroundProjectEnteredEvent
     | PlaygroundProjectSetupFailedEvent
@@ -1366,6 +1381,8 @@ export type EventData =
     | OrganizationSetupStepCompletedEvent
     | OrganizationBrandDetectedEvent
     | OnboardingWarehouseSelectedEvent
+    | OnboardingScreenViewedEvent
+    | OnboardingStepSkippedEvent
     | BigquerySsoSigninCompletedEvent
     | SnowflakeCliSsoCommandCopiedEvent
     | SnowflakeCliSsoConnectCompletedEvent
@@ -1392,7 +1409,6 @@ export type EventData =
     | SetupStepClickedEvent
     | DocumentationClickedEvent
     | SearchResultClickedEvent
-    | OnboardingDoneActionClickedEvent
     | GlobalSearchOpenEvent
     | GlobalSearchClosedEvent
     | OnboardingStepClickedEvent
@@ -1404,8 +1420,6 @@ export type EventData =
     | MetricsCatalogClickedEvent
     | MetricsCatalogChartUsageClickedEvent
     | MetricsCatalogExploreClickedEvent
-    | OnboardingScreenViewedEvent
-    | OnboardingStepSkippedEvent
     | MetricsCatalogChartUsageChartClickedEvent
     | MetricsCatalogCategoryClickedEvent
     | MetricsCatalogCategoryFilterAppliedEvent

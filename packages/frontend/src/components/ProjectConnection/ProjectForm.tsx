@@ -20,6 +20,7 @@ interface Props {
     defaultType?: DbtProjectType;
     isProjectUpdate?: boolean;
     warehouseOnly?: boolean;
+    dbtTypePicker?: 'select' | 'tiles';
 }
 
 export const ProjectForm: FC<Props> = ({
@@ -28,6 +29,7 @@ export const ProjectForm: FC<Props> = ({
     defaultType,
     isProjectUpdate,
     warehouseOnly = false,
+    dbtTypePicker = 'select',
 }) => {
     const form = useFormContext();
     const { savedProject } = useProjectFormContext();
@@ -40,7 +42,7 @@ export const ProjectForm: FC<Props> = ({
     return (
         <Stack gap="xl">
             {showGeneralSettings && (
-                <SettingsGridCard>
+                <SettingsGridCard data-connection-card>
                     <div>
                         <Title order={5}>General settings</Title>
                     </div>
@@ -57,7 +59,10 @@ export const ProjectForm: FC<Props> = ({
                 </SettingsGridCard>
             )}
 
-            <SettingsGridCard p={warehouseOnly ? 'xl' : 'md'}>
+            <SettingsGridCard
+                p={warehouseOnly ? 'xl' : 'md'}
+                data-connection-card
+            >
                 <div>
                     {warehouse && getWarehouseIcon(warehouse)}
                     <Flex align="center" gap={2}>
@@ -88,7 +93,7 @@ export const ProjectForm: FC<Props> = ({
             </SettingsGridCard>
 
             {!warehouseOnly && (
-                <SettingsGridCard>
+                <SettingsGridCard data-connection-card="dbt">
                     <div>
                         <Avatar
                             size="md"
@@ -110,6 +115,7 @@ export const ProjectForm: FC<Props> = ({
                         <DbtSettingsForm
                             disabled={disabled}
                             defaultType={defaultType}
+                            typePicker={dbtTypePicker}
                         />
                     </div>
                 </SettingsGridCard>
