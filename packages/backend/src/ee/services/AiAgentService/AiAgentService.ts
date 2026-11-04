@@ -6499,7 +6499,7 @@ export class AiAgentService extends BaseService {
                 (toolName) =>
                     canRunSql || !isDeepResearchRawSqlMcpTool(toolName),
             );
-            const canUseContentTools = await this.canUseContentTools(
+            const canUseContentWriteTools = await this.canUseContentWriteTools(
                 user,
                 agent,
                 projectUuid,
@@ -6572,7 +6572,7 @@ export class AiAgentService extends BaseService {
                     canManageAgent,
                     canRunSql,
                     canUseDataTools: agent.enableDataAccess,
-                    canUseContentTools,
+                    canUseContentTools: canUseContentWriteTools,
                     canUseSelfImprovementTools: canManageAgent,
                     autoApproveSql: true,
                 },
@@ -15902,8 +15902,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         return agent.enableContentTools && agent.enableDataAccess;
     }
 
-    /** The agent offers content editing when the setting is on and the user can save content where the run may write. */
-    private async canUseContentTools(
+    /** The agent offers content write tools when the setting is on and the user can save content where the run may write. */
+    private async canUseContentWriteTools(
         user: SessionUser,
         agent: Pick<AiAgent, 'enableContentTools' | 'enableDataAccess'>,
         projectUuid: string,
@@ -15940,7 +15940,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         if (
             documentSlug === null ||
             pinsOtherContent ||
-            !(await this.canUseContentTools(
+            !(await this.canUseContentWriteTools(
                 user,
                 agent,
                 prompt.projectUuid,
@@ -17013,16 +17013,16 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 const canReadContent =
                     hasTrustedPromptUserIdentity &&
                     AiAgentService.canReadContent(agentSettings);
-                const canUseContentTools =
+                const canUseContentWriteTools =
                     hasTrustedPromptUserIdentity &&
-                    (await this.canUseContentTools(
+                    (await this.canUseContentWriteTools(
                         user,
                         agentSettings,
                         promptProject.projectUuid,
                         options.runtimeOptions?.writeSpaceUuids ?? null,
                     ));
                 const enableGenerateDataApp =
-                    canUseContentTools &&
+                    canUseContentWriteTools &&
                     (await this.aiAgentToolsService.canGenerateDataApp({
                         user,
                         projectUuid: promptProject.projectUuid,
@@ -17117,7 +17117,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     suppressWritebackPreview: options.suppressWritebackPreview,
                     dbtSourceUuid: options.dbtSourceUuid,
                     onWarehouseQuery: responseExecution.onWarehouseQuery,
-                    enableDocuments: canUseContentTools,
+                    enableDocuments: canUseContentWriteTools,
                     enableRuntimeCache: !!decisions,
                     // Battle sides must not warm one another's result cache. Normal
                     // threads retain production cache behavior.
@@ -17377,8 +17377,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     enableDataAccess: agentSettings.enableDataAccess,
                     enableSelfImprovement: agentSettings.enableSelfImprovement,
                     enableContentReads: canReadContent,
-                    enableContentTools: canUseContentTools,
-                    enableDocuments: canUseContentTools,
+                    enableContentTools: canUseContentWriteTools,
+                    enableDocuments: canUseContentWriteTools,
                     enableGenerateDataApp,
                     enableAiWriteback: aiWritebackEnabled,
                     enableEditProjectContext: isReviewRemediationWorkThread,
