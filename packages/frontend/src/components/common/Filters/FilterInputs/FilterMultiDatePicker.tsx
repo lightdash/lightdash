@@ -101,6 +101,11 @@ const FilterMultiDatePicker: FC<Props> = ({
 
     const handleKeyDown = useCallback(
         (event: KeyboardEvent<HTMLInputElement>) => {
+            // Focus stays here, so the calendar's own Escape never fires
+            if (event.key === 'Escape' && opened) {
+                close();
+                return;
+            }
             if (event.key === 'Enter') {
                 event.preventDefault();
                 commitSearch();
@@ -115,7 +120,7 @@ const FilterMultiDatePicker: FC<Props> = ({
                 handleRemove(selectedValues[selectedValues.length - 1]);
             }
         },
-        [commitSearch, handleRemove, selectedValues, search],
+        [commitSearch, handleRemove, selectedValues, search, opened, close],
     );
 
     // A value we cannot parse means the rule holds something that is not a date

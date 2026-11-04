@@ -45,7 +45,7 @@ describe.skipIf(!process.env.ANALYTICS_S3_SMOKE_ENDPOINT)(
                 `events/compacted/org_id=${org}/stream=ai_usage/dt=2026-09-07/part.parquet`,
                 `events/compacted/org_id=${otherOrg}/stream=query_events/dt=2026-09-07/part.parquet`,
                 `events/compacted/org_id=${org}/stream=query_events/dt=2025-09-07/part.parquet`,
-                ...['charts', 'dashboards', 'content'].map(
+                ...['charts', 'dashboards', 'content', 'users', 'people'].map(
                     (dimension) =>
                         `events/compacted/org_id=${org}/dim=${dimension}/${dimension}.parquet`,
                 ),
@@ -344,6 +344,20 @@ describe.skipIf(!process.env.ANALYTICS_S3_SMOKE_ENDPOINT)(
                         )
                     ).rows,
                 ).toEqual([{ content_name: 'legacy', content_url: null }]);
+                expect(
+                    (
+                        await reader.runQuery(
+                            'SELECT name, email FROM lightdash_users',
+                        )
+                    ).rows,
+                ).toEqual([{ name: 'legacy', email: null }]);
+                expect(
+                    (
+                        await reader.runQuery(
+                            'SELECT name, email FROM lightdash_people',
+                        )
+                    ).rows,
+                ).toEqual([{ name: 'legacy', email: null }]);
             } finally {
                 if (created) {
                     await Promise.all(

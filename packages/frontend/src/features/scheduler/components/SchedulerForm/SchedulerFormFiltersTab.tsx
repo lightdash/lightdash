@@ -204,6 +204,7 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
             itemsMap={allFilterableFieldsMap}
             filterableFieldsByTileUuid={filterableFieldsByTileUuid}
             startOfWeek={project.warehouseConnection?.startOfWeek ?? undefined}
+            warehouseType={project.warehouseConnection?.type}
             dashboardFilters={currentDashboardFilters}
         >
             {currentDashboardFilters.dimensions.length +

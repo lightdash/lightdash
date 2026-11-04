@@ -35,7 +35,7 @@ import { GENERATE_DATA_APP_SECTION } from './systemV2DataApps';
 import { getKnowledgeDocumentsSection } from './systemV2KnowledgeDocuments';
 import { MEMORIES_SECTION } from './systemV2Memories';
 import {
-    COMPOSER_QUERY_PATH,
+    getComposerQueryPath,
     getQueryingComposerSection,
 } from './systemV2QueryingComposer';
 import { getRepoFsSection } from './systemV2RepoFs';
@@ -185,6 +185,8 @@ export const getSystemPromptV2 = (
         canRunSql?: boolean;
         // Python nodes in query; only meaningful for the composer base.
         enableComposerPythonNodes?: boolean;
+        // Api nodes in query; only meaningful for the composer base.
+        enableComposerApiNodes?: boolean;
         unauthenticatedMcpServerNames?: string[];
         mcpServers?: Array<{ name: string; toolNames: string[] }>;
     },
@@ -208,6 +210,7 @@ export const getSystemPromptV2 = (
         canRunSql = false,
         canRunQuery = false,
         enableComposerPythonNodes = false,
+        enableComposerApiNodes = false,
         unauthenticatedMcpServerNames = [],
         deferredSections = new Set<DeferredPromptSection>(),
         mcpServers = [],
@@ -231,9 +234,10 @@ export const getSystemPromptV2 = (
     }
     const queryPath: QueryPath = composer
         ? {
-              ...COMPOSER_QUERY_PATH,
+              ...getComposerQueryPath(canRunSql),
               queryLanguageSections: getQueryingComposerSection({
                   enablePythonNodes: enableComposerPythonNodes,
+                  enableApiNodes: enableComposerApiNodes,
                   canRunSql,
                   slackChannelId,
               }),
@@ -499,7 +503,11 @@ export const getSystemPromptV2 = (
 
     const finalContent = [
         content,
-        getThreadBindingSection(threadBinding, contentToolsEnabled),
+        getThreadBindingSection(
+            threadBinding,
+            contentToolsEnabled,
+            promptSections.has('schedulingTools'),
+        ),
         getThreadContextSection(threadContext),
         'Claim a cause only with direct evidence of the mechanism (a documented change, a causal analysis), not from correlation, timing or subgroup differences; label other explanations as hypotheses and say what would test them. A zero or null result proves absence only with confirmed join coverage and entity attribution, and an earliest record is a first occurrence only with confirmed source and time coverage. Compare like-for-like periods, compute per-day rates only over a confirmed exposure window, and label partial periods (no proof of a decline either way) and current-state attributes (not historical snapshots). Take baselines, sampling limits and query constraints from the executed query and field definitions, not the shape of the results.',
         'Lead short answers with the result, not a title or restated request; the UI already labels each artifact. Give the key finding rather than repeating the chart as a table or list, state material scope and uncertainty, leave out speculative diagnoses, and end with an offer only when it is specific to the result (e.g. related dashboards after a new chart).',

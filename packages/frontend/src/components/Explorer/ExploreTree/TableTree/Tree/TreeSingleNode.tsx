@@ -1,5 +1,6 @@
 import {
     DimensionType,
+    ExploreType,
     FeatureFlags,
     getItemId,
     isAdditionalMetric,
@@ -507,12 +508,10 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                     // interval reads as its interval, an unlabelled field as its name.
                     data-tour-value={isField(item) ? label : undefined}
                     className={styles.root}
-                    style={
-                        {
-                            '--tree-node-bg': itemColors.bg,
-                            '--tree-node-hover-bg': itemColors.bgHover,
-                        } as React.CSSProperties
-                    }
+                    style={{
+                        '--tree-node-bg': itemColors.bg,
+                        '--tree-node-hover-bg': itemColors.bgHover,
+                    }}
                     leftSection={icon}
                     onClick={handleClick}
                     onMouseEnter={handleMouseEnter}
@@ -645,7 +644,11 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                             isSelected={isSelected}
                             isOpened={isMenuOpen}
                             hasDescription={!!description}
-                            basicActionsOnly={isRegistryMetric}
+                            // Live data sources can't run custom fields yet
+                            basicActionsOnly={
+                                isRegistryMetric ||
+                                exploreData?.type === ExploreType.API_SOURCE
+                            }
                             allowRegistryEdit={isRegistryMetric}
                             onViewDescription={onOpenDescriptionView}
                             onMenuChange={onToggleMenu}

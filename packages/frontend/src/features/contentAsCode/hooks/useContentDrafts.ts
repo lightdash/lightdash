@@ -76,9 +76,20 @@ export const useWriteBackDraftMutation = (projectUuid: string | undefined) => {
                 });
             },
             onError: (error) => {
+                const blockingPrUrl = error.error.data?.prUrl;
                 showToastError({
                     title: 'Failed to write back draft',
                     subtitle: error.error.message,
+                    action:
+                        typeof blockingPrUrl === 'string'
+                            ? {
+                                  children: 'Open pull request',
+                                  icon: IconArrowRight,
+                                  onClick: () => {
+                                      window.open(blockingPrUrl, '_blank');
+                                  },
+                              }
+                            : undefined,
                 });
             },
         },

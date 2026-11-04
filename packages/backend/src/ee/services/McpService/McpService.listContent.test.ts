@@ -272,6 +272,7 @@ const makeMcpService = ({
         aiAgentService,
         aiAgentToolsService,
         aiOrganizationSettingsService: {
+            getMcpProjectAccess: vi.fn().mockResolvedValue({ mode: 'all' }),
             isMcpAgentsEnabled: vi.fn().mockResolvedValue(true),
         },
         aiRouterService: {},

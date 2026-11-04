@@ -6,7 +6,7 @@
 .root {
     position: fixed;
     inset: 0;
-    z-index: 10000;
+    z-index: var(--ld-z-tour);
 }
 
 /* interactive steps let clicks through to the page; only the card catches
@@ -126,7 +126,7 @@
     width: var(--tour-card-width);
     max-width: calc(100vw - 24px);
     pointer-events: auto;
-    z-index: 10001;
+    z-index: var(--ld-z-tour-card);
 }
 
 /* the card follows the ring into the beacon and back out: it shrinks towards
@@ -219,7 +219,7 @@
     width: 360px;
     max-width: calc(100vw - 24px);
     pointer-events: auto;
-    z-index: 10001;
+    z-index: var(--ld-z-tour-card);
     animation: ldTourCardDock 300ms ease-out;
 }
 
@@ -242,7 +242,7 @@
     width: 460px;
     max-width: calc(100vw - 24px);
     pointer-events: auto;
-    z-index: 10001;
+    z-index: var(--ld-z-tour-card);
 }
 
 /* The card must not read as regular UI: deep elevation and a coachmark caret

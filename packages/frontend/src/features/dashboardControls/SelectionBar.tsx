@@ -39,9 +39,11 @@ export const SelectionBar: FC<Props> = ({ onClear, ...actions }) => {
                     <Text fz="sm" fw={600} className={classes.count}>
                         {actions.count} selected
                     </Text>
-                    <Text fz="sm" c="dimmed">
-                        Shift click for a range
-                    </Text>
+                    {actions.count === 1 && (
+                        <Text fz="sm" c="dimmed">
+                            Shift click for a range
+                        </Text>
+                    )}
                 </Group>
                 <Divider orientation="vertical" />
                 <Group gap="xs" wrap="nowrap">

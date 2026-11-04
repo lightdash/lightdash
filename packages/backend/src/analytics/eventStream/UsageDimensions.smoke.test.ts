@@ -128,6 +128,22 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                         slug: 'other-sql-chart',
                     },
                 ]);
+                await db.raw(`
+                    ALTER TABLE saved_queries RENAME TO chart_source;
+                    CREATE TEMP SEQUENCE chart_timeout;
+                    CREATE FUNCTION chart_name(value text) RETURNS text AS $$
+                    BEGIN
+                        IF nextval('chart_timeout') = 1 THEN
+                            RAISE EXCEPTION 'statement timeout' USING ERRCODE = '57014';
+                        END IF;
+                        RETURN value;
+                    END;
+                    $$ LANGUAGE plpgsql;
+                    CREATE VIEW saved_queries AS SELECT saved_query_id,
+                        saved_query_uuid, project_uuid, space_id, dashboard_uuid,
+                        chart_name(name) AS name, slug, last_version_chart_kind,
+                        deleted_at FROM chart_source;
+                `);
                 const result: Record<string, unknown>[] = [];
                 for await (const line of new UsageDimensionsModel(
                     db,
@@ -187,6 +203,42 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     emptyResult.push(line);
                 }
                 expect(emptyResult).toEqual([]);
+
+                await db.raw('ALTER SEQUENCE chart_timeout RESTART WITH 1');
+                const iterator = new UsageDimensionsModel(
+                    db,
+                    'https://lightdash.example.com',
+                ).getJsonLines(
+                    { organization_id: 1, organization_uuid: org },
+                    'charts',
+                );
+                try {
+                    for (let row = 0; row < 1000; row += 1) {
+                        // eslint-disable-next-line no-await-in-loop
+                        expect((await iterator.next()).done).toBe(false);
+                    }
+                    await fixture('projects')
+                        .where('project_uuid', secondProject)
+                        .update({ organization_id: 2 });
+                    const remaining = [];
+                    for await (const line of iterator) {
+                        try {
+                            remaining.push(JSON.parse(line));
+                        } catch (error) {
+                            throw new Error('Expected chart snapshot JSON', {
+                                cause: error,
+                            });
+                        }
+                    }
+                    expect(remaining.map((row) => row.name)).toEqual([
+                        'Tenant chart 1001',
+                        'Tenant chart 1003',
+                        'Tenant chart 1005',
+                        'Tenant SQL chart',
+                    ]);
+                } finally {
+                    await iterator.return(undefined);
+                }
             } finally {
                 await db.raw('DROP SCHEMA IF EXISTS ?? CASCADE', [schema]);
                 await db.destroy();
@@ -236,6 +288,7 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
             const otherOrg = randomUUID();
             const user = randomUUID();
             const otherUser = randomUUID();
+            const userWithoutPrimaryEmail = randomUUID();
             const chart = randomUUID();
             const sqlChart = randomUUID();
             const dashboard = randomUUID();
@@ -265,6 +318,8 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     CREATE INDEX ON saved_queries(project_uuid);
                     CREATE TABLE saved_sql (saved_sql_uuid uuid PRIMARY KEY, project_uuid uuid, space_uuid uuid, dashboard_uuid uuid, name text, slug text, last_version_chart_kind text, deleted_at timestamp, created_at timestamp DEFAULT CURRENT_TIMESTAMP);
                     CREATE TABLE users (user_id integer PRIMARY KEY, user_uuid uuid UNIQUE, first_name text, last_name text, is_active boolean, is_internal boolean, is_setup_complete boolean DEFAULT true);
+                    CREATE TABLE emails (user_id integer REFERENCES users(user_id), email text UNIQUE, is_primary boolean);
+                    CREATE UNIQUE INDEX ON emails(user_id) WHERE is_primary;
                     CREATE TABLE organization_memberships (organization_id integer, user_id integer, role text DEFAULT 'member', role_uuid uuid, created_at timestamp DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(organization_id, user_id));
                     CREATE TABLE groups (group_uuid uuid PRIMARY KEY, organization_id integer, name text);
                     CREATE TABLE group_memberships (group_uuid uuid, organization_id integer, user_id integer, PRIMARY KEY(group_uuid, user_id));
@@ -356,7 +411,7 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     },
                     {
                         user_id: 2,
-                        user_uuid: randomUUID(),
+                        user_uuid: userWithoutPrimaryEmail,
                         first_name: 'Same',
                         last_name: 'Name',
                         is_active: true,
@@ -369,6 +424,28 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                         last_name: 'Org',
                         is_active: true,
                         is_internal: false,
+                    },
+                ]);
+                await fixture('emails').insert([
+                    {
+                        user_id: 1,
+                        email: 'primary@example.com',
+                        is_primary: true,
+                    },
+                    {
+                        user_id: 1,
+                        email: 'alias@example.com',
+                        is_primary: false,
+                    },
+                    {
+                        user_id: 2,
+                        email: 'no-primary@example.com',
+                        is_primary: false,
+                    },
+                    {
+                        user_id: 3,
+                        email: 'other-org@example.com',
+                        is_primary: true,
                     },
                 ]);
                 await fixture('organization_memberships').insert([
@@ -469,6 +546,32 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     type: 'duckdb_parquet',
                     resolveSource: source,
                 });
+                const expectedUsers = [
+                    {
+                        user_id: user,
+                        name: 'Same Name',
+                        email: 'primary@example.com',
+                    },
+                    {
+                        user_id: userWithoutPrimaryEmail,
+                        name: 'Same Name',
+                        email: null,
+                    },
+                ];
+                expect(
+                    (
+                        await reader.runQuery(
+                            'SELECT user_id, name, email FROM lightdash_users ORDER BY email NULLS LAST',
+                        )
+                    ).rows,
+                ).toEqual(expectedUsers);
+                expect(
+                    (
+                        await reader.runQuery(
+                            'SELECT user_id, name, email FROM lightdash_people ORDER BY email NULLS LAST',
+                        )
+                    ).rows,
+                ).toEqual(expectedUsers);
                 const explore = createAnalyticsExplores()[0];
                 const sql = (
                     dimensions: string[],
@@ -810,10 +913,25 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                 await fixture('users')
                     .where('user_id', 1)
                     .update({ first_name: 'User renamed' });
+                await fixture('emails')
+                    .where('user_id', 1)
+                    .update({ is_primary: false });
+                await fixture('emails')
+                    .where('email', 'alias@example.com')
+                    .update({ is_primary: true });
                 expect((await run()).dimensions).toEqual({
                     refreshed: 14,
                     failed: 0,
                 });
+                expect(
+                    (
+                        await reader.runQuery(`SELECT name, email FROM lightdash_users WHERE user_id = '${user}'
+                        UNION ALL SELECT name, email FROM lightdash_people WHERE user_id = '${user}'`)
+                    ).rows,
+                ).toEqual([
+                    { name: 'User renamed Name', email: 'alias@example.com' },
+                    { name: 'User renamed Name', email: 'alias@example.com' },
+                ]);
                 expect((await reader.runQuery(joinedSql)).rows).toEqual(
                     expect.arrayContaining([
                         expect.objectContaining({

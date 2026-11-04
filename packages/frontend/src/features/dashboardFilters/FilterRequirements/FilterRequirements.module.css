@@ -7,14 +7,14 @@
 .requirementsButtonActive {
     border-color: alpha(var(--mantine-color-yellow-6), 0.35);
 
-    @mixin light {
-        color: var(--mantine-color-yellow-9);
-        background-color: var(--mantine-color-yellow-0);
-    }
-    @mixin dark {
-        color: var(--mantine-color-yellow-6);
-        background-color: alpha(var(--mantine-color-yellow-9), 0.25);
-    }
+    color: light-dark(
+        var(--mantine-color-yellow-9),
+        var(--mantine-color-yellow-6)
+    );
+    background-color: light-dark(
+        var(--mantine-color-yellow-0),
+        alpha(var(--mantine-color-yellow-9), 0.25)
+    );
 }
 
 .ruleRow {
@@ -29,12 +29,10 @@
     border-radius: 100px;
     max-width: 100%;
 
-    @mixin light {
-        background-color: var(--mantine-color-yellow-0);
-    }
-    @mixin dark {
-        background-color: alpha(var(--mantine-color-yellow-6), 0.1);
-    }
+    background-color: light-dark(
+        var(--mantine-color-yellow-0),
+        alpha(var(--mantine-color-yellow-6), 0.1)
+    );
 }
 
 .addFilterInput {

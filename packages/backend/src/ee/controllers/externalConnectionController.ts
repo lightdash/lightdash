@@ -2,6 +2,7 @@ import {
     assertRegisteredAccount,
     ForbiddenError,
     type ApiErrorPayload,
+    type ApiExternalConnectionApiUsageResponse,
     type ApiListExternalConnectionLinkedAppsResponse,
     type ApiListExternalConnectionSamplesResponse,
     type ApiProposeExternalConnectionConfigRequest,
@@ -117,6 +118,29 @@ export class ExternalConnectionController extends BaseController {
     }
 
     /**
+     * API calls and response bytes each live source has used, across every logged query
+     * @summary Get live source usage
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('external-connections/api-usage')
+    @OperationId('getExternalConnectionApiUsage')
+    async getExternalConnectionApiUsage(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+    ): Promise<ApiExternalConnectionApiUsageResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getService().getApiSourceUsage(
+                req.account,
+                projectUuid,
+            ),
+        };
+    }
+
+    /**
      * Get a single external connection by UUID
      * @summary Get external connection
      */
@@ -216,6 +240,35 @@ export class ExternalConnectionController extends BaseController {
     ): Promise<{ status: 'ok'; results: undefined }> {
         assertRegisteredAccount(req.account);
         await this.getService().delete(
+            req.account,
+            projectUuid,
+            connectionUuid,
+        );
+        this.setStatus(200);
+        return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * Rebuild the explores of a live data source from its integration's
+     * semantic layer and the fields it reports, such as GA4 custom
+     * dimensions or PostHog properties
+     * @summary Refresh live data source explores
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('external-connections/{connectionUuid}/refresh-explores')
+    @OperationId('refreshExternalConnectionExplores')
+    async refreshExternalConnectionExplores(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() connectionUuid: string,
+    ): Promise<{ status: 'ok'; results: undefined }> {
+        assertRegisteredAccount(req.account);
+        await this.getService().refreshApiSourceExplores(
             req.account,
             projectUuid,
             connectionUuid,

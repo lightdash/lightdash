@@ -104,9 +104,6 @@ export const Layout: React.FC = () => {
                                               ? classes.itemDragging
                                               : ''
                                       }`}
-                                      style={{
-                                          ...provided.draggableProps.style,
-                                      }}
                                   >
                                       <Box className={classes.dragHandle}>
                                           <GrabIcon

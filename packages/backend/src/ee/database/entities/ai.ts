@@ -586,6 +586,7 @@ export type AiPromptContextEntityType =
     | 'review_finding'
     | 'preview_environment'
     | 'data_app_element'
+    | 'composer_node'
     | 'data_app_restore'
     | 'data_app'
     | 'document'
@@ -608,6 +609,14 @@ export type AiPromptDataAppElementSnapshot = {
     tag: string;
     text: string;
     loc: string;
+};
+
+// Composer node snapshot stored in runtime_overrides; entity_ref holds the
+// natural key and display_name the node title.
+export type AiPromptComposerNodeSnapshot = {
+    artifactUuid: string;
+    versionUuid: string;
+    nodeId: string;
 };
 
 // Restore snapshot stored in runtime_overrides; entity_uuid holds the app uuid.
@@ -640,6 +649,7 @@ export type DbAiPromptContext = {
         | AiPromptExternalSourceSnapshot
         | AiPromptThreadFileSnapshot
         | AiPromptDataAppElementSnapshot
+        | AiPromptComposerNodeSnapshot
         | AiPromptDataAppRestoreSnapshot
         | AiPromptDataAppSnapshot
         | AiPromptSkillSnapshot
@@ -672,11 +682,11 @@ export type DbAiOrganizationSettings = {
     deep_research_limits: AiDeepResearchLimits;
     deep_research_raw_sql_enabled: boolean;
     mcp_enabled: boolean;
+    mcp_project_access_mode: 'all' | 'selected';
     mcp_content_writes_enabled: boolean;
     mcp_agents_enabled: boolean;
     data_app_runtime_ai_enabled: boolean;
     data_app_continue_in_ask_ai_enabled: boolean;
-    data_app_auto_analysis_enabled: boolean;
     data_app_analysis_limits: DataAppAnalysisLimits | null;
     data_app_analysis_default_instructions: string | null;
     require_explicit_slack_channel_linking: boolean;
@@ -703,11 +713,11 @@ export type AiOrganizationSettingsTable = Knex.CompositeTableType<
                 | 'deep_research_limits'
                 | 'deep_research_raw_sql_enabled'
                 | 'mcp_enabled'
+                | 'mcp_project_access_mode'
                 | 'mcp_content_writes_enabled'
                 | 'mcp_agents_enabled'
                 | 'data_app_runtime_ai_enabled'
                 | 'data_app_continue_in_ask_ai_enabled'
-                | 'data_app_auto_analysis_enabled'
                 | 'data_app_analysis_limits'
                 | 'data_app_analysis_default_instructions'
                 | 'require_explicit_slack_channel_linking'
@@ -728,11 +738,11 @@ export type AiOrganizationSettingsTable = Knex.CompositeTableType<
             | 'deep_research_limits'
             | 'deep_research_raw_sql_enabled'
             | 'mcp_enabled'
+            | 'mcp_project_access_mode'
             | 'mcp_content_writes_enabled'
             | 'mcp_agents_enabled'
             | 'data_app_runtime_ai_enabled'
             | 'data_app_continue_in_ask_ai_enabled'
-            | 'data_app_auto_analysis_enabled'
             | 'data_app_analysis_limits'
             | 'data_app_analysis_default_instructions'
             | 'require_explicit_slack_channel_linking'
@@ -830,4 +840,16 @@ export type AiSqlApprovalTable = Knex.CompositeTableType<
     Pick<DbAiSqlApproval, 'tool_call_id' | 'decision'> &
         Partial<Pick<DbAiSqlApproval, 'decided_by_user_uuid'>>,
     never
+>;
+
+export const AiOrganizationMcpProjectsTableName =
+    'ai_organization_mcp_projects';
+export type DbAiOrganizationMcpProject = {
+    organization_uuid: string;
+    project_uuid: string;
+    created_at: Date;
+};
+export type AiOrganizationMcpProjectsTable = Knex.CompositeTableType<
+    DbAiOrganizationMcpProject,
+    Omit<DbAiOrganizationMcpProject, 'created_at'>
 >;

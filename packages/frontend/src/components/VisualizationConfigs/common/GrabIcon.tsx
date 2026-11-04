@@ -3,6 +3,7 @@ import { Box, Tooltip } from '@mantine/core';
 import { IconGripVertical } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
+import classes from './GrabIcon.module.css';
 
 type Props = {
     dragHandleProps?: DraggableProvidedDragHandleProps | null;
@@ -20,13 +21,10 @@ export const GrabIcon: FC<Props> = ({
     const icon = (
         <Box
             {...dragHandleProps}
-            style={{
-                ...(hovered !== undefined && {
-                    visibility: hovered ? 'visible' : 'hidden',
-                }),
-                opacity: disabled ? 0.3 : 0.6,
-                cursor: disabled ? 'default' : 'grab',
-            }}
+            opacity={disabled ? 0.3 : 0.6}
+            className={classes.grabHandle}
+            data-disabled={disabled || undefined}
+            data-hidden={hovered === false || undefined}
         >
             <MantineIcon color="dimmed" icon={IconGripVertical} />
         </Box>

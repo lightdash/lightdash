@@ -1,19 +1,15 @@
 import {
     buildOnboardingHomepageConfig,
-    CommercialFeatureFlags,
     FeatureFlags,
     ProjectType,
     type SessionUser,
 } from '@lightdash/common';
-import * as Sentry from '@sentry/node';
 import {
     type CodingAgentOnboardingEnablement,
-    type HomepageBuilderEnablement,
     type LightdashAnalytics,
     type OnboardingFlow,
     type OnboardingHomepageSkippedReason,
 } from '../../../analytics/LightdashAnalytics';
-import Logger from '../../../logging/logger';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { type FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { type ProjectHomepageModel } from '../../models/ProjectHomepageModel';
@@ -23,10 +19,7 @@ export type ProvisionOnboardingHomepageArguments = {
     projectUuid: string;
     projectType: ProjectType;
     provisioningSource?: 'playground' | 'training' | 'analytics';
-    featureFlagService: Pick<
-        FeatureFlagService,
-        'get' | 'ensureOrganizationOverrideEnabled'
-    >;
+    featureFlagService: Pick<FeatureFlagService, 'get'>;
     projectModel: Pick<ProjectModel, 'getAllByOrganizationUuid'>;
     projectHomepageModel: Pick<
         ProjectHomepageModel,
@@ -57,7 +50,6 @@ export const provisionOnboardingHomepage = async ({
     const onboardingFlow: OnboardingFlow = orgSetupPageFlag.enabled
         ? 'new'
         : 'legacy';
-    let homepageBuilderEnablement: HomepageBuilderEnablement | null = null;
     const codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement | null =
         null;
     const trackSkipped = (reason: OnboardingHomepageSkippedReason) => {
@@ -68,7 +60,6 @@ export const provisionOnboardingHomepage = async ({
                 organizationId: organizationUuid,
                 projectId: projectUuid,
                 onboardingFlow,
-                homepageBuilderEnablement,
                 codingAgentOnboardingEnablement,
                 reason,
             },
@@ -92,22 +83,6 @@ export const provisionOnboardingHomepage = async ({
             return;
         }
 
-        try {
-            homepageBuilderEnablement =
-                await featureFlagService.ensureOrganizationOverrideEnabled({
-                    user,
-                    featureFlagId: CommercialFeatureFlags.HomepageBuilder,
-                });
-        } catch (error) {
-            Sentry.captureException(error);
-            Logger.error(
-                `Failed to enable homepage builder for organization ${organizationUuid}: ${
-                    error instanceof Error ? error.message : String(error)
-                }`,
-            );
-            homepageBuilderEnablement = 'failed';
-        }
-
         // Coding agent onboarding is opt-in per org until its post-run flow is ready.
         // try {
         //     codingAgentOnboardingEnablement =
@@ -125,12 +100,14 @@ export const provisionOnboardingHomepage = async ({
         //     codingAgentOnboardingEnablement = 'failed';
         // }
 
-        const homepageBuilderFlag = await featureFlagService.get({
-            user,
-            featureFlagId: CommercialFeatureFlags.HomepageBuilder,
-        });
-        if (!homepageBuilderFlag.enabled) {
-            trackSkipped('homepage_builder_flag_disabled');
+        // An org that switched back to the classic homepage shouldn't get
+        // a homepage minted for its new projects.
+        const orgHomepageSettings =
+            await projectHomepageModel.findOrgHomepageSettings(
+                organizationUuid,
+            );
+        if (orgHomepageSettings?.enabled === false) {
+            trackSkipped('homepage_disabled');
             return;
         }
 
@@ -140,12 +117,8 @@ export const provisionOnboardingHomepage = async ({
             return;
         }
 
-        // An org that already chose a content-first opening shouldn't get an
-        // AI-first homepage minted for its new projects.
-        const orgHomepageSettings =
-            await projectHomepageModel.findOrgHomepageSettings(
-                organizationUuid,
-            );
+        // An org that chose a content-first opening shouldn't get an
+        // AI-first homepage either.
         const homepage = await projectHomepageModel.create({
             projectUuid,
             name: 'Getting started',
@@ -167,7 +140,6 @@ export const provisionOnboardingHomepage = async ({
                 projectId: projectUuid,
                 homepageUuid: homepage.homepageUuid,
                 onboardingFlow,
-                homepageBuilderEnablement,
                 codingAgentOnboardingEnablement,
             },
         });
@@ -179,7 +151,6 @@ export const provisionOnboardingHomepage = async ({
                 organizationId: organizationUuid,
                 projectId: projectUuid,
                 onboardingFlow,
-                homepageBuilderEnablement,
                 codingAgentOnboardingEnablement,
                 errorType: error instanceof Error ? error.name : 'Unknown',
             },

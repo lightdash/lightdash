@@ -18,6 +18,7 @@ import {
 import { type ParametersValuesMap } from './parameters';
 import { type PivotConfiguration } from './pivot';
 import { type QueryHistoryStatus } from './queryHistory';
+import { type ResultColumns } from './results';
 
 /**
  * Discriminator for every query source a project can execute queries against.
@@ -47,7 +48,27 @@ export enum QuerySourceType {
      * sandbox. References expose other queries' results as pandas DataFrames.
      */
     PYTHON = 'python',
+    /** A query sent live to an external API, such as HogQL to PostHog. */
+    API = 'api',
 }
+
+/** The external APIs an api query source can call live. */
+export enum ApiConnectorType {
+    POSTHOG = 'posthog',
+    SEARCH_CONSOLE = 'search_console',
+    GA4 = 'ga4',
+}
+
+/**
+ * What an api query asks its connector to run. Only `query` exists: a query
+ * in the connector's own language, such as HogQL for PostHog. APIs without a
+ * query language will add another kind rather than change this one.
+ */
+export type ApiSourcePayload = {
+    kind: 'query';
+    /** A query in the connector's language, e.g. HogQL for PostHog. */
+    query: string;
+};
 
 /**
  * A name identifying one query within a multi-query submission. Other queries
@@ -246,6 +267,27 @@ export type ExternalSourceQuery = {
 };
 
 /**
+ * A query sent live to an external API at question time. Nothing is ingested:
+ * the connector runs the payload and its rows become this node's result.
+ */
+export type ApiSourceQuery = {
+    sourceType: QuerySourceType.API;
+    /** Names this query so other queries in the same submission can reference its results. */
+    nodeId?: QueryNodeId;
+    /** Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it. */
+    title?: string;
+    /** One-line note on what this query does, shown under the title. */
+    description?: string;
+    /** The project connection that runs the payload, such as a PostHog connection. */
+    connectionUuid: string;
+    payload: ApiSourcePayload;
+    /** Max rows to keep. Defaults to the standard query row limit. */
+    limit?: number;
+    /** Api queries refuse a pivot; pivot in a referencing duckdb query. */
+    pivotConfiguration?: PivotConfiguration;
+};
+
+/**
  * The tagged union every submit endpoint takes: one shape per source,
  * discriminated by sourceType. New sources add a member here — this union is
  * the extension point, not new WarehouseTypes values.
@@ -255,7 +297,8 @@ export type SourceQuery =
     | SqlSourceQuery
     | DuckdbSourceQuery
     | ExternalSourceQuery
-    | PythonSourceQuery;
+    | PythonSourceQuery
+    | ApiSourceQuery;
 
 /** A column in a source schema, aligned with ResultColumns' {reference, type}. */
 export type QuerySourceSchemaColumn = {
@@ -326,6 +369,10 @@ export type SourceQueryStatus = {
     error: string | null;
     /** Rows the query returned; null while unknown, e.g. before it finishes. */
     totalRowCount: number | null;
+    /** Warehouse run time; null while unknown or not recorded. */
+    warehouseExecutionTimeMs: number | null;
+    /** Result columns; null until the query is ready. */
+    columns: ResultColumns | null;
 };
 
 export type ApiGetSourceQueryStatusResults = {
@@ -339,6 +386,15 @@ export type ApiListQuerySourcesResults = {
 export type ApiScanQuerySourceSchemaResults = QuerySourceSchema;
 
 export const DEFAULT_SOURCE_QUERY_LIMIT = 500;
+
+export const getSourceQueryLimit = (query: { limit?: number }): number =>
+    query.limit ?? DEFAULT_SOURCE_QUERY_LIMIT;
+
+/** A node that returned at least its limit of rows reached it, so more rows may exist. */
+export const hasReachedSourceQueryLimit = (
+    query: { limit?: number },
+    rowCount: number,
+): boolean => rowCount >= getSourceQueryLimit(query);
 
 /** The metric query a semanticLayer node runs; unset fields take the empty-query defaults. */
 export const metricQueryOfSemanticNode = (
@@ -378,6 +434,7 @@ export const getSourceQueryResultReferences = (
         case QuerySourceType.SEMANTIC_LAYER:
         case QuerySourceType.SQL:
         case QuerySourceType.EXTERNAL:
+        case QuerySourceType.API:
             return {};
         default:
             return assertUnreachable(query, 'Unknown source type');

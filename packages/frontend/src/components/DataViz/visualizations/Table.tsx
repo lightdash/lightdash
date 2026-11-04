@@ -6,13 +6,7 @@ import {
     type VizColumnsConfig,
     type VizTableHeaderSortConfig,
 } from '@lightdash/common';
-import {
-    Flex,
-    Group,
-    type FlexProps,
-    Badge,
-    useMantineTheme,
-} from '@mantine/core';
+import { Flex, Group, type FlexProps, Badge } from '@mantine/core';
 import { IconArrowDown, IconArrowUp } from '@tabler/icons-react';
 import { flexRender } from '@tanstack/react-table';
 import { clsx } from 'clsx';
@@ -53,7 +47,6 @@ export const Table = <T extends IResultsRunner>({
     density = 'default',
     columnTypes = {},
 }: TableProps<T>) => {
-    const theme = useMantineTheme();
     const isCompact = density === 'compact';
     const {
         tableWrapperRef,
@@ -80,26 +73,17 @@ export const Table = <T extends IResultsRunner>({
             direction="column"
             miw="100%"
             {...flexProps}
-            style={{
-                overflow: 'auto',
-                fontFeatureSettings: "'tnum'",
-                flexGrow: 1,
-                ...(typeof flexProps?.style === 'object' &&
-                !Array.isArray(flexProps.style)
-                    ? flexProps.style
-                    : {}),
-            }}
-            className="sentry-block ph-no-capture"
+            className={clsx('sentry-block ph-no-capture', styles.wrapper)}
         >
             <TableStyled className={clsx(isCompact && styles.compact)}>
                 <thead>
                     <tr>
                         {isCompact && (
                             <th
-                                className={styles.rowIndex}
-                                style={{
-                                    backgroundColor: theme.colors.ldGray[0],
-                                }}
+                                className={clsx(
+                                    styles.rowIndex,
+                                    styles.headerCell,
+                                )}
                             >
                                 #
                             </th>
@@ -116,19 +100,9 @@ export const Table = <T extends IResultsRunner>({
                                     <th
                                         key={header.id}
                                         onClick={onClick}
-                                        style={
-                                            onClick
-                                                ? {
-                                                      cursor: 'pointer',
-                                                      backgroundColor:
-                                                          theme.colors
-                                                              .ldGray[0],
-                                                  }
-                                                : {
-                                                      backgroundColor:
-                                                          theme.colors
-                                                              .ldGray[0],
-                                                  }
+                                        className={styles.headerCell}
+                                        data-sortable={
+                                            onClick ? true : undefined
                                         }
                                     >
                                         <Group gap="two" fz="sm">

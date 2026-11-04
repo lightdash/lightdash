@@ -1,4 +1,4 @@
-import { Group, Text, Tooltip, useMantineTheme } from '@mantine/core';
+import { Group, Text, Tooltip } from '@mantine/core';
 import {
     IconAlertTriangleFilled,
     IconCircleCheckFilled,
@@ -38,7 +38,6 @@ const fetchSize = 25;
 const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
     projectUuid,
 }) => {
-    const theme = useMantineTheme();
     const rowVirtualizerInstanceRef =
         useRef<ContentTableVirtualizer<HTMLDivElement, HTMLTableRowElement>>(
             null,
@@ -215,23 +214,23 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
                                               .join(', ')})`,
                                   )
                                   .join('\n'),
-                              color: theme.colors.red[6],
+                              color: 'red.6',
                               icon: IconAlertTriangleFilled,
                           }
                         : {
                               label: 'Compilation successful',
-                              color: theme.colors.green[6],
+                              color: 'green.6',
                               icon: IconCircleCheckFilled,
                           };
                     return (
                         <Tooltip label={label}>
-                            <MantineIcon icon={icon} style={{ color: color }} />
+                            <MantineIcon icon={icon} color={color} />
                         </Tooltip>
                     );
                 },
             },
         ],
-        [theme],
+        [],
     );
 
     const table = useContentTable({
@@ -254,7 +253,7 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
         ),
         mantineTableContainerProps: {
             ref: tableContainerRef,
-            style: { maxHeight: 'calc(100dvh - 370px)' },
+            mah: 'calc(100dvh - 370px)',
             onScroll,
         },
         mantineTableProps: {
@@ -263,37 +262,8 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
         },
         mantineTableBodyRowProps: ({ row }) => ({
             onClick: () => handleRowClick(row.original),
-            style: { cursor: 'pointer' },
         }),
-        mantineTableHeadCellProps: {
-            h: '3xl',
-            pos: 'relative',
-            style: {
-                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-                backgroundColor: theme.colors.ldGray[0],
-                fontWeight: 600,
-                fontSize: theme.fontSizes.xs,
-            },
-            sx: {
-                // Removing mantine table borders for last cell
-                '&:last-of-type': {
-                    borderLeft: 'none!important',
-                },
-            },
-        },
-        mantineTableBodyCellProps: {
-            sx: {
-                // Removing mantine table borders for last cell
-                '&:last-of-type': {
-                    borderLeft: 'none!important',
-                },
-            },
-            style: {
-                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-                fontSize: theme.fontSizes.xs,
-                color: theme.colors.ldGray[7],
-            },
-        },
+        mantineTableBodyCellProps: { fz: 'xs' },
 
         rowVirtualizerInstanceRef,
         rowVirtualizerProps: { estimateSize: () => 40, overscan: 10 },

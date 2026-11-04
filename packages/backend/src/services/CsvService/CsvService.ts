@@ -30,9 +30,9 @@ import {
 } from '@lightdash/common';
 import archiver from 'archiver';
 import { stringify } from 'csv-stringify';
+import { isNil } from 'es-toolkit/compat';
 import * as fs from 'fs';
 import * as fsPromise from 'fs/promises';
-import isNil from 'lodash/isNil';
 import moment from 'moment';
 import { nanoid } from 'nanoid';
 import {

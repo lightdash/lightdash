@@ -37,6 +37,7 @@ import {
     getAiArtifactChartSource,
     useAiArtifactCompiledSql,
 } from '../../hooks/useAiArtifactChart';
+import { useComposerNodeChatContext } from '../../hooks/useComposerNodeChatContext';
 import {
     useAiAgentArtifactVizQuery,
     useAiAgentThread,
@@ -141,6 +142,11 @@ const AiArtifactPanelContent: FC<AiArtifactPanelProps> = memo(
             (thread.user.uuid === user.data?.userUuid || !!canManageAgent);
         const { mutate: saveComposerVizConfig } =
             useUpdateComposerVizConfig(artifact);
+        const composerNodeChat = useComposerNodeChatContext({
+            threadUuid: artifact.threadUuid,
+            artifactUuid: artifact.artifactUuid,
+            versionUuid: artifact.versionUuid,
+        });
         const artifactChartConfig = artifactData?.chartConfig;
         const composerConfig = isAiComposerChartArtifactConfig(
             artifactChartConfig,
@@ -358,6 +364,10 @@ const AiArtifactPanelContent: FC<AiArtifactPanelProps> = memo(
                     }}
                     onSaveVizConfig={
                         canEditThread ? saveComposerVizConfig : null
+                    }
+                    chatNodeIds={composerNodeChat.chatNodeIds}
+                    onAddToChat={
+                        canEditThread ? composerNodeChat.addToChat : null
                     }
                     title={artifactData.title ?? 'Composer query results'}
                     description={artifactData.description ?? null}

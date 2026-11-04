@@ -11,6 +11,7 @@ import { GrabIcon } from '../common/GrabIcon';
 import ColumnConfiguration, {
     type ColumnConfigurationProps,
 } from './ColumnConfiguration';
+import classes from './DroppableItemsList.module.css';
 
 type DraggablePortalHandlerProps = {
     snapshot: DraggableStateSnapshot;
@@ -47,14 +48,7 @@ const DroppableItemsList: FC<DroppableItemsListProps> = ({
 }) => {
     const hasItems = itemIds.length > 0;
     return (
-        <Stack
-            gap="xs"
-            style={(theme) => ({
-                padding: theme.spacing.xs,
-                backgroundColor: theme.colors.ldGray?.[0],
-                borderRadius: theme.radius.sm,
-            })}
-        >
+        <Stack gap="xs" className={classes.droppableList}>
             <Droppable droppableId={droppableId}>
                 {(dropProps, droppableSnapshot) => (
                     <Stack
@@ -99,15 +93,13 @@ const DroppableItemsList: FC<DroppableItemsListProps> = ({
                                             gap="xs"
                                             ref={innerRef}
                                             {...draggableProps}
-                                            style={{
-                                                visibility:
-                                                    isDragging &&
-                                                    disableReorder &&
-                                                    !snapshot.isDragging
-                                                        ? 'hidden'
-                                                        : undefined,
-                                                ...draggableProps.style,
-                                            }}
+                                            className={
+                                                isDragging &&
+                                                disableReorder &&
+                                                !snapshot.isDragging
+                                                    ? classes.hiddenItem
+                                                    : undefined
+                                            }
                                         >
                                             {draggableItemIds === undefined ||
                                             draggableItemIds.includes(

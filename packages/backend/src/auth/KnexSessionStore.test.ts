@@ -191,7 +191,7 @@ describe('KnexSessionStore callback contract', () => {
         );
         expect(seen).toEqual(scopes);
         expect(tracker.history.select).toHaveLength(200);
-        expect(tracker.history.update).toHaveLength(200);
+        expect(tracker.history.update).toHaveLength(1);
     });
 
     test.each([
@@ -283,4 +283,163 @@ describe('KnexSessionStore callback contract', () => {
             }
         },
     );
+});
+
+describe('KnexSessionStore touch throttling', () => {
+    const minute = 60_000;
+    const sessionExpiringAt = (
+        expires: Date,
+        originalMaxAge = 24 * 60 * minute,
+    ): SessionData => ({
+        ...fixture(),
+        cookie: { ...fixture().cookie, originalMaxAge, expires },
+    });
+    const promisified = (run: (callback: (error?: unknown) => void) => void) =>
+        new Promise<void>((resolve, reject) => {
+            run((error) => (error ? reject(error) : resolve()));
+        });
+    const touchSid = (
+        store: KnexSessionStore,
+        sid: string,
+        data: SessionData,
+    ) => promisified((callback) => store.touch(sid, data, callback));
+    const touch = (store: KnexSessionStore, data: SessionData) =>
+        touchSid(store, 'sid', data);
+    const set = (store: KnexSessionStore, data: SessionData) =>
+        promisified((callback) => store.set('sid', data, callback));
+    const destroy = (store: KnexSessionStore, sid: string) =>
+        promisified((callback) => store.destroy(sid, callback));
+
+    const createThrottledStore = async (
+        touchInterval = 5 * minute,
+        maxTrackedSessions?: number,
+    ) => {
+        tracker.on.any(/information_schema/).responseOnce(true);
+        const store = new KnexSessionStore(database, {
+            cleanupInterval: 0,
+            touchInterval,
+            maxTrackedSessions,
+        });
+        await store.ready;
+        tracker.on.select(/sessions/).response([]);
+        tracker.on.update(/sessions/).response(1);
+        tracker.on.insert(/sessions/).response(1);
+        tracker.on.delete(/sessions/).response(1);
+        return store;
+    };
+
+    test('a burst of requests extends the stored session once', async () => {
+        const store = await createThrottledStore();
+        const start = Date.now();
+        await touch(store, sessionExpiringAt(new Date(start)));
+        await touch(store, sessionExpiringAt(new Date(start + 1_000)));
+        await touch(store, sessionExpiringAt(new Date(start + 2 * minute)));
+        expect(tracker.history.update).toHaveLength(1);
+    });
+
+    test('concurrent requests from one session collapse into a single write', async () => {
+        const store = await createThrottledStore();
+        const start = Date.now();
+        await Promise.all(
+            Array.from({ length: 8 }, (_, index) =>
+                touch(store, sessionExpiringAt(new Date(start + index))),
+            ),
+        );
+        expect(tracker.history.update).toHaveLength(1);
+    });
+
+    test('an active session keeps sliding once the interval has elapsed', async () => {
+        const store = await createThrottledStore();
+        const start = Date.now();
+        await touch(store, sessionExpiringAt(new Date(start)));
+        await touch(store, sessionExpiringAt(new Date(start + 4 * minute)));
+        await touch(store, sessionExpiringAt(new Date(start + 5 * minute)));
+        await touch(store, sessionExpiringAt(new Date(start + 6 * minute)));
+        expect(tracker.history.update).toHaveLength(2);
+    });
+
+    test('a short-lived cookie is extended before half its lifetime passes', async () => {
+        const store = await createThrottledStore();
+        const start = Date.now();
+        const maxAge = 4 * minute;
+        await touch(store, sessionExpiringAt(new Date(start), maxAge));
+        await touch(
+            store,
+            sessionExpiringAt(new Date(start + 1 * minute), maxAge),
+        );
+        await touch(
+            store,
+            sessionExpiringAt(new Date(start + 2 * minute), maxAge),
+        );
+        expect(tracker.history.update).toHaveLength(2);
+    });
+
+    test('a session not seen since process start is always persisted', async () => {
+        const store = await createThrottledStore();
+        await touch(store, sessionExpiringAt(new Date()));
+        expect(tracker.history.update).toHaveLength(1);
+    });
+
+    test('a saved session is not touched again within the interval', async () => {
+        const store = await createThrottledStore();
+        const start = Date.now();
+        await set(store, sessionExpiringAt(new Date(start)));
+        await touch(store, sessionExpiringAt(new Date(start + 1_000)));
+        expect(tracker.history.insert).toHaveLength(1);
+        expect(tracker.history.update).toHaveLength(0);
+    });
+
+    test('a failed write is retried on the next request', async () => {
+        const store = await createThrottledStore();
+        const start = Date.now();
+        tracker.reset();
+        tracker.on.update(/sessions/).simulateErrorOnce('db unavailable');
+        tracker.on.update(/sessions/).response(1);
+        await expect(
+            touch(store, sessionExpiringAt(new Date(start))),
+        ).rejects.toThrow('db unavailable');
+        await touch(store, sessionExpiringAt(new Date(start + 1_000)));
+        expect(tracker.history.update).toHaveLength(2);
+    });
+
+    test('a destroyed session id is persisted again if it reappears', async () => {
+        const store = await createThrottledStore();
+        const start = Date.now();
+        await touch(store, sessionExpiringAt(new Date(start)));
+        await destroy(store, 'sid');
+        await touch(store, sessionExpiringAt(new Date(start + 1_000)));
+        expect(tracker.history.update).toHaveLength(2);
+    });
+
+    test('sessions of different users are throttled independently', async () => {
+        const store = await createThrottledStore();
+        const start = Date.now();
+        await touchSid(store, 'alice', sessionExpiringAt(new Date(start)));
+        await touchSid(store, 'bob', sessionExpiringAt(new Date(start)));
+        await touchSid(
+            store,
+            'alice',
+            sessionExpiringAt(new Date(start + 1_000)),
+        );
+        await touchSid(
+            store,
+            'bob',
+            sessionExpiringAt(new Date(start + 1_000)),
+        );
+        expect(tracker.history.update).toHaveLength(2);
+    });
+
+    test('a session forgotten by the tracking cap is persisted again', async () => {
+        const store = await createThrottledStore(5 * minute, 2);
+        const start = Date.now();
+        await touchSid(store, 'first', sessionExpiringAt(new Date(start)));
+        await touchSid(store, 'second', sessionExpiringAt(new Date(start)));
+        await touchSid(store, 'third', sessionExpiringAt(new Date(start)));
+        await touchSid(
+            store,
+            'first',
+            sessionExpiringAt(new Date(start + 1_000)),
+        );
+        expect(tracker.history.update).toHaveLength(4);
+    });
 });

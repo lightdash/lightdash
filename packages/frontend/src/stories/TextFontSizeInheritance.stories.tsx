@@ -114,7 +114,7 @@ export const NestedSpansInSizedText: Story = {
             >
                 <Text fz="xs" c="dimmed">
                     A{' '}
-                    <Text span fw={600} c="ldGray.9" className={styles.probe}>
+                    <Text span fw={600} className={styles.probe}>
                         turn
                     </Text>{' '}
                     is one question and answer. When a turn shows a clear issue,

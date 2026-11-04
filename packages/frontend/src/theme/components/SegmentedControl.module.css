@@ -25,3 +25,14 @@
 .label[data-active] {
     color: var(--mantine-color-text);
 }
+
+/* Pill lifted above the track with semantic tokens, for dark surfaces where
+   the body-coloured default pill blends into its track (e.g. the navbar). */
+.root[data-variant='raised'] {
+    background-color: var(--mantine-color-body);
+}
+
+.root[data-variant='raised'] .indicator {
+    background-color: var(--mantine-color-default-hover);
+    border-color: var(--mantine-color-default-border);
+}

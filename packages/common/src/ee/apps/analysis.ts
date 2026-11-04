@@ -26,25 +26,6 @@ export type AnalysisTargetLocator =
     | { kind: 'app'; appUuid: string }
     | { kind: 'dashboard'; dashboardUuid: string };
 
-/** Whether an app analyses on load: its own choice, or the org default. */
-export type DataAppAutoAnalysis = 'inherit' | 'on' | 'off';
-
-const DATA_APP_AUTO_ANALYSIS: ReadonlySet<string> = new Set([
-    'inherit',
-    'on',
-    'off',
-]);
-
-export const isDataAppAutoAnalysis = (
-    value: unknown,
-): value is DataAppAutoAnalysis =>
-    typeof value === 'string' && DATA_APP_AUTO_ANALYSIS.has(value);
-
-/** A stored value outside the set reads back as the org default. */
-export const normalizeDataAppAutoAnalysis = (
-    value: unknown,
-): DataAppAutoAnalysis => (isDataAppAutoAnalysis(value) ? value : 'inherit');
-
 /** One query the host captured for the viewer's current view of a data app. */
 /**
  * Org-configurable ceilings for AI analysis in data apps. Per-run limits
@@ -125,8 +106,6 @@ export type DataAppAnalysis = DataAppDetectResult & {
     generatedAt: Date;
 };
 
-export type ApiDataAppDetectResponse = ApiSuccess<DataAppAnalysis>;
-
 export type DataAppInvestigateRequest = {
     anomalyId: string;
     agentUuid: string;
@@ -152,6 +131,16 @@ export type DataAppInvestigation = DataAppInvestigateResult & {
     generatedAt: Date;
 };
 
+/**
+ * What detect returns: the analysis plus the viewer's own stored
+ * investigations of it — populated on a cache hit, empty on a fresh run.
+ */
+export type DataAppDetection = DataAppAnalysis & {
+    investigations: DataAppInvestigation[];
+};
+
+export type ApiDataAppDetectResponse = ApiSuccess<DataAppDetection>;
+
 /** Job that runs an investigation off the request path; poll by jobId. */
 export type DataAppInvestigateJobPayload = TraceTaskBase & {
     target?: AnalysisTargetLocator;
@@ -163,6 +152,50 @@ export type DataAppInvestigateJobPayload = TraceTaskBase & {
 };
 
 export type ApiDataAppInvestigateResponse = ApiSuccess<{ jobId: string }>;
+
+/** Author instructions are untrusted input to the agent; keep them short. */
+export const DATA_APP_INSTRUCTION_INVESTIGATE_MAX_CHARS = 2000;
+
+/**
+ * An app-authored investigation: a written instruction (e.g. a recommendation
+ * pill) the agent follows using the named sources as its starting data. Unlike
+ * anomaly investigations nothing anchors it to a stored detection; the viewer
+ * gates, budgets and read-only tool set are the same.
+ */
+export type DataAppInstructionInvestigateRequest = {
+    instruction: string;
+    sources: DataAppAnalysisSource[];
+    agentUuid: string;
+};
+
+export type DataAppInstructionInvestigateResult = {
+    explanation: string;
+    instruction: string;
+    agentUuid: string;
+    threadUuid: string;
+    queriesRun: number;
+    partial: boolean;
+};
+
+export type DataAppInstructionInvestigation =
+    DataAppInstructionInvestigateResult & {
+        investigationId: string;
+        target: AnalysisTargetRef;
+        sources: DataAppAnalysisSource[];
+        generatedAt: Date;
+    };
+
+/** Job that runs an instruction investigation off the request path; poll by jobId. */
+export type DataAppInstructionInvestigateJobPayload = TraceTaskBase & {
+    target: AnalysisTargetLocator;
+    instruction: string;
+    sources: DataAppAnalysisSource[];
+    agentUuid: string;
+};
+
+export type ApiDataAppInstructionInvestigateResponse = ApiSuccess<{
+    jobId: string;
+}>;
 
 /**
  * A free-form question an app asks about the viewer's own query results.
@@ -201,6 +234,9 @@ export type ApiDataAppAnalysisLookupResponse =
 export type DataAppAnalysisRecord =
     | ({ operation: 'detect' } & DataAppAnalysis)
     | ({ operation: 'investigate' } & DataAppInvestigation)
+    | ({
+          operation: 'investigate_instruction';
+      } & DataAppInstructionInvestigation)
     | ({ operation: 'prompt' } & DataAppPromptAnswer);
 
 export type ApiDataAppAnalysisResponse = ApiSuccess<DataAppAnalysisRecord>;
@@ -234,4 +270,9 @@ export type DataAppInsightsPayload = {
     anomalies: (DataAppAnomaly & {
         investigation: DataAppInsightInvestigation;
     })[];
+    /**
+     * App-authored instruction investigations, keyed by the requestId the app
+     * sent with the action. Absent on hosts that predate the capability.
+     */
+    instructionInvestigations?: Record<string, DataAppInsightInvestigation>;
 };

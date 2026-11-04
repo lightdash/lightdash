@@ -73,8 +73,8 @@ import {
     type UuidOrSlug,
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
+import { uniq } from 'es-toolkit/compat';
 import { type Knex } from 'knex';
-import { uniq } from 'lodash';
 import pLimit from 'p-limit';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -284,15 +284,22 @@ export class DashboardService
         }
 
         const auditedAbility = this.createAuditedAbility(account);
-        if (isJwtUser(account) && data.format === SchedulerFormat.PDF) {
-            // Embed PDFs render the embed page with the viewer's token.
+        if (
+            isJwtUser(account) &&
+            (data.format === SchedulerFormat.PDF ||
+                data.format === SchedulerFormat.IMAGE)
+        ) {
+            // Embed PDFs and images render the embed page with the viewer's token.
             if (
                 auditedAbility.cannot(
                     'export',
                     subject('Dashboard', {
                         organizationUuid: dashboard.organizationUuid,
                         projectUuid: dashboard.projectUuid,
-                        type: 'pdf',
+                        type:
+                            data.format === SchedulerFormat.PDF
+                                ? 'pdf'
+                                : 'images',
                         metadata: {
                             dashboardUuid: dashboard.uuid,
                             dashboardName: dashboard.name,
@@ -306,8 +313,7 @@ export class DashboardService
             data.format === SchedulerFormat.IMAGE ||
             data.format === SchedulerFormat.PDF
         ) {
-            // Image export renders the dashboard in a headless browser using a
-            // real session, so it is not available to embed/JWT callers.
+            // Non-embed image/PDF exports render with the requester's session.
             assertRegisteredAccount(account);
             const { inheritsFromOrgOrProject, access } =
                 await this.spacePermissionService.resolveAccess(
@@ -2132,13 +2138,27 @@ export class DashboardService
 
     private async applyOpenDraftOverlay(
         user: SessionUser,
-        dashboard: Dashboard,
+        publishedDashboard: Dashboard,
     ): Promise<Dashboard> {
         try {
             const settings = await this.contentAsCodeProjectSettingsModel.get(
-                dashboard.projectUuid,
+                publishedDashboard.projectUuid,
             );
-            if (!settings?.syncEnabled) return dashboard;
+            if (!settings?.syncEnabled) return publishedDashboard;
+            const repositorySnapshot =
+                await this.contentAsCodeSnapshotModel.get(
+                    publishedDashboard.projectUuid,
+                    ContentAsCodeType.DASHBOARD,
+                    publishedDashboard.slug,
+                );
+            const dashboard: Dashboard = repositorySnapshot
+                ? {
+                      ...publishedDashboard,
+                      managedFromRepository: {
+                          filePath: repositorySnapshot.filePath,
+                      },
+                  }
+                : publishedDashboard;
             const draft = await this.contentDraftModel.findOpenDraft(
                 dashboard.projectUuid,
                 'dashboard',
@@ -2213,7 +2233,7 @@ export class DashboardService
             return dashboardForViewer;
         } catch (error) {
             this.logger.warn('Draft overlay failed', error);
-            return dashboard;
+            return publishedDashboard;
         }
     }
 

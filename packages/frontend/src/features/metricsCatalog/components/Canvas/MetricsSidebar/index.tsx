@@ -78,7 +78,7 @@ const DraggableMetricItem: FC<DraggableMetricItemProps> = React.memo(
                     >
                         <Text
                             size="xs"
-                            c="ldGray.7"
+                            c="dimmed"
                             fw={500}
                             truncate
                             flex={1}

@@ -26,6 +26,7 @@ import {
 import { ColorPaletteSection } from '../common/ColorPaletteSection';
 import { Config } from '../common/Config';
 import { GroupItem } from './GroupItem';
+import classes from './PieChartSeriesConfig.module.css';
 import { ValueOptions } from './ValueOptions';
 
 export const Series: FC = () => {
@@ -156,21 +157,17 @@ export const Series: FC = () => {
                                                                 draggableProvided.innerRef
                                                             }
                                                             {...draggableProvided.draggableProps}
+                                                            className={
+                                                                draggableSnapshot.isDragging
+                                                                    ? classes.draggingItem
+                                                                    : undefined
+                                                            }
+                                                            // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                                                             style={{
                                                                 ...draggableProvided
                                                                     .draggableProps
                                                                     .style,
                                                                 top: 'auto',
-                                                                ...(draggableSnapshot.isDragging
-                                                                    ? {
-                                                                          backgroundColor:
-                                                                              'white',
-                                                                          borderRadius:
-                                                                              'var(--mantine-radius-sm)',
-                                                                          boxShadow:
-                                                                              'var(--mantine-shadow-sm)',
-                                                                      }
-                                                                    : {}),
                                                             }}
                                                             dragHandleProps={
                                                                 draggableProvided.dragHandleProps

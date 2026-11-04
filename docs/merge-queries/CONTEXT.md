@@ -106,7 +106,7 @@ product noun in user-facing copy)
 **Query source**:
 A registered kind of node in a composed query: the semantic layer, raw SQL,
 DuckDB over other results, or an external source. A merge is one semantic-layer node per source
-and one DuckDB join node. See `docs/multi-source-queries.md`.
+and one DuckDB join node. See `docs/composer-queries/CONTEXT.md`.
 _Avoid_: connector, provider, data source (collides with warehouse connections)
 
 **Saved merge definition**:
@@ -145,6 +145,6 @@ be applied to one side only without misaligning the join.
 ## Related
 
 - `architecture.md` in this directory: how a merge executes.
-- `docs/multi-source-queries.md`: the composed-query DAG a merge executes as.
+- `docs/composer-queries/CONTEXT.md`: the composed-query pipeline a merge executes as.
 - `docs/external-sources/CONTEXT.md`: the other consumer of the compose engine.
 - `docs/pre-aggregates/CONTEXT.md`: shares the DuckDB engine, different purpose.

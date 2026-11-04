@@ -1,3 +1,4 @@
+import { getDefaultStartOfWeek } from '@lightdash/common';
 import useIsEmbedded from '../../ee/providers/Embed/useIsEmbedded';
 import { useProject } from '../../hooks/useProject';
 
@@ -5,5 +6,8 @@ import { useProject } from '../../hooks/useProject';
 export const useFiltersStartOfWeek = (projectUuid: string | undefined) => {
     const isEmbedded = useIsEmbedded();
     const project = useProject(isEmbedded ? undefined : projectUuid);
-    return project.data?.warehouseConnection?.startOfWeek ?? undefined;
+    const connection = project.data?.warehouseConnection;
+    return connection
+        ? (connection.startOfWeek ?? getDefaultStartOfWeek(connection.type))
+        : undefined;
 };

@@ -9,6 +9,7 @@ import {
     type OrganizationBrandColor,
 } from '@lightdash/common';
 import {
+    Box,
     ColorInput,
     Group,
     SegmentedControl,
@@ -273,7 +274,8 @@ const ThemeSwatches: FC<{
                     brand?.colors,
                     undefined,
                 );
-                const style = paintStyle(paint, 'cta');
+                const swatchBg =
+                    paint.kind === 'neutral' ? undefined : paint.hex;
                 return (
                     <Tooltip
                         key={option.value}
@@ -285,13 +287,17 @@ const ThemeSwatches: FC<{
                         }
                         openDelay={200}
                     >
-                        <button
+                        <Box
+                            component="button"
                             type="button"
                             aria-label={`${option.label} theme`}
                             className={classes.ctaSwatch}
                             data-selected={value === option.value}
                             data-neutral={paint.kind === 'neutral'}
-                            style={style}
+                            style={{
+                                '--cta-bg': swatchBg,
+                                '--cta-fg': swatchBg && textOn(swatchBg),
+                            }}
                             onClick={() => onChange(option.value)}
                         />
                     </Tooltip>

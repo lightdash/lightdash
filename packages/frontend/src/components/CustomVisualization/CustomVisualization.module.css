@@ -1,0 +1,17 @@
+.emptyState {
+    height: 100%;
+    width: 100%;
+    padding: 50px 0;
+}
+
+.container {
+    min-height: inherit;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+}
+
+.vegaEmbed {
+    width: var(--vega-width);
+    height: var(--vega-height);
+}

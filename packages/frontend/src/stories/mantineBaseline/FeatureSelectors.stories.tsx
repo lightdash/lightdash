@@ -121,6 +121,10 @@ export const VisualizationConfigAccordion: StoryObj = {
                     variant="contained"
                     defaultValue={['rule-1']}
                     className={accordionClasses.containedList}
+                    classNames={{
+                        control: accordionClasses.containedControl,
+                        label: accordionClasses.containedLabel,
+                    }}
                     transparentActiveItem
                 >
                     <Accordion.Item value="rule-1">
@@ -161,7 +165,11 @@ export const BadgesAndCheckboxes: StoryObj = {
                 hint="SortButton.module.css: .badge :global(.mantine-Badge-label) gets ellipsis"
             >
                 <Group maw={180}>
-                    <Badge color="blue" className={sortButtonClasses.badge}>
+                    <Badge
+                        color="blue"
+                        className={sortButtonClasses.badge}
+                        classNames={{ label: sortButtonClasses.badgeLabel }}
+                    >
                         <Group
                             className={sortButtonClasses.content}
                             gap={2}

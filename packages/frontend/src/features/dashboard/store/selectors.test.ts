@@ -13,6 +13,7 @@ import {
     initialDashboardParametersState,
     type DashboardParametersState,
 } from './dashboardParametersReducer';
+import { initialDashboardSourceState } from './dashboardSourceReducer';
 import { initialDashboardTileStatusState } from './dashboardTileStatusReducer';
 import {
     combineDashboardFilters,
@@ -27,6 +28,7 @@ import {
 const stateWith = (
     parameters: Partial<DashboardParametersState>,
 ): DashboardStoreState => ({
+    source: initialDashboardSourceState,
     filters: initialDashboardFiltersState,
     parameters: { ...initialDashboardParametersState, ...parameters },
     dateZoom: initialDashboardDateZoomState,
@@ -130,6 +132,19 @@ describe('parameter selectors', () => {
             expect(selectMissingRequiredParameters(state)).toBe(
                 selectMissingRequiredParameters(state),
             );
+        });
+
+        it("is satisfied by the tile's virtual-view saved value", () => {
+            expect(
+                selectMissingRequiredParameters(
+                    stateWith({
+                        ...base,
+                        tileVirtualViewSavedParameters: {
+                            'tile-1': { status: 'Shipped' },
+                        },
+                    }),
+                ),
+            ).toEqual([]);
         });
 
         it('is satisfied by a chart-saved value', () => {

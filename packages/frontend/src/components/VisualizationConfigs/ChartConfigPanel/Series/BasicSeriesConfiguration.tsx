@@ -95,12 +95,7 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
                             {getItemLabelWithoutTableName(item)}
                         </Config.Heading>
                     ) : (
-                        <Box
-                            style={{
-                                flexGrow: 1,
-                                minWidth: 0,
-                            }}
-                        >
+                        <Box flex="1 1 auto" miw={0}>
                             <EditableText
                                 fw={600}
                                 size="sm"

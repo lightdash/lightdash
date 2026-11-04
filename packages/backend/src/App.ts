@@ -150,6 +150,7 @@ const schedulerWorkerFactory = (context: {
         agentActionLogModel: context.models.getAgentActionLogModel(),
         usageDimensionsModel: context.models.getUsageDimensionsModel(),
         usageHistoryModel: context.models.getUsageHistoryModel(),
+        usageProcessingModel: context.models.getUsageProcessingModel(),
         featureFlagModel: context.models.getFeatureFlagModel(),
         lightdashConfig: context.lightdashConfig,
         analytics: context.analytics,
@@ -223,6 +224,7 @@ export type AppArguments = {
     customExpressMiddlewares?: Array<(app: Express) => void>; // Array of custom middleware functions
     pgWireServerFactory?: (
         serviceRepository: ServiceRepository,
+        analytics: LightdashAnalytics,
     ) => PgWireServerInstance;
     beforeShutdown?: (serviceRepository: ServiceRepository) => Promise<void>;
 };
@@ -242,9 +244,7 @@ export default class App {
 
     private pgWireServer: PgWireServerInstance | undefined;
 
-    private readonly pgWireServerFactory:
-        | ((serviceRepository: ServiceRepository) => PgWireServerInstance)
-        | undefined;
+    private readonly pgWireServerFactory: AppArguments['pgWireServerFactory'];
 
     private readonly beforeShutdown:
         | ((serviceRepository: ServiceRepository) => Promise<void>)
@@ -433,6 +433,7 @@ export default class App {
         if (pgWirePort && this.pgWireServerFactory) {
             this.pgWireServer = this.pgWireServerFactory(
                 this.serviceRepository,
+                this.analytics,
             );
             await this.pgWireServer.listen(pgWirePort);
             Logger.info(

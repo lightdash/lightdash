@@ -86,18 +86,10 @@
     &::before {
         border-bottom: 0;
     }
-    @mixin dark {
-        background-color: var(
-            --ld-embed-header-surface-color,
-            var(--mantine-color-background-0)
-        );
-    }
-    @mixin light {
-        background-color: var(
-            --ld-embed-header-surface-color,
-            var(--mantine-color-white)
-        );
-    }
+    background-color: var(
+        --ld-embed-header-surface-color,
+        var(--mantine-color-body)
+    );
 
     align-items: center;
 
@@ -192,4 +184,20 @@
 .filtersBar {
     padding: var(--mantine-spacing-xs) 0;
     background-color: var(--ld-color-page);
+}
+
+.tabPane {
+    position: relative;
+}
+
+.tabPaneHidden {
+    position: absolute;
+    width: 100%;
+    pointer-events: none;
+    content-visibility: hidden;
+    contain-intrinsic-size: auto 1px auto 1px;
+}
+
+.tabSection {
+    flex-shrink: 0;
 }

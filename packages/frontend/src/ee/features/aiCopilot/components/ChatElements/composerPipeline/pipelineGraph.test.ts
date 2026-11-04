@@ -29,10 +29,7 @@ const duckdb = (
 const measured = (nodes: PipelineFlowNode[]) =>
     nodes.map((node) => ({ ...node, measured: { width: 160, height: 40 } }));
 
-const noDisplay = {
-    displayedNodeId: '',
-    displayableNodeIds: new Set<string>(),
-};
+const noDisplay = { hoveredNodeId: null, nodeStatuses: {} };
 
 const xOf = (nodes: PipelineFlowNode[], id: string) =>
     nodes.find((node) => node.id === id)!.position.x;
@@ -79,24 +76,22 @@ describe('toPipelineFlow', () => {
             noDisplay,
         );
         expect(nodes.map((node) => node.data)).toEqual([
-            {
+            expect.objectContaining({
                 title: 'Orders by status',
                 typeLabel: 'Warehouse SQL',
                 isTerminal: false,
-                isDisplayed: false,
-                isDisplayable: false,
-            },
-            {
+                status: null,
+            }),
+            expect.objectContaining({
                 title: 'Orders with amounts',
                 typeLabel: 'DuckDB',
                 isTerminal: true,
-                isDisplayed: false,
-                isDisplayable: false,
-            },
+                status: null,
+            }),
         ]);
     });
 
-    it('marks the displayed node and the nodes with a stored result', () => {
+    it('carries each node status', () => {
         const { nodes } = toPipelineFlow(
             groupPipeline(
                 [
@@ -106,19 +101,25 @@ describe('toPipelineFlow', () => {
                 'joined',
             ),
             {
-                displayedNodeId: 'orders',
-                displayableNodeIds: new Set(['orders']),
+                hoveredNodeId: null,
+                nodeStatuses: {
+                    orders: {
+                        status: 'success',
+                        error: null,
+                        totalRowCount: 20,
+                        durationMs: null,
+                    },
+                },
             },
         );
         expect(
             nodes.map(({ id, data }) => [
                 id,
-                data.isDisplayed,
-                data.isDisplayable,
+                data.status?.totalRowCount ?? null,
             ]),
         ).toEqual([
-            ['orders', true, true],
-            ['joined', false, false],
+            ['orders', 20],
+            ['joined', null],
         ]);
     });
 

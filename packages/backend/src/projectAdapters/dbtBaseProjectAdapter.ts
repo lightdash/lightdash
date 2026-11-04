@@ -16,6 +16,7 @@ import {
     getDbtManifestVersion,
     getDeferredExploreName,
     getMissingCatalogEntries,
+    getModelInventoryFromManifest,
     getModelsFromManifest,
     getSchemaStructureFromDbtModels,
     haveMissingCatalogEntriesChanged,
@@ -418,6 +419,9 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 allowPartialCompilation,
                 postProcessors,
                 deferExploreNaming,
+                modelInventory: getModelInventoryFromManifest(manifest),
+                allowCrossSourceJoinFallback:
+                    manifest.lightdash_model_inventory_complete !== false,
             },
         );
         const modelsByUniqueId = new Map(

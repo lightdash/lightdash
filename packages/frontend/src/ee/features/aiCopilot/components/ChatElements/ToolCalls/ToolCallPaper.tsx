@@ -1,17 +1,11 @@
-import {
-    Collapse,
-    Group,
-    Paper,
-    Title,
-    UnstyledButton,
-    type MantineStyleProp,
-} from '@mantine/core';
+import { Collapse, Group, Paper, Title, UnstyledButton } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconExclamationCircle, IconSelector } from '@tabler/icons-react';
 import { type ReactNode } from 'react';
 import MantineIcon, {
     type MantineIconProps,
 } from '../../../../../../components/common/MantineIcon';
+import classes from './ToolCallPaper.module.css';
 
 type ToolCallPaperProps = {
     children: ReactNode;
@@ -36,17 +30,15 @@ export const ToolCallPaper = ({
 }: ToolCallPaperProps) => {
     const [opened, { toggle }] = useDisclosure(defaultOpened);
 
-    const styles: MantineStyleProp = (theme) => ({
-        borderStyle: variant === 'dashed' ? 'dashed' : null,
-        borderColor: hasError ? theme.colors.red[3] : '',
-    });
     const contentColor = hasError ? 'red.6' : 'ldGray.6';
 
     return (
         <Paper
             p="xs"
             radius="md"
-            style={styles}
+            className={classes.paper}
+            data-dashed={variant === 'dashed'}
+            data-error={hasError === true}
             shadow={opened ? 'none' : undefined}
         >
             <UnstyledButton onClick={toggle} w="100%" h="18px">
@@ -73,7 +65,7 @@ export const ToolCallPaper = ({
                     </Group>
                 </Group>
             </UnstyledButton>
-            <Collapse expanded={opened} style={{ opacity: hasError ? 0.6 : 1 }}>
+            <Collapse expanded={opened} opacity={hasError ? 0.6 : 1}>
                 {children}
             </Collapse>
         </Paper>

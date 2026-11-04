@@ -9,6 +9,7 @@ import {
     type TextProps,
 } from '@mantine/core';
 import { IconArrowDownRight, IconArrowUpRight } from '@tabler/icons-react';
+import clsx from 'clsx';
 import {
     forwardRef,
     type FC,
@@ -33,23 +34,18 @@ const BigNumberText: FC<
 > = forwardRef<
     HTMLDivElement,
     TextProps & { children: ReactNode; isHeading?: boolean }
->(({ children, isHeading = false, ...textProps }, ref) => (
+>(({ children, isHeading = false, className, ...textProps }, ref) => (
     <Text
         ref={ref}
         ta="center"
         fw={500}
         {...textProps}
-        style={{
-            transition: 'font-size 0.1s ease-in-out',
-            ...(isHeading && {
-                letterSpacing: '-0.02em',
-                lineHeight: 0.9,
-            }),
-            ...(typeof textProps.style === 'object' &&
-            !Array.isArray(textProps.style)
-                ? textProps.style
-                : {}),
-        }}
+        {...(isHeading && { lh: 0.9 })}
+        className={clsx(
+            styles.fontSizeTransition,
+            isHeading && styles.heading,
+            className,
+        )}
     >
         {children}
     </Text>
@@ -119,11 +115,11 @@ export const BigNumberDisplay: FC<BigNumberDisplayProps> = ({
             fw={600}
             isHeading
             data-testid="big-number-value"
-            style={{
-                '--big-number-color': valueColor,
-                ...(renderValue ? { cursor: 'pointer' } : {}),
-            }}
-            className={styles.bigNumberText}
+            style={{ '--big-number-color': valueColor }}
+            className={clsx(
+                styles.bigNumberText,
+                renderValue && styles.clickable,
+            )}
         >
             {value}
         </BigNumberText>
@@ -153,14 +149,13 @@ export const BigNumberDisplay: FC<BigNumberDisplayProps> = ({
                 label={descriptionLabel}
                 disabled={!descriptionLabel}
             >
-                <Flex style={{ flexShrink: 1 }} justify="center" align="center">
+                <Flex justify="center" align="center">
                     {renderValue ? renderValue(valueNode) : valueNode}
                 </Flex>
             </Tooltip>
 
             {showLabel && (
                 <Flex
-                    style={{ flexShrink: 1 }}
                     justify="center"
                     align="center"
                     mt={valueFontSize * 0.15 * spacingMultiplier}
@@ -179,10 +174,7 @@ export const BigNumberDisplay: FC<BigNumberDisplayProps> = ({
                             fw={500}
                             ta="center"
                             lineClamp={labelLineClamp}
-                            style={{
-                                transition: 'font-size 0.1s ease-in-out',
-                                lineHeight: '120%',
-                            }}
+                            className={styles.label}
                         >
                             {label}
                         </Text>
@@ -196,7 +188,6 @@ export const BigNumberDisplay: FC<BigNumberDisplayProps> = ({
                     align="center"
                     display="inline-flex"
                     wrap="wrap"
-                    style={{ flexShrink: 1 }}
                     mt={
                         showLabel
                             ? labelFontSize * 0.85 * spacingMultiplier
@@ -210,15 +201,8 @@ export const BigNumberDisplay: FC<BigNumberDisplayProps> = ({
                                 comparison.direction,
                                 flipColors,
                             )}
-                            style={{
-                                padding: `${Math.max(
-                                    1,
-                                    comparisonPillFontSize * 0.15,
-                                )}px ${Math.max(
-                                    4,
-                                    comparisonPillFontSize * 0.4,
-                                )}px`,
-                            }}
+                            py={Math.max(1, comparisonPillFontSize * 0.15)}
+                            px={Math.max(4, comparisonPillFontSize * 0.4)}
                         >
                             <Text
                                 fz={comparisonPillFontSize}

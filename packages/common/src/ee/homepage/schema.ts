@@ -186,6 +186,16 @@ const recentBlockSchema = z.object({
     config: z.object({ title: z.string() }),
 });
 
+const learnBlockSchema = z.object({
+    id: z.string(),
+    type: z.literal('learn'),
+    config: z.object({
+        title: z.string(),
+        pinnedScopes: z.array(z.string()).optional(),
+        show: z.enum(['up-next', 'newest']).optional(),
+    }),
+});
+
 export const homepageBlockSchema = z.discriminatedUnion('type', [
     markdownBlockSchema,
     askAiHeroBlockSchema,
@@ -198,6 +208,7 @@ export const homepageBlockSchema = z.discriminatedUnion('type', [
     metricsBlockSchema,
     favoritesBlockSchema,
     recentBlockSchema,
+    learnBlockSchema,
 ]) satisfies z.ZodType<HomepageBlock>;
 
 const homepageRowSchema = z.object({

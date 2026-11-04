@@ -5,6 +5,7 @@ import {
 import {
     Box,
     Button,
+    getDefaultZIndex,
     Group,
     Menu,
     Paper,
@@ -191,7 +192,7 @@ export const PullRequestActionButtons: FC<{
                 gravity: 0.9,
                 scalar: 0.85,
                 ticks: 120,
-                zIndex: 400,
+                zIndex: getDefaultZIndex('overlay'),
                 colors: ['#7048e8', '#9775fa', '#b197fc', '#d0bfff', '#e5dbff'],
                 origin: confettiOrigin.current,
             });
@@ -523,7 +524,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                     >
                         <MantineIcon icon={IconGitPullRequest} size={14} />
                     </ThemeIcon>
-                    <Text size="xs" c="ldGray.7">
+                    <Text size="xs" c="dimmed">
                         Working on the change — this can take a few minutes.
                     </Text>
                 </Group>
@@ -549,7 +550,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                     >
                         <MantineIcon icon={IconGitPullRequest} size={14} />
                     </ThemeIcon>
-                    <Text size="xs" c="ldGray.7">
+                    <Text size="xs" c="dimmed">
                         No file changes were needed — no pull request was
                         opened.
                     </Text>
@@ -607,7 +608,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                                     </Text>
                                     {shortCommitSha && (
                                         <>
-                                            <Text size="xs" c="ldGray.4">
+                                            <Text size="xs" c="dimmed">
                                                 ·
                                             </Text>
                                             <Text

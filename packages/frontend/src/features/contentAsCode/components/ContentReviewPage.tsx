@@ -20,7 +20,6 @@ import {
     ThemeIcon,
     Tooltip,
     UnstyledButton,
-    useComputedColorScheme,
 } from '@mantine/core';
 import {
     MultiFileDiff,
@@ -32,7 +31,7 @@ import {
     IconEyeCheck,
     IconGitPullRequest,
 } from '@tabler/icons-react';
-import { useMemo, useState, type CSSProperties, type FC } from 'react';
+import { useMemo, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import {
@@ -223,7 +222,6 @@ type ContentReviewPageProps = {
 };
 
 const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
-    const colorScheme = useComputedColorScheme('light');
     const { data: drafts } = useContentDrafts(projectUuid);
     const [selectedUuid, setSelectedUuid] = useState<string | undefined>();
     const openDrafts = useMemo(
@@ -257,15 +255,6 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
                 : undefined,
         [review],
     );
-
-    // Pierre's <Virtualizer> IS the scroll viewport its virtualizer tracks
-    const viewportStyle = {
-        maxHeight: '62vh',
-        overflow: 'auto',
-        colorScheme,
-        '--diffs-font-size': '11px',
-        '--diffs-line-height': '17px',
-    } as CSSProperties;
 
     if (drafts && drafts.length === 0) {
         return (
@@ -506,7 +495,7 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
                             <Paper radius="md" className={classes.diffPanel}>
                                 <Virtualizer
                                     key={active.uuid}
-                                    style={viewportStyle}
+                                    className={classes.diffViewport}
                                 >
                                     <MultiFileDiff
                                         oldFile={{
@@ -517,7 +506,7 @@ const ContentReviewPage: FC<ContentReviewPageProps> = ({ projectUuid }) => {
                                             name: review.filePath,
                                             contents: review.draftYaml,
                                         }}
-                                        style={{ colorScheme }}
+                                        className={classes.diffColorScheme}
                                     />
                                 </Virtualizer>
                             </Paper>

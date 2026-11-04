@@ -340,7 +340,7 @@ const ChartInputsList: FC<Props> = ({
                                 </Group>
                             </Group>
                             {boundLabels?.[field.name] && (
-                                <Text size="xs" c="ldGray.7" mt="xxs">
+                                <Text size="xs" c="dimmed" mt="xxs">
                                     {boundLabels[field.name]}
                                 </Text>
                             )}

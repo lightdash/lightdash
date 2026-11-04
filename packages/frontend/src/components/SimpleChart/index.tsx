@@ -3,6 +3,7 @@ import {
     CartesianSeriesType,
     type PivotReference,
 } from '@lightdash/common';
+import { Box } from '@mantine/core';
 import { IconChartBarOff } from '@tabler/icons-react';
 import { format as echartsFormat, type ECharts } from 'echarts';
 import {
@@ -90,13 +91,13 @@ export type EchartsSeriesClickEvent = EchartsBaseClickEvent & {
 type EchartsClickEvent = EchartsSeriesClickEvent | EchartsBaseClickEvent;
 
 export const EmptyChart = () => (
-    <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
+    <Box h="100%" w="100%" py={50}>
         <SuboptimalState
             title="No data available"
             description="Query metrics and dimensions with results."
             icon={IconChartBarOff}
         />
-    </div>
+    </Box>
 );
 
 const isSeriesClickEvent = (
@@ -540,6 +541,7 @@ const SimpleChart: FC<SimpleChartProps> = memo(
         return (
             <EChartsReact
                 className={props.className}
+                // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                 style={
                     props.$shouldExpand
                         ? {

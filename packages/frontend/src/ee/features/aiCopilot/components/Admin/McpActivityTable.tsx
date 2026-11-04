@@ -38,6 +38,7 @@ import { useIsTruncated } from '../../../../../hooks/useIsTruncated';
 import { useInfiniteMcpActivity } from '../../hooks/useMcpActivity';
 import { useMcpActivityFilters } from '../../hooks/useMcpActivityFilters';
 import { AgentNamePill } from '../AgentNamePill';
+import adminClasses from './AdminTable.module.css';
 import { ToolCallStatusIndicator, ToolNamePill } from './McpActivityDisplay';
 import {
     formatToolCallDuration,
@@ -274,7 +275,7 @@ const McpActivityTable = ({
                         <Text
                             fz="xs"
                             ff="monospace"
-                            c="ldGray.7"
+                            c="dimmed"
                             display="inline-block"
                         >
                             {formatToolCallTime(row.original.call.createdAt)}
@@ -298,7 +299,7 @@ const McpActivityTable = ({
             ),
             Cell: ({ row }) =>
                 row.original.type === 'session' ? (
-                    <Text fz="sm" fw={500} c="ldGray.7">
+                    <Text fz="sm" fw={500} c="dimmed">
                         {row.original.callCount}{' '}
                         {row.original.callCount === 1 ? 'call' : 'calls'}
                     </Text>
@@ -370,7 +371,7 @@ const McpActivityTable = ({
                         imageUrl={null}
                     />
                 ) : (
-                    <Text c="ldGray.5" fz="sm">
+                    <Text c="dimmed" fz="sm">
                         —
                     </Text>
                 );
@@ -409,11 +410,11 @@ const McpActivityTable = ({
                         : '—';
                     return (
                         <Group gap="xs" wrap="nowrap">
-                            <Text c="ldGray.7" fz="sm" fw={500} truncate>
+                            <Text c="dimmed" fz="sm" fw={500} truncate>
                                 {label}
                             </Text>
                             {!sessionId && (
-                                <Text fz="xs" c="ldGray.5" flex="0 0 auto">
+                                <Text fz="xs" c="dimmed" flex="0 0 auto">
                                     not reported
                                 </Text>
                             )}
@@ -439,7 +440,7 @@ const McpActivityTable = ({
             Cell: ({ row }) =>
                 row.original.type === 'session' ? (
                     row.original.errorCount > 0 ? (
-                        <Text fz="sm" fw={500} c="ldGray.7">
+                        <Text fz="sm" fw={500} c="dimmed">
                             {row.original.errorCount}{' '}
                             {row.original.errorCount === 1 ? 'error' : 'errors'}
                         </Text>
@@ -458,9 +459,7 @@ const McpActivityTable = ({
             enableSorting: true,
             enableEditing: false,
             size: 120,
-            mantineTableHeadCellProps: {
-                className: styles.durationHeadCell,
-            },
+            mantineTableHeadCellProps: { ta: 'right' },
             mantineTableBodyCellProps: { ta: 'right' },
             Header: ({ column }) => (
                 <Group gap="two">
@@ -471,7 +470,7 @@ const McpActivityTable = ({
             Cell: ({ row }) => {
                 if (row.original.type === 'session') {
                     return (
-                        <Text fz="xs" ff="monospace" c="ldGray.7">
+                        <Text fz="xs" ff="monospace" c="dimmed">
                             {formatToolCallTime(row.original.latestCallAt)}
                         </Text>
                     );
@@ -504,22 +503,13 @@ const McpActivityTable = ({
         enableTopToolbar: true,
         mantineTableContainerProps: {
             ref: tableContainerRef,
-            sx: {
-                maxHeight: 'calc(100dvh - 420px)',
-                minHeight: '400px',
-                display: 'flex',
-                flexDirection: 'column',
-            },
+            mah: 'calc(100dvh - 420px)',
+            mih: 400,
             onScroll,
         },
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: Boolean(flatData.length),
-            sx: {
-                flexGrow: 1,
-                display: 'flex',
-                flexDirection: 'column',
-            },
         },
         getRowId: (row) =>
             row.type === 'session' ? `session:${row.groupKey}` : row.call.uuid,
@@ -530,22 +520,14 @@ const McpActivityTable = ({
             if (row.original.type === 'session') {
                 const { groupKey } = row.original;
                 return {
-                    style: {
-                        cursor: 'pointer',
-                        backgroundColor: theme.colors.ldGray[0],
-                    },
+                    className: styles.sessionRow,
                     onClick: () => toggleGroup(groupKey),
                 };
             }
             const toolCall = row.original.call;
             const isSelected = selectedCall?.uuid === toolCall.uuid;
             return {
-                style: {
-                    cursor: 'pointer',
-                    backgroundColor: isSelected
-                        ? theme.colors.ldGray[1]
-                        : undefined,
-                },
+                'data-selected': isSelected || undefined,
                 onClick: () => onCallSelect?.(toolCall),
             };
         },
@@ -571,17 +553,13 @@ const McpActivityTable = ({
                 fz="xs"
                 fw={500}
                 color="ldGray.8"
-                style={{
-                    borderTop: `1px solid ${theme.colors.ldGray[3]}`,
-                }}
+                className={adminClasses.loadMoreFooter}
             >
                 {isFetching ? (
-                    <Text c="ldGray.8" fz="xs">
-                        Loading more...
-                    </Text>
+                    <Text fz="xs">Loading more...</Text>
                 ) : (
                     <Group gap="two">
-                        <Text fz="xs" c="ldGray.8">
+                        <Text fz="xs">
                             {hasNextPage
                                 ? 'Scroll for more results'
                                 : 'All results loaded'}

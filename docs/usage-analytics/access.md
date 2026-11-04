@@ -9,7 +9,9 @@ controls the older Project settings usage reports.
 
 Organization admins retain access by default. Other users and service accounts
 need an explicit custom-role grant, plus the normal project/content permissions.
-The organization's `analytics-project` feature flag must also be enabled.
+The deployment must have a validated commercial license, and the organization's
+`analytics-project` feature flag must also be enabled. Database and environment
+overrides cannot enable Analytics without that registration.
 
 An organization administrator can:
 
@@ -27,7 +29,7 @@ An organization administrator can:
 **The analytics project contains organization-wide usage data.** A project-level
 analytics grant does not filter that data to the other projects the recipient
 can access. Only grant it to people or agents trusted to see the organization's
-usage data, including user and content names.
+usage data, including user names, primary email addresses and content names.
 
 Creating, syncing and deleting the managed project through analytics settings
 still require organization administration. The new scope does not grant those
@@ -43,11 +45,31 @@ The same project, Explore, content and MCP capability checks apply. An agent can
 query the managed Explores with the required read/query permissions; raw SQL
 Runner remains unavailable for managed analytics projects.
 
+## Downloads and scheduled deliveries
+
+Managed analytics supports CSV and Excel (XLSX) downloads, including scheduled
+data exports, when export file storage is configured. Both direct and queued
+export generation check the analytics feature flag and managed analytics access,
+alongside the existing project, query-result and agent permissions. Raw JSONL
+exports remain unavailable. Image exports use their existing flow.
+
+Protected data exports (`AUTHENTICATED_CREATOR` and `AUTHENTICATED_PROJECT`)
+recheck managed analytics access when the file is requested. Missing access,
+cross-organization access and deleted projects return **Cannot find file**;
+adding a download token does not bypass these checks.
+
+Scheduled deliveries can deliberately share `SIGNED` files with recipients.
+These are bearer links: anyone holding a valid link can retrieve the file until
+it expires, without analytics access. Revoking the sender's permission or
+disabling the feature flag does not revoke an already issued signed link or a
+delivered attachment. Choose recipients accordingly: exports can contain
+organization-wide usage data, including user and content names.
+
 ## Revocation and boundaries
 
 Removing the final analytics grant denies project discovery and direct reads,
-including query history and cached results, once the normal permission/session
-refresh has taken effect. Check direct, group and organization-level grants:
+including query history, cached results and protected downloads, once the normal
+permission/session refresh has taken effect. Check direct, group and organization-level grants:
 removing one does not revoke permission supplied by another role. An organization
 admin still has access through their administration role.
 
@@ -55,7 +77,8 @@ The backend verifies organization identity independently of the scope. Queries
 remain bound to the persisted project's organization and its server-controlled
 storage prefix; granting this scope does not allow choosing another customer's
 storage, connector or models. Disabling the analytics feature flag blocks reads
-for admins and explicitly authorized readers alike.
+and new exports for admins and explicitly authorized readers alike. Previously
+shared signed exports follow the delivery behavior described above.
 
 ## Support verification
 
@@ -71,4 +94,7 @@ for admins and explicitly authorized readers alike.
 Code references: `OrganizationService.getProjects` filters project discovery;
 `ProjectService.assertAnalyticsProjectAccess` protects reads;
 `AsyncQueryService` also checks history/result paths;
+`AsyncQueryService.assertAnalyticsDownloadSupported` restricts export formats and
+requires export storage; `PersistentDownloadFileService.getAuthorizedFile`
+rechecks access to protected downloads;
 `ProjectService.assertAnalyticsProjectAdministration` protects managed settings.

@@ -3,6 +3,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { DuckDBInstance } from '@duckdb/node-api';
 import { ParameterError } from '@lightdash/common';
 import { DuckdbWarehouseClient } from '@lightdash/warehouses';
+import { Readable } from 'stream';
 import { queryEventsCompactedColumns } from '../../../analytics/eventStream/queryEventsStream';
 import {
     QUERY_HISTORY_BACKFILL_EVENT,
@@ -228,6 +229,41 @@ describe('signed analytics file manifests', () => {
         expect(source.emptyTables?.map(({ name }) => name)).toContain(
             'query_events',
         );
+    });
+
+    it('reuses more than 8 MiB of bytes while keeping the per-query budget bounded and the manifest complete', async () => {
+        const body = Buffer.alloc(1024 * 1024);
+        const contents = Array.from({ length: 33 }, (_, i) => ({
+            Key: key().replace('part-1', `budget-${i}`),
+            ETag: 'budget-v1',
+            Size: body.length,
+        }));
+        send.mockImplementation(async (command) =>
+            command instanceof ListObjectsV2Command
+                ? { Contents: contents }
+                : {
+                      Body: Readable.from([body]),
+                      ETag: 'budget-v1',
+                      ContentLength: body.length,
+                  },
+        );
+        vi.mocked(getSignedUrl).mockImplementation(
+            async (_client, command) =>
+                `signed:${(command as GetObjectCommand).input.Key}`,
+        );
+        const resolve = createS3AnalyticsSourceResolver(config);
+        const first = await resolve(['query_events']);
+        expect(first.fileBuffers?.size).toBe(32);
+        expect(first.tables[0].urls).toHaveLength(33);
+        const downloads = () =>
+            send.mock.calls.filter(
+                ([command]) => command instanceof GetObjectCommand,
+            );
+        expect(downloads()).toHaveLength(32);
+        const warm = await resolve(['query_events']);
+        expect(warm.fileBuffers?.size).toBe(32);
+        expect(warm.tables[0].urls).toEqual(first.tables[0].urls);
+        expect(downloads()).toHaveLength(32);
     });
 
     it.each([undefined, []])(

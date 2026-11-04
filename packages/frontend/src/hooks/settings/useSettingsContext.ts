@@ -88,6 +88,9 @@ export const useSettingsContext = (): SettingsContext => {
     const { data: dashboardAnalysisFlag } = dashboardAnalysisFlagQuery;
     const isChartStudioAvailable = useChartStudioAvailable();
 
+    const { data: apiQuerySourcesFlag } = useServerFeatureFlag(
+        FeatureFlags.ApiQuerySources,
+    );
     const { data: externalSourcesFlag } = useServerFeatureFlag(
         FeatureFlags.ExternalSources,
     );
@@ -95,11 +98,6 @@ export const useSettingsContext = (): SettingsContext => {
         FeatureFlags.ResultsCacheEnabled,
     );
     const isResultsCacheEnabled = resultsCacheFlag?.enabled ?? false;
-
-    const { data: proLimitsFlag } = useServerFeatureFlag(
-        FeatureFlags.ProLimits,
-    );
-    const isProLimitsEnabled = proLimitsFlag?.enabled ?? false;
 
     // The roadmap proxy is only registered behind a validated enterprise license.
     const isOrganizationRoadmapEnabled = health?.license?.valid === true;
@@ -225,7 +223,6 @@ export const useSettingsContext = (): SettingsContext => {
         project,
         showImpersonationPanel,
         isCustomRolesEnabled,
-        isProLimitsEnabled,
         canAccessAnalyticsSettings,
         isAnalyticsProjectFlagLoading,
         isOrganizationRoadmapEnabled,
@@ -249,6 +246,7 @@ export const useSettingsContext = (): SettingsContext => {
             dataAppAnalysisFlagQuery.isInitialLoading ||
             dashboardAnalysisFlagQuery.isInitialLoading,
         isChartStudioAvailable,
+        isApiQuerySourcesEnabled: apiQuerySourcesFlag?.enabled ?? false,
         externalSourcesFlag,
         isResultsCacheEnabled,
         embeddingEnabled,

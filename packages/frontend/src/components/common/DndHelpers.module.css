@@ -16,3 +16,10 @@
 .dropLine[data-side='before'] {
     left: -4px;
 }
+
+.draggable[data-dragging] {
+    position: relative;
+    z-index: 1;
+    transform: translate(var(--drag-x), var(--drag-y));
+    opacity: 0.8;
+}

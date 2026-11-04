@@ -122,6 +122,10 @@ const ConditionalFormattingList = ({}) => {
                     value={openItems}
                     onChange={handleAccordionChange}
                     className={accordionClasses.containedList}
+                    classNames={{
+                        control: accordionClasses.containedControl,
+                        label: accordionClasses.containedLabel,
+                    }}
                     transparentActiveItem
                 >
                     {activeConfigs.map((conditionalFormatting, index) => (

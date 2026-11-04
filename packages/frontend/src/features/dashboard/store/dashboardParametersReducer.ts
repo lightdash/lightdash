@@ -6,7 +6,7 @@ import {
     type ParameterValue,
 } from '@lightdash/common';
 import { createAction, type UnknownAction } from '@reduxjs/toolkit';
-import isEqual from 'lodash/isEqual';
+import { isEqual } from 'es-toolkit/compat';
 import { reconcileDashboardParameters } from '../../../providers/Dashboard/dashboardParametersUrl';
 
 export type DashboardParametersState = {
@@ -24,6 +24,7 @@ export type DashboardParametersState = {
     parameterLabelOverrides: LanguageMap['parameters'];
     tileParameterReferences: Record<string, string[]>;
     tileChartSavedParameters: Record<string, ParametersValuesMap>;
+    tileVirtualViewSavedParameters: Record<string, ParametersValuesMap>;
 };
 
 export const initialDashboardParametersState: DashboardParametersState = {
@@ -39,6 +40,7 @@ export const initialDashboardParametersState: DashboardParametersState = {
     parameterLabelOverrides: undefined,
     tileParameterReferences: {},
     tileChartSavedParameters: {},
+    tileVirtualViewSavedParameters: {},
 };
 
 export const dashboardParametersActions = {
@@ -88,6 +90,10 @@ export const dashboardParametersActions = {
         tileUuid: string;
         values: ParametersValuesMap;
     }>('dashboardParameters/setTileChartSavedParameters'),
+    setTileVirtualViewSavedParameters: createAction<{
+        tileUuid: string;
+        values: ParametersValuesMap;
+    }>('dashboardParameters/setTileVirtualViewSavedParameters'),
     /** Drops per-tile parameter state for tiles no longer on the dashboard */
     keepTileParameterState: createAction<string[]>(
         'dashboardParameters/keepTileParameterState',
@@ -276,6 +282,23 @@ export const dashboardParametersReducer = (
             },
         };
     }
+    if (
+        dashboardParametersActions.setTileVirtualViewSavedParameters.match(
+            action,
+        )
+    ) {
+        const { tileUuid, values } = action.payload;
+        if (isEqual(state.tileVirtualViewSavedParameters[tileUuid], values)) {
+            return state;
+        }
+        return {
+            ...state,
+            tileVirtualViewSavedParameters: {
+                ...state.tileVirtualViewSavedParameters,
+                [tileUuid]: values,
+            },
+        };
+    }
     if (dashboardParametersActions.keepTileParameterState.match(action)) {
         const tileUuids = new Set(action.payload);
         const tileParameterReferences = keepTiles(
@@ -286,10 +309,21 @@ export const dashboardParametersReducer = (
             state.tileChartSavedParameters,
             tileUuids,
         );
+        const tileVirtualViewSavedParameters = keepTiles(
+            state.tileVirtualViewSavedParameters,
+            tileUuids,
+        );
         return tileParameterReferences === state.tileParameterReferences &&
-            tileChartSavedParameters === state.tileChartSavedParameters
+            tileChartSavedParameters === state.tileChartSavedParameters &&
+            tileVirtualViewSavedParameters ===
+                state.tileVirtualViewSavedParameters
             ? state
-            : { ...state, tileParameterReferences, tileChartSavedParameters };
+            : {
+                  ...state,
+                  tileParameterReferences,
+                  tileChartSavedParameters,
+                  tileVirtualViewSavedParameters,
+              };
     }
     return state;
 };

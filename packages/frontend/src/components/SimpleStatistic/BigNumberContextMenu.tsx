@@ -2,7 +2,7 @@ import { type ResultValue } from '@lightdash/common';
 import { Menu, Text } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconArrowBarToDown, IconCopy } from '@tabler/icons-react';
-import mapValues from 'lodash/mapValues';
+import { mapValues } from 'es-toolkit/compat';
 import { useMemo, type FC } from 'react';
 import { MergeSourceGate } from '../../features/mergeQuery/components/MergeSourceGate';
 import { useOrganization } from '../../hooks/organization/useOrganization';
@@ -114,7 +114,6 @@ const BigNumberContextMenu: FC<
             position="bottom"
             closeOnItemClick
             closeOnEscape
-            radius={0}
             offset={-2}
         >
             <Menu.Target>{children}</Menu.Target>

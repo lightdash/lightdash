@@ -33,6 +33,7 @@ import { type AgentActionLogModel } from '../models/AgentActionLogModel';
 import { type RetentionCleanupOptions } from '../models/retentionCleanup';
 import type { UsageDimensionsModel } from '../models/UsageDimensionsModel';
 import type { UsageHistoryModel } from '../models/UsageHistoryModel';
+import type { UsageProcessingModel } from '../models/UsageProcessingModel';
 import type PrometheusMetrics from '../prometheus/PrometheusMetrics';
 import { type OrganizationNameResolver } from '../sentry/organizationNameResolver';
 import { LEARN_SANDBOX_COMMAND_TIMEOUT_MS } from '../services/LearnSandboxService/runtime';
@@ -63,6 +64,7 @@ export type SchedulerWorkerArguments = SchedulerTaskArguments & {
     agentActionLogModel: AgentActionLogModel;
     usageDimensionsModel: UsageDimensionsModel;
     usageHistoryModel: UsageHistoryModel;
+    usageProcessingModel?: UsageProcessingModel;
     // When omitted, no pg-ping interval runs and the health probe falls back to
     // job-activity events alone.
     workerHealth?: SchedulerWorkerHealth;
@@ -188,6 +190,8 @@ export class SchedulerWorker extends SchedulerTask {
     private readonly usageDimensionsModel: UsageDimensionsModel;
     private readonly usageHistoryModel: UsageHistoryModel;
 
+    private readonly usageProcessingModel: UsageProcessingModel | undefined;
+
     private readonly activeCompiles = new Set<CompileShutdownContext>();
 
     private readonly interruptedCompileFailures = new WeakMap<
@@ -232,6 +236,7 @@ export class SchedulerWorker extends SchedulerTask {
         this.prometheusMetrics = schedulerWorkerArgs.prometheusMetrics ?? null;
         this.usageDimensionsModel = schedulerWorkerArgs.usageDimensionsModel;
         this.usageHistoryModel = schedulerWorkerArgs.usageHistoryModel;
+        this.usageProcessingModel = schedulerWorkerArgs.usageProcessingModel;
         this.dailyJobRetryBackoffMs =
             schedulerWorkerArgs.dailyJobRetryBackoffMs ??
             DEFAULT_DAILY_JOB_RETRY_BACKOFF_MS;
@@ -645,7 +650,7 @@ export class SchedulerWorker extends SchedulerTask {
             pollInterval: this.lightdashConfig.scheduler.pollInterval,
             maxPoolSize,
             parsedCronItems: includeCron
-                ? parseCronItems(this.getCronItems())
+                ? parseCronItems(this.getEnabledCronItems())
                 : [],
             taskList: traceTasks(this.getTaskList(), {
                 resolveOrganizationName: this.resolveOrganizationName,
@@ -933,6 +938,14 @@ export class SchedulerWorker extends SchedulerTask {
                 },
             },
             {
+                task: SCHEDULER_TASKS.CLEAR_DUE_RESULTS_CACHES,
+                pattern: '0 * * * *', // Every hour
+                options: {
+                    backfillPeriod: 2 * 3600 * 1000, // 2 hours in ms
+                    maxAttempts: 1,
+                },
+            },
+            {
                 task: SCHEDULER_TASKS.CLEAN_WAREHOUSE_CONNECT_CODES,
                 pattern: '41 * * * *', // Hourly, off the top of the hour
                 options: {
@@ -966,6 +979,12 @@ export class SchedulerWorker extends SchedulerTask {
             // worker-process pg liveness is driven by a setInterval (see startPgPing);
             // managed-agent heartbeat is self-scheduling (see SchedulerClient.scheduleManagedAgentHeartbeat).
         ];
+    }
+
+    protected getEnabledCronItems(): CronItem[] {
+        return this.getCronItems().filter(({ task }) =>
+            this.enabledTasks.some((enabledTask) => enabledTask === task),
+        );
     }
 
     protected getTaskList(): Partial<TypedTaskList> {
@@ -2122,6 +2141,9 @@ export class SchedulerWorker extends SchedulerTask {
                     `AI usage ledger cleanup completed. Records deleted: ${deletedCount}. Organizations kept in full: ${retainedOrganizationUuids.length}`,
                 );
             },
+            [SCHEDULER_TASKS.CLEAR_DUE_RESULTS_CACHES]: async () => {
+                await this.projectService.clearDueResultsCaches();
+            },
             [SCHEDULER_TASKS.CLEAN_WAREHOUSE_CONNECT_CODES]: async () => {
                 Logger.info('Starting warehouse connect codes cleanup job');
 
@@ -2341,28 +2363,63 @@ export class SchedulerWorker extends SchedulerTask {
                     );
                     return;
                 }
+                if (!payload.includeHistory && !payload.organizationUuid)
+                    await this.schedulerClient.retryFailedUsageEventHistory();
                 const compactor = new UsageEventsCompactor({
                     s3Config: usageEvents.s3,
                     prometheusMetrics: this.prometheusMetrics,
                     usageDimensionsModel: this.usageDimensionsModel,
+                    usageProcessingModel: this.usageProcessingModel,
                     featureFlagModel: this.featureFlagModel,
                 });
-                const summary = await compactor.run(
-                    new Date(),
-                    payload.organizationUuid || undefined,
-                );
-                Sentry.getActiveSpan()?.setAttributes({
-                    'lightdash.usage_events.partitions_discovered':
-                        summary.partitionsDiscovered,
-                    'lightdash.usage_events.partitions_compacted':
-                        summary.partitionsCompacted,
-                    'lightdash.usage_events.partitions_failed':
-                        summary.partitionsFailed,
-                    'lightdash.usage_events.partitions_skipped_unknown_stream':
-                        summary.partitionsSkippedUnknownStream,
-                    'lightdash.usage_events.raw_objects_deleted':
-                        summary.rawObjectsDeleted,
-                });
+                try {
+                    const summary = await compactor.run(
+                        new Date(),
+                        payload.organizationUuid || undefined,
+                        payload.includeHistory ?? false,
+                    );
+                    const hasDeferredPartitions =
+                        summary.partitionsDeferred > 0 ||
+                        summary.users.limitReached;
+                    if (
+                        payload.includeHistory
+                            ? hasDeferredPartitions &&
+                              (summary.partitionsCompacted > 0 ||
+                                  summary.users.published > 0)
+                            : !!payload.organizationUuid ||
+                              hasDeferredPartitions
+                    ) {
+                        await this.schedulerClient.scheduleUsageEventHistory(
+                            payload,
+                        );
+                    }
+                    Sentry.getActiveSpan()?.setAttributes({
+                        'lightdash.usage_events.partitions_discovered':
+                            summary.partitionsDiscovered,
+                        'lightdash.usage_events.partitions_compacted':
+                            summary.partitionsCompacted,
+                        'lightdash.usage_events.partitions_failed':
+                            summary.partitionsFailed,
+                        'lightdash.usage_events.partitions_skipped_unknown_stream':
+                            summary.partitionsSkippedUnknownStream,
+                        'lightdash.usage_events.raw_objects_deleted':
+                            summary.rawObjectsDeleted,
+                    });
+                } finally {
+                    try {
+                        await this.schedulerClient.scheduleAnalyticsContentReconciliation(
+                            payload.organizationUuid || null,
+                        );
+                    } catch {
+                        Logger.error(
+                            'Failed to enqueue analytics content reconciliation',
+                            {
+                                organizationUuid:
+                                    payload.organizationUuid || null,
+                            },
+                        );
+                    }
+                }
             },
             [SCHEDULER_TASKS.BACKFILL_USAGE_QUERY_HISTORY]: async (payload) => {
                 const { usageEvents } = this.lightdashConfig;

@@ -17,7 +17,7 @@ import {
     type TableCalculation,
 } from '@lightdash/common';
 import { type EChartsOption, type FunnelSeriesOption } from 'echarts';
-import round from 'lodash/round';
+import { round } from 'es-toolkit/compat';
 import { sanitizeEchartsFontFamily } from '../fonts';
 import { type VisualizationTheme } from '../theme';
 import { type VisualizationContextInput } from '../types';

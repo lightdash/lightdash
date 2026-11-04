@@ -540,20 +540,18 @@ const getComposerNodeStatuses = (
     return Object.fromEntries(
         nodeIds.flatMap((nodeId): [string, ComposerQueryNodeStatus][] => {
             const fromEvent = eventStatuses.get(nodeId);
-            // The call failed while this node was still running: it failed.
-            if (outputStatus === 'error' && fromEvent?.status === 'running')
-                return [[nodeId, { status: 'error' }]];
+            // Failures show no indicator: the agent retries on its own.
+            if (
+                fromEvent?.status === 'error' ||
+                (outputStatus === 'error' && fromEvent?.status === 'running')
+            )
+                return [];
             if (fromEvent) return [[nodeId, fromEvent]];
             if (awaitingApproval && sqlNodeIds.has(nodeId))
                 return [[nodeId, { status: 'awaiting_approval' }]];
             if (outputStatus === 'success')
                 return [[nodeId, { status: 'success' }]];
             if (output === undefined) return [[nodeId, { status: 'pending' }]];
-            // The call errored before any node started: the whole pipeline failed.
-            if (outputStatus === 'error' && eventStatuses.size === 0)
-                return [[nodeId, { status: 'error' }]];
-            // Rejected/timed-out/unattributed failure: nothing truthful to
-            // claim about this node, so show no indicator.
             return [];
         }),
     );

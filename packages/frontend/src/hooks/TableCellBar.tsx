@@ -1,5 +1,6 @@
 import { Box, Text } from '@mantine/core';
 import { type ReactNode } from 'react';
+import classes from './TableCellBar.module.css';
 
 type TableCellBarProps = {
     value: number;
@@ -55,7 +56,7 @@ export const TableCellBar = ({
                     maw="100%"
                     // Always show a visible bar for positive values
                     miw={MIN_BAR_WIDTH}
-                    style={{ borderRadius: '2px' }}
+                    className={classes.bar}
                 />
             ) : (
                 <Box />
@@ -74,58 +75,28 @@ export const TableCellBar = ({
         const showZeroLine = zeroPercent > 0 && zeroPercent < 100;
 
         bar = (
-            <Box
-                h={BAR_HEIGHT}
-                style={{
-                    position: 'relative',
-                    width: '100%',
-                    // Clip min-width bars from spilling past the track edge
-                    // when the baseline sits very close to it.
-                    overflow: 'hidden',
-                }}
-            >
+            <Box h={BAR_HEIGHT} className={classes.track}>
                 {showZeroLine && (
                     <Box
                         aria-hidden
-                        style={{
-                            position: 'absolute',
-                            left: `${zeroPercent}%`,
-                            top: 0,
-                            bottom: 0,
-                            width: '1px',
-                            transform: 'translateX(-0.5px)',
-                            backgroundColor: 'var(--mantine-color-ldGray-3)',
-                        }}
+                        className={classes.zeroLine}
+                        left={`${zeroPercent}%`}
                     />
                 )}
                 {value > 0 && (
                     <Box
-                        h={BAR_HEIGHT}
+                        className={classes.positiveBar}
                         bg={color}
-                        miw={MIN_BAR_WIDTH}
-                        style={{
-                            position: 'absolute',
-                            top: 0,
-                            // Left edge sits on the zero line, grows rightward.
-                            left: `${zeroPercent}%`,
-                            width: `${positiveWidth}%`,
-                            borderRadius: '0 2px 2px 0',
-                        }}
+                        left={`${zeroPercent}%`}
+                        w={`${positiveWidth}%`}
                     />
                 )}
                 {value < 0 && (
                     <Box
-                        h={BAR_HEIGHT}
+                        className={classes.negativeBar}
                         bg={negativeBarColor}
-                        miw={MIN_BAR_WIDTH}
-                        style={{
-                            position: 'absolute',
-                            top: 0,
-                            // Right edge sits on the zero line, grows leftward.
-                            right: `${100 - zeroPercent}%`,
-                            width: `${negativeWidth}%`,
-                            borderRadius: '2px 0 0 2px',
-                        }}
+                        right={`${100 - zeroPercent}%`}
+                        w={`${negativeWidth}%`}
                     />
                 )}
             </Box>
@@ -133,43 +104,18 @@ export const TableCellBar = ({
     }
 
     return (
-        <Box
-            style={{
-                display: 'grid',
-                // Bar track fills the space left after a constant label gutter
-                gridTemplateColumns: '1fr auto',
-                alignItems: 'center',
-                gap: '4px',
-            }}
-        >
+        <Box className={classes.layout}>
             {bar}
             {/* Label gutter: when this row isn't the widest, an invisible
                 sizer holds the column's widest label so the gutter width stays
                 constant across every row. The visible label is right-aligned. */}
             <Box display="grid">
                 {maxLabel !== formatted && (
-                    <Text
-                        span
-                        aria-hidden
-                        fz="xs"
-                        style={{
-                            gridArea: '1 / 1',
-                            visibility: 'hidden',
-                            whiteSpace: 'nowrap',
-                        }}
-                    >
+                    <Text span aria-hidden fz="xs" className={classes.sizer}>
                         {maxLabel}
                     </Text>
                 )}
-                <Text
-                    span
-                    fz="xs"
-                    style={{
-                        gridArea: '1 / 1',
-                        justifySelf: 'end',
-                        whiteSpace: 'nowrap',
-                    }}
-                >
+                <Text span fz="xs" className={classes.label}>
                     {formatted}
                 </Text>
             </Box>

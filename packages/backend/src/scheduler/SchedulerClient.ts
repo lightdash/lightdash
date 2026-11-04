@@ -53,10 +53,12 @@ import {
     UploadMetricGsheetPayload,
     ValidateProjectPayload,
     type AgentWorkMarker,
+    type CompactUsageEventsPayload,
     type DownloadAsyncQueryResultsPayload,
     type PreAggregateSchedulerDetails,
     type SchedulerCreateProjectWithCompilePayload,
     type SchedulerIndexCatalogJobPayload,
+    type SyncAnalyticsContentPayload,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { getSchedule, stringToArray } from 'cron-converter';
@@ -1481,7 +1483,15 @@ export class SchedulerClient {
         return { jobId };
     }
 
-    async hasCreateProjectWithCompileJob(jobUuid: string): Promise<boolean> {
+    /**
+     * Whether the worker still holds the job: queued, or locked since
+     * `lockedAfter`. A lock older than that belongs to a worker that died
+     * mid-run; graphile only releases it hours later.
+     */
+    async hasCreateProjectWithCompileJob(
+        jobUuid: string,
+        lockedAfter: Date,
+    ): Promise<boolean> {
         const graphileClient = await this.graphileUtils;
         const result = await graphileClient.withPgClient((pgClient) =>
             pgClient.query<{ exists: boolean }>(
@@ -1490,8 +1500,13 @@ export class SchedulerClient {
                     FROM graphile_worker.jobs
                     WHERE task_identifier = $1
                       AND payload->>'jobUuid' = $2
+                      AND (locked_at IS NULL OR locked_at > $3)
                 ) AS exists`,
-                [SCHEDULER_TASKS.CREATE_PROJECT_WITH_COMPILE, jobUuid],
+                [
+                    SCHEDULER_TASKS.CREATE_PROJECT_WITH_COMPILE,
+                    jobUuid,
+                    lockedAfter,
+                ],
             ),
         );
         return result.rows[0]?.exists ?? false;
@@ -1783,6 +1798,76 @@ export class SchedulerClient {
                 jobKey: `initial-usage-processing:${payload.organizationUuid}`,
                 jobKeyMode: 'unsafe_dedupe',
                 maxAttempts: 1,
+                priority: JobPriority.LOW,
+            },
+        );
+    }
+
+    async scheduleUsageEventHistory(
+        payload: CompactUsageEventsPayload,
+    ): Promise<void> {
+        const graphileClient = await this.graphileUtils;
+        await graphileClient.addJob(
+            SCHEDULER_TASKS.COMPACT_USAGE_EVENTS,
+            { ...payload, includeHistory: true },
+            {
+                queueName: 'usage-events-compaction',
+                jobKey: `usage-event-history:${payload.organizationUuid || 'all'}`,
+                jobKeyMode: 'preserve_run_at',
+                runAt: new Date(Date.now() + 60_000),
+                maxAttempts: 3,
+                priority: JobPriority.LOW,
+            },
+        );
+    }
+
+    async retryFailedUsageEventHistory(): Promise<void> {
+        const graphileClient = await this.graphileUtils;
+        // The installed JS wrapper drops attempts: 0; call Graphile's SQL API.
+        await graphileClient.withPgClient((pgClient) =>
+            pgClient.query(
+                `SELECT id FROM graphile_worker.reschedule_jobs(
+                    ARRAY(SELECT id FROM graphile_worker.jobs
+                          WHERE task_identifier = $1 AND key LIKE 'usage-event-history:%'
+                            AND attempts >= max_attempts AND locked_at IS NULL),
+                    run_at := NOW() + INTERVAL '1 minute', attempts := 0
+                )`,
+                [SCHEDULER_TASKS.COMPACT_USAGE_EVENTS],
+            ),
+        );
+    }
+
+    async scheduleAnalyticsContentReconciliation(
+        organizationUuid: string | null,
+    ): Promise<void> {
+        const graphileClient = await this.graphileUtils;
+        await graphileClient.addJob(
+            SCHEDULER_TASKS.RECONCILE_ANALYTICS_CONTENT,
+            { organizationUuid: organizationUuid ?? undefined },
+            {
+                queueName: 'analytics-content-reconciliation',
+                jobKey: `analytics-content-reconciliation:${organizationUuid ?? 'all'}`,
+                // Allow the next processing run to revive exhausted retries.
+                jobKeyMode: 'preserve_run_at',
+                maxAttempts: 3,
+                priority: JobPriority.LOW,
+            },
+        );
+    }
+
+    async scheduleAnalyticsContentSync(
+        payload: SyncAnalyticsContentPayload,
+    ): Promise<void> {
+        const graphileClient = await this.graphileUtils;
+        await graphileClient.addJob(
+            SCHEDULER_TASKS.SYNC_ANALYTICS_CONTENT,
+            payload,
+            {
+                queueName: 'analytics-content-sync',
+                jobKey: `analytics-content-sync:${payload.organizationUuid}`,
+                // Allow the next processing run to revive exhausted retries.
+                jobKeyMode: 'preserve_run_at',
+                maxAttempts: 3,
                 priority: JobPriority.LOW,
             },
         );

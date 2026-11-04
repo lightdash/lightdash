@@ -21,7 +21,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconCode } from '@tabler/icons-react';
-import { useMemo, useState, type FC } from 'react';
+import { useMemo, useState, type FC, type ReactNode } from 'react';
 import FieldIcon from '../../../../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { ItemDetailPreview } from '../../../../../components/Explorer/ExploreTree/TableTree/ItemDetailPreview';
@@ -33,16 +33,69 @@ import { EventName } from '../../../../../types/Events';
 import { getFieldColors } from '../../../../../utils/fieldColors';
 import classes from './AgentVisualizationMetricsAndDimensions.module.css';
 
+/** Field description and metric SQL on hover, as in the classic chart artifacts. */
+export const FieldDetailHoverCard: FC<{
+    field: ItemsMap[string] | AdditionalMetric | undefined;
+    customMetric?: AdditionalMetric;
+    disabled?: boolean;
+    children: ReactNode;
+}> = ({ field, customMetric, disabled = false, children }) => {
+    const description = field && isField(field) ? field.description : undefined;
+    const metricInfo = customMetric
+        ? {
+              type: customMetric.type,
+              sql: customMetric.sql,
+              compiledSql: customMetric.sql,
+              name: customMetric.name,
+              filters: customMetric.filters,
+          }
+        : field && isCompiledMetric(field)
+          ? {
+                type: field.type,
+                sql: field.sql,
+                compiledSql: field.compiledSql,
+                filters: field.filters,
+                table: field.table,
+                name: field.name,
+            }
+          : undefined;
+
+    return (
+        <HoverCard
+            openDelay={300}
+            keepMounted={false}
+            withArrow
+            disabled={(!description && !metricInfo) || disabled}
+            position="top"
+            offset={10}
+        >
+            <HoverCard.Target>{children}</HoverCard.Target>
+            <HoverCard.Dropdown
+                p="xs"
+                miw={300}
+                mah={400}
+                maw={400}
+                className={classes.hoverDropdown}
+                onClick={(e) => e.stopPropagation()}
+            >
+                <ItemDetailPreview
+                    onViewDescription={() => {}}
+                    description={description}
+                    metricInfo={metricInfo}
+                />
+            </HoverCard.Dropdown>
+        </HoverCard>
+    );
+};
+
 const MetricDimensionItem: FC<{
     fieldId: string;
-    type: 'metric' | 'dimension';
     fieldsMap: ItemsMap;
     showTablePrefix: boolean;
     customMetric?: AdditionalMetric;
     onWriteBackCustomMetric?: (metric: AdditionalMetric) => void;
 }> = ({
     fieldId,
-    type,
     fieldsMap,
     showTablePrefix,
     customMetric,
@@ -77,34 +130,6 @@ const MetricDimensionItem: FC<{
 
     const itemColors = getFieldColors(field);
 
-    const description = isField(field) ? field.description : undefined;
-    const fieldName = field?.name || fieldId;
-
-    const metricInfo = isCustomMetric
-        ? {
-              type: customMetric.type,
-              sql: customMetric.sql,
-              compiledSql: customMetric.sql, // Using sql as compiledSql for custom metrics
-              name: customMetric.name,
-              filters: customMetric.filters,
-          }
-        : isCompiledMetric(field)
-          ? {
-                type: field.type,
-                sql: field.sql,
-                compiledSql: field.compiledSql,
-                filters: field.filters,
-                table: field.table,
-                name: field.name,
-            }
-          : undefined;
-
-    const isHoverCardDisabled =
-        (!description && !metricInfo) || isCodeIconHovered;
-
-    const onOpenDescriptionView = () => {};
-    const handleDropdownClick = (e: React.MouseEvent) => e.stopPropagation();
-
     const handleWriteBack = (e: React.MouseEvent<HTMLButtonElement>) => {
         e.stopPropagation();
         if (projectUuid && user.data?.organizationUuid) {
@@ -124,102 +149,62 @@ const MetricDimensionItem: FC<{
     };
 
     return (
-        <HoverCard
-            openDelay={300}
-            keepMounted={false}
-            withArrow
-            disabled={isHoverCardDisabled}
-            position="top"
-            offset={10}
+        <FieldDetailHoverCard
+            field={field}
+            customMetric={customMetric}
+            disabled={isCodeIconHovered}
         >
-            <HoverCard.Target>
-                <Button
-                    size="xs"
-                    variant="default"
-                    className={classes.itemButton}
-                    bg={itemColors.bg}
-                    styles={{
-                        inner: {
-                            color: 'var(--mantine-color-ldDark-9)',
-                        },
-                        label: {
-                            maxWidth: '100%',
-                        },
-                    }}
-                    bd="none"
-                    rightSection={
-                        isCustomMetric &&
-                        onWriteBackCustomMetric && (
-                            <Tooltip
-                                openDelay={200}
-                                position="top"
-                                label="Write back to project"
-                                offset={5}
+            <Button
+                size="xs"
+                variant="default"
+                className={classes.itemButton}
+                bg={itemColors.bg}
+                classNames={{
+                    inner: classes.itemButtonInner,
+                    label: classes.itemButtonLabel,
+                }}
+                bd="none"
+                rightSection={
+                    isCustomMetric &&
+                    onWriteBackCustomMetric && (
+                        <Tooltip
+                            openDelay={200}
+                            position="top"
+                            label="Write back to project"
+                            offset={5}
+                        >
+                            <ActionIcon
+                                variant="light"
+                                size="xs"
+                                color="grape.7"
+                                onClick={handleWriteBack}
+                                onMouseEnter={() => setIsCodeIconHovered(true)}
+                                onMouseLeave={() => setIsCodeIconHovered(false)}
                             >
-                                <ActionIcon
-                                    variant="light"
-                                    size="xs"
-                                    color="grape.7"
-                                    onClick={handleWriteBack}
-                                    onMouseEnter={() =>
-                                        setIsCodeIconHovered(true)
-                                    }
-                                    onMouseLeave={() =>
-                                        setIsCodeIconHovered(false)
-                                    }
-                                >
-                                    <MantineIcon
-                                        icon={IconCode}
-                                        size={12}
-                                        strokeWidth={2.5}
-                                    />
-                                </ActionIcon>
-                            </Tooltip>
-                        )
-                    }
-                >
-                    <Flex align="center" gap="xs">
-                        <FieldIcon
-                            item={field}
-                            color={itemColors.color}
-                            size="sm"
-                        />
-                        <Box className={classes.itemText}>
-                            <Text fz="xs" truncate>
-                                {displayName}
-                            </Text>
-                        </Box>
-                    </Flex>
-                </Button>
-            </HoverCard.Target>
-            <HoverCard.Dropdown
-                p="xs"
-                miw={300}
-                mah={400}
-                maw={400}
-                style={{ overflow: 'auto' }}
-                onClick={handleDropdownClick}
+                                <MantineIcon
+                                    icon={IconCode}
+                                    size={12}
+                                    strokeWidth={2.5}
+                                />
+                            </ActionIcon>
+                        </Tooltip>
+                    )
+                }
             >
-                <ItemDetailPreview
-                    onViewDescription={onOpenDescriptionView}
-                    description={description}
-                    metricInfo={metricInfo}
-                />
-                {!description && !metricInfo && (
-                    <Box>
-                        <Text fz="sm" fw={500} mb="xs">
-                            {fieldName}
-                        </Text>
-                        <Text fz="xs" c="dimmed">
-                            Field ID: {fieldId}
-                        </Text>
-                        <Text fz="xs" c="dimmed">
-                            Type: {type}
+                <Flex align="center" gap="xs">
+                    <FieldIcon
+                        item={field}
+                        color={itemColors.color}
+                        size="sm"
+                    />
+                    <Box className={classes.itemText}>
+                        <Text fz="xs" truncate>
+                            {displayName}
                         </Text>
                     </Box>
-                )}
-            </HoverCard.Dropdown>
-        </HoverCard>
+                </Flex>
+            </Button>
+        </FieldDetailHoverCard>
     );
 };
 
@@ -299,7 +284,6 @@ const AgentVisualizationMetricsAndDimensions: FC<Props> = ({
                         <MetricDimensionItem
                             key={fieldId}
                             fieldId={fieldId}
-                            type="metric"
                             fieldsMap={fieldsMap}
                             showTablePrefix={showTablePrefix}
                             customMetric={customMetric}
@@ -313,7 +297,6 @@ const AgentVisualizationMetricsAndDimensions: FC<Props> = ({
                     <MetricDimensionItem
                         key={fieldId}
                         fieldId={fieldId}
-                        type="dimension"
                         fieldsMap={fieldsMap}
                         showTablePrefix={showTablePrefix}
                     />

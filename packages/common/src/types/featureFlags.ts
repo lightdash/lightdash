@@ -160,13 +160,6 @@ export enum FeatureFlags {
     OrganizationTrialBlock = 'organization-trial-block',
 
     /**
-     * Gate the org-level export Limits settings panel (per-org query max rows
-     * and CSV cells limit). Backend enforcement of any stored overrides is
-     * always on; this flag only controls who can see/configure the panel.
-     */
-    ProLimits = 'pro-limits',
-
-    /**
      * Show the coding-agent project onboarding flow. This gates only the UI;
      * the CLI, APIs, and installed skills remain available independently.
      */
@@ -223,13 +216,11 @@ export enum FeatureFlags {
     ComposeSqlRunner = 'compose-sql-runner',
 
     /**
-     * Enable the multi-source query endpoints
-     * (/api/v2/projects/{projectUuid}/query-sources/*): source discovery,
-     * schema scans, source-query submission and batch status. Off by
-     * default; on in preview/dev environments via
-     * PREVIEW_ENABLED_FEATURE_FLAGS.
+     * Enable api query sources: queries sent live to an external API (HogQL
+     * to PostHog) through a project connection, and the Live data sources
+     * project settings page. Off by default; enable per org.
      */
-    MultiSourceQuery = 'multi-source-query',
+    ApiQuerySources = 'api-query-sources',
 
     /**
      * Enable the "My query history" page
@@ -309,6 +300,11 @@ export enum FeatureFlags {
      */
     AthenaWebIdentityAuth = 'athena-web-identity-auth',
     /**
+     * Organization-scoped, off by default: BigQuery workload identity federation.
+     * Only enable on instances whose pods run as their own Google service account.
+     */
+    BigqueryWorkloadIdentityAuth = 'bigquery-workload-identity-auth',
+    /**
      * Organization-scoped: org admins can bring their own AI provider keys,
      * restrict model visibility, and route those keys through a custom base
      * URL (an OpenAI/Anthropic/Gemini-compatible gateway). Off by default;
@@ -316,6 +312,12 @@ export enum FeatureFlags {
      * providers are used. Enable it for an org BEFORE it stores a key.
      */
     OrgAiCustomProviders = 'org-ai-custom-providers',
+    /**
+     * Organization-scoped, off by default: when a Redshift dashboard or chart
+     * query has no first row after 30s and Redshift has no record of it,
+     * cancel it and retry on a new connection.
+     */
+    RedshiftStalledQueryRecovery = 'redshift-stalled-query-recovery',
 }
 
 export type FeatureFlag = {

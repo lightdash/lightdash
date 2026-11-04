@@ -34,7 +34,6 @@ import { fromSession } from '../../../auth/account/account';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { JobModel } from '../../../models/JobModel/JobModel';
-import { OrganizationWarehouseCredentialsModel } from '../../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectDbtSourcesModel } from '../../../models/ProjectDbtSourcesModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { QueryHistoryModel } from '../../../models/QueryHistoryModel/QueryHistoryModel';
@@ -136,7 +135,6 @@ describe('Multi runtime identity wiring on the real schema', () => {
     let savedSqlModel: SavedSqlModel;
     let queryHistoryModel: QueryHistoryModel;
     let userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
-    let organizationWarehouseCredentialsModel: OrganizationWarehouseCredentialsModel;
 
     const encrypt = (value: unknown) =>
         encryptionUtil.encrypt(JSON.stringify(value));
@@ -189,15 +187,9 @@ describe('Multi runtime identity wiring on the real schema', () => {
             database,
             encryptionUtil,
         });
-        organizationWarehouseCredentialsModel =
-            new OrganizationWarehouseCredentialsModel({
-                database,
-                encryptionUtil,
-            });
         warehouseConnectionModel = new WarehouseConnectionModel({
             database,
             encryptionUtil,
-            organizationWarehouseCredentialsModel,
         });
         warehouseConnectionCompileModel = new WarehouseConnectionCompileModel({
             database,
@@ -361,7 +353,6 @@ describe('Multi runtime identity wiring on the real schema', () => {
         warehouseConnectionCompileModel,
         warehouseConnectionIdentityModel: identityModel,
         userWarehouseCredentialsModel,
-        organizationWarehouseCredentialsModel,
     });
 
     const runtimeService = () => {

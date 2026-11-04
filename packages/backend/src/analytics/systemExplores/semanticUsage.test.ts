@@ -171,7 +171,7 @@ describe('Semantic usage: capture → JSONL → Parquet → compiled Explore', (
             );
         }
         await db.run(
-            "INSERT INTO lightdash_users VALUES ('org', 'user', 'Alex'), ('other-org', 'user', 'Other tenant')",
+            "INSERT INTO lightdash_users (org_id, user_id, name) VALUES ('org', 'user', 'Alex'), ('other-org', 'user', 'Other tenant')",
         );
         await db.run(
             "INSERT INTO lightdash_charts (org_id, chart_id, name) VALUES ('org', 'chart', 'Revenue'), ('other-org', 'chart', 'Other chart')",

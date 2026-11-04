@@ -10,6 +10,8 @@ import { renderWithProviders } from '../../../testing/testUtils';
 import ExplorePanel from './index';
 
 const testState = vi.hoisted(() => ({
+    canClearCache: false,
+    invalidateExplores: vi.fn(),
     merge: undefined as
         | {
               isMerging: boolean;
@@ -34,6 +36,9 @@ vi.mock('../../../hooks/useProjectUuid', () => ({
 vi.mock('../../../features/mergeQuery/context/useMerge', () => ({
     useMergeSafe: () => testState.merge,
 }));
+vi.mock('../../../features/mergeQuery/components/MergeQuerySidebar', () => ({
+    MergeQuerySidebar: () => null,
+}));
 vi.mock('../../../features/virtualView', () => ({
     EditVirtualViewModal: () => null,
     DeleteVirtualViewModal: () => null,
@@ -47,6 +52,17 @@ vi.mock(
 );
 vi.mock('../../../providers/Tracking/useTracking', () => ({
     default: () => ({ track: vi.fn() }),
+}));
+
+vi.mock('../../ProjectResultsCache/useCanClearCachedResults', () => ({
+    useCanClearCachedResults: vi.fn(() => testState.canClearCache),
+}));
+vi.mock('../../../hooks/useProjectResultsCacheSettings', () => ({
+    useInvalidateContentResultsCache: vi.fn(),
+    useInvalidateExploresResultsCache: vi.fn(() => ({
+        mutate: testState.invalidateExplores,
+        isLoading: false,
+    })),
 }));
 
 const mockUseExplore = vi.mocked(useExplore);
@@ -136,6 +152,83 @@ describe('ExplorePanel virtual view actions', () => {
         testState.merge = undefined;
     });
 
+    it('starts a merge from a virtual view without edit permissions', async () => {
+        const user = userEvent.setup();
+        const addSource = vi.fn();
+        mockUseExplore.mockReturnValue(
+            exploreQuery({
+                data: { ...mockExplore, type: ExploreType.VIRTUAL },
+            }),
+        );
+        testState.merge = {
+            isMerging: false,
+            readOnly: false,
+            additionalSources: [],
+            addSource,
+        };
+
+        renderPanel({ user: { abilityRules: [] } });
+        expect(
+            screen.queryByRole('button', { name: 'Query options' }),
+        ).not.toBeInTheDocument();
+        await user.click(
+            screen.getByRole('button', { name: 'Virtual view actions' }),
+        );
+        expect(
+            screen.queryByRole('menuitem', { name: 'Edit virtual view' }),
+        ).not.toBeInTheDocument();
+        await user.click(
+            screen.getByRole('menuitem', { name: /Merge another query/ }),
+        );
+        expect(addSource).toHaveBeenCalledOnce();
+    });
+
+    it('shows only merge on a dbt explore even with virtual view permissions', async () => {
+        const user = userEvent.setup();
+        mockUseExplore.mockReturnValue(exploreQuery({ data: mockExplore }));
+        testState.merge = {
+            isMerging: false,
+            readOnly: false,
+            additionalSources: [],
+            addSource: vi.fn(),
+        };
+
+        renderPanel({
+            user: {
+                abilityRules: [
+                    { action: 'manage', subject: 'VirtualView' },
+                    { action: 'view', subject: 'ContentAsCode' },
+                ],
+            },
+        });
+        await user.click(screen.getByRole('button', { name: 'Query options' }));
+        expect(
+            screen.getByRole('menuitem', { name: /Merge another query/ }),
+        ).toBeInTheDocument();
+        expect(screen.getAllByRole('menuitem')).toHaveLength(1);
+    });
+
+    it.each([
+        { isMerging: true, readOnly: false },
+        { isMerging: false, readOnly: true },
+    ])('hides merge when unavailable: %o', (state) => {
+        mockUseExplore.mockReturnValue(
+            exploreQuery({
+                data: { ...mockExplore, type: ExploreType.VIRTUAL },
+            }),
+        );
+        testState.merge = {
+            ...state,
+            additionalSources: [],
+            addSource: vi.fn(),
+        };
+
+        renderPanel({ user: { abilityRules: [] } });
+        expect(
+            screen.queryByRole('button', { name: 'Virtual view actions' }),
+        ).not.toBeInTheDocument();
+    });
+
     it('opens content as code from the virtual view menu', async () => {
         const user = userEvent.setup();
         mockUseExplore.mockReturnValue(
@@ -212,5 +305,67 @@ describe('ExplorePanel query options', () => {
         await user.click(mergeItem);
 
         expect(addSource).toHaveBeenCalledOnce();
+    });
+});
+
+describe('ExplorePanel clear cache', () => {
+    beforeEach(() => {
+        mockUseExplore.mockReset();
+        mockUseExplore.mockReturnValue(exploreQuery({ data: mockExplore }));
+        testState.merge = undefined;
+        testState.canClearCache = true;
+        testState.invalidateExplores = vi.fn();
+    });
+    afterEach(() => {
+        testState.canClearCache = false;
+    });
+
+    const openModal = async (user: ReturnType<typeof userEvent.setup>) => {
+        await user.click(screen.getByRole('button', { name: 'Query options' }));
+        await user.click(
+            screen.getByRole('menuitem', { name: 'Clear cache for everyone' }),
+        );
+    };
+
+    it('hides the action without permission', () => {
+        testState.canClearCache = false;
+        renderPanel();
+
+        expect(
+            screen.queryByRole('button', { name: 'Query options' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('clears only this explore by default', async () => {
+        const user = userEvent.setup();
+        renderPanel();
+        await openModal(user);
+        await user.click(
+            screen.getByRole('button', { name: 'Clear for everyone' }),
+        );
+
+        expect(testState.invalidateExplores).toHaveBeenCalledWith(
+            { exploreNames: ['orders'], includeJoinedExplores: false },
+            expect.anything(),
+        );
+    });
+
+    it('includes explores using the table when ticked', async () => {
+        const user = userEvent.setup();
+        renderPanel();
+        await openModal(user);
+        await user.click(
+            screen.getByRole('checkbox', {
+                name: /Also clear explores that use this table/,
+            }),
+        );
+        await user.click(
+            screen.getByRole('button', { name: 'Clear for everyone' }),
+        );
+
+        expect(testState.invalidateExplores).toHaveBeenCalledWith(
+            { exploreNames: ['orders'], includeJoinedExplores: true },
+            expect.anything(),
+        );
     });
 });

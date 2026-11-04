@@ -51,6 +51,7 @@ vi.mock('./SharedSignInExpiryListener', () => ({
     SharedSignInExpiryListener: () => null,
 }));
 vi.mock('../../features/learn/LearnLink', () => ({ LearnLink: () => null }));
+vi.mock('./NavBarLogo', () => ({ NavBarLogo: () => null }));
 
 describe('MainNavBarContent compact navigation', () => {
     it('keeps project and account controls in the navigation drawer', async () => {

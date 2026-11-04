@@ -245,12 +245,9 @@ export const CustomSqlDimensionModal: FC<{
             size="xl"
             confirmBeforeClose={form.isDirty()}
             modalRootProps={{
-                styles: {
-                    content: {
-                        minWidth: isExpanded ? '90vw' : 'auto',
-                        height: isExpanded ? '70vh' : 'auto',
-                    },
-                },
+                classNames: isExpanded
+                    ? { content: classes.expandedContent }
+                    : undefined,
             }}
             modalBodyProps={{
                 px: 'md',

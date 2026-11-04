@@ -95,7 +95,7 @@ import {
     matchesResultEntitlementFingerprint,
     type ResultEntitlementFingerprintForms,
 } from '../../utils/queryResultProducer';
-import { assertHumanManagedMutation } from '../AgentPermissionService/assertHumanManagedMutation';
+import { assertHumanAgentPolicyMutation } from '../AgentPermissionService/assertHumanManagedMutation';
 import {
     AiServiceAccountSlotResolutionError,
     AiServiceAccountSlotResolver,
@@ -777,7 +777,7 @@ export class AiAccessService extends BaseService {
         account: Account,
         body: UpdateOrganizationSnowflakeAgentClient,
     ): Promise<OrganizationAgentIdentitySnowflakeSetup> {
-        await assertHumanManagedMutation({
+        await assertHumanAgentPolicyMutation({
             organizationUuid: account.organization.organizationUuid,
             ability: account.user.ability,
             oauth: account.authentication.type === 'oauth',
@@ -933,7 +933,7 @@ export class AiAccessService extends BaseService {
         account: Account,
         settings: OrganizationAgentIdentitySettings,
     ): Promise<OrganizationAgentIdentityOverview> {
-        await assertHumanManagedMutation({
+        await assertHumanAgentPolicyMutation({
             organizationUuid: account.organization.organizationUuid,
             ability: account.user.ability,
             oauth: account.authentication.type === 'oauth',
@@ -1012,7 +1012,7 @@ export class AiAccessService extends BaseService {
         warehouseType: WarehouseTypes,
         rule: UpdateOrganizationAgentIdentityRule,
     ): Promise<OrganizationAgentIdentityRule> {
-        await assertHumanManagedMutation({
+        await assertHumanAgentPolicyMutation({
             organizationUuid: account.organization.organizationUuid,
             ability: account.user.ability,
             oauth: account.authentication.type === 'oauth',

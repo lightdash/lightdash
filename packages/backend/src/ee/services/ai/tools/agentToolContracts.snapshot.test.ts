@@ -221,6 +221,7 @@ const makeAgentTools = (enableFilterExpressions = false) => {
             enableDataAccess: true,
             canRunSql: true,
             enablePythonNodes: false,
+            apiConnections: [],
             getPrompt: noop,
             recordSqlApproval: noop,
             isThreadSqlAutoApproved: noop,
@@ -237,6 +238,7 @@ const makeAgentTools = (enableFilterExpressions = false) => {
         }),
         visualize: getVisualize({
             getPrompt: noop,
+            getExplore: noop,
             listThreadComposerQueryNodes: noop,
             getThreadComposerNodeColumns: noop,
             runComposerQueries: noop,

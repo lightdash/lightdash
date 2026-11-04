@@ -8,8 +8,6 @@ import {
 import { screen, within } from '@testing-library/react';
 import { type ReactElement, type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import DashboardContext from '../../../../../providers/Dashboard/context';
-import { type DashboardContextType } from '../../../../../providers/Dashboard/types';
 import {
     createDashboardTestStore,
     seedDashboardEditState,
@@ -44,28 +42,21 @@ vi.mock('../../../../../features/dashboardControls/AddControl', () => ({
         </button>
     ),
 }));
-// Reads the context the bar provides, as the real pills do: skeletons on a first load
+// Reads the override the bar provides over the context, as the real pills do: skeletons on a first load
 vi.mock('../../../../../features/dashboardControls/FilterPills', async () => {
-    const { useContextSelector } = await import('use-context-selector');
-    const { default: DashboardContext } =
-        await import('../../../../../providers/Dashboard/context');
+    const { useContext } = await import('react');
+    const { FilterFieldsOverrideContext } =
+        await import('../../../../../providers/Dashboard/filterFieldsOverride');
     return {
-        FilterPills: ({
-            triggerClassName,
-            dropdownClassName,
-        }: {
-            triggerClassName?: string;
-            dropdownClassName?: string;
-        }) => {
-            const isFirstLoad = useContextSelector(
-                DashboardContext,
-                (c) => c?.isLoadingDashboardFilters === true,
-            );
+        FilterPills: ({ triggerClassName }: { triggerClassName?: string }) => {
+            const override = useContext(FilterFieldsOverrideContext);
+            const isFirstLoad =
+                (override ?? mockDashboardContext.current)
+                    .isLoadingDashboardFilters === true;
             return (
                 <div
                     data-testid="rail-pills"
                     className={triggerClassName}
-                    data-dropdown-class={dropdownClassName}
                     data-skeletons={isFirstLoad || undefined}
                 />
             );
@@ -76,19 +67,19 @@ vi.mock('../../../../../features/dashboardControls/SectionedFilters', () => ({
     SectionedFilters: ({
         viewerActions,
         triggerClassName,
-        dropdownClassName,
     }: {
         viewerActions: ReactNode;
         triggerClassName?: string;
-        dropdownClassName?: string;
     }) => (
-        <div
-            data-testid="sectioned-filters"
-            className={triggerClassName}
-            data-dropdown-class={dropdownClassName}
-        >
+        <div data-testid="sectioned-filters" className={triggerClassName}>
             {viewerActions}
         </div>
+    ),
+}));
+// Reads the rail's provider, which the page puts around the bar
+vi.mock('../../../../../features/dashboardControls/ControlsBar', () => ({
+    MappingSwap: ({ children }: { children: ReactNode }) => (
+        <div data-testid="mapping-swap">{children}</div>
     ),
 }));
 vi.mock('./EmbedDashboardFilters', () => ({
@@ -148,20 +139,15 @@ const barElement = (
         },
     }),
 ): ReactElement => (
-    // The page's provider, which the bar's filter area reads below it
-    <DashboardContext.Provider
-        value={mockDashboardContext.current as unknown as DashboardContextType}
-    >
-        {/* One saved filter, so the bar has something to show */}
-        <DashboardStoreTestProvider store={store}>
-            <EmbedDashboardFilterBar
-                dashboard={dashboard(canAddFilters)}
-                shouldShowFilters
-                activeTiles={[]}
-                isControlsEnabled={isControlsEnabled}
-            />
-        </DashboardStoreTestProvider>
-    </DashboardContext.Provider>
+    // One saved filter, so the bar has something to show
+    <DashboardStoreTestProvider store={store}>
+        <EmbedDashboardFilterBar
+            dashboard={dashboard(canAddFilters)}
+            shouldShowFilters
+            activeTiles={[]}
+            isControlsEnabled={isControlsEnabled}
+        />
+    </DashboardStoreTestProvider>
 );
 
 const renderBar = (canAddFilters: boolean, isControlsEnabled: boolean) =>
@@ -176,6 +162,16 @@ describe('EmbedDashboardFilterBar', () => {
         renderBar(true, false);
         expect(screen.getByTestId('shipped-filters')).toBeInTheDocument();
         expect(screen.queryByTestId('rail-pills')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('mapping-swap')).not.toBeInTheDocument();
+    });
+
+    it("gives the rail's bar the mapping row's place, so a viewer can choose tiles", () => {
+        renderBar(true, true);
+        expect(
+            within(screen.getByTestId('mapping-swap')).getByTestId(
+                'rail-pills',
+            ),
+        ).toBeInTheDocument();
     });
 
     it('opens the rail from "Add filter" and the pills, with the class contract', () => {
@@ -193,11 +189,6 @@ describe('EmbedDashboardFilterBar', () => {
         expect(screen.getByTestId('rail-pills')).toHaveClass(
             'ld-dashboard-filter',
         );
-        // A saved pill's shipped popover carries the dropdown class
-        expect(screen.getByTestId('rail-pills')).toHaveAttribute(
-            'data-dropdown-class',
-            'ld-dashboard-filter-dropdown',
-        );
         expect(
             screen.queryByRole('button', { name: 'Reset' }),
         ).not.toBeInTheDocument();
@@ -214,10 +205,6 @@ describe('EmbedDashboardFilterBar', () => {
         renderWithProviders(barElement(false, true, sectionedStore()));
         const sectioned = screen.getByTestId('sectioned-filters');
         expect(sectioned).toHaveClass('ld-dashboard-filter');
-        expect(sectioned).toHaveAttribute(
-            'data-dropdown-class',
-            'ld-dashboard-filter-dropdown',
-        );
         // "Add filter" and the reset lead the sectioned bar
         expect(
             within(sectioned).getByRole('button', { name: 'Rail add' }),
@@ -226,11 +213,18 @@ describe('EmbedDashboardFilterBar', () => {
             within(sectioned).getByRole('button', { name: 'Reset' }),
         ).toBeInTheDocument();
         expect(screen.queryByTestId('rail-pills')).not.toBeInTheDocument();
+        // A size container, for the bar's narrow layouts
+        expect(sectioned.closest('[class*="filterArea"]')).not.toBeNull();
     });
 
     it('keeps the shipped filters for a dashboard with sections while the flag is off', () => {
         renderWithProviders(barElement(true, false, sectionedStore()));
         expect(screen.getByTestId('shipped-filters')).toBeInTheDocument();
+        expect(
+            screen
+                .getByTestId('shipped-filters')
+                .closest('[class*="filterArea"]'),
+        ).toBeNull();
         expect(
             screen.queryByTestId('sectioned-filters'),
         ).not.toBeInTheDocument();

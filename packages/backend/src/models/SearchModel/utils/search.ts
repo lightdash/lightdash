@@ -1,6 +1,6 @@
 import { CompiledField, CompiledTable } from '@lightdash/common';
+import { compact, escapeRegExp } from 'es-toolkit/compat';
 import { Knex } from 'knex';
-import { compact, escapeRegExp } from 'lodash';
 
 // Exact/prefix name boosts sit above typical ts_rank_cd values (0–1) so a
 // short exact title always outranks longer partial matches.

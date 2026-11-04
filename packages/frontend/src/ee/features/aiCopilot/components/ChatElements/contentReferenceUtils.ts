@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    composerNodeContextKey,
     getDocumentUrl,
     dataAppContextKey,
     dataAppElementContextKey,
@@ -10,18 +11,25 @@ import {
 } from '@lightdash/common';
 import { dataAppHref } from '../../../../../features/apps/utils/appUrls';
 
-// Element references never render inline; they always show as pills.
+// Element references and pipeline nodes never render inline; they always show as pills.
 // Restore items live on hidden turns and are rendered as build cards.
 // A theme pick is a composer setting, not a mention, so it stays a chip.
 type InlineReferenceItem = Exclude<
     AiPromptContextItem,
-    { type: 'data_app_element' | 'data_app_restore' | 'design' }
+    {
+        type:
+            | 'data_app_element'
+            | 'composer_node'
+            | 'data_app_restore'
+            | 'design';
+    }
 >;
 
 const isInlineReferenceItem = (
     item: AiPromptContextItem,
 ): item is InlineReferenceItem =>
     item.type !== 'data_app_element' &&
+    item.type !== 'composer_node' &&
     item.type !== 'data_app_restore' &&
     item.type !== 'design';
 
@@ -65,6 +73,8 @@ export const getPromptContextItemKey = (
             return `preview_environment:${item.previewProjectUuid}`;
         case 'data_app_element':
             return dataAppElementContextKey(item);
+        case 'composer_node':
+            return composerNodeContextKey(item);
         case 'data_app_restore':
             return dataAppRestoreContextKey(item);
         case 'data_app':
@@ -176,6 +186,9 @@ export const getPromptContextItemHref = (
         // a restore is surfaced by its build card instead.
         case 'data_app_element':
         case 'data_app_restore':
+            return null;
+        // A pipeline node lives inside a thread artifact, not at a route.
+        case 'composer_node':
             return null;
         case 'data_app':
             return dataAppHref(projectUuid, item.appUuid);

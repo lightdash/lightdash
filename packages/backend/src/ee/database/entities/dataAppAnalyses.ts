@@ -1,6 +1,7 @@
 import type {
     DataAppAnalysisSource,
     DataAppDetectResult,
+    DataAppInstructionInvestigateResult,
     DataAppInvestigateResult,
     DataAppPromptResult,
 } from '@lightdash/common';
@@ -56,6 +57,14 @@ export type DbDataAppAnalysis = DbDataAppAnalysisBase &
               thread_uuid: string;
           }
         | {
+              operation: 'investigate_instruction';
+              result: DataAppInstructionInvestigateResult;
+              parent_analysis_uuid: null;
+              anomaly_id: null;
+              agent_uuid: string;
+              thread_uuid: string;
+          }
+        | {
               operation: 'prompt';
               result: DataAppPromptResult;
               parent_analysis_uuid: null;
@@ -76,7 +85,11 @@ export type DbCreateDataAppAnalysis = Omit<
     | keyof DbDataAppAnalysisTarget
 > &
     DbDataAppAnalysisTarget & {
-        operation: 'detect' | 'investigate' | 'prompt';
+        operation:
+            | 'detect'
+            | 'investigate'
+            | 'investigate_instruction'
+            | 'prompt';
         sources: string;
         source_hashes: string | null;
         result: string;

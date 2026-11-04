@@ -19,12 +19,7 @@
     transition: background-color 80ms ease;
 
     &:hover:not([data-disabled]) {
-        @mixin light {
-            background-color: var(--mantine-color-ldGray-1);
-        }
-        @mixin dark {
-            background-color: var(--mantine-color-ldDark-4);
-        }
+        background-color: var(--mantine-color-default-hover);
     }
 
     &[data-disabled] {
@@ -46,13 +41,7 @@
     justify-content: flex-end;
     padding: var(--mantine-spacing-xs);
     border-top: 1px solid;
-
-    @mixin light {
-        border-color: var(--mantine-color-ldGray-2);
-    }
-    @mixin dark {
-        border-color: var(--mantine-color-ldDark-4);
-    }
+    border-color: var(--mantine-color-default-border);
 }
 
 .chartItem {
@@ -64,12 +53,7 @@
     border-radius: var(--mantine-radius-sm);
 
     &:hover {
-        @mixin light {
-            background-color: var(--mantine-color-ldGray-1);
-        }
-        @mixin dark {
-            background-color: var(--mantine-color-ldDark-4);
-        }
+        background-color: var(--mantine-color-default-hover);
     }
 }
 
@@ -85,13 +69,7 @@
     display: inline-flex;
     align-items: center;
     flex-shrink: 0;
-
-    @mixin light {
-        color: var(--mantine-color-blue-7);
-    }
-    @mixin dark {
-        color: var(--mantine-color-blue-3);
-    }
+    color: light-dark(var(--mantine-color-blue-7), var(--mantine-color-blue-3));
 }
 
 .spaceGroupLabel {
@@ -104,13 +82,7 @@
         content: '';
         flex: 1;
         height: 1px;
-
-        @mixin light {
-            background-color: var(--mantine-color-ldGray-3);
-        }
-        @mixin dark {
-            background-color: var(--mantine-color-ldDark-4);
-        }
+        background-color: var(--mantine-color-ldGray-3);
     }
 }
 
@@ -131,14 +103,8 @@
     top: -4px;
     right: -4px;
     border-radius: 50%;
-
-    @mixin light {
-        background-color: var(--mantine-color-white);
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
-    }
-    @mixin dark {
-        background-color: var(--mantine-color-ldDark-4);
-    }
+    background-color: var(--mantine-color-body);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
 }
 
 /* Composes with .selectedQueryItem — only adds the anchor for the
@@ -170,26 +136,19 @@
     transition:
         background-color 80ms ease,
         border-color 80ms ease;
-
-    @mixin light {
-        background-color: var(--mantine-color-white);
-        border-color: var(--mantine-color-ldGray-3);
-    }
-    @mixin dark {
-        background-color: var(--mantine-color-ldDark-4);
-        border-color: var(--mantine-color-ldDark-6);
-    }
+    background-color: var(--mantine-color-body);
+    border-color: var(--mantine-color-ldGray-3);
 }
 
 .selectedQueryItemActive {
-    @mixin light {
-        background-color: var(--mantine-color-blue-0);
-        border-color: var(--mantine-color-blue-3);
-    }
-    @mixin dark {
-        background-color: var(--mantine-color-blue-9);
-        border-color: var(--mantine-color-blue-7);
-    }
+    background-color: light-dark(
+        var(--mantine-color-blue-0),
+        var(--mantine-color-blue-9)
+    );
+    border-color: light-dark(
+        var(--mantine-color-blue-3),
+        var(--mantine-color-blue-7)
+    );
 }
 
 .selectedQueryItemIcon {
@@ -228,27 +187,22 @@
         border-color 80ms ease,
         background-color 80ms ease,
         color 80ms ease;
-
-    @mixin light {
-        border-color: var(--mantine-color-ldGray-4);
-        color: var(--mantine-color-ldGray-6);
-    }
-    @mixin dark {
-        border-color: var(--mantine-color-ldDark-5);
-        color: var(--mantine-color-ldDark-2);
-    }
+    border-color: var(--mantine-color-ldGray-4);
+    color: var(--mantine-color-dimmed);
 
     &:hover:not(:disabled) {
-        @mixin light {
-            border-color: var(--mantine-color-blue-5);
-            background-color: var(--mantine-color-blue-0);
-            color: var(--mantine-color-blue-7);
-        }
-        @mixin dark {
-            border-color: var(--mantine-color-blue-6);
-            background-color: var(--mantine-color-blue-9);
-            color: var(--mantine-color-blue-2);
-        }
+        border-color: light-dark(
+            var(--mantine-color-blue-5),
+            var(--mantine-color-blue-6)
+        );
+        background-color: light-dark(
+            var(--mantine-color-blue-0),
+            var(--mantine-color-blue-9)
+        );
+        color: light-dark(
+            var(--mantine-color-blue-7),
+            var(--mantine-color-blue-2)
+        );
     }
 
     &:disabled {
@@ -269,21 +223,13 @@
     cursor: pointer;
     background: transparent;
     transition: background-color 80ms ease;
-
-    @mixin light {
-        color: var(--mantine-color-blue-7);
-    }
-    @mixin dark {
-        color: var(--mantine-color-blue-3);
-    }
+    color: light-dark(var(--mantine-color-blue-7), var(--mantine-color-blue-3));
 
     &:hover:not(:disabled) {
-        @mixin light {
-            background-color: var(--mantine-color-blue-2);
-        }
-        @mixin dark {
-            background-color: var(--mantine-color-blue-8);
-        }
+        background-color: light-dark(
+            var(--mantine-color-blue-2),
+            var(--mantine-color-blue-8)
+        );
     }
 
     &:disabled {

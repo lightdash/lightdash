@@ -186,7 +186,6 @@ const Settings: FC = () => {
         isAiOrganizationSettingsLoading,
         showImpersonationPanel,
         isCustomRolesEnabled,
-        isProLimitsEnabled,
         canAccessAnalyticsSettings,
         isAnalyticsProjectFlagLoading,
         isOrganizationRoadmapEnabled,
@@ -451,7 +450,7 @@ const Settings: FC = () => {
                 element: <AiCreditsSettingsPage />,
             });
         }
-        if (isProLimitsEnabled && user?.ability.can('manage', 'Organization')) {
+        if (user?.ability.can('manage', 'Organization')) {
             allowedRoutes.push({
                 path: '/limits',
                 element: (
@@ -915,7 +914,6 @@ const Settings: FC = () => {
         dashboardAnalysisFlag?.enabled,
         isChartStudioAvailable,
         externalSourcesFlag?.enabled,
-        isProLimitsEnabled,
         canAccessAnalyticsSettings,
         isOrganizationRoadmapEnabled,
         canAccessAiCredits,
@@ -959,6 +957,12 @@ const Settings: FC = () => {
             !matchPath(
                 {
                     path: '/generalSettings/projectManagement/:projectUuid/dataAppConnections',
+                },
+                location.pathname,
+            ) &&
+            !matchPath(
+                {
+                    path: '/generalSettings/projectManagement/:projectUuid/liveDataSources',
                 },
                 location.pathname,
             ) &&

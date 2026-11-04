@@ -18,6 +18,7 @@ import {
     type AiDeepResearchWorkerTask,
     type AiDeepResearchWorkerTaskInput,
     type AiSemanticChartArtifactConfig,
+    type ComposerApiConnection,
 } from '@lightdash/common';
 // eslint-disable-next-line import/extensions
 import { type OAuthClientProvider } from '@modelcontextprotocol/sdk/client/auth.js';
@@ -142,6 +143,8 @@ export type AiAgentRequestingUser = {
     name: string;
     role: AiAgentRequestingUserRole | null;
     groups: string[];
+    // A service account is shared by everyone using its token.
+    isServiceAccount: boolean;
 };
 
 /** The resource a thread is bound to, resolved for the prompt. The resource is null once it no longer exists. */
@@ -273,6 +276,8 @@ export type AiAgentArgs = AnyAiModel & {
     telemetryEnabled: boolean;
     enableDataAccess: boolean;
     enableSelfImprovement: boolean;
+    // Content setting on; read tools enforce view access per item, so authoring isn't required.
+    enableContentReads: boolean;
     enableContentTools: boolean;
     enableDocuments: boolean;
     // Data apps enabled + user may create them + content tools (trusted identity).
@@ -299,10 +304,15 @@ export type AiAgentArgs = AnyAiModel & {
     // Whether the composer query tool is the query path: composer flags, data
     // access and the agent's enableComposerQueries opt-in.
     enableComposerQueries: boolean;
+    // Project API connections composer api nodes may query; empty disables them.
+    composerApiConnections: ComposerApiConnection[];
     // Whether the user can save a generated dashboard anywhere in the project.
     // Gates generateDashboard so the agent does not build one the user is then
     // refused permission to keep.
     canCreateDashboards: boolean;
+    // Gates createScheduledDelivery the same way, so a role without
+    // create:ScheduledDeliveries keeps content tools but loses scheduling.
+    canCreateScheduledDeliveries: boolean;
     autoApproveSql: boolean;
     autoApproveSqlUserUuid: string | null;
     // When the modern Slack streaming card is driving progress, tools render

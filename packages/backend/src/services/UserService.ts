@@ -96,7 +96,7 @@ import {
     type UserWarehouseCredentialsWithAgentStatus,
 } from '@lightdash/common';
 import { randomInt } from 'crypto';
-import { uniq } from 'lodash';
+import { uniq } from 'es-toolkit/compat';
 import { nanoid } from 'nanoid';
 import refresh from 'passport-oauth2-refresh';
 import {
@@ -157,6 +157,7 @@ import {
 } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { wrapSentryTransaction } from '../utils';
+import { getMissingUserNames } from '../utils/missingUserNames';
 import {
     getOrganizationSystemRoleScopes,
     validateOrganizationScopesCanBeGranted,
@@ -1241,7 +1242,11 @@ export class UserService extends BaseService {
                     'sso',
                 );
             }
-            this.identifyUser(loginUser);
+            const namedLoginUser = await this.fillMissingNamesFromGoogle(
+                loginUser,
+                openIdUser.openId,
+            );
+            this.identifyUser(namedLoginUser);
             this.analytics.track({
                 userId: loginUser.userUuid,
                 event: 'user.logged_in',
@@ -1269,7 +1274,7 @@ export class UserService extends BaseService {
                 });
             }
 
-            return loginUser;
+            return namedLoginUser;
         }
 
         // Link the new openid identity to an existing user if they already
@@ -1584,7 +1589,26 @@ export class UserService extends BaseService {
             });
         }
 
-        return sessionUser;
+        return this.fillMissingNamesFromGoogle(sessionUser, openIdUser.openId);
+    }
+
+    /**
+     * Passwordless invites and email codes activate accounts without names, so
+     * a later Google sign-in fills whichever names are still blank.
+     */
+    async fillMissingNamesFromGoogle(
+        user: SessionUser,
+        openId: OpenIdUser['openId'],
+    ): Promise<SessionUser> {
+        if (openId.issuerType !== OpenIdIdentityIssuerType.GOOGLE) {
+            return user;
+        }
+        const missingNames = getMissingUserNames(user, openId);
+        if (!missingNames) {
+            return user;
+        }
+        await this.userModel.updateUser(user.userUuid, undefined, missingNames);
+        return { ...user, ...missingNames };
     }
 
     async completeUserSetup(

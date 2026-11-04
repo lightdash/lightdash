@@ -14,20 +14,13 @@
         background-color 220ms ease;
     animation: artifactSlideIn 320ms cubic-bezier(0.16, 1, 0.3, 1);
 
-    background-color: light-dark(
-        var(--mantine-color-white),
-        var(--mantine-color-dark-7)
-    );
-    border: 1px solid
-        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-ldGray-3));
+    background-color: var(--mantine-color-body);
+    border: 1px solid var(--mantine-color-ldGray-2);
     box-shadow: 0 1px 2px light-dark(rgba(15, 23, 42, 0.04), rgba(0, 0, 0, 0.2));
 }
 
 .artifactButton:hover {
-    border-color: light-dark(
-        var(--mantine-color-ldGray-3),
-        var(--mantine-color-ldGray-4)
-    );
+    border-color: var(--mantine-color-ldGray-3);
 }
 
 .artifactButton[data-artifact-open='true'] {
@@ -85,12 +78,8 @@
     height: 24px;
     border-radius: 7px;
     flex-shrink: 0;
-    background-color: light-dark(
-        var(--mantine-color-white),
-        var(--mantine-color-ldGray-1)
-    );
-    border: 1px solid
-        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-ldGray-3));
+    background-color: var(--mantine-color-body);
+    border: 1px solid var(--mantine-color-ldGray-2);
     box-shadow: 0 1px 2px light-dark(rgba(15, 23, 42, 0.04), rgba(0, 0, 0, 0.2));
     transition:
         background-color 220ms ease,
@@ -99,10 +88,7 @@
 }
 
 .artifactButton:hover .iconChip {
-    border-color: light-dark(
-        var(--mantine-color-ldGray-3),
-        var(--mantine-color-ldGray-4)
-    );
+    border-color: var(--mantine-color-ldGray-3);
     box-shadow: 0 1px 3px
         light-dark(rgba(15, 23, 42, 0.07), rgba(0, 0, 0, 0.28));
 }

@@ -22,15 +22,15 @@ Explore. It does not reconstruct every past event or historical People summaries
 
 ## Current implementation versus rollout intent
 
-| Area                   | Implemented                                                                               | Still required for production                                      |
-| ---------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| Project                | New projects use `DEFAULT` with `provisioning_source=analytics`; older previews retain their type | Non-admin project access remains a separate follow-up          |
-| Entry point            | Organization analytics settings and session-authenticated, org-admin-only endpoints       | No configurable connector setup UI                                 |
-| Enablement             | Standard `analytics-project` resolver: Console organization flags or deployment ENV flags | Controlled live verification before customer rollout               |
-| Source org             | Persisted, authorized project org; legacy local overrides ignored                         | Live shared-instance isolation verification                        |
-| Storage authentication | Existing writer credentials retained in backend; signed GET URLs passed to DuckDB         | Verify effective IAM; read-only hardening is deferred (PROD-11103) |
-| Models                 | Backend-owned Query Events, AI Usage, Data App Events and Export Events explores          | Additional event coverage and named-entity lookups                 |
-| Current names          | Daily per-org charts, dashboards, users and agents snapshots with optional ID joins       | Other entity lookups; production-scale database load verification  |
+| Area                   | Implemented                                                                                       | Still required for production                                      |
+| ---------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Project                | New projects use `DEFAULT` with `provisioning_source=analytics`; older previews retain their type | Non-admin project access remains a separate follow-up              |
+| Entry point            | Organization analytics settings and session-authenticated, org-admin-only endpoints               | No configurable connector setup UI                                 |
+| Enablement             | Standard `analytics-project` resolver: Console organization flags or deployment ENV flags         | Controlled live verification before customer rollout               |
+| Source org             | Persisted, authorized project org; legacy local overrides ignored                                 | Live shared-instance isolation verification                        |
+| Storage authentication | Existing writer credentials retained in backend; signed GET URLs passed to DuckDB                 | Verify effective IAM; read-only hardening is deferred (PROD-11103) |
+| Models                 | Backend-owned Query Events, AI Usage, Data App Events and Export Events explores                  | Additional event coverage and named-entity lookups                 |
+| Current names          | Daily per-org charts, dashboards, users and agents snapshots with optional ID joins               | Other entity lookups; production-scale database load verification  |
 
 Historical tickets and handover proposals may describe different designs. They
 are not evidence that production rollout or final role restrictions are complete.
@@ -87,10 +87,30 @@ objects only after successful conversion. Unknown streams are skipped. Part
 names are deterministic for the input-key set; late-arriving files can produce
 additional parts. There is not necessarily one file per day or one file per org.
 
+With Google OAuth storage, a token can expire during a long partition query.
+Compaction retries an HTTP 401 once in a new query session using the same inputs
+and output key. If that retry fails, raw inputs and the checkpoint remain for
+the next run. This does not extend the token lifetime for a single query.
+
 Compaction reduces the small-file overhead of independent writers and produces
 a columnar format suitable for analytics. The reader only sees compacted output,
 so capture is not immediately visible in Explore. Event delivery does not have
 an exactly-once guarantee.
+
+Embedded dashboard fetches reuse `content_views`. After a successful authorized
+fetch, `embed_dashboard.viewed` records an interaction ID and the explicit JWT
+`user.externalId`, when supplied. The usage-only metadata is not added to
+RudderStack. Preview traffic is excluded, the registered-user ID remains null,
+and neither the token issuer nor a generated fallback identity counts as an
+external viewer. Arbitrary user attributes are not captured.
+
+The Embed reach model deduplicates interaction IDs and counts external IDs
+within each organization/project. Refetches are separate loads; tile queries
+are not loads. This is observed backend usage, not confirmed browser rendering,
+configured embed dependencies, tenant attribution or invoice reconciliation.
+Existing partitions without the new nullable column remain readable; capture
+starts after deployment and requires no backfill. New loads appear after daily
+compaction, and **Sync content** installs the Explore and Embed dashboard.
 
 ### Current dimension snapshots
 
@@ -118,6 +138,34 @@ engine limit, and streams uploads with one 8 MB part in flight. See
 [dimension export and failure behavior](dimensions.md#export-and-failure-behavior)
 for resource limits, retries and operational caveats. Reader resource settings
 below apply to interactive queries, not this background export.
+
+Scheduled processing includes only organizations with a managed Analytics project
+(`provisioning_source = 'analytics'); feature-flag checks still apply. Regular,
+preview and playground projects alone do not qualify. Raw event capture continues
+for other organizations, but their events are not processed by scheduled runs.
+Creating Analytics still queues explicit organization-scoped initial processing
+and makes the organization eligible for future nightly runs. Explicit recovery
+runs remain available. Initial and nightly processing prepare the last seven
+closed UTC days first, then enqueue a low-priority history pass after one minute
+when older work remains. Project setup also checks previously compacted history.
+History processing includes all retained closed raw partitions, including events
+captured before the Analytics project existed. It uses the same compactor and
+serial queue, so recent processing and history cannot compact the same inputs
+concurrently. Today's events remain excluded until the next UTC day.
+
+Recent processing retains its 5,000-partition work budget. History batches
+process up to 100 raw partitions and 100 changed People summaries, then schedule
+a continuation while deferred work is making progress. Successful raw inputs are
+removed and unchanged People summaries are skipped, so subsequent batches resume
+from storage without a new database cursor. Failed or unsupported partitions do
+not cause an endless continuation loop; nightly processing revisits retained
+work. Nightly processing also revives exhausted history jobs, including failed
+People summaries whose raw inputs were already compacted. Runs with no deferred
+history or failed jobs avoid rescanning old summaries;
+organization-scoped setup and recovery still perform a history pass. Settings
+counts older pending partitions and polls between batches while
+keeping Explore available. The retained-database import is separate and
+supplements, rather than replaces, captured event history.
 
 ### Project creation and models
 
@@ -147,7 +195,8 @@ derives dimensions from the compacted schemas and metrics from
 It explicitly includes `query_events`, `ai_usage`, `data_app_events` and
 `export_events`; registering another writer stream does not expose another
 explore automatically. Query Events joins Charts, Dashboards and Users; AI Usage
-joins Users and Agents; the other models join Users. These optional many-to-one
+joins Users and Agents; event models can join Users. Content inventory reads only
+the current `lightdash_content` snapshot, without user or event joins. These optional many-to-one
 LEFT joins match organization and
 entity ID, preserving events whose lookup is missing. Compiled models
 refer to table names, not signed URLs. SQL and aggregations are generated from
@@ -229,9 +278,11 @@ concurrency limits still need validation before customer rollout.
 
 The query-local cache lifetime does not mean Lightdash has no persisted query results.
 The normal result/history paths still exist and need authorization. Analytics
-checks cover project access and result/history retrieval; exports and scheduled
-downloads are blocked in this preview. Flag-off denial is not deletion or
-cryptographic revocation of previously issued capabilities or returned data.
+checks cover project access, result/history retrieval, CSV/XLSX export generation
+and protected download retrieval. Scheduled deliveries can intentionally share
+signed export links; see [downloads and scheduled deliveries](access.md#downloads-and-scheduled-deliveries).
+Flag-off denial is not deletion or cryptographic revocation of previously issued
+signed delivery links or returned data.
 
 ### Small Parquet cache and temporary-file lifecycle
 
@@ -261,14 +312,14 @@ remains the source of truth; this does not change capture or nightly compaction.
    recursively. Normal query/bootstrap errors also run teardown. Later queries
    create new directories even when reusing the same in-memory bytes.
 
-| Resource                           | Limit / lifetime                                                                                                         |
-| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Reusable memory cache              | 64 MiB of compressed bytes and 4,096 entries **per process**, shared capacity across orgs but separately keyed entries   |
-| Eligible file                      | At most 1 MiB, with a positive known size and ETag                                                                       |
-| Cache downloads                    | At most 8 in flight per process; pending bytes/entries reserve capacity; 10-second request timeout                       |
-| Per-query buffers and staged files | At most 8 MiB each; concurrent queries have separate staging directories                                                 |
-| Memory eviction                    | Least recently used completed entries are evicted when capacity is needed; no time-based TTL; process exit clears memory |
-| Disk cleanup                       | At session teardown after success or error; no scheduled cleanup interval                                                |
+| Resource                           | Limit / lifetime                                                                                                                       |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Reusable memory cache              | 64 MiB of compressed bytes and 4,096 entries **per process**, shared capacity across orgs but separately keyed entries                 |
+| Eligible file                      | At most 1 MiB, with a positive known size and ETag                                                                                     |
+| Cache downloads                    | At most 16 in flight per process (two query sessions × eight files); pending bytes/entries reserve capacity; 10-second request timeout |
+| Per-query buffers and staged files | At most 32 MiB each; concurrent queries have separate staging directories                                                              |
+| Memory eviction                    | Least recently used completed entries are evicted when capacity is needed; no time-based TTL; process exit clears memory               |
+| Disk cleanup                       | At session teardown after success or error; no scheduled cleanup interval                                                              |
 
 The byte budget is not a process RSS limit: in-flight queries can still reference
 buffers evicted from the cache, and DuckDB, JavaScript and concurrent staging add

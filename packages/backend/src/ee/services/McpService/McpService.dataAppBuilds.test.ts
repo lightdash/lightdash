@@ -102,7 +102,9 @@ const makeMcpService = (
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         aiAgentService: {},
         aiAgentToolsService: { createRuntime },
-        aiOrganizationSettingsService: {},
+        aiOrganizationSettingsService: {
+            getMcpProjectAccess: vi.fn().mockResolvedValue({ mode: 'all' }),
+        },
         aiRouterService: {},
         aiWritebackService: {},
         analytics: { track: vi.fn() },

@@ -34,6 +34,7 @@ import {
     type ApiExecuteAsyncMergeQueryRequest,
     type ApiExecuteAsyncMergeQueryResults,
     type ApiExecuteAsyncMetricQueryResults,
+    type ApiExecuteAsyncSavedChartQueryResults,
     type ApiJobScheduledResponse,
     type ApiQueryCostEstimateResponse,
     type ApiQueryHistoryListResponse,
@@ -397,6 +398,7 @@ export class QueryController extends BaseController {
                 invalidateCache: body.invalidateCache,
                 usePreAggregateCache: body.usePreAggregateCache,
                 metricQuery,
+                limit: body.limit,
                 context: context ?? QueryExecutionContext.API,
                 dateZoom: body.dateZoom,
                 parameters: body.parameters,
@@ -521,7 +523,7 @@ export class QueryController extends BaseController {
         body: ExecuteAsyncSavedChartRequestParams,
         @Path() projectUuid: string,
         @Request() req: express.Request,
-    ): Promise<ApiSuccess<ApiExecuteAsyncMetricQueryResults>> {
+    ): Promise<ApiSuccess<ApiExecuteAsyncSavedChartQueryResults>> {
         this.setStatus(200);
 
         const context = body.context ?? getContextFromHeader(req);

@@ -3,6 +3,7 @@ import { Group, Text, Tooltip } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../MantineIcon';
+import classes from './TotalCells.module.css';
 
 const TotalCalculationErrorCell: FC<{ error: unknown }> = ({ error }) => {
     const message = isApiError(error)
@@ -18,7 +19,7 @@ const TotalCalculationErrorCell: FC<{ error: unknown }> = ({ error }) => {
                 wrap="nowrap"
                 c="red.6"
                 w="100%"
-                style={{ cursor: 'help' }}
+                className={classes.helpCursor}
                 aria-label={`Total calculation error: ${message}`}
             >
                 <MantineIcon icon={IconAlertCircle} size={14} />

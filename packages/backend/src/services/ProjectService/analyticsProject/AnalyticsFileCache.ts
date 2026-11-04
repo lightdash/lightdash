@@ -39,7 +39,8 @@ export class AnalyticsFileCache {
             this.entries.set(identity, hit);
             return hit.value;
         }
-        if (this.downloads >= 8) return undefined;
+        // Two isolated query sessions can each prepare eight files at once.
+        if (this.downloads >= 16) return undefined;
         for (const [id, entry] of this.entries) {
             if (this.bytes + size <= this.maxBytes && this.entries.size < 4096)
                 break;

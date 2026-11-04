@@ -190,7 +190,8 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                     if (index === 0 && Sidebar && !isMobile)
                         setIsAgentSidebarCollapsed?.(collapsed);
                 }}
-                style={{ flex: 1, minWidth: 0 }}
+                flex={1}
+                miw={0}
             >
                 {Sidebar && !isMobile && (
                     <ResizableSplitter.Pane
@@ -375,18 +376,12 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                     withCloseButton={false}
                     classNames={{
                         inner: isSdk ? styles.sdkDrawerInner : undefined,
+                        body: styles.previewDrawerBody,
                     }}
                     transitionProps={{
                         transition: 'slide-up',
                         duration: 200,
                         timingFunction: 'ease-out',
-                    }}
-                    styles={{
-                        body: {
-                            padding: 0,
-                            paddingBottom: 'var(--mantine-spacing-lg)',
-                            height: '100%',
-                        },
                     }}
                 >
                     {preview && renderPreviewPanel(preview)}

@@ -1,6 +1,6 @@
 import { AiCreditsPausedError, MissingConfigError } from '@lightdash/common';
-import { APICallError, RetryError } from 'ai';
-import { get, isPlainObject } from 'lodash';
+import { APICallError, RetryError, type FinishReason } from 'ai';
+import { get, isPlainObject } from 'es-toolkit/compat';
 import type { AiKeyManagement } from '../../../../analytics/aiUsage';
 import type { AiDecisionClient } from '../decisions/AiDecisionClient';
 import {
@@ -35,8 +35,22 @@ export class AiAgentStepCapReachedError extends Error {
 export const EMPTY_RESPONSE_MESSAGE =
     'The agent finished without writing a response. Please try again — if it keeps happening, rephrase the question or start a new thread.';
 
+export const OUTPUT_LIMIT_REACHED_MESSAGE =
+    "The agent hit the model's output length limit before it could write a response. Try again, or ask for fewer things at once.";
+
 export const PROVIDER_BILLING_MESSAGE =
     'The configured AI provider account has a billing or credit issue. Check its billing settings or add credits, then try again.';
+
+export const PROVIDER_RATE_LIMIT_MESSAGE =
+    'The configured AI provider rejected this request because its rate limit was exceeded. Raise the rate limit or token quota on that provider or deployment, or wait a moment and try again.';
+
+const MANAGED_RATE_LIMIT_MESSAGE =
+    'The service is experiencing high demand. Please try again in a few moments.';
+
+const getRateLimitMessage = (keyManagement?: AiKeyManagement): string =>
+    keyManagement === 'self-managed'
+        ? PROVIDER_RATE_LIMIT_MESSAGE
+        : MANAGED_RATE_LIMIT_MESSAGE;
 
 const PROVIDER_BILLING_ERROR_CODES = new Set([
     'billing_error',
@@ -90,11 +104,11 @@ const isProviderBillingError = (error: unknown): boolean => {
 // without producing any text, which would otherwise persist as a blank chat
 // bubble with no explanation.
 export class AiAgentEmptyResponseError extends Error {
-    readonly finishReason: string;
+    readonly finishReason: FinishReason;
 
     readonly stepsCount: number;
 
-    constructor(finishReason: string, stepsCount: number) {
+    constructor(finishReason: FinishReason, stepsCount: number) {
         super(EMPTY_RESPONSE_MESSAGE);
         this.name = 'AiAgentEmptyResponseError';
         this.finishReason = finishReason;
@@ -126,6 +140,8 @@ export const getKnownUserFacingErrorMessage = (
     }
 
     if (error instanceof AiAgentEmptyResponseError) {
+        if (error.finishReason === 'length')
+            return OUTPUT_LIMIT_REACHED_MESSAGE;
         return EMPTY_RESPONSE_MESSAGE;
     }
 
@@ -153,7 +169,7 @@ export const getKnownUserFacingErrorMessage = (
             : 'The AI provider could not accept this request. Please try again later.';
     }
     if (apiCallError?.statusCode === 429 && !isProviderBillingError(error))
-        return 'The service is experiencing high demand. Please try again in a few moments.';
+        return getRateLimitMessage(keyManagement);
 
     // Context/token limit errors
     if (
@@ -177,7 +193,7 @@ export const getKnownUserFacingErrorMessage = (
         errorMessage.includes('quota') ||
         errorMessage.includes('throttl')
     ) {
-        return 'The service is experiencing high demand. Please try again in a few moments.';
+        return getRateLimitMessage(keyManagement);
     }
 
     // Timeout errors
@@ -228,7 +244,7 @@ const classifiedErrorMessage = (
         case 'context':
             return "This request exceeded the AI model's context limit, usually because the conversation or tool results became too large. Please start a new thread or break the request into smaller steps.";
         case 'rate':
-            return 'The service is experiencing high demand. Please try again in a few moments.';
+            return getRateLimitMessage(keyManagement);
         case 'timeout':
             return 'This request took too long to process. Try breaking it into smaller questions or start a new thread.';
         case 'permissions':

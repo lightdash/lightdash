@@ -411,7 +411,10 @@ import { type ReleaseHighlightsResult } from './releaseHighlights';
 import { type ApiRenameFieldsResponse, type ApiRenameResponse } from './rename';
 import { type MostPopularAndRecentlyUpdated } from './resourceViewItem';
 import { type ResultColumns, type ResultRow } from './results';
-import { type ApiResultsCacheProjectSettingsResponse } from './resultsCacheProjectSettings';
+import {
+    type ApiResultsCacheInvalidationResponse,
+    type ApiResultsCacheProjectSettingsResponse,
+} from './resultsCacheProjectSettings';
 import {
     type ApiRoadmapFollowProjectResponse,
     type ApiRoadmapProjectResponse,
@@ -726,7 +729,6 @@ export type HealthState = {
      */
     hasEmailWhitelabel: boolean;
     hasMicrosoftTeams: boolean;
-    isOrganizationWarehouseCredentialsEnabled: boolean;
     isAthenaWarehouseIamRoleAuthEnabled: boolean;
     isSaveCredentialsFormEnabled: boolean;
     latest: {
@@ -825,6 +827,8 @@ export type HealthState = {
     dashboard: {
         maxTilesPerTab: number;
         maxTabsPerDashboard: number;
+        /** Per-viewer cap on in-flight dashboard tile queries; null means unlimited */
+        maxConcurrentTileQueries: number | null;
         disableSentryTracking: boolean;
     };
     pivotTable: {
@@ -835,6 +839,8 @@ export type HealthState = {
     hasGitlab: boolean;
     hasJira: boolean;
     hasLinear: boolean;
+    hasPostHogOAuth: boolean;
+    hasGoogleLiveSources: boolean;
     hasHeadlessBrowser: boolean;
     hasExtendedUsageAnalytics: boolean;
     hasCacheAutocompleResults: boolean;
@@ -1103,6 +1109,22 @@ export type ApiExecuteAsyncMetricQueryResults =
         metricQuery: MetricQuery;
         fields: ItemsMap;
         warnings: QueryWarning[];
+    };
+
+/** How a saved chart is drawn, as stored on the chart. */
+export type SavedChartVisualization = Pick<
+    SavedChart,
+    'chartConfig' | 'pivotConfig' | 'tableConfig'
+>;
+
+// Flat (not `ApiExecuteAsyncMetricQueryResults & …`) so the OpenAPI schema
+// keeps its shape; nesting the intersection reads as a breaking change.
+export type ApiExecuteAsyncSavedChartQueryResults =
+    ApiExecuteAsyncQueryResultsCommon & {
+        metricQuery: MetricQuery;
+        fields: ItemsMap;
+        warnings: QueryWarning[];
+        chartVisualization: SavedChartVisualization;
     };
 
 type ApiExecuteAsyncMergeQueryMetadata = {
@@ -1664,6 +1686,7 @@ type ApiResults =
     | ApiScanQuerySourceSchemaResults
     | ApiExecuteAsyncDashboardSqlChartQueryResults
     | ApiExecuteAsyncMetricQueryResults
+    | ApiExecuteAsyncSavedChartQueryResults
     | ApiQueryHistoryListResponse['results']
     | ApiExecuteAsyncDashboardChartQueryResults
     | ApiGetAsyncQueryResults
@@ -1752,6 +1775,7 @@ type ApiResults =
     | ApiImpersonationOrganizationSettingsResponse['results']
     | ApiPreviewExpirationProjectSettingsResponse['results']
     | ApiResultsCacheProjectSettingsResponse['results']
+    | ApiResultsCacheInvalidationResponse['results']
     | ApiPreviewExpiresAtResponse['results']
     | ApiContentVerificationResponse['results']
     | ApiContentVerificationDeleteResponse['results']

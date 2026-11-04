@@ -139,10 +139,10 @@ const SortableCard: FC<SortableCardProps> = ({
                 isDragging ? ` ${styles.cardGhost}` : ''
             }`}
             // dnd-kit drives the per-frame shift that previews where the card
-            // will land; this transform/transition can only be inline.
+            // will land.
             style={{
-                transform: CSS.Translate.toString(transform),
-                transition,
+                '--card-drag-transform': CSS.Translate.toString(transform),
+                '--card-drag-transition': transition,
             }}
             {...listeners}
             {...attributes}
@@ -642,7 +642,7 @@ export const ReviewKanbanBoard: FC<Props> = ({
                                             w={8}
                                             h={8}
                                             bg={`${lane.color}.5`}
-                                            style={{ borderRadius: 3 }}
+                                            className={styles.laneDot}
                                         />
                                         <Text fz="xs" fw={600}>
                                             {lane.label}

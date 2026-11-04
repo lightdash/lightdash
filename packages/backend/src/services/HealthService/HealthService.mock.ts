@@ -38,6 +38,8 @@ export const BaseResponse: HealthState = {
     hasGitlab: false,
     hasJira: true,
     hasLinear: true,
+    hasPostHogOAuth: false,
+    hasGoogleLiveSources: false,
     hasHeadlessBrowser: false,
     hasSlack: false,
     auth: {
@@ -112,6 +114,7 @@ export const BaseResponse: HealthState = {
     dashboard: {
         maxTilesPerTab: 50,
         maxTabsPerDashboard: 20,
+        maxConcurrentTileQueries: null,
         disableSentryTracking: false,
     },
     rudder: {
@@ -133,7 +136,6 @@ export const BaseResponse: HealthState = {
         overrideColorPaletteName: undefined,
     },
     hasBrandfetch: false,
-    isOrganizationWarehouseCredentialsEnabled: false,
     isAthenaWarehouseIamRoleAuthEnabled: false,
     isSaveCredentialsFormEnabled: false,
     isCustomRolesEnabled: false,

@@ -1,6 +1,8 @@
 import { subject } from '@casl/ability';
 import {
     assertUnreachable,
+    DownloadFileType,
+    ForbiddenError,
     NotFoundError,
     ParameterError,
     PersistentDownloadFileAccessMode,
@@ -20,7 +22,9 @@ import { type FileStorageClient } from '../../clients/FileStorage/FileStorageCli
 import { LightdashConfig } from '../../config/parseConfig';
 import { type DbPersistentDownloadFile } from '../../database/entities/persistentDownloadFile';
 import { PersistentDownloadFileModel } from '../../models/PersistentDownloadFileModel';
+import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../BaseService';
+import { type ProjectService } from '../ProjectService/ProjectService';
 
 export type PersistentDownloadFileSource =
     | 'chart'
@@ -38,6 +42,11 @@ type PersistentDownloadFileServiceArguments = {
     persistentDownloadFileModel: PersistentDownloadFileModel;
     fileStorageClient: FileStorageClient;
     uploadsFileStorageClient: FileStorageClient | null;
+    projectModel: Pick<ProjectModel, 'getSummary'>;
+    getProjectService: () => Pick<
+        ProjectService,
+        'assertAnalyticsProjectAccess'
+    >;
 };
 
 type CreatePersistentUrlData = {
@@ -59,6 +68,13 @@ const DOWNLOAD_TOKEN_TYPE = 'persistent-download';
 const DOWNLOAD_TOKEN_ISSUER = 'lightdash';
 const DOWNLOAD_TOKEN_AUDIENCE = 'persistent-download';
 const PERSISTENT_URL_PATH_REGEX = /^\/api\/v1\/file\/([\w-]{21})$/;
+const DATA_EXPORT_FILE_TYPES = new Set<string>([
+    DownloadFileType.CSV,
+    DownloadFileType.XLSX,
+    DownloadFileType.JSONL,
+    DownloadFileType.S3_JSONL,
+    'zip',
+]);
 
 type DownloadTokenPayload = {
     type: typeof DOWNLOAD_TOKEN_TYPE;
@@ -88,12 +104,18 @@ export class PersistentDownloadFileService extends BaseService {
 
     private readonly uploadsFileStorageClient: FileStorageClient | null;
 
+    private readonly projectModel: PersistentDownloadFileServiceArguments['projectModel'];
+
+    private readonly getProjectService: PersistentDownloadFileServiceArguments['getProjectService'];
+
     constructor({
         analytics,
         lightdashConfig,
         persistentDownloadFileModel,
         fileStorageClient,
         uploadsFileStorageClient,
+        projectModel,
+        getProjectService,
     }: PersistentDownloadFileServiceArguments) {
         super();
         this.analytics = analytics;
@@ -101,6 +123,8 @@ export class PersistentDownloadFileService extends BaseService {
         this.persistentDownloadFileModel = persistentDownloadFileModel;
         this.fileStorageClient = fileStorageClient;
         this.uploadsFileStorageClient = uploadsFileStorageClient;
+        this.projectModel = projectModel;
+        this.getProjectService = getProjectService;
     }
 
     private storageClient(
@@ -324,6 +348,50 @@ export class PersistentDownloadFileService extends BaseService {
         requestContext: PersistentDownloadRequestContext,
     ): Promise<DbPersistentDownloadFile> {
         const file = await this.getValidFile(fileNanoid);
+        let requiresAnalyticsAccess = false;
+        // Scheduled deliveries deliberately share SIGNED files with recipients.
+        // Protected data exports must instead retain current Analytics access,
+        // even if someone attaches a valid download token to their URL.
+        if (
+            (file.access_mode ===
+                PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR ||
+                file.access_mode ===
+                    PersistentDownloadFileAccessMode.AUTHENTICATED_PROJECT) &&
+            DATA_EXPORT_FILE_TYPES.has(file.file_type)
+        ) {
+            // The project FK becomes NULL on deletion; do not turn a deleted
+            // project's protected export into an organization-wide download.
+            if (file.project_uuid === null) {
+                throw new NotFoundError('Cannot find file');
+            }
+            try {
+                const project = await this.projectModel.getSummary(
+                    file.project_uuid,
+                );
+                if (project.provisioningSource === 'analytics') {
+                    requiresAnalyticsAccess = true;
+                    const { account } = requestContext;
+                    if (
+                        !this.isActiveRegisteredAccount(account) ||
+                        project.organizationUuid !== file.organization_uuid
+                    ) {
+                        throw new NotFoundError('Cannot find file');
+                    }
+                    await this.getProjectService().assertAnalyticsProjectAccess(
+                        account,
+                        project,
+                    );
+                }
+            } catch (error) {
+                if (
+                    error instanceof ForbiddenError ||
+                    error instanceof NotFoundError
+                ) {
+                    throw new NotFoundError('Cannot find file');
+                }
+                throw error;
+            }
+        }
         const canViewFileProject = (): boolean => {
             const { account } = requestContext;
             if (!this.isActiveRegisteredAccount(account)) return false;
@@ -390,7 +458,9 @@ export class PersistentDownloadFileService extends BaseService {
                 isAuthorized = canCreatorAccess();
                 break;
             case PersistentDownloadFileAccessMode.AUTHENTICATED_PROJECT:
-                isAuthorized = canViewFileProject() || hasValidDownloadToken();
+                isAuthorized =
+                    canViewFileProject() ||
+                    (!requiresAnalyticsAccess && hasValidDownloadToken());
                 break;
             case PersistentDownloadFileAccessMode.SIGNED:
                 isAuthorized = hasValidDownloadToken() || canCreatorAccess();

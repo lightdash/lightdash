@@ -221,7 +221,7 @@ describe('LightdashAnalyticsPanel', () => {
         );
     });
 
-    it('clears the update indicator after syncing and keeps manual sync available', async () => {
+    it('hides sync after successfully updating managed content', async () => {
         let hasContentUpdates = true;
         mockPanelApi(async ({ url, method }) => {
             if (url.includes('/dashboards?')) return [];
@@ -255,30 +255,18 @@ describe('LightdashAnalyticsPanel', () => {
             ).not.toBeInTheDocument(),
         );
         expect(
-            screen.getByRole('button', { name: /Sync content/ }),
-        ).toBeVisible();
+            screen.queryByRole('button', { name: /Sync content/ }),
+        ).not.toBeInTheDocument();
     });
 
-    it('allows manual sync when counts match without syncing automatically', async () => {
+    it('hides sync when managed content is up to date', async () => {
         renderPanel();
         await screen.findByRole('link', { name: 'Explore' });
-        const sync = screen.getByRole('button', { name: /Sync content/ });
-        expect(sync).toBeVisible();
+        expect(
+            screen.queryByRole('button', { name: /Sync content/ }),
+        ).not.toBeInTheDocument();
         expect(sharedLightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({ method: 'POST' }),
-        );
-        expect(
-            screen.queryByRole('img', {
-                name: 'New analytics content available',
-            }),
-        ).not.toBeInTheDocument();
-        await userEvent.click(sync);
-        await waitFor(() =>
-            expect(sharedLightdashApi).toHaveBeenCalledWith({
-                url: '/org/analytics-project/sample-content',
-                method: 'POST',
-                body: undefined,
-            }),
         );
     });
 

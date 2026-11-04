@@ -35,12 +35,12 @@ import {
 } from './AiAccessService/AiAccessService';
 import { SnowflakeAgentClientResolver } from './AiAccessService/SnowflakeAgentClientResolver';
 import { AiServiceAccountService } from './AiServiceAccountService/AiServiceAccountService';
-import { AnalyticsProjectService } from './AnalyticsProjectService/AnalyticsProjectService';
 import { AnalyticsService } from './AnalyticsService/AnalyticsService';
 import { AsyncQueryService } from './AsyncQueryService/AsyncQueryService';
 import { ComposeEngineClient } from './AsyncQueryService/ComposeEngineClient';
 import { AwsWebIdentityService } from './AwsWebIdentityService';
 import { BaseService } from './BaseService';
+import { BigqueryWorkloadIdentityService } from './BigqueryWorkloadIdentityService';
 import { CatalogService } from './CatalogService/CatalogService';
 import { CiService } from './CiService/CiService';
 import { CoderService } from './CoderService/CoderService';
@@ -76,6 +76,7 @@ import { NotificationsService } from './NotificationsService/NotificationsServic
 import { ManagedSignInService } from './OAuthService/managedSignIn/ManagedSignInService';
 import { OAuthService } from './OAuthService/OAuthService';
 import { OrganizationAccessService } from './OrganizationAccessService/OrganizationAccessService';
+import { OrganizationBrandService } from './OrganizationBrandService/OrganizationBrandService';
 import { OrganizationDesignService } from './OrganizationDesignService/OrganizationDesignService';
 import { OrganizationDomainVerificationService } from './OrganizationDomainVerificationService/OrganizationDomainVerificationService';
 import { OrganizationService } from './OrganizationService/OrganizationService';
@@ -155,6 +156,7 @@ interface ServiceManifest {
     oauthService: OAuthService;
 
     organizationDesignService: OrganizationDesignService;
+    organizationBrandService: OrganizationBrandService;
     organizationService: OrganizationService;
     organizationSettingsService: OrganizationSettingsService;
     organizationSsoService: OrganizationSsoService;
@@ -173,7 +175,6 @@ interface ServiceManifest {
     agentConnectionService: AgentConnectionService;
     aiServiceAccountService: AiServiceAccountService;
     projectService: ProjectService;
-    analyticsProjectService: AnalyticsProjectService;
     promptService: PromptService;
     savedChartService: SavedChartService;
     schedulerService: SchedulerService;
@@ -182,6 +183,7 @@ interface ServiceManifest {
     slackIntegrationService: SlackIntegrationService;
     sshKeyPairService: SshKeyPairService;
     awsWebIdentityService: AwsWebIdentityService;
+    bigqueryWorkloadIdentityService: BigqueryWorkloadIdentityService;
     spacePermissionService: SpacePermissionService;
     spaceService: SpaceService;
     unfurlService: UnfurlService;
@@ -213,6 +215,7 @@ interface ServiceManifest {
     projectCompileLogService: ProjectCompileLogService;
     permissionsService: PermissionsService;
     /** An implementation signature for these services are not available at this stage */
+    analyticsProjectService: unknown;
     aiWritebackService: unknown;
     aiDeepResearchService: unknown;
     aiAgentMemoryService: unknown;
@@ -256,7 +259,6 @@ interface ServiceManifest {
     mcpService: unknown;
     rolesService: RolesService;
     slackService: SlackService;
-    organizationWarehouseCredentialsService: unknown;
 }
 
 /**
@@ -877,7 +879,6 @@ export class ServiceRepository
                     lightdashConfig: this.context.lightdashConfig,
                     organizationSettingsModel:
                         this.models.getOrganizationSettingsModel(),
-                    featureFlagModel: this.models.getFeatureFlagModel(),
                 }),
         );
     }
@@ -898,6 +899,8 @@ export class ServiceRepository
             () =>
                 new PersistentDownloadFileService({
                     analytics: this.context.lightdashAnalytics,
+                    projectModel: this.models.getProjectModel(),
+                    getProjectService: () => this.getProjectService(),
                     lightdashConfig: this.context.lightdashConfig,
                     persistentDownloadFileModel:
                         this.models.getPersistentDownloadFileModel(),
@@ -976,24 +979,10 @@ export class ServiceRepository
         );
     }
 
-    public getAnalyticsProjectService(): AnalyticsProjectService {
-        return this.getService(
-            'analyticsProjectService',
-            () =>
-                new AnalyticsProjectService({
-                    lightdashConfig: this.context.lightdashConfig,
-                    schedulerClient: this.clients.getSchedulerClient(),
-                    coderService: this.getCoderService(),
-                    contentVerificationModel:
-                        this.models.getContentVerificationModel(),
-                    dashboardModel: this.models.getDashboardModel(),
-                    savedChartModel: this.models.getSavedChartModel(),
-                    projectModel: this.models.getProjectModel(),
-                    projectService: this.getProjectService(),
-                    userModel: this.models.getUserModel(),
-                    spaceModel: this.models.getSpaceModel(),
-                }),
-        );
+    public getAnalyticsProjectService<
+        AnalyticsProjectServiceImplT,
+    >(): AnalyticsProjectServiceImplT {
+        return this.getService('analyticsProjectService');
     }
 
     public getAiServiceAccountService(): AiServiceAccountService {
@@ -1135,8 +1124,6 @@ export class ServiceRepository
                     agentSignInCredentialResolver:
                         new SnowflakeAgentSignInCredentialResolver({
                             projectModel: this.models.getProjectModel(),
-                            organizationWarehouseCredentialsModel:
-                                this.models.getOrganizationWarehouseCredentialsModel(),
                             warehouseConnectionModel:
                                 this.models.getWarehouseConnectionModel(),
                             logger: Logger,
@@ -1225,8 +1212,6 @@ export class ServiceRepository
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     projectParametersModel:
                         this.models.getProjectParametersModel(),
-                    organizationWarehouseCredentialsModel:
-                        this.models.getOrganizationWarehouseCredentialsModel(),
                     organizationModel: this.models.getOrganizationModel(),
                     projectCompileLogModel:
                         this.models.getProjectCompileLogModel(),
@@ -1391,8 +1376,6 @@ export class ServiceRepository
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     projectParametersModel:
                         this.models.getProjectParametersModel(),
-                    organizationWarehouseCredentialsModel:
-                        this.models.getOrganizationWarehouseCredentialsModel(),
                     organizationModel: this.models.getOrganizationModel(),
                     pivotTableService: this.getPivotTableService(),
                     prometheusMetrics: this.prometheusMetrics,
@@ -1426,6 +1409,7 @@ export class ServiceRepository
             });
 
             return new QuerySourceService({
+                analytics: this.context.lightdashAnalytics,
                 getAsyncQueryService: () => this.getAsyncQueryService(),
                 getAgentPermissionService: () =>
                     this.getAgentPermissionService(),
@@ -1542,6 +1526,19 @@ export class ServiceRepository
                     awsWebIdentityResolver:
                         this.models.getProjectModel().awsWebIdentity,
                     projectModel: this.models.getProjectModel(),
+                }),
+        );
+    }
+
+    public getBigqueryWorkloadIdentityService(): BigqueryWorkloadIdentityService {
+        return this.getService(
+            'bigqueryWorkloadIdentityService',
+            () =>
+                new BigqueryWorkloadIdentityService({
+                    featureFlagModel: this.models.getFeatureFlagModel(),
+                    projectModel: this.models.getProjectModel(),
+                    bigqueryWorkloadIdentityResolver:
+                        this.models.getProjectModel().bigqueryWorkloadIdentity,
                 }),
         );
     }
@@ -2245,6 +2242,18 @@ export class ServiceRepository
         return this.getService('scimService');
     }
 
+    public getOrganizationBrandService(): OrganizationBrandService {
+        return this.getService(
+            'organizationBrandService',
+            () =>
+                new OrganizationBrandService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    organizationBrandModel:
+                        this.models.getOrganizationBrandModel(),
+                }),
+        );
+    }
+
     public getReleaseHighlightsService<ServiceImplT>(): ServiceImplT {
         return this.getService('releaseHighlightsService');
     }
@@ -2337,12 +2346,6 @@ export class ServiceRepository
         ExternalConnectionCoderServiceImplT,
     >(): ExternalConnectionCoderServiceImplT {
         return this.getService('externalConnectionCoderService');
-    }
-
-    public getOrganizationWarehouseCredentialsService<
-        OrganizationWarehouseCredentialsServiceImplT,
-    >(): OrganizationWarehouseCredentialsServiceImplT {
-        return this.getService('organizationWarehouseCredentialsService');
     }
 
     public getInstanceConfigurationService<

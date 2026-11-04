@@ -137,6 +137,7 @@ export const lightdashConfigMock: LightdashConfig = {
     dashboard: {
         maxTilesPerTab: 50,
         maxTabsPerDashboard: 20,
+        maxConcurrentTileQueries: null,
         disableSentryTracking: false,
     },
     database: {
@@ -240,6 +241,16 @@ export const lightdashConfigMock: LightdashConfig = {
             cleanup: {
                 enabled: true,
                 retentionDays: 30,
+                batchSize: 1000,
+                delayMs: 100,
+                maxBatches: 100,
+            },
+        },
+        appStateHistory: {
+            cleanup: {
+                enabled: true,
+                retentionDays: 90,
+                keepVersions: 50,
                 batchSize: 1000,
                 delayMs: 100,
                 maxBatches: 100,
@@ -388,6 +399,12 @@ export const lightdashConfigMock: LightdashConfig = {
         clientSecret: undefined,
         redirectDomain: 'test',
     },
+    liveSources: {
+        posthog: {
+            oauthClientId: undefined,
+            oauthClientSecret: undefined,
+        },
+    },
     headlessBrowser: {
         internalLightdashHost: 'https://test.lightdash.cloud',
         internalLightdashHostIgnoreHttpsErrors: false,
@@ -401,9 +418,6 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     appearance: {},
     microsoftTeams: {
-        enabled: false,
-    },
-    organizationWarehouseCredentials: {
         enabled: false,
     },
     athenaWarehouseIamRoleAuth: {

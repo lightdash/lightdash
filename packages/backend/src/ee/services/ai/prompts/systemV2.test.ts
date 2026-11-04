@@ -502,7 +502,7 @@ describe('getSystemPromptV2 composer queries', () => {
 
             expect(
                 content.includes(
-                    'Use a semanticLayer node when an explore covers the question',
+                    'use a `sql` node only when the user points you at a raw table',
                 ),
             ).toBe(scoped);
             expect(content).not.toContain('**When to use it:**');
@@ -800,6 +800,7 @@ describe('getSystemPromptV2 requesting user', () => {
                     OrganizationMemberRole.VIEWER,
                 ),
                 groups: ['Finance', 'Ops'],
+                isServiceAccount: false,
             },
         });
         expect(content).toContain('## Who you are talking to');
@@ -820,6 +821,7 @@ describe('getSystemPromptV2 requesting user', () => {
                     OrganizationMemberRole.DEVELOPER,
                 ),
                 groups: [],
+                isServiceAccount: false,
             },
         });
         expect(content).toContain('organization role: Developer');
@@ -837,6 +839,7 @@ describe('getSystemPromptV2 requesting user', () => {
                 name: 'Sam Service',
                 role: null,
                 groups: [],
+                isServiceAccount: false,
             },
         });
         expect(content).toContain('Sam Service');
@@ -855,6 +858,7 @@ describe('getSystemPromptV2 requesting user', () => {
                     scopes: ['view:Dashboard', 'manage:SqlRunner'],
                 }),
                 groups: [],
+                isServiceAccount: false,
             },
         });
         expect(technical).toContain('organization role: Analytics Engineer');
@@ -870,6 +874,7 @@ describe('getSystemPromptV2 requesting user', () => {
                     scopes: ['view:Dashboard', 'manage:Explore'],
                 }),
                 groups: [],
+                isServiceAccount: false,
             },
         });
         expect(business).toContain('organization role: Finance Viewer');
@@ -892,7 +897,12 @@ describe('getSystemPromptV2 requesting user', () => {
         const content = promptText({
             availableExplores: [],
             promptSections: new Set<PromptSection>(['requestingUser']),
-            requestingUser: { name: '', role: null, groups: [] },
+            requestingUser: {
+                name: '',
+                role: null,
+                groups: [],
+                isServiceAccount: false,
+            },
         });
         expect(content).toContain('## Who you are talking to');
         expect(content).toContain("You don't know the user's name yet.");

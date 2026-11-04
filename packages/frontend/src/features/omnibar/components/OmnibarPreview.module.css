@@ -7,11 +7,7 @@
     flex-direction: column;
     overflow-y: auto;
     scrollbar-width: thin;
-    scrollbar-color: light-dark(
-            var(--mantine-color-ldGray-3),
-            var(--mantine-color-ldDark-6)
-        )
-        transparent;
+    scrollbar-color: var(--mantine-color-ldGray-3) transparent;
 
     @mixin smaller-than $mantine-breakpoint-sm {
         width: 100%;
@@ -26,10 +22,7 @@
 }
 
 .container::-webkit-scrollbar-thumb {
-    background: light-dark(
-        var(--mantine-color-ldGray-3),
-        var(--mantine-color-ldDark-6)
-    );
+    background: var(--mantine-color-ldGray-3);
     border-radius: 999px;
 }
 
@@ -44,10 +37,7 @@
 }
 
 .kicker {
-    color: light-dark(
-        var(--mantine-color-ldGray-6),
-        var(--mantine-color-ldGray-7)
-    );
+    color: var(--mantine-color-ldGray-6);
 }
 
 .title {
@@ -56,10 +46,7 @@
 
 .description {
     overflow-wrap: break-word;
-    color: light-dark(
-        var(--mantine-color-ldGray-7),
-        var(--mantine-color-ldGray-7)
-    );
+    color: var(--mantine-color-ldGray-7);
     line-height: 1.5;
 }
 
@@ -70,17 +57,11 @@
 
 .factLabel {
     flex-shrink: 0;
-    color: light-dark(
-        var(--mantine-color-ldGray-6),
-        var(--mantine-color-ldGray-7)
-    );
+    color: var(--mantine-color-ldGray-6);
 }
 
 .factValue {
-    color: light-dark(
-        var(--mantine-color-ldGray-9),
-        var(--mantine-color-ldGray-9)
-    );
+    color: var(--mantine-color-ldGray-9);
 }
 
 .flagBadge {

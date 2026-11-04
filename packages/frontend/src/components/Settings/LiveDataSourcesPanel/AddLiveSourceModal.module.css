@@ -1,0 +1,41 @@
+.card {
+    display: flex;
+    flex-direction: column;
+    padding: var(--mantine-spacing-sm);
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    background: var(--mantine-color-body);
+    min-height: 88px;
+    text-align: left;
+    transition:
+        border-color 120ms ease,
+        background-color 120ms ease;
+}
+
+button.card:hover {
+    border-color: var(
+        --mantine-color-default-border-hover,
+        var(--mantine-color-gray-4)
+    );
+    background: var(--mantine-color-default-hover);
+}
+
+button.card:focus-visible {
+    outline: 2px solid var(--mantine-primary-color-filled);
+    outline-offset: 2px;
+}
+
+.card[data-requestable] {
+    background: var(--mantine-color-default-hover);
+}
+
+.card[data-requestable] .icon {
+    filter: grayscale(1);
+    opacity: 0.55;
+}
+
+.icon {
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+}

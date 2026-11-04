@@ -122,7 +122,6 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
             onClose={onClose}
             closeOnItemClick
             closeOnEscape
-            radius={0}
             position="right-start"
             offset={{
                 mainAxis: 0,
@@ -132,10 +131,9 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
             <Portal>
                 <Menu.Target>
                     <Box
-                        style={{
-                            position: 'absolute',
-                            ...(menuPosition ?? {}),
-                        }}
+                        pos="absolute"
+                        left={menuPosition?.left}
+                        top={menuPosition?.top}
                     />
                 </Menu.Target>
             </Portal>

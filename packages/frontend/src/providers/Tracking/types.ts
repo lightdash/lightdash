@@ -827,13 +827,7 @@ type DashboardSectionCreatedEvent = {
     properties: DashboardControlsEventBase & {
         source: DashboardSectionCreatedSource;
         filtersMoved: number;
-        wasTipShown: boolean;
     };
-};
-
-type DashboardSectionsTipDismissedEvent = {
-    name: EventName.DASHBOARD_SECTIONS_TIP_DISMISSED;
-    properties: DashboardControlsEventBase;
 };
 
 type DashboardFiltersMovedEvent = {
@@ -951,6 +945,15 @@ type OnboardingWarehouseSelectedEvent = {
         warehouse: string;
         tier: 'popular' | 'all' | 'other';
         onboardingFlow: 'legacy' | 'new';
+    };
+};
+
+type LiveDataSourceRequestedEvent = {
+    name: EventName.LIVE_DATA_SOURCE_REQUESTED;
+    properties: {
+        organizationId: string | null;
+        projectId: string;
+        integration: string;
     };
 };
 
@@ -1180,7 +1183,8 @@ export type LearnStartSource =
     | 'resume'
     | 'recommended'
     | 'next_from_completion'
-    | 'deep_link';
+    | 'deep_link'
+    | 'homepage';
 
 type LearnLibraryViewedEvent = {
     name: EventName.LEARN_LIBRARY_VIEWED;
@@ -1405,7 +1409,6 @@ export type EventData =
     | FormulaTableCalculationAiGenerateClickedEvent
     | DashboardFilterLockToggledEvent
     | DashboardSectionCreatedEvent
-    | DashboardSectionsTipDismissedEvent
     | DashboardFiltersMovedEvent
     | DashboardFilterEditorOpenedEvent
     | DashboardFilterEditorClosedEvent
@@ -1418,7 +1421,8 @@ export type EventData =
     | SqlRunnerConnectionSwitchedEvent
     | SqlRunnerConnectionHintResolvedEvent
     | SqlRunnerShareLinkOpenedEvent
-    | OpenInSqlRunnerClickedEvent;
+    | OpenInSqlRunnerClickedEvent
+    | LiveDataSourceRequestedEvent;
 
 export type IdentifyData = {
     id: string;

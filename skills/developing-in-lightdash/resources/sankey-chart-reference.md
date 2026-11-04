@@ -176,7 +176,7 @@ This is expected. The node participates in a cyclical or multi-depth flow, so ea
 For implementation details on the BFS-based depth assignment and ECharts configuration:
 
 - Frontend hook: [`useSankeyChartConfig.ts`](../../../packages/frontend/src/hooks/useSankeyChartConfig.ts) — config state and the BFS algorithm that places cyclical edges
-- Visualization docs: [`packages/frontend/src/components/LightdashVisualization/CLAUDE.md`](../../../packages/frontend/src/components/LightdashVisualization/CLAUDE.md) — Sankey chart section covers the data model, BFS depth assignment, and ECharts options
+- Visualization docs: [`packages/frontend/src/components/LightdashVisualization/AGENTS.md`](../../../packages/frontend/src/components/LightdashVisualization/AGENTS.md) — Sankey chart section covers the data model, BFS depth assignment, and ECharts options
 
 ## Related Documentation
 

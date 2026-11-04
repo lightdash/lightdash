@@ -151,6 +151,7 @@ export class SchedulerModel {
                 scheduler.notification_frequency ?? undefined,
             includeLinks: scheduler.include_links,
             plainTextEmail: scheduler.plain_text_email,
+            useCachedResults: scheduler.use_cached_results,
             projectUuid: scheduler.project_uuid ?? undefined,
             projectName: scheduler.project_name ?? undefined,
         };
@@ -236,6 +237,7 @@ export class SchedulerModel {
             notification_frequency: newScheduler.notificationFrequency || null,
             include_links: newScheduler.includeLinks !== false,
             plain_text_email: newScheduler.plainTextEmail === true,
+            use_cached_results: newScheduler.useCachedResults === true,
         };
 
         if (isDashboardCreateScheduler(newScheduler)) {
@@ -1282,6 +1284,7 @@ export class SchedulerModel {
                             : null,
                     include_links: scheduler.includeLinks !== false,
                     plain_text_email: scheduler.plainTextEmail === true,
+                    use_cached_results: scheduler.useCachedResults === true,
                 })
                 .where('scheduler_uuid', scheduler.schedulerUuid);
 

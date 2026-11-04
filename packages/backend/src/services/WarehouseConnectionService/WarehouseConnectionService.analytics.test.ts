@@ -26,6 +26,7 @@ import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCr
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { type FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 import { type LicenseService } from '../LicenseService/LicenseService';
+import { SSH_TUNNEL_KEY_UNKNOWN_MESSAGE } from '../WarehouseClientFactory/resolvers/SshTunnelCredentialResolver';
 import { WarehouseConnectionBindingService } from '../WarehouseConnectionBindingService/WarehouseConnectionBindingService';
 import { credentialRedactionCases } from './credentialRedactionFixtures.mock';
 import { warehouseConnectionCredentials } from './warehouseConnectionFixtures.mock';
@@ -124,8 +125,9 @@ const buildService = (mixedTypesEnabled = false) => {
         }),
         updateExtraCredentials: vi.fn(),
         getCredentials: vi.fn().mockResolvedValue(credentials),
-        loadOrganizationCredentials: vi.fn(),
-        getExtraCredentialSource: vi.fn(),
+        getExtraCredentialSource: vi.fn().mockResolvedValue({
+            credentials,
+        }),
         transaction: vi.fn(),
     };
     model.transaction.mockImplementation(
@@ -197,6 +199,42 @@ const buildService = (mixedTypesEnabled = false) => {
 };
 
 describe('WarehouseConnectionService lifecycle analytics', () => {
+    it.each(
+        (['create', 'update'] as const).flatMap((operation) =>
+            [false, true].map((includeInlineCredentials) => ({
+                operation,
+                includeInlineCredentials,
+            })),
+        ),
+    )(
+        'rejects retired references on $operation with inline credentials $includeInlineCredentials',
+        async ({ operation, includeInlineCredentials }) => {
+            const { service, model, credentialPolicy } = buildService();
+            const request = {
+                name: 'Extra',
+                warehouseType: WarehouseTypes.POSTGRES,
+                organizationWarehouseCredentialsUuid: 'retired-credential',
+                ...(includeInlineCredentials
+                    ? { warehouseConnection: credentials }
+                    : {}),
+            };
+
+            await expect(
+                operation === 'create'
+                    ? service.create(account, projectUuid, request)
+                    : service.update(account, projectUuid, extraUuid, request),
+            ).rejects.toThrow(
+                'Organization warehouse credentials are no longer supported',
+            );
+            expect(model.createExtra).not.toHaveBeenCalled();
+            expect(model.updateExtraCredentials).not.toHaveBeenCalled();
+            expect(model.updateListingSettings).not.toHaveBeenCalled();
+            expect(
+                credentialPolicy.testWarehouseConnectionCredentialsForSave,
+            ).not.toHaveBeenCalled();
+        },
+    );
+
     it('tracks the saved SQL runner listing settings for the primary connection', async () => {
         const { service, model, analytics } = buildService();
 
@@ -404,29 +442,6 @@ describe('WarehouseConnectionService mixed warehouse types', () => {
     );
 
     it.each(['create', 'update'] as const)(
-        'allows a BigQuery organization extra with the flag on on %s',
-        async (operation) => {
-            const { service, model } = buildService(true);
-            model.get.mockResolvedValue({
-                ...connection(extraUuid, false),
-                warehouseType: WarehouseTypes.BIGQUERY,
-            });
-            model.loadOrganizationCredentials.mockResolvedValue({
-                type: WarehouseTypes.BIGQUERY,
-            });
-            const request = {
-                name: 'BigQuery',
-                organizationWarehouseCredentialsUuid:
-                    'organization-credentials-uuid',
-            };
-            await (operation === 'create'
-                ? service.create(account, projectUuid, request)
-                : service.update(account, projectUuid, extraUuid, request));
-            expect(model.loadOrganizationCredentials).toHaveBeenCalled();
-        },
-    );
-
-    it.each(['create', 'update'] as const)(
         'rechecks the warehouse type inside the %s transaction with the same flag value',
         async (operation) => {
             const { service, model, featureFlagService } = buildService();
@@ -558,33 +573,22 @@ describe('WarehouseConnectionService warehouse matrix', () => {
             ).not.toHaveBeenCalled();
         },
     );
-    it.each(['project', 'organization'] as const)(
-        'refuses internal analytics from %s credentials',
-        async (kind) => {
-            const { service, model } = buildService(true);
-            const warehouseConnection = {
-                type: WarehouseTypes.DUCKDB,
-                connectionType: DuckdbConnectionType.ANALYTICS,
-                database: 'memory',
-                schema: 'main',
-            } as const;
-            model.loadOrganizationCredentials.mockResolvedValue(
+    it('refuses internal analytics from project credentials', async () => {
+        const { service, model } = buildService(true);
+        const warehouseConnection = {
+            type: WarehouseTypes.DUCKDB,
+            connectionType: DuckdbConnectionType.ANALYTICS,
+            database: 'memory',
+            schema: 'main',
+        } as const;
+        await expect(
+            service.create(account, projectUuid, {
+                name: 'Analytics',
                 warehouseConnection,
-            );
-            await expect(
-                service.create(account, projectUuid, {
-                    name: 'Analytics',
-                    ...(kind === 'project'
-                        ? { warehouseConnection }
-                        : {
-                              organizationWarehouseCredentialsUuid:
-                                  'org-credentials',
-                          }),
-                }),
-            ).rejects.toThrow('Internal analytics');
-            expect(model.createExtra).not.toHaveBeenCalled();
-        },
-    );
+            }),
+        ).rejects.toThrow('Internal analytics');
+        expect(model.createExtra).not.toHaveBeenCalled();
+    });
 });
 
 describe('WarehouseConnectionService database listing validation', () => {
@@ -679,7 +683,6 @@ describe('connection details credential redaction', () => {
                 warehouseType: savedCredentials.type,
             });
             model.getExtraCredentialSource.mockResolvedValue({
-                organizationWarehouseCredentialsUuid: null,
                 credentials: savedCredentials,
             });
             const response = await service.get(account, projectUuid, extraUuid);
@@ -697,28 +700,17 @@ describe('connection details credential redaction', () => {
 describe('connection type immutability', () => {
     it.each(
         [false, true].flatMap((enabled) =>
-            ['project', 'organization'].map((source) => ({ enabled, source })),
+            ['project'].map((source) => ({ enabled, source })),
         ),
     )(
         "refuses a type change with flag $enabled and $source credentials, with main's message when off",
-        async ({ enabled, source }) => {
+        async ({ enabled }) => {
             const { service, model, credentialPolicy } = buildService(enabled);
             model.get.mockResolvedValue(connection(extraUuid, false));
-            model.loadOrganizationCredentials.mockResolvedValue(
-                trinoCredentials,
-            );
             await expect(
-                service.update(
-                    account,
-                    projectUuid,
-                    extraUuid,
-                    source === 'project'
-                        ? { warehouseConnection: trinoCredentials }
-                        : {
-                              organizationWarehouseCredentialsUuid:
-                                  'org-credentials',
-                          },
-                ),
+                service.update(account, projectUuid, extraUuid, {
+                    warehouseConnection: trinoCredentials,
+                }),
             ).rejects.toThrow(
                 enabled
                     ? "A connection's warehouse type cannot be changed. Add a new connection instead."
@@ -879,7 +871,7 @@ describe('preview extra connection CLI refresh', () => {
         ...credentials,
         ...tunnel,
         password: 'parent-password',
-        sshTunnelPrivateKey: 'must-not-copy-parent-private-key',
+        sshTunnelPrivateKey: 'parent-private-key',
     };
     const setupRefresh = (
         saved: CreatePostgresCredentials = { ...credentials, ...tunnel },
@@ -959,7 +951,11 @@ describe('preview extra connection CLI refresh', () => {
             );
             const stored =
                 h.model.updateExtraCredentials.mock.calls[0][2].credentials;
-            expect(stored).not.toHaveProperty('sshTunnelPrivateKey');
+            // Same parent destination and public key: destination-bound inheritance carries the parent key.
+            expect(stored).toMatchObject({
+                sshTunnelPrivateKey: 'parent-private-key',
+            });
+            expect(stored).not.toMatchObject({ password: 'parent-password' });
         },
     );
     it('preserves the preview own tunnel and explicit opt-out', async () => {
@@ -1032,3 +1028,218 @@ describe('preview extra connection CLI refresh', () => {
         expect(h.model.updateExtraCredentials).not.toHaveBeenCalled();
     });
 });
+
+describe.each([
+    {
+        name: 'Postgres',
+        warehouseType: WarehouseTypes.POSTGRES,
+        incoming: {
+            ...credentials,
+            password: 'fresh-password',
+        } as CreatePostgresCredentials | CreateRedshiftCredentials,
+    },
+    {
+        name: 'Redshift IAM',
+        warehouseType: WarehouseTypes.REDSHIFT,
+        incoming: {
+            type: WarehouseTypes.REDSHIFT,
+            host: 'redshift',
+            port: 5439,
+            dbname: 'analytics',
+            schema: 'preview',
+            user: 'developer',
+            authenticationType: RedshiftAuthenticationType.IAM,
+            region: 'eu-west-1',
+            clusterIdentifier: 'cluster',
+            accessKeyId: 'fresh-key',
+            secretAccessKey: 'fresh-secret',
+            sessionToken: 'fresh-session',
+        } as CreatePostgresCredentials | CreateRedshiftCredentials,
+    },
+])(
+    'preview extra $name connection SSH key inheritance',
+    ({ warehouseType, incoming }) => {
+        const tunnel = {
+            useSshTunnel: true,
+            sshTunnelHost: 'extra-bastion',
+            sshTunnelPort: 22,
+            sshTunnelUser: 'extra-user',
+            sshTunnelPublicKey: 'extra-public-key',
+        };
+        const upstream = { ...project, projectUuid: 'upstream' };
+        const parent = {
+            ...incoming,
+            ...tunnel,
+            password: 'parent-password',
+            accessKeyId: 'parent-key',
+            secretAccessKey: 'parent-secret',
+            sessionToken: 'parent-session',
+            sshTunnelPrivateKey: 'parent-private-key',
+        };
+        const extra = { ...connection(extraUuid, false), warehouseType };
+        const setupRefresh = (
+            saved: Record<string, unknown>,
+            parentPatch: Record<string, unknown> = {},
+        ) => {
+            const h = buildService(true);
+            let stored = saved;
+            h.projectModel.getSummary.mockResolvedValue({
+                ...summary,
+                type: ProjectType.PREVIEW,
+                upstreamProjectUuid: upstream.projectUuid,
+            });
+            h.model.get.mockResolvedValue(extra);
+            h.model.getProject.mockImplementation(async (uuid: string) =>
+                uuid === upstream.projectUuid ? upstream : project,
+            );
+            h.model.list.mockImplementation(async (p: typeof project) =>
+                p.projectUuid === upstream.projectUuid
+                    ? [
+                          {
+                              ...connection('upstream-extra', false),
+                              warehouseType,
+                          },
+                      ]
+                    : [connection(primaryUuid, true), extra],
+            );
+            h.model.getCredentials.mockImplementation(
+                async (p: typeof project) =>
+                    p.projectUuid === upstream.projectUuid
+                        ? { ...parent, ...parentPatch }
+                        : stored,
+            );
+            h.model.updateExtraCredentials.mockImplementation(
+                async (_p, _uuid, source: { credentials: typeof stored }) => {
+                    stored = source.credentials;
+                },
+            );
+            h.credentialPolicy.testWarehouseConnectionCredentialsForSave.mockImplementation(
+                async (_account, _organizationUuid, warehouseConnection) => {
+                    if (
+                        warehouseConnection.useSshTunnel === true &&
+                        !warehouseConnection.sshTunnelPrivateKey
+                    ) {
+                        throw new ParameterError(
+                            SSH_TUNNEL_KEY_UNKNOWN_MESSAGE,
+                        );
+                    }
+                    return {
+                        credentials: warehouseConnection,
+                        result: { ok: true, hops: [] },
+                    };
+                },
+            );
+            return {
+                ...h,
+                stored: () => stored,
+                refresh: (payload: Record<string, unknown> = {}) =>
+                    h.service.update(
+                        account,
+                        projectUuid,
+                        extraUuid,
+                        {
+                            warehouseConnection: {
+                                ...incoming,
+                                ...payload,
+                            } as CreatePostgresCredentials,
+                        },
+                        RequestMethod.CLI,
+                    ),
+            };
+        };
+        const expectNoParentSecrets = (value: unknown) =>
+            expect(JSON.stringify(value ?? null)).not.toMatch(
+                /parent-(password|key|secret|session)"/,
+            );
+
+        it('carries the parent key for the same destination', async () => {
+            const h = setupRefresh({ ...incoming, ...tunnel });
+            await h.refresh();
+            expect(h.stored()).toMatchObject({
+                ...tunnel,
+                sshTunnelPrivateKey: 'parent-private-key',
+            });
+            expectNoParentSecrets(h.stored());
+        });
+        it('keeps working across consecutive refreshes', async () => {
+            const h = setupRefresh({ ...incoming, ...tunnel });
+            await h.refresh();
+            await h.refresh();
+            expect(h.model.updateExtraCredentials).toHaveBeenCalledTimes(2);
+            expect(h.stored()).toMatchObject({
+                sshTunnelPrivateKey: 'parent-private-key',
+            });
+            expectNoParentSecrets(h.stored());
+        });
+        it('keeps the preview own saved private key', async () => {
+            const h = setupRefresh({
+                ...incoming,
+                ...tunnel,
+                sshTunnelPrivateKey: 'preview-private-key',
+            });
+            await h.refresh();
+            expect(h.stored()).toMatchObject({
+                sshTunnelPrivateKey: 'preview-private-key',
+            });
+        });
+        it.each([
+            ['a changed tunnel host', { sshTunnelHost: 'other-bastion' }, {}],
+            ['a changed tunnel port', { sshTunnelPort: 2222 }, {}],
+            ['a changed tunnel user', { sshTunnelUser: 'other-user' }, {}],
+            ['a changed warehouse host', {}, { host: 'moved-warehouse' }],
+            ['a changed warehouse port', {}, { port: 6543 }],
+            [
+                'a different public key',
+                { sshTunnelPublicKey: 'previous-public-key' },
+                {},
+            ],
+        ])(
+            'does not carry the parent key to %s',
+            async (_case, savedPatch, payload) => {
+                const h = setupRefresh({
+                    ...incoming,
+                    ...tunnel,
+                    ...savedPatch,
+                });
+                await expect(h.refresh(payload)).rejects.toMatchObject({
+                    statusCode: 400,
+                    message: SSH_TUNNEL_KEY_UNKNOWN_MESSAGE,
+                });
+                expect(h.model.updateExtraCredentials).not.toHaveBeenCalled();
+            },
+        );
+        it('does not carry the parent key to a preview tunnel opt-out', async () => {
+            const h = setupRefresh({
+                ...incoming,
+                ...tunnel,
+                useSshTunnel: false,
+            });
+            await h.refresh();
+            expect(h.stored()).not.toHaveProperty('sshTunnelPrivateKey');
+            expectNoParentSecrets(h.stored());
+        });
+        it('does not carry the parent key when the parent has no tunnel', async () => {
+            const h = setupRefresh(
+                { ...incoming, ...tunnel },
+                { useSshTunnel: false },
+            );
+            await expect(h.refresh()).rejects.toMatchObject({
+                statusCode: 400,
+                message: SSH_TUNNEL_KEY_UNKNOWN_MESSAGE,
+            });
+        });
+        it('does not read or carry the key of an upstream in another organisation', async () => {
+            const h = setupRefresh({ ...incoming, ...tunnel });
+            h.model.getProject.mockImplementation(async (uuid: string) =>
+                uuid === upstream.projectUuid
+                    ? { ...upstream, organizationUuid: 'other-organisation' }
+                    : project,
+            );
+            await expect(h.refresh()).rejects.toThrow();
+            expect(
+                h.credentialPolicy.testWarehouseConnectionCredentialsForSave,
+            ).not.toHaveBeenCalled();
+            expect(h.model.updateExtraCredentials).not.toHaveBeenCalled();
+        });
+    },
+);

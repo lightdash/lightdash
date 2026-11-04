@@ -8,8 +8,10 @@ import {
 } from '../analytics/eventStream/UsageUserActivityBuilder';
 import { lightdashConfig } from '../config/lightdashConfig';
 import { parseUsageEventsS3Config } from '../config/parseConfig';
+import { getEnterpriseAppArguments } from '../ee';
 import knexConfig from '../knexfile';
-import { FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
+import { ModelRepository } from '../models/ModelRepository';
+import { UtilRepository } from '../utils/UtilRepository';
 
 async function main() {
     const { values } = parseArgs({
@@ -41,10 +43,14 @@ async function main() {
     }
     const database = knex(knexConfig.production);
     try {
-        const { enabled } = await new FeatureFlagModel({
+        const { modelProviders } = await getEnterpriseAppArguments();
+        const models = new ModelRepository({
             database,
             lightdashConfig,
-        }).get({
+            modelProviders,
+            utils: new UtilRepository({ lightdashConfig }),
+        });
+        const { enabled } = await models.getFeatureFlagModel().get({
             featureFlagId: FeatureFlags.AnalyticsProject,
             user: { organizationUuid: values['org-id'] },
         });

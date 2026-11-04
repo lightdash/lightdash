@@ -279,6 +279,7 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
                     {(transitionStyle) => (
                         <Box
                             className={styles.previewPanel}
+                            // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                             style={transitionStyle}
                         >
                             <AiSavedChartPreviewPanel
@@ -298,6 +299,7 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
                     {(transitionStyle) => (
                         <Box
                             className={styles.previewPanel}
+                            // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                             style={transitionStyle}
                         >
                             <AiDataAppPreviewPanel
@@ -318,6 +320,7 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
                     {(transitionStyle) => (
                         <Box
                             className={styles.previewPanel}
+                            // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                             style={transitionStyle}
                         >
                             <AiDocumentPreviewPanel
@@ -342,7 +345,7 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
                             agent={panelAgent}
                             agents={agents}
                             activeThreadId={safeActiveThreadId}
-                            style={transitionStyle}
+                            transitionStyle={transitionStyle}
                         />
                     </LauncherPanelSizeContext.Provider>
                 )}
@@ -360,7 +363,7 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
                         >
                             <LauncherAnalysisPanel
                                 adapter={transitionAnalysisAdapter}
-                                style={transitionStyle}
+                                transitionStyle={transitionStyle}
                             />
                         </LauncherPanelSizeContext.Provider>
                     )}

@@ -3,6 +3,7 @@ import {
     AiAccessRefusedError,
     type AnyType,
 } from '@lightdash/common';
+import * as Sentry from '@sentry/node';
 import {
     APICallError,
     asSchema,
@@ -33,6 +34,7 @@ import {
     AiAgentEmptyResponseError,
     AiAgentStepCapReachedError,
     EMPTY_RESPONSE_MESSAGE,
+    OUTPUT_LIMIT_REACHED_MESSAGE,
     PROVIDER_BILLING_MESSAGE,
     STEP_CAP_REACHED_MESSAGE,
 } from '../utils/errorMessages';
@@ -68,6 +70,11 @@ import {
     type AgentMcpToolSetup,
 } from './agentV2';
 import { createIntentToolGate } from './referenceToolGating';
+
+vi.mock('@sentry/node', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@sentry/node')>()),
+    captureException: vi.fn(() => 'test-event'),
+}));
 
 vi.mock('ai', async (importOriginal) => ({
     ...(await importOriginal<typeof import('ai')>()),
@@ -108,10 +115,12 @@ const buildAgentArgs = (
         callOptions: {},
         canManageAgent: false,
         canRunSql: true,
+        composerApiConnections: [],
         compactionSummary: null,
         debugLoggingEnabled: false,
         deepResearchRuns: [],
         enableAiWriteback: false,
+        enableContentReads: false,
         enableContentTools: false,
         enableDataAccess: false,
         enableDataAnswerFastResponse: false,
@@ -627,6 +636,22 @@ describe('empty finishes and interrupts', () => {
         finishReason: 'tool-calls',
     };
 
+    const lengthFinish: Awaited<ReturnType<MockLanguageModelV4['doGenerate']>> =
+        {
+            content: [],
+            finishReason: { unified: 'length', raw: 'max_tokens' },
+            usage: {
+                inputTokens: {
+                    total: 1,
+                    noCache: 1,
+                    cacheRead: 0,
+                    cacheWrite: 0,
+                },
+                outputTokens: { total: 10, text: 0, reasoning: 10 },
+            },
+            warnings: [],
+        };
+
     const buildInterruptibleDependencies = (interrupted: boolean) => {
         const updatePrompt = vi.fn().mockResolvedValue(undefined);
         const dependencies = buildAgentDependencies(updatePrompt);
@@ -935,6 +960,33 @@ describe('empty finishes and interrupts', () => {
         });
     });
 
+    it('generate: distinguishes output exhaustion from a generic empty response', async () => {
+        const { generateText: generateWithSdk } =
+            await vi.importActual<typeof import('ai')>('ai');
+        vi.mocked(generateText).mockImplementationOnce(generateWithSdk);
+        const { updatePrompt, dependencies } =
+            buildInterruptibleDependencies(false);
+        Object.assign(dependencies, { consumePromptSteers: async () => [] });
+        const args = buildAgentArgs();
+        args.model = new MockLanguageModelV4({ doGenerate: lengthFinish });
+
+        await expect(
+            generateAgentResponse({
+                args,
+                dependencies,
+                mcpToolSetup: mcpToolSetup(),
+            }),
+        ).rejects.toMatchObject({
+            name: 'AiAgentEmptyResponseError',
+            finishReason: 'length',
+        });
+        expect(updatePrompt).toHaveBeenCalledWith(
+            expect.objectContaining({
+                errorMessage: OUTPUT_LIMIT_REACHED_MESSAGE,
+            }),
+        );
+    });
+
     const runStreamOnFinish = async (
         interrupted: boolean,
         execution?: Record<string, unknown>,
@@ -989,6 +1041,54 @@ describe('empty finishes and interrupts', () => {
                 errorMessage: EMPTY_RESPONSE_MESSAGE,
             }),
         );
+    });
+
+    it('stream: distinguishes output exhaustion from a generic empty response', async () => {
+        const { streamText: streamWithSdk } =
+            await vi.importActual<typeof import('ai')>('ai');
+        vi.mocked(streamText).mockImplementationOnce(streamWithSdk);
+        const { updatePrompt, dependencies } =
+            buildInterruptibleDependencies(false);
+        Object.assign(dependencies, { consumePromptSteers: async () => [] });
+        const stream: Awaited<
+            ReturnType<MockLanguageModelV4['doStream']>
+        >['stream'] = new ReadableStream({
+            start(controller) {
+                controller.enqueue({ type: 'stream-start', warnings: [] });
+                controller.enqueue({
+                    type: 'finish',
+                    finishReason: lengthFinish.finishReason,
+                    usage: lengthFinish.usage,
+                });
+                controller.close();
+            },
+        });
+        const args = buildAgentArgs();
+        args.model = new MockLanguageModelV4({ doStream: { stream } });
+        const captureException = vi.mocked(Sentry.captureException);
+        captureException.mockClear();
+        try {
+            const result = await streamAgentResponse({
+                args,
+                dependencies,
+                mcpToolSetup: mcpToolSetup(),
+            });
+            await result.consumeStream();
+            expect(captureException).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    name: 'AiAgentEmptyResponseError',
+                    finishReason: 'length',
+                }),
+                expect.anything(),
+            );
+            expect(updatePrompt).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    errorMessage: OUTPUT_LIMIT_REACHED_MESSAGE,
+                }),
+            );
+        } finally {
+            vi.mocked(streamText).mockReset();
+        }
     });
 
     it('generate: still throws the step-cap error at the cap when not interrupted', async () => {
@@ -1914,6 +2014,7 @@ describe('buildDeepResearchExecutionContextSnapshot', () => {
                 repoFsSupportsCodeSearch: true,
                 canManageAgent: false,
                 canRunSql: true,
+                composerApiConnections: [],
                 enableDataAccess: true,
                 enableContentTools: true,
                 autoApproveSql: true,
@@ -2092,8 +2193,10 @@ describe('getAgentTools workstream tool gate', () => {
         enableAiWriteback: boolean;
         aiAgentMemoryEnabled?: boolean;
         canCreateDashboards?: boolean;
+        canCreateScheduledDeliveries?: boolean;
         canRunSql?: boolean;
         enableComposerQueries?: boolean;
+        enableContentReads?: boolean;
         enableContentTools?: boolean;
         enableDocuments?: boolean;
         enableDataAccess?: boolean;
@@ -2104,6 +2207,7 @@ describe('getAgentTools workstream tool gate', () => {
     const buildArgs = (flags: ToolFlags): AiAgentArgs =>
         ({
             canCreateDashboards: true,
+            canCreateScheduledDeliveries: true,
             agentSettings: {
                 uuid: 'agent-1',
                 name: 'test-agent',
@@ -2117,7 +2221,9 @@ describe('getAgentTools workstream tool gate', () => {
             compactionSummary: null,
             canManageAgent: false,
             canRunSql: true,
+            composerApiConnections: [],
             debugLoggingEnabled: false,
+            enableContentReads: flags.enableContentTools ?? false,
             enableContentTools: false,
             enableDataAccess: false,
             enableEditProjectContext: false,
@@ -2554,6 +2660,33 @@ describe('getAgentTools workstream tool gate', () => {
         );
     });
 
+    it('offers content reads to users who cannot author content', () => {
+        const names = toolNames({
+            enableAiWriteback: false,
+            enableDataAccess: true,
+            enableContentReads: true,
+            enableContentTools: false,
+            canCreateDashboards: false,
+        });
+
+        expect(names).toEqual(
+            expect.arrayContaining([
+                'readContent',
+                'listContent',
+                'runContentQuery',
+            ]),
+        );
+        for (const name of [
+            'createContent',
+            'editContent',
+            'createScheduledDelivery',
+            'getDashboardCharts',
+            'generateDashboard',
+        ]) {
+            expect(names).not.toContain(name);
+        }
+    });
+
     it('withholds generateDashboard from users who cannot save one', () => {
         const names = toolNames({
             enableAiWriteback: false,
@@ -2574,6 +2707,30 @@ describe('getAgentTools workstream tool gate', () => {
                 canCreateDashboards: true,
             }),
         ).toContain('generateDashboard');
+    });
+
+    it('withholds createScheduledDelivery from users who cannot schedule', () => {
+        const names = toolNames({
+            enableAiWriteback: false,
+            enableDataAccess: true,
+            enableContentTools: true,
+            canCreateScheduledDeliveries: false,
+        });
+
+        expect(names).not.toContain('createScheduledDelivery');
+        expect(names).toContain('createContent');
+        expect(names).toContain('editContent');
+    });
+
+    it('exposes createScheduledDelivery when the user can schedule', () => {
+        expect(
+            toolNames({
+                enableAiWriteback: false,
+                enableDataAccess: true,
+                enableContentTools: true,
+                canCreateScheduledDeliveries: true,
+            }),
+        ).toContain('createScheduledDelivery');
     });
 
     it('does not expose loadMcpTools when there are no MCP tools', () => {

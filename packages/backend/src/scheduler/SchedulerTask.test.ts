@@ -1214,12 +1214,69 @@ describe('PDF content export', () => {
         );
     });
 
+    it('renders embed image exports with the embed token instead of a user session', async () => {
+        const { task, logSchedulerJob, getNotificationPageData } = setup();
+        const exportEmbedDashboardImage = vi
+            .fn()
+            .mockResolvedValue('https://storage.example/embed.png');
+        Object.assign(task, { unfurlService: { exportEmbedDashboardImage } });
+        const jwtAccount = { isJwtUser: () => true } as unknown as Account;
+
+        await task.exportContentForTest(
+            {
+                ...payload,
+                format: SchedulerFormat.IMAGE,
+                userUuid: 'external::viewer',
+                encodedJwt: 'jwt',
+            },
+            jwtAccount,
+        );
+
+        expect(getNotificationPageData).not.toHaveBeenCalled();
+        expect(exportEmbedDashboardImage).toHaveBeenCalledWith(
+            expect.objectContaining({
+                dashboardUuid: 'dashboard-1',
+                embedToken: 'jwt',
+                externalId: 'external::viewer',
+                selectedTabs: ['tab-1'],
+            }),
+        );
+        expect(logSchedulerJob).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                status: SchedulerJobStatus.COMPLETED,
+                details: expect.objectContaining({
+                    url: 'https://storage.example/embed.png',
+                    fileType: SchedulerFormat.IMAGE,
+                }),
+            }),
+        );
+    });
+
     it('rejects exports without storage before rendering a local-only file', async () => {
         const { task, getNotificationPageData } = setup(false);
         await expect(task.exportContentForTest(payload)).rejects.toThrow(
             'Cloud storage is not enabled',
         );
         expect(getNotificationPageData).not.toHaveBeenCalled();
+    });
+
+    it('rejects embed image exports without storage so links can expire', async () => {
+        const { task } = setup(false);
+        const exportEmbedDashboardImage = vi.fn();
+        Object.assign(task, { unfurlService: { exportEmbedDashboardImage } });
+        const jwtAccount = { isJwtUser: () => true } as unknown as Account;
+
+        await expect(
+            task.exportContentForTest(
+                {
+                    ...payload,
+                    format: SchedulerFormat.IMAGE,
+                    encodedJwt: 'jwt',
+                },
+                jwtAccount,
+            ),
+        ).rejects.toThrow('Cloud storage is not enabled');
+        expect(exportEmbedDashboardImage).not.toHaveBeenCalled();
     });
 });
 
@@ -1830,6 +1887,7 @@ describe('handleScheduledDelivery execution identity', () => {
         enabled: true,
         includeLinks: true,
         plainTextEmail: false,
+        useCachedResults: false,
         targets: [],
     } as SchedulerAndTargets;
 
@@ -2016,6 +2074,7 @@ const appScheduler = (
         enabled: true,
         includeLinks: true,
         plainTextEmail: false,
+        useCachedResults: false,
         targets: [],
         ...overrides,
     }) as CreateSchedulerAndTargets;
@@ -2168,6 +2227,7 @@ describe('getNotificationPageData — app CSV/XLSX branch', () => {
             projectUuid: 'project-1',
             queryUuid: 'query-a',
             type: DownloadFileType.CSV,
+            accessMode: PersistentDownloadFileAccessMode.SIGNED,
             onlyRaw: false,
             expirationSecondsOverride: 604800,
         });
@@ -5590,5 +5650,207 @@ describe('pre-aggregates gated on instance config', () => {
 
         expect(materializePreAggregate).not.toHaveBeenCalled();
         expect(logSchedulerJob).not.toHaveBeenCalled();
+    });
+});
+
+describe('scheduler useCachedResults', () => {
+    const baseScheduler = {
+        name: 'Daily report',
+        createdBy: 'user-1',
+        savedChartUuid: 'chart-1',
+        savedSqlUuid: null,
+        dashboardUuid: null,
+        appUuid: null,
+        appName: null,
+        cron: '0 7 * * *',
+        timezone: 'UTC',
+        message: '',
+        enabled: true,
+        includeLinks: true,
+        targets: [],
+    };
+
+    const runPageData = async (
+        scheduler: Record<string, unknown>,
+        deps: Partial<TaskDeps>,
+    ) => {
+        const task = makeTaskWithDeps({
+            analytics: asDep<'analytics'>({
+                track: vi.fn(),
+                trackAccount: vi.fn(),
+            }),
+            lightdashConfig: asDep<'lightdashConfig'>({
+                siteUrl: 'http://localhost:8090',
+            }),
+            fileStorageClient: asDep<'fileStorageClient'>({
+                isEnabled: vi.fn().mockReturnValue(false),
+            }),
+            ...deps,
+        });
+        Object.assign(task, {
+            getChartOrDashboard: vi.fn().mockResolvedValue({
+                url: 'http://localhost:8090/projects/project-1/saved/chart-1',
+                minimalUrl:
+                    'http://localhost:3000/minimal/projects/project-1/saved/chart-1',
+                pageType: LightdashPage.CHART,
+                details: { name: 'Chart', description: undefined },
+                organizationUuid: 'org-1',
+                projectUuid: 'project-1',
+            }),
+        });
+        await (
+            task as unknown as {
+                getNotificationPageData(
+                    scheduler: unknown,
+                    jobId: string,
+                    isFinalAttempt: boolean,
+                ): Promise<unknown>;
+            }
+        ).getNotificationPageData(scheduler, 'job-1', true);
+    };
+
+    const runImageDelivery = async (useCachedResults: boolean | undefined) => {
+        const unfurlImage = vi
+            .fn()
+            .mockResolvedValue({ imageUrl: 'http://image' });
+        await runPageData(
+            {
+                ...baseScheduler,
+                format: SchedulerFormat.IMAGE,
+                options: {},
+                useCachedResults,
+            },
+            { unfurlService: asDep<'unfurlService'>({ unfurlImage }) },
+        );
+        return new URL(unfurlImage.mock.calls[0][0].url);
+    };
+
+    const runCsvDelivery = async (useCachedResults: boolean | undefined) => {
+        const executeAsyncSavedChartQuery = vi
+            .fn()
+            .mockResolvedValue({ queryUuid: 'query-1' });
+        await runPageData(
+            {
+                ...baseScheduler,
+                format: SchedulerFormat.CSV,
+                options: { formatted: true, limit: 'table' },
+                useCachedResults,
+            },
+            {
+                userService: asDep<'userService'>({
+                    getAccountByUserUuid: vi.fn().mockResolvedValue({
+                        user: { id: 'user-1' },
+                        organization: { organizationUuid: 'org-1' },
+                    }),
+                }),
+                schedulerService: asDep<'schedulerService'>({
+                    savedChartModel: {
+                        get: vi.fn().mockResolvedValue({
+                            name: 'Chart',
+                            chartConfig: {
+                                type: ChartType.CARTESIAN,
+                                config: {},
+                            },
+                            pivotConfig: undefined,
+                            tableConfig: { columnOrder: [] },
+                        }),
+                    },
+                }),
+                asyncQueryService: asDep<'asyncQueryService'>({
+                    executeAsyncSavedChartQuery,
+                    downloadSyncQueryResults: vi.fn().mockResolvedValue({
+                        fileUrl: 'http://file',
+                        s3FileUrl: 'http://s3-file',
+                    }),
+                }),
+            },
+        );
+        return executeAsyncSavedChartQuery.mock.calls[0][0];
+    };
+
+    it('asks the headless page for cached results only when opted in', async () => {
+        const optedIn = await runImageDelivery(true);
+        const defaulted = await runImageDelivery(undefined);
+
+        expect(optedIn.searchParams.get('useCachedResults')).toBe('true');
+        expect(defaulted.searchParams.has('useCachedResults')).toBe(false);
+    });
+
+    it('reads the CSV query from cache only when opted in', async () => {
+        expect((await runCsvDelivery(true)).invalidateCache).toBe(false);
+        expect((await runCsvDelivery(false)).invalidateCache).toBe(true);
+        expect((await runCsvDelivery(undefined)).invalidateCache).toBe(true);
+    });
+
+    it('reads the Google Sheets query from cache only when opted in', async () => {
+        const runSync = async (useCachedResults: boolean) => {
+            const executeSqlChartQueryAndGetResults = vi
+                .fn()
+                .mockResolvedValue({ rows: [{ a: 1 }] });
+            const task = makeTaskWithDeps({
+                googleDriveClient: asDep<'googleDriveClient'>({
+                    isEnabled: true,
+                    uploadMetadata: vi.fn().mockResolvedValue(undefined),
+                    appendCsvToSheet: vi.fn().mockResolvedValue(undefined),
+                }),
+                schedulerService: asDep<'schedulerService'>({
+                    schedulerModel: {
+                        getSchedulerAndTargets: vi.fn().mockResolvedValue({
+                            ...baseScheduler,
+                            schedulerUuid: 'scheduler-1',
+                            format: SchedulerFormat.GSHEETS,
+                            savedChartUuid: null,
+                            savedSqlUuid: 'sql-chart-1',
+                            options: { gdriveId: 'sheet-1', tabName: 'Tab' },
+                            useCachedResults,
+                        }),
+                    },
+                    getSchedulerDefaultTimezone: vi
+                        .fn()
+                        .mockResolvedValue('UTC'),
+                    logSchedulerJob: vi.fn().mockResolvedValue(undefined),
+                }),
+                userService: asDep<'userService'>({
+                    getSessionByUserUuid: vi.fn().mockResolvedValue({}),
+                    getAccountByUserUuid: vi.fn().mockResolvedValue({
+                        user: { email: 'demo@lightdash.com' },
+                        organization: { organizationUuid: 'org-1' },
+                    }),
+                    getRefreshToken: vi.fn().mockResolvedValue('token'),
+                }),
+                asyncQueryService: asDep<'asyncQueryService'>({
+                    savedSqlModel: {
+                        getByUuid: vi.fn().mockResolvedValue({
+                            slug: 'sql-chart',
+                            project: { projectUuid: 'project-1' },
+                        }),
+                    },
+                    executeSqlChartQueryAndGetResults,
+                }),
+                analytics: asDep<'analytics'>({ track: vi.fn() }),
+                lightdashConfig: asDep<'lightdashConfig'>({
+                    siteUrl: 'http://localhost:8090',
+                }),
+            });
+            await (
+                task as unknown as {
+                    uploadGsheets(
+                        jobId: string,
+                        notification: GsheetsNotificationPayload,
+                    ): Promise<void>;
+                }
+            ).uploadGsheets('job-1', {
+                schedulerUuid: 'scheduler-1',
+                scheduledTime: new Date('2026-09-30T07:00:00Z'),
+                jobGroup: 'scheduled_delivery',
+                userUuid: 'user-1',
+                organizationUuid: 'org-1',
+                projectUuid: 'project-1',
+            });
+            return executeSqlChartQueryAndGetResults.mock.calls[0][0];
+        };
+
+        expect((await runSync(true)).invalidateCache).toBe(false);
+        expect((await runSync(false)).invalidateCache).toBe(true);
     });
 });

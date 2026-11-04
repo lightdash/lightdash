@@ -39,6 +39,7 @@ const analysis = (appUuid: string) => ({
     anomalies: [],
     limitations: [],
     dataAsOf: null,
+    investigations: [],
 });
 
 const render = (autoAnalyse = false) =>
@@ -271,6 +272,47 @@ describe('useDataAppAnalysis', () => {
             expect.anything(),
             expect.objectContaining({ force: true }),
         );
+    });
+
+    it('restores stored investigations when detect serves a cached analysis', async () => {
+        const cached = analysis('app-a');
+        vi.mocked(detectAnalysisAnomalies).mockResolvedValue({
+            ...cached,
+            investigations: [
+                {
+                    investigationId: 'inv-1',
+                    analysisId: cached.analysisId,
+                    target: {
+                        kind: 'app' as const,
+                        appUuid: 'app-a',
+                        appVersion: 1,
+                    },
+                    generatedAt: new Date(),
+                    explanation: 'because',
+                    anomaly: {
+                        id: 'anom-1',
+                        severity: 'high',
+                        text: 't',
+                        queryUuid: 'q-1',
+                        fieldId: 'orders_count',
+                        dimensionValues: {},
+                        expected: null,
+                        actual: '1',
+                    },
+                    agentUuid: 'agent-1',
+                    threadUuid: 'thread-1',
+                    queriesRun: 2,
+                    partial: false,
+                },
+            ],
+        });
+        const { result } = render();
+        await settle();
+        await act(async () => {
+            await result.current.analyse();
+        });
+        expect(result.current.state.status).toBe('ready');
+        expect(result.current.investigations['anom-1']?.status).toBe('ready');
     });
 
     it('stays idle on a lookup miss and does not force the first run', async () => {
@@ -533,6 +575,58 @@ describe('useDataAppAnalysis', () => {
             status: 'ready',
             stale: false,
             analysis: { headline: 'View B' },
+        });
+    });
+
+    describe('analysis on load declared after the lookup', () => {
+        const QUERIES = [readyQuery];
+        const renderLate = () =>
+            renderHook(
+                ({ autoAnalyse }: { autoAnalyse: boolean }) =>
+                    useDataAppAnalysis({
+                        projectUuid: 'proj-1',
+                        appUuid: 'app-a',
+                        queries: QUERIES,
+                        mountedQueryUuids: null,
+                        enabled: true,
+                        autoAnalyse,
+                    }),
+                { initialProps: { autoAnalyse: false } },
+            );
+
+        it('runs detect once when turned on after a lookup miss', async () => {
+            const { result, rerender } = renderLate();
+            await settle();
+            expect(lookupAnalysis).toHaveBeenCalledTimes(1);
+            expect(detectAnalysisAnomalies).not.toHaveBeenCalled();
+            expect(result.current.state.status).toBe('idle');
+
+            rerender({ autoAnalyse: true });
+            await settle();
+            expect(detectAnalysisAnomalies).toHaveBeenCalledTimes(1);
+            expect(result.current.state.status).toBe('ready');
+
+            // Toggling again for the same view never re-runs.
+            rerender({ autoAnalyse: false });
+            rerender({ autoAnalyse: true });
+            await settle();
+            expect(detectAnalysisAnomalies).toHaveBeenCalledTimes(1);
+            expect(lookupAnalysis).toHaveBeenCalledTimes(1);
+        });
+
+        it('keeps a stored analysis when turned on after a lookup hit', async () => {
+            vi.mocked(lookupAnalysis).mockResolvedValue({
+                analysis: analysis('app-a'),
+                investigations: [],
+            });
+            const { result, rerender } = renderLate();
+            await settle();
+            expect(result.current.state.status).toBe('ready');
+
+            rerender({ autoAnalyse: true });
+            await settle();
+            expect(detectAnalysisAnomalies).not.toHaveBeenCalled();
+            expect(result.current.state.status).toBe('ready');
         });
     });
 

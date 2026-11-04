@@ -451,6 +451,7 @@ export const useSchedulerFormModal = ({
             notificationFrequency: schedulerData.notificationFrequency,
             includeLinks: schedulerData.includeLinks,
             plainTextEmail: schedulerData.plainTextEmail,
+            useCachedResults: schedulerData.useCachedResults,
             targets: schedulerData.targets,
             createdBy: user.userUuid,
             // Carry the (possibly unsaved) AI settings so send-now runs them.

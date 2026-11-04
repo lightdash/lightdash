@@ -67,6 +67,8 @@ const fullInput: LoadoutInput = {
     enableComposerQueries: false,
     canRunSql: true,
     canCreateDashboards: true,
+    canCreateScheduledDeliveries: true,
+    enableContentReads: true,
     enableContentTools: true,
     enableDocuments: true,
     enableGenerateDataApp: true,
@@ -77,7 +79,12 @@ const fullInput: LoadoutInput = {
     customSkills: [],
     projectContextEnabled: true,
     aiAgentMemoryEnabled: true,
-    requestingUser: { name: 'Ada', role: null, groups: [] },
+    requestingUser: {
+        name: 'Ada',
+        role: null,
+        groups: [],
+        isServiceAccount: false,
+    },
     mcpToolNames: ['mcp_linear__search_issues'],
     attachedMcpServerCount: 1,
     customChartTypeCount: 2,
@@ -91,6 +98,8 @@ const minimalInput: LoadoutInput = {
     enableComposerQueries: false,
     canRunSql: false,
     canCreateDashboards: false,
+    canCreateScheduledDeliveries: false,
+    enableContentReads: false,
     enableContentTools: false,
     enableDocuments: false,
     enableGenerateDataApp: false,
@@ -136,6 +145,7 @@ const inputs: Record<LoadoutBase, LoadoutInput> = {
     no_data_access: {
         ...fullInput,
         enableDataAccess: false,
+        enableContentReads: false,
         enableContentTools: false,
     },
     deep_research_worker: {
@@ -178,7 +188,7 @@ const contract = (loadout: Loadout) =>
         4,
     )}\n`;
 
-// Wording flags stay at their defaults; composer renders with the data access it requires.
+// Wording flags stay at their defaults; composer renders with the data access it requires and SQL access when sqlCatalog is on.
 const renderPrompt = (loadout: Loadout, input: LoadoutInput) =>
     getSystemPromptV2({
         availableExplores: [],
@@ -186,6 +196,9 @@ const renderPrompt = (loadout: Loadout, input: LoadoutInput) =>
         promptSections: loadout.promptSections,
         availableSkills: listedSkills(loadout, input),
         enableDataAccess: loadout.base === 'composer',
+        canRunSql:
+            loadout.base === 'composer' &&
+            loadout.toolNames.has('listWarehouseTables'),
         canRunQuery: loadout.toolNames.has('runQuery'),
     }).content;
 
@@ -222,7 +235,9 @@ describe('loadout contracts', () => {
             ...minimalInput,
             enableDataAccess: true,
             canRunSql: true,
+            enableContentReads: true,
             enableContentTools: true,
+            canCreateScheduledDeliveries: true,
             enableDocuments: true,
             enableGenerateDataApp: true,
         });
@@ -325,10 +340,79 @@ describe('resolveLoadout', () => {
         expect(loadout.addOns.has('legacyDashboards')).toBe(false);
     });
 
+    test('scheduling needs the scheduled deliveries ability on top of content tools', () => {
+        const loadout = resolveLoadout({
+            ...fullInput,
+            canCreateScheduledDeliveries: false,
+        });
+        expect(loadout.addOns.has('contentTools')).toBe(true);
+        expect(loadout.addOns.has('scheduling')).toBe(false);
+        expect(loadout.toolNames.has('createScheduledDelivery')).toBe(false);
+        expect(loadout.promptSections.has('schedulingTools')).toBe(false);
+    });
+
+    test('content reads load without content write access', () => {
+        const loadout = resolveLoadout({
+            ...fullInput,
+            enableContentTools: false,
+            enableDocuments: false,
+            canCreateDashboards: false,
+        });
+        expect(loadout.addOns.has('contentReads')).toBe(true);
+        const reads: AgentToolName[] = [
+            'readContent',
+            'listContent',
+            'runContentQuery',
+        ];
+        const unloaded: AgentToolName[] = [
+            'createContent',
+            'editContent',
+            'createScheduledDelivery',
+            'getDashboardCharts',
+            'generateDashboard',
+        ];
+        for (const tool of reads) {
+            expect(loadout.toolNames.has(tool)).toBe(true);
+        }
+        for (const tool of unloaded) {
+            expect(loadout.toolNames.has(tool)).toBe(false);
+        }
+        expect(loadout.promptSections.has('contentTools')).toBe(false);
+    });
+
+    test('legacy dashboards load only when content reads are off', () => {
+        const loadout = resolveLoadout({
+            ...fullInput,
+            enableContentReads: false,
+            enableContentTools: false,
+        });
+        expect(loadout.addOns.has('contentReads')).toBe(false);
+        expect(loadout.toolNames.has('getDashboardCharts')).toBe(true);
+    });
+
+    test('service accounts have no updateUserName or requesting user section', () => {
+        const person = resolveLoadout(fullInput);
+        expect(person.toolNames.has('updateUserName')).toBe(true);
+        expect(person.promptSections.has('requestingUser')).toBe(true);
+
+        const serviceAccount = resolveLoadout({
+            ...fullInput,
+            requestingUser: {
+                name: 'Ada',
+                role: null,
+                groups: [],
+                isServiceAccount: true,
+            },
+        });
+        expect(serviceAccount.toolNames.has('updateUserName')).toBe(false);
+        expect(serviceAccount.promptSections.has('requestingUser')).toBe(false);
+    });
+
     test('content tools bring their skill and loadSkill', () => {
         const loadout = resolveLoadout({
             ...minimalInput,
             enableDataAccess: true,
+            enableContentReads: true,
             enableContentTools: true,
         });
         expect(loadout.skills).toEqual(new Set(['developing-in-lightdash']));
@@ -512,7 +596,11 @@ describe('loadout structure', () => {
         const resolved = new Set<string>(
             [
                 inputs.classic,
-                { ...inputs.classic, enableContentTools: false },
+                {
+                    ...inputs.classic,
+                    enableContentReads: false,
+                    enableContentTools: false,
+                },
                 inputs.composer,
                 inputs.deep_research_coordinator,
             ].flatMap((input) => [...resolveLoadout(input).toolNames]),

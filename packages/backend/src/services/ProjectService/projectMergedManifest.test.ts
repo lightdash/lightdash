@@ -3,6 +3,7 @@ import {
     DbtManifestVersion,
     DEFAULT_SPOTLIGHT_CONFIG,
     DimensionType,
+    getModelInventoryFromManifest,
     getModelsFromManifest,
     SupportedDbtAdapter,
     type DbtManifest,
@@ -264,6 +265,7 @@ describe('projectMergedManifest', () => {
         ) as Record<string, unknown>;
 
         expect(Object.keys(serialized).sort()).toEqual([
+            'disabled',
             'docs',
             'macros',
             'metadata',
@@ -272,6 +274,40 @@ describe('projectMergedManifest', () => {
             'semantic_models',
             'sources',
         ]);
+    });
+
+    test('preserves disabled model inventory and source identity without unrelated node fields', () => {
+        const disabled = {
+            ...manifest.nodes['model.test.orders'],
+            unique_id: 'model.test.dim_calendar',
+            name: 'dim_calendar',
+            lightdash_source_name: 'analytics',
+            config: { enabled: false },
+            compiled_code: 'discard this field',
+        };
+        const input = {
+            ...manifest,
+            disabled: { [disabled.unique_id]: [disabled] },
+        } as unknown as DbtManifest;
+        const projected = projectMergedManifest(input);
+        expect(projected.disabled?.[disabled.unique_id][0]).toMatchObject({
+            unique_id: disabled.unique_id,
+            name: 'dim_calendar',
+            package_name: 'test',
+            lightdash_source_name: 'analytics',
+            config: { enabled: false },
+        });
+        expect(projected.disabled?.[disabled.unique_id][0]).not.toHaveProperty(
+            'compiled_code',
+        );
+        expect(getModelInventoryFromManifest(projected)).toContainEqual({
+            name: 'dim_calendar',
+            package_name: 'test',
+            lightdash_source_name: 'analytics',
+        });
+        expect(input.disabled?.[disabled.unique_id][0]).toHaveProperty(
+            'compiled_code',
+        );
     });
 
     test('keeps optional sections absent when the merge omits them', () => {

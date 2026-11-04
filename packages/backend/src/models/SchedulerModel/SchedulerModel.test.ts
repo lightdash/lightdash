@@ -255,6 +255,7 @@ describe('Scheduler model test', () => {
                 enabled: true,
                 includeLinks: true,
                 plainTextEmail: false,
+                useCachedResults: false,
                 targets: [],
             };
 

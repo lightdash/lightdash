@@ -35,7 +35,7 @@ const FavoritesPanel: FC<Props> = ({
                             size={20}
                             color="ldGray.7"
                         />
-                        <Text fw={600} c="ldGray.8" fz="sm">
+                        <Text fw={600} fz="sm">
                             No favorites yet.
                         </Text>
                         <Text c="dimmed" fz="sm">

@@ -1,0 +1,9 @@
+.anchor {
+    pointer-events: none;
+    position: absolute;
+    z-index: -1;
+    left: var(--anchor-left);
+    top: var(--anchor-top);
+    width: var(--anchor-width);
+    height: var(--anchor-height);
+}

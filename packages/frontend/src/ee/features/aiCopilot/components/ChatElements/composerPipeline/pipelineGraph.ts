@@ -1,29 +1,47 @@
 import Dagre from '@dagrejs/dagre';
+import { type SourceQuery } from '@lightdash/common';
 import type { Edge, Node } from '@xyflow/react';
+import { type ComposerRunNodeStatus } from '../useComposerRunNodeStatuses';
 import { nodeTypeLabelOf, type PipelineLayer } from './groupPipeline';
 
 type PipelineFlowNodeData = {
     title: string;
     typeLabel: string;
+    query: SourceQuery;
     isTerminal: boolean;
-    isDisplayed: boolean;
-    isDisplayable: boolean;
+    /** Another node is hovered and this one is not linked to it. */
+    isDimmed: boolean;
+    status: ComposerRunNodeStatus | null;
 };
 
 export type PipelineFlowNode = Node<PipelineFlowNodeData, 'pipeline'>;
 
-const RANK_GAP = 56;
-const NODE_GAP = 12;
+/** Global so the flow's stylesheet can target it; edges take no CSS module class. */
+const EDGE_ACTIVE_CLASS = 'lineage-edge-active';
+
+const RANK_GAP = 48;
+const NODE_GAP = 16;
 
 /** One flow node per pipeline node, one edge per read (read node -> reader). */
 export const toPipelineFlow = (
     layers: PipelineLayer[],
     display: {
-        displayedNodeId: string;
-        displayableNodeIds: ReadonlySet<string>;
+        hoveredNodeId: string | null;
+        nodeStatuses: Readonly<Record<string, ComposerRunNodeStatus>>;
     },
 ): { nodes: PipelineFlowNode[]; edges: Edge[] } => {
     const pipelineNodes = layers.flatMap((layer) => layer.nodes);
+    const { hoveredNodeId } = display;
+    const isLinked = (nodeId: string) =>
+        hoveredNodeId === null ||
+        nodeId === hoveredNodeId ||
+        pipelineNodes.some(
+            (node) =>
+                (node.nodeId === hoveredNodeId &&
+                    node.readNodeIds.includes(nodeId)) ||
+                (node.nodeId === nodeId &&
+                    node.readNodeIds.includes(hoveredNodeId)),
+        );
     const nodes = pipelineNodes.map<PipelineFlowNode>((node) => ({
         id: node.nodeId,
         type: 'pipeline',
@@ -31,9 +49,10 @@ export const toPipelineFlow = (
         data: {
             title: node.title,
             typeLabel: nodeTypeLabelOf(node.query),
+            query: node.query,
             isTerminal: node.isTerminal,
-            isDisplayed: node.nodeId === display.displayedNodeId,
-            isDisplayable: display.displayableNodeIds.has(node.nodeId),
+            isDimmed: !isLinked(node.nodeId),
+            status: display.nodeStatuses[node.nodeId] ?? null,
         },
     }));
     const edges = pipelineNodes.flatMap<Edge>((node) =>
@@ -42,6 +61,11 @@ export const toPipelineFlow = (
             source: readId,
             target: node.nodeId,
             type: 'pipeline',
+            className:
+                hoveredNodeId !== null &&
+                (readId === hoveredNodeId || node.nodeId === hoveredNodeId)
+                    ? EDGE_ACTIVE_CLASS
+                    : undefined,
         })),
     );
     return { nodes, edges };

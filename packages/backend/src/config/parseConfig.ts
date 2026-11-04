@@ -1242,7 +1242,6 @@ const parseAndSanitizeSchedulerTasks = (): Array<SchedulerTaskName> => {
         'SCHEDULER_EXCLUDE_TASKS',
     );
 
-    // If neither is set, return undefined (run all tasks)
     if (includeTasks.length === 0 && excludeTasks.length === 0) {
         return ALL_TASK_NAMES;
     }
@@ -1292,6 +1291,14 @@ const isDisabledBoolean = (value: string | undefined): boolean =>
     value !== undefined && ['0', 'false'].includes(value.trim().toLowerCase());
 
 const getBedrockConfig = (customHeaders: Record<string, string>) => {
+    const maxOutputTokens = getIntegerFromEnvironmentVariable(
+        'BEDROCK_MAX_OUTPUT_TOKENS',
+    );
+    if (maxOutputTokens !== undefined && maxOutputTokens < 1) {
+        throw new ParseError(
+            `Cannot parse environment variable "BEDROCK_MAX_OUTPUT_TOKENS". Value must be a positive integer but BEDROCK_MAX_OUTPUT_TOKENS=${maxOutputTokens}`,
+        );
+    }
     const baseUrl = process.env.BEDROCK_BASE_URL
         ? normalizeLlmGatewayBaseUrl(
               process.env.BEDROCK_BASE_URL,
@@ -1312,6 +1319,7 @@ const getBedrockConfig = (customHeaders: Record<string, string>) => {
             ...gateway,
             inferenceProfilePrefix:
                 process.env.BEDROCK_INFERENCE_PROFILE_PREFIX,
+            maxOutputTokens,
             modelName:
                 process.env.BEDROCK_MODEL_NAME || DEFAULT_BEDROCK_MODEL_NAME,
             embeddingModelName: process.env.BEDROCK_EMBEDDING_MODEL,
@@ -1333,6 +1341,7 @@ const getBedrockConfig = (customHeaders: Record<string, string>) => {
             ...gateway,
             inferenceProfilePrefix:
                 process.env.BEDROCK_INFERENCE_PROFILE_PREFIX,
+            maxOutputTokens,
             modelName:
                 process.env.BEDROCK_MODEL_NAME || DEFAULT_BEDROCK_MODEL_NAME,
             embeddingModelName: process.env.BEDROCK_EMBEDDING_MODEL,
@@ -1352,6 +1361,7 @@ const getBedrockConfig = (customHeaders: Record<string, string>) => {
             ...gateway,
             inferenceProfilePrefix:
                 process.env.BEDROCK_INFERENCE_PROFILE_PREFIX,
+            maxOutputTokens,
             modelName:
                 process.env.BEDROCK_MODEL_NAME || DEFAULT_BEDROCK_MODEL_NAME,
             embeddingModelName: process.env.BEDROCK_EMBEDDING_MODEL,
@@ -1780,6 +1790,7 @@ export type LightdashConfig = {
     dashboard: {
         maxTilesPerTab: number;
         maxTabsPerDashboard: number;
+        maxConcurrentTileQueries: number | null;
         disableSentryTracking: boolean;
     };
     // This is the override color palette for the organization
@@ -1843,6 +1854,16 @@ export type LightdashConfig = {
                 maxBatches: number;
             };
         };
+        appStateHistory: {
+            cleanup: {
+                enabled: boolean;
+                retentionDays: number;
+                keepVersions: number;
+                batchSize: number;
+                delayMs: number;
+                maxBatches: number;
+            };
+        };
     };
     groups: {
         enabled: boolean | undefined;
@@ -1889,9 +1910,6 @@ export type LightdashConfig = {
             enablePostMessage: boolean;
         };
     };
-    organizationWarehouseCredentials: {
-        enabled: boolean;
-    };
     athenaWarehouseIamRoleAuth: {
         enabled: boolean;
     };
@@ -1906,6 +1924,13 @@ export type LightdashConfig = {
         clientId: string | undefined;
         clientSecret: string | undefined;
         redirectDomain: string;
+    };
+    liveSources: {
+        posthog: {
+            /** A registered client ID, or the URL of a client metadata document. */
+            oauthClientId: string | undefined;
+            oauthClientSecret: string | undefined;
+        };
     };
     contentAsCode: {
         maxDownloads: number;
@@ -2071,7 +2096,7 @@ export type LightdashConfig = {
     disabledFeatureFlags: Set<string>;
     previewFeatureFlags: {
         /**
-         * Preview/Okteto environments only: enables `PREVIEW_ENABLED_FEATURE_FLAGS`
+         * Preview environments only: enables `PREVIEW_ENABLED_FEATURE_FLAGS`
          * by default and exposes the feature-flag management API so QA can toggle
          * flags at runtime. Defaults on in PR mode.
          */
@@ -3015,13 +3040,6 @@ const LEGACY_ENABLE_ENV_VARS: ReadonlyArray<
     // translate the env var to the unified allowlist for the flag system.
     ['EMBEDDING_ENABLED', 'embedding'],
     ['SCIM_ENABLED', 'scim-token-management'],
-    // ORGANIZATION_WAREHOUSE_CREDENTIALS_ENABLED is also read by HealthService
-    // (exposed via the health endpoint). Keep the config field, but translate
-    // the env var to the unified allowlist for the flag system.
-    [
-        'ORGANIZATION_WAREHOUSE_CREDENTIALS_ENABLED',
-        'organization-warehouse-credentials',
-    ],
     // Self-hosted switch for data apps; forces the flag on.
     ['APPS_RUNTIME_ENABLED', 'enable-data-apps'],
 ];
@@ -3791,6 +3809,13 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'LIGHTDASH_DASHBOARD_MAX_TABS_PER_DASHBOARD',
                 ) || 20,
+            maxConcurrentTileQueries: process.env
+                .LIGHTDASH_DASHBOARD_MAX_CONCURRENT_TILE_QUERIES
+                ? getPositiveIntegerFromEnvironmentVariable(
+                      'LIGHTDASH_DASHBOARD_MAX_CONCURRENT_TILE_QUERIES',
+                      1,
+                  )
+                : null,
             disableSentryTracking:
                 process.env.LIGHTDASH_DASHBOARD_DISABLE_SENTRY_TRACKING ===
                 'true',
@@ -3949,6 +3974,33 @@ export const parseConfig = (): LightdashConfig => {
                         ) ?? 100,
                 },
             },
+            appStateHistory: {
+                cleanup: {
+                    enabled:
+                        process.env.APP_STATE_HISTORY_CLEANUP_ENABLED !==
+                        'false', // true by default
+                    retentionDays:
+                        getIntegerFromEnvironmentVariable(
+                            'APP_STATE_HISTORY_RETENTION_DAYS',
+                        ) ?? 90,
+                    keepVersions:
+                        getIntegerFromEnvironmentVariable(
+                            'APP_STATE_HISTORY_KEEP_VERSIONS',
+                        ) ?? 50,
+                    batchSize:
+                        getIntegerFromEnvironmentVariable(
+                            'APP_STATE_HISTORY_CLEANUP_BATCH_SIZE',
+                        ) ?? 1000,
+                    delayMs:
+                        getIntegerFromEnvironmentVariable(
+                            'APP_STATE_HISTORY_CLEANUP_DELAY_MS',
+                        ) ?? 100,
+                    maxBatches:
+                        getIntegerFromEnvironmentVariable(
+                            'APP_STATE_HISTORY_CLEANUP_MAX_BATCHES',
+                        ) ?? 100,
+                },
+            },
         },
         groups: {
             enabled: process.env.GROUPS_ENABLED
@@ -4065,11 +4117,6 @@ export const parseConfig = (): LightdashConfig => {
                     'true',
             },
         },
-        organizationWarehouseCredentials: {
-            enabled:
-                process.env.ORGANIZATION_WAREHOUSE_CREDENTIALS_ENABLED ===
-                'true',
-        },
         athenaWarehouseIamRoleAuth: {
             enabled: process.env.ATHENA_WAREHOUSE_IAM_ROLE_AUTH === 'true',
         },
@@ -4088,6 +4135,13 @@ export const parseConfig = (): LightdashConfig => {
             redirectDomain:
                 process.env.GITLAB_REDIRECT_DOMAIN ||
                 siteUrl.split('.')[0].split('//')[1],
+        },
+        liveSources: {
+            posthog: {
+                oauthClientId: process.env.POSTHOG_OAUTH_CLIENT_ID || undefined,
+                oauthClientSecret:
+                    process.env.POSTHOG_OAUTH_CLIENT_SECRET || undefined,
+            },
         },
         contentAsCode: {
             maxDownloads:

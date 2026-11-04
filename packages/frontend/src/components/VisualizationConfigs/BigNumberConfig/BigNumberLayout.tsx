@@ -1,5 +1,5 @@
 import { getItemId, type CompactOrAlias } from '@lightdash/common';
-import { ActionIcon, Group, Select, Tooltip } from '@mantine/core';
+import { ActionIcon, Box, Group, Select, Tooltip } from '@mantine/core';
 import {
     IconEye,
     IconEyeOff,
@@ -94,7 +94,7 @@ export const Layout: FC = () => {
                 )}
 
                 <Group gap="xs" align="flex-start" wrap="nowrap">
-                    <div style={{ flex: 1 }}>
+                    <Box flex={1}>
                         <LabelEditor
                             label="Label"
                             value={bigNumberLabel ?? ''}
@@ -103,7 +103,7 @@ export const Layout: FC = () => {
                             fields={granularityFields}
                             readOnly={!showBigNumberLabel}
                         />
-                    </div>
+                    </Box>
 
                     <Group gap={4} wrap="nowrap" mt={25}>
                         <Tooltip

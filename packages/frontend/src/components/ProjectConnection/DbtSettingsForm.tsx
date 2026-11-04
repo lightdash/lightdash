@@ -16,6 +16,7 @@ import DbtNoneForm from './DbtForms/DbtNoneForm';
 import { dbtDefaults } from './DbtForms/defaultValues';
 import GithubForm from './DbtForms/GithubForm';
 import GitlabForm from './DbtForms/GitlabForm';
+import classes from './DbtSettingsForm.module.css';
 import FormCollapseButton from './FormCollapseButton';
 import { useFormContext } from './formContext';
 import FormSection from './Inputs/FormSection';
@@ -143,9 +144,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
     };
 
     return (
-        <div
-            style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
-        >
+        <div className={classes.root}>
             <Stack mt="xs">
                 <Select
                     allowDeselect={false}

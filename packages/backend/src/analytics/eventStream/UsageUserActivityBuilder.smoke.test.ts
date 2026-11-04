@@ -533,7 +533,7 @@ describe.skipIf(!process.env.USAGE_USER_ACTIVITY_SMOKE_ENDPOINT)(
                     unchanged: 7,
                     failed: 0,
                 });
-                const cli = await promisify(execFile)(
+                const cli = promisify(execFile)(
                     'pnpm',
                     [
                         'exec',
@@ -551,6 +551,8 @@ describe.skipIf(!process.env.USAGE_USER_ACTIVITY_SMOKE_ENDPOINT)(
                     {
                         env: {
                             ...process.env,
+                            LIGHTDASH_LICENSE_KEY: '',
+                            LIGHTDASH_LICENSE_CERTIFICATE: '',
                             LIGHTDASH_ENABLE_FEATURE_FLAGS: 'analytics-project',
                             LIGHTDASH_PREVIEW_FEATURE_FLAGS_ENABLED: 'false',
                             S3_ENDPOINT: endpoint,
@@ -569,7 +571,12 @@ describe.skipIf(!process.env.USAGE_USER_ACTIVITY_SMOKE_ENDPOINT)(
                         timeout: 120000,
                     },
                 );
-                expect(cli.stdout).toContain('unchanged: 7');
+                // ENV enablement alone must not authorize the maintenance CLI.
+                await expect(cli).rejects.toMatchObject({
+                    stderr: expect.stringContaining(
+                        'Analytics is not enabled for this organization',
+                    ),
+                });
                 // Other org has no query/AI/app/step files: its empty views still query.
                 const otherReader = new DuckdbWarehouseClient({
                     type: 'duckdb_parquet',

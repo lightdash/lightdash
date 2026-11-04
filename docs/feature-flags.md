@@ -398,12 +398,20 @@ apply. Compile, test-and-compile, preview projects and scheduler workers use the
 same policy. Console changes apply to the next policy resolution. The generic
 ENV lists use the precedence above and need an API and worker restart.
 
-When enabled, local dbt compilation refuses authentication modes that depend on
-the server's cloud identity. Use an explicit key or a person's sign-in instead.
-The dbt child process also stops inheriting the cloud credential variables in
-`CLOUD_CREDENTIAL_ENVIRONMENT_VARIABLE_KEYS`, including those in the machine
-allowlist. Project environment variables and target-injected credentials remain
-available. The server environment does not change.
+When enabled, local dbt compilation refuses ambient authentication modes.
+Use an explicit key, a person's sign-in or BigQuery workload identity federation
+instead. The dbt child process also stops inheriting the cloud credential
+variables in `CLOUD_CREDENTIAL_ENVIRONMENT_VARIABLE_KEYS`, including those in
+the machine allowlist. Project environment variables and target-injected
+credentials remain available. The server environment does not change.
+
+BigQuery workload identity federation counts as explicit credentials because its
+provider is configured per project and its federated principal is scoped by the
+customer's workload identity pool. The dbt child receives a generated
+`external_account` file through `GOOGLE_APPLICATION_CREDENTIALS`, without a
+service account key or inherited Application Default Credentials (ADC). Its
+subject token still comes from the server's Google identity, so
+`bigquery-workload-identity-auth` must stay off on shared instances.
 
 Disabling the flag restores the existing profile and child-environment behaviour.
 It does not change credential selection, revoke credentials or stop work already

@@ -1,4 +1,5 @@
 import { type AgentIdentityClaim } from './agentIdentity';
+import { type ContentAsCodeRepositorySource } from './contentAsCode/base';
 import { type ContentDraftStaleness } from './contentAsCode/draftRebase';
 import { type ContentVerificationInfo } from './contentVerification';
 import { type FilterableDimension, type Metric } from './field';
@@ -247,6 +248,8 @@ export type DashboardControlSection = {
     name: string;
     /** Starts folded in the rail and on the bar; absent, the bar folds only a dense section */
     collapsed?: boolean;
+    /** Sits on the bar line of the section before it; absent, starts a line of its own */
+    inline?: boolean;
 };
 
 export type DateZoomConfig = {
@@ -292,6 +295,8 @@ export type Dashboard = {
     projectType?: ProjectType;
     organizationUuid: string;
     projectUuid: string;
+    /** The repo owns this dashboard: UI saves become drafts until written back */
+    managedFromRepository?: ContentAsCodeRepositorySource;
     /** Set when the viewer has an unpublished draft applied on top */
     hasUnpublishedChanges?: boolean;
     /** For reviewers: open drafts by other users awaiting review */

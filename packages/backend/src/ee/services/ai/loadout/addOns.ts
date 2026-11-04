@@ -7,6 +7,9 @@ import {
     type LoadoutInput,
 } from './types';
 
+const hasContentReads = (input: LoadoutInput): boolean =>
+    input.enableDataAccess && input.enableContentReads;
+
 const hasContentTools = (input: LoadoutInput): boolean =>
     input.enableDataAccess && input.enableContentTools;
 
@@ -20,7 +23,7 @@ export const hasDecisionsInStandardMode = (
 export const ADD_ONS: Record<AddOnName, AddOnDefinition> = {
     contentReads: {
         description: 'Read and query saved charts and dashboards',
-        when: hasContentTools,
+        when: hasContentReads,
         tools: ['readContent', 'listContent', 'runContentQuery'],
         section: null,
         skills: [],
@@ -37,7 +40,8 @@ export const ADD_ONS: Record<AddOnName, AddOnDefinition> = {
     },
     scheduling: {
         description: 'Schedule deliveries of saved content',
-        when: hasContentTools,
+        when: (input) =>
+            hasContentTools(input) && input.canCreateScheduledDeliveries,
         tools: ['createScheduledDelivery'],
         section: {
             id: 'schedulingTools',
@@ -46,8 +50,8 @@ export const ADD_ONS: Record<AddOnName, AddOnDefinition> = {
         skills: [],
     },
     legacyDashboards: {
-        description: 'Read dashboard charts when content tools are off',
-        when: (input) => !hasContentTools(input),
+        description: 'Read dashboard charts when content reads are off',
+        when: (input) => !hasContentReads(input),
         tools: ['getDashboardCharts'],
         section: null,
         skills: [],
@@ -193,7 +197,8 @@ export const ADD_ONS: Record<AddOnName, AddOnDefinition> = {
     userIdentity: {
         description:
             'Tell the agent who it is talking to and let it fix their name',
-        when: (input) => !!input.requestingUser,
+        when: (input) =>
+            !!input.requestingUser && !input.requestingUser.isServiceAccount,
         tools: ['updateUserName'],
         section: { id: 'requestingUser', documents: ['updateUserName'] },
         skills: [],

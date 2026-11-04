@@ -10,6 +10,7 @@ import {
     LightdashUser,
     MemberAbility,
     NotFoundError,
+    OpenIdIdentityIssuerType,
     OrganizationMemberRole,
     PasswordLoginBlockedError,
     projectMemberAbilities,
@@ -24,6 +25,7 @@ import knex, { type Knex } from 'knex';
 import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
 import { type LightdashConfig } from '../config/parseConfig';
 import { EmailTableName } from '../database/entities/emails';
+import { OpenIdIdentitiesTableName } from '../database/entities/openIdIdentities';
 import { PasswordLoginTableName } from '../database/entities/passwordLogins';
 import { ProjectMembershipCustomRolesTableName } from '../database/entities/projectMembershipCustomRoles';
 import { ProjectMembershipsTableName } from '../database/entities/projectMemberships';
@@ -347,7 +349,10 @@ describe('UserModel', () => {
         expect(merge).toHaveBeenCalledOnce();
     });
 
-    it('activates an invited user without creating a password login', async () => {
+    it.each([
+        { firstName: '', lastName: '' },
+        { firstName: 'José', lastName: 'Müller' },
+    ])('preserves names during passwordless activation: %j', async (names) => {
         const update = vi.fn(() => ({
             returning: vi.fn(async () => [{ user_id: 1 }]),
         }));
@@ -372,8 +377,8 @@ describe('UserModel', () => {
         const activatedUser = mapDbUserDetailsToLightdashUser(
             {
                 ...userDetails,
-                first_name: '',
-                last_name: '',
+                first_name: names.firstName,
+                last_name: names.lastName,
             },
             false,
         );
@@ -387,14 +392,81 @@ describe('UserModel', () => {
 
         expect(activatedUser.isActive).toBe(true);
         expect(update).toHaveBeenCalledWith({
-            first_name: '',
-            last_name: '',
             updated_at: expect.any(Date),
         });
         expect(transactionClient).not.toHaveBeenCalledWith(
             PasswordLoginTableName,
         );
     });
+
+    it.each([
+        [
+            'keeps names a returning user already saved',
+            { first_name: 'Ana', last_name: 'Lee' },
+            { updated_at: expect.any(Date) },
+        ],
+        [
+            'fills only the blank name from the identity provider',
+            { first_name: ' ', last_name: 'Lee' },
+            { first_name: 'Google', updated_at: expect.any(Date) },
+        ],
+    ])(
+        'activates an invited OpenID user and %s',
+        async (_name, savedNames, expectedUpdate) => {
+            const first = vi.fn(async () => savedNames);
+            const update = vi.fn(() => ({
+                returning: vi.fn(async () => [{ user_id: 1 }]),
+            }));
+            const insert = vi.fn(() => ({
+                returning: vi.fn(async () => []),
+            }));
+            const transactionClient = vi.fn((tableName: string) => {
+                if (tableName === UserTableName) {
+                    return {
+                        select: vi.fn(() => ({
+                            where: vi.fn(() => ({ first })),
+                        })),
+                        where: vi.fn(() => ({ update })),
+                    };
+                }
+                if (tableName === OpenIdIdentitiesTableName) {
+                    return { insert };
+                }
+                throw new Error(`Unexpected table ${tableName}`);
+            }) as unknown as Knex.Transaction;
+            const database = Object.assign(vi.fn(), {
+                transaction: vi.fn(
+                    async (
+                        callback: (trx: Knex.Transaction) => Promise<unknown>,
+                    ) => callback(transactionClient),
+                ),
+            }) as unknown as Knex;
+            const model = new UserModel({
+                database,
+                lightdashConfig,
+                featureFlagModel,
+            });
+            vi.spyOn(model, 'getUserDetailsByUuid').mockResolvedValue(
+                mapDbUserDetailsToLightdashUser(userDetails, false),
+            );
+
+            await model.activateUser(userDetails.user_uuid, {
+                openId: {
+                    issuer: 'https://accounts.google.com',
+                    issuerType: OpenIdIdentityIssuerType.GOOGLE,
+                    subject: 'google-subject',
+                    email: 'ana@example.com',
+                    firstName: 'Google',
+                    lastName: 'Name',
+                },
+            });
+
+            expect(update).toHaveBeenCalledWith(expectedUpdate);
+            expect(insert).toHaveBeenCalledWith(
+                expect.objectContaining({ subject: 'google-subject' }),
+            );
+        },
+    );
 
     it('collapses legacy service account project membership rules before returning the ability builder', async () => {
         const model = createUserModel();

@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import knex, { Knex } from 'knex';
+import { usageContentInventoryQuery } from './usageContentInventory';
 import { UsageDimensionsModel } from './UsageDimensionsModel';
 
 // Real Postgres: opt in with the port of an isolated LOCAL instance.
@@ -50,8 +51,13 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                 CREATE INDEX ON dashboard_versions(dashboard_id);
                 CREATE TABLE dashboard_tile_charts (dashboard_version_id integer, saved_chart_id integer);
                 CREATE INDEX ON dashboard_tile_charts(saved_chart_id);
+                -- Production tile primary keys start with dashboard_version_id.
+                CREATE INDEX ON dashboard_tile_charts(dashboard_version_id);
                 CREATE TABLE dashboard_tile_sql_charts (dashboard_version_id integer, saved_sql_uuid uuid);
+                CREATE INDEX ON dashboard_tile_sql_charts(dashboard_version_id);
                 CREATE TABLE dashboard_tile_data_apps (dashboard_version_id integer, app_uuid uuid);
+                CREATE INDEX ON dashboard_tile_data_apps(dashboard_version_id);
+                CREATE INDEX ON dashboard_tile_data_apps(app_uuid);
                 CREATE TABLE content_verification (content_uuid uuid, project_uuid uuid, content_type text);
                 CREATE TABLE scheduler (enabled boolean, deleted_at timestamptz, project_uuid uuid, saved_chart_uuid uuid, saved_sql_uuid uuid, dashboard_uuid uuid, app_uuid uuid);
                 CREATE TABLE users (user_id integer PRIMARY KEY, user_uuid uuid UNIQUE, first_name text, last_name text, is_active boolean);
@@ -88,6 +94,8 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                 UPDATE dashboards SET space_id=4 WHERE dashboard_id=1003;
                 INSERT INTO dashboard_versions VALUES(6,1004),(7,1003);
                 INSERT INTO dashboard_tile_charts VALUES(6,1),(7,1);
+                INSERT INTO dashboard_tile_sql_charts VALUES(6,md5('sql-1')::uuid),(7,md5('sql-1')::uuid),(1,md5('sql-2')::uuid);
+                INSERT INTO dashboard_tile_data_apps VALUES(6,md5('app-1')::uuid),(7,md5('app-1')::uuid),(1,md5('app-2')::uuid);
                 INSERT INTO saved_queries VALUES(2000,md5('other chart')::uuid,md5('other project')::uuid,2,null,'Other chart',now(),null);
                 INSERT INTO saved_sql VALUES(md5('other sql')::uuid,md5('other project')::uuid,md5('other space')::uuid,null,'Other SQL',now(),null);
                 INSERT INTO apps VALUES(md5('other app')::uuid,md5('other project')::uuid,md5('other space')::uuid,'Other app',now(),null);
@@ -172,10 +180,12 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                 dashboard_references: 2,
                 is_verified: null,
             });
-            expect(item('Chart 2')).toMatchObject({
-                dashboard_references: 0,
-                enabled_schedules: 0,
-            });
+            for (const prefix of ['Chart', 'SQL', 'App']) {
+                expect(item(`${prefix} 2`)).toMatchObject({
+                    dashboard_references: 0,
+                    enabled_schedules: 0,
+                });
+            }
             expect(item('Dashboard 1')).toMatchObject({
                 content_url: `https://lightdash.example.com/projects/${project}/dashboards/${item('Dashboard 1').content_id}/view`,
                 enabled_schedules: 1,
@@ -210,11 +220,33 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
             });
         });
 
+        it('uses the latest dashboard version even when it removes all previous references', async () => {
+            await db.raw(`
+                INSERT INTO dashboard_versions VALUES(8,1),(9,2);
+                INSERT INTO dashboard_tile_charts VALUES(8,2),(8,2);
+                INSERT INTO dashboard_tile_sql_charts VALUES(8,md5('sql-2')::uuid),(8,md5('sql-2')::uuid);
+                INSERT INTO dashboard_tile_data_apps VALUES(8,md5('app-2')::uuid),(8,md5('app-2')::uuid);
+            `);
+            const rows = await read();
+            expect(rows).toHaveLength(4020);
+            for (const prefix of ['Chart', 'SQL', 'App']) {
+                expect(
+                    rows.find((row) => row.content_name === `${prefix} 1`),
+                ).toMatchObject({ dashboard_references: 0 });
+                expect(
+                    rows.find((row) => row.content_name === `${prefix} 2`),
+                ).toMatchObject({ dashboard_references: 1 });
+            }
+        });
+
         it('keeps inventory pagination scoped across multiple tenant projects', async () => {
             await db.raw(`
                 INSERT INTO saved_queries VALUES(3000,md5('second project chart')::uuid,md5('same org project')::uuid,3,null,'Second project chart',now(),null);
                 INSERT INTO saved_sql VALUES(md5('second project sql')::uuid,md5('same org project')::uuid,md5('same org space')::uuid,null,'Second project SQL',now(),null);
                 INSERT INTO apps VALUES(md5('second project app')::uuid,md5('same org project')::uuid,md5('same org space')::uuid,'Second project app',now(),null);
+                INSERT INTO dashboard_tile_charts VALUES(2,3000),(6,3000);
+                INSERT INTO dashboard_tile_sql_charts VALUES(2,md5('second project sql')::uuid),(6,md5('second project sql')::uuid);
+                INSERT INTO dashboard_tile_data_apps VALUES(2,md5('second project app')::uuid),(6,md5('second project app')::uuid);
             `);
             const rows = await read();
             expect(rows).toHaveLength(4023);
@@ -229,6 +261,7 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     org_id: org,
                     project_name: 'Same org, different project',
                     space_name: 'Other project space',
+                    dashboard_references: 1,
                 });
             }
             const empty = [];
@@ -247,26 +280,26 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
         });
 
         it('exports content with extensive dashboard version history within the page deadline', async () => {
-            // Every dashboard edit retains its tiles. The latest-version lookup
-            // must not rescan all versions once for each historical tile.
+            // A hundred dashboards retain historical tiles; only their latest
+            // versions count, including when a chart was removed.
             await db.raw(`
                 INSERT INTO dashboard_versions
-                    SELECT n, 1 FROM generate_series(10,8009) n;
+                    SELECT n, 10 + (n - 10) / 160 FROM generate_series(10,16009) n;
                 INSERT INTO dashboard_tile_charts
-                    SELECT v, c FROM generate_series(10,8009) v
+                    SELECT v, c FROM generate_series(10,16009) v
                     CROSS JOIN generate_series(1,20) c
-                    WHERE v < 8009 OR c <> 2;
+                    WHERE (v - 10) % 160 < 159 OR c <> 2;
                 INSERT INTO dashboard_tile_sql_charts
-                    SELECT v, md5('sql-'||c)::uuid FROM generate_series(10,8009) v
+                    SELECT v, md5('sql-'||c)::uuid FROM generate_series(10,16009) v
                     CROSS JOIN generate_series(1,20) c
-                    WHERE v < 8009 OR c <> 2;
+                    WHERE (v - 10) % 160 < 159 OR c <> 2;
                 INSERT INTO dashboard_tile_data_apps
-                    SELECT v, md5('app-'||c)::uuid FROM generate_series(10,8009) v
+                    SELECT v, md5('app-'||c)::uuid FROM generate_series(10,16009) v
                     CROSS JOIN generate_series(1,20) c
-                    WHERE v < 8009 OR c <> 2;
+                    WHERE (v - 10) % 160 < 159 OR c <> 2;
                 -- Most histories belong to other dashboards, as on a shared instance.
                 INSERT INTO dashboard_versions
-                    SELECT n, 10 + n % 990 FROM generate_series(10000,509999) n;
+                    SELECT n, 200 + n % 800 FROM generate_series(20000,519999) n;
                 ANALYZE dashboard_versions;
                 ANALYZE dashboard_tile_charts;
                 ANALYZE dashboard_tile_sql_charts;
@@ -277,15 +310,65 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
             for (const prefix of ['Chart', 'SQL', 'App']) {
                 expect(
                     rows.find((r) => r.content_name === `${prefix} 1`),
-                ).toMatchObject({ dashboard_references: 2 });
+                ).toMatchObject({ dashboard_references: 102 });
                 expect(
                     rows.find((r) => r.content_name === `${prefix} 2`),
                 ).toMatchObject({ dashboard_references: 0 });
                 expect(
                     rows.find((r) => r.content_name === `${prefix} 3`),
-                ).toMatchObject({ dashboard_references: 1 });
+                ).toMatchObject({ dashboard_references: 100 });
             }
-        }, 20000);
+        }, 60000);
+
+        it('exports a page from a project with many current dashboards within the page deadline', async () => {
+            await db.raw(`
+                INSERT INTO dashboards
+                    SELECT n, md5('large-dashboard-' || n)::uuid, 1, 'Large dashboard', now(), null, null
+                    FROM generate_series(10000,59999) n;
+                INSERT INTO dashboard_versions
+                    SELECT n, n FROM generate_series(10000,59999) n;
+                INSERT INTO dashboard_tile_charts
+                    SELECT n, ((n - 10000) * 10 + c) % 1000 + 1
+                    FROM generate_series(10000,59999) n
+                    CROSS JOIN generate_series(0,9) c;
+                ANALYZE dashboards;
+                ANALYZE dashboard_versions;
+                ANALYZE dashboard_tile_charts;
+            `);
+            const page = await db.transaction(async (transaction) => {
+                await transaction.raw('SET TRANSACTION READ ONLY');
+                await transaction.raw("SET LOCAL statement_timeout = '10s'");
+                return usageContentInventoryQuery(
+                    transaction,
+                    organization.organization_id,
+                    org,
+                    'saved_chart',
+                    null,
+                    1000,
+                    'https://lightdash.example.com/projects/',
+                );
+            });
+            expect(page).toHaveLength(1000);
+            for (const row of page) {
+                let content: {
+                    content_name: string;
+                    dashboard_references: number;
+                };
+                try {
+                    content = JSON.parse(row.json);
+                } catch (error) {
+                    throw new Error('Expected valid content inventory JSON', {
+                        cause: error,
+                    });
+                }
+                const chartNumber = Number(content.content_name.split(' ')[1]);
+                const addedReferences = chartNumber <= 1000 ? 500 : 0;
+                const existingReferences = chartNumber === 1 ? 2 : 0;
+                expect(content.dashboard_references).toBe(
+                    addedReferences + existingReferences,
+                );
+            }
+        }, 30000);
 
         it('abandons a page waiting for a table lock and can retry afterward', async () => {
             const blocker = await db.transaction();

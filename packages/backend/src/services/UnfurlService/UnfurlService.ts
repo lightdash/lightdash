@@ -357,6 +357,19 @@ const isBrowserQueueFullError = (error: unknown): boolean => {
     );
 };
 
+type EmbedDashboardExportArgs = {
+    projectUuid: UUID;
+    dashboardUuid: UUID;
+    embedToken: string;
+    externalId: string;
+    selectedTabs: string[] | null;
+    dashboardFilters: DashboardFilters | null;
+    parameters: ParametersValuesMap | null;
+    dateZoomGranularity: string | null;
+    gridWidth: number | null;
+    contextId: string;
+};
+
 type HeadlessBrowserAuth =
     | { type: 'cookie'; cookie: string }
     | { type: 'embedToken'; embedToken: string };
@@ -1187,29 +1200,56 @@ export class UnfurlService extends BaseService {
      * the export has the same access, filters and parameters the viewer has.
      * Callers must have verified the token can export this dashboard.
      */
-    async exportEmbedDashboardPdf({
-        projectUuid,
-        dashboardUuid,
-        embedToken,
-        externalId,
-        selectedTabs,
-        dashboardFilters,
-        parameters,
-        dateZoomGranularity,
-        gridWidth,
-        contextId,
-    }: {
-        projectUuid: UUID;
-        dashboardUuid: UUID;
-        embedToken: string;
-        externalId: string;
-        selectedTabs: string[] | null;
-        dashboardFilters: DashboardFilters | null;
-        parameters: ParametersValuesMap | null;
-        dateZoomGranularity: string | null;
-        gridWidth: number | null;
-        contextId: string;
-    }): Promise<{ source: string; fileName: string }> {
+    async exportEmbedDashboardPdf(
+        args: EmbedDashboardExportArgs,
+    ): Promise<{ source: string; fileName: string }> {
+        const { dashboard, imageId, result } = await this.renderEmbedDashboard(
+            args,
+            'pdf',
+        );
+        if (!result?.pdfBuffer) {
+            throw new UnexpectedServerError(
+                `Unable to render PDF for embedded dashboard "${dashboard.name}"`,
+            );
+        }
+        return this.uploadPdf(imageId, result.pdfBuffer, dashboard.name);
+    }
+
+    /**
+     * Renders an embedded dashboard to a PNG with the viewer's embed token and
+     * returns an expiring storage URL, like the PDF export.
+     * Callers must have verified the token can export this dashboard.
+     */
+    async exportEmbedDashboardImage(
+        args: EmbedDashboardExportArgs,
+    ): Promise<string> {
+        const { dashboard, imageId, result } = await this.renderEmbedDashboard(
+            args,
+            'image',
+        );
+        if (!result?.imageBuffer) {
+            throw new UnexpectedServerError(
+                `Unable to render image for embedded dashboard "${dashboard.name}"`,
+            );
+        }
+        return this.fileStorageClient.uploadImage(result.imageBuffer, imageId);
+    }
+
+    private async renderEmbedDashboard(
+        {
+            projectUuid,
+            dashboardUuid,
+            embedToken,
+            externalId,
+            selectedTabs,
+            dashboardFilters,
+            parameters,
+            dateZoomGranularity,
+            gridWidth,
+            contextId,
+        }: EmbedDashboardExportArgs,
+        outputFormat: 'image' | 'pdf',
+    ) {
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
         if (dashboard.projectUuid !== projectUuid) {
@@ -1247,7 +1287,7 @@ export class UnfurlService extends BaseService {
             isTileInEmbedExport(tile, exportTabUuids),
         );
 
-        const imageId = `embed-pdf_${snakeCaseName(dashboard.name)}_${useNanoid()}`;
+        const imageId = `embed-${outputFormat}_${snakeCaseName(dashboard.name)}_${useNanoid()}`;
         const result = await this.saveScreenshot({
             imageId,
             auth: { type: 'embedToken', embedToken },
@@ -1272,14 +1312,9 @@ export class UnfurlService extends BaseService {
             selectedTabs,
             sendNowSchedulerDashboardFilters: dashboardFilters ?? undefined,
             sendNowSchedulerParameters: parameters ?? undefined,
-            outputFormat: 'pdf',
+            outputFormat,
         });
-        if (!result?.pdfBuffer) {
-            throw new UnexpectedServerError(
-                `Unable to render PDF for embedded dashboard "${dashboard.name}"`,
-            );
-        }
-        return this.uploadPdf(imageId, result.pdfBuffer, dashboard.name);
+        return { dashboard, imageId, result };
     }
 
     async exportChart(

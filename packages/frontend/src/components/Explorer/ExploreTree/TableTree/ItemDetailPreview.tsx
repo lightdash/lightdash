@@ -18,7 +18,6 @@ import {
     Text,
     Title,
     Tooltip,
-    useMantineTheme,
 } from '@mantine/core';
 import { IconArrowRight, IconCode } from '@tabler/icons-react';
 import ReactMarkdownPreview from '@uiw/react-markdown-preview';
@@ -48,7 +47,6 @@ export const MetricTypeBadge: FC<{ type: string }> = ({ type }) => (
  * of whack.
  */
 export const ItemDetailMarkdown: FC<{ source: string }> = ({ source }) => {
-    const theme = useMantineTheme();
     return (
         <ReactMarkdownPreview
             className={classes.markdown}
@@ -71,11 +69,6 @@ export const ItemDetailMarkdown: FC<{ source: string }> = ({ source }) => {
             rehypeRewrite={rehypeRemoveHeaderLinks}
             source={source}
             disallowedElements={['img']}
-            style={{
-                fontSize: theme.fontSizes.sm,
-                color: theme.colors.ldGray[7],
-                backgroundColor: 'transparent',
-            }}
         />
     );
 };
@@ -92,7 +85,7 @@ const SourceFieldRow: FC<{ label: string; field: Dimension | Metric }> = ({
             </Text>
             <Group gap="xs" wrap="nowrap">
                 <FieldIcon item={field} size="sm" />
-                <Text fz="xs" c="ldGray.7">
+                <Text fz="xs" c="dimmed">
                     {field.tableLabel}
                 </Text>
                 <Text fz="xs" fw={500} c="ldDark.7">
@@ -163,13 +156,8 @@ export const ItemDetailPreview: FC<{
             {description && (
                 <Box
                     mah={120}
-                    style={{
-                        overflow: 'hidden',
-                        // If we're over the truncation limit, use a mask to fade out the bottom of the container.
-                        maskImage: isTruncated
-                            ? 'linear-gradient(180deg, white 0%, white 80%, transparent 100%)'
-                            : undefined,
-                    }}
+                    className={classes.description}
+                    data-truncated={isTruncated || undefined}
                 >
                     <Stack gap="xs">
                         {metricInfo && (

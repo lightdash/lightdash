@@ -20,22 +20,27 @@ const AnalyticsHistoryBackfill = () => {
     return (
         <SettingsCard>
             <Stack gap="md">
-                <Title order={5}>Historical activity</Title>
+                <Title order={5}>Additional historical records</Title>
                 <Stack gap="xs">
                     <Text fz="sm" c="dimmed">
-                        Includes: retained queries, AI token usage, and
-                        historical views, apps, conversations, tools and export
-                        records.
+                        Retained database records supplement collected events
+                        and may contain less detail. This import runs separately
+                        from event processing.
                     </Text>
                     <Text fz="sm" c="dimmed">
-                        Not included: conversation text, historical People
+                        Includes: retained queries, AI token usage, and activity
+                        records for views, apps, AI conversations, tools and
+                        exports.
+                    </Text>
+                    <Text fz="sm" c="dimmed">
+                        Not included: AI prompts and replies, historical People
                         activity summaries, or records no longer stored.
                     </Text>
                 </Stack>
                 <Text fz="xs" c="dimmed">
-                    Queries and AI usage update existing Analytics datasets.
+                    Queries and AI usage appear in their existing datasets.
                     Other records appear in Historical activity. Existing
-                    captured queries and AI usage are kept.
+                    captured data is kept.
                 </Text>
                 {(status.isError || backfill.isError || status.data?.error) && (
                     <Callout
@@ -49,8 +54,9 @@ const AnalyticsHistoryBackfill = () => {
                 )}
                 {status.data?.running && (
                     <Text fz="sm">
-                        Backfill is running in the background. You can leave
-                        this page.
+                        Backfill is running in the background. This can take a
+                        few minutes, or longer for larger histories. You can
+                        leave this page.
                     </Text>
                 )}
                 <Group>

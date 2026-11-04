@@ -44,6 +44,8 @@ export type DbQueryHistory = {
     errored_at: Date | null;
     status: QueryHistoryStatus;
     cache_key: string;
+    cache_generation: number; // project results_cache_generation the results belong to
+    cache_invalidated_at: Date | null; // set when a chart or dashboard cache is cleared
     pivot_configuration: PivotConfiguration | null;
     pivot_values_columns: Record<string, PivotValuesColumn> | null;
     pivot_total_column_count: number | null;
@@ -95,6 +97,8 @@ export type DbQueryHistoryUpdate = Partial<
         | 'pre_aggregate_compiled_sql'
         | 'pre_aggregate_execution'
         | 'cache_key'
+        | 'cache_generation'
+        | 'cache_invalidated_at'
         | 'pre_aggregate_fallback_reason'
         | 'processing_started_at'
         | 'duckdb_execution'

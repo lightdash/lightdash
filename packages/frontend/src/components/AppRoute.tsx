@@ -47,7 +47,10 @@ const AppRoute: FC<React.PropsWithChildren> = ({ children }) => {
     }
 
     if (orgRequest?.data?.needsProject) {
+        // A cached needsProject must be confirmed by the refetch requested
+        // above before redirecting, or a stale value strands the user.
         if (
+            (mustConfirmNoProjectRef.current && orgRequest.isFetching) ||
             homepageBuilderFlag.isLoading ||
             orgSetupPageFlag.isLoading ||
             user.isInitialLoading

@@ -106,6 +106,86 @@ describe('initial usage processing', () => {
     });
 });
 
+test('schedules deferred history on the existing serial queue and permits continuation of a running job', async () => {
+    graphileAddJob.mockClear();
+    const before = Date.now();
+    await makeClient(true).scheduleUsageEventHistory(traceProperties);
+    expect(graphileAddJob).toHaveBeenCalledExactlyOnceWith(
+        SCHEDULER_TASKS.COMPACT_USAGE_EVENTS,
+        { ...traceProperties, includeHistory: true },
+        {
+            queueName: 'usage-events-compaction',
+            jobKey: `usage-event-history:${ORG_UUID}`,
+            jobKeyMode: 'preserve_run_at',
+            runAt: expect.any(Date),
+            maxAttempts: 3,
+            priority: JobPriority.LOW,
+        },
+    );
+    expect(
+        graphileAddJob.mock.calls[0][2].runAt.getTime(),
+    ).toBeGreaterThanOrEqual(before + 60_000);
+});
+
+test('revives exhausted history jobs through the queue SQL API', async () => {
+    const client = makeClient(true);
+    const query = vi.fn().mockResolvedValue({ rows: [] });
+    client.graphileUtils = Promise.resolve({
+        withPgClient: async (
+            callback: (pg: { query: typeof query }) => unknown,
+        ) => callback({ query }),
+    } as unknown as Awaited<typeof client.graphileUtils>);
+    await client.retryFailedUsageEventHistory();
+    expect(query).toHaveBeenCalledWith(
+        expect.stringContaining(
+            'attempts >= max_attempts AND locked_at IS NULL',
+        ),
+        [SCHEDULER_TASKS.COMPACT_USAGE_EVENTS],
+    );
+    expect(query.mock.calls[0][0]).toContain('attempts := 0');
+});
+
+describe('analytics content scheduling', () => {
+    beforeEach(() => graphileAddJob.mockClear());
+
+    it.each([null, ORG_UUID])(
+        'allows reconciliation for scope %s to recover on the next processing run',
+        async (organizationUuid) => {
+            await makeClient(true).scheduleAnalyticsContentReconciliation(
+                organizationUuid,
+            );
+            expect(graphileAddJob).toHaveBeenCalledExactlyOnceWith(
+                SCHEDULER_TASKS.RECONCILE_ANALYTICS_CONTENT,
+                { organizationUuid: organizationUuid ?? undefined },
+                {
+                    queueName: 'analytics-content-reconciliation',
+                    jobKey: `analytics-content-reconciliation:${organizationUuid ?? 'all'}`,
+                    jobKeyMode: 'preserve_run_at',
+                    maxAttempts: 3,
+                    priority: JobPriority.LOW,
+                },
+            );
+        },
+    );
+
+    it('queues one retryable content update per organization', async () => {
+        await makeClient(true).scheduleAnalyticsContentSync({
+            organizationUuid: ORG_UUID,
+        });
+        expect(graphileAddJob).toHaveBeenCalledExactlyOnceWith(
+            SCHEDULER_TASKS.SYNC_ANALYTICS_CONTENT,
+            { organizationUuid: ORG_UUID },
+            {
+                queueName: 'analytics-content-sync',
+                jobKey: `analytics-content-sync:${ORG_UUID}`,
+                jobKeyMode: 'preserve_run_at',
+                maxAttempts: 3,
+                priority: JobPriority.LOW,
+            },
+        );
+    });
+});
+
 describe('query history backfill scheduling', () => {
     afterEach(() => vi.restoreAllMocks());
 
@@ -331,12 +411,16 @@ describe('SchedulerClient create project job lookup', () => {
             ) => callback({ query }),
         } as unknown as Awaited<typeof client.graphileUtils>);
 
+        const lockedAfter = new Date('2026-10-28T14:30:00Z');
         await expect(
-            client.hasCreateProjectWithCompileJob('lightdash-job-uuid'),
+            client.hasCreateProjectWithCompileJob(
+                'lightdash-job-uuid',
+                lockedAfter,
+            ),
         ).resolves.toBe(true);
         expect(query).toHaveBeenCalledWith(
-            expect.stringContaining("payload->>'jobUuid' = $2"),
-            ['createProjectWithCompile', 'lightdash-job-uuid'],
+            expect.stringContaining('locked_at IS NULL OR locked_at > $3'),
+            ['createProjectWithCompile', 'lightdash-job-uuid', lockedAfter],
         );
     });
 });

@@ -3,7 +3,7 @@ import {
     type ResultRow,
     type ResultValue,
 } from '@lightdash/common';
-import isEqual from 'lodash/isEqual';
+import { isEqual } from 'es-toolkit/compat';
 
 /**
  * Normalised view of a TanStack pivot body cell, mirroring

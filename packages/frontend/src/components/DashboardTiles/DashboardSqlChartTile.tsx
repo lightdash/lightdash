@@ -43,6 +43,7 @@ import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import BigNumberView from '../DataViz/visualizations/BigNumberView';
 import ChartView from '../DataViz/visualizations/ChartView';
 import { Table } from '../DataViz/visualizations/Table';
+import tileClasses from './DashboardTiles.module.css';
 import ExportDataModal from './ExportDataModal';
 import TileBase from './TileBase';
 
@@ -423,7 +424,11 @@ const SqlChartTile: FC<Props> = ({
             {chartData.config.type === ChartKind.TABLE &&
                 isVizTableConfig(chartData.config) && (
                     // So that the Table tile isn't cropped by the overflow
-                    <Box w="100%" h="100%" style={{ overflow: 'auto' }}>
+                    <Box
+                        w="100%"
+                        h="100%"
+                        className={tileClasses.scrollContainer}
+                    >
                         <Table
                             resultsRunner={chartResultsData.resultsRunner}
                             columnsConfig={chartData.config.columns}
@@ -448,11 +453,7 @@ const SqlChartTile: FC<Props> = ({
                     spec={specWithoutAnimation}
                     isLoading={isChartResultsFetching}
                     error={undefined}
-                    style={{
-                        minHeight: 'inherit',
-                        height: '100%',
-                        width: '100%',
-                    }}
+                    className={tileClasses.chartView}
                 />
             )}
             <ExportDataModal

@@ -21,44 +21,51 @@ export const composerBuiltinChartVizConfigSchemaV1 = z.object({
         'Chart type. area is a filled line.',
     ),
     x: refSchema
-        .nullable()
+        .nullish()
+        .default(null)
         .describe(
             'Category or time column. bar/line/area/scatter/pie/funnel. null for table/big_number, or to use the first non-numeric column.',
         ),
     y: z
         .array(refSchema)
-        .nullable()
+        .nullish()
+        .default(null)
         .describe(
             'Value columns. big_number, pie and funnel use y[0]. null to use every numeric column not on x or groupBy.',
         ),
     groupBy: z
         .array(refSchema)
-        .nullable()
+        .nullish()
+        .default(null)
         .describe(
             'Columns that split y into one series per value. bar/line/area/scatter only. Must not include x.',
         ),
     stack: z
         .boolean()
-        .nullable()
+        .nullish()
+        .default(null)
         .describe(
             'bar: stack series on top of each other. area always stacks. Ignored elsewhere.',
         ),
     horizontal: z
         .boolean()
-        .nullable()
+        .nullish()
+        .default(null)
         .describe('bar only: draw bars horizontally.'),
     y2: refSchema
-        .nullable()
+        .nullish()
+        .default(null)
         .describe(
             'Column on a secondary (right) y axis. bar/line/area (drawn as a line on area). Must not be in y.',
         ),
     labels: z
         .object({
-            x: z.string().nullable(),
-            y: z.string().nullable(),
-            y2: z.string().nullable(),
+            x: z.string().nullish().default(null),
+            y: z.string().nullish().default(null),
+            y2: z.string().nullish().default(null),
         })
-        .nullable()
+        .nullish()
+        .default(null)
         .describe('Axis titles. big_number uses labels.y as its label.'),
 });
 
@@ -74,7 +81,8 @@ const composerCustomChartVizConfigSchemaV1 = z.object({
         ),
     options: z
         .record(z.string(), customChartTypeOptionValueSchema)
-        .nullable()
+        .nullish()
+        .default(null)
         .describe("Values for the type's options; null for defaults."),
 });
 

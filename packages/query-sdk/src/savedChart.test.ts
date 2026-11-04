@@ -86,6 +86,48 @@ describe('executeSavedChart transport', () => {
         });
         expect(result.queryUuid).toBe('q-1');
         expect(result.rows.length).toBe(1);
+        expect(result.chartVisualization).toBeUndefined();
+    });
+
+    it('passes the chart visualization through when the host returns it', async () => {
+        const chartVisualization = {
+            chartConfig: {
+                type: 'cartesian',
+                config: {
+                    layout: {
+                        xField: 'orders_date',
+                        yField: ['orders_count'],
+                    },
+                },
+            },
+            pivotConfig: { columns: ['orders_status'] },
+            tableConfig: { columnOrder: ['orders_date', 'orders_count'] },
+        };
+        const adapter = async (method: string, path: string) => {
+            if (method === 'POST' && path.endsWith('/query/chart')) {
+                return {
+                    queryUuid: 'q-1',
+                    metricQuery: {},
+                    fields: {},
+                    chartVisualization,
+                } as any;
+            }
+            return {
+                status: 'ready',
+                columns: {},
+                rows: [],
+                totalResults: 0,
+                nextPage: undefined,
+            } as any;
+        };
+        const transport = createApiTransport(
+            { apiKey: '', baseUrl: '', projectUuid: 'p-1' },
+            adapter as any,
+        );
+        const result = await transport.executeSavedChart({
+            chartUuid: 'chart-9',
+        });
+        expect(result.chartVisualization).toEqual(chartVisualization);
     });
 });
 

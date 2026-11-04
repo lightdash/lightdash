@@ -40,6 +40,7 @@ import {
 import type { FC } from 'react';
 import { type ComposerQueryNodeStatus } from '../../composerNodeStatus';
 import { type SqlApprovalTarget } from '../SqlApprovalActions';
+import { isToolWithoutDescription } from '../utils/toolsWithoutDescription';
 import type { ToolCallSummary } from '../utils/types';
 import { ComposerQueriesToolCallDescription } from './ComposerQueriesToolCallDescription';
 import { ContentEditorToolCallDescription } from './ContentEditorToolCallDescription';
@@ -103,6 +104,9 @@ export const ToolCallDescription: FC<{
     // been parsed. Casting an undefined value and reading fields throws, so
     // bail until args exist.
     if (!toolCall.toolArgs || typeof toolCall.toolArgs !== 'object') {
+        return <> </>;
+    }
+    if (isToolWithoutDescription(toolName)) {
         return <> </>;
     }
     switch (toolName) {
@@ -382,12 +386,6 @@ export const ToolCallDescription: FC<{
                     fieldId={analyzeFieldImpactArgs.fieldId}
                 />
             );
-        case 'listKnowledgeDocuments':
-        case 'listProjects':
-        case 'getProjectInfo':
-        case 'generateHashes':
-        case 'generateUuids':
-        case 'loadProjectContext':
         case 'exploreRepo':
             const toolArgsExploreRepo = toolCall.toolArgs as {
                 command?: string;
@@ -429,30 +427,6 @@ export const ToolCallDescription: FC<{
                 />
             );
         }
-        case 'discoverRepos':
-        case 'listWorkstreams':
-        case 'closePullRequest':
-        case 'getPullRequestDiff':
-        case 'generateDataApp':
-        case 'iterateDataApp':
-        case 'listDataAppThemes':
-        case 'listDataAppConnections':
-        case 'editDbtProject':
-        case 'editProjectContext':
-        case 'editRepo':
-        case 'updateUserName':
-        case 'syncDbtProject':
-        case 'runSavedChart':
-        case 'readPinnedThread':
-        case 'readAttachments':
-        case 'submitResearchReport':
-        case 'delegateResearchTask':
-        case 'submitWorkerFindings':
-        case 'loadMcpTools':
-        case 'resolveUrl':
-        case 'findCustomChartTypes':
-        case 'visualize':
-            return <> </>;
         default:
             return assertUnreachable(toolName, `Unknown tool name ${toolName}`);
     }

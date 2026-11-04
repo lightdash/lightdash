@@ -1,13 +1,4 @@
-import {
-    Box,
-    Button,
-    Group,
-    Loader,
-    Select,
-    Stack,
-    Text,
-    Title,
-} from '@mantine/core';
+import { Button, Group, Loader, Select, Stack, Text } from '@mantine/core';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import { useBlocker } from 'react-router';
 import { type SuggestionsItem } from '../../../../../../features/comments/types';
@@ -21,6 +12,7 @@ import {
 import { useProjectAiAgents } from '../../../hooks/useProjectAiAgents';
 import { extractTaggedAgentUuids } from '../../../utils/aiRouterInstructions';
 import { AiRouterInstructionsEditor } from './AiRouterInstructionsEditor';
+import { SettingRow } from './SettingLayout';
 
 // Split out so the relative-time hook only runs when there is a saved version.
 const SavedAtLabel: FC<{ savedAt: Date | string }> = ({ savedAt }) => {
@@ -175,17 +167,10 @@ export const AiRouterInstructionsCard: FC = () => {
 
     return (
         <Stack gap="md">
-            <Box>
-                <Title order={6} mb={4}>
-                    Routing instructions
-                </Title>
-                <Text c="dimmed" fz="xs">
-                    Tell the router how to direct questions for a project. For
-                    example, send billing questions to a specific agent. Type @
-                    to tag an agent. Rules guide the router but never override
-                    an agent's access restrictions.
-                </Text>
-            </Box>
+            <SettingRow
+                title="Routing instructions"
+                description="Tell the router how to direct questions for a project. Type @ to tag an agent. The router sees the question, the dashboard or chart it was asked from, and each agent's setup. Rules never override an agent's access restrictions."
+            />
 
             <Select
                 label="Project"

@@ -430,7 +430,7 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
                 cancelLabel={false}
                 actions={
                     <Box>
-                        <Text c="ldGray.7" fz="xs">
+                        <Text c="dimmed" fz="xs">
                             Learn more about space permissions in our{' '}
                             <Anchor
                                 href="https://docs.lightdash.com/references/workspace/spaces#managing-access-to-a-space"
@@ -468,7 +468,7 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
                                 size="sm"
                                 color="ldGray.7"
                             />
-                            <Text size="sm" fw={600} c="ldGray.7">
+                            <Text size="sm" fw={600} c="dimmed">
                                 Access details
                             </Text>
                         </Group>
@@ -604,7 +604,7 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
                                                 color="ldGray.4"
                                             />
                                             <Text
-                                                c="ldGray.5"
+                                                c="dimmed"
                                                 fz="sm"
                                                 ta="center"
                                             >
@@ -646,7 +646,7 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
                                         />
                                     ) : (
                                         <Text
-                                            c="ldGray.5"
+                                            c="dimmed"
                                             fz="sm"
                                             ta="center"
                                             py="md"

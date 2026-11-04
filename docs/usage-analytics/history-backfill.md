@@ -9,6 +9,10 @@ past event, a database backup restore, or an import of warehouse result rows.
 The import has three destinations: **Query Events**, **AI Usage**, and
 **Historical Activity**. The first two supplement existing event datasets. The
 third exposes retained database facts whose meaning differs from live events.
+Settings labels this import **Additional historical records**. Captured raw
+events are processed separately: recent activity first, followed automatically
+by all older retained events in background batches. Completing this database
+import does not mean captured-event processing has finished.
 This document describes the backfill implementation in
 [PR #31585](https://github.com/lightdash/lightdash/pull/31585); availability in an
 installation depends on the deployed version and Analytics configuration.
@@ -46,13 +50,15 @@ snapshot of the whole database. Retention and deletion determine how far back
 each source can go; the import does not guarantee any particular historical
 window. A whole-day cutoff would miss gaps within partially captured days.
 
-- **Query Events:** `READY` queries and `ERROR` queries with a recorded warehouse
-  execution time from `query_history`, excluding preview projects and unfinished
-  work. Errors without an execution time are not imported. Identity is
+- **Query Events:** `READY` and `ERROR` queries from `query_history`, excluding
+  preview projects and unfinished work. Failed queries include their retained
+  error message, even when execution time is missing. Analytics error messages
+  are limited to 1,000 characters, including `… [truncated]` when shortened;
+  the original database error is unchanged. Identity is
   `(org_id, project_id, query_id)`. Dates use submission time. Missing timing or
   event metadata stays null. Retained fields include the actor, context,
-  Explore/chart/dashboard references, status, warehouse execution time and row
-  count. The importer does not recreate completion time, cache behavior or
+  Explore/chart/dashboard references, status, error message, warehouse execution
+  time and row count. The importer does not recreate completion time, cache behavior or
   metric/dimension lineage that the source row cannot supply.
 - **AI Usage:** model-call outcomes and token counts from `ai_usage_ledger`, using
   the same `(org_id, event_id)` as captured events. PostgreSQL timestamp and bigint
@@ -111,11 +117,14 @@ dashboards.
 
 ## Not included
 
-No SQL, conversation/reasoning text, error-message text, tool arguments/results, file
-contents, export destinations, arbitrary JSON or external identities are
-exported. An error outcome can be included without its error message; a file or
-artifact record can be included without its contents. Ownership joins scope
-every source to the authorized organization.
+No SQL, AI prompts, replies or reasoning text, tool arguments/results, file contents,
+export destinations, arbitrary JSON or external identities are exported. Query
+error messages are included; error text from other activity sources is not.
+A file or artifact record can be included without its contents. Ownership joins
+scope every source to the authorized organization.
+
+Conversation activity means metadata such as IDs, timestamps and outcomes, not
+message contents. Captured analytics events also exclude AI prompts and replies.
 
 The import also excludes:
 
@@ -158,9 +167,17 @@ worker slot cannot run both jobs concurrently.
 
 DB exports use 1,000-row keyset pages and read-only transactions with 10-second
 statement/one-second lock timeouts. Connections are released between pages.
+Query history walks the full retained range in hourly, half-open time windows,
+using the existing creation-time index. Empty windows advance to the next hour;
+dense windows retain timestamp/UUID pagination. A statement timeout narrows the
+remaining window before retrying, down to a one-millisecond range. The exact
+cutoff and PostgreSQL microsecond cursor remain unchanged. This adds no index or
+startup migration, but trades more small queries for bounded scans.
 Sources run serially; temp files are cleaned up. Storage limits fail closed.
 Jobs have one execution attempt; failures require a manual retry rather than
 automatically repeating the import or waiting for the nightly schedule.
+Worker errors identify the dataset and whether reading the database, checking
+storage, reconciling history, publishing history or publishing completion failed.
 
 Each source atomically publishes queryable Parquet at
 `events/compacted/org_id=<org>/history=<stream>/history.parquet`. No additional

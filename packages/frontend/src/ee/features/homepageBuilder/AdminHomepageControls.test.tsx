@@ -12,8 +12,9 @@ vi.mock('../../../providers/Ability', () => ({
     Can: ({ children }: PropsWithChildren) => children,
 }));
 
-const { authoringEnabled, settings } = vi.hoisted(() => ({
+const { authoringEnabled, settings, mutate } = vi.hoisted(() => ({
     authoringEnabled: { current: true },
+    mutate: vi.fn(),
     settings: {
         current: { enabled: false, opening: null } as {
             enabled: boolean;
@@ -28,8 +29,13 @@ vi.mock('../../../hooks/useContentAuthoringEnabled', () => ({
 
 vi.mock('./hooks/useOrgHomepageSettings', () => ({
     useOrgHomepageSettings: () => ({ data: settings.current }),
+    useHomepageOpening: () => ({
+        opening: 'content-first',
+        canAskAi: false,
+        isLoading: false,
+    }),
     useUpdateOrgHomepageSettings: () => ({
-        mutate: vi.fn(),
+        mutate,
         isLoading: false,
     }),
 }));
@@ -57,6 +63,63 @@ describe('AdminHomepageControls', () => {
     beforeEach(() => {
         authoringEnabled.current = true;
         settings.current = { enabled: false, opening: null };
+        mutate.mockReset();
+        localStorage.clear();
+    });
+
+    it('shows the default-on notice once to admins whose org never chose an opening', () => {
+        settings.current = { enabled: true, opening: null };
+        const { unmount } = renderControls();
+
+        expect(
+            screen.getByText('Your homepage has a new look'),
+        ).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Got it' }));
+        expect(
+            screen.queryByText('Your homepage has a new look'),
+        ).not.toBeInTheDocument();
+
+        unmount();
+        renderControls();
+        expect(
+            screen.queryByText('Your homepage has a new look'),
+        ).not.toBeInTheDocument();
+    });
+
+    it('offers auto as a third choice and clears the explicit opening', () => {
+        settings.current = { enabled: true, opening: 'content-first' };
+        renderControls();
+
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Homepage opening' }),
+        );
+        fireEvent.click(screen.getByRole('button', { name: /^Auto/ }));
+
+        expect(mutate).toHaveBeenCalledWith({ enabled: true, opening: null });
+    });
+
+    it('does not show the notice when the org already chose an opening', () => {
+        settings.current = { enabled: true, opening: 'ask-first' };
+        renderControls();
+
+        expect(
+            screen.queryByText('Your homepage has a new look'),
+        ).not.toBeInTheDocument();
+    });
+
+    it('lets org admins change the opening without touching enablement', () => {
+        settings.current = { enabled: true, opening: 'ask-first' };
+        renderControls();
+
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Homepage opening' }),
+        );
+        fireEvent.click(screen.getByRole('button', { name: /Content first/ }));
+
+        expect(mutate).toHaveBeenCalledWith({
+            enabled: true,
+            opening: 'content-first',
+        });
     });
 
     it('only renders homepage curation controls', () => {
@@ -70,7 +133,7 @@ describe('AdminHomepageControls', () => {
         expect(container).not.toHaveTextContent('Deep research');
     });
 
-    it('hides the switch-back control for flag-enabled orgs (no opt-in row)', () => {
+    it('hides the switch-back control while the homepage is off', () => {
         renderControls();
 
         expect(
@@ -80,7 +143,7 @@ describe('AdminHomepageControls', () => {
         ).toBeNull();
     });
 
-    it('offers switch-back when the org opted in via settings', () => {
+    it('offers switch-back while the homepage is on', () => {
         settings.current = { enabled: true, opening: 'content-first' };
         renderControls();
 

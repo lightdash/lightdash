@@ -18,11 +18,12 @@ import {
     type DashboardFilterableField,
     type DashboardFilterRule,
     type DashboardTile,
+    type Field,
     type FilterRule,
     type ResultColumn,
 } from '@lightdash/common';
+import { isEqual } from 'es-toolkit/compat';
 import { produce } from 'immer';
-import isEqual from 'lodash/isEqual';
 
 /**
  * Describes the relationship between a filter and a tile based on tileTargets configuration.
@@ -408,6 +409,20 @@ export const getFilterRuleWithRequired = (
         : getFilterRuleWithDefaultValue(filterType, field, newFilter, null);
 };
 
+// The dimension rules Save sends: required ones lose their value unless
+// they keep it as their default
+export const getDimensionFiltersToSave = (
+    filters: DashboardFilterRule[],
+    keepsRequiredDefaults: boolean,
+): DashboardFilterRule[] =>
+    keepsRequiredDefaults
+        ? filters
+        : filters.map((filter) =>
+              filter.required || filter.requiredGroupId
+                  ? { ...filter, disabled: true, values: [] }
+                  : filter,
+          );
+
 // The Apply guard of the settings form: no viewer can satisfy this filter
 export const isLockedRequiredMissingValue = (
     filterRule: DashboardFilterRule | undefined,
@@ -437,23 +452,9 @@ export const getFilterRuleFilterType = (
     return FilterType.STRING;
 };
 
-export const isFilterEnabled = (
-    filterRule?: DashboardFilterRule,
-    isEditMode?: boolean,
-    isCreatingNew?: boolean,
-) => {
-    if (!filterRule) return false;
-
-    const isFilterRuleDisabled = filterRule.disabled;
-    if (
-        (isFilterRuleDisabled && isEditMode) ||
-        (isFilterRuleDisabled && !isCreatingNew)
-    ) {
-        return true;
-    }
-
-    return hasFilterValueSet(filterRule);
-};
+// A disabled rule reads "any value", which can always be applied
+export const isFilterEnabled = (filterRule?: DashboardFilterRule) =>
+    !!filterRule && (!!filterRule.disabled || hasFilterValueSet(filterRule));
 
 // Dashboard rules and chart rules share the fields a saved-value comparison
 // reads, so scheduler overrides on either resource reuse these helpers.
@@ -505,4 +506,26 @@ export const hasSavedFilterValueChanged = (
         getComparableFilterRuleObject(originalFilterRule),
         getComparableFilterRuleObject(serializedInternalFilterRule),
     );
+};
+
+// A tile's fields the filter's field can map to, closest first: the same
+// type, then the same name, then the field itself. All of them without a field
+export const getTileFieldOptions = <T extends Field>(
+    field: Field | undefined,
+    filters: T[] | undefined,
+): T[] | undefined => {
+    if (!field) return filters;
+    const sortFieldsByMatch = (
+        fieldMatcher: (a: Field) => (b: Field) => boolean,
+        a: Field,
+        b: Field,
+    ) => {
+        const matchA = fieldMatcher(field)(a);
+        const matchB = fieldMatcher(field)(b);
+        return matchA === matchB ? 0 : matchA ? -1 : 1;
+    };
+    return filters
+        ?.filter(matchFieldByType(field))
+        .sort((a, b) => sortFieldsByMatch(matchFieldByTypeAndName, a, b))
+        .sort((a, b) => sortFieldsByMatch(matchFieldExact, a, b));
 };

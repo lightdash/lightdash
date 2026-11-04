@@ -213,13 +213,9 @@
     flex: 0 0 86px;
     place-items: center;
     overflow: hidden;
-    border: 1px solid
-        light-dark(var(--mantine-color-ldGray-3), var(--mantine-color-ldDark-5));
+    border: 1px solid var(--mantine-color-ldGray-3);
     border-radius: var(--mantine-radius-sm);
-    background: light-dark(
-        var(--mantine-color-ldGray-0),
-        var(--mantine-color-ldDark-3)
-    );
+    background: var(--mantine-color-ldGray-0);
     color: var(--mantine-color-ldGray-7);
 }
 

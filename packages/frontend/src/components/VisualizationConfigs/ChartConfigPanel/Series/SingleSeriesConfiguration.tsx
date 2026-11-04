@@ -296,9 +296,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                     </Popover>
                                 ) : undefined
                             }
-                            rightSectionProps={{
-                                style: { pointerEvents: 'all' },
-                            }}
+                            rightSectionPointerEvents="all"
                             onChange={(value) => {
                                 updateSingleSeries({
                                     ...series,

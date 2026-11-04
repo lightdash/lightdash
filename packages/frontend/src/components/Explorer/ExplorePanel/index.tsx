@@ -34,6 +34,7 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import { LiveSourceExploreBadge } from '../../../features/externalConnections/liveSources/LiveSourceExploreBadge';
 import { ExternalSourceBadge } from '../../../features/externalSources/components/ExternalSourceBadge';
 import { ExternalSourceExploreMenu } from '../../../features/externalSources/components/ExternalSourceExploreMenu';
 import { JoinWithWarehouseHint } from '../../../features/externalSources/components/JoinWithWarehouseHint';
@@ -57,6 +58,9 @@ import { EventName } from '../../../types/Events';
 import { BetaBadge } from '../../common/BetaBadge';
 import MantineIcon from '../../common/MantineIcon';
 import PageBreadcrumbs from '../../common/PageBreadcrumbs';
+import { ClearCachedResultsMenuItem } from '../../ProjectResultsCache/ClearCachedResultsMenuItem';
+import { ClearExploreCacheModal } from '../../ProjectResultsCache/ClearExploreCacheModal';
+import { useCanClearCachedResults } from '../../ProjectResultsCache/useCanClearCachedResults';
 import ExploreTree from '../ExploreTree';
 import LoadingSkeleton from '../ExploreTree/LoadingSkeleton';
 import { ItemDetailProvider } from '../ExploreTree/TableTree/ItemDetailProvider';
@@ -75,9 +79,11 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
         useState(false);
     const [isVirtualViewAsCodeOpen, virtualViewAsCodeModalHandlers] =
         useDisclosure();
+    const [isClearCacheOpen, clearCacheModalHandlers] = useDisclosure();
     const [, startTransition] = useTransition();
 
     const projectUuid = useProjectUuid();
+    const canClearCache = useCanClearCachedResults(projectUuid);
     const merge = useMergeSafe();
     const additionalSource = merge?.additionalSources[0];
     const [isChoosingMergeExplore, setIsChoosingMergeExplore] = useState(
@@ -214,11 +220,11 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
             projectUuid,
         }),
     );
-    const canMergeAnotherQuery =
-        explore.type !== ExploreType.VIRTUAL &&
-        !!merge &&
-        !merge.isMerging &&
-        !merge.readOnly;
+    const canMergeAnotherQuery = !!merge && !merge.isMerging && !merge.readOnly;
+    const isVirtualView = explore.type === ExploreType.VIRTUAL;
+    const hasVirtualViewActions =
+        isVirtualView &&
+        (canEditVirtualView || canDeleteVirtualView || canViewContentAsCode);
 
     // Only call `onBack` for 4XX errors, otherwise we lose URL state when there's a Network error or backend is down
     if (status === 'error' && error.error.statusCode < 500) {
@@ -263,6 +269,9 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                     sourceRef={explore.externalSource}
                                 />
                             )}
+                        {explore.type === ExploreType.API_SOURCE && (
+                            <LiveSourceExploreBadge explore={explore} />
+                        )}
                         {explore.warnings && explore.warnings.length > 0 && (
                             <HoverCard position="right" withArrow>
                                 <HoverCard.Target>
@@ -282,23 +291,52 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                             </HoverCard>
                         )}
                     </Group>
-                    {explore.type === ExploreType.VIRTUAL &&
-                        (canEditVirtualView ||
-                            canDeleteVirtualView ||
-                            canViewContentAsCode) && (
+                    {explore.type !== ExploreType.EXTERNAL_SOURCE &&
+                        (canMergeAnotherQuery ||
+                            hasVirtualViewActions ||
+                            canClearCache) && (
                             <Menu withArrow offset={-2}>
                                 <Menu.Target>
-                                    <ActionIcon
-                                        data-tour-anchor="virtual-view-actions"
-                                        data-tour-hint="Open virtual view actions"
-                                        aria-label="Virtual view actions"
-                                        variant="transparent"
-                                    >
-                                        <MantineIcon icon={IconDots} />
-                                    </ActionIcon>
+                                    {/* Two literal triggers: the tour generator reads anchors and hints from source. */}
+                                    {isVirtualView ? (
+                                        <ActionIcon
+                                            data-tour-anchor="virtual-view-actions"
+                                            data-tour-hint="Open virtual view actions"
+                                            aria-label="Virtual view actions"
+                                            variant="transparent"
+                                        >
+                                            <MantineIcon icon={IconDots} />
+                                        </ActionIcon>
+                                    ) : (
+                                        <ActionIcon
+                                            aria-label="Query options"
+                                            variant="transparent"
+                                        >
+                                            <MantineIcon icon={IconDots} />
+                                        </ActionIcon>
+                                    )}
                                 </Menu.Target>
                                 <Menu.Dropdown>
-                                    {canEditVirtualView && (
+                                    {canMergeAnotherQuery && (
+                                        <Menu.Item
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconGitMerge}
+                                                />
+                                            }
+                                            rightSection={<BetaBadge />}
+                                            onClick={handleAddMergeSource}
+                                        >
+                                            <Text fz="xs" fw={500}>
+                                                Merge another query
+                                            </Text>
+                                        </Menu.Item>
+                                    )}
+                                    {canMergeAnotherQuery &&
+                                        hasVirtualViewActions && (
+                                            <Menu.Divider />
+                                        )}
+                                    {isVirtualView && canEditVirtualView && (
                                         <Menu.Item
                                             leftSection={
                                                 <MantineIcon
@@ -314,7 +352,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                             </Text>
                                         </Menu.Item>
                                     )}
-                                    {canViewContentAsCode && (
+                                    {isVirtualView && canViewContentAsCode && (
                                         <>
                                             {canEditVirtualView && (
                                                 <Menu.Divider />
@@ -336,7 +374,21 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                             </Menu.Item>
                                         </>
                                     )}
-                                    {canDeleteVirtualView && (
+                                    {canClearCache && (
+                                        <>
+                                            {(canMergeAnotherQuery ||
+                                                hasVirtualViewActions) && (
+                                                <Menu.Divider />
+                                            )}
+                                            <ClearCachedResultsMenuItem
+                                                projectUuid={projectUuid}
+                                                onClick={
+                                                    clearCacheModalHandlers.open
+                                                }
+                                            />
+                                        </>
+                                    )}
+                                    {isVirtualView && canDeleteVirtualView && (
                                         <>
                                             <Menu.Divider />
                                             <Menu.Item
@@ -378,32 +430,6 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                 canMergeAnotherQuery={canMergeAnotherQuery}
                                 onAddMergeSource={handleAddMergeSource}
                             />
-                        )}
-                    {explore.type !== ExploreType.EXTERNAL_SOURCE &&
-                        canMergeAnotherQuery && (
-                            <Menu withArrow offset={-2}>
-                                <Menu.Target>
-                                    <ActionIcon
-                                        aria-label="Query options"
-                                        variant="transparent"
-                                    >
-                                        <MantineIcon icon={IconDots} />
-                                    </ActionIcon>
-                                </Menu.Target>
-                                <Menu.Dropdown>
-                                    <Menu.Item
-                                        leftSection={
-                                            <MantineIcon icon={IconGitMerge} />
-                                        }
-                                        rightSection={<BetaBadge />}
-                                        onClick={handleAddMergeSource}
-                                    >
-                                        <Text fz="xs" fw={500}>
-                                            Merge another query
-                                        </Text>
-                                    </Menu.Item>
-                                </Menu.Dropdown>
-                            </Menu>
                         )}
                 </Group>
 
@@ -451,6 +477,13 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                         onClose={() => setIsDeleteVirtualViewOpen(false)}
                         virtualViewName={activeTableName}
                         projectUuid={projectUuid}
+                    />
+                )}
+                {projectUuid && isClearCacheOpen && (
+                    <ClearExploreCacheModal
+                        projectUuid={projectUuid}
+                        exploreName={explore.name}
+                        onClose={clearCacheModalHandlers.close}
                     />
                 )}
                 {projectUuid && isVirtualViewAsCodeOpen && (

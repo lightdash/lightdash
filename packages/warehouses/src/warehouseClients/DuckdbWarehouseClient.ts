@@ -1441,7 +1441,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                 // Never mix remote and local files in one table, including on failure.
                 if (
                     buffers.every((buffer) => buffer) &&
-                    stagedBytes + size <= 8 * 1024 * 1024
+                    stagedBytes + size <= 32 * 1024 * 1024
                 ) {
                     stagedBytes += size;
                     const localPaths: string[] = [];

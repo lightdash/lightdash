@@ -290,6 +290,7 @@ describe('bulk model rename discovery', () => {
         enabled: true,
         includeLinks: true,
         plainTextEmail: false,
+        useCachedResults: false,
         targets: [],
         thresholds: [
             {

@@ -1,9 +1,11 @@
 import { createContext, useContext } from 'react';
-import { type ColorScheme } from '../theme';
+import { type ColorScheme, type ColorSchemePreference } from '../theme';
 
 type ColorSchemeContextValue = {
+    /** The scheme being painted; never `system`. */
     colorScheme: ColorScheme;
-    toggleColorScheme: () => void;
+    colorSchemePreference: ColorSchemePreference;
+    setColorSchemePreference: (preference: ColorSchemePreference) => void;
 };
 
 export const ColorSchemeContext = createContext<ColorSchemeContextValue | null>(

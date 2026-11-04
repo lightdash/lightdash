@@ -19,9 +19,10 @@ import InlineErrorState from '../../../components/common/InlineErrorState';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { SettingsPage } from '../../../components/common/Settings/SettingsPage';
 import { findBlockingAiCreditHold } from './aiCreditHolds';
+import { AiCreditsAnalyticsLink } from './AiCreditsAnalyticsLink';
+import { AiCreditsDailyUsage } from './AiCreditsDailyUsage';
 import classes from './AiCreditsSettingsPage.module.css';
 import { AiCreditsUsageBar } from './AiCreditsUsageBar';
-import { AiCreditsUsageBreakdown } from './AiCreditsUsageBreakdown';
 import { formatAllowance, formatCredits } from './creditUsage';
 import { useAiCreditUsage } from './hooks/useAiCreditUsage';
 import {
@@ -113,7 +114,7 @@ const UsageSummary: FC<{ usage: AiCreditUsageSummary }> = ({ usage }) => {
         >
             <Stack gap="sm">
                 <Group justify="space-between" align="baseline">
-                    <Title order={5} fz="sm" fw={500} c="ldGray.7">
+                    <Title order={5} fz="sm" fw={500} c="dimmed">
                         {formatDate(period.periodStart)} –{' '}
                         {formatLastDay(period.periodEnd)}
                     </Title>
@@ -204,7 +205,7 @@ export const AiCreditsSettingsPage: FC = () => {
     return (
         <SettingsPage
             title="AI credits"
-            description="Credits your organization has used on AI features in the current period."
+            description="Credits used on AI features in the current period, in real time. Usage history and detail live in your organization's analytics project."
         >
             {isInitialLoading ? (
                 <AiCreditsPageSkeleton />
@@ -216,12 +217,8 @@ export const AiCreditsSettingsPage: FC = () => {
             ) : (
                 <Stack gap="lg">
                     <UsageSummary usage={usage} />
-                    <AiCreditsUsageBreakdown
-                        allowanceCredits={
-                            usage.contract?.allowanceCredits ?? null
-                        }
-                        usedCredits={usage.billable.credits}
-                    />
+                    <AiCreditsDailyUsage />
+                    <AiCreditsAnalyticsLink />
                 </Stack>
             )}
         </SettingsPage>

@@ -1,0 +1,7 @@
+.tooltipLabel {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: var(--mantine-font-size-xs);
+    line-height: var(--mantine-line-height-xs);
+}

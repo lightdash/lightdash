@@ -155,70 +155,70 @@ const buildFakeWriteDatabase = ({
 };
 
 describe('FeatureFlagModel', () => {
-    describe.each([FeatureFlags.DbtPartialParse, FeatureFlags.AgentIdentity])(
-        '%s production rollout',
-        (featureFlagId) => {
-            const config = {
-                previewFeatureFlags: { enabled: false },
-                enabledFeatureFlags: new Set<string>(),
-                disabledFeatureFlags: new Set<string>(),
-            };
-            it('is off without database or ENV configuration', async () => {
-                const model = buildModel(config, buildFakeDatabase({}));
-                await expect(
-                    model.get({ featureFlagId, user: dbUser }),
-                ).resolves.toEqual({
-                    id: featureFlagId,
-                    enabled: false,
+    describe.each([
+        FeatureFlags.DbtPartialParse,
+        FeatureFlags.AgentIdentity,
+        FeatureFlags.BigqueryWorkloadIdentityAuth,
+    ])('%s production rollout', (featureFlagId) => {
+        const config = {
+            previewFeatureFlags: { enabled: false },
+            enabledFeatureFlags: new Set<string>(),
+            disabledFeatureFlags: new Set<string>(),
+        };
+        it('is off without database or ENV configuration', async () => {
+            const model = buildModel(config, buildFakeDatabase({}));
+            await expect(
+                model.get({ featureFlagId, user: dbUser }),
+            ).resolves.toEqual({
+                id: featureFlagId,
+                enabled: false,
+            });
+        });
+        it('supports Console enable, disable and re-enable without restart and isolates organizations', async () => {
+            const rows: FakeRows = { flag: { default_enabled: false } };
+            const model = buildModel(config, buildFakeDatabase(rows));
+            const get = (organizationUuid = dbUser.organizationUuid) =>
+                model.get({
+                    featureFlagId,
+                    user: { ...dbUser, organizationUuid },
                 });
-            });
-            it('supports Console enable, disable and re-enable without restart and isolates organizations', async () => {
-                const rows: FakeRows = { flag: { default_enabled: false } };
-                const model = buildModel(config, buildFakeDatabase(rows));
-                const get = (organizationUuid = dbUser.organizationUuid) =>
-                    model.get({
-                        featureFlagId,
-                        user: { ...dbUser, organizationUuid },
-                    });
-                expect((await get()).enabled).toBe(false);
-                rows.orgOverride = {
-                    organization_uuid: dbUser.organizationUuid,
-                    enabled: true,
-                };
-                expect((await get()).enabled).toBe(true);
-                expect((await get('other-org')).enabled).toBe(false);
-                rows.orgOverride.enabled = false;
-                expect((await get()).enabled).toBe(false);
-                rows.orgOverride.enabled = true;
-                expect((await get()).enabled).toBe(true);
-            });
-            it.each([
-                { enable: true, disable: false, expected: true },
-                { enable: false, disable: true, expected: false },
-                { enable: true, disable: true, expected: true },
-            ])(
-                'honors ENV precedence $enable / $disable',
-                async ({ enable, disable, expected }) => {
-                    const model = buildModel(
-                        {
-                            ...config,
-                            enabledFeatureFlags: new Set(
-                                enable ? [featureFlagId] : [],
-                            ),
-                            disabledFeatureFlags: new Set(
-                                disable ? [featureFlagId] : [],
-                            ),
-                        },
-                        buildFakeDatabase({ orgOverride: { enabled: true } }),
-                    );
-                    expect(
-                        (await model.get({ featureFlagId, user: dbUser }))
-                            .enabled,
-                    ).toBe(expected);
-                },
-            );
-        },
-    );
+            expect((await get()).enabled).toBe(false);
+            rows.orgOverride = {
+                organization_uuid: dbUser.organizationUuid,
+                enabled: true,
+            };
+            expect((await get()).enabled).toBe(true);
+            expect((await get('other-org')).enabled).toBe(false);
+            rows.orgOverride.enabled = false;
+            expect((await get()).enabled).toBe(false);
+            rows.orgOverride.enabled = true;
+            expect((await get()).enabled).toBe(true);
+        });
+        it.each([
+            { enable: true, disable: false, expected: true },
+            { enable: false, disable: true, expected: false },
+            { enable: true, disable: true, expected: true },
+        ])(
+            'honors ENV precedence $enable / $disable',
+            async ({ enable, disable, expected }) => {
+                const model = buildModel(
+                    {
+                        ...config,
+                        enabledFeatureFlags: new Set(
+                            enable ? [featureFlagId] : [],
+                        ),
+                        disabledFeatureFlags: new Set(
+                            disable ? [featureFlagId] : [],
+                        ),
+                    },
+                    buildFakeDatabase({ orgOverride: { enabled: true } }),
+                );
+                expect(
+                    (await model.get({ featureFlagId, user: dbUser })).enabled,
+                ).toBe(expected);
+            },
+        );
+    });
     describe('check telemetry', () => {
         beforeEach(() => {
             vi.mocked(record).mockReset();
@@ -847,4 +847,47 @@ describe('FeatureFlagModel', () => {
             expect(warnSpy).toHaveBeenCalled();
         });
     });
+});
+
+describe('analytics availability without a registered commercial model', () => {
+    it.each([
+        { name: 'stored default', rows: { flag: { default_enabled: true } } },
+        {
+            name: 'organization override',
+            rows: { orgOverride: { enabled: true } },
+        },
+        { name: 'user override', rows: { userOverride: { enabled: true } } },
+    ])('ignores a $name enabling analytics', async ({ rows }) => {
+        await expect(
+            buildModel({}, buildFakeDatabase(rows)).get({
+                featureFlagId: FeatureFlags.AnalyticsProject,
+                user: dbUser,
+            }),
+        ).resolves.toEqual({
+            id: FeatureFlags.AnalyticsProject,
+            enabled: false,
+        });
+    });
+
+    it.each([false, true])(
+        'ignores forced enablement with preview=%s',
+        async (preview) => {
+            const model = buildModel({
+                enabledFeatureFlags: new Set([FeatureFlags.AnalyticsProject]),
+                previewFeatureFlags: {
+                    ...lightdashConfigMock.previewFeatureFlags,
+                    enabled: preview,
+                },
+            });
+            await expect(
+                model.get({
+                    featureFlagId: FeatureFlags.AnalyticsProject,
+                    user: dbUser,
+                }),
+            ).resolves.toEqual({
+                id: FeatureFlags.AnalyticsProject,
+                enabled: false,
+            });
+        },
+    );
 });

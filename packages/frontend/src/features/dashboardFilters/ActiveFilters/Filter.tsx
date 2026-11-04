@@ -6,13 +6,7 @@ import {
 } from '@lightdash/common';
 import { Popover, Tooltip } from '@mantine/core';
 import { useDisclosure, useId } from '@mantine/hooks';
-import {
-    useCallback,
-    useMemo,
-    type FC,
-    type MouseEvent,
-    type ReactNode,
-} from 'react';
+import { useCallback, useMemo, type FC, type MouseEvent } from 'react';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -41,8 +35,10 @@ type Props = {
     onPopoverClose: () => void;
     onUpdate: (filter: DashboardFilterRule) => void;
     onRemove: () => void;
-    /** Shown as the pill's first icon while the popover is open; default none. */
-    openLeadingIcon?: ReactNode;
+    /** The dashboard controls' pill, marked open with its popover (default false). */
+    isPlain?: boolean;
+    /** A first line in the pill's tables tooltip (default none). */
+    tablesTooltipNote?: string;
 };
 
 const Filter: FC<Props> = ({
@@ -59,7 +55,8 @@ const Filter: FC<Props> = ({
     onPopoverClose,
     onUpdate,
     onRemove,
-    openLeadingIcon,
+    isPlain = false,
+    tablesTooltipNote,
 }) => {
     const popoverId = useId();
 
@@ -216,10 +213,10 @@ const Filter: FC<Props> = ({
                                 isEditMode || isTemporary ? onRemove : null
                             }
                             isTablesTooltipDisabled={isPopoverOpen}
+                            tablesTooltipNote={tablesTooltipNote}
                             triggerClassName={triggerClassName}
-                            leadingIcon={
-                                isPopoverOpen ? openLeadingIcon : undefined
-                            }
+                            isPlain={isPlain}
+                            data-open={(isPlain && isPopoverOpen) || undefined}
                             onClick={() => {
                                 if (isReadOnlyLocked) return;
                                 if (isPopoverOpen) {

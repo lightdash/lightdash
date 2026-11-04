@@ -481,6 +481,10 @@ import {
 } from '../database/entities/sshKeyPairs';
 import { TagsTable, TagsTableName } from '../database/entities/tags';
 import {
+    UsageProcessingStatusTable,
+    UsageProcessingStatusTableName,
+} from '../database/entities/usageProcessingStatus';
+import {
     GroupUserAttributesTable,
     GroupUserAttributeTable,
     OrganizationMemberUserAttributesTable,
@@ -538,6 +542,8 @@ import {
     AiAgentToolCallTableName,
     AiAgentToolResultTable,
     AiAgentToolResultTableName,
+    AiOrganizationMcpProjectsTable,
+    AiOrganizationMcpProjectsTableName,
     AiPromptContextTable,
     AiPromptContextTableName,
     AiPromptDecisionShadowTable,
@@ -686,6 +692,8 @@ import {
 import {
     ComposerQueryNodesTable,
     ComposerQueryNodesTableName,
+    ComposerSessionsTable,
+    ComposerSessionsTableName,
 } from '../ee/database/entities/composerQueryNodes';
 import {
     DataAppAnalysesTable,
@@ -696,6 +704,12 @@ import {
     DataAppAnalysisRateCountersTableName,
 } from '../ee/database/entities/dataAppAnalyses';
 import {
+    ApiSourceCallCountersTable,
+    ApiSourceCallCountersTableName,
+    ApiSourceCallLeasesTable,
+    ApiSourceCallLeasesTableName,
+    ApiSourceCallsTable,
+    ApiSourceCallsTableName,
     AppExternalConnectionsTable,
     AppExternalConnectionsTableName,
     ExternalConnectionRateCountersTable,
@@ -735,6 +749,10 @@ import {
     MobilePushInstallationsTableName,
     MobilePushInstallationTable,
 } from '../ee/database/entities/mobilePushNotifications';
+import {
+    OrganizationBrandLogoFilesTable,
+    OrganizationBrandLogoFilesTableName,
+} from '../ee/database/entities/organizationBrand';
 import {
     OrganizationHomepageSettingsTable,
     OrganizationHomepageSettingsTableName,
@@ -783,6 +801,7 @@ declare module 'knex/types/tables' {
         [OAuth2AuthorizationCodesTableName]: OAuth2AuthorizationCodesTable;
         [OAuth2AccessTokensTableName]: OAuth2AccessTokensTable;
         [OAuth2RefreshTokensTableName]: OAuth2RefreshTokensTable;
+        [AiOrganizationMcpProjectsTableName]: AiOrganizationMcpProjectsTable;
         [ExploreNameAllocationsTableName]: ExploreNameAllocationsTable;
         [DbtSourceRefCatalogsTableName]: DbtSourceRefCatalogsTable;
         [ReleaseHighlightsTableName]: ReleaseHighlightsTable;
@@ -926,6 +945,7 @@ declare module 'knex/types/tables' {
         [AiArtifactsTableName]: AiArtifactsTable;
         [AiArtifactVersionsTableName]: AiArtifactVersionsTable;
         [ComposerQueryNodesTableName]: ComposerQueryNodesTable;
+        [ComposerSessionsTableName]: ComposerSessionsTable;
         [AiSlackPromptTableName]: AiSlackPromptTable;
         [AiSlackArtifactDeliveriesTableName]: AiSlackArtifactDeliveriesTable;
         [AiWebAppPromptTableName]: AiWebAppPromptTable;
@@ -979,6 +999,7 @@ declare module 'knex/types/tables' {
         [WarehouseAvailableTablesTableName]: WarehouseAvailableTablesTable;
         [WarehouseConnectCodeTableName]: WarehouseConnectCodeTable;
         [AiUsageLedgerTableName]: AiUsageLedgerTable;
+        [UsageProcessingStatusTableName]: UsageProcessingStatusTable;
         [AiCreditRateCardTableName]: AiCreditRateCardTable;
         [AiCreditContractsTableName]: AiCreditContractsTable;
         [AiCreditHoldsTableName]: AiCreditHoldsTable;
@@ -998,6 +1019,7 @@ declare module 'knex/types/tables' {
         [OrganizationColorPaletteTableName]: OrganizationColorPaletteTable;
         [OrganizationDesignsTableName]: OrganizationDesignsTable;
         [OrganizationDesignFilesTableName]: OrganizationDesignFilesTable;
+        [OrganizationBrandLogoFilesTableName]: OrganizationBrandLogoFilesTable;
         [OrganizationWarehouseCredentialsTableName]: OrganizationWarehouseCredentialsTable;
         [QueryHistoryTableName]: QueryHistoryTable;
         [PreAggregateDefinitionsTableName]: PreAggregateDefinitionsTable;
@@ -1035,6 +1057,9 @@ declare module 'knex/types/tables' {
         [AppExternalConnectionsTableName]: AppExternalConnectionsTable;
         [ExternalConnectionRateCountersTableName]: ExternalConnectionRateCountersTable;
         [ExternalConnectionSamplesTableName]: ExternalConnectionSamplesTable;
+        [ApiSourceCallCountersTableName]: ApiSourceCallCountersTable;
+        [ApiSourceCallLeasesTableName]: ApiSourceCallLeasesTable;
+        [ApiSourceCallsTableName]: ApiSourceCallsTable;
         [AppUserStateTableName]: AppUserStateTable;
         [AppSharedStateTableName]: AppSharedStateTable;
         [AppSharedStateHistoryTableName]: AppSharedStateHistoryTable;
