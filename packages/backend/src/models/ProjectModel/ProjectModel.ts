@@ -6188,28 +6188,25 @@ export class ProjectModel {
             );
         }
         return this.getWarehouseCredentialsForProject(projectUuid).catch(
-            async (error: unknown) => {
-                if (
-                    error instanceof NotFoundError &&
-                    (await this.isLiveSourceExplore(projectUuid, binding))
-                ) {
-                    return LIVE_SOURCE_ONLY_CREDENTIALS;
-                }
-                throw error;
-            },
+            (error: unknown) =>
+                this.liveSourceCredentialsOrThrow(error, projectUuid, binding),
         );
     }
 
-    async isLiveSourceExplore(
+    async liveSourceCredentialsOrThrow(
+        error: unknown,
         projectUuid: string,
         binding: ConnectionBinding,
-    ): Promise<boolean> {
-        if (binding.kind !== 'explore') return false;
-        const explore = await this.getExploreFromCache(
-            projectUuid,
-            binding.exploreName,
-        );
-        return explore.type === ExploreType.API_SOURCE;
+    ): Promise<CreateWarehouseCredentials> {
+        if (
+            error instanceof NotFoundError &&
+            binding.kind === 'explore' &&
+            (await this.getExploreFromCache(projectUuid, binding.exploreName))
+                .type === ExploreType.API_SOURCE
+        ) {
+            return LIVE_SOURCE_ONLY_CREDENTIALS;
+        }
+        throw error;
     }
 
     /** The column is the only source; a version copied into stored credentials is ignored. */
