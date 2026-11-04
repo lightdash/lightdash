@@ -1,22 +1,20 @@
 import { subject } from '@casl/ability';
-import { WarehouseTypes, type Project } from '@lightdash/common';
+import { type Project } from '@lightdash/common';
 import { Box, Button, Group, Stack, Text, Title } from '@mantine/core';
 import { type FC } from 'react';
 import { Link } from 'react-router';
-import { getWarehouseIcon } from '../../../components/ProjectConnection/ProjectConnectFlow/utils';
+import { WarehouseLogoStack } from '../../../components/ProjectConnection/ProjectConnectFlow/WarehouseLogoStack';
 import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
+import { useExternalConnections } from '../../externalConnections/hooks/useExternalConnections';
 import classes from './NoWarehouseState.module.css';
-
-const WAREHOUSES = [
-    WarehouseTypes.BIGQUERY,
-    WarehouseTypes.SNOWFLAKE,
-    WarehouseTypes.DATABRICKS,
-    WarehouseTypes.POSTGRES,
-];
 
 /** Shown instead of the SQL runner while a project has only live sources */
 export const NoWarehouseState: FC<{ project: Project }> = ({ project }) => {
     const ability = useAbilityContext();
+    const { data: connections } = useExternalConnections(project.projectUuid);
+    const hasTools = (connections ?? []).some(
+        ({ kind }) => kind === 'live_source',
+    );
     const canConnect = ability.can(
         'update',
         subject('Project', {
@@ -46,21 +44,20 @@ export const NoWarehouseState: FC<{ project: Project }> = ({ project }) => {
                             <span className={classes.cursor} />
                         </div>
                     </Box>
-                    <Group gap={0} className={classes.logos}>
-                        {WAREHOUSES.map((warehouse) => (
-                            <Box key={warehouse} className={classes.logo}>
-                                {getWarehouseIcon(warehouse, 'sm')}
-                            </Box>
-                        ))}
-                    </Group>
+                    <Box className={classes.logos}>
+                        <WarehouseLogoStack size="md" monochrome={false} />
+                    </Box>
                 </Box>
 
                 <Stack gap="xs" align="center">
                     <Title order={3}>Connect a warehouse to write SQL</Title>
                     <Text c="dimmed" size="sm">
-                        {canConnect
-                            ? 'The SQL runner queries your warehouse directly. Your connected tools keep working when you add one.'
-                            : 'The SQL runner queries your warehouse directly. Ask a project admin to connect one.'}
+                        The SQL runner queries your warehouse directly.{' '}
+                        {!canConnect
+                            ? 'Ask a project admin to connect one.'
+                            : hasTools
+                              ? 'Your connected tools keep working when you add one.'
+                              : 'Add its credentials in project settings to start.'}
                     </Text>
                 </Stack>
 
@@ -73,13 +70,15 @@ export const NoWarehouseState: FC<{ project: Project }> = ({ project }) => {
                             Connect a warehouse
                         </Button>
                     )}
-                    <Button
-                        variant="default"
-                        component={Link}
-                        to={`/projects/${project.projectUuid}/tables`}
-                    >
-                        Explore your tools
-                    </Button>
+                    {hasTools && (
+                        <Button
+                            variant="default"
+                            component={Link}
+                            to={`/projects/${project.projectUuid}/tables`}
+                        >
+                            Explore your tools
+                        </Button>
+                    )}
                 </Group>
             </Stack>
         </Box>

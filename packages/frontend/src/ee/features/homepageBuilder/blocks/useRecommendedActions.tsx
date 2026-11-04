@@ -88,6 +88,7 @@ const resolveWarehouse = (
     organization: Organization | undefined,
     projects: OrganizationProject[] | undefined,
     project: Project | undefined,
+    canConnectLater: boolean,
 ) => {
     const hasRealWarehouseProject =
         organization?.needsProject === false &&
@@ -101,24 +102,23 @@ const resolveWarehouse = (
         !isPlaygroundProvisioningSource(project?.provisioningSource)
             ? project?.warehouseConnection?.type
             : undefined;
-    // A project started from live sources only has no warehouse until one is connected
-    const isMissingWarehouse =
+    // Only new-onboarding projects start from live sources and add a warehouse in settings later
+    const needsWarehouse =
+        canConnectLater &&
         !!project &&
         !isPlaygroundProvisioningSource(project.provisioningSource) &&
         !project.warehouseConnection;
-    return { hasRealWarehouseProject, warehouseType, isMissingWarehouse };
+    return { hasRealWarehouseProject, warehouseType, needsWarehouse };
 };
 
 const warehouseStatus = (
     {
         hasRealWarehouseProject,
         warehouseType,
-        isMissingWarehouse,
+        needsWarehouse,
     }: ReturnType<typeof resolveWarehouse>,
     settingsProjectUuid: string | null,
 ): ActionStatus => {
-    // Settings is where the warehouse gets added, so only the new onboarding offers it
-    const needsWarehouse = isMissingWarehouse && settingsProjectUuid !== null;
     return {
         isVisible: true,
         isComplete: hasRealWarehouseProject && !needsWarehouse,
@@ -313,6 +313,7 @@ const useActionStatuses = (
                     organizationQuery.data,
                     projectsQuery.data,
                     projectQuery.data,
+                    settingsProjectUuid !== null,
                 ),
                 settingsProjectUuid,
             ),

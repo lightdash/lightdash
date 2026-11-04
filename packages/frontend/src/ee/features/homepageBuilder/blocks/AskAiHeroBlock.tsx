@@ -8,12 +8,12 @@ import {
     Text,
 } from '@mantine/core';
 import { useState, type FC } from 'react';
+import { useExternalConnections } from '../../../../features/externalConnections/hooks/useExternalConnections';
 import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../providers/App/useApp';
 import { DayOneAskInput } from '../DayOneAskInput';
 import { DEFAULT_GREETING_SUBTITLE, getGreeting } from '../greeting';
 import layout from '../homepageLayout.module.css';
-import { useHasLiveSources } from '../hooks/useHasLiveSources';
 import { useHomepageAiState } from '../hooks/useHomepageAiState';
 import { useHomepageConfigFacts } from '../hooks/useHomepageConfigFacts';
 import classes from './blockStyles.module.css';
@@ -54,9 +54,12 @@ export const AskAiHero: FC<{
     // render — gating its mount here would stop it fetching until the reveal
     // and land it a beat late.
     const isReady = !actions.isLoading;
-    const hasLiveSources = useHasLiveSources(projectUuid, isNewOnboarding);
+    const connections = useExternalConnections(
+        isNewOnboarding ? projectUuid : undefined,
+    );
     const canAnswer =
-        actions.statuses['connect-warehouse'].isComplete || hasLiveSources;
+        actions.statuses['connect-warehouse'].isComplete ||
+        (connections.data ?? []).some(({ kind }) => kind === 'live_source');
     const [prefillRequest, setPrefillRequest] = useState(0);
     return (
         <Stack gap={16} align="center" w="100%">

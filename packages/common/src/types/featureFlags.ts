@@ -220,7 +220,8 @@ export enum FeatureFlags {
     /**
      * Enable api query sources: queries sent live to an external API (HogQL
      * to PostHog) through a project connection, and the Live data sources
-     * project settings page. Off by default; enable per org.
+     * project settings page. Off by default; enable per org. Also on wherever
+     * NewOnboarding is on, unless a user or org override turns it off.
      */
     ApiQuerySources = 'api-query-sources',
 

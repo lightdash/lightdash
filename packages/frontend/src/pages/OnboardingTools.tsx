@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     ApiConnectorType,
     FeatureFlags,
+    isSemanticLayerExplore,
     type ExternalConnectionListItem,
     type WarehouseTypes,
 } from '@lightdash/common';
@@ -65,6 +66,7 @@ import { useLiveSourceFields } from '../features/externalConnections/hooks/useLi
 import { getLiveSource } from '../features/externalConnections/liveSources/liveSourceCatalog';
 import { LiveSourceIcon } from '../features/externalConnections/liveSources/LiveSourceIcon';
 import { useGetSlack } from '../hooks/slack/useSlack';
+import { useExplores } from '../hooks/useExplores';
 import { useOnboardingPageGuard } from '../hooks/useOnboardingPageGuard';
 import { useProject } from '../hooks/useProject';
 import { type UserWithAbility } from '../hooks/user/useUser';
@@ -538,6 +540,10 @@ const OnboardingToolsContent: FC<{
         showLiveSources && health.data?.hasGoogleLiveSources === true;
 
     const { data: project } = useProject(projectUuid);
+    const hasNoWarehouse = !!project && !project.warehouseConnection;
+    const { data: explores } = useExplores(projectUuid, true, false, {
+        enabled: hasNoWarehouse,
+    });
     const { data: connections = [] } = useExternalConnections(
         showLiveSources ? projectUuid : undefined,
     );
@@ -590,8 +596,13 @@ const OnboardingToolsContent: FC<{
         (connection) => connection.kind === 'live_source',
     );
     const hasConnected = liveSources.length > 0;
-    // Without a warehouse, a tool is the only source, so one has to be connected
-    const needsSource = !!project && !project.warehouseConnection;
+    // Started from tools: no warehouse and no models (CLI-deployed projects have models)
+    const needsSource =
+        hasNoWarehouse &&
+        explores !== undefined &&
+        !explores.some(isSemanticLayerExplore);
+    const mustConnect = needsSource && !hasConnected;
+    const canContinue = hasConnected || needsSource;
     const title = needsSource ? 'Connect your tools' : copy.title;
     const subtitle = needsSource
         ? 'Connect at least one to start asking questions. You can add a warehouse later.'
@@ -718,16 +729,14 @@ const OnboardingToolsContent: FC<{
                 )}
 
                 <Group justify="flex-end">
-                    {needsSource && !hasConnected && (
+                    {mustConnect && (
                         <Text fz="xs" c="dimmed">
                             Connect at least one tool to continue
                         </Text>
                     )}
                     <Button
-                        variant={
-                            hasConnected || needsSource ? 'filled' : 'default'
-                        }
-                        disabled={needsSource && !hasConnected}
+                        variant={canContinue ? 'filled' : 'default'}
+                        disabled={mustConnect}
                         onClick={() => {
                             if (!hasConnected) {
                                 track({
@@ -738,9 +747,7 @@ const OnboardingToolsContent: FC<{
                             onboardingNavigate(teamStepPath);
                         }}
                     >
-                        {hasConnected || needsSource
-                            ? 'Continue'
-                            : 'Skip for now'}
+                        {canContinue ? 'Continue' : 'Skip for now'}
                     </Button>
                 </Group>
             </Stack>

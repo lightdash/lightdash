@@ -64,20 +64,6 @@
     bottom: -14px;
 }
 
-.logo {
-    display: grid;
-    place-items: center;
-    width: 28px;
-    height: 28px;
-    border: 1px solid var(--mantine-color-default-border);
-    border-radius: 50%;
-    background: var(--mantine-color-body);
-}
-
-.logo + .logo {
-    margin-left: -8px;
-}
-
 @keyframes blink {
     50% {
         opacity: 0;

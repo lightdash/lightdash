@@ -1,6 +1,5 @@
 import {
     type AgentOnboardingRun,
-    WarehouseTypes,
     type ExternalConnectionListItem,
 } from '@lightdash/common';
 import {
@@ -30,7 +29,7 @@ import { useLocalStorage } from 'react-use';
 import { AI_NAME } from '../../../../../components/common/aiName';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
-import { getWarehouseIcon } from '../../../../../components/ProjectConnection/ProjectConnectFlow/utils';
+import { WarehouseLogoStack } from '../../../../../components/ProjectConnection/ProjectConnectFlow/WarehouseLogoStack';
 import { getLiveSource } from '../../../../../features/externalConnections/liveSources/liveSourceCatalog';
 import { LiveSourceIcon } from '../../../../../features/externalConnections/liveSources/LiveSourceIcon';
 import useApp from '../../../../../providers/App/useApp';
@@ -187,22 +186,9 @@ const liveSourceTag = (connection: ExternalConnectionListItem) => {
     );
 };
 
-const WAREHOUSES = [
-    WarehouseTypes.BIGQUERY,
-    WarehouseTypes.SNOWFLAKE,
-    WarehouseTypes.DATABRICKS,
-    WarehouseTypes.POSTGRES,
-];
-
 const ConnectWarehouseBadge: FC<{ to: string }> = ({ to }) => (
     <Link to={to} className={`${classes.pill} ${classes.connectWarehouse}`}>
-        <Box className={classes.warehouseStack} aria-hidden>
-            {WAREHOUSES.map((warehouse) => (
-                <Box key={warehouse} className={classes.warehouseLogo}>
-                    {getWarehouseIcon(warehouse, 12)}
-                </Box>
-            ))}
-        </Box>
+        <WarehouseLogoStack size="sm" monochrome />
         <Text fz="xs" fw={500}>
             Connect a warehouse
         </Text>
@@ -244,7 +230,6 @@ export const YourData: FC<{
     // Live sources compile into explores, so charts work before a warehouse
     const isShown =
         (warehouse.isComplete || guide.liveConnections.length > 0) &&
-        guide.chartCount === 0 &&
         !isDismissed;
     const bannerProperties = {
         surface: 'first_chart_banner',

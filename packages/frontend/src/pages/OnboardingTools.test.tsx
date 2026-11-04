@@ -14,6 +14,17 @@ const slack = vi.hoisted(() => ({
 vi.mock('../hooks/slack/useSlack', () => ({
     useGetSlack: () => ({ data: slack.data }),
 }));
+const project = vi.hoisted(() => ({
+    data: undefined as { warehouseConnection: null } | undefined,
+    explores: [] as { name: string; type: string }[],
+}));
+vi.mock('../hooks/useProject', async (importOriginal) => ({
+    ...(await importOriginal<object>()),
+    useProject: () => ({ data: project.data }),
+}));
+vi.mock('../hooks/useExplores', () => ({
+    useExplores: () => ({ data: project.explores }),
+}));
 vi.mock('../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: vi.fn(),
 }));
@@ -80,6 +91,8 @@ const renderPage = (health: Partial<HealthState>) =>
 describe('OnboardingTools', () => {
     beforeEach(() => {
         slack.data = undefined;
+        project.data = undefined;
+        project.explores = [];
         vi.mocked(useExternalConnections).mockReturnValue({
             data: [],
         } as unknown as ReturnType<typeof useExternalConnections>);
@@ -146,5 +159,27 @@ describe('OnboardingTools', () => {
         expect(
             screen.getByRole('button', { name: 'Continue' }),
         ).toBeInTheDocument();
+    });
+
+    it('asks for a tool in a project started from tools', async () => {
+        mockFlags({ [FeatureFlags.ApiQuerySources]: true });
+        project.data = { warehouseConnection: null };
+        renderPage({});
+
+        expect(
+            await screen.findByRole('heading', { name: 'Connect your tools' }),
+        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled();
+    });
+
+    it('keeps skip for a CLI-deployed project without stored credentials', async () => {
+        mockFlags({ [FeatureFlags.ApiQuerySources]: true });
+        project.data = { warehouseConnection: null };
+        project.explores = [{ name: 'orders', type: 'default' }];
+        renderPage({});
+
+        expect(
+            await screen.findByRole('button', { name: 'Skip for now' }),
+        ).toBeEnabled();
     });
 });
