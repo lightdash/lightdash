@@ -7,6 +7,7 @@ import {
     ContentReviewRequestStatus,
     ContentReviewRequestView,
     ContentType,
+    DEFAULT_USER_SPACES_PARENT_NAME,
     DirectAccessPrincipalType,
     DirectAccessResourceType,
     ForbiddenError,
@@ -748,7 +749,17 @@ export class ContentReviewRequestService extends BaseService {
         const targetSpace = await this.getSpaceInfo(body.targetSpaceUuid);
         if (
             targetSpace.projectUuid !== projectUuid ||
-            (await this.isWithinPersonalSpace(targetSpace.uuid, projectUuid))
+            (await this.isWithinPersonalSpace(targetSpace.uuid, projectUuid)) ||
+            (targetSpace.name === DEFAULT_USER_SPACES_PARENT_NAME &&
+                (
+                    await this.projectModel.getProjectsWithDefaultUserSpaces(
+                        context.organizationUuid,
+                    )
+                ).some(
+                    (project) =>
+                        project.projectUuid === projectUuid &&
+                        project.parentSpaceUuid === targetSpace.uuid,
+                ))
         ) {
             throw new ParameterError(
                 'Choose a shared space in this project as the target',
