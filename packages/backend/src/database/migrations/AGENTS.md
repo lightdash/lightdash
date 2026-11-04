@@ -30,6 +30,21 @@ The migration system supports both up/down functions and includes 150+ historica
     - **Log progress** with `console.log` before each post-backfill DDL step so an operator tailing pod logs can tell exactly which statement is in flight if the migration hangs or fails.
     - End-to-end reference: `20260428153355_add_primary_keys_to_analytics_and_scheduler_log.ts` applies all of the above patterns to a multi-million row table.
 
+## Lock timeouts for DDL
+
+**Choose timeouts for the operation's locking behavior, not just the table's size. Use `lock_timeout = '60s'` (one minute) by default for blocking DDL in both `up()` and `down()`.** Customer databases can have 100× more data than our own and much heavier concurrent traffic. Lock contention is hard to predict from local tests or our production table sizes, even for an otherwise quick schema change. Avoid copying the 5-second timeout from historical migrations: repeated failures can force operators to perform privileged, manually reviewed unlocks before retrying an upgrade.
+
+- **Transactional migrations**: set the timeout before any DDL in each function. Knex runs the function in a transaction, so the setting is automatically restored on commit or rollback:
+    ```typescript
+    await knex.raw("SET LOCAL lock_timeout = '60s'");
+    ```
+- **Non-transactional migrations** (`config = { transaction: false }`): use `SET lock_timeout = '60s'` and `RESET lock_timeout` in a `finally` block. Run the settings and all affected DDL on the same explicitly acquired connection; separate calls through the Knex pool need not use the same connection. `SET LOCAL` has no effect outside a transaction.
+- **Concurrent-index-only migrations**: `CREATE INDEX CONCURRENTLY` and `DROP INDEX CONCURRENTLY` allow ordinary reads and writes while waiting for older transactions. For a migration containing only non-unique concurrent index creation/removal and metadata queries, explicitly set `lock_timeout = 0` and `statement_timeout = 0` on the acquired connection, then restore both previous values in `finally` before releasing it. Simply omitting the settings can inherit a customer's short timeout. PostgreSQL still takes the locks needed for correctness; disabling a timeout does not remove those locks. Explain the exception in the PR. Concurrent builds still consume resources and conflict with other schema changes or maintenance; queued exclusive DDL can delay later application queries. Do not apply this exception to blocking `ALTER TABLE` operations or mixed migrations; unique indexes also need a separate review of write-time constraint enforcement.
+- **Keep blocking lock waits finite**: a waiting `ALTER TABLE` can queue application queries behind it. A longer timeout does not replace short transactions, concurrent index builds, or batched backfills. Check deployment request/proxy deadlines too: queued requests may already have used part of their time budget, so the one-minute default does not guarantee they will avoid timing out. Document the reason in the PR if blocking DDL needs a different finite timeout.
+- **Check `statement_timeout` separately**: `lock_timeout` limits each wait to acquire a lock, not the statement's execution time. A nonzero `statement_timeout` must leave enough time for both the lock wait and the operation; a value at or below 60 seconds can cancel the statement before the lock timeout. Follow the large-table guidance above for long-running work.
+
+See PostgreSQL's [lock timeout reference](https://www.postgresql.org/docs/current/runtime-config-client.html#GUC-LOCK-TIMEOUT), [transaction/session setting rules](https://www.postgresql.org/docs/current/sql-set.html), and concurrent index [creation](https://www.postgresql.org/docs/current/sql-createindex.html#SQL-CREATEINDEX-CONCURRENTLY) and [removal](https://www.postgresql.org/docs/current/sql-dropindex.html) guarantees.
+
 ## Release-safety declarations
 
 For API and type breaks outside migrations, see the root [release-safety declarations](../../../../../docs/release-safety.md).
@@ -41,7 +56,7 @@ The release-safety gate applies these rules only to migration files changed by t
 - Raw SQL that the static lint cannot classify must add `export const classification: { kind: 'safe' | 'breaking'; reason: string } = { kind: '<safe | breaking>', reason: '<why>' }`, or the equivalent unannotated object literal. A `breaking` classification also requires a matching registry entry.
 - A `transaction: false` migration must be resumable after any completed statement. Concurrent index creation needs `IF NOT EXISTS`; backfills need bounded, state-guarded batches; inserts need conflict handling or another explicit idempotency guard.
 - `down()` must perform a real reversal or explicitly throw an error whose message starts with `irreversible:`. Missing and silently successful no-op `down()` functions fail the gate.
-- DDL should set a finite Postgres `lock_timeout` before requesting locks. DDL without one produces a warning because a waiting `ALTER` can queue later queries behind it indefinitely.
+- DDL must follow the [operation-specific timeout policy](#lock-timeouts-for-ddl) before requesting locks. The gate warns when no lock timeout setting is detected; it does not verify the duration or connection scope.
 - `CREATE INDEX CONCURRENTLY IF NOT EXISTS` is not sufficient recovery by itself: an interrupted build can leave an invalid index that `IF NOT EXISTS` silently skips. Use a stable literal index name in the SQL so migration recovery can discover and replace an invalid index. Identifier placeholders and dynamically constructed index names defeat that recovery scan and require the migration to check `pg_index.indisvalid`, drop the invalid index, and recreate it explicitly.
 
 When the gate detects a breaking pattern, use this decision tree:
