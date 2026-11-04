@@ -26,11 +26,15 @@ import {
 import { TypedEETaskList } from '../../scheduler/types';
 import { type JiraAppService } from '../../services/JiraAppService/JiraAppService';
 import { type LinearAppService } from '../../services/LinearAppService/LinearAppService';
+import { toFailedScan } from '../../services/QuerySourceService/api/posthog/postHogSchemaScan';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
 import { type AiAgentReviewNotificationModel } from '../models/AiAgentReviewNotificationModel';
 import { type AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
 import { type AppStateModel } from '../models/AppStateModel';
-import { type ExternalConnectionModel } from '../models/ExternalConnectionModel';
+import {
+    API_SOURCE_SCHEMA_SCAN_TIMEOUT_MS,
+    type ExternalConnectionModel,
+} from '../models/ExternalConnectionModel';
 import { type McpToolCallModel } from '../models/McpToolCallModel';
 import { type ScimRequestLogModel } from '../models/ScimRequestLogModel';
 import { AiAgentAdminService } from '../services/AiAgentAdminService';
@@ -1196,19 +1200,28 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 payload,
                 helpers,
             ) => {
-                await SchedulerClient.processJob(
-                    EE_SCHEDULER_TASKS.SCAN_API_SOURCE_SCHEMA,
-                    helpers.job.id,
-                    helpers.job.run_at,
-                    payload,
-                    () =>
-                        scanApiSourceSchema({
-                            userService: this.userService,
-                            externalConnectionService:
-                                this.externalConnectionService,
-                            externalConnectionModel:
-                                this.externalConnectionModel,
-                        })(payload),
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        EE_SCHEDULER_TASKS.SCAN_API_SOURCE_SCHEMA,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        () =>
+                            scanApiSourceSchema({
+                                userService: this.userService,
+                                externalConnectionService:
+                                    this.externalConnectionService,
+                                externalConnectionModel:
+                                    this.externalConnectionModel,
+                            })(payload),
+                    ),
+                    helpers.job,
+                    API_SOURCE_SCHEMA_SCAN_TIMEOUT_MS,
+                    async (_job, error) =>
+                        this.externalConnectionModel.setApiSourceSchema(
+                            payload.externalConnectionUuid,
+                            toFailedScan(error),
+                        ),
                 );
             },
             [EE_SCHEDULER_TASKS.SWEEP_UNCLAIMED_AI_THREAD_FILES]: async () => {

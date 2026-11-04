@@ -45,7 +45,7 @@ Do not rename the prepared project. Keep its existing name for compatibility wit
 3. Choose the smallest coherent analytics use case supported by repository and warehouse evidence. Do not infer business meaning from names alone.
 4. Fetch fields for each shortlisted relation exactly once with `lightdash warehouse-catalog --database <database> --schema <schema> --table <table> --include-fields --json`. Do not repeat field discovery through `information_schema`, another catalog call, or a raw SQL query.
 5. Use `lightdash sql "<aggregate query>" -o <temporary-output-file>` for aggregate-only profiling; the output file is required. Combine compatible grain, date range, measure, category, and join profiles into as few queries as practical. Read each output file once, extract the evidence needed for authoring, then delete it. Never output raw identifiers or row samples.
-6. **Handoff milestone 1 — discovery:** Create the chosen report with the selected use case, warehouse scope, selected relations and rationale, important assumptions, and concise summaries of skipped candidates. Add `Pending` sections for the semantic layer, starter questions, validation, limitations, and next steps.
+6. **Handoff milestone 1 — discovery:** Create the chosen report with the selected use case, warehouse scope, selected relations and rationale, important assumptions, and concise summaries of skipped candidates. Add `Pending` sections for the semantic layer, dashboard content, validation, limitations, and next steps.
 7. Follow the installed skill and read each semantic-layer reference required for the detected project type at most once. Start from its basic example. Read a full schema or run `--help` only after a concrete command or lint failure cannot be resolved from the already-read reference.
 8. Extend a usable dbt project when present. Otherwise, build a minimal pure Lightdash semantic layer from the catalog evidence. A pure project must include the prepared warehouse type before its first deploy:
 
@@ -55,48 +55,60 @@ Do not rename the prepared project. Keep its existing name for compatibility wit
     ```
 
 9. Preserve existing semantic content and use only evidenced dimensions, metrics, joins, and filter values.
-   Give every metric a `description`: one short sentence in plain business language that says what it measures, such as "Number of unique orders placed" or "Total order value, after discounts". No SQL, column names, or aggregation jargon.
 10. Run `lightdash lint`, resolve errors, then deploy with `lightdash deploy --project <Prepared project UUID>`.
 11. **Handoff milestone 2 — semantic layer:** Replace the pending semantic-layer section with a model-to-source mapping, grains, generated files, key dimensions, metrics, joins, assumptions, and the verified lint and deploy outcomes.
 
 **Gate:** The semantic layer compiles and deploys to the prepared project UUID without errors.
 
-## 3. Write starter questions
+## 3. Build the starter dashboard
 
-Write 3–5 questions a new user could ask about the selected use case, each answerable from the deployed semantic layer. They appear as one-click prompts on the user's homepage, so they must work the first time.
+Create one dashboard for the selected use case with dashboard slug `agent-starter-dashboard` and space slug `lightdash-starter`. Accept the display name generated from that slug; do not rename the space through another interface.
 
-- Phrase each question the way a business user would ask it, such as "How has revenue changed month over month this year?" or "Which product categories drive the most orders?". Under 80 characters, no field names, SQL, or jargon.
-- Cover different angles: one headline total, one trend over time when a reliable date exists, and one or two breakdowns by a low-cardinality category.
-- Never ask about direct identifiers such as names, emails, addresses, account numbers, or IDs.
+Before authoring, decide the complete dashboard structure and files. Read the installed big-number, cartesian, table, and dashboard references exactly once; also read the pie reference exactly once only when using a pie or donut chart. Start from their basic examples. Read a full schema or run `--help` only after a concrete lint, upload, or chart-execution failure cannot be resolved from the already-read reference.
 
-Verify each question before keeping it. Read the installed chart reference once, then for each question write a temporary chart YAML under `tmp/` that answers it with existing metrics and dimensions, run `lightdash run-chart -p <chart-yaml-path>`, and drop or rephrase any question whose chart fails or returns no rows. Never put these charts under `lightdash/` and never upload them; files under `tmp/` are not kept.
+Every chart must include these common fields before the first lint:
 
-Write the verified questions to `lightdash-starter-questions.yml` at the repository root:
+- `contentType: chart`
+- `dashboardSlug: agent-starter-dashboard`
+- `spaceSlug: lightdash-starter`
+- `metricQuery.tableCalculations: []`
+- top-level `tableName`
+- `version: 1`
 
-```yaml
-questions:
-    - How has revenue changed month over month this year?
-    - Which product categories drive the most orders?
-```
+Use deterministic `agent-starter-*` chart slugs so reruns update the same content. Author all chart and dashboard files as one batch after deciding the structure. Run one lint across the completed batch, fix only the files and fields it reports, and repeat only failed checks.
 
-**Handoff milestone 3 — starter questions:** Replace the pending starter questions section with each question and the metrics and dimensions that answer it. Do not perform extra verification calls for the report.
+### Dashboard specification
 
-**Gate:** `lightdash-starter-questions.yml` lists at least 3 questions, and each one executed successfully as a chart.
+- Use a non-overlapping 36-column grid with a full-width markdown header that explains the use case and notes that AI generated the dashboard.
+- Place 2–3 evenly sized KPI tiles in one row, with consistent business labels and appropriate currency, percentage, K, or M formatting.
+- When a reliable date exists, add a wide chronological time series and a date-range filter whose default fits the observed data. Otherwise, add a useful non-time comparison.
+- Add one categorical breakdown using queried warehouse values, sorted by the primary metric and limited to the top 10. Prefer a bar chart. For a pie or donut, use at most 7 segments, hidden slice labels, and a horizontal legend.
+- Add readable, abbreviated data labels to at least one bar chart when they improve interpretation.
+- Add one full-width aggregated detail table with either conditional formatting or in-cell bars.
+- Add 1–2 low-cardinality categorical filters based on queried values.
+- Place primary charts below the KPI row at balanced widths such as 24+12 or 18+18; use width 36 for the detail table.
+- Never expose direct identifiers such as names, emails, addresses, account numbers, or IDs. Keep all starter content aggregated regardless of domain.
+
+After the batch is authored, run `lightdash lint` once, execute every chart with `lightdash run-chart -p <chart-yaml-path>`, and upload with `lightdash upload --project <Prepared project UUID> --validate`. Resolve every compile, field, filter, formatting, and query failure by changing only the reported files, then repeat only the failed check.
+
+**Handoff milestone 3 — dashboard:** Replace the pending dashboard section with every generated chart's title, slug, type, source model, purpose, dashboard slug, and space slug. Record chart execution and validated upload outcomes, and add the project and dashboard URLs. Do not perform extra verification calls for the report.
+
+**Gate:** Lint passes, every chart executes successfully, and validated upload succeeds.
 
 ## 4. Validate and hand off
 
 1. Run `lightdash validate --project <Prepared project UUID>` and resolve every reported semantic-layer error. Repeat validation only when it failed.
-2. Do not perform a round-trip download, repeat successful chart executions, or call internal APIs for additional verification.
+2. Do not perform a round-trip download, repeat successful chart executions or uploads, or call internal APIs for additional verification.
 3. **Handoff milestone 4 — final validation:** Record project validation, complete the limitations and recommended follow-up work, add a generated-files table with repository-relative links where possible, and include next steps to merge the semantic-layer files into the user's analytics Git repository and connect the Lightdash project to it. List only roles, groups, or permissions actually observed or changed; otherwise state that none were observed or changed. Remove every `Pending` marker.
 
 The report must describe what was discovered, why the use case was selected, what was built, and how it was verified. Make it easy to audit with concise prose and Markdown tables. Include:
 
-- A welcome and overview with the use case and project URL.
+- A welcome and overview with the use case, project URL, dashboard URL, dashboard slug, and space slug.
 - A warehouse discovery summary with counts by database and schema, followed by an inventory of discovered relations and whether each was selected. Explain why selected relations support the use case and summarize why the others were not modeled.
 - A semantic-layer table mapping each generated model to its warehouse source, grain, generated file, key dimensions, metrics, joins, and important assumptions.
-- A starter questions table listing each question with the metrics and dimensions that answer it.
+- A content table listing every generated chart with its title, slug, type, source model, purpose, dashboard slug, and space slug.
 - An access section listing only roles, groups, or permissions actually observed or changed during the supported workflow. If none were observed or changed, say so explicitly and do not imply that permissions were audited.
-- A validation table recording semantic deploy, lint, each starter question's chart execution, and project validation outcomes.
+- A validation table recording semantic deploy, lint, each chart execution, validated upload, and project validation outcomes.
 - Known limitations, skipped candidates, access constraints, and recommended follow-up work.
 - A generated-files table with repository-relative links where possible, followed by the next steps to review and merge the semantic-layer files into the user's analytics Git repository and connect the Lightdash project to that repository.
 
@@ -106,9 +118,10 @@ Return a compact, secret-free handoff containing only:
 
 - A one-sentence summary of the analytics use case delivered.
 - The working project URL.
+- The working dashboard URL: `<Lightdash instance URL>/projects/<Prepared project UUID>/dashboards/agent-starter-dashboard/view`.
 - A repository-relative link to the generated handoff report.
 - A suggested next action to merge the generated semantic-layer model files into the user's analytics Git repository, then update the Lightdash project configuration to connect to that repository.
 
 Keep detailed inventories and validation results in the report. Do not recap the gates, reproduce generated YAML in chat, or replace the repository-integration next action with unrelated follow-up work.
 
-**Gate:** After project validation succeeds, the report exists and the user receives the compact handoff with working project and report links plus the repository-integration next action.
+**Gate:** After project validation succeeds, the report exists and the user receives the compact handoff with working project, dashboard, and report links plus the repository-integration next action.

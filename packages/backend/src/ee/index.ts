@@ -528,6 +528,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     sandboxRegistryModel:
                         models.getSandboxRegistryModel<SandboxRegistryModel>(),
                     projectModel: models.getProjectModel(),
+                    featureFlagModel: models.getFeatureFlagModel(),
                     personalAccessTokenService:
                         repository.getPersonalAccessTokenService(),
                     promptService: repository.getPromptService(),

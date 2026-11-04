@@ -321,6 +321,19 @@ export class ExternalConnectionService extends BaseService {
         }
     }
 
+    private async isNewOnboardingEnabled(
+        account: RegisteredAccount,
+    ): Promise<boolean> {
+        const { enabled } = await this.featureFlagModel.get({
+            user: {
+                userUuid: account.user.id,
+                organizationUuid: account.organization.organizationUuid,
+            },
+            featureFlagId: FeatureFlags.NewOnboarding,
+        });
+        return enabled;
+    }
+
     private static assertNotSignInType(type: ExternalConnectionAuthType) {
         if (type === 'oauth_authorization_code') {
             throw new ParameterError(
@@ -1599,7 +1612,10 @@ export class ExternalConnectionService extends BaseService {
         account: RegisteredAccount,
         connection: ExternalConnection,
     ): Promise<void> {
-        if (connection.apiSource?.connector !== ApiConnectorType.POSTHOG) {
+        if (
+            connection.apiSource?.connector !== ApiConnectorType.POSTHOG ||
+            !(await this.isNewOnboardingEnabled(account))
+        ) {
             return;
         }
         try {
@@ -1617,6 +1633,13 @@ export class ExternalConnectionService extends BaseService {
             this.logger.error(
                 `Failed to queue a schema scan for connection ${connection.externalConnectionUuid}: ${getErrorMessage(error)}`,
             );
+            await this.externalConnectionModel
+                .setApiSourceSchema(connection.externalConnectionUuid, {
+                    status: 'failed',
+                    scannedAt: new Date(),
+                    error: 'The schema scan could not be queued',
+                })
+                .catch(() => undefined);
         }
     }
 
@@ -1680,6 +1703,7 @@ export class ExternalConnectionService extends BaseService {
         account: RegisteredAccount,
         projectUuid: string,
     ): Promise<QuerySourceSchemaTable[]> {
+        if (!(await this.isNewOnboardingEnabled(account))) return [];
         const sources = await this.listApiSourceConnectionsWithSchema(
             account,
             projectUuid,
