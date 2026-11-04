@@ -1,11 +1,16 @@
 import { type Dashboard } from '@lightdash/common';
 import { renderHook } from '@testing-library/react';
 import { type ReactNode } from 'react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { dashboardParametersActions } from '.';
 import { createDashboardTestStore } from '../../../testing/dashboardStore';
 import { DashboardStoreTestProvider } from '../../../testing/DashboardStoreTestProvider';
 import { useTileDashboardParameterInputs } from './hooks';
+
+const { flag } = vi.hoisted(() => ({ flag: { enabled: true } }));
+vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: () => ({ data: flag }),
+}));
 
 const render = (withControls: boolean) => {
     const store = createDashboardTestStore({
@@ -44,6 +49,7 @@ const render = (withControls: boolean) => {
 describe('useTileDashboardParameterInputs', () => {
     afterEach(() => {
         sessionStorage.clear();
+        flag.enabled = true;
     });
     it('reports the keys the tile keeps as its own when controls are active', () => {
         expect(render(true)).toMatchObject({
@@ -53,6 +59,7 @@ describe('useTileDashboardParameterInputs', () => {
     });
 
     it('reports no resolution with the flag off', () => {
+        flag.enabled = false;
         expect(render(false)).toMatchObject({
             dashboardValues: { region: 'EU' },
             excludedParameterKeys: undefined,
@@ -72,9 +79,26 @@ describe('useTileDashboardParameterInputs', () => {
             dashboardValues: { region: 'US' },
             excludedParameterKeys: ['week'],
         });
+        flag.enabled = false;
         expect(render(false)).toMatchObject({
             dashboardValues: { region: 'EU' },
             excludedParameterKeys: undefined,
+        });
+    });
+
+    it('uses injected data with the flag on even before the control list is saved', () => {
+        sessionStorage.setItem(
+            'dashboardExportTileParameters:dashboard',
+            JSON.stringify({
+                tile: {
+                    parameters: { region: 'US' },
+                    excludedParameterKeys: [],
+                },
+            }),
+        );
+        expect(render(false)).toMatchObject({
+            dashboardValues: { region: 'US' },
+            excludedParameterKeys: [],
         });
     });
 

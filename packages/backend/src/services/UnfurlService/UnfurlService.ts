@@ -44,6 +44,7 @@ import {
     type DashboardFilterRule,
     type DashboardFilters,
     type DeliveryCaptureManifest,
+    type ExportContentPayload,
     type Filters,
     type ParametersValuesMap,
     type UUID,
@@ -365,6 +366,7 @@ type EmbedDashboardExportArgs = {
     selectedTabs: string[] | null;
     dashboardFilters: DashboardFilters | null;
     parameters: ParametersValuesMap | null;
+    tileParameters?: ExportContentPayload['tileParameters'];
     dateZoomGranularity: string | null;
     gridWidth: number | null;
     contextId: string;
@@ -812,6 +814,7 @@ export class UnfurlService extends BaseService {
         sendNowSchedulerFilters,
         sendNowSchedulerChartFilters,
         sendNowSchedulerParameters,
+        tileParameters,
     }: {
         url: string;
         lightdashPage?: LightdashPage;
@@ -828,6 +831,7 @@ export class UnfurlService extends BaseService {
         sendNowSchedulerFilters?: DashboardFilterRule[] | undefined;
         sendNowSchedulerChartFilters?: Filters | undefined;
         sendNowSchedulerParameters?: ParametersValuesMap | undefined;
+        tileParameters?: ExportContentPayload['tileParameters'];
     }): Promise<{
         imageUrl?: string;
         pdfFile?: { source: string; fileName: string };
@@ -857,6 +861,7 @@ export class UnfurlService extends BaseService {
             sendNowSchedulerFilters,
             sendNowSchedulerChartFilters,
             sendNowSchedulerParameters,
+            tileParameters,
         };
 
         const result = await this.saveScreenshot({
@@ -957,6 +962,7 @@ export class UnfurlService extends BaseService {
         sendNowSchedulerDashboardFilters,
         sendNowSchedulerFilters,
         sendNowSchedulerParameters,
+        tileParameters,
     }: {
         minimalUrl: string;
         dashboardUuid: string;
@@ -969,6 +975,7 @@ export class UnfurlService extends BaseService {
         sendNowSchedulerDashboardFilters?: DashboardFilters;
         sendNowSchedulerFilters?: DashboardFilterRule[];
         sendNowSchedulerParameters?: ParametersValuesMap;
+        tileParameters?: ExportContentPayload['tileParameters'];
     }): Promise<{
         pdfFile: { source: string; fileName: string };
         pdfPageCount: number;
@@ -1052,6 +1059,7 @@ export class UnfurlService extends BaseService {
                     sendNowSchedulerDashboardFilters,
                     sendNowSchedulerFilters,
                     sendNowSchedulerParameters,
+                    tileParameters,
                     outputFormat: 'pdf',
                     withPdf: false,
                     pdfPagination: isUntabbed ? 'crop' : 'cssPaged',
@@ -1244,6 +1252,7 @@ export class UnfurlService extends BaseService {
             selectedTabs,
             dashboardFilters,
             parameters,
+            tileParameters,
             dateZoomGranularity,
             gridWidth,
             contextId,
@@ -1312,6 +1321,7 @@ export class UnfurlService extends BaseService {
             selectedTabs,
             sendNowSchedulerDashboardFilters: dashboardFilters ?? undefined,
             sendNowSchedulerParameters: parameters ?? undefined,
+            tileParameters,
             outputFormat,
         });
         return { dashboard, imageId, result };
@@ -1936,6 +1946,7 @@ export class UnfurlService extends BaseService {
         sendNowSchedulerFilters,
         sendNowSchedulerChartFilters,
         sendNowSchedulerParameters,
+        tileParameters,
         outputFormat = 'image',
         withPdf = false,
         pdfPagination = 'crop',
@@ -1965,6 +1976,7 @@ export class UnfurlService extends BaseService {
         sendNowSchedulerFilters?: DashboardFilterRule[] | undefined;
         sendNowSchedulerChartFilters?: Filters | undefined;
         sendNowSchedulerParameters?: ParametersValuesMap | undefined;
+        tileParameters?: ExportContentPayload['tileParameters'];
         outputFormat?: 'image' | 'pdf';
         withPdf?: boolean;
         // 'crop' (default): single-page PDF clipped to content.
@@ -2196,6 +2208,8 @@ export class UnfurlService extends BaseService {
                                 sendNowSchedulerDashboardFilters,
                             [SessionStorageKeys.SEND_NOW_SCHEDULER_PARAMETERS]:
                                 sendNowSchedulerParameters,
+                            [`dashboardExportTileParameters:${resourceUuid}`]:
+                                tileParameters,
                         },
                     );
 
@@ -3202,6 +3216,7 @@ export class UnfurlService extends BaseService {
                             sendNowSchedulerFilters,
                             sendNowSchedulerChartFilters,
                             sendNowSchedulerParameters,
+                            tileParameters,
                             outputFormat,
                             withPdf,
                             pdfPagination,
