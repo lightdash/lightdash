@@ -9,6 +9,14 @@ description: Interact with Rainbow Machine PR preview environments for Lightdash
 
 `rainbow.toml` is the recipe: services, build tiers, `[env]`, egress. Read it when a step below needs a detail it doesn't give.
 
+## Outside vs inside
+
+Each env is a VM (the **guest**) running the dev stack in `/usr/app`. You reach it two ways:
+
+- **Outside**, through the env URL: anything a user does (UI, API calls, screenshots). Requests pass the HTTPS ingress, as in production.
+- **Inside**, through `exec`, `logs`, `verify`, `set_env`: anything only a server-side developer could do (database, logs, env vars, scripts against the live stack). `localhost` is the guest itself, over plain http.
+- **Code** changes go through git only: push, then redeploy.
+
 ## Pick the env
 
 - An open PR already has one: routing name `lightdash--pr-<N>`. Use it.
