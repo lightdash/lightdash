@@ -8,6 +8,12 @@ import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { renderWithProviders } from '../testing/testUtils';
 import OnboardingTools from './OnboardingTools';
 
+const slack = vi.hoisted(() => ({
+    data: undefined as { slackTeamName: string } | undefined,
+}));
+vi.mock('../hooks/slack/useSlack', () => ({
+    useGetSlack: () => ({ data: slack.data }),
+}));
 vi.mock('../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: vi.fn(),
 }));
@@ -73,6 +79,7 @@ const renderPage = (health: Partial<HealthState>) =>
 
 describe('OnboardingTools', () => {
     beforeEach(() => {
+        slack.data = undefined;
         vi.mocked(useExternalConnections).mockReturnValue({
             data: [],
         } as unknown as ReturnType<typeof useExternalConnections>);
@@ -124,6 +131,20 @@ describe('OnboardingTools', () => {
             await screen.findByRole('heading', {
                 name: 'Bring in your team',
             }),
+        ).toBeInTheDocument();
+    });
+
+    it('shows Slack as connected once it is installed', async () => {
+        mockFlags({});
+        slack.data = { slackTeamName: 'Acme' };
+        renderPage({ hasSlack: true });
+
+        expect(await screen.findByText('Connected: Acme')).toBeInTheDocument();
+        expect(
+            screen.queryByRole('link', { name: 'Connect' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Continue' }),
         ).toBeInTheDocument();
     });
 });

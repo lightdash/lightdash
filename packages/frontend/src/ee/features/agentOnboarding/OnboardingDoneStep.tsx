@@ -47,7 +47,7 @@ export const OnboardingDoneStep: FC<{ projectUuid: string }> = ({
     projectUuid,
 }) => {
     useEffect(markHomepageTourSeen, []);
-    const ask = useAskAurora(projectUuid);
+    const { canAsk, ask } = useAskAurora(projectUuid);
     const { run, isLive } = useAuroraRun(projectUuid);
     // Asked before the semantic layer deploys, the agent only sees the raw sources
     const areMetricsLive =
@@ -134,38 +134,42 @@ export const OnboardingDoneStep: FC<{ projectUuid: string }> = ({
                 </Box>
 
                 <Stack gap="md">
-                    <Stack gap="xs">
-                        {isLive && (
-                            <Text fz="sm" fw={500}>
-                                {areMetricsLive
-                                    ? 'Your metrics are live'
-                                    : 'Available once your metrics are live'}
-                            </Text>
-                        )}
-                        <Button
-                            size="md"
-                            fullWidth
-                            disabled={!areMetricsLive}
-                            onClick={() => {
-                                trackAction('ask_first_question');
-                                ask(FIRST_QUESTION);
-                            }}
-                            rightSection={<MantineIcon icon={IconArrowRight} />}
-                        >
-                            Ask your first question
-                        </Button>
-                    </Stack>
+                    {canAsk && (
+                        <Stack gap="xs">
+                            {isLive && (
+                                <Text fz="sm" fw={500}>
+                                    {areMetricsLive
+                                        ? 'Your metrics are live'
+                                        : 'Available once your metrics are live'}
+                                </Text>
+                            )}
+                            <Button
+                                size="md"
+                                fullWidth
+                                disabled={!areMetricsLive}
+                                onClick={() => {
+                                    trackAction('ask_first_question');
+                                    ask(FIRST_QUESTION);
+                                }}
+                                rightSection={
+                                    <MantineIcon icon={IconArrowRight} />
+                                }
+                            >
+                                Ask your first question
+                            </Button>
+                        </Stack>
+                    )}
                     <Button
                         size="md"
                         fullWidth
-                        variant="subtle"
-                        color="gray"
+                        variant={canAsk ? 'subtle' : 'filled'}
+                        color={canAsk ? 'gray' : undefined}
                         component={Link}
                         to={`/projects/${projectUuid}/home`}
                         viewTransition
                         onClick={() => trackAction('look_around')}
                     >
-                        I'll look around first
+                        {canAsk ? "I'll look around first" : 'Go to home'}
                     </Button>
                 </Stack>
             </Stack>

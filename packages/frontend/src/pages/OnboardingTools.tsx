@@ -296,31 +296,38 @@ const TeamStep: FC<{
     const { track } = useTracking();
     const queryClient = useQueryClient();
     const slackQuery = useGetSlack();
+    const isSlackInstalled = hasSlack && !!slackQuery.data;
     const githubQuery = useGithubConfig();
     const isGithubInstalled = hasGithub && githubQuery.data?.enabled === true;
     const gitlabQuery = useGitlabRepositories({ enabled: hasGitlab });
     const isGitlabInstalled = hasGitlab && gitlabQuery.isSuccess;
+    // Listing GitLab repos is heavy, so only recheck after a connect was started
+    const [isGitlabConnecting, setIsGitlabConnecting] = useState(false);
     const hasConnected =
-        (hasSlack && !!slackQuery.data) ||
-        isGithubInstalled ||
-        isGitlabInstalled;
+        isSlackInstalled || isGithubInstalled || isGitlabInstalled;
 
     // Connect opens a new tab, so pick up the install when the user comes back
     useEffect(() => {
         const refresh = () => {
             void queryClient.invalidateQueries(['slack']);
             void queryClient.invalidateQueries(['github_installation']);
-            void queryClient.invalidateQueries(['gitlab_repositories']);
+            if (isGitlabConnecting) {
+                void queryClient.invalidateQueries(['gitlab_repositories']);
+            }
         };
         window.addEventListener('focus', refresh);
         return () => window.removeEventListener('focus', refresh);
-    }, [queryClient]);
+    }, [queryClient, isGitlabConnecting]);
 
     if (!hasSlack && !hasTeams && !hasGithub && !hasGitlab) {
         return <Navigate to={nextPath} replace />;
     }
 
-    const connectButton = (href: string, isInternal: boolean) =>
+    const connectButton = (
+        href: string,
+        isInternal: boolean,
+        onClick: (() => void) | null,
+    ) =>
         isInternal ? (
             <Button
                 size="xs"
@@ -339,6 +346,7 @@ const TeamStep: FC<{
                 href={href}
                 target="_blank"
                 rel="noreferrer"
+                onClick={onClick ?? undefined}
             >
                 Connect
             </Button>
@@ -370,11 +378,17 @@ const TeamStep: FC<{
                                 label="Slack"
                                 description="Schedule dashboards, get alerts and ask questions in any channel"
                                 info={null}
-                                connectedDetail={null}
-                                action={connectButton(
-                                    '/api/v1/slack/install/',
-                                    false,
-                                )}
+                                connectedDetail={
+                                    slackQuery.data?.slackTeamName ?? null
+                                }
+                                action={
+                                    !isSlackInstalled &&
+                                    connectButton(
+                                        '/api/v1/slack/install/',
+                                        false,
+                                        null,
+                                    )
+                                }
                             />
                         )}
                         {hasSlack && hasTeams && <Divider />}
@@ -388,6 +402,7 @@ const TeamStep: FC<{
                                 action={connectButton(
                                     '/generalSettings/integrations',
                                     true,
+                                    null,
                                 )}
                             />
                         )}
@@ -453,6 +468,7 @@ const TeamStep: FC<{
                                     connectButton(
                                         '/api/v1/gitlab/install',
                                         false,
+                                        () => setIsGitlabConnecting(true),
                                     )
                                 }
                             />
