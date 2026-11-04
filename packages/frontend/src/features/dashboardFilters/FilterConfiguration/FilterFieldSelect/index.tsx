@@ -51,6 +51,8 @@ interface FilterFieldSelectProps {
     placeholder?: string;
     // Renders the list in a portal, for a host that clips its overflow
     withinPortal?: boolean;
+    getRowHint?: (field: DashboardFilterableField) => string;
+    isFirstMatchSelected?: boolean;
     popoverProps?: {
         onOpen?: () => void;
         onClose?: () => void;
@@ -86,6 +88,8 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
     withinPortal = false,
     placeholder: placeholderOverride,
     popoverProps,
+    getRowHint,
+    isFirstMatchSelected = false,
 }) => {
     const getUiString = useUiStrings();
     const [search, setSearch] = useState('');
@@ -179,6 +183,25 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
         virtualizer.measure();
     }, [virtualizer]);
 
+    const { selectFirstOption } = combobox;
+    const pendingFirst = useRef(false);
+    useEffect(() => {
+        if (!isFirstMatchSelected || search !== debouncedSearch) return;
+        pendingFirst.current = true;
+        virtualizer.scrollToOffset(0);
+    }, [isFirstMatchSelected, search, debouncedSearch, virtualizer]);
+    const firstOptionIndex = virtualItems.findIndex(
+        (item) => item.type === 'field',
+    );
+    const isFirstOptionDrawn = virtualizer
+        .getVirtualItems()
+        .some(({ index }) => index === firstOptionIndex);
+    useEffect(() => {
+        if (!pendingFirst.current || !isFirstOptionDrawn) return;
+        pendingFirst.current = false;
+        selectFirstOption();
+    });
+
     const collidingFieldIds = useMemo(
         () => getCollidingFieldIds(fields),
         [fields],
@@ -229,6 +252,11 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
                     return (
                         <Combobox.Option
                             value={fieldId}
+                            aria-label={
+                                getRowHint
+                                    ? `${getItemLabelWithoutTableName(item.field)}, ${isField(item.field) ? item.field.tableLabel : ''}, ${getRowHint(item.field)}`
+                                    : undefined
+                            }
                             active={fieldId === selectedFieldId}
                             className={`${styles.option} ${item.dimmed ? styles.dimmedOption : ''}`}
                         >
@@ -248,11 +276,24 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
                             >
                                 <Group gap="xs" wrap="nowrap">
                                     <FieldIcon item={item.field} size="md" />
-                                    <Text size="xs" truncate="end">
+                                    <Text
+                                        size="xs"
+                                        truncate="end"
+                                        flex={getRowHint ? 1 : undefined}
+                                    >
                                         {getItemLabelWithoutTableName(
                                             item.field,
                                         )}
                                     </Text>
+                                    {getRowHint && (
+                                        <Text
+                                            size="xs"
+                                            c="dimmed"
+                                            flex="0 0 auto"
+                                        >
+                                            {getRowHint(item.field)}
+                                        </Text>
+                                    )}
                                 </Group>
                             </Tooltip>
                         </Combobox.Option>
@@ -260,7 +301,7 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
                 }
             }
         },
-        [getOptionValue, selectedFieldId],
+        [getOptionValue, selectedFieldId, getRowHint],
     );
 
     const isOpen = combobox.dropdownOpened;
@@ -296,9 +337,16 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
                         radius="md"
                         size="xs"
                         value={isOpen ? search : (selectedLabel ?? '')}
+                        aria-label={
+                            isFirstMatchSelected
+                                ? placeholderOverride
+                                : undefined
+                        }
                         placeholder={placeholder}
                         onChange={(event) => {
                             setSearch(event.currentTarget.value);
+                            if (isFirstMatchSelected)
+                                combobox.resetSelectedOption();
                             combobox.openDropdown();
                         }}
                         onClick={() => combobox.openDropdown()}

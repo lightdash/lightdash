@@ -26,6 +26,7 @@ import {
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
 import { dashboardTileStatusActions } from '../dashboard/store';
+import { AddMenuBackContext } from './addMenuBack';
 import { FieldsAndTiles } from './FieldsAndTiles';
 import { useEditorDismiss } from './useEditorDismiss';
 
@@ -103,8 +104,11 @@ const total: ResultColumn = { reference: 'total', type: DimensionType.NUMBER };
 
 const FIELD_SEARCH = 'FilterConfiguration/FieldSelect';
 const fieldSearch = () => screen.queryByTestId(FIELD_SEARCH);
+// Each row's name, without its tile count hint
 const optionNames = () =>
-    screen.getAllByRole('option').map((option) => option.textContent);
+    screen
+        .getAllByRole('option')
+        .map((option) => option.textContent?.replace(/\d+ tiles?$/, ''));
 
 const tile = (uuid: string) =>
     ({ uuid, type: DashboardTileTypes.SAVED_CHART }) as DashboardTile;
@@ -139,6 +143,7 @@ const setSidebar = (
     mockSidebar.current = {
         editingRule,
         isPlaceholder: false,
+        editorFilters: { dimensions: [], metrics: [], tableCalculations: [] },
         addFirstField,
         addFirstSqlColumn,
         isNew: false,
@@ -260,9 +265,15 @@ describe('FieldsAndTiles', () => {
             // Open without a click, grouped by table as in "Add filter"
             expect(await screen.findByText('Orders')).toBeVisible();
             expect(optionNames()).toEqual(['Region', 'Status']);
+            // Each row counts the tiles its field can filter
+            expect(
+                screen
+                    .getAllByRole('option')
+                    .map((option) => option.getAttribute('aria-label')),
+            ).toEqual(['Region, Orders, 1 tile', 'Status, Orders, 2 tiles']);
 
             await userEvent.click(
-                screen.getByRole('option', { name: 'Status' }),
+                screen.getByRole('option', { name: /^Status,/ }),
             );
             expect(addFirstField).toHaveBeenCalledTimes(1);
             expect(addFirstField).toHaveBeenCalledWith(status);
@@ -303,7 +314,7 @@ describe('FieldsAndTiles', () => {
             ]);
 
             await userEvent.click(
-                screen.getByRole('option', { name: 'Created month' }),
+                screen.getByRole('option', { name: /^Created month,/ }),
             );
             expect(addFirstField).toHaveBeenCalledWith(createdMonth);
         });
@@ -320,7 +331,7 @@ describe('FieldsAndTiles', () => {
             expect(optionNames()).toEqual(['Region', 'Status', 'Revenue']);
 
             await userEvent.click(
-                screen.getByRole('option', { name: 'Revenue' }),
+                screen.getByRole('option', { name: /^Revenue,/ }),
             );
             expect(addFirstField).toHaveBeenCalledWith(revenue);
         });
@@ -349,6 +360,21 @@ describe('FieldsAndTiles', () => {
             expect(await screen.findByText('Fields in this tab')).toBeVisible();
             expect(screen.getByText('Other available fields')).toBeVisible();
             expect(optionNames()).toEqual(['Status', 'Region']);
+        });
+
+        it('keeps the viewer field picker without tile hints or automatic selection', async () => {
+            setSidebar(rule(''), { isPlaceholder: true, isViewer: true });
+            renderWithProviders(<FieldsAndTiles />);
+            const options = await screen.findAllByRole('option');
+            expect(
+                options.map((option) => option.getAttribute('aria-label')),
+            ).toEqual([null, null]);
+            await userEvent.type(
+                screen.getByPlaceholderText('Search fields'),
+                'Status',
+            );
+            await userEvent.keyboard('{Enter}');
+            expect(addFirstField).not.toHaveBeenCalled();
         });
 
         it('offers SQL columns when no tile has fields', async () => {
@@ -525,6 +551,42 @@ describe('FieldsAndTiles', () => {
             await act(async () => {});
             expect(columnInput()).toHaveAttribute('aria-busy', 'false');
         });
+    });
+
+    it('keeps a field a filter already uses pickable, with only its tiles', async () => {
+        setSidebar(rule(''), {
+            isPlaceholder: true,
+            editorFilters: {
+                dimensions: [rule('orders_status')],
+                metrics: [],
+                tableCalculations: [],
+            },
+        });
+        renderWithProviders(<FieldsAndTiles />);
+
+        const onBar = await screen.findByRole('option', {
+            name: 'Status, Orders, 2 tiles',
+        });
+        await userEvent.click(onBar);
+        expect(addFirstField).toHaveBeenCalledWith(status);
+    });
+
+    it('goes back to the Add choice only when "Add" gives it a way back', async () => {
+        setSidebar(rule(''), { isPlaceholder: true });
+        const { unmount } = renderWithProviders(<FieldsAndTiles />);
+        expect(
+            screen.queryByRole('button', { name: 'Back' }),
+        ).not.toBeInTheDocument();
+        unmount();
+
+        const onBack = vi.fn();
+        renderWithProviders(
+            <AddMenuBackContext.Provider value={onBack}>
+                <FieldsAndTiles />
+            </AddMenuBackContext.Provider>,
+        );
+        await userEvent.click(screen.getByRole('button', { name: 'Back' }));
+        expect(onBack).toHaveBeenCalledTimes(1);
     });
 
     it('renders nothing when no control is edited', () => {

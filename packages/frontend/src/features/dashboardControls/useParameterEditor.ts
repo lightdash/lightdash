@@ -3,6 +3,12 @@ import { createContext, useContextSelector } from 'use-context-selector';
 import { type ParameterControlDropTarget } from './parameterControlsBar';
 import { type ParameterBarEntry } from './useParameterBarControls';
 
+/** A control picked in "Add", with the key it sets and the tiles Apply binds it on. */
+export type NewParameterControl = Pick<
+    ParameterBarEntry,
+    'control' | 'parameterKeys' | 'tileUuids'
+>;
+
 export type ParameterEditorValue = {
     /** The control in the popover, or null. */
     editingId: string | null;
@@ -10,6 +16,8 @@ export type ParameterEditorValue = {
     draft: DashboardParameterControl | null;
     /** A "needs a value" pill: its Apply adds the control (editors) or picks the value (viewers). */
     isNeedsValue: boolean;
+    /** A control started from "Add", as it opened: a draft pill until Apply puts it on the bar. */
+    newControl: NewParameterControl | null;
     /** Outside edit mode: Apply picks the value by key, nothing is saved. */
     isViewer: boolean;
     /** Another pill was clicked over unapplied changes: the popover asks to Apply or Discard first. */
@@ -21,6 +29,8 @@ export type ParameterEditorValue = {
             'control' | 'isNeedsValue' | 'parameterKeys' | 'tileUuids'
         >,
     ) => void;
+    /** Edit mode: opens a control that is not on the bar yet; Apply adds it with its bindings, Cancel drops it. */
+    add: (entry: NewParameterControl) => void;
     /** Writes the draft; a section change reaches the dashboard at once. */
     update: (next: DashboardParameterControl) => void;
     apply: () => void;
@@ -43,9 +53,11 @@ const NO_EDITOR: ParameterEditorValue = {
     editingId: null,
     draft: null,
     isNeedsValue: false,
+    newControl: null,
     isViewer: true,
     isAsking: false,
     open: noop,
+    add: noop,
     update: noop,
     apply: noop,
     cancel: noop,

@@ -14,6 +14,7 @@ import {
     type EditorView as PopoverView,
 } from '../../features/dashboardControls/FilterPopover';
 import { ParameterControlPopover } from '../../features/dashboardControls/ParameterControlPopover';
+import { getParameterLabel } from '../../features/dashboardControls/parameterControlsBar';
 import { getFilterRuleFilterType } from '../../features/dashboardFilters/FilterConfiguration/utils';
 import {
     parameterValues,
@@ -21,7 +22,7 @@ import {
     PROJECT_UUID,
     TOTAL_TILE_COUNT,
 } from './fixtures';
-import { getParameterLabel, type ParameterControl } from './parameterOptions';
+import { type ParameterControl } from './parameterOptions';
 
 export type StatefulFilterPopoverProps = {
     initialRule: DashboardFilterRule;
