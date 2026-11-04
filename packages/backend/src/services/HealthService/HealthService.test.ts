@@ -82,6 +82,46 @@ describe('health', () => {
         };
     });
 
+    it.each([
+        { licensed: true, disabled: false, storage: true, expected: true },
+        { licensed: true, disabled: true, storage: true, expected: false },
+        { licensed: false, disabled: false, storage: true, expected: false },
+        { licensed: true, disabled: false, storage: false, expected: false },
+    ])(
+        'exposes managed analytics availability to the UI: %j',
+        async ({ licensed, disabled, storage, expected }) => {
+            const service = new HealthService({
+                organizationModel:
+                    organizationModel as unknown as OrganizationModel,
+                lightdashConfig: {
+                    ...lightdashConfigMock,
+                    analyticsProject: { disabled },
+                    usageEvents: {
+                        ...lightdashConfigMock.usageEvents,
+                        s3: storage
+                            ? {
+                                  endpoint: 'http://localhost:9000',
+                                  bucket: 'test',
+                                  region: 'us-east-1',
+                              }
+                            : null,
+                    },
+                },
+                licenseService: licensed
+                    ? validLicenseService
+                    : invalidLicenseService,
+                migrationModel: migrationModel as unknown as MigrationModel,
+                organizationSettingsModel:
+                    organizationSettingsModel as unknown as OrganizationSettingsModel,
+                featureFlagModel: featureFlagModelMock,
+                learnSandboxService: learnSandboxServiceMock,
+            });
+            expect(
+                (await service.getHealthState(userMock)).hasManagedAnalytics,
+            ).toBe(expected);
+        },
+    );
+
     it('Should get current and latest version', async () => {
         expect(await healthService.getHealthState(undefined)).toEqual(
             BaseResponse,

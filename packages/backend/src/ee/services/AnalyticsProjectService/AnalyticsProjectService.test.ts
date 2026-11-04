@@ -69,7 +69,7 @@ describe('AnalyticsProjectService', () => {
     const saveSnapshot = vi.fn();
     const getOrganizationAdmins = vi.fn();
     const findSessionUserAndOrgByUuid = vi.fn();
-    const getFeatureFlag = vi.fn();
+    const isAnalyticsProjectEnabled = vi.fn();
     const getOrganizations = vi.fn();
     const hash = getAnalyticsContentHash(
         analyticsExplores.createAnalyticsExplores(),
@@ -94,7 +94,6 @@ describe('AnalyticsProjectService', () => {
         contentAsCodeSnapshotModel: { get: getSnapshot, upsert: saveSnapshot },
         organizationMemberProfileModel: { getOrganizationAdmins },
         usageDimensionsModel: { getOrganizations },
-        featureFlagModel: { get: getFeatureFlag },
         coderService: { upsertChart, upsertDashboard },
         contentVerificationModel: { getByContentUuids: getVerifications },
         dashboardModel: { find: findDashboard, getByIdOrSlug: getDashboard },
@@ -113,6 +112,7 @@ describe('AnalyticsProjectService', () => {
             },
         },
         projectService: {
+            isAnalyticsProjectEnabled,
             assertAnalyticsProjectAdministration,
             ensureAnalyticsProject,
             delete: deleteProject,
@@ -125,7 +125,7 @@ describe('AnalyticsProjectService', () => {
         vi.restoreAllMocks();
         vi.resetAllMocks();
         getSnapshot.mockResolvedValue({ snapshotHash: hash });
-        getFeatureFlag.mockResolvedValue({ enabled: true });
+        isAnalyticsProjectEnabled.mockReturnValue(true);
         getOrganizationAdmins.mockResolvedValue([
             { userUuid: user.userUuid, isActive: true, isPending: false },
         ]);
@@ -196,6 +196,16 @@ describe('AnalyticsProjectService', () => {
             expect(upsertDashboard).not.toHaveBeenCalled();
         });
 
+        it('skips queued reconciliation and sync when the deployment opts out', async () => {
+            isAnalyticsProjectEnabled.mockReturnValue(false);
+            await configured().reconcileContent({ organizationUuid: null });
+            await configured().syncContent({ organizationUuid: 'org' });
+            expect(getOrganizations).not.toHaveBeenCalled();
+            expect(scheduleAnalyticsContentSync).not.toHaveBeenCalled();
+            expect(getOrganizationAdmins).not.toHaveBeenCalled();
+            expect(upsertDashboard).not.toHaveBeenCalled();
+        });
+
         it('calls the existing sync method with a freshly authorized admin', async () => {
             const background = configured();
             const install = vi
@@ -258,7 +268,7 @@ describe('AnalyticsProjectService', () => {
         });
 
         it('does no writes for disabled, unprovisioned or unauthorized organizations', async () => {
-            getFeatureFlag.mockResolvedValueOnce({ enabled: false });
+            isAnalyticsProjectEnabled.mockReturnValueOnce(false);
             await configured().syncContent({ organizationUuid: 'org' });
             assertAnalyticsProjectAdministration.mockRejectedValueOnce(
                 new ForbiddenError('Not allowed'),

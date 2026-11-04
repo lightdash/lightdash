@@ -1,18 +1,17 @@
 # Usage capture and processing
 
-Usage capture runs for every organization on deployments with a commercial
-license and working usage S3 configuration. The organization `analytics-project`
-feature flag controls processing and analytics availability, not raw collection.
-Configure the flag through Console, or use the standard feature-flag ENV lists
-for a deployment-wide self-hosted override. The shared resolver's normal
-precedence applies; user overrides do not control organization jobs.
-Authorization and organization isolation remain separate from capture.
+Managed Analytics is available by default on deployments with a validated
+commercial license and configured usage storage. The retired `analytics-project`
+organization flag no longer controls availability or processing. Existing role
+and project authorization and organization isolation remain in force.
 
-`USAGE_EVENTS_ENABLED` is removed and ignored. Usage storage continues to inherit
-base S3 settings unless overridden by `USAGE_EVENTS_S3_*`. Disabling the
-`analytics-project` flag does not stop raw uploads. This behavior applies to all
-configured deployments, including self-hosted commercial deployments, not just
-shared Cloud instances.
+Set `LIGHTDASH_DISABLE_ANALYTICS=true` and restart API, scheduler and NATS workers
+to opt out of managed Analytics, new usage-event capture and processing. Unset or
+`false` enables the feature. This does not delete stored data or change unrelated
+telemetry and AI billing. See [access](usage-analytics/access.md).
+
+`USAGE_EVENTS_ENABLED` remains removed and ignored. Usage storage continues to
+inherit base S3 settings unless overridden by `USAGE_EVENTS_S3_*`.
 
 ## Capture
 
@@ -25,9 +24,7 @@ telemetry, not an audit ledger; process interruption or exhausted upload retries
 can lose buffered events.
 
 Collection starts when the configured deployment runs this code. There is no data
-from before capture starts. Flag-disabled organizations retain raw events for
-possible later processing, but the seven-day processing window below still
-applies. Other analytics destinations and AI billing/usage tracking are unchanged.
+from before capture starts. Previously captured raw events are processed as described below. Other analytics destinations and AI billing/usage tracking are unchanged.
 
 ## Nightly and manual processing
 
@@ -36,34 +33,31 @@ with no whole-job retries. Nightly runs select only organizations with a managed
 Analytics project (`projects.provisioning_source = 'analytics'). Regular, preview
 and playground projects alone do not qualify. Explicit organization-scoped runs,
 including initial processing on project creation, retain their existing scope.
-Eligibility is then resolved through the standard flag model. Only eligible orgs enter
-raw compaction, dimension export and user-summary generation. Eligibility is a
-run snapshot; changing a flag does not cancel a running pipeline. Access checks
-for subsequent user queries continue to evaluate their own flag and permissions.
+The worker checks deployment availability before processing. There are no
+per-organization rollout queries. Deleting the managed project excludes the
+organization from future nightly selection; it does not cancel already selected
+or organization-scoped jobs, stop event capture, or delete stored data. An
+administrator can create the project again. Query access separately checks
+availability and permissions.
 
-Only the previous seven closed UTC dates are processed. For a run on 8 October,
-that is 1–7 October inclusive. Current-day events wait for the next run; raw events
-older than that window are left unprocessed. Existing published history stays
-queryable. Dimension snapshots reflect current inventory. Each run processes at
-most 5,000 raw stream/day partitions and, independently, 5,000 changed or failed
-user-summary partitions. Deferred work remains for a subsequent run within this
-window. Processing remains serial, with one DuckDB thread and a 256 MB managed-memory
-limit; SQL timeouts and query resource limits remain. Missing several nights can consume
-the catch-up window; this is a deliberate limit, not unlimited historical repair.
+Initial and nightly processing prioritizes the previous seven closed UTC dates.
+Current-day events wait for the next run; existing published history stays
+queryable. Dimension snapshots reflect current inventory. Recent processing has
+a 5,000-partition budget; follow-up history jobs process retained older raw events
+in batches of 100, with independent user-summary budgets. Deferred work remains
+for subsequent batches. Processing remains serial, with one DuckDB thread and a
+256 MB managed-memory limit; SQL timeouts and query resource limits remain.
 
 The partition budget is not a runtime guarantee. Graphile Worker expires job and
 queue locks after four hours; monitor processing times and backlog before increasing
 rollout cohorts so that scheduled and initial processing jobs do not overlap.
 
-The explicit `build-usage-user-activity` command also checks the organization flag
-and rejects dates older than this window. It remains a privileged maintenance
-script, using the configured production database/usage storage. Creating Analytics
-queues initial processing on the same serial queue and a separate
-[retained-database history import](usage-analytics/history-backfill.md). Creation
-returns before either completes, so data may be unavailable until processing
-finishes. Initial processing uses the same seven-day window; the history import
-does not replay older raw events or reconstruct historical People membership.
-Project creation does not control capture.
+The explicit `build-usage-user-activity` command also checks validated commercial
+registration and the deployment opt-out, and rejects dates older than the seven-day window.
+It remains a privileged maintenance script using the configured usage storage.
+An organization can receive the existing no-data error until processing succeeds.
+Project creation can enqueue the initial processing and retained-history import;
+it does not control capture.
 
 ## Recovery and retention
 
@@ -78,14 +72,12 @@ compactors against the same bucket. A rollback to the old compactor must wait
 until pending cleanup has completed.
 
 This prevents new partial-cleanup duplication; it does not identify or repair
-already duplicated parts from older releases. Raw objects whose dates leave the
-window will no longer be processed. Raw data for flag-disabled organizations or
-organizations without Analytics projects is not compacted or cleaned up by this
-pipeline and accumulates under the existing bucket retention policy. Retaining
-months of raw data does not enable historical catch-up beyond seven days. This
-change adds no expiry policy, archive, or historical backfill; successful
-compaction still deletes its exact raw inputs after publishing Parquet.
+already duplicated parts from older releases. Raw data for organizations without
+Analytics projects is retained under the existing bucket retention policy.
+Creating a project queues recent processing followed by retained-history batches;
+only raw events still present in storage can be recovered. Successful compaction
+deletes its exact raw inputs after publishing Parquet. Project deletion does not
+remove previously published Parquet or raw objects.
 
-Canary a deployment before broad rollout: uploads now include flag-disabled orgs.
 Check failures, dropped events, backlog, memory and reconciliation. Local loopback
 benchmarks are correctness evidence, not production GCS latency predictions.

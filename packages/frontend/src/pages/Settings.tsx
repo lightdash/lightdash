@@ -187,7 +187,7 @@ const Settings: FC = () => {
         showImpersonationPanel,
         isCustomRolesEnabled,
         canAccessAnalyticsSettings,
-        isAnalyticsProjectFlagLoading,
+        isAnalyticsProjectLoading,
         isOrganizationRoadmapEnabled,
         canAccessAiCredits,
         isAiCreditsLoading,
@@ -1071,7 +1071,7 @@ const Settings: FC = () => {
         isDataAppsFlagLoading &&
         Boolean(matchPath('/generalSettings/dataApps/*', location.pathname));
     const isAwaitingAnalyticsRoute =
-        isAnalyticsProjectFlagLoading &&
+        isAnalyticsProjectLoading &&
         Boolean(
             matchPath('/generalSettings/lightdashAnalytics', location.pathname),
         );

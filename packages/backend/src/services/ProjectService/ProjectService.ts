@@ -737,6 +737,7 @@ export type ProjectServiceArguments = {
     encryptionUtil: EncryptionUtil;
     userModel: UserModel;
     userOAuthGrantsModel: UserOAuthGrantsModel;
+    isAnalyticsProjectEnabled?: () => boolean;
     featureFlagModel: FeatureFlagModel;
     aiAccessService: AiAccessService;
     projectParametersModel: ProjectParametersModel;
@@ -897,6 +898,8 @@ export class ProjectService
 
     public readonly warehouseClientFactory: WarehouseClientFactory;
 
+    public readonly isAnalyticsProjectEnabled: () => boolean;
+
     savedChartModel: SavedChartModel;
 
     jobModel: JobModel;
@@ -1042,6 +1045,7 @@ export class ProjectService
         userModel,
         userOAuthGrantsModel,
         featureFlagModel,
+        isAnalyticsProjectEnabled = () => false,
         aiAccessService,
         projectParametersModel,
         projectCompileLogModel,
@@ -1122,6 +1126,7 @@ export class ProjectService
                 this.databricksOAuthCredentialResolver,
         });
         this.warehouseClientFactory = new WarehouseClientFactory({
+            isAnalyticsProjectEnabled,
             credentialResolvers,
             lightdashConfig,
             projectModel,
@@ -1164,6 +1169,7 @@ export class ProjectService
         this.userModel = userModel;
         this.userOAuthGrantsModel = userOAuthGrantsModel;
         this.featureFlagModel = featureFlagModel;
+        this.isAnalyticsProjectEnabled = isAnalyticsProjectEnabled;
         this.aiAccessService = aiAccessService;
         this.projectParametersModel = projectParametersModel;
         this.projectCompileLogModel = projectCompileLogModel;
@@ -1240,7 +1246,7 @@ export class ProjectService
         // Fail before creating a project if the signed file reads cannot authenticate.
         const analyticsClient = await createAnalyticsClient(
             organizationUuid,
-            this.featureFlagModel,
+            this.isAnalyticsProjectEnabled,
             { allowEmpty: true },
         );
         await analyticsClient.test();
@@ -4777,10 +4783,7 @@ export class ProjectService
                 'Analytics project belongs to another organization',
             );
         }
-        await assertAnalyticsProjectEnabled(
-            this.featureFlagModel,
-            project.organizationUuid,
-        );
+        await assertAnalyticsProjectEnabled(this.isAnalyticsProjectEnabled);
         const ability = this.createAuditedAbility(account);
         if (
             ability.cannot(
@@ -4810,10 +4813,7 @@ export class ProjectService
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
-        await assertAnalyticsProjectEnabled(
-            this.featureFlagModel,
-            user.organizationUuid,
-        );
+        await assertAnalyticsProjectEnabled(this.isAnalyticsProjectEnabled);
         if (
             this.createAuditedAbility(user).cannot(
                 'manage',

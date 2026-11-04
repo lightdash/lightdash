@@ -34,6 +34,7 @@ const SHUTDOWN_TIMEOUT_MS = 1_000;
 
 const makeConfig = (): LightdashConfig =>
     ({
+        usageEvents: { enabled: false },
         scheduler: {
             tasks: [...ALL_TASK_NAMES],
             concurrency: 3,

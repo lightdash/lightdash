@@ -7,6 +7,7 @@ import {
 
 export const BaseResponse: HealthState = {
     healthy: true,
+    hasManagedAnalytics: false,
     requiresMigration: false,
     migrationWarnings: undefined,
     license: {

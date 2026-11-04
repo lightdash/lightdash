@@ -101,12 +101,6 @@ describe.skipIf(!process.env.USAGE_USER_ACTIVITY_SMOKE_ENDPOINT)(
             };
             const compact = () =>
                 new UsageEventsCompactor({
-                    featureFlagModel: {
-                        get: async () => ({
-                            id: 'analytics-project',
-                            enabled: true,
-                        }),
-                    },
                     s3Config: storage,
                     prometheusMetrics: null,
                     usageDimensionsModel: model,
@@ -553,7 +547,6 @@ describe.skipIf(!process.env.USAGE_USER_ACTIVITY_SMOKE_ENDPOINT)(
                             ...process.env,
                             LIGHTDASH_LICENSE_KEY: '',
                             LIGHTDASH_LICENSE_CERTIFICATE: '',
-                            LIGHTDASH_ENABLE_FEATURE_FLAGS: 'analytics-project',
                             LIGHTDASH_PREVIEW_FEATURE_FLAGS_ENABLED: 'false',
                             S3_ENDPOINT: endpoint,
                             S3_BUCKET: storage.bucket,
@@ -574,7 +567,7 @@ describe.skipIf(!process.env.USAGE_USER_ACTIVITY_SMOKE_ENDPOINT)(
                 // ENV enablement alone must not authorize the maintenance CLI.
                 await expect(cli).rejects.toMatchObject({
                     stderr: expect.stringContaining(
-                        'Analytics is not enabled for this organization',
+                        'Managed analytics is not enabled',
                     ),
                 });
                 // Other org has no query/AI/app/step files: its empty views still query.

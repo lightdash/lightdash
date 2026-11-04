@@ -842,6 +842,7 @@ export type HealthState = {
     hasPostHogOAuth: boolean;
     hasGoogleLiveSources: boolean;
     hasHeadlessBrowser: boolean;
+    hasManagedAnalytics?: boolean;
     hasExtendedUsageAnalytics: boolean;
     hasCacheAutocompleResults: boolean;
     appearance: {
