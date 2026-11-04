@@ -1250,9 +1250,11 @@ const makeOpenAiStrict = (value: unknown): unknown => {
         return value;
     }
 
+    // OpenAI strict mode rejects oneOf; the discriminated branches can't overlap,
+    // so anyOf accepts the same values.
     const schema = Object.fromEntries(
         Object.entries(value).map(([key, child]) => [
-            key,
+            key === 'oneOf' ? 'anyOf' : key,
             makeOpenAiStrict(child),
         ]),
     );
