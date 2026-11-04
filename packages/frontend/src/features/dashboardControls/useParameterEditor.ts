@@ -1,6 +1,11 @@
 import { type DashboardParameterControl } from '@lightdash/common';
 import { createContext, useContextSelector } from 'use-context-selector';
 import { type ParameterControlDropTarget } from './parameterControlsBar';
+import {
+    type ParameterMapping,
+    type ParameterTileChange,
+} from './parameterPeers';
+import { type FieldApply } from './useControlsSidebar';
 import { type ParameterBarEntry } from './useParameterBarControls';
 
 /** A control picked in "Add", with the key it sets and the tiles Apply binds it on. */
@@ -29,8 +34,11 @@ export type ParameterEditorValue = {
             'control' | 'isNeedsValue' | 'parameterKeys' | 'tileUuids'
         >,
     ) => void;
-    /** Edit mode: opens a control that is not on the bar yet; Apply adds it with its bindings, Cancel drops it. */
-    add: (entry: NewParameterControl) => void;
+    /** Edit mode: opens a control that is not on the bar yet; Apply adds it on its tiles, Cancel drops it. */
+    add: (
+        entry: NewParameterControl,
+        options?: { chooseTiles?: boolean },
+    ) => void;
     /** Writes the draft; a section change reaches the dashboard at once. */
     update: (next: DashboardParameterControl) => void;
     apply: () => void;
@@ -42,6 +50,31 @@ export type ParameterEditorValue = {
     move: (activeId: string, target: ParameterControlDropTarget) => void;
     /** Edit mode: the pill's X takes the control off the bar. */
     remove: (id: string) => void;
+    /** Every control as the draft would leave them, once tiles were chosen; null: the dashboard's. */
+    draftControls: DashboardParameterControl[] | null;
+    /** Choosing the tiles the draft sets: the mapping row stands in for the popover. */
+    isMapping: boolean;
+    /** The chip selected in mapping: the bulk bar acts on this key. */
+    selectedKey: string | null;
+    /** The chip hovered in mapping, as a filter's hovered field: its tiles ring over the selected one's. */
+    hoveredKey: string | null;
+    /** The last change in mapping, while Undo can take it back. */
+    mappingUndo: FieldApply | null;
+    /** "Choose tiles": the popover gives way to the mapping row. */
+    startMapping: () => void;
+    /** The back arrow: the popover again, tile choices kept in the draft. */
+    endMapping: () => void;
+    /** Tile choices back to where mapping started, then the popover. */
+    cancelMapping: () => void;
+    /** Sets (a key) or clears (null) tiles for the draft; Undo can take it back. */
+    setTiles: (changes: ParameterTileChange[]) => void;
+    setKeyTiles: (key: string, tileUuids: string[], included: boolean) => void;
+    clearAllTiles: (tileUuids: string[]) => void;
+    undoMapping: () => void;
+    selectKey: (key: string | null) => void;
+    hoverKey: (key: string | null) => void;
+    /** What mapping shows (cards, counts, names), computed once; null while not mapping. */
+    mapping: ParameterMapping | null;
 };
 
 export const ParameterEditorContext =
@@ -64,6 +97,21 @@ const NO_EDITOR: ParameterEditorValue = {
     resolvePending: noop,
     move: noop,
     remove: noop,
+    draftControls: null,
+    isMapping: false,
+    selectedKey: null,
+    hoveredKey: null,
+    mappingUndo: null,
+    startMapping: noop,
+    endMapping: noop,
+    cancelMapping: noop,
+    setTiles: noop,
+    setKeyTiles: noop,
+    clearAllTiles: noop,
+    undoMapping: noop,
+    selectKey: noop,
+    hoverKey: noop,
+    mapping: null,
 };
 
 /** Callbacks are stable; select a slice so a pill re-renders only for its own. */

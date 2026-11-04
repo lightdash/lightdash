@@ -10,10 +10,12 @@ import { AddControl } from './AddControl';
 import classes from './ControlsBar.module.css';
 import { FilterPills } from './FilterPills';
 import { MappingRow } from './MappingRow';
+import { ParameterMappingRow } from './ParameterMappingRow';
 import { ParameterPills } from './ParameterPills';
 import { SectionedFilters } from './SectionedFilters';
 import { SettledFilterFields } from './SettledFilterFields';
 import { useControlsSidebarSelector } from './useControlsSidebar';
+import { useParameterEditorSelector } from './useParameterEditor';
 
 const NO_PARAMETERS = {};
 
@@ -66,7 +68,9 @@ export const ControlsBar: FC<Props> = (props) => {
 // place. The filter row stays mounted, faded, inert and out of the layout,
 // so the bar shrinks to one line and the row comes back at once
 export const MappingSwap: FC<{ children: ReactNode }> = ({ children }) => {
-    const isMapping = useControlsSidebarSelector((c) => c.isMapping);
+    const isFilterMapping = useControlsSidebarSelector((c) => c.isMapping);
+    const isParameterMapping = useParameterEditorSelector((c) => c.isMapping);
+    const isMapping = isFilterMapping || isParameterMapping;
     return (
         <Box className={classes.swap}>
             <Box
@@ -76,7 +80,8 @@ export const MappingSwap: FC<{ children: ReactNode }> = ({ children }) => {
             >
                 {children}
             </Box>
-            {isMapping && <MappingRow />}
+            {isFilterMapping && <MappingRow />}
+            {isParameterMapping && <ParameterMappingRow />}
         </Box>
     );
 };

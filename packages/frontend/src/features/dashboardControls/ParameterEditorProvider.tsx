@@ -33,6 +33,13 @@ import {
     withControlSection,
     type ParameterControlDropTarget,
 } from './parameterControlsBar';
+import {
+    clearControlFromTiles,
+    setParameterControlTiles,
+    setParameterKeyTiles,
+    type ParameterTileChange,
+} from './parameterPeers';
+import { type FieldApply } from './useControlsSidebar';
 import { useEditorDismiss } from './useEditorDismiss';
 import { type ParameterBarEntry } from './useParameterBarControls';
 import {
@@ -41,6 +48,7 @@ import {
     type NewParameterControl,
     type ParameterEditorValue,
 } from './useParameterEditor';
+import { useParameterMappingModel } from './useParameterMapping';
 
 // What switches away from an open control: another control's pill, a
 // filter's pill or "Add filter"
@@ -70,14 +78,33 @@ type EditState = {
     isViewer: boolean;
     snapshot: DashboardParameterControl;
     draft: DashboardParameterControl;
+    draftControls: DashboardParameterControl[] | null;
+    snapshotControls: DashboardParameterControl[] | null;
+    mapping: {
+        start: DashboardParameterControl[];
+        selectedKey: string | null;
+        hoveredKey: string | null;
+        undo: {
+            controls: DashboardParameterControl[];
+            change: FieldApply;
+        } | null;
+    } | null;
 };
 
 // The section is no edit: it moves on the dashboard at once, as a filter's
 const withoutSection = (control: DashboardParameterControl) =>
     withControlSection(control, null);
 
-const isDirty = ({ snapshot, draft }: EditState) =>
-    !isEqual(withoutSection(snapshot), withoutSection(draft));
+const isDirty = ({
+    snapshot,
+    draft,
+    draftControls,
+    snapshotControls,
+}: EditState) =>
+    !isEqual(withoutSection(snapshot), withoutSection(draft)) ||
+    (draftControls !== null && !isEqual(draftControls, snapshotControls));
+
+const NO_KEYS: string[] = [];
 
 const findPill = (id: string) =>
     document.querySelector<HTMLElement>(
@@ -166,9 +193,30 @@ export const ParameterEditorProvider: FC<{
             parameterKeys,
             tileUuids,
             isViewer,
+            draftControls: null,
+            snapshotControls: null,
+            mapping: null,
             snapshot: control,
             draft: control,
         });
+    };
+
+    const seedDraftControls = (current: EditState) => {
+        if (current.draftControls !== null) return current;
+        const list = store.getState().parameters.parameterControls;
+        if (list === null) return null;
+        const draftControls = current.isNew
+            ? [...list, current.draft]
+            : current.isNeedsValue
+              ? addNeedsValueControl(list, current.draft, current.tileUuids)
+              : list.map((item) =>
+                    item.id === current.id ? current.draft : item,
+                );
+        return {
+            ...current,
+            draftControls,
+            snapshotControls: draftControls,
+        };
     };
 
     const cancel = useStableCallback(() => {
@@ -214,6 +262,57 @@ export const ParameterEditorProvider: FC<{
                 );
             }
             end(current.id);
+            return;
+        }
+        if (
+            current.draftControls !== null &&
+            current.snapshotControls !== null
+        ) {
+            const id = current.isNeedsValue ? uuidv4() : draft.id;
+            const mapped = current.draftControls.find(
+                (item) => item.id === draft.id,
+            );
+            if (!mapped) return;
+            writeControls((list) => {
+                const merged = list.map((item) => {
+                    const before = current.snapshotControls!.find(
+                        (entry) => entry.id === item.id,
+                    );
+                    const after = current.draftControls!.find(
+                        (entry) => entry.id === item.id,
+                    );
+                    if (!before || !after) return item;
+                    const parameters = { ...item.parameters };
+                    for (const key of new Set([
+                        ...Object.keys(before.parameters),
+                        ...Object.keys(after.parameters),
+                    ])) {
+                        if (
+                            isEqual(
+                                before.parameters[key],
+                                after.parameters[key],
+                            )
+                        )
+                            continue;
+                        if (after.parameters[key] === undefined)
+                            delete parameters[key];
+                        else parameters[key] = after.parameters[key];
+                    }
+                    if (item.id === draft.id)
+                        return withControlSection(
+                            { ...draft, parameters },
+                            item.sectionId ?? null,
+                        );
+                    return { ...item, parameters };
+                });
+                return current.isNew || current.isNeedsValue
+                    ? [
+                          ...merged,
+                          { ...draft, id, parameters: mapped.parameters },
+                      ]
+                    : merged;
+            });
+            end(id);
             return;
         }
         if (current.isNeedsValue) {
@@ -277,6 +376,16 @@ export const ParameterEditorProvider: FC<{
 
     // Escape: a question is withdrawn, else the edit is cancelled
     const dismiss = useStableCallback(() => {
+        if (latest.current?.mapping) {
+            if (
+                isEqual(
+                    latest.current.mapping.start,
+                    latest.current.draftControls,
+                )
+            )
+                endMapping();
+            return;
+        }
         if (latestPending.current === null) {
             cancel();
             return;
@@ -340,6 +449,150 @@ export const ParameterEditorProvider: FC<{
                 ? withControlSection(current.snapshot, sectionId)
                 : current.snapshot,
         });
+    });
+
+    const startMapping = useStableCallback(() => {
+        const current = latest.current;
+        if (!current || current.isViewer) return;
+        const seeded = seedDraftControls(current);
+        if (!seeded || !seeded.draftControls) return;
+        setState({
+            ...seeded,
+            mapping: {
+                start: seeded.draftControls,
+                selectedKey: null,
+                hoveredKey: null,
+                undo: null,
+            },
+        });
+    });
+    const endMapping = useStableCallback(() => {
+        const current = latest.current;
+        if (current?.mapping) setState({ ...current, mapping: null });
+    });
+    const cancelMapping = useStableCallback(() => {
+        const current = latest.current;
+        if (current?.mapping)
+            setState({
+                ...current,
+                draftControls: current.mapping.start,
+                mapping: null,
+            });
+    });
+    const changeMapping = (
+        next: DashboardParameterControl[],
+        fieldId: string,
+        kind: 'clear' | 'apply',
+        tileCount: number,
+    ) => {
+        const current = latest.current;
+        if (
+            !current?.mapping ||
+            !current.draftControls ||
+            next === current.draftControls
+        )
+            return;
+        setState({
+            ...current,
+            draftControls: next,
+            mapping: {
+                ...current.mapping,
+                undo: {
+                    controls: current.draftControls,
+                    change: {
+                        kind,
+                        fieldId,
+                        tileCount,
+                        replaced: 0,
+                        acrossTabs: true,
+                    },
+                },
+            },
+        });
+    };
+    const setTiles = useStableCallback((changes: ParameterTileChange[]) => {
+        const current = latest.current;
+        if (!current?.mapping || !current.draftControls) return;
+        const { tileParameterReferences, parameterDefinitions } =
+            store.getState().parameters;
+        const next = setParameterControlTiles({
+            controls: current.draftControls,
+            controlId: current.id,
+            changes,
+            tileParameterReferences,
+            definitions: parameterDefinitions,
+            userParameterNames: Object.keys(parameterDefinitions),
+        });
+        changeMapping(
+            next,
+            current.mapping.selectedKey ??
+                changes.find(({ key }) => key !== null)?.key ??
+                '',
+            changes.every(({ key }) => key === null) ? 'clear' : 'apply',
+            new Set(changes.map(({ tileUuid }) => tileUuid)).size,
+        );
+    });
+    const setKeyTiles = useStableCallback(
+        (key: string, tileUuids: string[], included: boolean) => {
+            const current = latest.current;
+            if (!current?.mapping || !current.draftControls) return;
+            const { tileParameterReferences, parameterDefinitions } =
+                store.getState().parameters;
+            const next = setParameterKeyTiles({
+                controls: current.draftControls,
+                controlId: current.id,
+                key,
+                tileUuids,
+                tileParameterReferences,
+                included,
+                userParameterNames: Object.keys(parameterDefinitions),
+            });
+            changeMapping(
+                next,
+                key,
+                included ? 'apply' : 'clear',
+                tileUuids.length,
+            );
+        },
+    );
+    const clearAllTiles = useStableCallback((tileUuids: string[]) => {
+        const current = latest.current;
+        if (!current?.mapping || !current.draftControls) return;
+        changeMapping(
+            clearControlFromTiles({
+                controls: current.draftControls,
+                controlId: current.id,
+                tileUuids,
+            }),
+            current.mapping.selectedKey ?? '',
+            'clear',
+            tileUuids.length,
+        );
+    });
+    const undoMapping = useStableCallback(() => {
+        const current = latest.current;
+        if (current?.mapping?.undo)
+            setState({
+                ...current,
+                draftControls: current.mapping.undo.controls,
+                mapping: { ...current.mapping, undo: null },
+            });
+    });
+    const selectKey = useStableCallback((key: string | null) => {
+        const current = latest.current;
+        if (current?.mapping)
+            setState({
+                ...current,
+                mapping: { ...current.mapping, selectedKey: key },
+            });
+    });
+    const hoverKey = useStableCallback((key: string | null) => {
+        const current = latest.current;
+        if (current?.mapping && current.mapping.hoveredKey !== key)
+            setState({
+                ...current,
+                mapping: { ...current.mapping, hoveredKey: key },
+            });
     });
 
     const move = useStableCallback(
@@ -413,15 +666,27 @@ export const ParameterEditorProvider: FC<{
         end(null);
     }, [isViewer, apply]);
 
+    const dismissOutside = useStableCallback(() => {
+        if (!latest.current?.mapping) cancel();
+    });
+    const clearKey = useStableCallback(() => selectKey(null));
+
     useEditorDismiss({
         isOpen: edit !== null,
-        isFieldClicked: false,
+        isFieldClicked: (edit?.mapping?.selectedKey ?? null) !== null,
         isAsking,
         isPristineNew: false,
-        clearField: () => {},
+        clearField: clearKey,
         dismiss,
-        dismissOutside: cancel,
+        dismissOutside,
         pillSelector: `${PARAMETER_PILL_SELECTOR}, ${FILTER_TARGET_SELECTOR}`,
+    });
+
+    const mapping = useParameterMappingModel({
+        isMapping: edit?.mapping != null,
+        draft: edit?.draft ?? null,
+        draftControls: edit?.draftControls ?? null,
+        openedKeys: edit?.parameterKeys ?? NO_KEYS,
     });
 
     const value = useMemo<ParameterEditorValue>(
@@ -444,6 +709,21 @@ export const ParameterEditorProvider: FC<{
             apply,
             cancel,
             resolvePending,
+            draftControls: edit?.draftControls ?? null,
+            isMapping: edit?.mapping != null,
+            selectedKey: edit?.mapping?.selectedKey ?? null,
+            hoveredKey: edit?.mapping?.hoveredKey ?? null,
+            mappingUndo: edit?.mapping?.undo?.change ?? null,
+            startMapping,
+            endMapping,
+            cancelMapping,
+            setTiles,
+            setKeyTiles,
+            clearAllTiles,
+            undoMapping,
+            selectKey,
+            hoverKey,
+            mapping,
             move,
             remove,
         }),
@@ -457,6 +737,16 @@ export const ParameterEditorProvider: FC<{
             apply,
             cancel,
             resolvePending,
+            startMapping,
+            endMapping,
+            cancelMapping,
+            setTiles,
+            setKeyTiles,
+            clearAllTiles,
+            undoMapping,
+            selectKey,
+            hoverKey,
+            mapping,
             move,
             remove,
         ],

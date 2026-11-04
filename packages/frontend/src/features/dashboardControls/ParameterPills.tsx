@@ -1,3 +1,4 @@
+import { getControlTileUuids } from '@lightdash/common';
 import { ActionIcon, Box, Button, Popover, Text, Tooltip } from '@mantine/core';
 import {
     IconAdjustmentsHorizontal,
@@ -25,6 +26,7 @@ import {
 } from '../dashboard/store';
 import { getParameterControlOptionValues } from '../dashboard/store/parameterControls';
 import filterClasses from '../dashboardFilters/ActiveFilters/Filter.module.css';
+import { useFilterTabPlacement } from '../dashboardFilters/ActiveFilters/useFilterTabPlacement';
 import { ShadowedReservedNameWarning } from '../parameters/components/ShadowedReservedNameWarning';
 import { getParameterDisplayValue } from '../parameters/utils/parameterDisplayValue';
 import { useBarSelection } from './barSelection';
@@ -50,6 +52,11 @@ import { useParameterEditorSelector } from './useParameterEditor';
 import { usePillActionHover } from './usePillActionHover';
 import { useTileHover } from './useTileHover';
 
+const PARAMETER_ORPHANED_STRINGS = {
+    noTabs: 'controls.parameter.notAppliedToAnyTabs',
+    noTiles: 'controls.parameter.notAppliedToAnyTiles',
+} as const;
+
 const NO_TRANSITION = { duration: 0 };
 const DRAG_DATA = { kind: PARAMETER_DRAG };
 
@@ -66,24 +73,35 @@ const ParameterEditorContent: FC<{
     const tileParameterReferences = useDashboardSelector(
         selectTileParameterReferences,
     );
+    const draftControls = useParameterEditorSelector((c) => c.draftControls);
+    const draft = useParameterEditorSelector((c) => c.draft);
+    const mappedControl = draftControls?.find(({ id }) => id === draft?.id);
+    const tileUuids =
+        mappedControl && draftControls && controlInputs
+            ? getControlTileUuids({
+                  control: mappedControl,
+                  controls: draftControls,
+                  tileParameterReferences,
+                  userParameterNames: controlInputs.userParameterNames,
+              })
+            : entry.tileUuids;
     const parameterValues = useMemo(
         () =>
             getParameterControlOptionValues({
                 controlInputs,
                 dashboardValues,
-                tileUuids: entry.tileUuids,
+                tileUuids,
                 key: entry.parameterKeys[0],
                 tileParameterReferences,
             }),
         [
             controlInputs,
             dashboardValues,
-            entry.tileUuids,
+            tileUuids,
             entry.parameterKeys,
             tileParameterReferences,
         ],
     );
-    const draft = useParameterEditorSelector((c) => c.draft);
     const isViewer = useParameterEditorSelector((c) => c.isViewer);
     const isNeedsValue = useParameterEditorSelector((c) => c.isNeedsValue);
     const update = useParameterEditorSelector((c) => c.update);
@@ -91,6 +109,7 @@ const ParameterEditorContent: FC<{
     const cancel = useParameterEditorSelector((c) => c.cancel);
     const isAsking = useParameterEditorSelector((c) => c.isAsking);
     const resolvePending = useParameterEditorSelector((c) => c.resolvePending);
+    const startMapping = useParameterEditorSelector((c) => c.startMapping);
     if (draft === null || projectUuid === undefined) return null;
     return (
         <ParameterControlPopover
@@ -98,7 +117,7 @@ const ParameterEditorContent: FC<{
             nameSuffix={entry.nameSuffix}
             parameters={entry.parameters}
             input={entry.input}
-            tileCount={entry.tileUuids.length}
+            tileCount={tileUuids.length}
             totalTileCount={bar.totalTileCount}
             projectUuid={projectUuid}
             projectTimezone={null}
@@ -116,7 +135,7 @@ const ParameterEditorContent: FC<{
             onChange={update}
             onCancel={cancel}
             onApply={apply}
-            onChooseTiles={null}
+            onChooseTiles={isViewer ? null : startMapping}
         />
     );
 };
@@ -130,7 +149,9 @@ const ParameterEditorPopover: FC<{
     children: ReactNode;
 }> = ({ isOpen, entry, bar, children }) => {
     const contractClasses = useRailContractClasses();
-    const isMapping = useControlsSidebarSelector((c) => c.isMapping);
+    const filterMapping = useControlsSidebarSelector((c) => c.isMapping);
+    const parameterMapping = useParameterEditorSelector((c) => c.isMapping);
+    const isMapping = filterMapping || parameterMapping;
     return (
         <Popover
             opened={isOpen && !isMapping}
@@ -216,7 +237,11 @@ const ParameterPill: FC<{
     const needsValue = !hasValue && isMissing;
     const isNotSet = !hasValue && !isMissing;
     const description = input.definition.description;
-    const tooltipLabel = isNotSet ? (
+    const { getOrphanedTooltip } = useFilterTabPlacement();
+    const { isOrphaned } = entry;
+    const tooltipLabel = isOrphaned ? (
+        getOrphanedTooltip(PARAMETER_ORPHANED_STRINGS)
+    ) : isNotSet ? (
         <>
             <Text fz="xs">
                 {getUiString('controls.parameter.notSetTooltip')}
@@ -252,9 +277,13 @@ const ParameterPill: FC<{
                 fz="xs"
                 maw={350}
                 multiline
-                openDelay={500}
+                openDelay={isOrphaned ? 0 : 500}
                 label={tooltipLabel}
-                disabled={(!isNotSet && !description) || isOpen || isOnAction}
+                disabled={
+                    (!isOrphaned && !isNotSet && !description) ||
+                    isOpen ||
+                    isOnAction
+                }
             >
                 <Box
                     className={`${classes.pill} ${pillClasses.pill}`}
@@ -268,7 +297,7 @@ const ParameterPill: FC<{
                         pos="relative"
                         data-parameter-pill={control.id}
                         data-parameter-name={name}
-                        data-in-effect={hasValue || undefined}
+                        data-in-effect={(hasValue && !isOrphaned) || undefined}
                         data-temporary={isNeedsValue || undefined}
                         data-open={isOpen || undefined}
                         data-missing={needsValue || undefined}

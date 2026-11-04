@@ -175,3 +175,9 @@ With no filter open, hovering an editor's pill sets `data-controls-hovered`
 on its tiles' grid items directly (the mapping ring's 2px ink, no tint): no
 re-render, veil or scroll. Only the pill that marked last clears
 (`tileHoverOwner`), after `LEAVE_GRACE_MS`.
+
+## Parameter controls
+
+Editors choose tiles on a draft of every control. Each parameter key has its own `all`, `only`, or `except` rule. A confirmed move updates both owners in the same draft; Apply writes the changes, Cancel restores the mapping, and Undo restores the previous step. A tile picker can narrow one key without excluding another from the whole control.
+
+A newly linked key follows all tiles when no control holds it; otherwise it starts with explicit tile assignments. Bulk Set and Clear act on the selected key without taking a tile from another control. Clear all excludes every current layout tile from each key, including tiles on unopened tabs; future tiles still follow default rules. A control with no assigned tiles remains on the bar so an editor can assign or remove it.

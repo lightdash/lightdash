@@ -1,4 +1,5 @@
 import {
+    DEFAULT_UI_STRINGS,
     formatDate,
     parseDate,
     fillParameterControls,
@@ -566,6 +567,50 @@ describe('ParameterPills', () => {
                 );
             });
             expect(pill('region')).toHaveTextContent('Region is APAC');
+        });
+    });
+
+    describe('a control set on no tile', () => {
+        const controls = [
+            control('sales', {
+                label: 'Region',
+                value: 'APAC',
+                parameters: { region: 'all' },
+            }),
+            control('ops', {
+                label: 'Region',
+                value: 'EMEA',
+                parameters: { region: { only: [] } },
+            }),
+        ];
+
+        it('stays on the bar, out of effect, with the orphaned tooltip in parameter words', async () => {
+            const { user } = setup({ controls });
+            expect(pills().slice(0, 2)).toEqual(['sales', 'ops']);
+            expect(pill('ops')).not.toHaveAttribute('data-in-effect');
+            expect(pill('sales')).toHaveAttribute('data-in-effect');
+            await user.hover(pill('ops'));
+            expect(
+                await screen.findByText(
+                    DEFAULT_UI_STRINGS[
+                        'controls.parameter.notAppliedToAnyTiles'
+                    ],
+                ),
+            ).toBeInTheDocument();
+        });
+
+        it('can be removed by hand', async () => {
+            const { store, user } = setup({ controls });
+            await user.click(
+                within(pill('ops')).getByRole('button', {
+                    name: 'Remove parameter',
+                }),
+            );
+            expect(
+                store
+                    .getState()
+                    .parameters.parameterControls?.map(({ id }) => id),
+            ).toEqual(['sales']);
         });
     });
 

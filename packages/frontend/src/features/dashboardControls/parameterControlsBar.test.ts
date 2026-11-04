@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import {
     addNeedsValueControl,
     getControlSectionId,
+    getParameterNameSuffixes,
     getTabTileUuids,
     isControlShownOnTab,
     moveParameterControl,
@@ -124,6 +125,48 @@ describe('isControlShownOnTab', () => {
         expect(isControlShownOnTab(['a'], new Set(['a']))).toBe(true);
         expect(isControlShownOnTab(['b'], new Set(['a']))).toBe(false);
         expect(isControlShownOnTab([], new Set(['a']))).toBe(true);
+    });
+});
+
+describe('getParameterNameSuffixes', () => {
+    const modelOf = (key: string) => key.split('.')[0];
+
+    it('appends the model only where it tells a shared name apart', () => {
+        expect(
+            getParameterNameSuffixes(
+                [
+                    { id: 'a', baseName: 'Region', key: 'orders.region' },
+                    { id: 'b', baseName: 'Region', key: 'payments.region' },
+                    { id: 'c', baseName: 'Region', key: 'orders.region' },
+                    { id: 'd', baseName: 'Currency', key: 'orders.currency' },
+                ],
+                modelOf,
+            ),
+        ).toEqual(
+            new Map([
+                ['a', 'orders'],
+                ['b', 'payments'],
+                ['c', 'orders'],
+                ['d', null],
+            ]),
+        );
+    });
+
+    it('appends nothing when the controls sharing a name share a model', () => {
+        expect(
+            getParameterNameSuffixes(
+                [
+                    { id: 'a', baseName: 'Region', key: 'orders.region' },
+                    { id: 'b', baseName: 'Region', key: 'orders.region' },
+                ],
+                modelOf,
+            ),
+        ).toEqual(
+            new Map([
+                ['a', null],
+                ['b', null],
+            ]),
+        );
     });
 });
 

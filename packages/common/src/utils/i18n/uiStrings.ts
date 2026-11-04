@@ -457,7 +457,18 @@ export const DEFAULT_UI_STRINGS = {
     'controls.parameter.notSetTooltip':
         "Tiles use their own value or the parameter's default",
     'controls.parameter.project': 'Project',
+    'controls.parameter.notAppliedToAnyTiles':
+        'This parameter is not applied to any tiles',
+    'controls.parameter.notAppliedToAnyTabs':
+        'This parameter is not applied to any tabs',
     'controls.parameter.unnamed': 'Parameter',
+    'controls.parameter.everyTileUsingIt': 'Every tile using it',
+    'controls.parameter.onlyChosenTiles': 'Only chosen tiles',
+    'controls.parameter.setEverywhereBy': 'Set by {control} everywhere',
+    'controls.parameter.setOnTilesBy':
+        "Set by {control} on {count} of this control's tiles",
+    'controls.parameter.moveFrom': 'Move from {controls}?',
+    'controls.parameter.nameList': '{list} and {name}',
     'filters.tileCard.locked': 'Tiles are locked while a filter is edited',
     'filters.tileCard.unreachable':
         'This tile has no field this filter can use',

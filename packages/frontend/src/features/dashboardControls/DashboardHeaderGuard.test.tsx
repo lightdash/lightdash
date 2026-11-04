@@ -80,6 +80,21 @@ describe('DashboardHeaderGuard', () => {
                 resolvePending: noop,
                 move: noop,
                 remove: noop,
+                draftControls: null,
+                setKeyTiles: noop,
+                clearAllTiles: noop,
+                isMapping: false,
+                selectedKey: null,
+                mappingUndo: null,
+                startMapping: noop,
+                endMapping: noop,
+                cancelMapping: noop,
+                setTiles: noop,
+                undoMapping: noop,
+                selectKey: noop,
+                hoveredKey: null,
+                hoverKey: noop,
+                mapping: null,
             };
             render(
                 <MantineProvider>
