@@ -321,7 +321,7 @@ examples are in [docs/white-label-copy.md](docs/white-label-copy.md).
 ## Development Troubleshooting
 
 -   If there are issues running dbt, make sure there is a python3 venv in the root of the repo, which has dbt-core and dbt-postgres installed
--   TS6305, `Cannot find module` from a workspace package, or `oxlint: command not found` (fresh worktree, or a rebase that changed `pnpm-lock.yaml`): run `scripts/t3-setup-worktree.sh` to install and build dependency packages. T3 runs it on worktree creation (`t3.json`).
+-   TS6305, `Cannot find module` from a workspace package, or `oxlint: command not found` (fresh worktree, or a rebase that changed `pnpm-lock.yaml`): run `scripts/t3-setup-worktree.sh` to install and build dependency packages. T3 runs it in the background on worktree creation (`t3.json`); while `pgrep -f t3-setup-worktree` finds it, wait for it instead.
 
 ## Checking the local database for debugging
 

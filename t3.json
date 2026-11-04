@@ -6,7 +6,7 @@
       "command": "bash scripts/t3-setup-worktree.sh",
       "icon": "configure",
       "runOnWorktreeCreate": true,
-      "async": false
+      "async": true
     }
   ]
 }
