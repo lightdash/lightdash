@@ -654,6 +654,25 @@ export class SchedulerService extends BaseService {
         }
     }
 
+    /** Both delivery handlers reject PDFs for webhook destinations at run
+     *  time, so saving one would only ever produce failed runs. */
+    private static validatePdfDeliveryTargets(
+        format: SchedulerFormat,
+        targets: Array<Parameters<typeof isCreateSchedulerMsTeamsTarget>[0]>,
+    ): void {
+        if (format !== SchedulerFormat.PDF) return;
+        const hasWebhookTargets = targets.some(
+            (target) =>
+                isCreateSchedulerMsTeamsTarget(target) ||
+                isCreateSchedulerGoogleChatTarget(target),
+        );
+        if (hasWebhookTargets) {
+            throw new ParameterError(
+                'PDF format is not supported with MS Teams or Google Chat destinations',
+            );
+        }
+    }
+
     private async checkAppScheduledDeliveryAccess(
         user: SessionUser,
         appUuid: string,
@@ -757,6 +776,10 @@ export class SchedulerService extends BaseService {
         }
 
         SchedulerService.validateAppSchedulerDelivery(newScheduler);
+        SchedulerService.validatePdfDeliveryTargets(
+            newScheduler.format,
+            newScheduler.targets,
+        );
         if (!isValidFrequency(newScheduler.cron)) {
             throw new ParameterError(
                 'Frequency not allowed, custom input is limited to hourly',
@@ -1008,18 +1031,10 @@ export class SchedulerService extends BaseService {
         }
 
         // Validate PDF format is not used with webhook destinations
-        if (updatedScheduler.format === SchedulerFormat.PDF) {
-            const hasWebhookTargets = updatedScheduler.targets.some(
-                (target) =>
-                    isCreateSchedulerMsTeamsTarget(target) ||
-                    isCreateSchedulerGoogleChatTarget(target),
-            );
-            if (hasWebhookTargets) {
-                throw new ParameterError(
-                    'PDF format is not supported with MS Teams or Google Chat destinations',
-                );
-            }
-        }
+        SchedulerService.validatePdfDeliveryTargets(
+            updatedScheduler.format,
+            updatedScheduler.targets,
+        );
 
         const {
             scheduler: existingScheduler,
@@ -1788,18 +1803,10 @@ export class SchedulerService extends BaseService {
         await validateSchedulerWebhookTargets(scheduler.targets);
 
         // Validate PDF format is not used with webhook destinations
-        if (scheduler.format === SchedulerFormat.PDF) {
-            const hasWebhookTargets = scheduler.targets.some(
-                (target) =>
-                    isCreateSchedulerMsTeamsTarget(target) ||
-                    isCreateSchedulerGoogleChatTarget(target),
-            );
-            if (hasWebhookTargets) {
-                throw new ParameterError(
-                    'PDF format is not supported with MS Teams or Google Chat destinations',
-                );
-            }
-        }
+        SchedulerService.validatePdfDeliveryTargets(
+            scheduler.format,
+            scheduler.targets,
+        );
 
         // Send-now payloads can be unsaved, so the create/update format gate
         // never runs for them otherwise.
