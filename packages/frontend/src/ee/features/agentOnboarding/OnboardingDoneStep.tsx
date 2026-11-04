@@ -22,6 +22,7 @@ import { useAuroraRun } from './hooks/useAuroraRun';
 import { useAskAurora } from './hooks/useFirstQuestions';
 import classes from './OnboardingDoneStep.module.css';
 import { OnboardingRunActivity } from './OnboardingRunActivity';
+import { plural } from './utils';
 
 type Source = {
     key: string;
@@ -65,7 +66,7 @@ const SetupRecap: FC<{ projectUuid: string; toolCount: number }> = ({
             state: toolCount > 0 ? 'done' : 'todo',
             text:
                 toolCount > 0
-                    ? `${toolCount} ${toolCount === 1 ? 'tool' : 'tools'} connected`
+                    ? `${plural(toolCount, 'tool')} connected`
                     : 'No other tools yet. You can add them from home.',
         },
         isLive

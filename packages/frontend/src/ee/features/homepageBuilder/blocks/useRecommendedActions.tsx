@@ -104,15 +104,22 @@ const resolveWarehouse = (
     return { hasRealWarehouseProject, warehouseType };
 };
 
-const warehouseStatus = ({
-    hasRealWarehouseProject,
-    warehouseType,
-}: ReturnType<typeof resolveWarehouse>): ActionStatus => ({
+const warehouseStatus = (
+    {
+        hasRealWarehouseProject,
+        warehouseType,
+    }: ReturnType<typeof resolveWarehouse>,
+    projectUuid: string | null,
+): ActionStatus => ({
     isVisible: true,
     isComplete: hasRealWarehouseProject,
     annotation: warehouseType ? getWarehouseLabel(warehouseType) : null,
     doneIcon: warehouseType ? getWarehouseIcon(warehouseType, 14) : null,
-    url: '/onboarding/data-source',
+    // Once connected, the onboarding page would only start a second project
+    url:
+        hasRealWarehouseProject && projectUuid
+            ? `/generalSettings/projectManagement/${projectUuid}/settings`
+            : '/onboarding/data-source',
     ctaLabel: DEFAULT_CTA_LABEL,
 });
 
@@ -234,12 +241,10 @@ const useActionStatuses = (
     const slackQuery = useGetSlack();
     const newOnboardingFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
     const isNewOnboarding = isFlagOn(newOnboardingFlag);
-    const exploresQuery = useExplores(
-        projectUuid ?? undefined,
-        undefined,
-        undefined,
-        { enabled: !!projectUuid && isNewOnboarding },
-    );
+    // Same args as the setup guide and explore sidebar, so they share one request
+    const exploresQuery = useExplores(projectUuid ?? undefined, true, false, {
+        enabled: !!projectUuid && isNewOnboarding,
+    });
     const codingAgentOnboardingFlag = useServerFeatureFlag(
         FeatureFlags.CodingAgentOnboarding,
     );
@@ -297,6 +302,7 @@ const useActionStatuses = (
                     projectsQuery.data,
                     projectQuery.data,
                 ),
+                projectUuid,
             ),
             'add-semantic-layer': semanticLayerStatus({
                 projectUuid,

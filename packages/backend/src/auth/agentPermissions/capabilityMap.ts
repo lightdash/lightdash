@@ -1050,6 +1050,7 @@ export const REST_OPERATION_CAPABILITIES = {
     'OnboardingAgentController.createRun': [AgentCapability.Administration],
     'OnboardingAgentController.getActiveRun': [AgentCapability.ReadDiscover],
     'OnboardingAgentController.getFile': [AgentCapability.ReadDiscover],
+    'OnboardingAgentController.getLatestRun': [AgentCapability.ReadDiscover],
     'OnboardingAgentController.getRun': [AgentCapability.ReadDiscover],
     'OrgAppsController.getDataAppActivity': [AgentCapability.ReadDiscover],
     'OrgRoadmapController.followProject': [AgentCapability.Administration],

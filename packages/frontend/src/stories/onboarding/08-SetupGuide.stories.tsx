@@ -62,6 +62,7 @@ const Guide = ({ state }: { state: GuideState }) => {
         semanticModelCount: state === 'mostly-done' ? 3 : 0,
         activeRun: state === 'building' ? storyAgentRun(false) : null,
         completedRun: null,
+        canAddLiveSources: true,
         appSourceNames:
             state === 'mostly-done' ? ['PostHog', 'Wholesale accounts'] : [],
         starterDashboard:

@@ -1,12 +1,11 @@
 import { ActionIcon, Anchor, Box, Button, Group, Text } from '@mantine/core';
-import { useDisclosure, useLocalStorage } from '@mantine/hooks';
+import { useDisclosure } from '@mantine/hooks';
 import { IconExternalLink, IconLayersLinked, IconX } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { Link } from 'react-router';
 import { AI_NAME } from '../../../../../components/common/aiName';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
-import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
 import {
     SEMANTIC_LAYER_STEP_COUNT,
     SemanticLayerExplainer,
@@ -20,17 +19,11 @@ const SEMANTIC_LAYER_DOCS_URL = 'https://docs.lightdash.com/semantic-layer';
 export const SemanticLayerCard: FC<{
     projectUuid: string;
     buildRunUrl: string | null;
-}> = ({ projectUuid, buildRunUrl }) => {
-    const isEmbedded = useIsEmbedded();
+    onDismiss: () => void;
+}> = ({ projectUuid, buildRunUrl, onDismiss }) => {
     const [isModalOpen, { open, close }] = useDisclosure(false);
     const [step, setStep] = useState(0);
     const isLastStep = step === SEMANTIC_LAYER_STEP_COUNT - 1;
-    const [isDismissed, setIsDismissed] = useLocalStorage({
-        key: `ld.setupGuide.auroraResult.${projectUuid}`,
-        defaultValue: false,
-        getInitialValueInEffect: false,
-    });
-    if (isDismissed) return null;
     return (
         <Box className={classes.next} pos="relative">
             <StepArt id="semantic-layer" badge={null} size="lg" />
@@ -38,7 +31,7 @@ export const SemanticLayerCard: FC<{
                 size="sm"
                 aria-label="Dismiss"
                 className={classes.lessonDismiss}
-                onClick={() => setIsDismissed(true)}
+                onClick={onDismiss}
             >
                 <MantineIcon icon={IconX} size={14} />
             </ActionIcon>
@@ -47,7 +40,7 @@ export const SemanticLayerCard: FC<{
                     Your semantic layer is ready
                 </Text>
                 <Text fz="xs" c="dimmed">
-                    {buildRunUrl && !isEmbedded ? (
+                    {buildRunUrl ? (
                         <>
                             Built by {AI_NAME} from your tables.{' '}
                             <Anchor
@@ -91,7 +84,7 @@ export const SemanticLayerCard: FC<{
                 icon={IconLayersLinked}
                 cancelLabel={false}
                 leftActions={
-                    isLastStep && !isEmbedded ? (
+                    isLastStep ? (
                         <Anchor
                             href={SEMANTIC_LAYER_DOCS_URL}
                             target="_blank"
@@ -144,15 +137,10 @@ export const SemanticLayerCard: FC<{
 };
 
 export const StarterDashboardCard: FC<{
-    projectUuid: string;
     starterDashboard: SetupGuideRow;
-}> = ({ projectUuid, starterDashboard }) => {
-    const [isDismissed, setIsDismissed] = useLocalStorage({
-        key: `ld.setupGuide.starterDashboard.${projectUuid}`,
-        defaultValue: false,
-        getInitialValueInEffect: false,
-    });
-    if (isDismissed || !starterDashboard.action) return null;
+    onDismiss: () => void;
+}> = ({ starterDashboard, onDismiss }) => {
+    if (!starterDashboard.action) return null;
     return (
         <Box className={classes.next} pos="relative">
             <StepArt id="starter-dashboard" badge={null} size="lg" />
@@ -160,7 +148,7 @@ export const StarterDashboardCard: FC<{
                 size="sm"
                 aria-label="Dismiss"
                 className={classes.lessonDismiss}
-                onClick={() => setIsDismissed(true)}
+                onClick={onDismiss}
             >
                 <MantineIcon icon={IconX} size={14} />
             </ActionIcon>

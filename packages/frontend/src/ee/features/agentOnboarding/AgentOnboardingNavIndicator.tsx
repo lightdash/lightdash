@@ -1,4 +1,3 @@
-import { FeatureFlags } from '@lightdash/common';
 import {
     Anchor,
     Box,
@@ -17,7 +16,6 @@ import { Link } from 'react-router';
 import { AI_NAME } from '../../../components/common/aiName';
 import MantineIcon from '../../../components/common/MantineIcon';
 import AppColorSchemeScope from '../../../components/NavBar/AppColorSchemeScope';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import classes from './AgentOnboardingNavIndicator.module.css';
 import { RunRecentSteps } from './AgentOnboardingRunChanges';
 import { useAuroraRun } from './hooks/useAuroraRun';
@@ -34,12 +32,9 @@ import {
 export const AgentOnboardingNavIndicator: FC<
     { projectUuid: string } & Pick<BoxProps, 'className' | 'visibleFrom'>
 > = ({ projectUuid, className, visibleFrom }) => {
-    const isEnabled =
-        useServerFeatureFlag(FeatureFlags.CodingAgentOnboarding).data
-            ?.enabled === true;
-    const { run, isLive } = useAuroraRun(projectUuid, { enabled: isEnabled });
+    const { run, isLive } = useAuroraRun(projectUuid);
     const [opened, { toggle, close }] = useDisclosure(false);
-    if (!isEnabled || !run || !isLive) return null;
+    if (!run || !isLive) return null;
 
     const timings = getAgentOnboardingProgressStageTimings(run);
     const states = getStageStates(run, timings);

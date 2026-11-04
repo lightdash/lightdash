@@ -78,6 +78,7 @@ const fresh: SetupGuideFacts = {
     activeRun: null,
     completedRun: null,
     appSourceNames: [],
+    canAddLiveSources: true,
     starterDashboard: null,
     brand: null,
     teammateCount: 0,
@@ -155,6 +156,14 @@ describe('buildSetupGuide', () => {
         ]);
         expect(rowById(fresh, 'source-control')).toBeUndefined();
         expect(rowById(fresh, 'slack')).toBeDefined();
+    });
+
+    it('drops the more data section when live sources are unavailable', () => {
+        expect(
+            buildSetupGuide({ ...fresh, canAddLiveSources: false }).map(
+                ({ id }) => id,
+            ),
+        ).not.toContain('more-data');
     });
 
     it('starts every row as suggested', () => {

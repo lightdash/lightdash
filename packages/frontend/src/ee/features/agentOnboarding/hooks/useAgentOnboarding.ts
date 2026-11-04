@@ -13,6 +13,7 @@ import {
     useQueries,
     useQuery,
     useQueryClient,
+    type Query,
     type UseQueryOptions,
 } from '@tanstack/react-query';
 import { type LightdashApi } from '../../../../api';
@@ -32,8 +33,10 @@ const agentOnboardingActiveRunQueryKey = (projectUuid: string | undefined) =>
 
 const getAgentOnboardingRefetchInterval = (
     run: AgentOnboardingRun | undefined,
+    query: Query<AgentOnboardingRun, ApiError>,
 ): number | false =>
-    !run || !isAgentOnboardingRunTerminal(run.status)
+    query.state.status !== 'error' &&
+    (!run || !isAgentOnboardingRunTerminal(run.status))
         ? POLL_INTERVAL_MS
         : false;
 
@@ -105,7 +108,6 @@ export const useAgentOnboardingRun = (
         queryFn: () => getRun(lightdashApi, projectUuid!, runUuid!),
         enabled: !!projectUuid && !!runUuid && (options?.enabled ?? true),
         refetchInterval: getAgentOnboardingRefetchInterval,
-        refetchIntervalInBackground: true,
     });
 };
 
@@ -198,6 +200,19 @@ const useAgentOnboardingFiles = (
     });
 };
 
+// Cached per fetched file object so polling re-renders don't re-parse YAML
+const parsedModels = new WeakMap<
+    AgentOnboardingFileContent,
+    ReturnType<typeof parseSemanticLayerModel>
+>();
+const parseModelFile = (file: AgentOnboardingFileContent) => {
+    const cached = parsedModels.get(file);
+    if (cached !== undefined) return cached;
+    const model = parseSemanticLayerModel(file.path, file.content);
+    parsedModels.set(file, model);
+    return model;
+};
+
 /** The model files a run wrote, with their content and what they define */
 export const useRunSemanticLayer = (run: AgentOnboardingRun) => {
     const files = run.files.filter(isSemanticLayerModelFile);
@@ -209,12 +224,9 @@ export const useRunSemanticLayer = (run: AgentOnboardingRun) => {
     const contents = queries.map(({ data }) =>
         data?.encoding === 'utf8' ? data.content : null,
     );
-    const models = files.map((file, index) => {
-        const content = contents[index];
-        return content === null
-            ? null
-            : parseSemanticLayerModel(file.path, content);
-    });
+    const models = queries.map(({ data }) =>
+        data?.encoding === 'utf8' ? parseModelFile(data) : null,
+    );
     const count = (pick: 'metrics' | 'dimensions') =>
         models.reduce((sum, model) => sum + (model?.[pick].length ?? 0), 0);
     return {

@@ -264,6 +264,10 @@ export class OnboardingAgentService extends BaseService {
         run: DbAgentOnboardingRun,
     ): Promise<DbAgentOnboardingRun> {
         if (isAgentOnboardingRunTerminal(run.status)) return run;
+        // Skips the write on every poll; the guarded UPDATE still settles races
+        if (Date.now() - run.updated_at.getTime() < ABANDONED_RUN_IDLE_MS) {
+            return run;
+        }
         const failed = await this.agentOnboardingRunModel.markFailedIfIdle(
             run.agent_onboarding_run_uuid,
             ABANDONED_RUN_IDLE_MS,
@@ -480,7 +484,7 @@ export class OnboardingAgentService extends BaseService {
             const { sandboxProvider, e2bApiKey } =
                 this.lightdashConfig.appRuntime;
             if (sandboxProvider === 'e2b' && !e2bApiKey) {
-                throw new MissingConfigError('E2B API key is not configured');
+                return 'E2B API key is not configured';
             }
             resolveSandboxAnthropicConfig(this.lightdashConfig);
             this.fileStore.assertConfigured();
@@ -541,7 +545,14 @@ export class OnboardingAgentService extends BaseService {
             void this.agentOnboardingRunModel
                 .findByUuid(agentOnboardingRunUuid)
                 .then((run) => {
-                    if (run?.cancellation_requested_at) onCancel();
+                    // A run marked abandoned by a status poll must stop its sandbox too
+                    if (
+                        run &&
+                        (run.cancellation_requested_at ||
+                            isAgentOnboardingRunTerminal(run.status))
+                    ) {
+                        onCancel();
+                    }
                 })
                 .catch((error) => {
                     this.logger.warn(

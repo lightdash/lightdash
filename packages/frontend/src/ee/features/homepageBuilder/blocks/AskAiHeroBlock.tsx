@@ -1,4 +1,4 @@
-import { type HomepageHeroDensity } from '@lightdash/common';
+import { FeatureFlags, type HomepageHeroDensity } from '@lightdash/common';
 import {
     Box,
     SegmentedControl,
@@ -8,6 +8,7 @@ import {
     Text,
 } from '@mantine/core';
 import { type FC } from 'react';
+import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../providers/App/useApp';
 import { DayOneAskInput } from '../DayOneAskInput';
 import { DEFAULT_GREETING_SUBTITLE, getGreeting } from '../greeting';
@@ -19,6 +20,10 @@ import classes from './blockStyles.module.css';
 import { GreetingHero } from './GreetingHero';
 import { getDefaultQuickActions } from './quickActionDefaults';
 import { QuickActionCards } from './QuickActionsBlock';
+import {
+    RecommendedActionsChecklist,
+    RecommendedActionsChecklistPlaceholder,
+} from './RecommendedActionsChecklist';
 import { SetupGuide } from './setupGuide/SetupGuide';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 import { useRecommendedActions } from './useRecommendedActions';
@@ -42,6 +47,8 @@ export const AskAiHero: FC<{
 }) => {
     const { user } = useApp();
     const actions = useRecommendedActions(projectUuid);
+    const isNewOnboarding =
+        useServerFeatureFlag(FeatureFlags.NewOnboarding).data?.enabled === true;
     // The greeting's wording comes from the same statuses the setup guide
     // holds on, so neither reveals before the other. The composer holds its own slot from the first
     // render — gating its mount here would stop it fetching until the reveal
@@ -64,11 +71,23 @@ export const AskAiHero: FC<{
             <Box w="100%" data-tour="home-ask">
                 <DayOneAskInput projectUuid={projectUuid} preview={preview} />
             </Box>
-            {showRecommendedActions && (
-                <Box w="100%" data-tour="home-setup">
-                    <SetupGuide projectUuid={projectUuid} actions={actions} />
-                </Box>
-            )}
+            {showRecommendedActions &&
+                (isNewOnboarding ? (
+                    <Box w="100%" data-tour="home-setup">
+                        <SetupGuide
+                            projectUuid={projectUuid}
+                            actions={actions}
+                        />
+                    </Box>
+                ) : isReady ? (
+                    actions.hasPendingActions && (
+                        <RecommendedActionsChecklist actions={actions} />
+                    )
+                ) : (
+                    <RecommendedActionsChecklistPlaceholder
+                        actionCount={actions.visibleActions.length}
+                    />
+                ))}
             {!preview && (
                 <HomepageTour ready={isReady && isWarehouseConnected} />
             )}

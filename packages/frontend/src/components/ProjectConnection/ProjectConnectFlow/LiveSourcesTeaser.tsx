@@ -1,20 +1,42 @@
-import { FeatureFlags } from '@lightdash/common';
+import { ApiConnectorType, FeatureFlags } from '@lightdash/common';
 import { Box, Group, Image, Stack, Text } from '@mantine/core';
 import { type FC } from 'react';
 import {
     isAvailableLiveSource,
     LIVE_SOURCE_CATALOG,
+    type AvailableLiveSource,
 } from '../../../features/externalConnections/liveSources/liveSourceCatalog';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import useApp from '../../../providers/App/useApp';
 import classes from './DataSourceChooser.module.css';
 
-const TEASED_LIVE_SOURCES = LIVE_SOURCE_CATALOG.filter(
-    isAvailableLiveSource,
-).slice(0, 4);
+const GOOGLE_CONNECTORS = new Set<ApiConnectorType>([
+    ApiConnectorType.GA4,
+    ApiConnectorType.SEARCH_CONSOLE,
+]);
 
-const TeaserIcons: FC = () => (
+// Only what the tools step will actually offer: Google needs its OAuth client
+const useTeasedLiveSources = () => {
+    const { health } = useApp();
+    const isEnabled =
+        useServerFeatureFlag(FeatureFlags.ApiQuerySources).data?.enabled ===
+        true;
+    const hasGoogle = health.data?.hasGoogleLiveSources === true;
+    return {
+        isEnabled,
+        hasGoogle,
+        sources: LIVE_SOURCE_CATALOG.filter(isAvailableLiveSource)
+            .filter(
+                ({ connector }) =>
+                    hasGoogle || !GOOGLE_CONNECTORS.has(connector),
+            )
+            .slice(0, 4),
+    };
+};
+
+const TeaserIcons: FC<{ sources: AvailableLiveSource[] }> = ({ sources }) => (
     <Box className={classes.teaserIcons} aria-hidden>
-        {TEASED_LIVE_SOURCES.map(({ id, icon }) => (
+        {sources.map(({ id, icon }) => (
             <Box key={id} className={classes.teaserIcon}>
                 <Image src={icon} alt="" w={14} h={14} />
             </Box>
@@ -22,17 +44,17 @@ const TeaserIcons: FC = () => (
     </Box>
 );
 
-const useLiveSourcesEnabled = () =>
-    useServerFeatureFlag(FeatureFlags.ApiQuerySources).data?.enabled === true;
-
 export const LiveSourcesCard: FC = () => {
-    if (!useLiveSourcesEnabled()) return null;
+    const { isEnabled, hasGoogle, sources } = useTeasedLiveSources();
+    if (!isEnabled) return null;
     return (
         <Group gap="sm" wrap="nowrap" className={classes.infoCard}>
-            <TeaserIcons />
+            <TeaserIcons sources={sources} />
             <Stack gap={0} className={classes.shortcutText}>
                 <Text fw={500} size="sm">
-                    You can also connect PostHog, GA4 and Search Console
+                    {hasGoogle
+                        ? 'You can also connect PostHog, GA4 and Search Console'
+                        : 'You can also connect PostHog'}
                 </Text>
                 <Text size="xs" c="dimmed">
                     Right after you connect your warehouse.
@@ -43,12 +65,15 @@ export const LiveSourcesCard: FC = () => {
 };
 
 export const LiveSourcesNote: FC = () => {
-    if (!useLiveSourcesEnabled()) return null;
+    const { isEnabled, hasGoogle, sources } = useTeasedLiveSources();
+    if (!isEnabled) return null;
     return (
         <Group gap="xs" wrap="nowrap">
-            <TeaserIcons />
+            <TeaserIcons sources={sources} />
             <Text size="xs" c="dimmed">
-                After this, you can also add live sources like PostHog and GA4.
+                {hasGoogle
+                    ? 'After this, you can also add live sources like PostHog and GA4.'
+                    : 'After this, you can also add PostHog as a live source.'}
             </Text>
         </Group>
     );

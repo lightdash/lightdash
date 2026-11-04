@@ -295,6 +295,7 @@ export const OAUTH_CASL_CHECKED_ROUTES: readonly string[] = [
     'OnboardingAgentController.createRun',
     'OnboardingAgentController.getActiveRun',
     'OnboardingAgentController.getFile',
+    'OnboardingAgentController.getLatestRun',
     'OnboardingAgentController.getRun',
     'OrgAppsController.getDataAppActivity',
     'OrgRoadmapController.followProject',

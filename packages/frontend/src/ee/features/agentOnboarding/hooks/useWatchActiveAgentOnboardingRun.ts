@@ -1,5 +1,6 @@
-import { isAgentOnboardingRunTerminal } from '@lightdash/common';
+import { FeatureFlags, isAgentOnboardingRunTerminal } from '@lightdash/common';
 import { useEffect } from 'react';
+import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import { setWatchedAgentOnboardingRun } from '../watchedRunStore';
 import { useActiveAgentOnboardingRun } from './useAgentOnboarding';
 
@@ -10,9 +11,15 @@ const ACTIVE_RUN_POLLS = 15;
 export const useWatchActiveAgentOnboardingRun = (
     projectUuid: string | undefined,
 ) => {
+    const isAgentOnboardingOn =
+        useServerFeatureFlag(FeatureFlags.CodingAgentOnboarding).data
+            ?.enabled === true;
     const { data: activeRun } = useActiveAgentOnboardingRun(projectUuid, {
+        enabled: isAgentOnboardingOn,
         refetchInterval: (data, query) =>
-            !data && query.state.dataUpdateCount < ACTIVE_RUN_POLLS
+            !data &&
+            query.state.dataUpdateCount + query.state.errorUpdateCount <
+                ACTIVE_RUN_POLLS
                 ? 2000
                 : false,
     });

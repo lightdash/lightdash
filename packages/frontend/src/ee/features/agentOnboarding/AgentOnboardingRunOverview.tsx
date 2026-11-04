@@ -6,6 +6,7 @@ import { Box, Group, Text } from '@mantine/core';
 import { type FC } from 'react';
 import { RunRecentSteps } from './AgentOnboardingRunChanges';
 import classes from './AgentOnboardingRunPage.module.css';
+import { useNow } from './hooks/useNow';
 import {
     AGENT_ONBOARDING_PROGRESS_STAGES,
     AGENT_ONBOARDING_STAGE_LABELS,
@@ -14,11 +15,9 @@ import {
     getStageStates,
 } from './utils';
 
-export const RunJourney: FC<{ run: AgentOnboardingRun; now: number }> = ({
-    run,
-    now,
-}) => {
+export const RunJourney: FC<{ run: AgentOnboardingRun }> = ({ run }) => {
     const isLive = !isAgentOnboardingRunTerminal(run.status);
+    const now = useNow(isLive);
     const timings = getAgentOnboardingProgressStageTimings(run, now);
     const states = getStageStates(run, timings);
 

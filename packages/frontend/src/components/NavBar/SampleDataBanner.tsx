@@ -24,7 +24,7 @@ export const SampleDataBanner: FC = () => (
             </Text>
             <Anchor
                 component={Link}
-                to="/get-started"
+                to="/onboarding/data-source"
                 c="white"
                 fz="xs"
                 fw={600}

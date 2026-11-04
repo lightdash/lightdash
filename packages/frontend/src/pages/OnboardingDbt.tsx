@@ -150,23 +150,20 @@ const useDbtSetupDetection = (isEnabled: boolean) => {
 
     const { data: projects } = useProjects(pollOptions);
     const { data: project } = useProject(activeProjectUuid, pollOptions);
-    const { data: explores } = useExplores(
-        activeProjectUuid,
-        false,
-        false,
-        pollOptions,
-    );
-
-    const baselineProjectUuids = useRef<string[] | null>(null);
-    const [createdProjectUuid, setCreatedProjectUuid] = useState<string | null>(
-        null,
-    );
-
     // The demo project already has dbt and explores, so it never counts as a deploy
     const deployTargetUuid =
         project && !isPlaygroundProvisioningSource(project.provisioningSource)
             ? project.projectUuid
             : null;
+    const { data: explores } = useExplores(activeProjectUuid, false, false, {
+        ...pollOptions,
+        enabled: !!deployTargetUuid,
+    });
+
+    const baselineProjectUuids = useRef<string[] | null>(null);
+    const [createdProjectUuid, setCreatedProjectUuid] = useState<string | null>(
+        null,
+    );
 
     useEffect(() => {
         if (!projects) return;

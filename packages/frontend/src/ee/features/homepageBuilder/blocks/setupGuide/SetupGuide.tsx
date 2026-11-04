@@ -15,6 +15,7 @@ import {
     Tooltip,
     UnstyledButton,
 } from '@mantine/core';
+import { useLocalStorage } from '@mantine/hooks';
 import {
     IconArrowRight,
     IconArrowsMaximize,
@@ -405,6 +406,8 @@ type SetupGuideViewProps = {
     isDismissed: boolean;
     onDismissedChange: (isDismissed: boolean) => void;
     highlight: ReactNode[];
+    // The popover copy of the guide must not claim the corner slot its trigger lives in
+    isNested?: boolean;
 } & RowHandlers;
 
 export const SetupGuideView: FC<SetupGuideViewProps> = ({
@@ -412,14 +415,16 @@ export const SetupGuideView: FC<SetupGuideViewProps> = ({
     isDismissed,
     onDismissedChange,
     highlight,
+    isNested = false,
     ...handlers
 }) => {
     const [isDoneOpen, setIsDoneOpen] = useState(false);
     const [isPopoverOpen, setIsPopoverOpen] = useState(false);
     const [cornerSlot, setCornerSlot] = useState<HTMLElement | null>(null);
     useEffect(() => {
+        if (isNested) return;
         setCornerSlot(document.getElementById(SETUP_GUIDE_CORNER_SLOT_ID));
-    }, []);
+    }, [isNested]);
     const rows = sections.flatMap((section) => section.rows);
     const { completed, total } = countProgress(rows);
     // Skipped rows are out of the total, so this means nothing is left to do
@@ -463,6 +468,7 @@ export const SetupGuideView: FC<SetupGuideViewProps> = ({
                         isDismissed={false}
                         onDismissedChange={() => setIsPopoverOpen(false)}
                         highlight={highlight}
+                        isNested
                         {...handlers}
                     />
                     <Group justify="flex-end" className={classes.popoverFooter}>
@@ -609,6 +615,19 @@ export const SetupGuide: FC<{
 }> = ({ projectUuid, actions }) => {
     const { track } = useTracking();
     const guide = useSetupGuide(projectUuid, actions);
+    // Lifted here so a dismissed card also frees its slot in the top row
+    const [isSemanticLayerDismissed, setIsSemanticLayerDismissed] =
+        useLocalStorage({
+            key: `ld.setupGuide.auroraResult.${projectUuid}`,
+            defaultValue: false,
+            getInitialValueInEffect: false,
+        });
+    const [isStarterDashboardDismissed, setIsStarterDashboardDismissed] =
+        useLocalStorage({
+            key: `ld.setupGuide.starterDashboard.${projectUuid}`,
+            defaultValue: false,
+            getInitialValueInEffect: false,
+        });
     if (guide.isLoading) {
         // Mirrors the guide's grids so it holds about the same space
         return guide.isDismissed ? (
@@ -632,10 +651,13 @@ export const SetupGuide: FC<{
     const rows = guide.sections.flatMap((section) => section.rows);
     const semanticLayer = rows.find(({ id }) => id === 'semantic-layer');
     const starterDashboard = rows.find(({ id }) => id === 'starter-dashboard');
-    const showSemanticLayer = semanticLayer?.status === 'done';
+    const showSemanticLayer =
+        semanticLayer?.status === 'done' && !isSemanticLayerDismissed;
     const showStarterDashboard =
         starterDashboard !== undefined &&
-        isCompletedStatus(starterDashboard.status);
+        !!starterDashboard.action &&
+        isCompletedStatus(starterDashboard.status) &&
+        !isStarterDashboardDismissed;
     return (
         <SetupGuideView
             sections={guide.sections}
@@ -647,13 +669,14 @@ export const SetupGuide: FC<{
                         key="semantic-layer"
                         projectUuid={projectUuid}
                         buildRunUrl={guide.completedRunUrl}
+                        onDismiss={() => setIsSemanticLayerDismissed(true)}
                     />
                 ),
                 showStarterDashboard && (
                     <StarterDashboardCard
                         key="starter-dashboard"
-                        projectUuid={projectUuid}
                         starterDashboard={starterDashboard}
+                        onDismiss={() => setIsStarterDashboardDismissed(true)}
                     />
                 ),
             ].filter(Boolean)}

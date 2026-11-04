@@ -84,6 +84,7 @@ const OnboardingControlPanel: FC = () => {
         mutationFn: async () => {
             const response = await fetch('/__dev/onboarding-reset', {
                 method: 'POST',
+                headers: { 'x-ld-dev': '1' },
             });
             if (!response.ok) throw new Error(await response.text());
         },

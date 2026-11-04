@@ -96,9 +96,9 @@ const getElapsedMs = (run: AgentOnboardingRun, now: number): number | null => {
 
 const RunStatusPill: FC<{
     run: AgentOnboardingRun;
-    now: number;
     isStopping: boolean;
-}> = ({ run, now, isStopping }) => {
+}> = ({ run, isStopping }) => {
+    const now = useNow(!isAgentOnboardingRunTerminal(run.status));
     const elapsedMs = getElapsedMs(run, now);
     return (
         <Group gap={8} wrap="nowrap" className={classes.pill}>
@@ -242,7 +242,6 @@ const AgentOnboardingRunPage: FC = () => {
     const startMutation = useStartAgentOnboardingRun();
 
     const runStatus = runQuery.data?.status;
-    const now = useNow(!!runStatus && !isAgentOnboardingRunTerminal(runStatus));
     const runUuid = runQuery.data?.agentOnboardingRunUuid;
     const runProjectUuid = runQuery.data?.projectUuid;
 
@@ -369,7 +368,6 @@ const AgentOnboardingRunPage: FC = () => {
                                 </Title>
                                 <RunStatusPill
                                     run={run}
-                                    now={now}
                                     isStopping={isStopping}
                                 />
                             </Group>
@@ -431,7 +429,7 @@ const AgentOnboardingRunPage: FC = () => {
                     )}
 
                     <Paper className={classes.journey}>
-                        <RunJourney run={run} now={now} />
+                        <RunJourney run={run} />
                         {run.status !== 'completed' && (
                             <RunChanges run={run} withModels={false} />
                         )}

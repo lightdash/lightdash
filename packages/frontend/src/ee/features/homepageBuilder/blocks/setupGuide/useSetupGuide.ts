@@ -1,10 +1,9 @@
+import { subject } from '@casl/ability';
 import {
-    ExploreType,
     FeatureFlags,
     isAgentOnboardingRunTerminal,
-    isSummaryExploreError,
+    isSemanticLayerExplore,
     type DashboardBasicDetails,
-    type SummaryExplore,
 } from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
@@ -49,15 +48,6 @@ const starterDashboard = (
         dashboards.filter(({ spaceUuid }) => spaceUuid === starterSpaceUuid),
     ) ?? latestDashboard(dashboards);
 
-// Matches hasSemanticLayerExplore in common: compiled DEFAULT or untyped explores
-const countSemanticModels = (explores: SummaryExplore[]) =>
-    explores.filter(
-        (explore) =>
-            !isSummaryExploreError(explore) &&
-            (explore.type === undefined ||
-                explore.type === ExploreType.DEFAULT),
-    ).length;
-
 export const useSetupGuide = (
     projectUuid: string,
     actions: RecommendedActionsState,
@@ -65,6 +55,10 @@ export const useSetupGuide = (
     const { user } = useApp();
     const userUuid = user.data?.userUuid;
     const newOnboardingFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
+    const liveSourcesFlag = useServerFeatureFlag(FeatureFlags.ApiQuerySources);
+    const codingAgentFlag = useServerFeatureFlag(
+        FeatureFlags.CodingAgentOnboarding,
+    );
     const canManageProject = useCanManageProject(projectUuid);
     // visibleActions is empty on the playground, where setup has no place
     const isEligible =
@@ -72,18 +66,21 @@ export const useSetupGuide = (
         canManageProject &&
         actions.visibleActions.length > 0;
     const enabled = { enabled: isEligible };
+    const agentRunEnabled = {
+        enabled: isEligible && codingAgentFlag.data?.enabled === true,
+    };
 
     const explores = useExplores(projectUuid, true, false, enabled);
-    const activeRun = useActiveAgentOnboardingRun(projectUuid, enabled);
+    const activeRun = useActiveAgentOnboardingRun(projectUuid, agentRunEnabled);
     // The active-run lookup does not poll, so the run itself is watched for completion
     const watchedRun = useAgentOnboardingRun(
         projectUuid,
         activeRun.data?.agentOnboardingRunUuid,
-        enabled,
+        agentRunEnabled,
     );
     const run = watchedRun.data ?? activeRun.data ?? null;
     const isRunTerminal = !!run && isAgentOnboardingRunTerminal(run.status);
-    const latestRun = useLatestAgentOnboardingRun(projectUuid, enabled);
+    const latestRun = useLatestAgentOnboardingRun(projectUuid, agentRunEnabled);
     const queryClient = useQueryClient();
     useEffect(() => {
         if (!isRunTerminal) return;
@@ -129,9 +126,19 @@ export const useSetupGuide = (
         statuses: actions.statuses,
         visibleActions: actions.visibleActions,
         skippedActions: actions.skippedActions,
-        semanticModelCount: countSemanticModels(explores.data ?? []),
+        semanticModelCount: (explores.data ?? []).filter(isSemanticLayerExplore)
+            .length,
         activeRun: run && !isRunTerminal ? run : null,
         completedRun,
+        canAddLiveSources:
+            liveSourcesFlag.data?.enabled === true &&
+            !!user.data?.ability.can(
+                'manage',
+                subject('ExternalConnection', {
+                    organizationUuid: user.data.organizationUuid,
+                    projectUuid,
+                }),
+            ),
         appSourceNames: [
             ...(connections.data ?? [])
                 .filter(({ kind }) => kind === 'live_source')

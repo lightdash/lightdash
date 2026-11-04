@@ -10,9 +10,10 @@ import {
     IconLayersLinked,
     type Icon,
 } from '@tabler/icons-react';
-import { useEffect, useMemo, useState, type FC } from 'react';
+import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import classes from './AgentOnboardingRunPage.module.css';
+import { useNow } from './hooks/useNow';
 import {
     AGENT_ONBOARDING_PROGRESS_STAGES,
     AGENT_ONBOARDING_STAGE_ACTIVE_LABELS,
@@ -51,14 +52,7 @@ const STAGE_CONFIG: Record<
 export const AgentOnboardingProgress: FC<{ run?: AgentOnboardingRun }> = ({
     run,
 }) => {
-    const [now, setNow] = useState(Date.now());
-    const isTerminal = !run || isAgentOnboardingRunTerminal(run.status);
-
-    useEffect(() => {
-        if (isTerminal) return;
-        const timer = window.setInterval(() => setNow(Date.now()), 1_000);
-        return () => window.clearInterval(timer);
-    }, [isTerminal]);
+    const now = useNow(!!run && !isAgentOnboardingRunTerminal(run.status));
 
     const timings = useMemo(
         () =>

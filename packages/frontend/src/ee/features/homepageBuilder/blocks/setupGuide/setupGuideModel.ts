@@ -70,6 +70,8 @@ export type SetupGuideFacts = {
     // Its run page shows what was built, so review lands there
     completedRun: AgentOnboardingRun | null;
     appSourceNames: string[];
+    // The live sources settings page only exists behind its flag and permission
+    canAddLiveSources: boolean;
     starterDashboard: { uuid: string; name: string } | null;
     brand: OrganizationBrand | null;
     teammateCount: number;
@@ -359,12 +361,16 @@ export const buildSetupGuide = (
                     : []),
             ],
         },
-        {
-            id: 'more-data',
-            title: 'More data',
-            why: 'Live sources can be combined with your metrics in Ask AI.',
-            rows: [appDataRow(facts)],
-        },
+        ...(facts.canAddLiveSources
+            ? [
+                  {
+                      id: 'more-data' as const,
+                      title: 'More data',
+                      why: 'Live sources can be combined with your metrics in Ask AI.',
+                      rows: [appDataRow(facts)],
+                  },
+              ]
+            : []),
     ];
     return sections;
 };

@@ -555,55 +555,48 @@ const OnboardingToolsContent: FC<{
                     {copy.subtitle && <Text c="dimmed">{copy.subtitle}</Text>}
                 </Stack>
 
-                {showLiveSources && (
-                    <ToolGroup title="Product analytics">
-                        <ToolRow
-                            icon={
-                                <LiveSourceIcon
-                                    connector={ApiConnectorType.POSTHOG}
-                                    size={24}
-                                />
-                            }
-                            label={
-                                getLiveSource(ApiConnectorType.POSTHOG).label
-                            }
-                            description={
-                                getLiveSource(ApiConnectorType.POSTHOG)
-                                    .description
-                            }
-                            info="AI agents send HogQL queries to this PostHog project and read the results live. Sign in, or use a personal API key with the Query Read scope."
-                            connectedDetail={describeConnections(
-                                postHogConnections,
-                            )}
-                            action={
-                                !isPostHogOpen && (
-                                    <Button
-                                        size="xs"
-                                        variant="default"
-                                        onClick={() => setIsPostHogOpen(true)}
-                                    >
-                                        {connectLabel(
-                                            postHogConnections.length > 0,
-                                        )}
-                                    </Button>
-                                )
-                            }
-                        />
-                        <ReadyPanels
-                            projectUuid={projectUuid}
-                            connections={postHogConnections}
-                        />
-                        {isPostHogOpen && (
-                            <PostHogInlineConnect
-                                projectUuid={projectUuid}
-                                canSignIn={
-                                    health.data?.hasPostHogOAuth ?? false
-                                }
-                                onDone={() => setIsPostHogOpen(false)}
+                <ToolGroup title="Product analytics">
+                    <ToolRow
+                        icon={
+                            <LiveSourceIcon
+                                connector={ApiConnectorType.POSTHOG}
+                                size={24}
                             />
+                        }
+                        label={getLiveSource(ApiConnectorType.POSTHOG).label}
+                        description={
+                            getLiveSource(ApiConnectorType.POSTHOG).description
+                        }
+                        info="AI agents send HogQL queries to this PostHog project and read the results live. Sign in, or use a personal API key with the Query Read scope."
+                        connectedDetail={describeConnections(
+                            postHogConnections,
                         )}
-                    </ToolGroup>
-                )}
+                        action={
+                            !isPostHogOpen && (
+                                <Button
+                                    size="xs"
+                                    variant="default"
+                                    onClick={() => setIsPostHogOpen(true)}
+                                >
+                                    {connectLabel(
+                                        postHogConnections.length > 0,
+                                    )}
+                                </Button>
+                            )
+                        }
+                    />
+                    <ReadyPanels
+                        projectUuid={projectUuid}
+                        connections={postHogConnections}
+                    />
+                    {isPostHogOpen && (
+                        <PostHogInlineConnect
+                            projectUuid={projectUuid}
+                            canSignIn={health.data?.hasPostHogOAuth ?? false}
+                            onDone={() => setIsPostHogOpen(false)}
+                        />
+                    )}
+                </ToolGroup>
 
                 {showGoogle && (
                     <ToolGroup title="Marketing and search">

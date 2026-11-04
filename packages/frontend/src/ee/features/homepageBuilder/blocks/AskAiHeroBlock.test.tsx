@@ -14,7 +14,7 @@ vi.mock('../../../../providers/Tracking/useTracking', () => ({
 }));
 vi.mock('../../../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: () => ({
-        data: { enabled: false },
+        data: { enabled: state.isNewOnboarding },
         isLoading: false,
     }),
 }));
@@ -26,6 +26,7 @@ const state = vi.hoisted(() => ({
     isWarehouseConnected: true,
     hasPendingActions: false,
     canAskAi: true,
+    isNewOnboarding: true,
 }));
 
 vi.mock('../hooks/useHomepageAiState', () => ({
@@ -51,6 +52,11 @@ vi.mock('./useRecommendedActions', () => ({
 vi.mock('./setupGuide/SetupGuide', () => ({
     SetupGuide: () => <div data-testid="setup-guide" />,
 }));
+vi.mock('../onboarding', () => ({ HomepageTour: () => null }));
+vi.mock('./RecommendedActionsChecklist', () => ({
+    RecommendedActionsChecklist: () => <div data-testid="checklist" />,
+    RecommendedActionsChecklistPlaceholder: () => null,
+}));
 
 const block: HomepageAskAiHeroBlock = {
     id: 'b1',
@@ -72,6 +78,7 @@ describe('AskAiHeroBlockView', () => {
         state.isWarehouseConnected = true;
         state.hasPendingActions = false;
         state.canAskAi = true;
+        state.isNewOnboarding = true;
     });
 
     it('renders the greeting hero with quick actions when AI is unavailable', () => {
@@ -191,6 +198,22 @@ describe('AskAiHeroBlockView', () => {
 
         expect(screen.getByRole('heading')).toBeInTheDocument();
         expect(screen.getByTestId('setup-guide')).toBeInTheDocument();
+    });
+
+    it('keeps the original checklist when new onboarding is off', () => {
+        state.isNewOnboarding = false;
+        state.hasPendingActions = true;
+
+        wrap(
+            <AskAiHeroBlockView
+                itemSpan={null}
+                block={blockWithChecklist}
+                projectUuid="p1"
+            />,
+        );
+
+        expect(screen.getByTestId('checklist')).toBeInTheDocument();
+        expect(screen.queryByTestId('setup-guide')).toBeNull();
     });
 
     it('leaves the setup guide out when the block hides it', () => {

@@ -1,17 +1,19 @@
-import { isAgentOnboardingRunTerminal } from '@lightdash/common';
+import { FeatureFlags, isAgentOnboardingRunTerminal } from '@lightdash/common';
 import { useSessionStorage } from '@mantine/hooks';
 import { useEffect } from 'react';
+import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import {
     useActiveAgentOnboardingRun,
     useAgentOnboardingRun,
 } from './useAgentOnboarding';
 
 /** The project's latest Aurora run, kept after it finishes so the outcome stays visible */
-export const useAuroraRun = (
-    projectUuid: string,
-    options?: { enabled: boolean },
-) => {
-    const activeRun = useActiveAgentOnboardingRun(projectUuid, options);
+export const useAuroraRun = (projectUuid: string) => {
+    const isAgentOnboardingOn =
+        useServerFeatureFlag(FeatureFlags.CodingAgentOnboarding).data
+            ?.enabled === true;
+    const enabled = { enabled: isAgentOnboardingOn };
+    const activeRun = useActiveAgentOnboardingRun(projectUuid, enabled);
     const [lastRunUuid, setLastRunUuid] = useSessionStorage<string | null>({
         key: `ld.aurora.lastRun.${projectUuid}`,
         defaultValue: null,
@@ -25,8 +27,12 @@ export const useAuroraRun = (
     const watchedRun = useAgentOnboardingRun(
         projectUuid,
         activeRunUuid ?? lastRunUuid ?? undefined,
-        options,
+        enabled,
     );
+    const isWatchedRunGone = watchedRun.isError;
+    useEffect(() => {
+        if (isWatchedRunGone) setLastRunUuid(null);
+    }, [isWatchedRunGone, setLastRunUuid]);
     // A deleted run keeps its last data in the cache, so a failed refetch drops it
     const run =
         (watchedRun.isError ? null : watchedRun.data) ?? activeRun.data ?? null;

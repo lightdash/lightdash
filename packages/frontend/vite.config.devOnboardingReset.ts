@@ -10,14 +10,15 @@ export const devOnboardingResetPlugin = (): Plugin => ({
     apply: 'serve',
     configureServer(server) {
         server.middlewares.use(DEV_ONBOARDING_RESET_PATH, (req, res) => {
-            if (req.method !== 'POST') {
+            // The custom header forces a CORS preflight, so other sites can't trigger it
+            if (req.method !== 'POST' || req.headers['x-ld-dev'] !== '1') {
                 res.statusCode = 405;
                 res.end();
                 return;
             }
             execFile(
-                'corepack',
-                ['pnpm', 'dev:onboarding', '--no-open'],
+                'pnpm',
+                ['dev:onboarding', '--no-open'],
                 { cwd: path.resolve(__dirname, '../..'), timeout: 120_000 },
                 (error, _stdout, stderr) => {
                     res.statusCode = error ? 500 : 200;
