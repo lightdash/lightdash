@@ -78,7 +78,7 @@ export const SelectionActions: FC<SelectionActionsProps> = ({
                             onClick={() => onMove(section.id)}
                         >
                             {section.name ||
-                                getUiString('filters.rail.untitledSection')}
+                                getUiString('controls.untitledSection')}
                             <Text span inherit c="dimmed">
                                 {` · ${section.count}`}
                             </Text>

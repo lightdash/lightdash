@@ -8,8 +8,8 @@ export const formatTileCount = (
     interpolateUiString(
         getUiString(
             count === 1
-                ? 'filters.rail.tileCount.singular'
-                : 'filters.rail.tileCount.plural',
+                ? 'controls.tileCount.singular'
+                : 'controls.tileCount.plural',
         ),
         { count },
     );
@@ -20,7 +20,7 @@ export const formatTilesOf = (
     applied: number,
     total: number,
 ): { count: string; noun: string } => ({
-    count: interpolateUiString(getUiString('filters.rail.countOf'), {
+    count: interpolateUiString(getUiString('controls.countOf'), {
         applied,
         total,
     }),
@@ -38,8 +38,8 @@ export const formatSectionCount = (
     interpolateUiString(
         getUiString(
             count === 1
-                ? 'filters.rail.sectionCount.singular'
-                : 'filters.rail.sectionCount.plural',
+                ? 'controls.sectionCount.singular'
+                : 'controls.sectionCount.plural',
         ),
         { count },
     );

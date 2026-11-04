@@ -138,7 +138,7 @@ const FieldPicker: FC<{
 
     return (
         <ControlPicker
-            searchLabel={getUiString('filters.rail.searchFields')}
+            searchLabel={getUiString('controls.searchFields')}
             input={input}
             onInputChange={setInput}
             search={search}
@@ -332,7 +332,7 @@ export const AddControlMenu: FC<Props> = ({
                             size="xs"
                             leftSection={<MantineIcon icon={IconPlus} />}
                         >
-                            {getUiString('filters.rail.add')}
+                            {getUiString('controls.add')}
                         </Button>
                     </Menu.Target>
                     <Menu.Dropdown>

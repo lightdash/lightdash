@@ -73,7 +73,7 @@ export const FieldsAndTiles: FC = () => {
                         activeTabUuid={activeTabUuid}
                         selectedField={undefined}
                         withLabel={false}
-                        placeholder={getUiString('filters.rail.searchFields')}
+                        placeholder={getUiString('controls.searchFields')}
                         withinPortal
                         defaultOpened
                         onChange={addFirstField}

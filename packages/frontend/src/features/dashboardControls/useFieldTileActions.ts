@@ -188,7 +188,7 @@ export const useFieldTileActions = (
         (c) => c.filterableFieldsByTileUuid,
     );
     const fieldsMap = useFilterFieldsMap();
-    const sqlColumnLabel = useUiStrings()('filters.rail.sqlColumn');
+    const sqlColumnLabel = useUiStrings()('controls.sqlColumn');
 
     return useMemo(() => {
         if (editingRule === null || isPlaceholder) return null;

@@ -170,7 +170,7 @@ export const ParameterControlPopover: FC<Props> = ({
                 ? formatTileCount(getUiString, totalTileCount)
                 : `${tilesOf.count} ${tilesOf.noun}`,
     });
-    const chooseTiles = getUiString('filters.rail.chooseTiles');
+    const chooseTiles = getUiString('controls.chooseTiles');
     // As a filter at no tiles, for anyone; a missing required value does not
     // block
     const applyBlockedReason =

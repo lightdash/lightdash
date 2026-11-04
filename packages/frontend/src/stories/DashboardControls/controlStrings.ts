@@ -5,10 +5,10 @@
 //
 // Viewers and embeds see these, so each needs a `DEFAULT_UI_STRINGS` key (and
 // both locale bundles) at graduation. Proposed keys sit under `controls.*`,
-// clear of the names the `filters.rail.*` keys will take when renamed there:
+// clear of the existing `controls.*` names:
 //   onTheBar                 -> controls.onTheBar
 //   operatorLabel            -> controls.operatorLabel
-//   sets                     -> controls.sets (twin of filters.rail.appliesTo)
+//   sets                     -> controls.sets (twin of controls.appliesTo)
 //   setsNoTiles              -> controls.setsNoTiles
 //   clearedUsesDefault       -> controls.parameter.clearedUsesDefault
 //   clearedUsesOwnValue      -> controls.parameter.clearedUsesOwnValue
@@ -20,7 +20,7 @@
 //   notAppliedToAnyTiles     -> controls.parameter.notAppliedToAnyTiles
 //                               (twin of filters.notAppliedToAnyTiles)
 //   searchParameters         -> controls.searchParameters
-//                               (twin of filters.rail.searchFields)
+//                               (twin of controls.searchFields)
 //   noMatchingParameters     -> controls.noMatchingParameters
 //                               (twin of filters.config.noMatchingFields)
 export const CONTROL_STRINGS = {

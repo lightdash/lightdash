@@ -197,9 +197,7 @@ const SectionCapsule: FC<CapsuleProps> = ({
         !rules.some(({ rule }) => rule.id === active?.id);
     const chevronLabel = interpolateUiString(
         getUiString(
-            isOpen
-                ? 'filters.rail.collapseSection'
-                : 'filters.rail.expandSection',
+            isOpen ? 'controls.collapseSection' : 'controls.expandSection',
         ),
         { section: section.name },
     );
@@ -1016,7 +1014,7 @@ export const SectionedFilters: FC<Props> = ({
         if (id === NEW_SECTION_TARGET_ID) return 'a new section';
         const section = sections.find((s) => s.id === id);
         if (section)
-            return `section ${section.name || getUiString('filters.rail.untitledSection')}`;
+            return `section ${section.name || getUiString('controls.untitledSection')}`;
         const found = allRules.find(({ rule }) => rule.id === id);
         return found
             ? found.rule.label ||
