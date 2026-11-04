@@ -9,6 +9,7 @@ import {
     selectParameterValues,
     selectTileChartSorts,
     useDashboardSelector,
+    useTileDashboardParameterInputs,
 } from '../../features/dashboard/store';
 import { pollForResults } from '../../features/queryRunner/executeQuery';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
@@ -23,7 +24,9 @@ export const useEmbedDashboardChartDownload = (
 ) => {
     const lightdashApi = useLightdashApi();
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
-    const parameters = useDashboardSelector(selectParameterValues);
+    const appliedParameterValues = useDashboardSelector(selectParameterValues);
+    const { dashboardValues: parameters, excludedParameterKeys } =
+        useTileDashboardParameterInputs(tileUuid, appliedParameterValues);
     const dashboardSorts = useDashboardSelector((state) =>
         selectTileChartSorts(state, tileUuid),
     );
@@ -60,6 +63,7 @@ export const useEmbedDashboardChartDownload = (
                         limit,
                         invalidateCache: false,
                         parameters,
+                        excludedParameterKeys,
                         pivotResults: shouldPivotResults,
                     }),
                 });
@@ -90,6 +94,7 @@ export const useEmbedDashboardChartDownload = (
             dashboardSorts,
             dateZoom,
             parameters,
+            excludedParameterKeys,
             canExportPivotedData,
             originalQueryUuid,
             lightdashApi,

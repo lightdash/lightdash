@@ -157,7 +157,7 @@ describe('AiAgentMemoryService consolidateWithLlm retry', () => {
 
         expect(generateTextMock).toHaveBeenCalledWith(
             expect.objectContaining({
-                system: expect.stringContaining(
+                instructions: expect.stringContaining(
                     `Promotion requires at least ${AI_AGENT_MEMORY_PROMOTION_MIN_CITED_COUNT} citations`,
                 ),
                 messages: [
@@ -167,7 +167,7 @@ describe('AiAgentMemoryService consolidateWithLlm retry', () => {
                 ],
             }),
         );
-        expect(generateTextMock.mock.calls[0]![0].system).not.toContain(
+        expect(generateTextMock.mock.calls[0]![0].instructions).not.toContain(
             '{{PROMOTION_MIN_CITED_COUNT}}',
         );
     });

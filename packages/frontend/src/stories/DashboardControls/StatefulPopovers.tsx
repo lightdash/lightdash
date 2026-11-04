@@ -3,22 +3,26 @@ import {
     type DashboardFilterRule,
     type DashboardFilters,
 } from '@lightdash/common';
+import { Paper } from '@mantine/core';
 import { useState, type FC } from 'react';
 import {
     selectDashboardFilters,
     useDashboardSelector,
 } from '../../features/dashboard/store';
+import {
+    FilterPopover,
+    type EditorView as PopoverView,
+} from '../../features/dashboardControls/FilterPopover';
+import { ParameterControlPopover } from '../../features/dashboardControls/ParameterControlPopover';
+import { getParameterLabel } from '../../features/dashboardControls/parameterControlsBar';
 import { getFilterRuleFilterType } from '../../features/dashboardFilters/FilterConfiguration/utils';
-import { FilterPopover, type FooterLayout } from './FilterPopover';
 import {
     parameterValues,
     PROJECT_TIMEZONE,
     PROJECT_UUID,
     TOTAL_TILE_COUNT,
 } from './fixtures';
-import { ParameterControlPopover } from './ParameterControlPopover';
 import { type ParameterControl } from './parameterOptions';
-import { type PopoverView } from './views';
 
 export type StatefulFilterPopoverProps = {
     initialRule: DashboardFilterRule;
@@ -31,7 +35,6 @@ export type StatefulFilterPopoverProps = {
     appliedTileCount: number;
     isAsking: boolean;
     initialView: PopoverView;
-    footerLayout: FooterLayout;
     onApply: (rule: DashboardFilterRule) => void;
     onCancel: () => void;
     onChooseTiles: () => void;
@@ -66,7 +69,10 @@ export const StatefulFilterPopover: FC<StatefulFilterPopoverProps> = ({
     onApply,
     onCancel,
     onChangeOthers,
+    onEditRules,
     onDraftChange,
+    isViewer,
+    isOwnFilter,
     ...props
 }) => {
     const savedFilters = useDashboardSelector(selectDashboardFilters);
@@ -81,40 +87,52 @@ export const StatefulFilterPopover: FC<StatefulFilterPopoverProps> = ({
     };
     const filters = withDraft(savedFilters, [...others, rule]);
     return (
-        <FilterPopover
-            key={opening}
-            {...props}
-            rule={rule}
-            field={field}
-            // A SQL column's type rides on the target's fallbackType
-            filterType={getFilterRuleFilterType(field ?? undefined, [], rule)}
-            totalTileCount={TOTAL_TILE_COUNT}
-            filters={filters}
-            isAsking={isAsking}
-            onChange={(next) => {
-                setRule(next);
-                onDraftChange(next);
-            }}
-            onChangeOthers={(changed) => {
-                setOthers((current) => [
-                    ...current.filter(
-                        ({ id }) => !changed.some((other) => other.id === id),
-                    ),
-                    ...changed,
-                ]);
-                onChangeOthers(changed);
-            }}
-            onCancel={() => {
-                reset();
-                onCancel();
-            }}
-            onApply={() => onApply(rule)}
-            onResolvePending={(shouldApply: boolean) => {
-                if (shouldApply) onApply(rule);
-                else reset();
-                setIsAsking(false);
-            }}
-        />
+        <Paper shadow="md" radius="md" w="fit-content">
+            <FilterPopover
+                key={opening}
+                {...props}
+                isViewer={isViewer}
+                canChooseTiles={!isViewer || isOwnFilter}
+                // A viewer's saved filter resets to the rule it opened with
+                savedRule={isViewer && !isOwnFilter ? initialRule : null}
+                rule={rule}
+                field={field}
+                // A SQL column's type rides on the target's fallbackType
+                filterType={getFilterRuleFilterType(
+                    field ?? undefined,
+                    [],
+                    rule,
+                )}
+                totalTileCount={TOTAL_TILE_COUNT}
+                filters={filters}
+                isAsking={isAsking}
+                onChange={(next) => {
+                    setRule(next);
+                    onDraftChange(next);
+                }}
+                onChangeOthers={(changed) => {
+                    setOthers((current) => [
+                        ...current.filter(
+                            ({ id }) =>
+                                !changed.some((other) => other.id === id),
+                        ),
+                        ...changed,
+                    ]);
+                    onChangeOthers(changed);
+                }}
+                onCancel={() => {
+                    reset();
+                    onCancel();
+                }}
+                onApply={() => onApply(rule)}
+                onEditRules={onEditRules}
+                onResolvePending={(shouldApply: boolean) => {
+                    if (shouldApply) onApply(rule);
+                    else reset();
+                    setIsAsking(false);
+                }}
+            />
+        </Paper>
     );
 };
 
@@ -138,41 +156,88 @@ export const StatefulParameterPopover: FC<StatefulParameterPopoverProps> = ({
 }) => {
     const [control, setControl] = useState(initialControl);
     const [opening, setOpening] = useState(0);
+    const [first] = control.parameters;
+    const valueType = {
+        type: first?.definition.type ?? 'string',
+        multiple: first?.definition.multiple ?? false,
+    };
     return (
-        <ParameterControlPopover
-            key={opening}
-            {...props}
-            control={control}
-            projectUuid={PROJECT_UUID}
-            projectTimezone={PROJECT_TIMEZONE}
-            parameterValues={parameterValues}
-            totalTileCount={TOTAL_TILE_COUNT}
-            onChange={setControl}
-            // Stands in for mapping: a control with no tiles takes every
-            // tile its parameters reach
-            onChooseTiles={() => {
-                onChooseTiles();
-                setControl((current) =>
-                    current.tileUuids.length > 0
-                        ? current
-                        : {
-                              ...current,
-                              tileUuids: [
-                                  ...new Set(
-                                      current.parameters.flatMap(
-                                          ({ tileUuids }) => tileUuids,
+        <Paper shadow="md" radius="md" w="fit-content">
+            <ParameterControlPopover
+                key={opening}
+                {...props}
+                // The shipped popover reads the saved shape
+                control={{
+                    id: control.id,
+                    label:
+                        control.label ??
+                        (first ? getParameterLabel(first) : 'Parameter'),
+                    value: control.value,
+                    valueType,
+                    parameters: Object.fromEntries(
+                        control.parameters.map(({ key }) => [
+                            key,
+                            'all' as const,
+                        ]),
+                    ),
+                    ...(control.hidden && { hidden: true }),
+                    ...(control.sectionId !== null && {
+                        sectionId: control.sectionId,
+                    }),
+                }}
+                nameSuffix={null}
+                parameters={control.parameters}
+                input={{
+                    key: first?.key ?? control.id,
+                    definition: {
+                        ...(first?.definition ?? { label: 'Parameter' }),
+                        ...valueType,
+                    },
+                }}
+                // Distinct tiles: a tile that uses two of its parameters counts once
+                tileCount={new Set(control.tileUuids).size}
+                projectUuid={PROJECT_UUID}
+                projectTimezone={PROJECT_TIMEZONE}
+                parameterValues={parameterValues}
+                totalTileCount={TOTAL_TILE_COUNT}
+                // The bar's switch prompt is the provider's; the flows play it
+                isAsking={false}
+                onResolvePending={() => {}}
+                onChange={(next) =>
+                    setControl((current) => ({
+                        ...current,
+                        label: next.label,
+                        value: next.value,
+                        sectionId: next.sectionId ?? null,
+                        hidden: next.hidden,
+                    }))
+                }
+                // Stands in for mapping: a control with no tiles takes every
+                // tile its parameters reach
+                onChooseTiles={() => {
+                    onChooseTiles();
+                    setControl((current) =>
+                        current.tileUuids.length > 0
+                            ? current
+                            : {
+                                  ...current,
+                                  tileUuids: [
+                                      ...new Set(
+                                          current.parameters.flatMap(
+                                              ({ tileUuids }) => tileUuids,
+                                          ),
                                       ),
-                                  ),
-                              ],
-                          },
-                );
-            }}
-            onCancel={() => {
-                setControl(initialControl);
-                setOpening((count) => count + 1);
-                onCancel();
-            }}
-            onApply={() => onApply(control)}
-        />
+                                  ],
+                              },
+                    );
+                }}
+                onCancel={() => {
+                    setControl(initialControl);
+                    setOpening((count) => count + 1);
+                    onCancel();
+                }}
+                onApply={() => onApply(control)}
+            />
+        </Paper>
     );
 };

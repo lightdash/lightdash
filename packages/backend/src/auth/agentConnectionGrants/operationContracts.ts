@@ -121,6 +121,7 @@ const operationContracts = {
     },
     'ProjectController.getSpacesInProject': pathProject,
     'ProjectController.getDashboards': pathProject,
+    'ProjectDashboardControllerV2.getTileParameterReferences': pathProject,
     'ProjectController.replaceYamlTags': pathProject,
     'ProjectController.replaceProjectTableGroups': pathProject,
     'ProjectDbtSourcesController.listProjectDbtSources': pathProject,

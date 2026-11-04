@@ -114,8 +114,11 @@ import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQuer
 import { BaseService } from '../../../services/BaseService';
 import { PermissionsService } from '../../../services/PermissionsService/PermissionsService';
 import {
+    areDashboardControlsEnabled,
     getAvailableParameterDefinitions,
     getDashboardParametersValuesMap,
+    getDashboardTileParameterLayer,
+    getEnabledParameterControls,
 } from '../../../services/ProjectService/parameters';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
@@ -1327,21 +1330,83 @@ export class EmbedService extends BaseService {
         );
     }
 
+    /** The viewer's per-tile resolution counts only while their parameter interactivity is on, like their values */
+    private static getGatedExcludedKeys(
+        account: AnonymousAccount,
+        excludedParameterKeys: string[] | undefined,
+    ): string[] | undefined {
+        return isParameterInteractivityEnabled(account.access.parameters)
+            ? excludedParameterKeys
+            : undefined;
+    }
+
+    private async _getDashboardTileParameterLayer({
+        dashboard,
+        tileUuid,
+        chartSavedValues,
+        acceptedUserParameters,
+        excludedParameterKeys,
+    }: {
+        dashboard: DashboardDAO;
+        tileUuid: string;
+        chartSavedValues: ParametersValuesMap;
+        acceptedUserParameters: ParametersValuesMap;
+        /** Set only when the viewer's parameter interactivity is on: the viewer's per-tile resolution stands as sent */
+        excludedParameterKeys: string[] | undefined;
+    }) {
+        const parameterControls = await getEnabledParameterControls({
+            featureFlagModel: this.featureFlagModel,
+            user: { organizationUuid: dashboard.organizationUuid },
+            config: dashboard.config,
+        });
+        const controlsEnabled =
+            parameterControls !== null ||
+            (dashboard.config?.parameterControls === undefined &&
+                excludedParameterKeys !== undefined &&
+                (await areDashboardControlsEnabled({
+                    featureFlagModel: this.featureFlagModel,
+                    user: { organizationUuid: dashboard.organizationUuid },
+                })));
+        if (controlsEnabled && excludedParameterKeys !== undefined) {
+            return {
+                dashboardValues: acceptedUserParameters,
+                excludedKeys: excludedParameterKeys,
+            };
+        }
+        return getDashboardTileParameterLayer({
+            parameterControls,
+            dashboardParameters: dashboard.parameters,
+            tileUuid,
+            chartSavedValues,
+            requestParameters: acceptedUserParameters,
+            userParameterNames:
+                parameterControls === null
+                    ? []
+                    : (
+                          await this.projectService.projectParametersModel.find(
+                              dashboard.projectUuid,
+                          )
+                      ).map(({ name }) => name),
+        });
+    }
+
     // Chart embeds (no dashboard) ignore the chart saved values, unchanged from before
     private async _combineSavedChartParameters({
         projectUuid,
         explore,
         chart,
-        dashboardUuid,
+        dashboardTile,
         acceptedUserParameters,
+        excludedParameterKeys,
     }: {
         projectUuid: string;
         explore: Explore;
         chart: SavedChartDAO;
-        dashboardUuid: string | null;
+        dashboardTile: { dashboardUuid: string; tileUuid: string } | null;
         acceptedUserParameters: ParametersValuesMap;
+        excludedParameterKeys: string[] | undefined;
     }): Promise<ParametersValuesMap> {
-        if (!dashboardUuid) {
+        if (!dashboardTile) {
             return this.projectService.combineParameters(
                 projectUuid,
                 explore,
@@ -1350,18 +1415,21 @@ export class EmbedService extends BaseService {
             );
         }
         const dashboard = await this.dashboardModel.getByIdOrSlug(
-            dashboardUuid,
+            dashboardTile.dashboardUuid,
             { projectUuid },
         );
+        const chartSavedValues = chart.parameters ?? {};
         return this.projectService.resolveDashboardTileParameters({
             projectUuid,
             explore,
-            dashboardValues: {
-                ...getDashboardParametersValuesMap(dashboard),
-                ...acceptedUserParameters,
-            },
-            chartSavedValues: chart.parameters ?? {},
-            excludedKeys: [],
+            ...(await this._getDashboardTileParameterLayer({
+                dashboard,
+                tileUuid: dashboardTile.tileUuid,
+                chartSavedValues,
+                acceptedUserParameters,
+                excludedParameterKeys,
+            })),
+            chartSavedValues,
             preloadedProjectParameters: null,
         });
     }
@@ -1463,6 +1531,7 @@ export class EmbedService extends BaseService {
         invalidateCache,
         dashboardSorts,
         parameters,
+        excludedParameterKeys,
         pivotResults,
         limit,
         timezone,
@@ -1479,6 +1548,7 @@ export class EmbedService extends BaseService {
         | 'invalidateCache'
         | 'dateZoom'
         | 'parameters'
+        | 'excludedParameterKeys'
         | 'limit'
     >): Promise<ApiExecuteAsyncDashboardChartQueryResults> {
         const { dashboardUuid } = account.access.content;
@@ -1576,6 +1646,10 @@ export class EmbedService extends BaseService {
                 limit,
                 context: QueryExecutionContext.EMBED,
                 parameters: acceptedUserParameters,
+                excludedParameterKeys: EmbedService.getGatedExcludedKeys(
+                    account,
+                    excludedParameterKeys,
+                ),
                 pivotResults,
                 sessionTimezone: isTimezoneSupportEnabled
                     ? (timezone ?? null)
@@ -1692,6 +1766,7 @@ export class EmbedService extends BaseService {
         dashboardSorts,
         invalidateCache,
         parameters,
+        excludedParameterKeys,
         limit,
     }: {
         account: AnonymousAccount;
@@ -1701,6 +1776,7 @@ export class EmbedService extends BaseService {
         dashboardSorts: SortField[];
         invalidateCache?: boolean;
         parameters?: ParametersValuesMap;
+        excludedParameterKeys?: string[];
         limit?: number;
     }): Promise<ApiExecuteAsyncDashboardSqlChartQueryResults> {
         const { user } = await this.embedModel.get(projectUuid);
@@ -1761,6 +1837,10 @@ export class EmbedService extends BaseService {
             limit,
             context: QueryExecutionContext.EMBED,
             parameters: acceptedUserParameters,
+            excludedParameterKeys: EmbedService.getGatedExcludedKeys(
+                account,
+                excludedParameterKeys,
+            ),
         });
     }
 
@@ -1774,6 +1854,7 @@ export class EmbedService extends BaseService {
         dashboardSorts?: SortField[],
         userParameters?: ParametersValuesMap,
         checkPermissions: boolean = true,
+        excludedParameterKeys?: string[],
     ) {
         const { dashboardUuids, allowAllDashboards, user } = account.embed;
 
@@ -1860,16 +1941,22 @@ export class EmbedService extends BaseService {
             userParameters
                 ? userParameters
                 : {};
+        const chartSavedValues = chart.parameters ?? {};
         const combinedParameters =
             await this.projectService.resolveDashboardTileParameters({
                 projectUuid,
                 explore,
-                dashboardValues: {
-                    ...getDashboardParametersValuesMap(dashboard),
-                    ...acceptedUserParameters,
-                },
-                chartSavedValues: chart.parameters ?? {},
-                excludedKeys: [],
+                ...(await this._getDashboardTileParameterLayer({
+                    dashboard,
+                    tileUuid,
+                    chartSavedValues,
+                    acceptedUserParameters,
+                    excludedParameterKeys: EmbedService.getGatedExcludedKeys(
+                        account,
+                        excludedParameterKeys,
+                    ),
+                })),
+                chartSavedValues,
                 preloadedProjectParameters: null,
             });
 
@@ -2342,7 +2429,7 @@ export class EmbedService extends BaseService {
 
         if (!dashboard) {
             return {
-                dashboardUuid: undefined,
+                dashboardTile: null,
                 chart,
                 explore,
                 metricQuery: chart.metricQuery,
@@ -2369,7 +2456,7 @@ export class EmbedService extends BaseService {
             : chart.metricQuery;
 
         return {
-            dashboardUuid,
+            dashboardTile: { dashboardUuid, tileUuid },
             chart,
             explore,
             metricQuery,
@@ -2384,8 +2471,9 @@ export class EmbedService extends BaseService {
         dashboardFilters?: DashboardFilters,
         userParameters?: ParametersValuesMap,
         invalidateCache?: boolean,
+        excludedParameterKeys?: string[],
     ) {
-        const { dashboardUuid, chart, explore, metricQuery } =
+        const { dashboardTile, chart, explore, metricQuery } =
             await this._prepareSavedChartForCalculation(
                 account,
                 projectUuid,
@@ -2411,8 +2499,12 @@ export class EmbedService extends BaseService {
             projectUuid,
             explore,
             chart,
-            dashboardUuid: dashboardUuid ?? null,
+            dashboardTile,
             acceptedUserParameters,
+            excludedParameterKeys: EmbedService.getGatedExcludedKeys(
+                account,
+                excludedParameterKeys,
+            ),
         });
 
         try {
@@ -2429,7 +2521,7 @@ export class EmbedService extends BaseService {
                     project_uuid: projectUuid,
                     organization_uuid: chart.organizationUuid,
                     chart_uuid: chart.uuid,
-                    dashboard_uuid: dashboardUuid,
+                    dashboard_uuid: dashboardTile?.dashboardUuid,
                     explore_name: chart.tableName,
                     query_context: QueryExecutionContext.CALCULATE_TOTAL,
                 },
@@ -2466,8 +2558,9 @@ export class EmbedService extends BaseService {
         pivotDimensions?: string[],
         invalidateCache?: boolean,
         dateZoom?: DateZoom,
+        excludedParameterKeys?: string[],
     ) {
-        const { dashboardUuid, chart, explore, metricQuery } =
+        const { dashboardTile, chart, explore, metricQuery } =
             await this._prepareSavedChartForCalculation(
                 account,
                 projectUuid,
@@ -2491,8 +2584,12 @@ export class EmbedService extends BaseService {
             projectUuid,
             explore,
             chart,
-            dashboardUuid: dashboardUuid ?? null,
+            dashboardTile,
             acceptedUserParameters,
+            excludedParameterKeys: EmbedService.getGatedExcludedKeys(
+                account,
+                excludedParameterKeys,
+            ),
         });
 
         return this._calculateSubtotalsForEmbed(
@@ -2504,7 +2601,7 @@ export class EmbedService extends BaseService {
             pivotDimensions,
             chart.organizationUuid,
             chart.uuid,
-            dashboardUuid,
+            dashboardTile?.dashboardUuid,
             combinedParameters,
             dateZoom,
             invalidateCache,
@@ -3430,7 +3527,6 @@ export class EmbedService extends BaseService {
             );
             const canUseAiAgent =
                 decodedToken.content.type === 'aiAgent' &&
-                canCreateSavedChart &&
                 canViewProject &&
                 (writeActions.permissionsMode !== 'roles' ||
                     auditedAbility.can(
@@ -3452,7 +3548,6 @@ export class EmbedService extends BaseService {
                     : EmbedService.getEmbedAiAgentErrorMessage({
                           isAiAgentToken:
                               decodedToken.content.type === 'aiAgent',
-                          canCreateSavedChart,
                           canViewProject,
                       }),
             };
@@ -3477,19 +3572,13 @@ export class EmbedService extends BaseService {
 
     private static getEmbedAiAgentErrorMessage({
         isAiAgentToken,
-        canCreateSavedChart,
         canViewProject,
     }: {
         isAiAgentToken: boolean;
-        canCreateSavedChart: boolean;
         canViewProject: boolean;
     }) {
         if (!isAiAgentToken) {
             return 'Embed token content must be an AI agent';
-        }
-
-        if (!canCreateSavedChart) {
-            return 'Embed token write actor cannot create charts in the configured space';
         }
 
         if (!canViewProject) {

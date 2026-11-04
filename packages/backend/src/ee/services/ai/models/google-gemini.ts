@@ -1,4 +1,4 @@
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { createGoogle } from '@ai-sdk/google';
 import { wrapLanguageModel, type LanguageModelMiddleware } from 'ai';
 import { LightdashConfig } from '../../../../config/parseConfig';
 import { ModelPreset } from './presets';
@@ -38,7 +38,7 @@ export const getGoogleGeminiModel = (
     preset: ModelPreset<'google'>,
     options?: { enableReasoning?: boolean },
 ): AiModel<typeof PROVIDER> => {
-    const google = createGoogleGenerativeAI({
+    const google = createGoogle({
         apiKey: config.apiKey,
         ...(config.baseUrl ? { baseURL: config.baseUrl } : {}),
     });

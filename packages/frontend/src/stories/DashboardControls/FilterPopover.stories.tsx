@@ -1,24 +1,16 @@
 import { FilterOperator, WeekDay } from '@lightdash/common';
-import { Group } from '@mantine/core';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, waitFor, within } from 'storybook/test';
 import { withStoryFrame } from './decorators';
-import { type FooterLayout } from './FilterPopover';
 import { fields, rules, TOTAL_TILE_COUNT, waitForApiIdle } from './fixtures';
-import {
-    StatefulFilterPopover,
-    type StatefulFilterPopoverProps,
-} from './StatefulPopovers';
+import { StatefulFilterPopover } from './StatefulPopovers';
 import { type DashboardStoryParameters } from './storyParameters';
 
 const meta: Meta<typeof StatefulFilterPopover> = {
-    title: 'Prototypes/Dashboard controls/Filter popover',
+    title: 'Dashboards/Controls/Filter popover',
     component: StatefulFilterPopover,
     parameters: { layout: 'fullscreen' },
     decorators: [withStoryFrame],
-    argTypes: {
-        footerLayout: { control: 'inline-radio', options: ['inline', 'row'] },
-    },
     args: {
         isViewer: false,
         isOwnFilter: false,
@@ -27,7 +19,6 @@ const meta: Meta<typeof StatefulFilterPopover> = {
         appliedTileCount: TOTAL_TILE_COUNT,
         isAsking: false,
         initialView: 'value',
-        footerLayout: 'row',
         onApply: fn(),
         onCancel: fn(),
         onChooseTiles: fn(),
@@ -56,10 +47,10 @@ const openOperatorMenu = async (
     canvasElement: HTMLElement,
     click: (element: Element) => Promise<void>,
 ) => {
-    await click(canvas.getByRole('button', { name: /^Operator:/ }));
-    await waitFor(() =>
-        expect(onPage(canvasElement).getByRole('menu')).toBeVisible(),
-    );
+    // The first load can still be settling: wait for the button, then the menu
+    await click(await canvas.findByRole('button', { name: /^Operator:/ }));
+    const page = onPage(canvasElement);
+    await waitFor(() => expect(page.getByRole('menu')).toBeVisible());
 };
 
 /** Multiple values with suggestions, paste detection and "Edit filter values". */
@@ -90,7 +81,9 @@ export const TextOperatorMenu: Story = {
                 page.getByRole('menuitem', { name: operator }),
             ).toBeVisible();
         await expect(
-            page.getByRole('checkbox', { name: 'Allow multiple values' }),
+            page.getByRole('menuitemcheckbox', {
+                name: /^Allow multiple values/,
+            }),
         ).toBeChecked();
 
         await userEvent.click(
@@ -125,8 +118,8 @@ export const TextOneValueOnly: Story = {
         await openOperatorMenu(canvas, canvasElement, (element) =>
             userEvent.click(element),
         );
-        const item = page.getByRole('checkbox', {
-            name: 'Allow multiple values',
+        const item = page.getByRole('menuitemcheckbox', {
+            name: /^Allow multiple values/,
         });
         await expect(item).not.toBeChecked();
         await expect(item).toHaveAccessibleDescription(
@@ -225,8 +218,8 @@ export const NumberIsGreaterThan: Story = {
             userEvent.click(element),
         );
         await expect(
-            onPage(canvasElement).queryByRole('checkbox', {
-                name: 'Allow multiple values',
+            onPage(canvasElement).queryByRole('menuitemcheckbox', {
+                name: /^Allow multiple values/,
             }),
         ).toBeNull();
         await userEvent.keyboard('{Escape}');
@@ -281,8 +274,8 @@ export const DateIsAfter: Story = {
             userEvent.click(element),
         );
         await expect(
-            onPage(canvasElement).queryByRole('checkbox', {
-                name: 'Allow multiple values',
+            onPage(canvasElement).queryByRole('menuitemcheckbox', {
+                name: /^Allow multiple values/,
             }),
         ).toBeNull();
     },
@@ -387,8 +380,8 @@ export const YesNoIs: Story = {
             userEvent.click(element),
         );
         await expect(
-            onPage(canvasElement).queryByRole('checkbox', {
-                name: 'Allow multiple values',
+            onPage(canvasElement).queryByRole('menuitemcheckbox', {
+                name: /^Allow multiple values/,
             }),
         ).toBeNull();
     },
@@ -623,8 +616,8 @@ export const ViewerSavedFilter: Story = {
             userEvent.click(element),
         );
         await expect(
-            onPage(canvasElement).queryByRole('checkbox', {
-                name: 'Allow multiple values',
+            onPage(canvasElement).queryByRole('menuitemcheckbox', {
+                name: /^Allow multiple values/,
             }),
         ).toBeNull();
         await waitForApiIdle();
@@ -643,33 +636,40 @@ export const ViewerNewFilter: Story = {
     },
 };
 
-// A quiet filter beside a busy one, to compare a footer layout
-const renderFooterComparison = (footerLayout: FooterLayout) =>
-    function FooterComparison(args: StatefulFilterPopoverProps) {
-        return (
-            <Group align="flex-start" gap="xl">
-                <StatefulFilterPopover {...args} footerLayout={footerLayout} />
-                <StatefulFilterPopover
-                    {...args}
-                    footerLayout={footerLayout}
-                    initialRule={rules.statusBusy}
-                    field={fields.status}
-                    appliedTileCount={4}
-                />
-            </Group>
-        );
-    };
-
-/** Chips on the actions row: quiet, and busy (4 of 6 tiles, every setting on). */
-export const FooterChipsInline: Story = {
-    name: 'Footer, chips inline',
-    args: { initialRule: rules.firstName, field: fields.firstName },
-    render: renderFooterComparison('inline'),
+/** Every setting on, 4 of 6 tiles: the Settings chip wraps its summary. */
+export const BusyFooter: Story = {
+    name: 'Footer, busy',
+    args: {
+        initialRule: rules.statusBusy,
+        field: fields.status,
+        appliedTileCount: 4,
+    },
 };
 
-/** Chips on a quiet row of their own: quiet, and busy. */
-export const FooterChipsRow: Story = {
-    name: 'Footer, chips on their own row',
-    args: { initialRule: rules.firstName, field: fields.firstName },
-    render: renderFooterComparison('row'),
+/** A viewer changed a saved filter: "Reset to original" puts its saved value back. */
+export const ViewerSavedFilterReset: Story = {
+    name: 'Viewer, saved filter, reset',
+    args: {
+        initialRule: rules.statusSaved,
+        field: fields.status,
+        isViewer: true,
+    },
+    play: async ({ canvas, canvasElement, userEvent }) => {
+        const reset = () =>
+            canvas.queryByRole('button', {
+                name: 'Reset filter to original value',
+            });
+        await expect(reset()).toBeNull();
+        await openOperatorMenu(canvas, canvasElement, (element) =>
+            userEvent.click(element),
+        );
+        await userEvent.click(
+            onPage(canvasElement).getByRole('menuitem', { name: /^is null$/ }),
+        );
+        await userEvent.click(reset()!);
+        await expect(
+            canvas.getByRole('button', { name: /^Operator:/ }),
+        ).toHaveAccessibleName('Operator: is');
+        await waitForApiIdle();
+    },
 };

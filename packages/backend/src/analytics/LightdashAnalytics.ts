@@ -789,6 +789,9 @@ export type QuerySourcesSubmittedEvent = BaseTrack & {
         organizationId: string;
         projectId: string;
         context: QueryExecutionContext;
+        aiAgentId: string | null;
+        threadId: string | null;
+        promptId: string | null;
         nodeCount: number;
         semanticLayerNodeCount: number;
         sqlNodeCount: number;

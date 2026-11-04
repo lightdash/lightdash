@@ -1,6 +1,8 @@
 import {
     DashboardTileTypes,
     isDashboardChartTileType,
+    isDashboardSqlChartTile,
+    type DashboardTileParameterReferencesTile,
     type DateZoomConfig,
     type SavedChartsInfoForDashboardAvailableFilters,
 } from '@lightdash/common';
@@ -85,6 +87,47 @@ export const selectSavedChartUuidsAndTileUuids = createSelector(
             ),
     // Moving or resizing a tile keeps the mapping, and everything derived from it
     { memoizeOptions: { resultEqualityCheck: isEqual } },
+);
+
+/** Every chart and SQL chart tile with its saved query, on every tab */
+export const selectTileQuerySources = createSelector(
+    [selectDashboardTiles],
+    (tiles) =>
+        tiles?.flatMap<DashboardTileParameterReferencesTile>((tile) => {
+            if (
+                isDashboardChartTileType(tile) &&
+                tile.properties.savedChartUuid
+            )
+                return [
+                    {
+                        tileUuid: tile.uuid,
+                        savedChartUuid: tile.properties.savedChartUuid,
+                        savedSqlUuid: null,
+                    },
+                ];
+            if (isDashboardSqlChartTile(tile) && tile.properties.savedSqlUuid)
+                return [
+                    {
+                        tileUuid: tile.uuid,
+                        savedChartUuid: null,
+                        savedSqlUuid: tile.properties.savedSqlUuid,
+                    },
+                ];
+            return [];
+        }) ?? [],
+);
+
+/** Changes only with the tile-to-query mapping, not when tiles move */
+export const selectTileQuerySourcesKey = createSelector(
+    [selectTileQuerySources],
+    (sources) =>
+        sources
+            .map(
+                ({ tileUuid, savedChartUuid, savedSqlUuid }) =>
+                    `${tileUuid}:${savedChartUuid ?? ''}:${savedSqlUuid ?? ''}`,
+            )
+            .sort()
+            .join(','),
 );
 
 // Editor-authored date zoom settings resolve against the saved config

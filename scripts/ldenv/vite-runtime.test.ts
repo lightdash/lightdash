@@ -22,7 +22,12 @@ import {
     digest,
     type ViteCacheReport,
 } from './vite-cache';
-import { frontendOptions, loadVite, viteCacheContext } from './vite-runtime';
+import {
+    bareAliasPackages,
+    frontendOptions,
+    loadVite,
+    viteCacheContext,
+} from './vite-runtime';
 
 test('installed Vite accepts relocated optimizer metadata without rebundling and invalidates meaningful inputs', async () => {
     const scratch = await mkdtemp(path.join(os.tmpdir(), 'ldenv-vite-real-'));
@@ -309,6 +314,133 @@ test('installed Vite accepts relocated optimizer metadata without rebundling and
         await mkdir(path.dirname(viteLink), { recursive: true });
         await symlink(unsupported, viteLink);
         assert.equal(await viteCacheContext(unsupportedRoot, forkConfig), null);
+    } finally {
+        if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+        else process.env.NODE_ENV = previousNodeEnv;
+        await rm(root, { recursive: true, force: true });
+    }
+});
+
+test('bare alias targets name their packages', () => {
+    assert.deepEqual(
+        bareAliasPackages({
+            'lodash.isequal': 'es-toolkit/compat/isEqual',
+            'lodash.get': 'es-toolkit/compat/get',
+            scoped: '@scope/package/sub/path',
+            whole: 'plain-package',
+            '@src': '/absolute/src',
+            relative: './src/index.ts',
+            parent: '../common/src',
+        }),
+        ['es-toolkit', '@scope/package', 'plain-package'],
+    );
+    assert.deepEqual(
+        bareAliasPackages([
+            { find: /^~(.*)$/, replacement: '$1' },
+            { find: 'node-builtin', replacement: 'node:fs' },
+            { find: 'windows', replacement: 'C:\\src' },
+            { find: 'shim', replacement: 'target/compat' },
+        ]),
+        ['target'],
+    );
+    assert.deepEqual(bareAliasPackages(undefined), []);
+});
+
+test('an alias target outside the importer dependencies resolves from the frontend root', async () => {
+    const scratch = await mkdtemp(path.join(os.tmpdir(), 'ldenv-vite-alias-'));
+    const root = await realpath(scratch);
+    const previousNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'development';
+    try {
+        const installedVite = await realpath(
+            path.join(__dirname, '../../packages/frontend/node_modules/vite'),
+        );
+        const importer = path.join(
+            root,
+            'store/links/importer/1.0.0/hash/node_modules/importer',
+        );
+        const target = path.join(
+            root,
+            'store/links/target/1.0.0/hash/node_modules/target',
+        );
+        await mkdir(importer, { recursive: true });
+        await mkdir(path.join(target, 'compat'), { recursive: true });
+        await writeFile(
+            path.join(importer, 'package.json'),
+            JSON.stringify({
+                name: 'importer',
+                version: '1.0.0',
+                type: 'module',
+                main: 'index.js',
+            }),
+        );
+        await writeFile(
+            path.join(importer, 'index.js'),
+            'import isEqual from "lodash.isequal"; export default isEqual;',
+        );
+        await writeFile(
+            path.join(target, 'package.json'),
+            JSON.stringify({
+                name: 'target',
+                version: '1.0.0',
+                type: 'module',
+                exports: { './compat/*': { import: './compat/*.mjs' } },
+            }),
+        );
+        await writeFile(
+            path.join(target, 'compat/isEqual.mjs'),
+            'export default (a, b) => a === b;',
+        );
+        const checkout = path.join(root, 'checkout');
+        const frontend = path.join(checkout, 'packages/frontend');
+        await mkdir(path.join(frontend, 'node_modules'), { recursive: true });
+        await mkdir(path.join(frontend, 'src'));
+        await writeFile(
+            path.join(frontend, 'package.json'),
+            '{"name":"fixture","version":"1.2.3","private":true}',
+        );
+        await writeFile(
+            path.join(frontend, 'index.html'),
+            '<script type="module" src="/src/index.js"></script>',
+        );
+        await writeFile(
+            path.join(frontend, 'src/index.js'),
+            'import isEqual from "importer"; console.log(isEqual(1, 1));',
+        );
+        await writeFile(
+            path.join(frontend, 'vite.config.mjs'),
+            'export default { optimizeDeps: { include: ["importer"] }, resolve: { alias: { "lodash.isequal": "target/compat/isEqual" } } };',
+        );
+        await symlink(installedVite, path.join(frontend, 'node_modules/vite'));
+        await symlink(importer, path.join(frontend, 'node_modules/importer'));
+        await symlink(target, path.join(frontend, 'node_modules/target'));
+        const vite = await loadVite(checkout);
+        const plain = await vite.resolveConfig(
+            {
+                root: frontend,
+                mode: 'development',
+                logLevel: 'silent',
+                cacheDir: path.join(root, 'cache-plain'),
+            },
+            'serve',
+        );
+        await assert.rejects(vite.optimizeDeps(plain, true));
+        const ldenv = await vite.resolveConfig(
+            {
+                ...frontendOptions(checkout),
+                logLevel: 'silent',
+                cacheDir: path.join(root, 'cache-ldenv'),
+            },
+            'serve',
+        );
+        assert(ldenv.resolve.dedupe.includes('target'));
+        const metadata = await vite.optimizeDeps(ldenv, true);
+        assert(metadata.optimized.importer, JSON.stringify(metadata));
+        const bundle = await readFile(
+            path.join(root, 'cache-ldenv/deps/importer.js'),
+            'utf8',
+        );
+        assert.match(bundle, /a === b/);
     } finally {
         if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
         else process.env.NODE_ENV = previousNodeEnv;

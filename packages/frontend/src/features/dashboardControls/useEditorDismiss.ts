@@ -40,6 +40,18 @@ type Args = {
     dismiss: () => void;
     /** A press outside the editor: cancels the edit. */
     dismissOutside: () => void;
+    /** The pills whose own click opens or switches (default the filter pills). */
+    pillSelector?: string;
+};
+
+// Blur commits a label that is still being typed, into the edit, before
+// the edit ends; any other focus stays put
+const blurLabel = () => {
+    if (
+        document.activeElement instanceof HTMLElement &&
+        document.activeElement.matches('[data-controls-label]')
+    )
+        document.activeElement.blur();
 };
 
 // One Escape listener while the editor is open, so one press does one thing:
@@ -54,13 +66,14 @@ export const useEditorDismiss = ({
     clearField,
     dismiss,
     dismissOutside,
+    pillSelector = PILL_SELECTOR,
 }: Args) => {
     useEffect(() => {
         if (!isOpen) return;
         const handlePointerDown = (event: PointerEvent) => {
             const target =
                 event.target instanceof Element ? event.target : null;
-            if (target?.closest(`[${EDITOR_ATTRIBUTE}], ${PILL_SELECTOR}`))
+            if (target?.closest(`[${EDITOR_ATTRIBUTE}], ${pillSelector}`))
                 return;
             // The press closes the open list, and only that; a new filter
             // with nothing picked has nothing to lose, unless the press is
@@ -70,6 +83,7 @@ export const useEditorDismiss = ({
                 (!isPristineNew || target?.closest(LIST_SELECTOR))
             )
                 return;
+            blurLabel();
             dismissOutside();
         };
         // Capture: a list is still open when this runs
@@ -81,7 +95,7 @@ export const useEditorDismiss = ({
                 true,
             );
         };
-    }, [isOpen, isPristineNew, dismissOutside]);
+    }, [isOpen, isPristineNew, dismissOutside, pillSelector]);
     useEffect(() => {
         if (!isOpen) return;
         const handleKeyDown = (event: KeyboardEvent) => {
@@ -102,13 +116,8 @@ export const useEditorDismiss = ({
                 !target?.closest(`[${EDITOR_ATTRIBUTE}]`)
             )
                 return;
-            // Blur commits a label that is still being typed; any other focus
-            // stays put, so an Escape that changes nothing keeps the place
-            if (
-                document.activeElement instanceof HTMLElement &&
-                document.activeElement.matches('[data-controls-label]')
-            )
-                document.activeElement.blur();
+            // An Escape that changes nothing keeps the place
+            blurLabel();
             dismiss();
         };
         // Capture: lists are still open when this runs, so they can be seen

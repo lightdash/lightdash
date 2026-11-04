@@ -1,3 +1,118 @@
+## [3.153.1](https://github.com/lightdash/lightdash/compare/3.153.0...3.153.1) (2026-11-04)
+
+
+### Bug Fixes
+
+* **frontend:** stop aliasing lodash.get to es-toolkit so react-ace loads in dev ([#32082](https://github.com/lightdash/lightdash/issues/32082)) ([67fe2b0](https://github.com/lightdash/lightdash/commit/67fe2b03241219e9413c15bdf2a45655fdc58f5f))
+
+# [3.153.0](https://github.com/lightdash/lightdash/compare/3.152.0...3.153.0) (2026-11-04)
+
+
+### Features
+
+* **dashboard-controls:** refine popovers and section add ([#32081](https://github.com/lightdash/lightdash/issues/32081)) ([64e4f6a](https://github.com/lightdash/lightdash/commit/64e4f6a7607bc14dd6fb0fce11b15aa0e2cf0844))
+
+# [3.152.0](https://github.com/lightdash/lightdash/compare/3.151.1...3.152.0) (2026-11-04)
+
+
+### Features
+
+* **dashboard-controls:** add filter and parameter choices ([#31953](https://github.com/lightdash/lightdash/issues/31953)) ([8a1f582](https://github.com/lightdash/lightdash/commit/8a1f582ac5ce2a75ce949f11b40a7881a09e0947))
+* **dashboard-controls:** add parameter controls to the bar ([#31952](https://github.com/lightdash/lightdash/issues/31952)) ([11a864b](https://github.com/lightdash/lightdash/commit/11a864b221af1a8658f8c40f679028e53f4e1a33))
+* **dashboard-controls:** choose targets per parameter ([#31978](https://github.com/lightdash/lightdash/issues/31978)) ([7063000](https://github.com/lightdash/lightdash/commit/70630000d933d6c822e02ac3e49c4fd6db9ffdb2))
+* **dashboard-controls:** link parameters on new tiles ([#31979](https://github.com/lightdash/lightdash/issues/31979)) ([5f5543f](https://github.com/lightdash/lightdash/commit/5f5543f07d1725880403625542cad82d9428632e))
+* **dashboard-controls:** sentence-style filter popover ([#31951](https://github.com/lightdash/lightdash/issues/31951)) ([256d7bd](https://github.com/lightdash/lightdash/commit/256d7bd79568c7d0867e5c294731ff17f78fdae9))
+* **dashboards-as-code:** slugs for filter sections and parameter controls ([#31980](https://github.com/lightdash/lightdash/issues/31980)) ([be9b57a](https://github.com/lightdash/lightdash/commit/be9b57a0538e9c2c93eac92f56768c0bfdfadfbf))
+* **dashboards:** save parameter controls and resolve them per tile ([#31949](https://github.com/lightdash/lightdash/issues/31949)) ([995f2ef](https://github.com/lightdash/lightdash/commit/995f2efdf559b6b77649cf7afc3756a7afafaa4f))
+
+## [3.151.1](https://github.com/lightdash/lightdash/compare/3.151.0...3.151.1) (2026-11-04)
+
+
+### Bug Fixes
+
+* **ai:** read live data source results with agent identity on ([#32080](https://github.com/lightdash/lightdash/issues/32080)) ([6547375](https://github.com/lightdash/lightdash/commit/6547375acd9303fe4bb777b2cec16d2c9f069514))
+
+# [3.151.0](https://github.com/lightdash/lightdash/compare/3.150.0...3.151.0) (2026-11-04)
+
+
+### Bug Fixes
+
+* **ai:** gate agent Document tools on Document permissions ([#32069](https://github.com/lightdash/lightdash/issues/32069)) ([1205469](https://github.com/lightdash/lightdash/commit/1205469c45d292e271663957cfb338793d7e3b8e))
+* **ai:** give agents absolute content links in tool results ([#32067](https://github.com/lightdash/lightdash/issues/32067)) ([dc7538a](https://github.com/lightdash/lightdash/commit/dc7538a1f52b8be36806a4c1af8f32cccd155a36))
+
+
+### Features
+
+* **data-apps:** register the Download PDF builder for host-requested exports ([#32059](https://github.com/lightdash/lightdash/issues/32059)) ([d442524](https://github.com/lightdash/lightdash/commit/d442524b212ba35807f8c8d19047d7546155c0d5))
+* **data-apps:** request the app's PDF build in minimal exportMode=pdf renders ([#32060](https://github.com/lightdash/lightdash/issues/32060)) ([05e5d2a](https://github.com/lightdash/lightdash/commit/05e5d2aa87ffe7aad3613e3f4978a823b6628bf7))
+* **scheduler:** deliver data-app PDFs from the app's own export ([#32061](https://github.com/lightdash/lightdash/issues/32061)) ([ee85189](https://github.com/lightdash/lightdash/commit/ee85189c8b1efa47fb6a829974dde0c44e52dd16))
+* **scheduler:** offer PDF format for data-app deliveries ([#32062](https://github.com/lightdash/lightdash/issues/32062)) ([c367635](https://github.com/lightdash/lightdash/commit/c36763532ffb41e86fa912838b9f9ac096ec0675))
+
+# [3.150.0](https://github.com/lightdash/lightdash/compare/3.149.1...3.150.0) (2026-11-04)
+
+
+### Features
+
+* **embed:** allow embedded AI agent actors without chart-create permission ([#32057](https://github.com/lightdash/lightdash/issues/32057)) ([48e55ca](https://github.com/lightdash/lightdash/commit/48e55ca0737f6bb619cd8dcb9728904e02842e5b))
+
+## [3.149.1](https://github.com/lightdash/lightdash/compare/3.149.0...3.149.1) (2026-11-04)
+
+
+### Bug Fixes
+
+* remove Knowledge & data hint from AI agent capabilities section ([#32068](https://github.com/lightdash/lightdash/issues/32068)) ([1a02adc](https://github.com/lightdash/lightdash/commit/1a02adcfc7986cfe5bc968d17597273fb727e214))
+
+# [3.149.0](https://github.com/lightdash/lightdash/compare/3.148.3...3.149.0) (2026-11-04)
+
+
+### Features
+
+* **ai:** offer a writeback PR when the agent derived a value itself ([#32052](https://github.com/lightdash/lightdash/issues/32052)) ([e58bf92](https://github.com/lightdash/lightdash/commit/e58bf928dc3870acfeab661a99956882af29cf7b))
+
+## [3.148.3](https://github.com/lightdash/lightdash/compare/3.148.2...3.148.3) (2026-11-04)
+
+
+### Bug Fixes
+
+* **ldenv:** get warm spares ready and ignore stale foreground leases ([#32058](https://github.com/lightdash/lightdash/issues/32058)) ([bf94634](https://github.com/lightdash/lightdash/commit/bf94634253a4c9a00b053bee72cd5e37f1031692))
+
+## [3.148.2](https://github.com/lightdash/lightdash/compare/3.148.1...3.148.2) (2026-11-04)
+
+
+### Bug Fixes
+
+* **projects:** align preview upstream settings with preview creation ([#32054](https://github.com/lightdash/lightdash/issues/32054)) ([00e0134](https://github.com/lightdash/lightdash/commit/00e0134a52c727b4f42312ce20c6de608b5c3569))
+
+## [3.148.1](https://github.com/lightdash/lightdash/compare/3.148.0...3.148.1) (2026-11-04)
+
+
+### Bug Fixes
+
+* adjust query history and scheduler migration lock timeouts ([#32053](https://github.com/lightdash/lightdash/issues/32053)) ([fc69f39](https://github.com/lightdash/lightdash/commit/fc69f3980cfd6208c3ef48891e643edb07e2795f))
+* **ai:** serve a skill or resource once per thread from loadSkill ([#32015](https://github.com/lightdash/lightdash/issues/32015)) ([562ca5a](https://github.com/lightdash/lightdash/commit/562ca5a5d08cf29ff140ac90eb67bb55fa55d772))
+
+# [3.148.0](https://github.com/lightdash/lightdash/compare/3.147.0...3.148.0) (2026-11-04)
+
+
+### Features
+
+* **dashboards:** list each tile's parameters without running queries ([#31948](https://github.com/lightdash/lightdash/issues/31948)) ([c600824](https://github.com/lightdash/lightdash/commit/c600824d06995792ddf6470ce4aecfe529b73fba))
+
+# [3.147.0](https://github.com/lightdash/lightdash/compare/3.146.2...3.147.0) (2026-11-04)
+
+
+### Features
+
+* **analytics:** attribute query_sources.submitted to AI agent, thread and prompt ([#32050](https://github.com/lightdash/lightdash/issues/32050)) ([b80972a](https://github.com/lightdash/lightdash/commit/b80972aa2cb5812da67074bad6e7b8c3198985da))
+
+## [3.146.2](https://github.com/lightdash/lightdash/compare/3.146.1...3.146.2) (2026-11-04)
+
+
+### Bug Fixes
+
+* **frontend:** unify settings layout on organization settings pages ([#32046](https://github.com/lightdash/lightdash/issues/32046)) ([4d889d8](https://github.com/lightdash/lightdash/commit/4d889d8579aa555eb8fcafdb9fc9bb233bf288de))
+* **frontend:** unify settings layout on personal settings pages ([#32045](https://github.com/lightdash/lightdash/issues/32045)) ([893ae88](https://github.com/lightdash/lightdash/commit/893ae88221ba94168d2a0d2ac1b414dd2c6c7ae3))
+
 ## [3.146.1](https://github.com/lightdash/lightdash/compare/3.146.0...3.146.1) (2026-11-04)
 
 

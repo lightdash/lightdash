@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, waitFor, within } from 'storybook/test';
+import { AddControlFlow } from './AddControlFlow';
 import { AddControlMenu } from './AddControlMenu';
 import { withStoryFrame } from './decorators';
 import {
@@ -8,15 +9,13 @@ import {
     manyFields,
     manyFieldsByTile,
     manyFieldsTiles,
-    ON_BAR_FIELD_IDS,
-    ON_BAR_PARAMETER_KEYS,
     parameterList,
     tabs,
     tiles,
 } from './fixtures';
 
 const meta: Meta<typeof AddControlMenu> = {
-    title: 'Prototypes/Dashboard controls/Add menu',
+    title: 'Dashboards/Controls/Add menu',
     component: AddControlMenu,
     parameters: { layout: 'fullscreen' },
     decorators: [withStoryFrame],
@@ -25,9 +24,7 @@ const meta: Meta<typeof AddControlMenu> = {
         tabs,
         tiles,
         availableTileFilters,
-        onBarFieldIds: ON_BAR_FIELD_IDS,
         parameters: parameterList,
-        onBarParameterKeys: ON_BAR_PARAMETER_KEYS,
         isViewer: false,
         onPickField: fn(),
         onPickParameter: fn(),
@@ -48,18 +45,25 @@ const optionTexts = (root: HTMLElement) =>
 /** "Add" opens a choice first: Filter or Parameter. */
 export const FilterOrParameter: Story = {
     name: 'Filter or parameter',
-    play: async ({ canvasElement }) => {
+    render: () => <AddControlFlow />,
+    play: async ({ canvas, canvasElement, userEvent }) => {
         const page = onPage(canvasElement);
+        const add = canvas.getByRole('button', { name: 'Add' });
+        await expect(add.querySelector('svg.tabler-icon-plus')).not.toBeNull();
+        await userEvent.click(add);
         await expect(
             await page.findByRole('menuitem', { name: /^Filter/ }),
         ).toBeEnabled();
         await expect(
             page.getByRole('menuitem', { name: /^Parameter/ }),
         ).toBeEnabled();
+        await expect(
+            page.getByRole('menu').querySelector('.mantine-Menu-arrow'),
+        ).not.toBeNull();
     },
 };
 
-/** The field picker: rows by table with the tiles each field filters; a field already on the bar says so. */
+/** The field picker: rows by table with the tiles each field filters. */
 export const FieldPicker: Story = {
     name: 'Field picker',
     play: async ({ canvas, canvasElement, userEvent, args }) => {
@@ -70,10 +74,10 @@ export const FieldPicker: Story = {
         );
         const search = canvas.getByRole('textbox', { name: 'Search fields' });
         await expect(search).toHaveFocus();
-        // Amount is on 4 tiles and already filtered on the bar
+        // Amount is on 4 tiles; one already filtered on the bar says nothing more
         await expect(
             await canvas.findByRole('option', { name: /^Amount/ }),
-        ).toHaveTextContent('On the bar · 4 tiles');
+        ).toHaveTextContent(/^Amount4 tiles$/);
         // A field's description shows on hover, as in the shipped picker
         const firstName = await canvas.findByRole('option', {
             name: /^First name/,
@@ -101,7 +105,6 @@ export const FieldPickerManyFields: Story = {
         fields: manyFields,
         tiles: manyFieldsTiles,
         availableTileFilters: manyFieldsByTile,
-        onBarFieldIds: [],
     },
     play: async ({ canvas, canvasElement, userEvent }) => {
         await userEvent.click(
@@ -151,11 +154,10 @@ export const ParameterPicker: Story = {
             name: 'Search parameters',
         });
         await expect(search).toHaveFocus();
-        // On the bar is a hint: the row stays pickable
+        // A parameter a control already sets stays pickable, with its tiles only
         const onBar = await canvas.findByRole('option', {
-            name: /^Week starts on/,
+            name: 'Week starts on, Orders, 2 tiles',
         });
-        await expect(onBar).toHaveTextContent('On the bar');
         await expect(onBar).not.toHaveAttribute('data-combobox-disabled');
 
         // One row per model's Region, each under its model
@@ -253,7 +255,7 @@ export const ParameterPickerBack: Story = {
 /** No tile uses a parameter: no choice to make, "Add filter" opens the field picker straight away. */
 export const AddFilterNoParameters: Story = {
     name: 'Add filter, no parameters',
-    args: { parameters: [], onBarParameterKeys: [] },
+    args: { parameters: [] },
     play: async ({ canvas, canvasElement }) => {
         await expect(
             canvas.getByRole('button', { name: 'Add filter' }),

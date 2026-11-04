@@ -7,6 +7,10 @@ export type RailContractClassNames = {
     addFilterDropdown: string;
     /** The value inputs' lists of the filter being edited. */
     filterDropdown: string;
+    /** Each parameter pill. */
+    parameter: string;
+    /** The parameter popover. */
+    parameterDropdown: string;
 };
 
 export const RailContractClasses = createContext<RailContractClassNames | null>(

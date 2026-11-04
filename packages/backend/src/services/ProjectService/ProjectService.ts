@@ -2043,12 +2043,18 @@ export class ProjectService
     }: {
         previewProjectUuid: string;
         upstreamProjectUuid: string;
-        previewCredentials: CreateWarehouseCredentials;
+        /** Defaults to the preview's stored credentials. */
+        previewCredentials?: CreateWarehouseCredentials;
     }): Promise<void> {
         try {
             const previewOwnsCredentials = getPreviewOwnsBigquerySsoCredentials(
                 {
-                    previewCredentials,
+                    previewCredentials:
+                        previewCredentials ??
+                        (await this.projectModel.getWarehouseCredentialsForBinding(
+                            previewProjectUuid,
+                            { kind: 'original' },
+                        )),
                     upstreamCredentials:
                         await this.projectModel.getWarehouseCredentialsForBinding(
                             upstreamProjectUuid,
@@ -10062,6 +10068,8 @@ export class ProjectService
              */
             asCteBody?: boolean;
             userAttributeOverrides?: UserAttributeValueMap;
+            /** Saved chart whose custom SQL an embed viewer may compile */
+            customSqlProvenanceChartUuid?: UUID;
         } & ({ exploreName: string } | { explore: Explore }),
     ) {
         const {
@@ -10121,6 +10129,7 @@ export class ProjectService
                 organizationUuid,
                 exploreName: sourceExplore.name,
                 metricQuery,
+                customSqlProvenanceChartUuid: args.customSqlProvenanceChartUuid,
             });
         }
 
@@ -16769,7 +16778,7 @@ export class ProjectService
         projectUuid: string,
         data: UpdateMetadata,
     ): Promise<void> {
-        const { organizationUuid } =
+        const { organizationUuid, type } =
             await this.projectModel.getSummary(projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
         if (
@@ -16783,6 +16792,7 @@ export class ProjectService
         ) {
             throw new ForbiddenError();
         }
+        const isPreview = type === ProjectType.PREVIEW;
         if (data.upstreamProjectUuid) {
             if (data.upstreamProjectUuid === projectUuid) {
                 throw new ParameterError(
@@ -16801,9 +16811,24 @@ export class ProjectService
                     'A preview cannot be re-parented to the training project',
                 );
             }
+            // Linking a preview needs the same access as creating a preview
+            // of that project.
+            if (isPreview) {
+                await this.validateProjectCreationPermissions(user, {
+                    type: ProjectType.PREVIEW,
+                    upstreamProjectUuid: upstream.projectUuid,
+                });
+            }
         }
 
         await this.projectModel.updateMetadata(projectUuid, data);
+
+        if (isPreview && data.upstreamProjectUuid) {
+            await this.recordPreviewCredentialOwnership({
+                previewProjectUuid: projectUuid,
+                upstreamProjectUuid: data.upstreamProjectUuid,
+            });
+        }
     }
 
     async updateDefaultUserSpaces(

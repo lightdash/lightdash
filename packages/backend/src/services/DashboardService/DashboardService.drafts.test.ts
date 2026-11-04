@@ -154,6 +154,7 @@ const buildService = (overrides: Overrides = {}) => {
                 directOnly: false,
             }),
         } as AnyType,
+        projectService: {} as never,
         contentVerificationModel: {
             getByContent: vi.fn().mockResolvedValue(undefined),
         } as AnyType,

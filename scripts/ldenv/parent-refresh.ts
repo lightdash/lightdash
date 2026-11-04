@@ -1,6 +1,14 @@
 import { existsSync } from 'node:fs';
 import path from 'node:path';
-import { alive, foregroundActive, git, home, readJson, writeJson } from './io';
+import {
+    foregroundActive,
+    git,
+    home,
+    pidRecordAlive,
+    readJson,
+    writeJson,
+    type PidRecord,
+} from './io';
 import { parents } from './lifecycle';
 import type { Parent } from './model';
 import { background } from './processes';
@@ -11,11 +19,8 @@ export const parentCheckIntervalMs = 60 * 60 * 1000;
 
 const refreshFile = () => path.join(home, 'parent-refresh.json');
 
-const pidAt = async (file: string): Promise<number | null> =>
-    existsSync(file)
-        ? ((await readJson<{ pid: number }>(file).catch(() => null))?.pid ??
-          null)
-        : null;
+const recordAt = async (file: string): Promise<PidRecord | null> =>
+    existsSync(file) ? await readJson<PidRecord>(file).catch(() => null) : null;
 
 export type ParentRefreshOperations = {
     parents: () => Promise<Parent[]>;
@@ -32,13 +37,15 @@ export const parentRefreshOperations: ParentRefreshOperations = {
         return git(root, ['rev-parse', '--verify', 'origin/main^{commit}']);
     },
     busy: async () => {
-        const owners = await Promise.all([
-            pidAt(refreshFile()),
-            pidAt(path.join(home, 'locks/parent-build/owner.json')),
-            pidAt(path.join(home, 'pool-refill.json')),
-            pidAt(path.join(home, 'locks/pool-fill/owner.json')),
-        ]);
-        return owners.some((pid) => alive(pid)) || (await foregroundActive());
+        const owners = await Promise.all(
+            [
+                refreshFile(),
+                path.join(home, 'locks/parent-build/owner.json'),
+                path.join(home, 'pool-refill.json'),
+                path.join(home, 'locks/pool-fill/owner.json'),
+            ].map(async (file) => pidRecordAlive(await recordAt(file))),
+        );
+        return owners.some(Boolean) || (await foregroundActive());
     },
     start: async (root) => {
         const pid = await background(

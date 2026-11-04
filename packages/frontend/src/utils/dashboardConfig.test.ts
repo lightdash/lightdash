@@ -2,9 +2,10 @@ import {
     MetricType,
     type AdditionalMetric,
     type DashboardConfig,
+    type DashboardParameterControl,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { buildDashboardConfig } from './dashboardConfig';
+import { buildDashboardConfig, getParametersToSave } from './dashboardConfig';
 
 const customMetric = (name: string): AdditionalMetric => ({
     name,
@@ -13,6 +14,28 @@ const customMetric = (name: string): AdditionalMetric => ({
     sql: '${TABLE}.amount',
     type: MetricType.SUM,
 });
+
+const control = (
+    id: string,
+    value: string | null,
+    parameters: string[],
+): DashboardParameterControl => ({
+    id,
+    label: id,
+    value,
+    valueType: { type: 'string', multiple: false },
+    parameters: Object.fromEntries(
+        parameters.map((key) => [key, 'all' as const]),
+    ),
+});
+const region = (value: string | null) =>
+    control('region-control', value, ['region']);
+const regionList = (value: string | null) => [region(value)];
+// A second control on another key
+const twoKeyList = (
+    regionValue: string | null,
+    weekStartValue: string | null,
+) => [region(regionValue), control('other', weekStartValue, ['week_start'])];
 
 const baseArgs = {
     existingConfig: undefined as DashboardConfig | undefined,
@@ -30,6 +53,7 @@ const baseArgs = {
     requiredFiltersNote: undefined,
     controlSections: [],
     haveControlSectionsChanged: false,
+    parameterControlsToSave: null,
 };
 
 describe('buildDashboardConfig', () => {
@@ -163,10 +187,46 @@ describe('buildDashboardConfig', () => {
             customMetrics: true,
             controlSections: true,
             parameterSections: true,
+            parameterControls: true,
         };
         expect(Object.keys(result).sort()).toEqual(
             Object.keys(expectedKeys).sort(),
         );
+    });
+
+    it('carries saved parameter controls forward and keeps an absent list absent', () => {
+        const parameterControls: DashboardParameterControl[] = [];
+        const result = buildDashboardConfig({
+            ...baseArgs,
+            existingConfig: {
+                isDateZoomDisabled: false,
+                parameterControls,
+            },
+        });
+        expect(result.parameterControls).toBe(parameterControls);
+        expect(
+            JSON.parse(
+                JSON.stringify(
+                    buildDashboardConfig({
+                        ...baseArgs,
+                        existingConfig: { isDateZoomDisabled: false },
+                    }),
+                ),
+            ),
+        ).not.toHaveProperty('parameterControls');
+    });
+
+    it('writes the parameter controls to save', () => {
+        const parameterControlsToSave: DashboardParameterControl[] = [];
+        const result = buildDashboardConfig({
+            ...baseArgs,
+            existingConfig: {
+                isDateZoomDisabled: false,
+                parameterControls: [region('EU')],
+            },
+            parameterControlsToSave,
+        });
+        expect(result.parameterControls).toBe(parameterControlsToSave);
     });
 
     it('saves the edited control sections once they have changed', () => {
@@ -182,5 +242,187 @@ describe('buildDashboardConfig', () => {
         });
 
         expect(result.controlSections).toBe(controlSections);
+    });
+});
+
+describe('getParametersToSave', () => {
+    const appliedParameters = {
+        region: { parameterName: 'region', value: 'US' },
+    };
+    const args = {
+        parameterControls: regionList('EU'),
+        areParameterControlsSaved: true,
+        haveParameterControlsChanged: false,
+        existingParameterControls: null,
+        parameterPicks: {},
+        appliedParameters,
+        savedParameters: {
+            region: { parameterName: 'region', value: 'EU' },
+        },
+    };
+
+    it('saves the applied parameters as before without controls', () => {
+        expect(
+            getParametersToSave({ ...args, parameterControls: null }),
+        ).toEqual({
+            parameterControlsToSave: null,
+            parameters: appliedParameters,
+        });
+    });
+
+    it('keeps a filled list unsaved until it changes', () => {
+        expect(
+            getParametersToSave({ ...args, areParameterControlsSaved: false }),
+        ).toEqual({
+            parameterControlsToSave: null,
+            parameters: appliedParameters,
+        });
+    });
+
+    it('writes changed controls with picks applied, and their mirror as parameters', () => {
+        expect(
+            getParametersToSave({
+                ...args,
+                areParameterControlsSaved: false,
+                haveParameterControlsChanged: true,
+                parameterPicks: { region: 'US' },
+            }),
+        ).toEqual({
+            parameterControlsToSave: regionList('US'),
+            parameters: appliedParameters,
+        });
+    });
+
+    it('writes a saved list when a pick changed a value, and clears a cleared key', () => {
+        expect(
+            getParametersToSave({
+                ...args,
+                parameterControls: twoKeyList('EU', 'APAC'),
+                parameterPicks: { region: 'US', week_start: null },
+            }),
+        ).toEqual({
+            parameterControlsToSave: twoKeyList('US', null),
+            parameters: appliedParameters,
+        });
+    });
+
+    it('keeps two controls sharing a key when nothing was picked', () => {
+        const saved = [
+            region('EU'),
+            {
+                ...control('second', 'US', ['region']),
+                parameters: { region: { only: ['b'] } },
+            },
+        ];
+        expect(
+            getParametersToSave({ ...args, parameterControls: saved }),
+        ).toEqual({
+            parameterControlsToSave: null,
+            parameters: { region: { parameterName: 'region', value: 'EU' } },
+        });
+    });
+
+    describe('with the flag off over saved controls', () => {
+        const off = {
+            ...args,
+            parameterControls: null,
+            existingParameterControls: twoKeyList('EU', 'APAC'),
+            savedParameters: {
+                region: { parameterName: 'region', value: 'EU' },
+                week_start: { parameterName: 'week_start', value: 'APAC' },
+            },
+        };
+
+        it('carries the saved controls when no value changed', () => {
+            expect(
+                getParametersToSave({
+                    ...off,
+                    appliedParameters: off.savedParameters,
+                }),
+            ).toEqual({
+                parameterControlsToSave: null,
+                parameters: off.savedParameters,
+            });
+        });
+
+        it('preserves saved controls when a legacy value is edited', () => {
+            const applied = {
+                ...off.savedParameters,
+                region: { parameterName: 'region', value: 'US' },
+            };
+            expect(
+                getParametersToSave({ ...off, appliedParameters: applied }),
+            ).toEqual({
+                parameterControlsToSave: null,
+                parameters: applied,
+            });
+        });
+
+        it('preserves saved controls when legacy values are cleared', () => {
+            expect(
+                getParametersToSave({ ...off, appliedParameters: {} }),
+            ).toEqual({
+                parameterControlsToSave: null,
+                parameters: {},
+            });
+        });
+    });
+
+    describe('picks on keys no control sets', () => {
+        const currency = (value: string) => ({
+            parameterName: 'currency',
+            value,
+        });
+        const saved = {
+            ...args.savedParameters,
+            currency: currency('EUR'),
+        };
+
+        it('omits a changed value from the control mirror', () => {
+            expect(
+                getParametersToSave({
+                    ...args,
+                    savedParameters: saved,
+                    parameterPicks: { currency: 'USD' },
+                }).parameters,
+            ).toEqual({
+                region: { parameterName: 'region', value: 'EU' },
+            });
+        });
+
+        it('omits an added value from the control mirror', () => {
+            expect(
+                getParametersToSave({
+                    ...args,
+                    parameterPicks: { currency: 'USD' },
+                }).parameters,
+            ).toEqual({
+                region: { parameterName: 'region', value: 'EU' },
+            });
+        });
+
+        it('drops a cleared value', () => {
+            expect(
+                getParametersToSave({
+                    ...args,
+                    savedParameters: saved,
+                    parameterPicks: { currency: null },
+                }).parameters,
+            ).toEqual({
+                region: { parameterName: 'region', value: 'EU' },
+            });
+        });
+    });
+
+    it('omits saved values of keys no control sets', () => {
+        const currency = { parameterName: 'currency', value: 'EUR' };
+        expect(
+            getParametersToSave({
+                ...args,
+                savedParameters: { ...args.savedParameters, currency },
+            }).parameters,
+        ).toEqual({
+            region: { parameterName: 'region', value: 'EU' },
+        });
     });
 });

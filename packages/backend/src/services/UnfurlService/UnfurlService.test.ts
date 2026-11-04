@@ -316,6 +316,37 @@ describe('UnfurlService', () => {
             expect(page.pageContext.addCookies).not.toHaveBeenCalled();
         });
 
+        it.each(['pdf', 'image'] as const)(
+            'initializes tile parameters for an embed %s',
+            async (format) => {
+                const { service, page } = setup();
+                const tileParameters = {
+                    'tile-1': {
+                        parameters: { region: 'US' },
+                        excludedParameterKeys: [],
+                    },
+                };
+                await expect(
+                    format === 'pdf'
+                        ? service.exportEmbedDashboardPdf({
+                              ...exportArgs,
+                              tileParameters,
+                          })
+                        : service.exportEmbedDashboardImage({
+                              ...exportArgs,
+                              tileParameters,
+                          }),
+                ).rejects.toThrow();
+                expect(page.addInitScript).toHaveBeenCalledWith(
+                    expect.any(Function),
+                    expect.objectContaining({
+                        [`dashboardExportTileParameters:${DASHBOARD_UUID}`]:
+                            tileParameters,
+                    }),
+                );
+            },
+        );
+
         it('forwards an explicit tab selection to the page', async () => {
             const { service, page } = setup();
 

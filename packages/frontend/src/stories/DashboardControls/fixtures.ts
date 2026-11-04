@@ -376,11 +376,6 @@ export const dashboardFilters: DashboardFilters = {
     tableCalculations: [],
 };
 
-/** Fields a filter on the bar already uses: the add menu says so. */
-export const ON_BAR_FIELD_IDS = dashboardFilters.dimensions.map(
-    ({ target }) => target.fieldId,
-);
-
 const FIRST_NAMES = [
     'Aaron',
     'Adam',
@@ -700,7 +695,7 @@ export const manyFieldsByTile: Record<string, DashboardFilterableField[]> = {
     'tile-wide': manyFields,
 };
 
-/** Already set by a control on the bar: the add menu says so, and a pick adds a second one. */
+/** Already set by a control on the bar: a pick in the add menu adds a second one. */
 export const ON_BAR_PARAMETER_KEYS = [parameters.ordersWeekStart.key];
 
 /** A control setting `options` on every tile that uses them, or on `tileUuids`. */

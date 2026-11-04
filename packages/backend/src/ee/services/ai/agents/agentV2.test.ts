@@ -1006,7 +1006,7 @@ describe('empty finishes and interrupts', () => {
         });
         expect(capturedOptions.experimental_repairToolCall).toBeUndefined();
         // AI SDK 7: `usage` aggregates every step; the final step keeps its own usage.
-        await capturedOptions.onFinish({
+        await capturedOptions.onEnd({
             usage: { totalTokens: 100 },
             totalUsage: { totalTokens: 100 },
             steps: [{ text: '', usage: { totalTokens: 10 } }],
@@ -1173,7 +1173,7 @@ describe('generateAgentResponse token usage persistence', () => {
             await stepTotals.reduce(
                 (chain, totalTokens) =>
                     chain.then(() =>
-                        options.onStepFinish({
+                        options.onStepEnd({
                             usage: { totalTokens },
                             toolCalls: [],
                             toolResults: [],
@@ -2488,7 +2488,7 @@ describe('getAgentTools workstream tool gate', () => {
         [true, true, false],
         [true, true, true],
     ])(
-        'gates Document schemas and instructions together (documents=%s, content=%s, data=%s)',
+        'gates Document and chart schemas and instructions separately (documents=%s, content=%s, data=%s)',
         (enableDocuments, enableContentTools, enableDataAccess) => {
             const args = buildArgs({
                 enableAiWriteback: false,
@@ -2497,8 +2497,8 @@ describe('getAgentTools workstream tool gate', () => {
                 enableDataAccess,
             });
             const tools = buildToolsForArgs(args);
-            const contentEnabled = enableContentTools && enableDataAccess;
-            const documentsEnabled = contentEnabled && enableDocuments;
+            const chartsEnabled = enableContentTools && enableDataAccess;
+            const documentsEnabled = enableDocuments && enableDataAccess;
             const systemMessage = getAgentMessages(
                 args,
                 loadoutFor(args, mcpStub),
@@ -2512,27 +2512,47 @@ describe('getAgentTools workstream tool gate', () => {
             if (!systemMessage || typeof systemMessage.content !== 'string') {
                 throw new Error('Expected a string system message');
             }
+            const contentTypes = (name: string): unknown[] => {
+                const { jsonSchema } = asSchema(tools[name].inputSchema);
+                const { type } = (
+                    jsonSchema as {
+                        properties: {
+                            type: { enum?: unknown[]; const?: unknown };
+                        };
+                    }
+                ).properties;
+                return type.enum ?? [type.const];
+            };
 
             expect(systemMessage.content.includes('## Documents')).toBe(
                 documentsEnabled,
+            );
+            expect(systemMessage.content.includes('## Content tools')).toBe(
+                chartsEnabled,
             );
             expect(
                 systemMessage.content.includes(
                     'Want me to save this as a Document you can share?',
                 ),
             ).toBe(documentsEnabled);
-            for (const name of [
-                'createContent',
-                'readContent',
-                'editContent',
-            ]) {
-                expect(Object.hasOwn(tools, name)).toBe(contentEnabled);
-                if (contentEnabled) {
-                    expect(
-                        JSON.stringify(
-                            asSchema(tools[name].inputSchema).jsonSchema,
-                        ).includes('"document"'),
-                    ).toBe(documentsEnabled);
+            // buildArgs ties content reads to the content setting.
+            expect(Object.hasOwn(tools, 'readContent')).toBe(chartsEnabled);
+            if (chartsEnabled) {
+                expect(contentTypes('readContent').includes('document')).toBe(
+                    documentsEnabled,
+                );
+            }
+            for (const name of ['createContent', 'editContent']) {
+                expect(Object.hasOwn(tools, name)).toBe(
+                    chartsEnabled || documentsEnabled,
+                );
+                if (chartsEnabled || documentsEnabled) {
+                    expect(contentTypes(name).includes('document')).toBe(
+                        documentsEnabled,
+                    );
+                    expect(contentTypes(name).includes('chart')).toBe(
+                        chartsEnabled,
+                    );
                 }
             }
         },
@@ -3576,7 +3596,7 @@ describe('external MCP tool call activity', () => {
             }
 
             const finish = (event: Record<string, unknown>) =>
-                options.experimental_onToolCallFinish?.({
+                options.onToolExecutionEnd?.({
                     stepNumber: 0,
                     messages: [],
                     ...event,
@@ -3899,7 +3919,7 @@ describe.each(['generate', 'stream'] as const)(
                     | { type: 'tool-result'; output: unknown }
                     | { type: 'tool-error'; error: unknown },
             ) =>
-                options.experimental_onToolCallFinish({
+                options.onToolExecutionEnd({
                     stepNumber: 0,
                     messages: [],
                     toolCall: {

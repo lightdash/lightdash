@@ -149,6 +149,13 @@ a change affects the snapshot, run `pnpm check:mcp-tools-snapshot`. Running
 
 **Database Migrations:**
 
+Before creating or editing any core or EE migration, read the shared
+[migration-authoring rules](packages/backend/src/database/migrations/AGENTS.md).
+Avoid unnecessary explicit locks. Follow the guide to use `lock_timeout = 0`
+for non-unique concurrent-index-only migrations, or `60s` for blocking DDL;
+do not copy timeout values from historical migrations. These rules apply even
+when writing a migration file directly without the generator.
+
 ```bash
 # Create new migration
 pnpm -F backend create-migration migration_name_with_underscores

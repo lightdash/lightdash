@@ -3921,7 +3921,13 @@ describe('AiAgentToolsService runComposerQueries', () => {
         });
 
         const result = await service
-            .createRuntime(makeRuntimeContext())
+            .createRuntime(
+                makeRuntimeContext({
+                    agentUuid: 'agent-uuid',
+                    threadUuid: 'thread-uuid',
+                    promptUuid: 'prompt-uuid',
+                }),
+            )
             .runComposerQueries({
                 queries: composerQueries,
                 terminalNodeId: 'joined',
@@ -3937,6 +3943,11 @@ describe('AiAgentToolsService runComposerQueries', () => {
             parameters: {},
             userAttributeOverrides: {},
             invalidateCache: false,
+            aiAttribution: {
+                aiAgentUuid: 'agent-uuid',
+                threadUuid: 'thread-uuid',
+                promptUuid: 'prompt-uuid',
+            },
         });
         expect(getAsyncQueryResults).toHaveBeenCalledWith(
             expect.objectContaining({ queryUuid: 'query-2', page: 1 }),
@@ -8869,12 +8880,14 @@ describe('AiAgentToolsService canAuthorContent', () => {
             await serviceWithEditableSpaces(['space-b']).canAuthorContent({
                 user: editorUser,
                 projectUuid,
+                spaceUuids: null,
             }),
         ).toBe(true);
         expect(
             await serviceWithEditableSpaces([]).canAuthorContent({
                 user: editorUser,
                 projectUuid,
+                spaceUuids: null,
             }),
         ).toBe(false);
     });
@@ -8885,7 +8898,11 @@ describe('AiAgentToolsService canAuthorContent', () => {
         await makeService({
             spaceModel: { find: vi.fn().mockResolvedValue([{ uuid: 'a' }]) },
             spacePermissionService: { getAccessibleSpaceUuids },
-        }).canAuthorContent({ user: editorUser, projectUuid });
+        }).canAuthorContent({
+            user: editorUser,
+            projectUuid,
+            spaceUuids: null,
+        });
         expect(getAccessibleSpaceUuids).toHaveBeenCalledWith(
             'create',
             editorUser,
@@ -8901,12 +8918,14 @@ describe('AiAgentToolsService canAuthorContent', () => {
             await service.canAuthorContent({
                 user: makeUser([...spaceEditorRules]),
                 projectUuid: undefined,
+                spaceUuids: null,
             }),
         ).toBe(true);
         expect(
             await service.canAuthorContent({
                 user: makeUser([]),
                 projectUuid: undefined,
+                spaceUuids: null,
             }),
         ).toBe(false);
         expect(find).not.toHaveBeenCalled();
@@ -8919,6 +8938,7 @@ describe('AiAgentToolsService canAuthorContent', () => {
             await service.canAuthorContent({
                 user: makeUser([]),
                 projectUuid,
+                spaceUuids: null,
             }),
         ).toBe(false);
         expect(find).not.toHaveBeenCalled();
@@ -8937,7 +8957,122 @@ describe('AiAgentToolsService canAuthorContent', () => {
             await serviceWithEditableSpaces([]).canAuthorContent({
                 user: editorUser,
                 projectUuid,
+                spaceUuids: null,
             }),
         ).toBe(true);
+    });
+
+    it('with write spaces, counts only those spaces', async () => {
+        const find = vi.fn();
+        const getAccessibleSpaceUuids = vi.fn().mockResolvedValue([]);
+        const editorUser = makeUser([
+            ...spaceEditorRules,
+            {
+                action: 'create',
+                subject: 'Space',
+                conditions: { organizationUuid, projectUuid },
+            },
+        ]);
+        expect(
+            await makeService({
+                spaceModel: { find },
+                spacePermissionService: { getAccessibleSpaceUuids },
+            }).canAuthorContent({
+                user: editorUser,
+                projectUuid,
+                spaceUuids: ['write-space'],
+            }),
+        ).toBe(false);
+        expect(getAccessibleSpaceUuids).toHaveBeenCalledWith(
+            'create',
+            editorUser,
+            ['write-space'],
+            { subjectType: 'SavedChart' },
+        );
+        expect(find).not.toHaveBeenCalled();
+    });
+
+    describe('canAuthorDocuments', () => {
+        const documentEditorRules = [
+            {
+                action: 'manage',
+                subject: 'Document',
+                conditions: {
+                    projectUuid,
+                    access: { $elemMatch: { userUuid, role: 'editor' } },
+                },
+            },
+        ] as const;
+
+        it('follows Document permissions, not chart permissions', async () => {
+            const service = serviceWithEditableSpaces(['space-b']);
+            expect(
+                await service.canAuthorDocuments({
+                    user: makeUser([...documentEditorRules]),
+                    projectUuid,
+                    spaceUuids: null,
+                }),
+            ).toBe(true);
+            expect(
+                await service.canAuthorDocuments({
+                    user: makeUser([...spaceEditorRules]),
+                    projectUuid,
+                    spaceUuids: null,
+                }),
+            ).toBe(false);
+            expect(
+                await service.canAuthorContent({
+                    user: makeUser([...documentEditorRules]),
+                    projectUuid,
+                    spaceUuids: null,
+                }),
+            ).toBe(false);
+        });
+
+        it('asks which spaces the user can save Documents into', async () => {
+            const getAccessibleSpaceUuids = vi.fn().mockResolvedValue([]);
+            const documentUser = makeUser([...documentEditorRules]);
+            expect(
+                await makeService({
+                    spaceModel: {
+                        find: vi.fn().mockResolvedValue([{ uuid: 'a' }]),
+                    },
+                    spacePermissionService: { getAccessibleSpaceUuids },
+                }).canAuthorDocuments({
+                    user: documentUser,
+                    projectUuid,
+                    spaceUuids: null,
+                }),
+            ).toBe(false);
+            expect(getAccessibleSpaceUuids).toHaveBeenCalledWith(
+                'create',
+                documentUser,
+                ['a'],
+                { subjectType: 'Document' },
+            );
+        });
+
+        it('with write spaces, counts only those spaces', async () => {
+            const getAccessibleSpaceUuids = vi
+                .fn()
+                .mockResolvedValue(['write-space']);
+            const documentUser = makeUser([...documentEditorRules]);
+            expect(
+                await makeService({
+                    spaceModel: { find: vi.fn() },
+                    spacePermissionService: { getAccessibleSpaceUuids },
+                }).canAuthorDocuments({
+                    user: documentUser,
+                    projectUuid,
+                    spaceUuids: ['write-space'],
+                }),
+            ).toBe(true);
+            expect(getAccessibleSpaceUuids).toHaveBeenCalledWith(
+                'create',
+                documentUser,
+                ['write-space'],
+                { subjectType: 'Document' },
+            );
+        });
     });
 });

@@ -12,3 +12,19 @@ export type BarSelection = {
 export const BarSelectionContext = createContext<BarSelection | null>(null);
 
 export const useBarSelection = () => useContext(BarSelectionContext);
+
+const countOf = (count: number, one: string, many: string) =>
+    `${count} ${count === 1 ? one : many}`;
+
+/** Picked pills by kind: "2 filters", "1 parameter", "2 filters and 1 parameter" */
+export const formatPickedCount = (
+    filterCount: number,
+    parameterCount: number,
+): string =>
+    [
+        filterCount > 0 && countOf(filterCount, 'filter', 'filters'),
+        parameterCount > 0 &&
+            countOf(parameterCount, 'parameter', 'parameters'),
+    ]
+        .filter(Boolean)
+        .join(' and ');

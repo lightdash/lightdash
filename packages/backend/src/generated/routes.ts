@@ -5871,6 +5871,33 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DashboardParameterValue: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                value: { ref: 'ParameterValue', required: true },
+                parameterName: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.DashboardParameterValue_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            additionalProperties: { ref: 'DashboardParameterValue' },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DashboardParameters: {
+        dataType: 'refAlias',
+        type: { ref: 'Record_string.DashboardParameterValue_', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DateGranularity: {
         dataType: 'refEnum',
         enums: [
@@ -5977,11 +6004,117 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DashboardConfig: {
+    'Required_Pick_LightdashProjectParameter.type-or-multiple__': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                type: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['string'] },
+                        { dataType: 'enum', enums: ['number'] },
+                        { dataType: 'enum', enums: ['date'] },
+                    ],
+                    required: true,
+                },
+                multiple: { dataType: 'boolean', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DashboardParameterTarget_string_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['all'] },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        only: {
+                            dataType: 'array',
+                            array: { dataType: 'string' },
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        except: {
+                            dataType: 'array',
+                            array: { dataType: 'string' },
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.DashboardParameterTarget_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            additionalProperties: { ref: 'DashboardParameterTarget_string_' },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DashboardParameterControlAsCode: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                hidden: { dataType: 'boolean' },
+                parameters: {
+                    ref: 'Record_string.DashboardParameterTarget_',
+                    required: true,
+                },
+                sectionId: { dataType: 'string' },
+                valueType: {
+                    ref: 'Required_Pick_LightdashProjectParameter.type-or-multiple__',
+                    required: true,
+                },
+                value: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'ParameterValue' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                label: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                id: { dataType: 'string' },
+                slug: { dataType: 'string' },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DashboardConfigAsCode: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                parameterControls: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'DashboardParameterControlAsCode',
+                    },
+                },
                 parameterSections: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {},
@@ -6031,74 +6164,6 @@ const models: TsoaRoute.Models = {
             validators: {},
         },
     },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DashboardParameterValue: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                value: { ref: 'ParameterValue', required: true },
-                parameterName: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Record_string.DashboardParameterValue_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {},
-            additionalProperties: { ref: 'DashboardParameterValue' },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DashboardParameters: {
-        dataType: 'refAlias',
-        type: { ref: 'Record_string.DashboardParameterValue_', validators: {} },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_Pick_Dashboard.name-or-description-or-tabs-or-slug-or-config-or-parameters_.Exclude_keyofPick_Dashboard.name-or-description-or-tabs-or-slug-or-config-or-parameters_.name-or-slug-or-tabs__':
-        {
-            dataType: 'refAlias',
-            type: {
-                dataType: 'nestedObjectLiteral',
-                nestedProperties: {
-                    config: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { ref: 'DashboardConfig' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                    description: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'string' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                    parameters: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { ref: 'DashboardParameters' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                },
-                validators: {},
-            },
-        },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Omit_Pick_Dashboard.name-or-description-or-tabs-or-slug-or-config-or-parameters_.name-or-slug-or-tabs_':
-        {
-            dataType: 'refAlias',
-            type: {
-                ref: 'Pick_Pick_Dashboard.name-or-description-or-tabs-or-slug-or-config-or-parameters_.Exclude_keyofPick_Dashboard.name-or-description-or-tabs-or-slug-or-config-or-parameters_.name-or-slug-or-tabs__',
-                validators: {},
-            },
-        },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DashboardTabAsCode: {
         dataType: 'refAlias',
@@ -6782,90 +6847,79 @@ const models: TsoaRoute.Models = {
     DashboardAsCode: {
         dataType: 'refAlias',
         type: {
-            dataType: 'intersection',
-            subSchemas: [
-                {
-                    ref: 'Omit_Pick_Dashboard.name-or-description-or-tabs-or-slug-or-config-or-parameters_.name-or-slug-or-tabs_',
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                access: { ref: 'ContentAsCodeDirectAccess' },
+                verification: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'ContentVerificationInfo' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
                 },
-                {
+                verified: { dataType: 'boolean' },
+                ownerEmail: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+                filters: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        access: { ref: 'ContentAsCodeDirectAccess' },
-                        verification: {
-                            dataType: 'union',
-                            subSchemas: [
-                                { ref: 'ContentVerificationInfo' },
-                                { dataType: 'enum', enums: [null] },
-                            ],
-                        },
-                        verified: { dataType: 'boolean' },
-                        ownerEmail: {
-                            dataType: 'union',
-                            subSchemas: [
-                                { dataType: 'string' },
-                                { dataType: 'enum', enums: [null] },
-                            ],
-                        },
-                        filters: {
-                            dataType: 'nestedObjectLiteral',
-                            nestedProperties: {
-                                tableCalculations: {
-                                    dataType: 'array',
-                                    array: {
-                                        dataType: 'refAlias',
-                                        ref: 'DashboardFilterRule',
-                                    },
-                                },
-                                metrics: {
-                                    dataType: 'array',
-                                    array: {
-                                        dataType: 'refAlias',
-                                        ref: 'DashboardFilterRule',
-                                    },
-                                },
-                                dimensions: {
-                                    dataType: 'array',
-                                    array: {
-                                        dataType: 'refAlias',
-                                        ref: 'Omit_DashboardFilterRule.id_',
-                                    },
-                                },
-                            },
-                        },
-                        downloadedAt: { dataType: 'datetime' },
-                        spaceSlug: { dataType: 'string', required: true },
-                        contentType: { ref: 'ContentAsCodeType.DASHBOARD' },
-                        version: { dataType: 'double', required: true },
-                        tiles: {
+                        tableCalculations: {
                             dataType: 'array',
                             array: {
                                 dataType: 'refAlias',
-                                ref: 'DashboardTileAsCode',
+                                ref: 'DashboardFilterRule',
                             },
-                            required: true,
                         },
-                        updatedAt: { dataType: 'datetime' },
-                        tabs: {
+                        metrics: {
                             dataType: 'array',
                             array: {
                                 dataType: 'refAlias',
-                                ref: 'DashboardTabAsCode',
+                                ref: 'DashboardFilterRule',
                             },
-                            required: true,
                         },
-                        slug: {
-                            dataType: 'string',
-                            required: true,
-                            validators: { pattern: { value: '^[a-z0-9-]+$' } },
-                        },
-                        name: {
-                            dataType: 'string',
-                            required: true,
-                            validators: { minLength: { value: 1 } },
+                        dimensions: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refAlias',
+                                ref: 'Omit_DashboardFilterRule.id_',
+                            },
                         },
                     },
                 },
-            ],
+                downloadedAt: { dataType: 'datetime' },
+                spaceSlug: { dataType: 'string', required: true },
+                contentType: { ref: 'ContentAsCodeType.DASHBOARD' },
+                version: { dataType: 'double', required: true },
+                tiles: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'DashboardTileAsCode' },
+                    required: true,
+                },
+                updatedAt: { dataType: 'datetime' },
+                tabs: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'DashboardTabAsCode' },
+                    required: true,
+                },
+                slug: {
+                    dataType: 'string',
+                    required: true,
+                    validators: { pattern: { value: '^[a-z0-9-]+$' } },
+                },
+                name: {
+                    dataType: 'string',
+                    required: true,
+                    validators: { minLength: { value: 1 } },
+                },
+                config: { ref: 'DashboardConfigAsCode' },
+                parameters: { ref: 'DashboardParameters' },
+                description: { dataType: 'string' },
+            },
             validators: {},
         },
     },
@@ -9224,6 +9278,106 @@ const models: TsoaRoute.Models = {
         type: { ref: 'SpaceSummaryBase', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DashboardParameterControl: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                hidden: { dataType: 'boolean' },
+                parameters: {
+                    ref: 'Record_string.DashboardParameterTarget_',
+                    required: true,
+                },
+                sectionId: { dataType: 'string' },
+                valueType: {
+                    ref: 'Required_Pick_LightdashProjectParameter.type-or-multiple__',
+                    required: true,
+                },
+                value: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'ParameterValue' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                label: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                slug: { dataType: 'string' },
+                id: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DashboardConfig: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                parameterControls: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'DashboardParameterControl',
+                    },
+                },
+                parameterSections: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {},
+                    additionalProperties: { dataType: 'string' },
+                },
+                controlSections: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'DashboardControlSection',
+                    },
+                },
+                customMetrics: {
+                    dataType: 'array',
+                    array: { dataType: 'refObject', ref: 'AdditionalMetric' },
+                },
+                requiredFiltersNote: { dataType: 'string' },
+                dateZoomConfig: { ref: 'DateZoomConfig' },
+                defaultDateZoomGranularity: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'DateGranularity' },
+                        { dataType: 'string' },
+                    ],
+                },
+                dateZoomGranularities: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { ref: 'DateGranularity' },
+                            { dataType: 'string' },
+                        ],
+                    },
+                },
+                parameterOrder: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                },
+                pinnedParameters: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                },
+                isAddFilterDisabled: { dataType: 'boolean' },
+                isDateZoomDisabled: { dataType: 'boolean', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DashboardFilters: {
         dataType: 'refAlias',
         type: {
@@ -9676,12 +9830,12 @@ const models: TsoaRoute.Models = {
                         ],
                         required: true,
                     },
+                    uuid: { dataType: 'string', required: true },
                     tabs: {
                         dataType: 'array',
                         array: { dataType: 'refAlias', ref: 'DashboardTab' },
                         required: true,
                     },
-                    uuid: { dataType: 'string', required: true },
                     tiles: {
                         dataType: 'array',
                         array: { dataType: 'refAlias', ref: 'DashboardTile' },
@@ -10745,7 +10899,7 @@ const models: TsoaRoute.Models = {
                     config: {
                         dataType: 'union',
                         subSchemas: [
-                            { ref: 'DashboardConfig' },
+                            { ref: 'DashboardConfigAsCode' },
                             { dataType: 'undefined' },
                         ],
                     },
@@ -19520,7 +19674,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_ExecuteAsyncDashboardChartRequestParams.dashboardFilters-or-dashboardSorts-or-pivotResults-or-invalidateCache-or-dateZoom-or-parameters-or-limit_':
+    'Pick_ExecuteAsyncDashboardChartRequestParams.dashboardFilters-or-dashboardSorts-or-pivotResults-or-invalidateCache-or-dateZoom-or-parameters-or-excludedParameterKeys-or-limit_':
         {
             dataType: 'refAlias',
             type: {
@@ -19568,6 +19722,16 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             { ref: 'DateZoom' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    excludedParameterKeys: {
+                        dataType: 'union',
+                        subSchemas: [
+                            {
+                                dataType: 'array',
+                                array: { dataType: 'string' },
+                            },
                             { dataType: 'undefined' },
                         ],
                     },
@@ -19837,7 +20001,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_ExecuteAsyncDashboardSqlChartRequestParams.dashboardFilters-or-dashboardSorts-or-invalidateCache-or-parameters-or-limit_':
+    'Pick_ExecuteAsyncDashboardSqlChartRequestParams.dashboardFilters-or-dashboardSorts-or-invalidateCache-or-parameters-or-excludedParameterKeys-or-limit_':
         {
             dataType: 'refAlias',
             type: {
@@ -19870,6 +20034,16 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             { dataType: 'boolean' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    excludedParameterKeys: {
+                        dataType: 'union',
+                        subSchemas: [
+                            {
+                                dataType: 'array',
+                                array: { dataType: 'string' },
+                            },
                             { dataType: 'undefined' },
                         ],
                     },
@@ -27577,6 +27751,10 @@ const models: TsoaRoute.Models = {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
                         includeUnpublishedDraft: { dataType: 'boolean' },
+                        excludedParameterKeys: {
+                            dataType: 'array',
+                            array: { dataType: 'string' },
+                        },
                         pivotResults: { dataType: 'boolean' },
                         limit: {
                             dataType: 'union',
@@ -27649,6 +27827,10 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        excludedParameterKeys: {
+                            dataType: 'array',
+                            array: { dataType: 'string' },
+                        },
                         limit: { dataType: 'double' },
                         dashboardSorts: {
                             dataType: 'array',
@@ -77293,6 +77475,117 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ParameterDefinitions: {
+        dataType: 'refAlias',
+        type: {
+            ref: 'Record_string.LightdashProjectParameter_',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DashboardTileParameterReferences: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        error: {
+                            dataType: 'enum',
+                            enums: [null],
+                            required: true,
+                        },
+                        parameterDefinitions: { ref: 'ParameterDefinitions' },
+                        parameterReferences: {
+                            dataType: 'array',
+                            array: { dataType: 'string' },
+                            required: true,
+                        },
+                        tileUuid: { dataType: 'string', required: true },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        error: { dataType: 'string', required: true },
+                        parameterReferences: {
+                            dataType: 'enum',
+                            enums: [null],
+                            required: true,
+                        },
+                        tileUuid: { dataType: 'string', required: true },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiDashboardTileParameterReferencesResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'DashboardTileParameterReferences',
+                    },
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DashboardTileParameterReferencesTile: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                savedSqlUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                savedChartUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                tileUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DashboardTileParameterReferencesRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                tiles: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'DashboardTileParameterReferencesTile',
+                    },
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_CreateDashboard.name-or-description-or-spaceUuid-or-colorPaletteUuid-or-ownerUserUuid_':
         {
             dataType: 'refAlias',
@@ -77521,14 +77814,6 @@ const models: TsoaRoute.Models = {
                 },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ParameterDefinitions: {
-        dataType: 'refAlias',
-        type: {
-            ref: 'Record_string.LightdashProjectParameter_',
             validators: {},
         },
     },
@@ -78141,11 +78426,38 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string._parameters-ParametersValuesMap--excludedParameterKeys-string-Array__':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {},
+                additionalProperties: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        excludedParameterKeys: {
+                            dataType: 'array',
+                            array: { dataType: 'string' },
+                            required: true,
+                        },
+                        parameters: {
+                            ref: 'ParametersValuesMap',
+                            required: true,
+                        },
+                    },
+                },
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ExportContentRequest: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                tileParameters: {
+                    ref: 'Record_string._parameters-ParametersValuesMap--excludedParameterKeys-string-Array__',
+                },
                 parameters: { ref: 'ParametersValuesMap' },
                 selectedTabs: {
                     dataType: 'union',
@@ -92160,6 +92472,10 @@ export function RegisterRoutes(app: Router) {
             required: true,
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                excludedParameterKeys: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                },
                 parameters: { ref: 'ParametersValuesMap' },
                 dashboardSorts: {
                     dataType: 'array',
@@ -92249,7 +92565,7 @@ export function RegisterRoutes(app: Router) {
                     },
                 },
                 {
-                    ref: 'Pick_ExecuteAsyncDashboardChartRequestParams.dashboardFilters-or-dashboardSorts-or-pivotResults-or-invalidateCache-or-dateZoom-or-parameters-or-limit_',
+                    ref: 'Pick_ExecuteAsyncDashboardChartRequestParams.dashboardFilters-or-dashboardSorts-or-pivotResults-or-invalidateCache-or-dateZoom-or-parameters-or-excludedParameterKeys-or-limit_',
                 },
             ],
         },
@@ -92390,7 +92706,7 @@ export function RegisterRoutes(app: Router) {
                     },
                 },
                 {
-                    ref: 'Pick_ExecuteAsyncDashboardSqlChartRequestParams.dashboardFilters-or-dashboardSorts-or-invalidateCache-or-parameters-or-limit_',
+                    ref: 'Pick_ExecuteAsyncDashboardSqlChartRequestParams.dashboardFilters-or-dashboardSorts-or-invalidateCache-or-parameters-or-excludedParameterKeys-or-limit_',
                 },
             ],
         },
@@ -92466,6 +92782,10 @@ export function RegisterRoutes(app: Router) {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 invalidateCache: { dataType: 'boolean' },
+                excludedParameterKeys: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                },
                 parameters: { ref: 'ParametersValuesMap' },
                 dashboardFilters: { ref: 'AnyType' },
             },
@@ -92551,6 +92871,10 @@ export function RegisterRoutes(app: Router) {
                     dataType: 'array',
                     array: { dataType: 'string' },
                     required: true,
+                },
+                excludedParameterKeys: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
                 },
                 parameters: { ref: 'ParametersValuesMap' },
                 dashboardFilters: { ref: 'DashboardFilters' },
@@ -146670,6 +146994,73 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'get',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectDashboardControllerV2_getTileParameterReferences: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'DashboardTileParameterReferencesRequest',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.post(
+        '/api/v2/projects/:projectUuid/dashboards/tile-parameter-references',
+        ...fetchMiddlewares<RequestHandler>(ProjectDashboardControllerV2),
+        ...fetchMiddlewares<RequestHandler>(
+            ProjectDashboardControllerV2.prototype.getTileParameterReferences,
+        ),
+
+        async function ProjectDashboardControllerV2_getTileParameterReferences(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsProjectDashboardControllerV2_getTileParameterReferences,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<ProjectDashboardControllerV2>(
+                        ProjectDashboardControllerV2,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getTileParameterReferences',
                     controller,
                     response,
                     next,

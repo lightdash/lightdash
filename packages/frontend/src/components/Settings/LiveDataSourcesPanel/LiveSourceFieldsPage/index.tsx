@@ -1,4 +1,4 @@
-import { type LiveSourceField } from '@lightdash/common';
+import { FeatureFlags, type LiveSourceField } from '@lightdash/common';
 import { Button, Center, Text } from '@mantine/core';
 import { IconFilter, IconRefresh, IconSearch } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
@@ -11,6 +11,8 @@ import {
     useUpdateLiveSourceFields,
 } from '../../../../features/externalConnections/hooks/useLiveSourceFields';
 import { getLiveSource } from '../../../../features/externalConnections/liveSources/liveSourceCatalog';
+import { getSemanticStudioSourceUrl } from '../../../../features/semanticStudio/urls';
+import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import { ContentTable, useContentTable } from '../../../common/ContentTable';
 import EmptyStateLoader from '../../../common/EmptyStateLoader';
 import ErrorState from '../../../common/ErrorState';
@@ -55,7 +57,7 @@ type Props = {
     projectUuid: string;
 };
 
-const LiveSourceFieldsPage: FC<Props> = ({ projectUuid }) => {
+const LiveSourceFieldsEditor: FC<Props> = ({ projectUuid }) => {
     const { connectionUuid = '' } = useParams<{ connectionUuid: string }>();
     const listUrl = `/generalSettings/projectManagement/${projectUuid}/liveDataSources`;
     const params = { projectUuid, connectionUuid };
@@ -225,6 +227,27 @@ const LiveSourceFieldsPage: FC<Props> = ({ projectUuid }) => {
             )}
         </SettingsPage>
     );
+};
+
+/**
+ * Field editing moved to Semantic Layer. While its flag is on, old links
+ * to this page land on the same source there; otherwise nothing changes.
+ */
+const LiveSourceFieldsPage: FC<Props> = ({ projectUuid }) => {
+    const { connectionUuid = '' } = useParams<{ connectionUuid: string }>();
+    const semanticStudioFlag = useServerFeatureFlag(
+        FeatureFlags.SemanticStudio,
+    );
+    if (semanticStudioFlag.isInitialLoading) return <EmptyStateLoader />;
+    if (semanticStudioFlag.data?.enabled) {
+        return (
+            <Navigate
+                to={getSemanticStudioSourceUrl(projectUuid, connectionUuid)}
+                replace
+            />
+        );
+    }
+    return <LiveSourceFieldsEditor projectUuid={projectUuid} />;
 };
 
 export default LiveSourceFieldsPage;

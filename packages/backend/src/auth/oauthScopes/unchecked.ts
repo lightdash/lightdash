@@ -303,7 +303,6 @@ export const OAUTH_UNCHECKED_OPERATIONS = {
     'organizationRouter.getActiveCreateProjectJob': 'read',
     'organizationRouter.getOnboarding': 'read',
     'organizationRouter.setOnboardingSuccessDate': 'write',
-    'dashboardRouter.getDashboardViews': 'read',
     'UserService.verifyEmail': 'write',
 } as const;
 

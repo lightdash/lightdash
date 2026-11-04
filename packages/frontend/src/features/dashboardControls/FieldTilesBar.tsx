@@ -66,9 +66,19 @@ const getReplacesTooltip = (
               tiles: formatTileCount(getUiString, scope.replaced),
           });
 
+/** The bar's words for what fills (`{count}`, `{field}`, `{tiles}`); default: filtering. */
+export type FieldBarCopy = {
+    fillMore: string;
+    fillOnOtherTabs: string;
+    fillMoreNone: string;
+    region: string;
+    undoFillName: string;
+    noTile: string;
+};
+
 // One field's bar: the count over every tab, Filter and Clear over the tab in
 // view first, then the other tabs; disabled when they would change nothing
-const Bar: FC<{
+export const FieldBar: FC<{
     fieldTiles: FieldTiles;
     // The last change to this field Undo can take back
     undo: FieldApply | null;
@@ -77,7 +87,8 @@ const Bar: FC<{
     isOnlyRow: boolean;
     /** Shown for a new chip selection, not moved to another tab's grid. */
     isArriving: boolean;
-}> = ({ fieldTiles, undo, onUndo, isOnlyRow, isArriving }) => {
+    copy?: FieldBarCopy;
+}> = ({ fieldTiles, undo, onUndo, isOnlyRow, isArriving, copy }) => {
     // Kept from mount: a later render must not cut the slide short
     const [arrives] = useState(isArriving);
     const {
@@ -93,6 +104,14 @@ const Bar: FC<{
         clear,
     } = fieldTiles;
     const getUiString = useUiStrings();
+    const words = copy ?? {
+        fillMore: getUiString('filters.fieldBar.filterMore'),
+        fillOnOtherTabs: getUiString('filters.fieldBar.filterOnOtherTabs'),
+        fillMoreNone: getUiString('filters.fieldBar.filterMoreNone'),
+        region: getUiString('filters.fieldBar.region'),
+        undoFillName: getUiString('filters.fieldBar.undoFilterName'),
+        noTile: getUiString('filters.fieldBar.noTile'),
+    };
     const { applied, possible } = everyTabScope;
     const tilesOf = formatTilesOf(getUiString, applied, possible);
     // Without tabs the tab in view is every tile
@@ -107,13 +126,11 @@ const Bar: FC<{
     const canClear = canAct && emptying !== null && !isOnlyRow;
     const fillLabel =
         fill === null
-            ? getUiString('filters.fieldBar.filterMoreNone')
+            ? words.fillMoreNone
             : interpolateUiString(
-                  getUiString(
-                      fill.tileScope === 'other-tabs'
-                          ? 'filters.fieldBar.filterOnOtherTabs'
-                          : 'filters.fieldBar.filterMore',
-                  ),
+                  fill.tileScope === 'other-tabs'
+                      ? words.fillOnOtherTabs
+                      : words.fillMore,
                   { count: getChangeCount(fill.scope) },
               );
     // A Clear that cannot act carries no count: it would read as available
@@ -162,10 +179,7 @@ const Bar: FC<{
             ref={regionRef}
             role="region"
             tabIndex={-1}
-            aria-label={interpolateUiString(
-                getUiString('filters.fieldBar.region'),
-                { field: label },
-            )}
+            aria-label={interpolateUiString(words.region, { field: label })}
             shadow="md"
             radius="md"
             className={classes.bar}
@@ -207,7 +221,7 @@ const Bar: FC<{
                 <Group gap="sm">
                     <Text fz="sm" aria-live="polite">
                         {possible === 0 ? (
-                            getUiString('filters.fieldBar.noTile')
+                            words.noTile
                         ) : (
                             <>
                                 <Text span fw={600} className={classes.count}>
@@ -275,11 +289,11 @@ const Bar: FC<{
                                             : 'subtle'
                                     }
                                     aria-label={interpolateUiString(
-                                        getUiString(
-                                            undo.kind === 'clear'
-                                                ? 'filters.fieldBar.undoClearName'
-                                                : 'filters.fieldBar.undoFilterName',
-                                        ),
+                                        undo.kind === 'clear'
+                                            ? getUiString(
+                                                  'filters.fieldBar.undoClearName',
+                                              )
+                                            : words.undoFillName,
                                         {
                                             field: label,
                                             tiles: formatTileCount(
@@ -334,7 +348,7 @@ export const FieldTilesBar: FC = () => {
     if (fieldTileActions === null || fieldId === null || host === null)
         return null;
     return createPortal(
-        <Bar
+        <FieldBar
             // A new field draws a new bar, which slides in again
             key={fieldId}
             fieldTiles={fieldTileActions.forField(fieldId)}

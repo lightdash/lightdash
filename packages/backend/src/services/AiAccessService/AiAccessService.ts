@@ -137,8 +137,8 @@ import { AgentSessionCheckError } from './agentSession';
 import { recordAgentRefusal } from './logAgentContentWrite';
 import {
     getQueryIdentityLineage,
-    getQueryResultNodeKind,
     getQuerySourceParameters,
+    queryResultNodeRequiresRawSql,
 } from './queryResultLineage';
 import { SnowflakeAgentClientResolver } from './SnowflakeAgentClientResolver';
 
@@ -510,10 +510,9 @@ export class AiAccessService extends BaseService {
             [
                 AgentCapability.ReadDiscover,
                 AgentCapability.Query,
-                ...(getQueryResultNodeKind(query.requestParameters) ===
-                'semantic'
-                    ? []
-                    : [AgentCapability.RawSql]),
+                ...(queryResultNodeRequiresRawSql(query.requestParameters)
+                    ? [AgentCapability.RawSql]
+                    : []),
             ],
             true,
         );
@@ -569,10 +568,11 @@ export class AiAccessService extends BaseService {
                 ...(evaluation.kind === 'query'
                     ? [
                           AgentCapability.Query,
-                          ...(getQueryResultNodeKind(node.requestParameters) ===
-                          'semantic'
-                              ? []
-                              : [AgentCapability.RawSql]),
+                          ...(queryResultNodeRequiresRawSql(
+                              node.requestParameters,
+                          )
+                              ? [AgentCapability.RawSql]
+                              : []),
                       ]
                     : []),
             ],

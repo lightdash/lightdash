@@ -1641,6 +1641,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'ProjectDashboardControllerV2.delete': [AgentCapability.Delete],
     'ProjectDashboardControllerV2.get': [AgentCapability.ReadDiscover],
     'ProjectDashboardControllerV2.getComments': [AgentCapability.ReadDiscover],
+    'ProjectDashboardControllerV2.getTileParameterReferences': [
+        AgentCapability.ReadDiscover,
+    ],
     'ProjectDashboardControllerV2.update': [AgentCapability.ContentWrite],
     'ProjectDbtSourcesController.createProjectDbtSource': [
         AgentCapability.Administration,
@@ -2086,7 +2089,6 @@ export const REST_OPERATION_CAPABILITIES = {
     'apiV1Router GET /health': [AgentCapability.ReadDiscover],
     'chartRegistryAssetRouter GET /assets': [AgentCapability.ReadDiscover],
     'dashboardRouter DELETE /:dashboardUuid': [AgentCapability.Delete],
-    'dashboardRouter GET /:dashboardUuid/views': [AgentCapability.ReadDiscover],
     'dashboardRouter GET /:dashboardUuidOrSlug': [AgentCapability.ReadDiscover],
     'dashboardRouter GET /:dashboardUuidOrSlug/view-stats': [
         AgentCapability.ReadDiscover,
@@ -2100,7 +2102,6 @@ export const REST_OPERATION_CAPABILITIES = {
     'dashboardRouter POST /:dashboardUuid/export': [AgentCapability.Export],
     'dashboardRouter POST /:dashboardUuid/exportCsv': [AgentCapability.Export],
     'dashboardRouter POST /availableFilters': [AgentCapability.ReadDiscover],
-    'dashboardRouter.getDashboardViews': [AgentCapability.ReadDiscover],
     'jobsRouter GET /:jobUuid': [AgentCapability.ReadDiscover],
     'mcpRouter ALL /': [AgentCapability.ReadDiscover],
     'mcpRouter ALL /projects/:projectUuid': [AgentCapability.ReadDiscover],

@@ -457,7 +457,7 @@ export const runLlmFilterPermutationCase = async ({
                 activeTools: ['generateFilters'],
                 toolChoice: { type: 'tool', toolName: 'generateFilters' },
             }),
-            onStepFinish: (step) => {
+            onStepEnd: (step) => {
                 modelStepResults.push({
                     step: step.stepNumber + 1,
                     finishReason: step.finishReason,
@@ -470,7 +470,7 @@ export const runLlmFilterPermutationCase = async ({
                     toolResults: stringifyJson(step.toolResults),
                 });
             },
-            system: systemPrompt,
+            instructions: systemPrompt,
             tools: {
                 generateFilters: tool({
                     description:

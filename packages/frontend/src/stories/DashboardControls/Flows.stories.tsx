@@ -5,7 +5,7 @@ import { withStoryFrame } from './decorators';
 import { TOTAL_TILE_COUNT, waitForApiIdle } from './fixtures';
 
 const meta: Meta<typeof AddControlFlow> = {
-    title: 'Prototypes/Dashboard controls/Flows',
+    title: 'Dashboards/Controls/Flows',
     component: AddControlFlow,
     parameters: { layout: 'fullscreen' },
     decorators: [withStoryFrame],
@@ -17,113 +17,160 @@ type Story = StoryObj<typeof meta>;
 const onPage = (canvasElement: HTMLElement) =>
     within(canvasElement.ownerDocument.body);
 
-/** Add, Filter, a field: its filter opens; Cancel goes back to the Add menu. */
 export const AddAFilter: Story = {
     name: 'Add a filter',
     play: async ({ canvas, canvasElement, userEvent }) => {
         const page = onPage(canvasElement);
+        const add = canvas.getByRole('button', { name: 'Add' });
+        await userEvent.click(add);
         await userEvent.click(
             await page.findByRole('menuitem', { name: /^Filter/ }),
         );
+        const amount = await page.findByRole('option', { name: /^Amount,/ });
+        await expect(amount).toHaveAccessibleName('Amount, Orders, 4 tiles');
+        await userEvent.click(amount);
+        const editor = await page.findByRole('dialog', { name: 'Amount' });
+        await waitFor(() => expect(editor).toBeVisible());
+        await expect(
+            within(editor).getByRole('button', {
+                name: /^Applies to 4 of 6 tiles/,
+            }),
+        ).toBeVisible();
         await userEvent.click(
-            await page.findByRole('option', { name: /^Amount/ }),
+            within(editor).getByRole('button', { name: 'Cancel' }),
         );
-        await expect(
-            await canvas.findByRole('dialog', { name: 'Amount' }),
-        ).toBeVisible();
-        await userEvent.click(canvas.getByRole('button', { name: 'Cancel' }));
-        await expect(
-            await page.findByRole('menuitem', { name: /^Filter/ }),
-        ).toBeVisible();
+        await waitFor(() => expect(add).toHaveFocus());
     },
 };
 
-/** Add, Parameter, a search and Enter: its control opens; Cancel goes back to the Add menu. */
 export const AddAParameter: Story = {
-    name: 'Add a parameter',
+    name: 'Add an unset parameter',
     play: async ({ canvas, canvasElement, userEvent }) => {
         const page = onPage(canvasElement);
+        await userEvent.click(canvas.getByRole('button', { name: 'Add' }));
         await userEvent.click(
             await page.findByRole('menuitem', { name: /^Parameter/ }),
         );
         await userEvent.type(
-            canvas.getByRole('textbox', { name: 'Search parameters' }),
+            await page.findByRole('textbox', { name: 'Search parameters' }),
             'region',
         );
-        // The search settles after its debounce: Orders Region comes first
         await waitFor(() =>
-            expect(canvas.getAllByRole('option')).toHaveLength(2),
+            expect(page.getAllByRole('option')).toHaveLength(2),
         );
         await userEvent.keyboard('{Enter}');
+        const editor = await page.findByRole('dialog', { name: 'Region' });
+        await waitFor(() =>
+            expect(
+                within(editor).getByText(`Sets 2 of ${TOTAL_TILE_COUNT} tiles`),
+            ).toBeVisible(),
+        );
+        await userEvent.click(
+            within(editor).getByRole('button', { name: 'Apply' }),
+        );
         await expect(
-            await canvas.findByRole('dialog', { name: 'Region' }),
-        ).toBeVisible();
-        await expect(
-            canvas.getByText(`Sets 2 of ${TOTAL_TILE_COUNT} tiles`),
-        ).toBeVisible();
-        await userEvent.click(canvas.getByRole('button', { name: 'Cancel' }));
-        await expect(
-            await page.findByRole('menuitem', { name: /^Parameter/ }),
+            canvas.getByRole('button', { name: /Region.*is not set/ }),
         ).toBeVisible();
         await waitForApiIdle();
     },
 };
 
-/** A parameter already on the bar stays pickable: a second control with no tiles, which cannot apply until a tile is chosen. */
 export const AddASecondControlOnAParameter: Story = {
     name: 'Add a second control on a parameter',
     play: async ({ canvas, canvasElement, userEvent }) => {
         const page = onPage(canvasElement);
+        await userEvent.click(canvas.getByRole('button', { name: 'Add' }));
         await userEvent.click(
             await page.findByRole('menuitem', { name: /^Parameter/ }),
         );
         await userEvent.click(
-            await canvas.findByRole('option', { name: /^Week starts on/ }),
+            await page.findByRole('option', { name: /^Week starts on/ }),
         );
-        await expect(
-            await canvas.findByRole('dialog', { name: 'Week starts on' }),
-        ).toBeVisible();
-        await expect(
-            canvas.getByText(`Sets 0 of ${TOTAL_TILE_COUNT} tiles`),
-        ).toBeVisible();
-        const apply = canvas.getByRole('button', { name: 'Apply' });
-        await expect(apply).toBeDisabled();
-        await userEvent.click(
-            canvas.getByRole('button', { name: /Choose tiles/ }),
+        const editor = await page.findByRole('dialog', {
+            name: 'Week starts on',
+        });
+        await waitFor(() =>
+            expect(
+                within(editor).getByText(`Sets 0 of ${TOTAL_TILE_COUNT} tiles`),
+            ).toBeVisible(),
         );
+        await expect(within(editor).getByRole('combobox')).toHaveValue('');
         await expect(
-            canvas.getByText(`Sets 2 of ${TOTAL_TILE_COUNT} tiles`),
+            canvas.getByRole('button', { name: /Week starts on.*Monday/ }),
         ).toBeVisible();
-        await expect(apply).toBeEnabled();
     },
 };
 
-/** The tiles a field reaches read the same in the picker and in its new filter. */
-export const AddAFilterTileCounts: Story = {
-    name: 'Add a filter, tile counts match',
+export const MoveMixedSelectionToSection: Story = {
+    name: 'Move a filter and parameter into a section',
     play: async ({ canvas, canvasElement, userEvent }) => {
         const page = onPage(canvasElement);
-        for (const fieldName of ['First name', 'Amount']) {
-            await userEvent.click(
-                await page.findByRole('menuitem', { name: /^Filter/ }),
-            );
-            const option = await canvas.findByRole('option', {
-                name: new RegExp(`^${fieldName},`),
-            });
-            const picked = /(\d+) tiles?$/.exec(option.textContent ?? '');
-            await expect(picked).not.toBeNull();
-            await userEvent.click(option);
-            await expect(
-                await canvas.findByRole('button', { name: /^Applies to/ }),
-            ).toHaveAccessibleName(
-                new RegExp(
-                    `^Applies to ${picked?.[1]} (of ${TOTAL_TILE_COUNT} )?tiles?\\.`,
-                ),
-            );
-            await userEvent.click(
-                canvas.getByRole('button', { name: 'Cancel' }),
-            );
-        }
+        const filter = canvas.getByRole('button', { name: /^First name/ });
+        const parameter = canvas.getByRole('button', {
+            name: /Week starts on.*Monday/,
+        });
+        await userEvent.keyboard('{Meta>}');
+        await userEvent.click(filter);
+        await userEvent.click(parameter);
+        await userEvent.keyboard('{/Meta}');
+        await expect(await page.findByText('2 selected')).toBeVisible();
+        await userEvent.click(page.getByRole('button', { name: 'Move to' }));
+        await userEvent.click(
+            await page.findByRole('menuitem', { name: /^Orders/ }),
+        );
+        const section = canvas.getByRole('group', { name: 'Orders' });
+        await expect(
+            within(section).getByRole('button', { name: /^First name/ }),
+        ).toBeInTheDocument();
+        await expect(
+            within(section).getByRole('button', {
+                name: /Week starts on.*Monday/,
+            }),
+        ).toBeInTheDocument();
+    },
+};
+
+export const AddControlsToSection: Story = {
+    name: 'Add a filter and parameter to a section',
+    play: async ({ canvas, canvasElement, userEvent }) => {
+        const page = onPage(canvasElement);
+        const section = canvas.getByRole('group', { name: 'Customers' });
+        const expand = within(section).queryByRole('button', {
+            name: /Expand/,
+        });
+        if (expand) await userEvent.click(expand);
+        const add = within(section).getByRole('button', {
+            name: 'Add to Customers',
+        });
+        await userEvent.click(add);
+        await userEvent.click(
+            await page.findByRole('menuitem', { name: /^Filter/ }),
+        );
+        await userEvent.click(
+            await page.findByRole('option', { name: /^Amount,/ }),
+        );
+        const filter = await page.findByRole('dialog', { name: 'Amount' });
+        await userEvent.click(
+            within(filter).getByRole('button', { name: 'Apply' }),
+        );
+        await expect(
+            within(section).getByRole('button', { name: /^Amount/ }),
+        ).toBeVisible();
+
+        await userEvent.click(add);
+        await userEvent.click(
+            await page.findByRole('menuitem', { name: /^Parameter/ }),
+        );
+        await userEvent.click(
+            await page.findByRole('option', { name: /^Region, Orders/ }),
+        );
+        const parameter = await page.findByRole('dialog', { name: 'Region' });
+        await userEvent.click(
+            within(parameter).getByRole('button', { name: 'Apply' }),
+        );
+        await expect(
+            within(section).getByRole('button', { name: /Region.*is not set/ }),
+        ).toBeVisible();
         await waitForApiIdle();
     },
 };

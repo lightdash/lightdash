@@ -56,6 +56,7 @@ const execute = async (
     args: { slug: string; type: 'dashboard' | 'chart' },
 ) => {
     const tool = getReadContent({
+        siteUrl: 'https://app.lightdash.cloud',
         readContent: vi.fn().mockResolvedValue(read),
     });
     if (!tool.execute) {
@@ -114,6 +115,7 @@ describe('readContent tool', () => {
         async (chartId) => {
             const readContent = vi.fn().mockResolvedValue(chartRead);
             const tool = getReadContent({
+                siteUrl: 'https://app.lightdash.cloud',
                 readContent,
                 documentsEnabled: true,
             });

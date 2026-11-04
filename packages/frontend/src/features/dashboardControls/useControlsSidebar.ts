@@ -64,6 +64,8 @@ export type ControlsSidebarContextValue = {
     isAsking: boolean;
     /** Applies (true) or discards (false) the edit, then opens the pill clicked or the new filter, if any. */
     resolvePending: (isApply: boolean) => void;
+    /** A parameter control's pill: runs `proceed` once the edit is closed, asking first on unapplied changes. */
+    requestSwitch: (proceed: () => void) => void;
     /** Edit mode: moves a pill one place among its kind in its section, on the dashboard at once; nothing at an end. */
     moveFilter: (filterId: string, direction: MoveDirection) => void;
     /**

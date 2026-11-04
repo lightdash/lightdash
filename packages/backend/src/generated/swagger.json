@@ -6116,6 +6116,29 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "DashboardParameterValue": {
+                "properties": {
+                    "value": {
+                        "$ref": "#/components/schemas/ParameterValue"
+                    },
+                    "parameterName": {
+                        "type": "string"
+                    }
+                },
+                "required": ["value", "parameterName"],
+                "type": "object"
+            },
+            "Record_string.DashboardParameterValue_": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/DashboardParameterValue"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "DashboardParameters": {
+                "$ref": "#/components/schemas/Record_string.DashboardParameterValue_"
+            },
             "DateGranularity": {
                 "enum": [
                     "Second",
@@ -6219,33 +6242,127 @@
                 "required": ["name", "id"],
                 "type": "object"
             },
-            "DashboardConfig": {
+            "Required_Pick_LightdashProjectParameter.type-or-multiple__": {
                 "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": ["string", "number", "date"]
+                    },
+                    "multiple": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["type", "multiple"],
+                "type": "object",
+                "description": "Make all properties in T required"
+            },
+            "DashboardParameterTarget_string_": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "only": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["only"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "except": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["except"],
+                        "type": "object"
+                    },
+                    {
+                        "type": "string",
+                        "enum": ["all"]
+                    }
+                ]
+            },
+            "Record_string.DashboardParameterTarget_": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/DashboardParameterTarget_string_"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "DashboardParameterControlAsCode": {
+                "properties": {
+                    "hidden": {
+                        "type": "boolean"
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/Record_string.DashboardParameterTarget_"
+                    },
+                    "sectionId": {
+                        "type": "string"
+                    },
+                    "valueType": {
+                        "$ref": "#/components/schemas/Required_Pick_LightdashProjectParameter.type-or-multiple__"
+                    },
+                    "value": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ParameterValue"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "label": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "id": {
+                        "type": "string",
+                        "description": "Legacy project-local identifier accepted on upload."
+                    },
+                    "slug": {
+                        "type": "string",
+                        "description": "Portable control identifier; matching an existing slug preserves its id."
+                    }
+                },
+                "required": ["parameters", "valueType", "value", "label"],
+                "type": "object"
+            },
+            "DashboardConfigAsCode": {
+                "properties": {
+                    "parameterControls": {
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardParameterControlAsCode"
+                        },
+                        "type": "array"
+                    },
                     "parameterSections": {
                         "properties": {},
                         "additionalProperties": {
                             "type": "string"
                         },
-                        "type": "object",
-                        "description": "Parameter name to section id. Parameters have no saved object of their own."
+                        "type": "object"
                     },
                     "controlSections": {
                         "items": {
                             "$ref": "#/components/schemas/DashboardControlSection"
                         },
-                        "type": "array",
-                        "description": "Named sets of controls, in display order. Controls point at a section\nby id; controls with no section render first, unsectioned."
+                        "type": "array"
                     },
                     "customMetrics": {
                         "items": {
                             "$ref": "#/components/schemas/AdditionalMetric"
                         },
-                        "type": "array",
-                        "description": "Custom metrics offered to charts built inside this dashboard. Interim\nstore — moves to a semantic-layer draft later; don't read it elsewhere."
+                        "type": "array"
                     },
                     "requiredFiltersNote": {
-                        "type": "string",
-                        "description": "Editor-authored note shown to viewers while filter rules are unmet"
+                        "type": "string"
                     },
                     "dateZoomConfig": {
                         "$ref": "#/components/schemas/DateZoomConfig"
@@ -6294,48 +6411,6 @@
                 },
                 "required": ["isDateZoomDisabled"],
                 "type": "object"
-            },
-            "DashboardParameterValue": {
-                "properties": {
-                    "value": {
-                        "$ref": "#/components/schemas/ParameterValue"
-                    },
-                    "parameterName": {
-                        "type": "string"
-                    }
-                },
-                "required": ["value", "parameterName"],
-                "type": "object"
-            },
-            "Record_string.DashboardParameterValue_": {
-                "properties": {},
-                "additionalProperties": {
-                    "$ref": "#/components/schemas/DashboardParameterValue"
-                },
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "DashboardParameters": {
-                "$ref": "#/components/schemas/Record_string.DashboardParameterValue_"
-            },
-            "Pick_Pick_Dashboard.name-or-description-or-tabs-or-slug-or-config-or-parameters_.Exclude_keyofPick_Dashboard.name-or-description-or-tabs-or-slug-or-config-or-parameters_.name-or-slug-or-tabs__": {
-                "properties": {
-                    "config": {
-                        "$ref": "#/components/schemas/DashboardConfig"
-                    },
-                    "description": {
-                        "type": "string"
-                    },
-                    "parameters": {
-                        "$ref": "#/components/schemas/DashboardParameters"
-                    }
-                },
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Omit_Pick_Dashboard.name-or-description-or-tabs-or-slug-or-config-or-parameters_.name-or-slug-or-tabs_": {
-                "$ref": "#/components/schemas/Pick_Pick_Dashboard.name-or-description-or-tabs-or-slug-or-config-or-parameters_.Exclude_keyofPick_Dashboard.name-or-description-or-tabs-or-slug-or-config-or-parameters_.name-or-slug-or-tabs__",
-                "description": "Construct a type with the properties of T except for those in type K."
             },
             "DashboardTabAsCode": {
                 "properties": {
@@ -6927,108 +7002,110 @@
                 ]
             },
             "DashboardAsCode": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/Omit_Pick_Dashboard.name-or-description-or-tabs-or-slug-or-config-or-parameters_.name-or-slug-or-tabs_"
+                "properties": {
+                    "access": {
+                        "$ref": "#/components/schemas/ContentAsCodeDirectAccess",
+                        "description": "Direct user/group grants. Omission leaves the existing policy unchanged on upload."
                     },
-                    {
+                    "verification": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentVerificationInfo"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Detailed verification info (who/when). Read-only; ignored on upload."
+                    },
+                    "verified": {
+                        "type": "boolean",
+                        "description": "Declarative verification state.\n`true` verifies the dashboard on upload, `false` unverifies it, `undefined` leaves the\ncurrent state untouched. Download sets this to `true` when the dashboard is verified."
+                    },
+                    "ownerEmail": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Declarative dashboard owner, referenced by email so it is portable across projects.\nA string assigns the organization member with that email as owner, `null` unassigns\nthe owner, `undefined` leaves the current owner untouched. Download sets this to the\nowner's email when an owner is assigned."
+                    },
+                    "filters": {
                         "properties": {
-                            "access": {
-                                "$ref": "#/components/schemas/ContentAsCodeDirectAccess",
-                                "description": "Direct user/group grants. Omission leaves the existing policy unchanged on upload."
-                            },
-                            "verification": {
-                                "allOf": [
-                                    {
-                                        "$ref": "#/components/schemas/ContentVerificationInfo"
-                                    }
-                                ],
-                                "nullable": true,
-                                "description": "Detailed verification info (who/when). Read-only; ignored on upload."
-                            },
-                            "verified": {
-                                "type": "boolean",
-                                "description": "Declarative verification state.\n`true` verifies the dashboard on upload, `false` unverifies it, `undefined` leaves the\ncurrent state untouched. Download sets this to `true` when the dashboard is verified."
-                            },
-                            "ownerEmail": {
-                                "type": "string",
-                                "nullable": true,
-                                "description": "Declarative dashboard owner, referenced by email so it is portable across projects.\nA string assigns the organization member with that email as owner, `null` unassigns\nthe owner, `undefined` leaves the current owner untouched. Download sets this to the\nowner's email when an owner is assigned."
-                            },
-                            "filters": {
-                                "properties": {
-                                    "tableCalculations": {
-                                        "items": {
-                                            "$ref": "#/components/schemas/DashboardFilterRule"
-                                        },
-                                        "type": "array"
-                                    },
-                                    "metrics": {
-                                        "items": {
-                                            "$ref": "#/components/schemas/DashboardFilterRule"
-                                        },
-                                        "type": "array"
-                                    },
-                                    "dimensions": {
-                                        "items": {
-                                            "$ref": "#/components/schemas/Omit_DashboardFilterRule.id_"
-                                        },
-                                        "type": "array"
-                                    }
-                                },
-                                "type": "object"
-                            },
-                            "downloadedAt": {
-                                "type": "string",
-                                "format": "date-time"
-                            },
-                            "spaceSlug": {
-                                "type": "string"
-                            },
-                            "contentType": {
-                                "$ref": "#/components/schemas/ContentAsCodeType.DASHBOARD"
-                            },
-                            "version": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "tiles": {
+                            "tableCalculations": {
                                 "items": {
-                                    "$ref": "#/components/schemas/DashboardTileAsCode"
+                                    "$ref": "#/components/schemas/DashboardFilterRule"
                                 },
                                 "type": "array"
                             },
-                            "updatedAt": {
-                                "type": "string",
-                                "format": "date-time",
-                                "description": "Not modifiable by user, but useful to know if it has been updated. Defaults to now if omitted."
-                            },
-                            "tabs": {
+                            "metrics": {
                                 "items": {
-                                    "$ref": "#/components/schemas/DashboardTabAsCode"
+                                    "$ref": "#/components/schemas/DashboardFilterRule"
                                 },
                                 "type": "array"
                             },
-                            "slug": {
-                                "type": "string",
-                                "pattern": "^[a-z0-9-]+$"
-                            },
-                            "name": {
-                                "type": "string",
-                                "minLength": 1
+                            "dimensions": {
+                                "items": {
+                                    "$ref": "#/components/schemas/Omit_DashboardFilterRule.id_"
+                                },
+                                "type": "array"
                             }
                         },
-                        "required": [
-                            "spaceSlug",
-                            "version",
-                            "tiles",
-                            "tabs",
-                            "slug",
-                            "name"
-                        ],
                         "type": "object"
+                    },
+                    "downloadedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "spaceSlug": {
+                        "type": "string"
+                    },
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentAsCodeType.DASHBOARD"
+                    },
+                    "version": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "tiles": {
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardTileAsCode"
+                        },
+                        "type": "array"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Not modifiable by user, but useful to know if it has been updated. Defaults to now if omitted."
+                    },
+                    "tabs": {
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardTabAsCode"
+                        },
+                        "type": "array"
+                    },
+                    "slug": {
+                        "type": "string",
+                        "pattern": "^[a-z0-9-]+$"
+                    },
+                    "name": {
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "config": {
+                        "$ref": "#/components/schemas/DashboardConfigAsCode"
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/DashboardParameters"
+                    },
+                    "description": {
+                        "type": "string"
                     }
-                ]
+                },
+                "required": [
+                    "spaceSlug",
+                    "version",
+                    "tiles",
+                    "tabs",
+                    "slug",
+                    "name"
+                ],
+                "type": "object"
             },
             "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--config_63__58__controlSections_63__58__name-string_-Array-or-undefined_-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
@@ -9553,6 +9630,126 @@
             "PromotedSpace": {
                 "$ref": "#/components/schemas/SpaceSummaryBase"
             },
+            "DashboardParameterControl": {
+                "properties": {
+                    "hidden": {
+                        "type": "boolean"
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/Record_string.DashboardParameterTarget_"
+                    },
+                    "sectionId": {
+                        "type": "string"
+                    },
+                    "valueType": {
+                        "$ref": "#/components/schemas/Required_Pick_LightdashProjectParameter.type-or-multiple__"
+                    },
+                    "value": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ParameterValue"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "label": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "slug": {
+                        "type": "string",
+                        "description": "Portable identity supplied by content as code."
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["parameters", "valueType", "value", "label", "id"],
+                "type": "object"
+            },
+            "DashboardConfig": {
+                "properties": {
+                    "parameterControls": {
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardParameterControl"
+                        },
+                        "type": "array",
+                        "description": "Absent: filled from the parameters tiles use. Present (even empty): exactly these."
+                    },
+                    "parameterSections": {
+                        "properties": {},
+                        "additionalProperties": {
+                            "type": "string"
+                        },
+                        "type": "object",
+                        "description": "Parameter name to section id. Parameters have no saved object of their own."
+                    },
+                    "controlSections": {
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardControlSection"
+                        },
+                        "type": "array",
+                        "description": "Named sets of controls, in display order. Controls point at a section\nby id; controls with no section render first, unsectioned."
+                    },
+                    "customMetrics": {
+                        "items": {
+                            "$ref": "#/components/schemas/AdditionalMetric"
+                        },
+                        "type": "array",
+                        "description": "Custom metrics offered to charts built inside this dashboard. Interim\nstore — moves to a semantic-layer draft later; don't read it elsewhere."
+                    },
+                    "requiredFiltersNote": {
+                        "type": "string",
+                        "description": "Editor-authored note shown to viewers while filter rules are unmet"
+                    },
+                    "dateZoomConfig": {
+                        "$ref": "#/components/schemas/DateZoomConfig"
+                    },
+                    "defaultDateZoomGranularity": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/DateGranularity"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ]
+                    },
+                    "dateZoomGranularities": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "$ref": "#/components/schemas/DateGranularity"
+                                },
+                                {
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "type": "array"
+                    },
+                    "parameterOrder": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "pinnedParameters": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "isAddFilterDisabled": {
+                        "type": "boolean"
+                    },
+                    "isDateZoomDisabled": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["isDateZoomDisabled"],
+                "type": "object"
+            },
             "DashboardFilters": {
                 "properties": {
                     "tableCalculations": {
@@ -9989,14 +10186,14 @@
                         ],
                         "nullable": true
                     },
+                    "uuid": {
+                        "type": "string"
+                    },
                     "tabs": {
                         "items": {
                             "$ref": "#/components/schemas/DashboardTab"
                         },
                         "type": "array"
-                    },
-                    "uuid": {
-                        "type": "string"
                     },
                     "tiles": {
                         "items": {
@@ -10125,8 +10322,8 @@
                     "filters",
                     "updatedAt",
                     "verification",
-                    "tabs",
                     "uuid",
+                    "tabs",
                     "tiles",
                     "organizationUuid",
                     "projectUuid",
@@ -11073,7 +11270,7 @@
             "Pick_DashboardAsCode.Exclude_keyofDashboardAsCode.tiles-or-description__": {
                 "properties": {
                     "config": {
-                        "$ref": "#/components/schemas/DashboardConfig"
+                        "$ref": "#/components/schemas/DashboardConfigAsCode"
                     },
                     "verified": {
                         "type": "boolean",
@@ -20741,7 +20938,7 @@
                 },
                 "type": "object"
             },
-            "Pick_ExecuteAsyncDashboardChartRequestParams.dashboardFilters-or-dashboardSorts-or-pivotResults-or-invalidateCache-or-dateZoom-or-parameters-or-limit_": {
+            "Pick_ExecuteAsyncDashboardChartRequestParams.dashboardFilters-or-dashboardSorts-or-pivotResults-or-invalidateCache-or-dateZoom-or-parameters-or-excludedParameterKeys-or-limit_": {
                 "properties": {
                     "limit": {
                         "type": "number",
@@ -20768,6 +20965,13 @@
                     },
                     "dateZoom": {
                         "$ref": "#/components/schemas/DateZoom"
+                    },
+                    "excludedParameterKeys": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "The keys this tile keeps as its own, sent with `parameters` when the\napp resolved the tile's parameter controls. A signed-in user's\nrequest is then used as sent, not resolved from the saved controls."
                     }
                 },
                 "required": ["dashboardFilters", "dashboardSorts"],
@@ -21061,7 +21265,7 @@
                     }
                 ]
             },
-            "Pick_ExecuteAsyncDashboardSqlChartRequestParams.dashboardFilters-or-dashboardSorts-or-invalidateCache-or-parameters-or-limit_": {
+            "Pick_ExecuteAsyncDashboardSqlChartRequestParams.dashboardFilters-or-dashboardSorts-or-invalidateCache-or-parameters-or-excludedParameterKeys-or-limit_": {
                 "properties": {
                     "limit": {
                         "type": "number",
@@ -21081,6 +21285,13 @@
                     },
                     "invalidateCache": {
                         "type": "boolean"
+                    },
+                    "excludedParameterKeys": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "As on the dashboard chart request"
                     }
                 },
                 "required": ["dashboardFilters", "dashboardSorts"],
@@ -29334,6 +29545,13 @@
                             "includeUnpublishedDraft": {
                                 "type": "boolean"
                             },
+                            "excludedParameterKeys": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array",
+                                "description": "The keys this tile keeps as its own, sent with `parameters` when the\napp resolved the tile's parameter controls. A signed-in user's\nrequest is then used as sent, not resolved from the saved controls."
+                            },
                             "pivotResults": {
                                 "type": "boolean"
                             },
@@ -29421,6 +29639,13 @@
                     },
                     {
                         "properties": {
+                            "excludedParameterKeys": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array",
+                                "description": "As on the dashboard chart request"
+                            },
                             "limit": {
                                 "type": "number",
                                 "format": "double"
@@ -71884,6 +72109,107 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ParameterDefinitions": {
+                "$ref": "#/components/schemas/Record_string.LightdashProjectParameter_"
+            },
+            "DashboardTileParameterReferences": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "error": {
+                                "type": "number",
+                                "enum": [null],
+                                "nullable": true
+                            },
+                            "parameterDefinitions": {
+                                "$ref": "#/components/schemas/ParameterDefinitions"
+                            },
+                            "parameterReferences": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "tileUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "error",
+                            "parameterReferences",
+                            "tileUuid"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "error": {
+                                "type": "string"
+                            },
+                            "parameterReferences": {
+                                "type": "number",
+                                "enum": [null],
+                                "nullable": true
+                            },
+                            "tileUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "error",
+                            "parameterReferences",
+                            "tileUuid"
+                        ],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiDashboardTileParameterReferencesResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardTileParameterReferences"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "DashboardTileParameterReferencesTile": {
+                "properties": {
+                    "savedSqlUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "savedChartUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "tileUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["savedSqlUuid", "savedChartUuid", "tileUuid"],
+                "type": "object"
+            },
+            "DashboardTileParameterReferencesRequest": {
+                "properties": {
+                    "tiles": {
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardTileParameterReferencesTile"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["tiles"],
+                "type": "object"
+            },
             "Pick_CreateDashboard.name-or-description-or-spaceUuid-or-colorPaletteUuid-or-ownerUserUuid_": {
                 "properties": {
                     "description": {
@@ -72068,9 +72394,6 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
-            },
-            "ParameterDefinitions": {
-                "$ref": "#/components/schemas/Record_string.LightdashProjectParameter_"
             },
             "ApiGetProjectParametersResults": {
                 "$ref": "#/components/schemas/ParameterDefinitions"
@@ -72670,8 +72993,31 @@
                     }
                 ]
             },
+            "Record_string._parameters-ParametersValuesMap--excludedParameterKeys-string-Array__": {
+                "properties": {},
+                "additionalProperties": {
+                    "properties": {
+                        "excludedParameterKeys": {
+                            "items": {
+                                "type": "string"
+                            },
+                            "type": "array"
+                        },
+                        "parameters": {
+                            "$ref": "#/components/schemas/ParametersValuesMap"
+                        }
+                    },
+                    "required": ["excludedParameterKeys", "parameters"],
+                    "type": "object"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
             "ExportContentRequest": {
                 "properties": {
+                    "tileParameters": {
+                        "$ref": "#/components/schemas/Record_string._parameters-ParametersValuesMap--excludedParameterKeys-string-Array__"
+                    },
                     "parameters": {
                         "$ref": "#/components/schemas/ParametersValuesMap"
                     },
@@ -75317,7 +75663,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.146.1",
+        "version": "3.153.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -117494,6 +117840,57 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v2/projects/{projectUuid}/dashboards/tile-parameter-references": {
+            "post": {
+                "operationId": "getDashboardTileParameterReferences",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiDashboardTileParameterReferencesResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List the parameters each dashboard tile uses, read from its saved query\nwithout running it. Tiles that can't be loaded or viewed report an error.\nThe dashboard calls this while it is edited; in view mode each tile\nreports its parameters with its own query results.\n\nEmbed tokens can call this with the `Lightdash-Embed-Token` header. The\ntoken must embed a dashboard: only that dashboard's tiles are listed,\nwith the charts saved on it (request chart uuids are ignored), and a\ntile not on it reports an error.",
+                "summary": "Get tile parameter references",
+                "tags": ["v2", "Dashboards"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DashboardTileParameterReferencesRequest"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v2/projects/{projectUuid}/dashboards/{dashboardUuidOrSlug}/comments": {

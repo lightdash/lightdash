@@ -238,6 +238,22 @@ exports[`pins every real admitted contract, base requirement and payload effect 
     "candidates": [
       {
         "capabilities": [
+          "read_discover",
+        ],
+        "key": "ProjectDashboardControllerV2.getTileParameterReferences",
+        "mapped": true,
+      },
+    ],
+    "key": "ProjectDashboardControllerV2.getTileParameterReferences",
+    "kind": "path_project",
+    "required": [
+      "read_discover",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
           "content_write",
         ],
         "key": "ProjectController.replaceYamlTags",

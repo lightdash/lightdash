@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     formatEstimatedBytes,
     type ApiConnectorType,
     type ExternalConnection,
@@ -24,14 +25,16 @@ import {
     IconListDetails,
     IconTrash,
 } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
-import { useNavigate } from 'react-router';
+import { useEffect, useState, type FC } from 'react';
+import { useNavigate, useSearchParams } from 'react-router';
 import { useExternalConnectionApiUsage } from '../../../features/externalConnections/hooks/useExternalConnectionApiUsage';
 import { useExternalConnections } from '../../../features/externalConnections/hooks/useExternalConnections';
 import { getLiveSource } from '../../../features/externalConnections/liveSources/liveSourceCatalog';
 import { LiveSourceIcon } from '../../../features/externalConnections/liveSources/LiveSourceIcon';
+import { getSemanticStudioSourceUrl } from '../../../features/semanticStudio/urls';
 import useHealth from '../../../hooks/health/useHealth';
 import tableStyles from '../../../hooks/styles/tableStyles.module.css';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { formatDuration } from '../../../utils/formatters';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
@@ -65,9 +68,19 @@ const SourceRow: FC<{
     usage: ExternalConnectionApiUsage | null;
     onEdit: () => void;
     onViewFields: () => void;
+    /** Field editing lives in Semantic Layer when its flag is on. */
+    fieldsInStudio: boolean;
     onReconnect: (() => void) | null;
     onDelete: () => void;
-}> = ({ connection, usage, onEdit, onViewFields, onReconnect, onDelete }) => (
+}> = ({
+    connection,
+    usage,
+    onEdit,
+    onViewFields,
+    fieldsInStudio,
+    onReconnect,
+    onDelete,
+}) => (
     <Table.Tr>
         <Table.Td>
             {connection.apiSource ? (
@@ -127,7 +140,9 @@ const SourceRow: FC<{
                         leftSection={<MantineIcon icon={IconListDetails} />}
                         onClick={onViewFields}
                     >
-                        Fields
+                        {fieldsInStudio
+                            ? 'Edit fields in Semantic Layer'
+                            : 'Fields'}
                     </Menu.Item>
                     {onReconnect && (
                         <Menu.Item
@@ -170,6 +185,10 @@ const modalConnector = (modal: ModalState): ApiConnectorType | null => {
 };
 
 const LiveDataSourcesPanel: FC<Props> = ({ projectUuid }) => {
+    const semanticStudioFlag = useServerFeatureFlag(
+        FeatureFlags.SemanticStudio,
+    );
+    const fieldsInStudio = semanticStudioFlag.data?.enabled === true;
     const { data: connections, isLoading } =
         useExternalConnections(projectUuid);
     const { data: usage } = useExternalConnectionApiUsage(projectUuid);
@@ -184,6 +203,14 @@ const LiveDataSourcesPanel: FC<Props> = ({ projectUuid }) => {
             onConnected: (connectionUuid) =>
                 setModal({ kind: 'connected', connectionUuid }),
         });
+    // ?add=true (the semantic layer's Add menu) opens the add flow.
+    const [searchParams, setSearchParams] = useSearchParams();
+    useEffect(() => {
+        if (searchParams.get('add') !== 'true') return;
+        setModal({ kind: 'pick' });
+        searchParams.delete('add');
+        setSearchParams(searchParams, { replace: true });
+    }, [searchParams, setSearchParams]);
     const sources = (connections ?? [])
         .filter((connection) => connection.kind === 'live_source')
         .sort(byIntegrationThenName);
@@ -285,9 +312,15 @@ const LiveDataSourcesPanel: FC<Props> = ({ projectUuid }) => {
                                                 connection,
                                             })
                                         }
+                                        fieldsInStudio={fieldsInStudio}
                                         onViewFields={() =>
                                             navigate(
-                                                `/generalSettings/projectManagement/${projectUuid}/liveDataSources/${connection.externalConnectionUuid}/fields`,
+                                                fieldsInStudio
+                                                    ? getSemanticStudioSourceUrl(
+                                                          projectUuid,
+                                                          connection.externalConnectionUuid,
+                                                      )
+                                                    : `/generalSettings/projectManagement/${projectUuid}/liveDataSources/${connection.externalConnectionUuid}/fields`,
                                             )
                                         }
                                         onReconnect={getReconnect(connection)}

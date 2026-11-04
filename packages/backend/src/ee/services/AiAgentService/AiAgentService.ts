@@ -3558,6 +3558,7 @@ export class AiAgentService extends BaseService {
             await this.aiAgentToolsService.canAuthorContent({
                 user,
                 projectUuid,
+                spaceUuids: null,
             });
         const canManageContent =
             agent.enableContentTools && canCreateDashboards;
@@ -6502,10 +6503,11 @@ export class AiAgentService extends BaseService {
                 (toolName) =>
                     canRunSql || !isDeepResearchRawSqlMcpTool(toolName),
             );
-            const canUseContentTools = await this.canUseContentTools(
+            const canUseContentWriteTools = await this.canUseContentWriteTools(
                 user,
                 agent,
                 projectUuid,
+                null,
             );
             const knowledgeDocuments =
                 await this.aiAgentDocumentModel.findAllForAgent({
@@ -6574,7 +6576,7 @@ export class AiAgentService extends BaseService {
                     canManageAgent,
                     canRunSql,
                     canUseDataTools: agent.enableDataAccess,
-                    canUseContentTools,
+                    canUseContentTools: canUseContentWriteTools,
                     canUseSelfImprovementTools: canManageAgent,
                     autoApproveSql: true,
                 },
@@ -10406,6 +10408,8 @@ export class AiAgentService extends BaseService {
                         runtimeOptions?.userAttributeOverrides ?? {},
                     invalidateCache: false,
                     plans: {},
+                    // Re-renders stay unattributed: prompt ids mark tool runs only.
+                    aiAttribution: null,
                 });
             const submissions = allSubmissions.filter(
                 ({ nodeId }) => nodeId !== stageNodeId,
@@ -11051,6 +11055,8 @@ export class AiAgentService extends BaseService {
                             runtimeOptions?.userAttributeOverrides ?? {},
                         invalidateCache: false,
                         plans: {},
+                        // Re-renders stay unattributed: prompt ids mark tool runs only.
+                        aiAttribution: null,
                     },
                 );
                 return {
@@ -13148,7 +13154,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
     /**
      * The editDbtProject tool enqueues this pipeline job mid-step, so the job
      * can start — and a fast pre-flight failure can call updateToolResult —
-     * before onStepFinish has inserted the tool-result row. updateToolResult is
+     * before onStepEnd has inserted the tool-result row. updateToolResult is
      * an UPDATE, so it would silently match no rows and leave the card stuck.
      * Poll until the row exists (bounded), mirroring
      * waitForOriginalResponseWritten for the model-response field.
@@ -13255,7 +13261,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 return;
             }
 
-            // This job is enqueued mid-step, so it can outrun the onStepFinish
+            // This job is enqueued mid-step, so it can outrun the onStepEnd
             // insert of its own tool-result row — wait for it before any
             // updateToolResult below would otherwise no-op and strand the card.
             await this.waitForToolResultWritten(promptUuid, toolCallId);
@@ -13607,7 +13613,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 );
                 return;
             }
-            // The build can end before onStepFinish inserts the row.
+            // The build can end before onStepEnd inserts the row.
             await this.waitForToolResultWritten(
                 aiAgentToolCall.promptUuid,
                 aiAgentToolCall.toolCallId,
@@ -15904,15 +15910,37 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         return agent.enableContentTools && agent.enableDataAccess;
     }
 
-    /** The agent offers content editing when the setting is on and the user can save content in the project. */
-    private async canUseContentTools(
+    /** The agent offers chart and dashboard write tools when the setting is on and the user can save one where the run may write. */
+    private async canUseContentWriteTools(
         user: SessionUser,
         agent: Pick<AiAgent, 'enableContentTools' | 'enableDataAccess'>,
         projectUuid: string,
+        writeSpaceUuids: string[] | null,
     ): Promise<boolean> {
         return (
             AiAgentService.canReadContent(agent) &&
-            this.aiAgentToolsService.canAuthorContent({ user, projectUuid })
+            this.aiAgentToolsService.canAuthorContent({
+                user,
+                projectUuid,
+                spaceUuids: writeSpaceUuids,
+            })
+        );
+    }
+
+    /** The agent offers Documents when the setting is on and the user can save a Document in a Space where the run may write. */
+    private async canUseDocumentTools(
+        user: SessionUser,
+        agent: Pick<AiAgent, 'enableContentTools' | 'enableDataAccess'>,
+        projectUuid: string,
+        writeSpaceUuids: string[] | null,
+    ): Promise<boolean> {
+        return (
+            AiAgentService.canReadContent(agent) &&
+            this.aiAgentToolsService.canAuthorDocuments({
+                user,
+                projectUuid,
+                spaceUuids: writeSpaceUuids,
+            })
         );
     }
 
@@ -15937,7 +15965,12 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         if (
             documentSlug === null ||
             pinsOtherContent ||
-            !(await this.canUseContentTools(user, agent, prompt.projectUuid))
+            !(await this.canUseDocumentTools(
+                user,
+                agent,
+                prompt.projectUuid,
+                null,
+            ))
         ) {
             return null;
         }
@@ -16041,7 +16074,11 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             },
         };
         const output = await executeEditContent(
-            { editContent: document.editContent, documentsEnabled: true },
+            {
+                editContent: document.editContent,
+                siteUrl: this.lightdashConfig.siteUrl,
+                documentsEnabled: true,
+            },
             toolCall.input,
         );
         if (output.metadata.status !== 'success') {
@@ -16770,6 +16807,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     ? await this.aiAgentToolsService.canAuthorContent({
                           user,
                           projectUuid: promptProject.projectUuid,
+                          spaceUuids:
+                              options.runtimeOptions?.writeSpaceUuids ?? null,
                       })
                     : false;
                 const canCreateScheduledDeliveries =
@@ -17000,15 +17039,27 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 const canReadContent =
                     hasTrustedPromptUserIdentity &&
                     AiAgentService.canReadContent(agentSettings);
-                const canUseContentTools =
-                    hasTrustedPromptUserIdentity &&
-                    (await this.canUseContentTools(
-                        user,
-                        agentSettings,
-                        promptProject.projectUuid,
-                    ));
+                const writeSpaceUuids =
+                    options.runtimeOptions?.writeSpaceUuids ?? null;
+                const [canUseContentWriteTools, canUseDocumentTools] =
+                    hasTrustedPromptUserIdentity
+                        ? await Promise.all([
+                              this.canUseContentWriteTools(
+                                  user,
+                                  agentSettings,
+                                  promptProject.projectUuid,
+                                  writeSpaceUuids,
+                              ),
+                              this.canUseDocumentTools(
+                                  user,
+                                  agentSettings,
+                                  promptProject.projectUuid,
+                                  writeSpaceUuids,
+                              ),
+                          ])
+                        : [false, false];
                 const enableGenerateDataApp =
-                    canUseContentTools &&
+                    canUseContentWriteTools &&
                     (await this.aiAgentToolsService.canGenerateDataApp({
                         user,
                         projectUuid: promptProject.projectUuid,
@@ -17103,7 +17154,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     suppressWritebackPreview: options.suppressWritebackPreview,
                     dbtSourceUuid: options.dbtSourceUuid,
                     onWarehouseQuery: responseExecution.onWarehouseQuery,
-                    enableDocuments: canUseContentTools,
+                    enableDocuments: canUseDocumentTools,
                     enableRuntimeCache: !!decisions,
                     // Battle sides must not warm one another's result cache. Normal
                     // threads retain production cache behavior.
@@ -17363,8 +17414,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     enableDataAccess: agentSettings.enableDataAccess,
                     enableSelfImprovement: agentSettings.enableSelfImprovement,
                     enableContentReads: canReadContent,
-                    enableContentTools: canUseContentTools,
-                    enableDocuments: canUseContentTools,
+                    enableContentTools: canUseContentWriteTools,
+                    enableDocuments: canUseDocumentTools,
                     enableGenerateDataApp,
                     enableAiWriteback: aiWritebackEnabled,
                     enableEditProjectContext: isReviewRemediationWorkThread,
@@ -18003,7 +18054,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                                 : result.toUIMessageStream(),
                         );
                     },
-                    onFinish: () => {
+                    onEnd: () => {
                         clearKeepalive();
                         stepProgressEmitter?.removeAllListeners(
                             'artifactReady',
