@@ -1,18 +1,27 @@
 import { FeatureFlags } from '@lightdash/common';
 
-const originalFetch = Object.getOwnPropertyDescriptor(window, 'fetch');
+let restoreFetch = () => {};
 
 beforeAll(async () => {
-    await import('./storyApi');
+    const { installStoryFetch } = await import('./storyApi');
+    restoreFetch = installStoryFetch();
 });
 
-afterAll(() => {
-    if (originalFetch) Object.defineProperty(window, 'fetch', originalFetch);
-});
+afterAll(() => restoreFetch());
 
 describe('onboarding story API', () => {
-    it('keeps the stub when isomorphic-fetch replaces window.fetch', async () => {
-        window.fetch = vi.fn();
+    it('leaves window.fetch assignable and restores the previous fetch', async () => {
+        const { installStoryFetch } = await import('./storyApi');
+        const previous = window.fetch;
+        const restore = installStoryFetch();
+        const otherStub = vi.fn();
+        window.fetch = otherStub;
+        expect(window.fetch).toBe(otherStub);
+        restore();
+        expect(window.fetch).toBe(previous);
+    });
+
+    it('serves the stubbed health response', async () => {
         const response = await window.fetch('/api/v1/health');
         expect(response.ok).toBe(true);
         expect(await response.json()).toMatchObject({

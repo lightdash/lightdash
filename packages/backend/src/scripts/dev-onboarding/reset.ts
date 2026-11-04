@@ -30,19 +30,26 @@ export const resetOnboardingFixture = async (database: Knex) => {
                 'The test email belongs to another user; refusing to replace it.',
             );
         }
-        if (user) {
-            const memberships = await trx('organization_memberships')
-                .where({ user_id: user.user_id })
-                .select<{ organization_id: number }[]>('organization_id');
-            if (
-                memberships.some(
-                    ({ organization_id: id }) => id !== org?.organization_id,
-                )
-            ) {
-                throw new Error(
-                    'The test user belongs to another organization; refusing to reset it.',
-                );
-            }
+        // Delete every member with the org, as deleteOrgAndUsers does
+        const memberIds = org
+            ? await trx('organization_memberships')
+                  .where({ organization_id: org.organization_id })
+                  .pluck<number[]>('user_id')
+            : [];
+        const userIds = [
+            ...new Set(user ? [...memberIds, user.user_id] : memberIds),
+        ];
+        const memberships = await trx('organization_memberships')
+            .whereIn('user_id', userIds)
+            .select<{ organization_id: number }[]>('organization_id');
+        if (
+            memberships.some(
+                ({ organization_id: id }) => id !== org?.organization_id,
+            )
+        ) {
+            throw new Error(
+                'A test organization user belongs to another organization; refusing to reset it.',
+            );
         }
         const activeRun = await trx('agent_onboarding_runs')
             .join(
@@ -64,8 +71,7 @@ export const resetOnboardingFixture = async (database: Knex) => {
                 'Cancel the active onboarding run before restarting the test journey.',
             );
         }
-        if (user)
-            await trx('users').where({ user_uuid: TEST_USER_UUID }).delete();
+        await trx('users').whereIn('user_id', userIds).delete();
         if (org)
             await trx('organizations')
                 .where({ organization_uuid: TEST_ORG_UUID })
