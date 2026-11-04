@@ -284,7 +284,8 @@ export const useBuildParameterBar = (): ParameterBar => {
                     ),
                 }),
             ),
-            ...(newControl === null
+            ...(newControl === null ||
+            controls.some(({ id }) => id === newControl.control.id)
                 ? []
                 : toEntry(newControl.control, {
                       parameterKeys: newControl.parameterKeys,

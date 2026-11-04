@@ -232,7 +232,7 @@ describe('AddControl', () => {
         renderWithProviders(<AddControl />);
         openMenu();
         const item = await screen.findByRole('menuitem', {
-            name: 'Hide for viewers',
+            name: 'Hide Add filter for viewers',
         });
         expect(screen.queryByRole('menuitemcheckbox')).not.toBeInTheDocument();
         expect(screen.queryByRole('switch')).not.toBeInTheDocument();
@@ -245,7 +245,7 @@ describe('AddControl', () => {
         await waitFor(() =>
             expect(
                 screen.queryByRole('menuitem', {
-                    name: 'Hide for viewers',
+                    name: 'Hide Add filter for viewers',
                 }),
             ).not.toBeInTheDocument(),
         );
@@ -256,7 +256,7 @@ describe('AddControl', () => {
         renderWithProviders(<AddControl />);
         openMenu();
         const item = await screen.findByRole('menuitem', {
-            name: 'Show for viewers',
+            name: 'Show Add filter for viewers',
         });
         expect(item.querySelector('.tabler-icon-eye')).not.toBeNull();
 
@@ -343,7 +343,7 @@ describe('AddControl', () => {
             await userEvent.click(settings());
             await userEvent.click(
                 await screen.findByRole('menuitem', {
-                    name: 'Hide for viewers',
+                    name: 'Hide Add filter for viewers',
                     hidden: true,
                 }),
             );
@@ -533,12 +533,14 @@ describe('AddControl with parameters', () => {
         tileParameterReferences = references,
         controls = [],
         triggerClassName,
+        section,
     }: {
         discoveryPending?: boolean;
         isViewer?: boolean;
         tileParameterReferences?: Record<string, string[]>;
         controls?: DashboardParameterControl[] | null;
         triggerClassName?: string;
+        section?: Parameters<typeof AddControl>[0]['section'];
     } = {}) => {
         mockSidebar.current = {
             ...mockSidebar.current,
@@ -580,13 +582,76 @@ describe('AddControl with parameters', () => {
         renderWithAppProviders(
             <DashboardStoreTestProvider store={store}>
                 <ParameterEditorProvider isViewer={isViewer}>
-                    <AddControl triggerClassName={triggerClassName} />
+                    <AddControl
+                        triggerClassName={triggerClassName}
+                        section={section}
+                    />
                     <ParameterPills />
                 </ParameterEditorProvider>
             </DashboardStoreTestProvider>,
         );
         return { user, store };
     };
+
+    const section = {
+        id: 'comparison',
+        name: 'Comparison',
+        isEditorOpen: false,
+        allowParameters: true,
+    };
+
+    it('offers both kinds from the section button and adds the filter to that section', async () => {
+        const { user } = setup({ section });
+        await user.click(
+            screen.getByRole('button', { name: 'Add to Comparison' }),
+        );
+        expect(
+            await screen.findByRole('menuitem', { name: /^Parameter/ }),
+        ).toBeEnabled();
+        await user.click(screen.getByRole('menuitem', { name: /^Filter/ }));
+        expect(openNew).toHaveBeenCalledWith(section.id);
+    });
+
+    it('keeps a parameter selected from a section in that section after Apply', async () => {
+        const { user, store } = setup({ section });
+        await user.click(
+            screen.getByRole('button', { name: 'Add to Comparison' }),
+        );
+        await user.click(
+            await screen.findByRole('menuitem', { name: /^Parameter/ }),
+        );
+        await user.click(
+            await screen.findByRole('option', {
+                name: 'Region, Orders, 2 tiles',
+            }),
+        );
+        const dialog = await screen.findByRole('dialog', { name: 'Region' });
+        await user.click(within(dialog).getByRole('button', { name: 'Apply' }));
+        expect(
+            store.getState().parameters.parameterControls?.[0],
+        ).toMatchObject({
+            sectionId: section.id,
+        });
+    });
+
+    it('returns focus to the section Add after canceling a parameter draft', async () => {
+        const { user } = setup({ section });
+        const sectionAdd = screen.getByRole('button', {
+            name: 'Add to Comparison',
+        });
+        await user.click(sectionAdd);
+        await user.click(
+            await screen.findByRole('menuitem', { name: /^Parameter/ }),
+        );
+        await user.click(
+            await screen.findByRole('option', {
+                name: 'Region, Orders, 2 tiles',
+            }),
+        );
+        const dialog = await screen.findByRole('dialog', { name: 'Region' });
+        await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+        await waitFor(() => expect(sectionAdd).toHaveFocus());
+    });
 
     const openParameterPicker = async (
         user: ReturnType<typeof userEvent.setup>,
@@ -601,12 +666,16 @@ describe('AddControl with parameters', () => {
     it('says on the "Add" button itself that it opens a menu, and whether it is open', async () => {
         const { user } = setup();
         const button = screen.getByRole('button', { name: 'Add' });
+        expect(button.querySelector('.tabler-icon-plus')).toBeInTheDocument();
         expect(button).toHaveAttribute('aria-haspopup', 'menu');
         expect(button).toHaveAttribute('aria-expanded', 'false');
         // Not on a wrapper around it
         expect(button.parentElement?.closest('[aria-expanded]')).toBeNull();
         await user.click(button);
         expect(button).toHaveAttribute('aria-expanded', 'true');
+        expect(
+            screen.getByRole('menu').querySelector('.mantine-Menu-arrow'),
+        ).toBeInTheDocument();
         await user.click(
             await screen.findByRole('menuitem', { name: /^Parameter/ }),
         );

@@ -24,11 +24,21 @@
     padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
 }
 
+.editorHeader {
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md) 0;
+    min-height: calc(24px + var(--mantine-spacing-sm));
+}
+
 /* Only the timestamp range overflows the popover: its two pickers stack,
    and each picker's timezone drops to its own line */
 .valueForm > :global(.mantine-Group-root),
 .valueForm > :global(.mantine-Group-root) > :global(.mantine-Group-root) {
     flex-wrap: wrap;
+}
+
+/* Keep the editing timezone alongside its timestamp when there is room. */
+.valueForm :global(.mantine-DateTimePicker-root) {
+    flex: 1 1 185px;
 }
 
 /* The Settings chip wraps, never truncates: its icon hangs beside the first

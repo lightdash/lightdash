@@ -78,8 +78,8 @@ export const FilterBarMenu: FC = () => {
                                 }
                             >
                                 {isAddFilterDisabled
-                                    ? 'Show for viewers'
-                                    : 'Hide for viewers'}
+                                    ? 'Show Add filter for viewers'
+                                    : 'Hide Add filter for viewers'}
                             </Menu.Item>
                             <Menu.Divider />
                             <Menu.Item

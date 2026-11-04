@@ -491,6 +491,8 @@
         "controls.setsNoTiles": "არცერთ ფილას არ აყენებს",
         "controls.parameter.clearedUsesDefault": "თუ გასუფთავდება, ფილები ნაგულისხმევ მნიშვნელობას იყენებს: {value}.",
         "controls.parameter.clearedUsesOwnValue": "თუ გასუფთავდება, თითოეული ფილა საკუთარ მნიშვნელობას იყენებს.",
+        "controls.parameter.unavailableOptions": "მიმდინარე ვარიანტებში მიუწვდომელია",
+        "controls.parameter.refreshOptions": "ვარიანტების განახლება",
         "controls.parameter.needsValue": "საჭიროებს მნიშვნელობას",
         "controls.parameter.isNotSet": "არ არის დაყენებული",
         "controls.parameter.notSetTooltip": "ფილები იყენებს საკუთარ მნიშვნელობას ან პარამეტრის ნაგულისხმევს",

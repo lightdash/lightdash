@@ -12,7 +12,6 @@ import {
     Box,
     Button,
     Group,
-    Menu,
     Stack,
     Text,
     Title,
@@ -21,7 +20,6 @@ import {
 import {
     IconAdjustmentsHorizontal,
     IconArrowLeft,
-    IconDots,
     IconEye,
     IconEyeOff,
     IconLayoutGrid,
@@ -45,7 +43,6 @@ import { formatTileCount, formatTilesOf } from './fieldLabels';
 import classes from './FilterEditor.module.css';
 import { EditorPrompt, type EditorView as PopoverView } from './FilterPopover';
 import { focusOnMount } from './mappingFocus';
-import { MENU_TRANSITION } from './menuTransition';
 import { useRefocusAfter } from './nameFocus';
 import { NameInput } from './NameInput';
 import {
@@ -170,12 +167,11 @@ export const ParameterControlPopover: FC<Props> = ({
     const shadowedKey =
         parameters.find(({ key }) => shadowedReservedNames.includes(key))
             ?.key ?? null;
-    // The value the input shows: one outside fixed options reads as unset
-    const shownValue =
-        control.value !== null
-            ? getAllowedParameterValue(input.definition, control.value)
-            : null;
-    const caption = hasValue(shownValue)
+    const applicableValue =
+        control.value === null
+            ? null
+            : getAllowedParameterValue(input.definition, control.value);
+    const caption = hasValue(applicableValue)
         ? getClearedCaption(
               getUiString,
               parameters,
@@ -194,112 +190,35 @@ export const ParameterControlPopover: FC<Props> = ({
     // Editors can save an empty assignment for later mapping.
     const applyBlockedReason =
         tileCount > 0 || !isViewer ? null : getUiString('controls.setsNoTiles');
-    // Always there for editors; with no sections it holds the section select
-    // at "No section"
-    const hasSettings = !isViewer;
 
     const valueView = (
         <Box ref={focusValueView}>
-            <Group gap="xs" wrap="nowrap" px="md" pt="sm">
+            <Group gap="xs" wrap="nowrap" className={classes.editorHeader}>
                 <MantineIcon
                     icon={IconAdjustmentsHorizontal}
-                    size="lg"
-                    color="ldGray.6"
+                    size={16}
+                    color="dimmed"
                 />
-                {isRenaming ? (
-                    <NameInput
-                        initial={label}
-                        placeholder={first ? getParameterLabel(first) : 'Name'}
-                        onCommit={(text) =>
-                            onChange({
-                                ...control,
-                                // Empty or untouched keeps following the parameter's label
-                                label:
-                                    text.trim() === '' ||
-                                    (control.label === null && text === label)
-                                        ? null
-                                        : text,
-                            })
-                        }
-                        onDone={(how) => {
-                            exit.current = how;
-                            setIsRenaming(false);
-                        }}
-                    />
-                ) : (
-                    // As the shipped pill: the description on hover
-                    <Tooltip
-                        label={input.definition.description}
-                        disabled={!input.definition.description}
-                        maw={350}
-                        fz="xs"
-                        multiline
-                    >
-                        <Box miw={0}>
-                            <TruncatedText maxWidth="100%" fw={500}>
-                                {name}
-                            </TruncatedText>
-                        </Box>
-                    </Tooltip>
-                )}
+                <Tooltip
+                    label={input.definition.description}
+                    disabled={!input.definition.description}
+                    maw={350}
+                    fz="xs"
+                    multiline
+                >
+                    <Box miw={0}>
+                        <TruncatedText maxWidth="100%" fw={500}>
+                            {name}
+                        </TruncatedText>
+                    </Box>
+                </Tooltip>
                 {shadowedKey !== null && (
                     <ShadowedReservedNameWarning paramKey={shadowedKey} />
                 )}
-                {!isViewer && !isRenaming && (
-                    <Group gap={2} wrap="nowrap" ml="auto">
-                        <Tooltip fz="xs" label="Rename">
-                            <ActionIcon
-                                size="sm"
-                                aria-label="Rename"
-                                ref={pencilRef}
-                                onClick={() => setIsRenaming(true)}
-                            >
-                                <MantineIcon
-                                    icon={IconPencil}
-                                    size={14}
-                                    strokeWidth={2.25}
-                                />
-                            </ActionIcon>
-                        </Tooltip>
-                        {/* As the filter bar's "...": the item names the action */}
-                        <Menu
-                            position="bottom-end"
-                            withinPortal={false}
-                            transitionProps={MENU_TRANSITION}
-                        >
-                            <Menu.Target>
-                                <ActionIcon size="sm" aria-label="More">
-                                    <MantineIcon icon={IconDots} size={14} />
-                                </ActionIcon>
-                            </Menu.Target>
-                            <Menu.Dropdown className={classes.menu}>
-                                <Menu.Item
-                                    leftSection={
-                                        <MantineIcon
-                                            icon={
-                                                control.hidden
-                                                    ? IconEye
-                                                    : IconEyeOff
-                                            }
-                                            size={14}
-                                        />
-                                    }
-                                    onClick={() => {
-                                        const { hidden, ...rest } = control;
-                                        onChange(
-                                            hidden
-                                                ? rest
-                                                : { ...rest, hidden: true },
-                                        );
-                                    }}
-                                >
-                                    {control.hidden
-                                        ? 'Show for viewers'
-                                        : 'Hide for viewers'}
-                                </Menu.Item>
-                            </Menu.Dropdown>
-                        </Menu>
-                    </Group>
+                {!isViewer && control.hidden && (
+                    <Text size="xs" c="dimmed" ml="auto" flex="0 0 auto">
+                        Hidden from viewers
+                    </Text>
                 )}
             </Group>
             <Stack gap="xs" className={classes.content}>
@@ -313,6 +232,16 @@ export const ParameterControlPopover: FC<Props> = ({
                     projectUuid={projectUuid}
                     parameterValues={parameterValues}
                     isError={isMissingRequired}
+                    dashboardControl={{
+                        label: name,
+                        unavailableOptions: getUiString(
+                            'controls.parameter.unavailableOptions',
+                        ),
+                        refreshOptions: getUiString(
+                            'controls.parameter.refreshOptions',
+                        ),
+                        clearLabel: getUiString('parameters.clear'),
+                    }}
                     onParameterChange={(_key, value) =>
                         onChange({ ...control, value })
                     }
@@ -351,7 +280,48 @@ export const ParameterControlPopover: FC<Props> = ({
                     </TruncatedText>
                 </Box>
             </Group>
-            <Stack gap="md">
+            <Stack gap="sm">
+                <Group justify="space-between" wrap="nowrap">
+                    <Text size="xs" fw={600}>
+                        Name
+                    </Text>
+                    {isRenaming ? (
+                        <NameInput
+                            initial={label}
+                            placeholder={
+                                first ? getParameterLabel(first) : 'Name'
+                            }
+                            onCommit={(text) =>
+                                onChange({
+                                    ...control,
+                                    label:
+                                        text.trim() === '' ||
+                                        (control.label === null &&
+                                            text === label)
+                                            ? null
+                                            : text,
+                                })
+                            }
+                            onDone={(how) => {
+                                exit.current = how;
+                                setIsRenaming(false);
+                            }}
+                        />
+                    ) : (
+                        <Button
+                            ref={pencilRef}
+                            size="compact-xs"
+                            variant="subtle"
+                            color="gray"
+                            leftSection={
+                                <MantineIcon icon={IconPencil} size={14} />
+                            }
+                            onClick={() => setIsRenaming(true)}
+                        >
+                            Rename
+                        </Button>
+                    )}
+                </Group>
                 <SectionSetting
                     sections={sections}
                     sectionId={control.sectionId ?? null}
@@ -362,6 +332,30 @@ export const ParameterControlPopover: FC<Props> = ({
                         );
                     }}
                 />
+                <Group justify="space-between" wrap="nowrap">
+                    <Text size="xs" fw={600}>
+                        Visibility
+                    </Text>
+                    <Button
+                        variant="subtle"
+                        color="gray"
+                        size="compact-xs"
+                        leftSection={
+                            <MantineIcon
+                                icon={control.hidden ? IconEye : IconEyeOff}
+                                size={14}
+                            />
+                        }
+                        onClick={() => {
+                            const { hidden, ...rest } = control;
+                            onChange(hidden ? rest : { ...rest, hidden: true });
+                        }}
+                    >
+                        {control.hidden
+                            ? 'Show for viewers'
+                            : 'Hide for viewers'}
+                    </Button>
+                </Group>
             </Stack>
         </Stack>
     );
@@ -400,6 +394,7 @@ export const ParameterControlPopover: FC<Props> = ({
                                 color="gray"
                                 size="compact-xs"
                                 mih={24}
+                                flex="0 0 auto"
                                 aria-label={`${sets}. ${chooseTiles}`}
                                 leftSection={
                                     <MantineIcon
@@ -417,36 +412,38 @@ export const ParameterControlPopover: FC<Props> = ({
                                 </Text>
                             </Button>
                         )}
-                        {hasSettings && (
-                            <Button
-                                ref={focusSettingsChip}
-                                variant="subtle"
-                                color="gray"
-                                size="compact-xs"
-                                mih={24}
-                                leftSection={
-                                    <MantineIcon
-                                        icon={IconSettings}
-                                        size={14}
-                                    />
-                                }
-                                aria-label={
-                                    sectionName === null
-                                        ? 'Settings'
-                                        : `Settings: ${sectionName}`
-                                }
-                                onClick={() => setView('settings')}
-                            >
-                                <Text span fz="xs">
-                                    Settings
-                                    {sectionName !== null && (
-                                        <Text span fz="xs" c="dimmed">
-                                            {` · ${sectionName}`}
-                                        </Text>
-                                    )}
-                                </Text>
-                            </Button>
-                        )}
+                        <Button
+                            ref={focusSettingsChip}
+                            variant="subtle"
+                            color="gray"
+                            size="compact-xs"
+                            miw={0}
+                            mih={24}
+                            classNames={{
+                                root: classes.wrappingChip,
+                                inner: classes.wrappingChipInner,
+                                section: classes.wrappingChipSection,
+                                label: classes.wrappingChipLabel,
+                            }}
+                            leftSection={
+                                <MantineIcon icon={IconSettings} size={14} />
+                            }
+                            aria-label={
+                                sectionName === null
+                                    ? 'Settings'
+                                    : `Settings: ${sectionName}`
+                            }
+                            onClick={() => setView('settings')}
+                        >
+                            <Text span fz="xs">
+                                Settings
+                                {sectionName !== null && (
+                                    <Text span fz="xs" c="dimmed">
+                                        {` · ${sectionName}`}
+                                    </Text>
+                                )}
+                            </Text>
+                        </Button>
                     </Group>
                 )}
                 <Group

@@ -139,16 +139,17 @@ const MappingRowContent: FC<{ mapping: ParameterMapping }> = ({ mapping }) => {
                     onClick={() => selectKey(selectedKey === key ? null : key)}
                 />
             ))}
+            <Button
+                variant="subtle"
+                color="gray"
+                size="xs"
+                onClick={() =>
+                    clearAllTiles((tiles ?? []).map(({ uuid }) => uuid))
+                }
+            >
+                Clear all tiles
+            </Button>
             <Group gap="xs" wrap="nowrap" className={classes.actions}>
-                <Button
-                    variant="subtle"
-                    size="xs"
-                    onClick={() =>
-                        clearAllTiles((tiles ?? []).map(({ uuid }) => uuid))
-                    }
-                >
-                    Clear all tiles
-                </Button>
                 <Button variant="default" size="xs" onClick={cancelMapping}>
                     {getUiString('filters.actions.cancel')}
                 </Button>

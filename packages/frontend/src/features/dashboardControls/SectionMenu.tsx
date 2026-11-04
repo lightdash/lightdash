@@ -22,7 +22,7 @@ type MenuProps = {
 };
 
 // A bar capsule's "..." menu: rename, a line of its own when it shares one,
-// and the remove item, one click: "Remove, keep filters" moves the members out,
+// and the remove item, one click: "Remove section, keep controls" moves the members out,
 // deleting nothing
 export const SectionMenu: FC<MenuProps> = ({
     label,
@@ -59,7 +59,9 @@ export const SectionMenu: FC<MenuProps> = ({
                 leftSection={<MantineIcon icon={IconFolderMinus} size={14} />}
                 onClick={onRemove}
             >
-                {hasMembers ? 'Remove, keep filters' : 'Remove section'}
+                {hasMembers
+                    ? 'Remove section, keep controls'
+                    : 'Remove section'}
             </Menu.Item>
         </Menu.Dropdown>
     </Menu>

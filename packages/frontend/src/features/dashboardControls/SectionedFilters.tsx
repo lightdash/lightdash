@@ -65,6 +65,7 @@ import { EventName } from '../../types/Events';
 import {
     dashboardEditActions,
     selectControlSections,
+    selectParameterControls,
     selectDashboardFilters,
     selectSavedFilterOverrides,
     useDashboardDispatch,
@@ -81,7 +82,6 @@ import {
     type BarSelection,
 } from './barSelection';
 import { formatSectionCount } from './fieldLabels';
-import { EditorPopover } from './FilterEditor';
 import { FilterPills } from './FilterPills';
 import pillClasses from './FilterPills.module.css';
 import { focusAfterNaming, useRefocusAfter, type NameExit } from './nameFocus';
@@ -140,7 +140,6 @@ type CapsuleActions = {
     /** Alt with an arrow on the name: along the bar, or to the line above or below */
     onMove: (direction: 'left' | 'right' | 'up' | 'down') => void;
     onRename: (name: string) => void;
-    onAddFilter: () => void;
     onOwnLine: () => void;
     onRemove: () => void;
 };
@@ -171,6 +170,7 @@ type CapsuleProps = {
     dropSide: 'before' | 'after' | undefined;
     /** Its parameter controls on the tab in view, drawn after its filters. */
     parameterCount: number;
+    hasParameterMembers: boolean;
     withParameters: boolean;
 };
 
@@ -188,6 +188,7 @@ const SectionCapsule: FC<CapsuleProps> = ({
     dropSide,
     parameterCount,
     withParameters,
+    hasParameterMembers,
 }) => {
     const getUiString = useUiStrings();
     const summaryId = useId();
@@ -332,22 +333,17 @@ const SectionCapsule: FC<CapsuleProps> = ({
             className={`${classes.actions} ${pillClasses.inert}`}
             inert={actions.isLocked || undefined}
         >
-            <EditorPopover isOpen={isEditorOnAdd}>
-                <Tooltip label={`Add filter to ${section.name}`}>
-                    <ActionIcon
-                        size="sm"
-                        radius="xl"
-                        aria-label={`Add filter to ${section.name}`}
-                        data-section-add={section.id}
-                        onClick={actions.onAddFilter}
-                    >
-                        <MantineIcon icon={IconPlus} size={14} />
-                    </ActionIcon>
-                </Tooltip>
-            </EditorPopover>
+            <AddControl
+                section={{
+                    id: section.id,
+                    name: section.name,
+                    isEditorOpen: isEditorOnAdd,
+                    allowParameters: withParameters,
+                }}
+            />
             <SectionMenu
                 label={`${section.name} menu`}
-                hasMembers={rules.length > 0}
+                hasMembers={rules.length > 0 || hasParameterMembers}
                 onRename={() => setIsRenaming(true)}
                 isSharingLine={isSharingLine}
                 onOwnLine={actions.onOwnLine}
@@ -590,7 +586,6 @@ export const SectionedFilters: FC<Props> = ({
     const newFilterId = useControlsSidebarSelector((c) =>
         c.isNew ? (c.editing?.filterId ?? null) : null,
     );
-    const openNew = useControlsSidebarSelector((c) => c.openNew);
     // Any edit, however it starts, ends the selection: adjusted in render
     const [wasEditing, setWasEditing] = useState(isEditing);
     if (isEditing !== wasEditing) {
@@ -670,6 +665,7 @@ export const SectionedFilters: FC<Props> = ({
     );
     const { getTabsUsingFilter } = useFilterTabPlacement();
     const parameterBar = useParameterBarControls();
+    const parameterControls = useDashboardSelector(selectParameterControls);
     // A hidden control is an editor's: a viewer's section of only hidden ones has no pill, so no capsule
     const parameterEntries = withParameters
         ? parameterBar.entries.filter(
@@ -900,6 +896,13 @@ export const SectionedFilters: FC<Props> = ({
             activeTabUuid={activeTabUuid}
             triggerClassName={triggerClassName}
             parameterCount={parameterCountOf(section.id)}
+            hasParameterMembers={
+                withParameters &&
+                (parameterControls?.some(
+                    (control) => control.sectionId === section.id,
+                ) ??
+                    false)
+            }
             withParameters={withParameters}
             actions={
                 isViewer
@@ -944,7 +947,6 @@ export const SectionedFilters: FC<Props> = ({
                                       name,
                                   }),
                               ),
-                          onAddFilter: () => openNew(section.id),
                           onRemove: () => {
                               // The menu leaves with its capsule
                               focusAfter.current = [ADD_FILTER_SELECTOR];

@@ -54,7 +54,7 @@ export const focusStartOnMount = (node: HTMLElement | null) => {
     input?.focus({ preventScroll: true });
 };
 
-/** A parameter's value is its whole popover: its first input, even one whose list opens on focus. */
+/** Focus the parameter value without opening its options. */
 export const focusParameterValueOnMount = (node: HTMLElement | null) => {
     const input = node?.querySelector<HTMLInputElement>(
         'input:not([type="hidden"]):not(:disabled)',

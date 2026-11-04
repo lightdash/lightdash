@@ -491,6 +491,8 @@
         "controls.setsNoTiles": "No define ningún mosaico",
         "controls.parameter.clearedUsesDefault": "Si se borra, los mosaicos usan el valor predeterminado, {value}.",
         "controls.parameter.clearedUsesOwnValue": "Si se borra, cada mosaico usa su propio valor.",
+        "controls.parameter.unavailableOptions": "No disponible entre las opciones actuales",
+        "controls.parameter.refreshOptions": "Actualizar opciones",
         "controls.parameter.needsValue": "necesita un valor",
         "controls.parameter.isNotSet": "no está definido",
         "controls.parameter.notSetTooltip": "Los mosaicos usan su propio valor o el valor predeterminado del parámetro",

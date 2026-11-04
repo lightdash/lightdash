@@ -338,28 +338,10 @@ const ParameterPill: FC<{
                                         </Box>
                                     )}
                                     {canEdit && (
-                                        <Tooltip
-                                            fz="xs"
-                                            label="Remove parameter"
-                                        >
-                                            <ActionIcon
-                                                size="xs"
-                                                radius="xl"
-                                                className={
-                                                    filterClasses.pillAction
-                                                }
-                                                aria-label="Remove parameter"
-                                                onClick={(event) => {
-                                                    event.stopPropagation();
-                                                    remove(control.id);
-                                                }}
-                                            >
-                                                <MantineIcon
-                                                    size="sm"
-                                                    icon={IconX}
-                                                />
-                                            </ActionIcon>
-                                        </Tooltip>
+                                        <span
+                                            aria-hidden="true"
+                                            className={classes.removeSpace}
+                                        />
                                     )}
                                 </Box>
                             )
@@ -396,6 +378,20 @@ const ParameterPill: FC<{
                             )}
                         </Text>
                     </Button>
+                    {canEdit && (
+                        <Tooltip fz="xs" label="Remove parameter">
+                            <ActionIcon
+                                data-parameter-pill-action
+                                size="xs"
+                                radius="xl"
+                                className={classes.removeAction}
+                                aria-label="Remove parameter"
+                                onClick={() => remove(control.id)}
+                            >
+                                <MantineIcon size="sm" icon={IconX} />
+                            </ActionIcon>
+                        </Tooltip>
+                    )}
                 </Box>
             </Tooltip>
         </ParameterEditorPopover>

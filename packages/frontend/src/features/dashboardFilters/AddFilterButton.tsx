@@ -40,6 +40,8 @@ type Props = {
     editModeAction?: ReactNode;
     /** The trigger's text (default: "Add filter"). */
     label?: string;
+    /** Optional icon displayed before the trigger label. */
+    leadingIcon?: ReactNode;
     /** The trigger opens a menu: whether it is open (default: no menu). */
     isMenuOpen?: boolean;
 };
@@ -57,6 +59,7 @@ const AddFilterButton: FC<Props> = ({
     unsavedFiltersTooltip,
     editModeAction,
     label,
+    leadingIcon,
     isMenuOpen,
 }) => {
     const popoverId = useId();
@@ -215,6 +218,7 @@ const AddFilterButton: FC<Props> = ({
                     >
                         <Button
                             data-dashboard-filter-control
+                            leftSection={leadingIcon}
                             className={clsx(
                                 triggerClassName,
                                 classes.dashed,

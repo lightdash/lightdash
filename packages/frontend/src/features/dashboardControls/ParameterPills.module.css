@@ -1,4 +1,5 @@
 .pill {
+    --parameter-remove-size: rem(20px);
     position: relative;
     display: inline-flex;
 }
@@ -7,6 +8,19 @@
     display: inline-flex;
     align-items: center;
     gap: 2px;
+}
+
+.removeSpace {
+    inline-size: var(--parameter-remove-size);
+}
+
+.pill > .removeAction {
+    position: absolute;
+    inset-inline-end: calc(rem(10px) + 1px);
+    inset-block: 0;
+    margin-block: auto;
+    inline-size: var(--parameter-remove-size);
+    block-size: var(--parameter-remove-size);
 }
 
 /* A tile it sets has no value: the shipped parameter pill's warning, as a

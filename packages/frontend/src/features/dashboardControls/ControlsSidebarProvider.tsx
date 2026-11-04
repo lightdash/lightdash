@@ -57,7 +57,10 @@ import {
     isLockedRequiredMissingValue,
 } from '../dashboardFilters/FilterConfiguration/utils';
 import { getLinkKey } from './linkCandidates';
-import { PARAMETER_PILL_SELECTOR } from './parameterControlsBar';
+import {
+    PARAMETER_PILL_ACTION_SELECTOR,
+    PARAMETER_PILL_SELECTOR,
+} from './parameterControlsBar';
 import { ParameterEditorProvider } from './ParameterEditorProvider';
 import {
     getFieldCount,
@@ -1762,7 +1765,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         dismiss,
         dismissOutside: requestClose,
         // A parameter control's pill switches as a filter's does
-        pillSelector: `[data-controls-pill], ${PARAMETER_PILL_SELECTOR}`,
+        pillSelector: `[data-controls-pill], ${PARAMETER_PILL_SELECTOR}, ${PARAMETER_PILL_ACTION_SELECTOR}`,
     });
 
     // Its own memo so a hover does not hand selectors a new object

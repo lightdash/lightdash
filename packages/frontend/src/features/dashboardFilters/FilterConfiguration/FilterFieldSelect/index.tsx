@@ -51,6 +51,7 @@ interface FilterFieldSelectProps {
     placeholder?: string;
     // Renders the list in a portal, for a host that clips its overflow
     withinPortal?: boolean;
+    isPickerSearch?: boolean;
     getRowHint?: (field: DashboardFilterableField) => string;
     isFirstMatchSelected?: boolean;
     popoverProps?: {
@@ -89,6 +90,7 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
     placeholder: placeholderOverride,
     popoverProps,
     getRowHint,
+    isPickerSearch = false,
     isFirstMatchSelected = false,
 }) => {
     const getUiString = useUiStrings();
@@ -331,6 +333,7 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
                 store={combobox}
                 onOptionSubmit={handleOptionSubmit}
                 withinPortal={withinPortal}
+                offset={isPickerSearch ? 2 : undefined}
             >
                 <Combobox.Target>
                     <InputBase
@@ -338,7 +341,7 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
                         size="xs"
                         value={isOpen ? search : (selectedLabel ?? '')}
                         aria-label={
-                            isFirstMatchSelected
+                            isFirstMatchSelected || isPickerSearch
                                 ? placeholderOverride
                                 : undefined
                         }
@@ -358,7 +361,11 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
                                 <MantineIcon icon={IconSearch} color="dimmed" />
                             )
                         }
-                        rightSection={<MantineIcon icon={IconSelector} />}
+                        rightSection={
+                            isPickerSearch ? undefined : (
+                                <MantineIcon icon={IconSelector} />
+                            )
+                        }
                         rightSectionPointerEvents="none"
                         autoComplete="off"
                         data-autofocus
