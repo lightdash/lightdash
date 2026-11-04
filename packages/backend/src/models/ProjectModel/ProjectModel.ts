@@ -6198,12 +6198,14 @@ export class ProjectModel {
         projectUuid: string,
         binding: ConnectionBinding,
     ): Promise<CreateWarehouseCredentials> {
-        if (
-            error instanceof NotFoundError &&
-            binding.kind === 'explore' &&
-            (await this.getExploreFromCache(projectUuid, binding.exploreName))
-                .type === ExploreType.API_SOURCE
-        ) {
+        if (!(error instanceof NotFoundError) || binding.kind !== 'explore') {
+            throw error;
+        }
+        const explore = await this.getExploreFromCache(
+            projectUuid,
+            binding.exploreName,
+        ).catch(() => null);
+        if (explore?.type === ExploreType.API_SOURCE) {
             return LIVE_SOURCE_ONLY_CREDENTIALS;
         }
         throw error;
