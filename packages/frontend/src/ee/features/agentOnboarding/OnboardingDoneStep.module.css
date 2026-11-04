@@ -1,6 +1,6 @@
 .column {
     width: 100%;
-    padding-block: var(--mantine-spacing-lg);
+    padding-top: var(--mantine-spacing-lg);
     text-align: center;
     animation: reveal 300ms cubic-bezier(0.22, 1, 0.36, 1) 700ms both;
 }
