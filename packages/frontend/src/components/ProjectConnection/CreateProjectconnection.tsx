@@ -4,9 +4,11 @@ import {
     isCreateProjectJob,
     JobStatusType,
     JobStepStatusType,
+    JobStepType,
     ProjectType,
     WarehouseTypes,
     type CreateWarehouseCredentials,
+    type JobStep,
 } from '@lightdash/common';
 import { Box, Button, Group, Loader } from '@mantine/core';
 import {
@@ -27,6 +29,7 @@ import {
 import { useCreateMutation } from '../../hooks/useProject';
 import useActiveJob from '../../providers/ActiveJob/useActiveJob';
 import useApp from '../../providers/App/useApp';
+import { type CreateProjectErrorCategory } from '../../providers/Tracking/types';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import { ConnectionFormSkeleton } from './ConnectionFormSkeleton';
@@ -71,6 +74,23 @@ interface CreateProjectConnectionProps {
 }
 
 // The schema input is rendered with the dbt settings, so it belongs to the dbt step
+const getJobErrorCategory = (
+    step: JobStep | undefined,
+): CreateProjectErrorCategory => {
+    const error = step?.stepError ?? '';
+    if (/password|authentication failed|incorrect username/i.test(error))
+        return 'authentication';
+    if (/permission denied|access denied|insufficient privileges/i.test(error))
+        return 'permission';
+    if (/timed? ?out/i.test(error)) return 'timeout';
+    if (/enotfound|getaddrinfo|econnrefused|could not connect/i.test(error))
+        return 'network';
+    if (/does not exist|not found|unknown database/i.test(error))
+        return 'not_found';
+    if (step?.stepType === JobStepType.COMPILING) return 'dbt';
+    return 'unknown';
+};
+
 const isDbtField = (path: string) =>
     path.startsWith('dbt') || path === 'warehouse.schema';
 
@@ -289,8 +309,9 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                 name: EventName.CREATE_PROJECT_FAILED,
                 properties: {
                     warehouse: selectedWarehouse ?? form.values.warehouse.type,
+                    errorType: failedStep?.stepType ?? 'unknown',
                     failedStep: failedStep?.stepType ?? null,
-                    errorCategory: 'unknown',
+                    errorCategory: getJobErrorCategory(failedStep),
                     warehouseOnly: submittedWarehouseOnly.current,
                     onboardingFlow,
                 },
