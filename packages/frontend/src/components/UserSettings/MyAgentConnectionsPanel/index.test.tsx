@@ -400,7 +400,7 @@ describe('WarehouseAgentSignInsPanel', () => {
             renderWithProviders(<WarehouseAgentSignInsPanel />);
             expect(
                 screen
-                    .getAllByRole('heading', { level: 6 })
+                    .getAllByRole('heading')
                     .map((heading) => heading.textContent),
             ).toEqual(['Snowflake', 'BigQuery', 'Databricks']);
             expect(
