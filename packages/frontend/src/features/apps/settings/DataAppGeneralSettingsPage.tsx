@@ -89,13 +89,13 @@ export const DataAppGeneralSettingsPage: FC = () => {
                     )}
                     <SettingsSection
                         label="Screenshots and thumbnails"
-                        description="Controls every way an image of your data can be captured in the builder, including automatic thumbnails and the image posted with a Slack build."
+                        description="Controls every way an image of your data can be captured in the builder, including automatic thumbnails and the image posted with a Slack build. While screenshots are off, existing thumbnails stay hidden."
                     >
                         <SettingsCard>
                             <Stack gap="md">
                                 <SettingRow
                                     title="Allow screenshots and attachments"
-                                    description="Lets people attach screenshots of a running app and files to a build, where the coding agent can read them, and lets thumbnails of apps be captured. Turning this off keeps existing thumbnails but hides them until it is turned back on."
+                                    description="Attach screenshots of a running app and files to a build for the coding agent to read."
                                     control={
                                         <Switch
                                             size="md"

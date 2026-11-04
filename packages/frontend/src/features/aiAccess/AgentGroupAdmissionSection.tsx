@@ -168,7 +168,7 @@ export const AgentGroupAdmissionSection = ({
             <Stack gap="sm">
                 <SettingRow
                     title="Who can use agents"
-                    description="Limit agents to members of specific groups."
+                    description="Everyone whose role allows AI, or only members of chosen groups."
                 />
                 {notice}
                 <AgentGroupPicker

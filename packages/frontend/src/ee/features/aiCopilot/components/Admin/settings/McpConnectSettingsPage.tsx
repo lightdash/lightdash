@@ -1,5 +1,6 @@
-import { Button, Group, Loader, Stack } from '@mantine/core';
+import { Button, Stack } from '@mantine/core';
 import Callout from '../../../../../../components/common/Callout';
+import EmptyStateLoader from '../../../../../../components/common/EmptyStateLoader';
 import ErrorState from '../../../../../../components/common/ErrorState';
 import { SettingsSection } from '../../../../../../components/common/Settings/SettingLayout';
 import { SettingsCard } from '../../../../../../components/common/Settings/SettingsCard';
@@ -40,9 +41,7 @@ export const McpConnectSettingsPage = () => {
                     </Stack>
                 </SettingsCard>
             ) : !settings.isSuccess ? (
-                <Group justify="center" mt="xl">
-                    <Loader size="sm" />
-                </Group>
+                <EmptyStateLoader />
             ) : settings.data.mcpEnabled === false ? (
                 <Callout variant="warning" title="MCP access is disabled">
                     An administrator must allow MCP access before clients can
