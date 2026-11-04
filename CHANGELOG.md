@@ -1,3 +1,10 @@
+## [3.149.1](https://github.com/lightdash/lightdash/compare/3.149.0...3.149.1) (2026-11-04)
+
+
+### Bug Fixes
+
+* remove Knowledge & data hint from AI agent capabilities section ([#32068](https://github.com/lightdash/lightdash/issues/32068)) ([1a02adc](https://github.com/lightdash/lightdash/commit/1a02adcfc7986cfe5bc968d17597273fb727e214))
+
 # [3.149.0](https://github.com/lightdash/lightdash/compare/3.148.3...3.149.0) (2026-11-04)
 
 
