@@ -563,6 +563,10 @@ describe('getRunComposerQueries', () => {
                         limit: 5000,
                         sorts: [
                             { fieldId: 'payments_month', descending: true },
+                            {
+                                fieldId: 'payments_total_revenue',
+                                descending: false,
+                            },
                         ],
                     },
                     sqlNode,
@@ -572,7 +576,7 @@ describe('getRunComposerQueries', () => {
         );
 
         expect(output.result).toContain(
-            '- revenue: "Revenue by month" (semanticLayer): 5000 rows, limit 5000. Reached its limit of 5000, so more rows may exist. Holds the first rows sorted by payments_month desc.',
+            '- revenue: "Revenue by month" (semanticLayer): 5000 rows, limit 5000. Reached its limit of 5000, so more rows may exist. Holds the first rows sorted by payments_month desc, payments_total_revenue asc.',
         );
     });
 

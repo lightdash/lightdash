@@ -266,15 +266,27 @@ export const toNodeSummary = (
     sample: status?.sample ?? null,
 });
 
-const getSortedBy = (node: ComposerPipelineNode | undefined): string =>
-    node?.sourceType === QuerySourceType.SEMANTIC_LAYER && node.sorts?.length
-        ? ` Holds the first rows sorted by ${node.sorts
-              .map(
-                  ({ fieldId, descending }) =>
-                      `${fieldId} ${descending ? 'desc' : 'asc'}`,
-              )
-              .join(', ')}.`
-        : '';
+const describeCappedRows = (
+    node: ComposerNodeSummary,
+    query: ComposerPipelineNode | null,
+    maxQueryLimit: number,
+): string => {
+    const max = node.limit < maxQueryLimit ? ` (max ${maxQueryLimit})` : '';
+    const sorts =
+        query?.sourceType === QuerySourceType.SEMANTIC_LAYER
+            ? (query.sorts ?? [])
+            : [];
+    const sortedBy =
+        sorts.length > 0
+            ? ` Holds the first rows sorted by ${sorts
+                  .map(
+                      ({ fieldId, descending }) =>
+                          `${fieldId} ${descending ? 'desc' : 'asc'}`,
+                  )
+                  .join(', ')}.`
+            : '';
+    return ` Reached its limit of ${node.limit}, so more rows may exist${max}.${sortedBy}`;
+};
 
 export const hasReachedLimit = (node: ComposerNodeSummary) =>
     node.rowCount !== null && hasReachedSourceQueryLimit(node, node.rowCount);
@@ -341,11 +353,12 @@ export const renderComposerNodeListing = ({
     const getOutcome = (node: ComposerNodeSummary): string => {
         if (node.rowCount !== null) {
             const capped = reachedLimit.has(node.nodeId)
-                ? ` Reached its limit of ${node.limit}, so more rows may exist${
-                      node.limit < maxQueryLimit
-                          ? ` (max ${maxQueryLimit})`
-                          : ''
-                  }.${getSortedBy(queries.find(({ nodeId }) => nodeId === node.nodeId))}`
+                ? describeCappedRows(
+                      node,
+                      queries.find(({ nodeId }) => nodeId === node.nodeId) ??
+                          null,
+                      maxQueryLimit,
+                  )
                 : '';
             const reused = submittedNodeIds.has(node.nodeId)
                 ? ''
