@@ -1955,20 +1955,26 @@ export const getAgentTools = (
         readContent: () =>
             getReadContent({
                 readContent: dependencies.readContent,
+                siteUrl: args.siteUrl,
                 documentsEnabled,
             }),
         editContent: () =>
             getEditContent({
                 editContent: dependencies.editContent,
+                siteUrl: args.siteUrl,
                 documentsEnabled,
                 artifacts: dependencies.chartExportArtifacts,
                 sqlChartSaving: getSqlChartSaving(),
             }),
         listContent: () =>
-            getListContent({ listContent: dependencies.listContent }),
+            getListContent({
+                listContent: dependencies.listContent,
+                siteUrl: args.siteUrl,
+            }),
         createContent: () =>
             getCreateContent({
                 createContent: dependencies.createContent,
+                siteUrl: args.siteUrl,
                 documentsEnabled,
                 artifacts: dependencies.chartExportArtifacts,
                 sqlChartSaving: getSqlChartSaving(),
@@ -1976,6 +1982,7 @@ export const getAgentTools = (
         createScheduledDelivery: () =>
             getCreateScheduledDelivery({
                 createScheduledDelivery: dependencies.createScheduledDelivery,
+                siteUrl: args.siteUrl,
             }),
         runContentQuery: () =>
             getRunContentQuery({

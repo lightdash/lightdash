@@ -3421,6 +3421,7 @@ export class McpService extends BaseService {
 
                 const createContentTool = getCreateContent({
                     createContent: toolsRuntime.createContent,
+                    siteUrl: this.lightdashConfig.siteUrl,
                     sqlChartSaving: { mode: 'client_approved' },
                 });
                 if (args.type === 'document') {
@@ -3481,6 +3482,7 @@ export class McpService extends BaseService {
 
                 const editContentTool = getEditContent({
                     editContent: toolsRuntime.editContent,
+                    siteUrl: this.lightdashConfig.siteUrl,
                     sqlChartSaving: { mode: 'client_approved' },
                 });
                 if (args.type === 'document') {
@@ -3557,6 +3559,7 @@ export class McpService extends BaseService {
                 const createScheduledDeliveryTool = getCreateScheduledDelivery({
                     createScheduledDelivery:
                         toolsRuntime.createScheduledDelivery,
+                    siteUrl: this.lightdashConfig.siteUrl,
                 });
                 const result = await createScheduledDeliveryTool.execute!(
                     args,
@@ -4125,6 +4128,7 @@ export class McpService extends BaseService {
 
                 const listContentTool = getListContent({
                     listContent: toolsRuntime.listContent,
+                    siteUrl: this.lightdashConfig.siteUrl,
                 });
                 const result = await listContentTool.execute!(argsWithProject, {
                     toolCallId: '',
@@ -4170,6 +4174,7 @@ export class McpService extends BaseService {
 
                 const readContentTool = getReadContent({
                     readContent: toolsRuntime.readContent,
+                    siteUrl: this.lightdashConfig.siteUrl,
                 });
                 if (args.type === 'document') {
                     const document = await toolsRuntime.readDocumentContent(

@@ -21,6 +21,7 @@ import type {
     FindContentSpaceMetadata,
     FindContentSpaceResult,
 } from '../types/aiAgentDependencies';
+import { toSiteUrl } from '../utils/siteUrl';
 import type {
     ExecuteStructuredToolResult,
     ExecuteToolErrorResult,
@@ -230,7 +231,7 @@ const toContentItem = (
                 uuid: content.uuid,
                 name: content.name,
                 slug: content.slug,
-                href: content.href,
+                href: toSiteUrl(siteUrl, content.href),
                 description: toDescription(
                     content.description,
                     toolDescriptionMaxChars,

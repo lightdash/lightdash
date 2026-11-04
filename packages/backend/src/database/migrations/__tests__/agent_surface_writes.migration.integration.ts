@@ -516,6 +516,7 @@ describe('trusted surface to persisted chart identity', () => {
         vi.mocked(generateAgentResponse).mockImplementation(
             async ({ dependencies }) => {
                 const tool = getCreateContent({
+                    siteUrl: 'https://app.lightdash.cloud',
                     createContent: dependencies.createContent,
                     sqlChartSaving: { mode: 'client_approved' },
                 });

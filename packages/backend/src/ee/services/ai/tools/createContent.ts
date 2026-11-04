@@ -14,6 +14,7 @@ import type { CreateContentFn } from '../types/aiAgentDependencies';
 import type { ArtifactChartExportAccess } from '../utils/artifactChartAsCode';
 import { getContentWarnings } from '../utils/contentWarnings';
 import { resolveDocumentConversationTags } from '../utils/documentConversationTags';
+import { toSiteUrl } from '../utils/siteUrl';
 import {
     toolFailure,
     type ExecuteStructuredToolResult,
@@ -30,6 +31,7 @@ import { createSqlChartGate, type SqlChartSaving } from './sqlChartApproval';
 
 type Dependencies = {
     createContent: CreateContentFn;
+    siteUrl: string;
     sqlChartSaving?: SqlChartSaving;
     documentsEnabled?: boolean;
     artifacts?: ArtifactChartExportAccess;
@@ -96,6 +98,7 @@ const toCreatedContent = (
 
 export const getCreateContent = ({
     createContent,
+    siteUrl,
     sqlChartSaving = { mode: 'disabled' },
     documentsEnabled = false,
     artifacts,
@@ -169,13 +172,14 @@ export const getCreateContent = ({
                             : {}),
                     };
 
+                    const url = toSiteUrl(siteUrl, created.href);
                     return {
                         result: contentResult({
                             content:
                                 result.type === 'document'
-                                    ? result
+                                    ? { ...result, href: url }
                                     : created.content,
-                            href: created.href,
+                            href: url,
                             type: created.type,
                             warnings: created.warnings,
                         }),

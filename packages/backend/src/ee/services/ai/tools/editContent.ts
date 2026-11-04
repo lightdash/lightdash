@@ -12,6 +12,7 @@ import type { EditContentFn } from '../types/aiAgentDependencies';
 import type { ArtifactChartExportAccess } from '../utils/artifactChartAsCode';
 import { getContentWarnings } from '../utils/contentWarnings';
 import { resolveDocumentConversationTags } from '../utils/documentConversationTags';
+import { toSiteUrl } from '../utils/siteUrl';
 import { toolFailure } from '../utils/structuredToolResult';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorOutput } from '../utils/toolErrorHandler';
@@ -24,6 +25,7 @@ import { createSqlChartGate, type SqlChartSaving } from './sqlChartApproval';
 
 type Dependencies = {
     editContent: EditContentFn;
+    siteUrl: string;
     sqlChartSaving?: SqlChartSaving;
     documentsEnabled?: boolean;
     artifacts?: ArtifactChartExportAccess;
@@ -78,6 +80,7 @@ const toStructuredContent = (
 export const executeEditContent = async (
     {
         editContent,
+        siteUrl,
         sqlChartSaving = { mode: 'disabled' },
         documentsEnabled = false,
         artifacts,
@@ -153,10 +156,14 @@ export const executeEditContent = async (
             warnings,
         };
 
+        const url = toSiteUrl(siteUrl, result.href);
         return {
             result: contentResult({
-                content: result.type === 'document' ? result : result.content,
-                href: metadata.href,
+                content:
+                    result.type === 'document'
+                        ? { ...result, href: url }
+                        : result.content,
+                href: url,
                 type: result.type,
                 warnings,
             }),
@@ -176,6 +183,7 @@ export const executeEditContent = async (
 
 export const getEditContent = ({
     editContent,
+    siteUrl,
     sqlChartSaving = { mode: 'disabled' },
     documentsEnabled = false,
     artifacts,
@@ -197,6 +205,7 @@ export const getEditContent = ({
                 executeEditContent(
                     {
                         editContent,
+                        siteUrl,
                         sqlChartSaving,
                         documentsEnabled,
                         artifacts,

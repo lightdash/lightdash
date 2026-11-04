@@ -196,8 +196,16 @@ const makeTurns = ({
                 sqlScope: null,
             },
         }),
-        createContent: getCreateContent({ createContent, sqlChartSaving }),
-        editContent: getEditContent({ editContent, sqlChartSaving }),
+        createContent: getCreateContent({
+            siteUrl: 'https://app.lightdash.cloud',
+            createContent,
+            sqlChartSaving,
+        }),
+        editContent: getEditContent({
+            siteUrl: 'https://app.lightdash.cloud',
+            editContent,
+            sqlChartSaving,
+        }),
     };
 
     const argsFor = {
