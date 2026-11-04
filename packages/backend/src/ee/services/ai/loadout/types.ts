@@ -129,6 +129,7 @@ export type LoadoutInput = Pick<
     | 'canRunSql'
     | 'canCreateDashboards'
     | 'canCreateScheduledDeliveries'
+    | 'enableContentReads'
     | 'enableContentTools'
     | 'enableDocuments'
     | 'enableGenerateDataApp'

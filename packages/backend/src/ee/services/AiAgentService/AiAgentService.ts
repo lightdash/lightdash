@@ -15893,6 +15893,13 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         }
     }
 
+    /** The agent offers content reading when the setting is on; each read checks the user's view access. */
+    private static canReadContent(
+        agent: Pick<AiAgent, 'enableContentTools' | 'enableDataAccess'>,
+    ): boolean {
+        return agent.enableContentTools && agent.enableDataAccess;
+    }
+
     /** The agent offers content editing when the setting is on and the user can save content in the project. */
     private async canUseContentTools(
         user: SessionUser,
@@ -15900,8 +15907,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         projectUuid: string,
     ): Promise<boolean> {
         return (
-            agent.enableContentTools &&
-            agent.enableDataAccess &&
+            AiAgentService.canReadContent(agent) &&
             this.aiAgentToolsService.canAuthorContent({ user, projectUuid })
         );
     }
@@ -16990,6 +16996,9 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 const repoFsSupportsCodeSearch =
                     promptProject.dbtConnection.type !== DbtProjectType.GITLAB;
 
+                const canReadContent =
+                    hasTrustedPromptUserIdentity &&
+                    AiAgentService.canReadContent(agentSettings);
                 const canUseContentTools =
                     hasTrustedPromptUserIdentity &&
                     (await this.canUseContentTools(
@@ -17352,6 +17361,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                         this.lightdashConfig.ai.copilot.telemetryEnabled,
                     enableDataAccess: agentSettings.enableDataAccess,
                     enableSelfImprovement: agentSettings.enableSelfImprovement,
+                    enableContentReads: canReadContent,
                     enableContentTools: canUseContentTools,
                     enableDocuments: canUseContentTools,
                     enableGenerateDataApp,
