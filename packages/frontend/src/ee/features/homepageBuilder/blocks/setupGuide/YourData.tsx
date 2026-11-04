@@ -16,7 +16,6 @@ import {
     IconDatabase,
     IconExternalLink,
     IconHelpCircle,
-    IconInfoCircle,
     IconLayersLinked,
     IconPlugConnected,
     IconX,
@@ -198,11 +197,19 @@ const liveSourceTag = (connection: ExternalConnectionListItem) => {
     );
 };
 
-const PathLabel: FC<{ label: string }> = ({ label }) => (
-    <Group justify="space-between" wrap="nowrap" px="sm" py={8}>
-        <Text fz="sm" fw={500}>
-            {label}
-        </Text>
+const PathLabel: FC<{ label: string; description: string }> = ({
+    label,
+    description,
+}) => (
+    <Group justify="space-between" wrap="nowrap" px="sm" py={10}>
+        <Box>
+            <Text fz="sm" fw={500}>
+                {label}
+            </Text>
+            <Text fz="xs" c="dimmed">
+                {description}
+            </Text>
+        </Box>
         <MantineIcon icon={IconArrowRight} size={14} color="dimmed" />
     </Group>
 );
@@ -224,16 +231,9 @@ export const YourData: FC<{
     return (
         <Paper p="md" className={classes.panel}>
             <Group justify="space-between" align="center" wrap="nowrap">
-                <Group gap={6} wrap="nowrap">
-                    <MantineIcon
-                        icon={IconInfoCircle}
-                        size={16}
-                        color="dimmed"
-                    />
-                    <Text fz="sm" fw={600}>
-                        Your data is ready to explore
-                    </Text>
-                </Group>
+                <Text fz="sm" fw={600}>
+                    Your data is ready to explore
+                </Text>
                 <Tooltip label="Hide">
                     <ActionIcon
                         size="sm"
@@ -266,14 +266,20 @@ export const YourData: FC<{
             <Box className={classes.paths}>
                 <UnstyledButton className={classes.path} onClick={onAsk}>
                     <ChoiceArt kind="ask" />
-                    <PathLabel label={`Ask ${AI_NAME}`} />
+                    <PathLabel
+                        label={`Ask ${AI_NAME}`}
+                        description="Type a question in plain words and get a chart back."
+                    />
                 </UnstyledButton>
                 <Link
                     to={`/projects/${projectUuid}/tables`}
                     className={classes.path}
                 >
                     <ChoiceArt kind="explore" />
-                    <PathLabel label="Build in Explore" />
+                    <PathLabel
+                        label="Build in Explore"
+                        description="Pick a metric and a dimension, then choose a chart type."
+                    />
                 </Link>
             </Box>
             {guide.semanticExplores.length > 0 && (

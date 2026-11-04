@@ -248,18 +248,18 @@ const TablesArt: FC = () => (
 const STEPS: { art: ReactNode; title: string; body: string }[] = [
     {
         art: <TablesArt />,
-        title: 'Columns become business fields',
-        body: 'Raw columns like cust_id get names people know, like Customer on Orders.',
+        title: 'A model describes a table',
+        body: 'Each model points at one table in your warehouse and gives its columns readable names and types. Here, the table tbl_ord_dtl becomes the Orders model, and its cust_id column becomes Customer.',
     },
     {
         art: <RevenueChart />,
         title: 'Metrics and dimensions',
-        body: 'Each model defines metrics, like revenue, and the dimensions to slice them by, like month or status.',
+        body: 'A metric is a calculation across rows, like the sum of order amounts (revenue). A dimension is a column you group or filter by, like month or status. A chart combines the two, for example revenue by month.',
     },
     {
         art: <Diagram />,
-        title: 'Defined once, used everywhere',
-        body: 'Definitions live in YAML and the SQL is generated from them. Every chart, dashboard and AI answer uses them, so the same question gets the same number.',
+        title: 'Where the SQL comes from',
+        body: 'Models are written in YAML. When you build a chart, ask a question or open a dashboard, the SQL is generated from these definitions, so each metric is calculated the same way everywhere.',
     },
 ];
 
