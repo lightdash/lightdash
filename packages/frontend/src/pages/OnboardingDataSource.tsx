@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { ProjectType, WarehouseTypes } from '@lightdash/common';
+import { FeatureFlags, ProjectType, WarehouseTypes } from '@lightdash/common';
 import { Anchor, Box, Button, Group, Stack, Text, Title } from '@mantine/core';
 import { useState, type FC } from 'react';
 import { Navigate, useLocation, useParams } from 'react-router';
@@ -32,6 +32,7 @@ import { withViewTransition } from '../features/apps/utils/viewTransition';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import { useOnboardingPageGuard } from '../hooks/useOnboardingPageGuard';
 import { useProjects } from '../hooks/useProjects';
+import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { isPlaygroundProvisioningSource } from '../utils/playgroundProject';
 import classes from './OnboardingDataSource.module.css';
 
@@ -78,9 +79,17 @@ const WarehouseConnect: FC<{
     const onboardingNavigate = useOnboardingNavigate();
     const [step, setStep] = useState<ConnectionFormStep>('warehouse');
     const [modelSource, setModelSource] = useState(initialModelSource);
-    const withDbt = modelSource === 'dbt';
-    const isDbtStep = withDbt && step === 'dbt';
-    useTrackOnboardingScreen(isDbtStep ? 'dbt_repo' : 'warehouse_form');
+    const isDbtStep = modelSource === 'dbt' && step === 'dbt';
+    useTrackOnboardingScreen(
+        isDbtStep
+            ? 'dbt_repo'
+            : step === 'models'
+              ? 'model_source'
+              : 'warehouse_form',
+    );
+    const canAutoBuildModels =
+        useServerFeatureFlag(FeatureFlags.CodingAgentOnboarding).data
+            ?.enabled === true;
     const {
         isInitialLoading: isLoadingOrganization,
         data: organization,
@@ -143,24 +152,27 @@ const WarehouseConnect: FC<{
                     <CreateProjectConnection
                         isCreatingFirstProject={!hasRealProject}
                         selectedWarehouse={selectedWarehouse}
-                        warehouseOnly={!withDbt}
-                        steps={
-                            withDbt
-                                ? {
-                                      current: step,
-                                      onChange: (next) =>
-                                          withViewTransition(() =>
-                                              setStep(next),
-                                          ),
-                                  }
-                                : null
+                        warehouseOnly={
+                            modelSource === 'tables' || step === 'warehouse'
                         }
+                        steps={{
+                            current: step,
+                            onChange: (next) =>
+                                withViewTransition(() => setStep(next)),
+                        }}
                         alwaysShowProjectName
-                        warehouseStepEnd={
+                        modelsStep={
                             <ModelSourceQuestion
                                 value={modelSource}
                                 onChange={setModelSource}
                             />
+                        }
+                        submitLabel={
+                            step === 'models' &&
+                            canAutoBuildModels &&
+                            !hasRealProject
+                                ? 'Test & build models'
+                                : undefined
                         }
                         successRedirect={(projectUuid) =>
                             `/projects/${projectUuid}/home`
