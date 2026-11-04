@@ -1,16 +1,16 @@
-import { Group, Radio, SimpleGrid, Text, TextInput } from '@mantine/core';
+import { Group, Radio, Text, TextInput } from '@mantine/core';
 import {
     IconBrandGithub,
     IconBrandGoogle,
     IconBrandLinkedin,
-    IconBrandOpenai,
     IconBrandReddit,
     IconBrandX,
     IconBrandYoutube,
     IconCalendarEvent,
     IconDots,
+    IconMail,
     IconMicrophone2,
-    IconNews,
+    IconSparkles,
     IconUsers,
     type Icon,
 } from '@tabler/icons-react';
@@ -20,20 +20,76 @@ import classes from './ReferralSourcePicker.module.css';
 
 const OTHER = 'Other';
 
-const SOURCES: { label: string; icon: Icon }[] = [
-    { label: 'Google', icon: IconBrandGoogle },
-    { label: 'AI assistant', icon: IconBrandOpenai },
-    { label: 'A colleague', icon: IconUsers },
-    { label: 'LinkedIn', icon: IconBrandLinkedin },
-    { label: 'X', icon: IconBrandX },
-    { label: 'YouTube', icon: IconBrandYoutube },
-    { label: 'Reddit', icon: IconBrandReddit },
-    { label: 'GitHub', icon: IconBrandGithub },
-    { label: 'Podcast', icon: IconMicrophone2 },
-    { label: 'Event', icon: IconCalendarEvent },
-    { label: 'Newsletter', icon: IconNews },
-    { label: OTHER, icon: IconDots },
+type Source = {
+    label: string;
+    icon: Icon;
+    // A follow-up asked once the source is picked; required only for Other
+    followUp: { label: string; placeholder: string } | null;
+};
+
+const SOURCES: Source[] = [
+    { label: 'Google', icon: IconBrandGoogle, followUp: null },
+    {
+        label: 'AI',
+        icon: IconSparkles,
+        followUp: {
+            label: 'Which assistant?',
+            placeholder: 'ChatGPT, Claude, Perplexity…',
+        },
+    },
+    { label: 'Friend or coworker', icon: IconUsers, followUp: null },
+    { label: 'LinkedIn', icon: IconBrandLinkedin, followUp: null },
+    { label: 'X.com', icon: IconBrandX, followUp: null },
+    { label: 'YouTube', icon: IconBrandYoutube, followUp: null },
+    { label: 'Reddit', icon: IconBrandReddit, followUp: null },
+    { label: 'GitHub', icon: IconBrandGithub, followUp: null },
+    {
+        label: 'Podcast',
+        icon: IconMicrophone2,
+        followUp: { label: 'Which podcast?', placeholder: 'Name of the show' },
+    },
+    {
+        label: 'Event',
+        icon: IconCalendarEvent,
+        followUp: { label: 'Which event?', placeholder: 'Name of the event' },
+    },
+    {
+        label: 'Newsletter',
+        icon: IconMail,
+        followUp: {
+            label: 'Which newsletter?',
+            placeholder: 'Name of the newsletter',
+        },
+    },
+    {
+        label: OTHER,
+        icon: IconDots,
+        followUp: {
+            label: 'Where did you hear about us?',
+            placeholder: 'Tell us where',
+        },
+    },
 ];
+
+// Restores the picker from the saved answer when the step remounts
+const parseAnswer = (
+    value: string,
+): { choice: string | null; detail: string } => {
+    if (!value) return { choice: null, detail: '' };
+    const source = SOURCES.find(
+        ({ label }) =>
+            label !== OTHER &&
+            (value === label || value.startsWith(`${label}: `)),
+    );
+    return source
+        ? { choice: source.label, detail: value.slice(source.label.length + 2) }
+        : { choice: OTHER, detail: value };
+};
+
+const toAnswer = (choice: string, detail: string): string => {
+    if (choice === OTHER) return detail;
+    return detail.trim() ? `${choice}: ${detail}` : choice;
+};
 
 type Props = {
     value: string;
@@ -41,51 +97,50 @@ type Props = {
     error: ReactNode;
 };
 
-/** Picks a common source in one click; "Other" opens a free-text answer */
+/** Picks a source in one click, with a short follow-up where the detail is useful */
 export const ReferralSourcePicker: FC<Props> = ({ value, onChange, error }) => {
-    const [isOther, setIsOther] = useState(false);
-    const selected = isOther
-        ? OTHER
-        : (SOURCES.find(({ label }) => label === value)?.label ?? null);
+    const [{ choice, detail }, setAnswer] = useState(() => parseAnswer(value));
+    const followUp = SOURCES.find(({ label }) => label === choice)?.followUp;
+    const update = (nextChoice: string, nextDetail: string) => {
+        setAnswer({ choice: nextChoice, detail: nextDetail });
+        onChange(toAnswer(nextChoice, nextDetail));
+    };
 
     return (
         <>
             <Radio.Group
                 label="How did you hear about us?"
                 required
-                value={selected}
-                onChange={(next) => {
-                    setIsOther(next === OTHER);
-                    onChange(next === OTHER ? '' : next);
-                }}
-                error={isOther ? null : error}
+                value={choice}
+                onChange={(next) => update(next, '')}
+                error={choice === OTHER ? null : error}
             >
-                <SimpleGrid cols={{ base: 2, xs: 4 }} spacing="xs" mt={6}>
+                <Group gap={8} mt={8}>
                     {SOURCES.map(({ label, icon }) => (
                         <Radio.Card
                             key={label}
                             value={label}
-                            className={classes.tile}
+                            className={classes.chip}
                         >
-                            <Group gap={8} wrap="nowrap">
-                                <MantineIcon icon={icon} size={16} />
-                                <Text size="sm" truncate>
-                                    {label}
-                                </Text>
-                            </Group>
+                            <MantineIcon icon={icon} size={16} />
+                            <Text span size="sm" inherit>
+                                {label}
+                            </Text>
                         </Radio.Card>
                     ))}
-                </SimpleGrid>
+                </Group>
             </Radio.Group>
-            {isOther && (
+            {choice && followUp && (
                 <TextInput
-                    aria-label="Where did you hear about us?"
-                    placeholder="Where did you hear about us?"
-                    size="md"
+                    key={choice}
+                    label={followUp.label}
+                    placeholder={followUp.placeholder}
                     autoFocus
-                    value={value}
-                    onChange={(event) => onChange(event.currentTarget.value)}
-                    error={error}
+                    value={detail}
+                    onChange={(event) =>
+                        update(choice, event.currentTarget.value)
+                    }
+                    error={choice === OTHER ? error : null}
                 />
             )}
         </>
