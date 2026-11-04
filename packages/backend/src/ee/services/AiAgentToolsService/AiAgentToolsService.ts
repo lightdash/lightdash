@@ -4242,6 +4242,11 @@ export class AiAgentToolsService extends BaseService {
         context: AiAgentToolsRuntimeContext,
         args: Parameters<UpdateUserNameFn>[0],
     ): ReturnType<UpdateUserNameFn> {
+        if (context.user.serviceAccount) {
+            throw new ForbiddenError(
+                'A service account name cannot be changed from an agent session',
+            );
+        }
         await this.userService.updateUser(context.user, {
             firstName: args.firstName.trim(),
             lastName: args.lastName.trim(),
@@ -5264,22 +5269,28 @@ export class AiAgentToolsService extends BaseService {
                     );
                 }
 
-                const fields = await this.projectService.getWarehouseFields(
-                    context.user,
-                    context.projectUuid,
-                    context.defaultQueryExecutionContext,
-                    table,
-                    resolvedSchema ?? undefined,
-                    resolvedDatabase ?? undefined,
-                    context.querySurface,
-                );
+                const { fields, nativeTypes, partitioning, warehouseType } =
+                    await this.projectService.describeWarehouseTable(
+                        context.user,
+                        context.projectUuid,
+                        context.defaultQueryExecutionContext,
+                        {
+                            tableName: table,
+                            schemaName: resolvedSchema ?? undefined,
+                            databaseName: resolvedDatabase ?? undefined,
+                        },
+                        context.querySurface,
+                    );
                 return {
                     columns: Object.entries(fields).map(([name, type]) => ({
                         name,
                         type: String(type),
+                        nativeType: nativeTypes[name] ?? null,
                     })),
                     resolvedSchema,
                     resolvedDatabase,
+                    partitioning,
+                    warehouseType,
                 };
             },
         );

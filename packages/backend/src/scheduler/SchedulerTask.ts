@@ -894,6 +894,7 @@ export default class SchedulerTask {
             format,
             options,
         } = scheduler;
+        const useCachedResults = scheduler.useCachedResults === true;
 
         let imageUrl;
         let imageS3Key;
@@ -978,6 +979,9 @@ export default class SchedulerTask {
                 'dateZoom',
                 exportOptions.dateZoomGranularity.toLowerCase(),
             );
+        }
+        if (useCachedResults) {
+            minimalRenderUrl.searchParams.set('useCachedResults', 'true');
         }
 
         // App schedulers can snapshot the app's shareable URL state: seed the
@@ -1579,7 +1583,7 @@ export default class SchedulerTask {
                                     account,
                                     projectUuid,
                                     chartUuid: savedChartUuid,
-                                    invalidateCache: true,
+                                    invalidateCache: !useCachedResults,
                                     context:
                                         QueryExecutionContext.SCHEDULED_DELIVERY,
                                     limit: getSchedulerCsvLimit(csvOptions),
@@ -1770,7 +1774,7 @@ export default class SchedulerTask {
                                         projectUuid,
                                         tileUuid,
                                         chartUuid,
-                                        invalidateCache: true,
+                                        invalidateCache: !useCachedResults,
                                         context:
                                             QueryExecutionContext.SCHEDULED_DELIVERY,
                                         dashboardUuid,
@@ -1841,7 +1845,7 @@ export default class SchedulerTask {
                                         account,
                                         projectUuid,
                                         savedSqlUuid: chartUuid,
-                                        invalidateCache: true,
+                                        invalidateCache: !useCachedResults,
                                         context:
                                             QueryExecutionContext.SCHEDULED_DELIVERY,
                                         dashboardUuid,
@@ -4415,6 +4419,7 @@ export default class SchedulerTask {
                 await this.schedulerService.schedulerModel.getSchedulerAndTargets(
                     schedulerUuid,
                 );
+            const invalidateCache = scheduler.useCachedResults !== true;
 
             const {
                 format,
@@ -4497,7 +4502,7 @@ export default class SchedulerTask {
                         account,
                         projectUuid: chart.projectUuid,
                         chartUuid: savedChartUuid,
-                        invalidateCache: true,
+                        invalidateCache,
                         context:
                             QueryExecutionContext.SCHEDULED_GSHEETS_DASHBOARD,
                         pivotResults: shouldPivot,
@@ -4697,7 +4702,7 @@ export default class SchedulerTask {
                                 dashboardUuid,
                                 dashboardFilters,
                                 dashboardSorts: [],
-                                invalidateCache: true,
+                                invalidateCache,
                                 context:
                                     QueryExecutionContext.SCHEDULED_GSHEETS_DASHBOARD,
                                 pivotResults: shouldPivotChart,
@@ -4799,7 +4804,7 @@ export default class SchedulerTask {
                             account,
                             projectUuid: sqlChart.project.projectUuid,
                             savedSqlUuid: scheduler.savedSqlUuid,
-                            invalidateCache: true,
+                            invalidateCache,
                             context:
                                 QueryExecutionContext.SCHEDULED_GSHEETS_SQL_CHART,
                         },

@@ -542,6 +542,8 @@ Organization users are stored under `lightdash/users/*.yml`:
 ```yaml
 version: 1
 email: analyst@example.com
+firstName: Alex
+lastName: Example
 disabled: false
 role:
   type: system
@@ -555,9 +557,13 @@ The endpoints are:
 
 Email is the portable identity and is normalized to lowercase. An upload
 creates a missing organization member or reconciles the existing member's
-organization role and disabled state. A custom role is referenced by its exact
-organization-level role name, so organization uploads process custom roles
-before users.
+organization role, disabled state, and supplied names. `firstName` and
+`lastName` are independently optional: omitting either preserves that name on
+an existing user, so older version 1 files remain valid. Supplied names are
+trimmed; an explicit empty string clears that name. Downloads include both
+names, including empty strings when a name is unset. A custom role is
+referenced by its exact organization-level role name, so organization uploads
+process custom roles before users.
 
 Credentials are not portable, so authentication status is not written to user
 files. A missing user is staged without an authentication method and reported

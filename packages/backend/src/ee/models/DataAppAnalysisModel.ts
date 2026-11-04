@@ -3,6 +3,7 @@ import type {
     AnalysisTargetRef,
     DataAppAnalysisSource,
     DataAppDetectResult,
+    DataAppInstructionInvestigateResult,
     DataAppInvestigateResult,
     DataAppPromptResult,
 } from '@lightdash/common';
@@ -82,6 +83,12 @@ export type CreateDataAppAnalysis = CreateBase &
               agentUuid: string;
               threadUuid: string;
           }
+        | {
+              operation: 'investigate_instruction';
+              result: DataAppInstructionInvestigateResult;
+              agentUuid: string;
+              threadUuid: string;
+          }
         | { operation: 'prompt'; result: DataAppPromptResult }
     );
 
@@ -124,9 +131,15 @@ export class DataAppAnalysisModel {
                 anomaly_id:
                     data.operation === 'investigate' ? data.anomalyId : null,
                 agent_uuid:
-                    data.operation === 'investigate' ? data.agentUuid : null,
+                    data.operation === 'investigate' ||
+                    data.operation === 'investigate_instruction'
+                        ? data.agentUuid
+                        : null,
                 thread_uuid:
-                    data.operation === 'investigate' ? data.threadUuid : null,
+                    data.operation === 'investigate' ||
+                    data.operation === 'investigate_instruction'
+                        ? data.threadUuid
+                        : null,
             })
             .returning('*');
         return row;

@@ -40,6 +40,7 @@ import { AsyncQueryService } from './AsyncQueryService/AsyncQueryService';
 import { ComposeEngineClient } from './AsyncQueryService/ComposeEngineClient';
 import { AwsWebIdentityService } from './AwsWebIdentityService';
 import { BaseService } from './BaseService';
+import { BigqueryWorkloadIdentityService } from './BigqueryWorkloadIdentityService';
 import { CatalogService } from './CatalogService/CatalogService';
 import { CiService } from './CiService/CiService';
 import { CoderService } from './CoderService/CoderService';
@@ -182,6 +183,7 @@ interface ServiceManifest {
     slackIntegrationService: SlackIntegrationService;
     sshKeyPairService: SshKeyPairService;
     awsWebIdentityService: AwsWebIdentityService;
+    bigqueryWorkloadIdentityService: BigqueryWorkloadIdentityService;
     spacePermissionService: SpacePermissionService;
     spaceService: SpaceService;
     unfurlService: UnfurlService;
@@ -257,7 +259,6 @@ interface ServiceManifest {
     mcpService: unknown;
     rolesService: RolesService;
     slackService: SlackService;
-    organizationWarehouseCredentialsService: unknown;
 }
 
 /**
@@ -1123,8 +1124,6 @@ export class ServiceRepository
                     agentSignInCredentialResolver:
                         new SnowflakeAgentSignInCredentialResolver({
                             projectModel: this.models.getProjectModel(),
-                            organizationWarehouseCredentialsModel:
-                                this.models.getOrganizationWarehouseCredentialsModel(),
                             warehouseConnectionModel:
                                 this.models.getWarehouseConnectionModel(),
                             logger: Logger,
@@ -1213,8 +1212,6 @@ export class ServiceRepository
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     projectParametersModel:
                         this.models.getProjectParametersModel(),
-                    organizationWarehouseCredentialsModel:
-                        this.models.getOrganizationWarehouseCredentialsModel(),
                     organizationModel: this.models.getOrganizationModel(),
                     projectCompileLogModel:
                         this.models.getProjectCompileLogModel(),
@@ -1379,8 +1376,6 @@ export class ServiceRepository
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     projectParametersModel:
                         this.models.getProjectParametersModel(),
-                    organizationWarehouseCredentialsModel:
-                        this.models.getOrganizationWarehouseCredentialsModel(),
                     organizationModel: this.models.getOrganizationModel(),
                     pivotTableService: this.getPivotTableService(),
                     prometheusMetrics: this.prometheusMetrics,
@@ -1531,6 +1526,19 @@ export class ServiceRepository
                     awsWebIdentityResolver:
                         this.models.getProjectModel().awsWebIdentity,
                     projectModel: this.models.getProjectModel(),
+                }),
+        );
+    }
+
+    public getBigqueryWorkloadIdentityService(): BigqueryWorkloadIdentityService {
+        return this.getService(
+            'bigqueryWorkloadIdentityService',
+            () =>
+                new BigqueryWorkloadIdentityService({
+                    featureFlagModel: this.models.getFeatureFlagModel(),
+                    projectModel: this.models.getProjectModel(),
+                    bigqueryWorkloadIdentityResolver:
+                        this.models.getProjectModel().bigqueryWorkloadIdentity,
                 }),
         );
     }
@@ -2338,12 +2346,6 @@ export class ServiceRepository
         ExternalConnectionCoderServiceImplT,
     >(): ExternalConnectionCoderServiceImplT {
         return this.getService('externalConnectionCoderService');
-    }
-
-    public getOrganizationWarehouseCredentialsService<
-        OrganizationWarehouseCredentialsServiceImplT,
-    >(): OrganizationWarehouseCredentialsServiceImplT {
-        return this.getService('organizationWarehouseCredentialsService');
     }
 
     public getInstanceConfigurationService<

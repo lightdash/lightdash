@@ -5,8 +5,8 @@ import {
     ForbiddenError,
     ParameterError,
 } from '@lightdash/common';
+import { merge } from 'es-toolkit/compat';
 import jwt from 'jsonwebtoken';
-import { merge } from 'lodash';
 import { lightdashConfig } from '../config/lightdashConfig';
 import Logger from '../logging/logger';
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';

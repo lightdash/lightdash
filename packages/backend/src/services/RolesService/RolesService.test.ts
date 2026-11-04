@@ -602,6 +602,8 @@ describe('RolesService', () => {
                     {
                         ...pendingUser,
                         email: 'SYSTEM@EXAMPLE.COM',
+                        firstName: 'José',
+                        lastName: 'Müller',
                         isActive: false,
                     },
                     {
@@ -631,6 +633,8 @@ describe('RolesService', () => {
                 {
                     version: 1,
                     email: 'system@example.com',
+                    firstName: 'José',
+                    lastName: 'Müller',
                     disabled: true,
                     role: {
                         type: 'system',
@@ -640,6 +644,8 @@ describe('RolesService', () => {
                 {
                     version: 1,
                     email: 'custom@example.com',
+                    firstName: '',
+                    lastName: '',
                     disabled: false,
                     role: { type: 'custom', name: 'Data steward' },
                 },
@@ -682,6 +688,8 @@ describe('RolesService', () => {
                 {
                     version: 1,
                     email: 'multi@example.com',
+                    firstName: '',
+                    lastName: '',
                     disabled: false,
                     role: {
                         type: 'system',
@@ -853,6 +861,158 @@ describe('RolesService', () => {
                 lifecycle: UserAsCodeLifecycleStatus.READY,
                 invitation: UserAsCodeInvitationStatus.NOT_REQUESTED,
             });
+        });
+
+        it('stages a missing user with supplied names', async () => {
+            mockUserModel.findUserByEmail.mockResolvedValueOnce(undefined);
+            mockUserModel.createPendingUser.mockResolvedValueOnce(pendingUser);
+            mockUserModel.getUserDetailsByUuid
+                .mockResolvedValueOnce(pendingUser)
+                .mockResolvedValueOnce(pendingUser);
+
+            await service.upsertUserAsCode(
+                mockAccount,
+                'test-org-uuid',
+                userAsCode({ firstName: ' José ', lastName: 'Müller' }),
+            );
+
+            expect(mockUserModel.createPendingUser).toHaveBeenCalledWith(
+                'test-org-uuid',
+                expect.objectContaining({
+                    firstName: 'José',
+                    lastName: 'Müller',
+                }),
+                true,
+            );
+        });
+
+        it.each([
+            { names: {}, action: PromotionAction.NO_CHANGES },
+            {
+                names: { firstName: 'Existing', lastName: 'Name' },
+                action: PromotionAction.NO_CHANGES,
+            },
+            {
+                names: { firstName: 'José' },
+                action: PromotionAction.UPDATE,
+            },
+            {
+                names: { lastName: 'Müller' },
+                action: PromotionAction.UPDATE,
+            },
+            {
+                names: { firstName: '', lastName: '' },
+                action: PromotionAction.UPDATE,
+            },
+        ])('reconciles name-only changes: %j', async ({ names, action }) => {
+            const existingUser = {
+                ...pendingUser,
+                isPending: false,
+                firstName: 'Existing',
+                lastName: 'Name',
+            };
+            mockUserModel.findUserByEmail.mockResolvedValueOnce(existingUser);
+            mockUserModel.getUserDetailsByUuid.mockResolvedValueOnce(
+                existingUser,
+            );
+
+            const result = await service.upsertUserAsCode(
+                mockAccount,
+                'test-org-uuid',
+                userAsCode(names),
+            );
+
+            expect(result.action).toBe(action);
+            if (action === PromotionAction.UPDATE) {
+                expect(mockUserModel.updateUser).toHaveBeenCalledWith(
+                    existingUser.userUuid,
+                    existingUser.email,
+                    names,
+                );
+            } else {
+                expect(mockUserModel.updateUser).not.toHaveBeenCalled();
+            }
+            expect(
+                mockRolesModel.upsertOrganizationUserRoleAssignment,
+            ).not.toHaveBeenCalled();
+        });
+
+        it('updates names without reactivating a disabled user', async () => {
+            const disabledUser = { ...pendingUser, isActive: false };
+            mockUserModel.findUserByEmail.mockResolvedValueOnce(disabledUser);
+            mockUserModel.getUserDetailsByUuid.mockResolvedValueOnce(
+                disabledUser,
+            );
+
+            const result = await service.upsertUserAsCode(
+                mockAccount,
+                'test-org-uuid',
+                userAsCode({ disabled: true, firstName: 'José' }),
+            );
+
+            expect(result.action).toBe(PromotionAction.UPDATE);
+            expect(mockUserModel.updateUser).toHaveBeenCalledWith(
+                disabledUser.userUuid,
+                disabledUser.email,
+                { firstName: 'José' },
+            );
+        });
+
+        it('applies names when adopting a user without an organization', async () => {
+            mockUserModel.findUserByEmail.mockResolvedValueOnce({
+                ...pendingUser,
+                organizationUuid: undefined,
+            });
+            mockUserModel.getUserDetailsByUuid
+                .mockResolvedValueOnce(pendingUser)
+                .mockResolvedValueOnce(pendingUser);
+
+            const result = await service.upsertUserAsCode(
+                mockAccount,
+                'test-org-uuid',
+                userAsCode({ lastName: 'Müller' }),
+            );
+
+            expect(result.action).toBe(PromotionAction.CREATE);
+            expect(mockUserModel.joinOrg).toHaveBeenCalled();
+            expect(mockUserModel.updateUser).toHaveBeenCalledWith(
+                pendingUser.userUuid,
+                pendingUser.email,
+                { lastName: 'Müller' },
+            );
+        });
+
+        it('refuses to update a user in another organization', async () => {
+            mockUserModel.findUserByEmail.mockResolvedValueOnce({
+                ...pendingUser,
+                organizationUuid: 'another-org',
+            });
+
+            await expect(
+                service.upsertUserAsCode(
+                    mockAccount,
+                    'test-org-uuid',
+                    userAsCode({ firstName: 'José' }),
+                ),
+            ).rejects.toThrow(
+                'Email is already used by a user in another organization',
+            );
+            expect(mockUserModel.updateUser).not.toHaveBeenCalled();
+        });
+
+        it.each(
+            [null, 1, [], {}, '<b>José</b>'].map((firstName) => ({
+                firstName,
+            })),
+        )('rejects an invalid name: %j', async ({ firstName }) => {
+            await expect(
+                service.upsertUserAsCode(
+                    mockAccount,
+                    'test-org-uuid',
+                    userAsCode({ firstName } as Partial<UserAsCode>),
+                ),
+            ).rejects.toThrow('User names must be strings without < or >');
+            expect(mockUserModel.findUserByEmail).not.toHaveBeenCalled();
         });
 
         it('reconciles disabled state and reports authentication status', async () => {

@@ -17,7 +17,7 @@ import {
 } from '@lightdash/common';
 import { ActionIcon, Group, Select, Stack, Text, Tooltip } from '@mantine/core';
 import { IconMinus, IconPlus } from '@tabler/icons-react';
-import capitalize from 'lodash/capitalize';
+import { capitalize } from 'es-toolkit/compat';
 import { type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { FieldReferenceSelect } from '../../../../../../components/DataViz/FieldReferenceSelect';

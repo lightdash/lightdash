@@ -317,6 +317,7 @@ const MinimalDashboard: FC = () => {
         useOptionalProjectRoute()?.projectUrlIdentifier ?? projectUuid;
 
     const schedulerUuid = useSearchParams('schedulerUuid');
+    const useCachedResults = useSearchParams('useCachedResults') === 'true';
 
     const [sendNowSchedulerFilters] = useSessionStorage<
         DashboardFilterRule[] | undefined
@@ -615,7 +616,7 @@ const MinimalDashboard: FC = () => {
             schedulerParameters={schedulerParameters}
             schedulerTabsSelected={schedulerTabsSelected}
             dateZoom={dateZoom}
-            defaultInvalidateCache={true}
+            defaultInvalidateCache={!useCachedResults}
         >
             <MinimalDashboardContent
                 filteredAndSortedDashboardTiles={

@@ -73,8 +73,8 @@ import {
     type UuidOrSlug,
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
+import { uniq } from 'es-toolkit/compat';
 import { type Knex } from 'knex';
-import { uniq } from 'lodash';
 import pLimit from 'p-limit';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -2138,13 +2138,27 @@ export class DashboardService
 
     private async applyOpenDraftOverlay(
         user: SessionUser,
-        dashboard: Dashboard,
+        publishedDashboard: Dashboard,
     ): Promise<Dashboard> {
         try {
             const settings = await this.contentAsCodeProjectSettingsModel.get(
-                dashboard.projectUuid,
+                publishedDashboard.projectUuid,
             );
-            if (!settings?.syncEnabled) return dashboard;
+            if (!settings?.syncEnabled) return publishedDashboard;
+            const repositorySnapshot =
+                await this.contentAsCodeSnapshotModel.get(
+                    publishedDashboard.projectUuid,
+                    ContentAsCodeType.DASHBOARD,
+                    publishedDashboard.slug,
+                );
+            const dashboard: Dashboard = repositorySnapshot
+                ? {
+                      ...publishedDashboard,
+                      managedFromRepository: {
+                          filePath: repositorySnapshot.filePath,
+                      },
+                  }
+                : publishedDashboard;
             const draft = await this.contentDraftModel.findOpenDraft(
                 dashboard.projectUuid,
                 'dashboard',
@@ -2219,7 +2233,7 @@ export class DashboardService
             return dashboardForViewer;
         } catch (error) {
             this.logger.warn('Draft overlay failed', error);
-            return dashboard;
+            return publishedDashboard;
         }
     }
 

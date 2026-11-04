@@ -26,6 +26,14 @@ const health = vi.hoisted(() => ({
     hasHeadlessBrowser: true,
 }));
 
+const resultsCache = vi.hoisted(() => ({ enabled: true }));
+
+vi.mock('../../../../../hooks/useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: vi.fn(() => ({
+        data: { enabled: resultsCache.enabled },
+    })),
+}));
+
 vi.mock('../../../../../hooks/health/useHealth', () => ({
     default: vi.fn(() => ({
         data: {
@@ -429,5 +437,37 @@ describe('SchedulerDataFormatSection - app formats', () => {
             expect(formRef.current?.values.format).toBe(SchedulerFormat.XLSX);
             expect(formRef.current?.values.options.limit).toBe(Limit.ALL);
         });
+    });
+});
+
+describe('SchedulerDataFormatSection - cached results', () => {
+    const name = 'Use cached results when available';
+
+    afterEach(() => {
+        resultsCache.enabled = true;
+    });
+
+    it('lets chart and dashboard deliveries opt in', async () => {
+        const formRef: MutableRefObject<SchedulerForm | null> = {
+            current: null,
+        };
+        renderSection({ isApp: false, appUuid: undefined }, undefined, formRef);
+
+        await userEvent.click(screen.getByRole('switch', { name }));
+
+        expect(formRef.current?.values.useCachedResults).toBe(true);
+    });
+
+    it('is hidden for app deliveries', () => {
+        renderSection({ isApp: true });
+
+        expect(screen.queryByRole('switch', { name })).not.toBeInTheDocument();
+    });
+
+    it('is hidden when the results cache is disabled', () => {
+        resultsCache.enabled = false;
+        renderSection({ isApp: false, appUuid: undefined });
+
+        expect(screen.queryByRole('switch', { name })).not.toBeInTheDocument();
     });
 });

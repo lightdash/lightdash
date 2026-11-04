@@ -11,7 +11,6 @@ import {
     CalculateTotalFromQuery,
     ChartType,
     CommercialFeatureFlags,
-    CompiledDimension,
     CreateEmbedJwt,
     CreateEmbedRequestBody,
     DashboardAvailableFilters,
@@ -38,9 +37,9 @@ import {
     formatRawRows,
     formatRows,
     getColumnTimezone,
+    getDashboardFilterableFieldKey,
     getDashboardFiltersForTileAndTables,
     getDimensionMapFromTables,
-    getDimensions,
     getEmbedWriteSpaceUuids,
     getExecutableFilterFieldIds,
     getFilterInteractivityValue,
@@ -56,7 +55,6 @@ import {
     isDashboardSqlChartTile,
     isExploreError,
     isExternalFetchDocumentContext,
-    isFilterableDimension,
     isFilterInteractivityEnabled,
     isFilterLockedOnTab,
     isParameterInteractivityEnabled,
@@ -87,7 +85,7 @@ import {
     type SavedChartDAO,
     type SessionUser,
 } from '@lightdash/common';
-import { isArray } from 'lodash';
+import { isArray } from 'es-toolkit/compat';
 import { nanoid as nanoidGenerator } from 'nanoid';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { fromJwt, getEmbedActorChartSpaceUuids } from '../../../auth/account';
@@ -846,7 +844,7 @@ export class EmbedService extends BaseService {
 
         let allFilters: {
             uuid: string;
-            filters: CompiledDimension[];
+            filters: FilterableDimension[];
         }[] = [];
 
         const savedQueryUuids = savedChartUuidsAndTileUuids.map(
@@ -948,13 +946,23 @@ export class EmbedService extends BaseService {
             exploreCache[key] = explore;
         });
 
+        const filtersByExplore = new Map<
+            string,
+            Promise<FilterableDimension[]>
+        >();
         const filterPromises = savedCharts.map(async (savedChart) => {
             const explore = exploreCache[savedChart.tableName];
-            if (!explore || isExploreError(explore))
+            if (!explore || isExploreError(explore)) {
                 return { uuid: savedChart.uuid, filters: [] };
-            const filters = getDimensions(explore).filter(
-                (field) => isFilterableDimension(field) && !field.hidden,
-            );
+            }
+            const filtersPromise =
+                filtersByExplore.get(savedChart.tableName) ??
+                this.projectService.getFilterableDimensionsForExplore(
+                    projectUuid,
+                    explore,
+                );
+            filtersByExplore.set(savedChart.tableName, filtersPromise);
+            const filters = await filtersPromise;
 
             return { uuid: savedChart.uuid, filters };
         });
@@ -966,7 +974,7 @@ export class EmbedService extends BaseService {
 
         allFilters.forEach((filterSet) => {
             filterSet.filters.forEach((filter) => {
-                const fieldId = getItemId(filter);
+                const fieldId = getDashboardFilterableFieldKey(filter);
                 if (!(fieldId in filterIndexMap)) {
                     filterIndexMap[fieldId] = allFilterableFields.length;
                     allFilterableFields.push(filter);
@@ -984,7 +992,8 @@ export class EmbedService extends BaseService {
             if (!filterResult || !filterResult.filters.length) return acc;
 
             const filterIndexes = filterResult.filters.map(
-                (filter) => filterIndexMap[getItemId(filter)],
+                (filter) =>
+                    filterIndexMap[getDashboardFilterableFieldKey(filter)],
             );
             return {
                 ...acc,

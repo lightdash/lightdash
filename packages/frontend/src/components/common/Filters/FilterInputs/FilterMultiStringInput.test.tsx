@@ -97,4 +97,31 @@ describe('FilterMultiStringInput', () => {
         // The raw CSV must never be committed as a single value.
         expect(onChange).not.toHaveBeenCalledWith(['US, us, GB']);
     });
+
+    it('discards a pasted CSV when its chooser is dismissed by a press outside', async () => {
+        const user = userEvent.setup();
+        const onChange = vi.fn();
+
+        renderWithProviders(
+            <FilterMultiStringInput values={[]} onChange={onChange} />,
+        );
+
+        const input = screen.getByRole('textbox');
+        await user.click(input);
+        // A browser paste fires the event, then inserts the text
+        fireEvent.paste(input, {
+            clipboardData: { getData: () => 'US, us, GB' },
+        });
+        fireEvent.change(input, { target: { value: 'US, us, GB' } });
+        expect(
+            await screen.findByRole('button', { name: /multiple values/i }),
+        ).toBeInTheDocument();
+
+        await user.click(document.body);
+
+        expect(
+            screen.queryByRole('button', { name: /multiple values/i }),
+        ).not.toBeInTheDocument();
+        expect(onChange).not.toHaveBeenCalled();
+    });
 });

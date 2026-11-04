@@ -1,6 +1,7 @@
 // Query builder
 export { query } from './query';
 export { savedChart, type SavedChartQuery } from './savedChart';
+export type { SavedChartVisualization } from './types';
 
 // Drill-down helper
 export { drillDown } from './drillDown';
@@ -183,6 +184,17 @@ export type {
 export { useAiPrompt } from './aiPrompt';
 export type { AiPrompt, AiPromptOptions, AiPromptSource } from './aiPrompt';
 
+// Saved AI commentary shared between viewers, keyed by selection (data apps)
+export {
+    commentarySelectionKey,
+    useSharedAiCommentary,
+} from './sharedAiCommentary';
+export type {
+    SharedAiCommentary,
+    SharedAiCommentaryOptions,
+    SharedAiCommentaryValue,
+} from './sharedAiCommentary';
+
 // List the saved charts the viewer can see in a space (data apps)
 export { useSpaceCharts } from './spaceCharts';
 export type { SpaceCharts } from './spaceCharts';
@@ -199,6 +211,14 @@ export type {
     QueryInsights,
     ViewInsights,
     ViewInsightsOptions,
+} from './insights';
+
+// Agent investigations of author-written instructions (data apps)
+export { useInvestigation } from './insights';
+export type {
+    Investigation,
+    InvestigationOptions,
+    InvestigationSource,
 } from './insights';
 
 export { createGradientColorScale } from './gradientColorScale';

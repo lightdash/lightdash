@@ -18,10 +18,8 @@ import {
     type KnexPaginateArgs,
     type KnexPaginatedData,
 } from '@lightdash/common';
+import { difference, differenceBy, uniq } from 'es-toolkit/compat';
 import { Knex } from 'knex';
-import { uniq } from 'lodash';
-import difference from 'lodash/difference';
-import differenceBy from 'lodash/differenceBy';
 import { DatabaseError } from 'pg';
 import { DbEmail, EmailTableName } from '../database/entities/emails';
 import {

@@ -5,6 +5,7 @@ import {
     type SavedChartsInfoForDashboardAvailableFilters,
 } from '@lightdash/common';
 import { createSelector } from '@reduxjs/toolkit';
+import { isEqual } from 'es-toolkit/compat';
 import { type DashboardStoreState } from '.';
 import {
     isDateZoomConfigDraftCurrent,
@@ -82,6 +83,8 @@ export const selectSavedChartUuidsAndTileUuids = createSelector(
                 },
                 [],
             ),
+    // Moving or resizing a tile keeps the mapping, and everything derived from it
+    { memoizeOptions: { resultEqualityCheck: isEqual } },
 );
 
 // Editor-authored date zoom settings resolve against the saved config

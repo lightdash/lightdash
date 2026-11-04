@@ -5,7 +5,7 @@ import {
     type DateGranularity,
     type LanguageMap,
 } from '@lightdash/common';
-import isEqual from 'lodash/isEqual';
+import { isEqual } from 'es-toolkit/compat';
 import { type DashboardStoreState } from '.';
 import {
     parseDashboardParametersUrl,
@@ -19,6 +19,10 @@ import {
     initialDashboardFiltersState,
 } from './dashboardFiltersReducer';
 import { initialDashboardParametersState } from './dashboardParametersReducer';
+import {
+    initialDashboardProviderState,
+    type DashboardProviderState,
+} from './dashboardSourceReducer';
 import { initialDashboardTileStatusState } from './dashboardTileStatusReducer';
 import {
     emptySavedFilterOverrides,
@@ -46,12 +50,14 @@ export const buildInitialDashboardState = ({
     parameterLabelOverrides,
     dateZoom,
     invalidateCache,
+    source = initialDashboardProviderState,
 }: {
     search: string;
     isEditMode: boolean;
     parameterLabelOverrides: LanguageMap['parameters'];
     dateZoom: DateGranularity | string | undefined;
     invalidateCache: boolean;
+    source?: DashboardProviderState;
 }): {
     state: DashboardStoreState;
     urlRestoreErrors: DashboardUrlRestoreErrors;
@@ -93,6 +99,7 @@ export const buildInitialDashboardState = ({
 
     return {
         state: {
+            source: { ...source, embedDashboard: undefined },
             filters: {
                 ...initialDashboardFiltersState,
                 savedFilterOverrides:

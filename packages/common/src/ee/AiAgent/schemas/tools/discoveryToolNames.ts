@@ -1,4 +1,4 @@
-import snakeCase from 'lodash/snakeCase';
+import { snakeCase } from 'es-toolkit/compat';
 import { type ToolRuntime } from '../defineTool';
 import { type ToolName } from '../visualizations';
 

@@ -145,5 +145,4 @@ export type DashboardContextType = {
     ) => void;
     setHasDefaultDateZoomGranularityChanged: Dispatch<SetStateAction<boolean>>;
     refreshDashboardVersion: () => Promise<void>;
-    isRefreshingDashboardVersion: boolean;
 };

@@ -108,6 +108,10 @@ const buildService = ({
     };
     const fetchToken = vi.fn();
     const service = new ExternalConnectionService({
+        projectModel: {
+            replaceApiSourceExplores: vi.fn(),
+            deleteApiSourceExplores: vi.fn(),
+        },
         allowedPrivateHostCidrs: {},
         externalConnectionModel,
         analytics: { track: vi.fn() },
@@ -235,8 +239,11 @@ describe('PostHog sign-in', () => {
                 },
                 oauthTokenUrl: TOKEN_URL,
                 oauthClientId: 'client-1',
-                allowedPathPrefixes: ['/api/projects/7/query/'],
-                allowedMethods: ['POST'],
+                allowedPathPrefixes: [
+                    '/api/projects/7/query/',
+                    '/api/projects/7/property_definitions/',
+                ],
+                allowedMethods: ['POST', 'GET'],
             }),
         );
         expect(JSON.parse((config as { secret: string }).secret)).toEqual(

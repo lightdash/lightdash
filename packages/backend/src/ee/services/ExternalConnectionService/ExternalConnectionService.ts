@@ -37,7 +37,7 @@ import {
     type RegisteredAccount,
     type UpdateExternalConnection,
 } from '@lightdash/common';
-import isEqual from 'lodash/isEqual';
+import { isEqual } from 'es-toolkit/compat';
 import { createHash, randomBytes } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
@@ -45,6 +45,7 @@ import { toSessionUser } from '../../../auth/account';
 import { type LightdashConfig } from '../../../config/parseConfig';
 import { type AppModel } from '../../../models/AppModel';
 import type { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
+import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../../../services/BaseService';
 import type {
     ApiConnector,
@@ -52,6 +53,10 @@ import type {
     ApiConnectorUsage,
     MeteredApiConnector,
 } from '../../../services/QuerySourceService/api/ApiConnector';
+import {
+    buildApiSourceExplores,
+    type ApiSourceScan,
+} from '../../../services/QuerySourceService/api/apiSourceExplores';
 import { Ga4Connector } from '../../../services/QuerySourceService/api/google/Ga4Connector';
 import { SearchConsoleConnector } from '../../../services/QuerySourceService/api/google/SearchConsoleConnector';
 import { PostHogConnector } from '../../../services/QuerySourceService/api/posthog/PostHogConnector';
@@ -140,6 +145,10 @@ type ExternalConnectionServiceArguments = {
     oauthAuthorizationCodeTokenClient: OAuthAuthorizationCodeTokenClient;
     orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
     featureFlagModel: FeatureFlagModel;
+    projectModel: Pick<
+        ProjectModel,
+        'replaceApiSourceExplores' | 'deleteApiSourceExplores'
+    >;
     encryptionUtil: Pick<EncryptionUtil, 'encrypt' | 'decrypt'>;
     lightdashConfig: Pick<LightdashConfig, 'siteUrl' | 'liveSources' | 'auth'>;
 };
@@ -217,6 +226,8 @@ export class ExternalConnectionService extends BaseService {
 
     private readonly featureFlagModel: FeatureFlagModel;
 
+    private readonly projectModel: ExternalConnectionServiceArguments['projectModel'];
+
     private static readonly DEFAULT_RATE_LIMIT_PER_MINUTE = 60;
 
     private static readonly MAX_PROPOSAL_DESCRIPTION_CHARS = 2_000;
@@ -242,6 +253,7 @@ export class ExternalConnectionService extends BaseService {
         });
         this.orgAiCopilotConfigResolver = args.orgAiCopilotConfigResolver;
         this.featureFlagModel = args.featureFlagModel;
+        this.projectModel = args.projectModel;
     }
 
     private async assertLiveSourcesEnabled(
@@ -409,6 +421,11 @@ export class ExternalConnectionService extends BaseService {
                 authType: connection.type,
             },
         });
+        await this.syncApiSourceExploresAfterChange(
+            account,
+            connection,
+            'useBaseLayer',
+        );
         return connection;
     }
 
@@ -762,6 +779,7 @@ export class ExternalConnectionService extends BaseService {
                 ...ExternalConnectionService.kindProperties(updated),
             },
         });
+        await this.syncApiSourceExploresAfterChange(account, updated, 'throw');
         return updated;
     }
 
@@ -776,6 +794,12 @@ export class ExternalConnectionService extends BaseService {
             connectionUuid,
         );
         await this.externalConnectionModel.softDelete(connectionUuid);
+        if (existing.kind === 'live_source') {
+            await this.projectModel.deleteApiSourceExplores(
+                projectUuid,
+                connectionUuid,
+            );
+        }
         this.analytics.track({
             event: 'external_connection.deleted',
             userId: account.user.id,
@@ -1031,94 +1055,113 @@ export class ExternalConnectionService extends BaseService {
             projectUuid,
             connectionUuid,
         );
-        const { apiSource } = connection;
-        if (connection.kind !== 'live_source' || !apiSource) {
+        return this.getMeteredApiConnector(account, projectUuid, connection);
+    }
+
+    /**
+     * A connector for metric queries on a live data source's explores.
+     * Explore access grants them, as it does for warehouse explores, so
+     * callers MUST authorize the account for the explore first.
+     */
+    async getApiSourceConnector(
+        account: RegisteredAccount,
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<MeteredApiConnector> {
+        const connection = await this.loadConnection(
+            projectUuid,
+            connectionUuid,
+        );
+        return this.getMeteredApiConnector(account, projectUuid, connection);
+    }
+
+    /** Rebuilds the explores a live data source answers metric queries with. */
+    async refreshApiSourceExplores(
+        account: RegisteredAccount,
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<void> {
+        const connection = await this.getOwnedConnection(
+            account,
+            projectUuid,
+            connectionUuid,
+        );
+        await this.assertLiveSourcesEnabled(account);
+        if (connection.kind !== 'live_source' || !connection.apiSource) {
             throw new ParameterError(
                 `"${connection.name}" is not a live data source`,
             );
         }
-        let connector: ApiConnector;
-        let callsThisQuery = 0;
-        const usage: ApiConnectorUsage = {
-            apiCalls: 0,
-            responseBytes: 0,
-            providerStatus: null,
-        };
-        const sendOnce: ApiConnectorTransport = async (request) => {
-            const secret =
-                await this.externalConnectionModel.getDecryptedSecret(
-                    connection.externalConnectionUuid,
-                );
-            usage.apiCalls += 1;
-            try {
-                const { response, responseBytes } =
-                    await this.executeExternalFetch(
-                        connection,
-                        secret,
-                        {
-                            method: request.method,
-                            path: request.path,
-                            body: request.body,
-                        },
-                        { account, appUuid: null },
-                    );
-                usage.responseBytes += responseBytes;
-                usage.providerStatus = response.status;
-                return {
-                    status: response.status,
-                    headers: response.headers,
-                    body: response.body,
-                };
-            } catch (error) {
-                if (error instanceof SecureFetchError) {
-                    if (error.reason === 'timeout') {
-                        throw new TimeoutError(
-                            `Live data source "${connection.name}" did not respond within ${
-                                connection.timeoutMs / 1000
-                            } seconds`,
-                        );
-                    }
-                    throw new ParameterError(
-                        `Request to live data source "${connection.name}" was blocked (${error.reason})`,
-                    );
-                }
-                throw error;
-            }
-        };
-        const send: ApiConnectorTransport = async (request) => {
-            const { label, limits } = connector.describe();
-            callsThisQuery += 1;
-            if (callsThisQuery > limits.callsPerQuery) {
-                throw new ParameterError(
-                    `This query needs more than ${limits.callsPerQuery} ${label} API calls. Narrow it with filters or a shorter time range.`,
-                );
-            }
-            return this.apiSourceCallLimiter.run(connection, limits, () =>
-                sendOnce(request),
-            );
-        };
-        switch (apiSource.connector) {
-            case ApiConnectorType.POSTHOG:
-                connector = new PostHogConnector({
-                    projectId: apiSource.projectId,
-                    send,
-                });
-                break;
-            case ApiConnectorType.SEARCH_CONSOLE:
-                connector = new SearchConsoleConnector({
-                    siteUrl: apiSource.siteUrl,
-                    send,
-                });
-                break;
-            case ApiConnectorType.GA4:
-                connector = new Ga4Connector({
-                    propertyId: apiSource.propertyId,
-                    send,
-                });
-                break;
-            default:
-                return assertUnreachable(apiSource, 'Unknown api connector');
+        await this.syncApiSourceExplores(account, connection, 'throw');
+    }
+
+    /**
+     * Saves the source's explores from its integration's base layer plus the
+     * fields a scan finds. A failed scan either keeps the source's current
+     * explores (`throw`) or saves the base layer alone (`useBaseLayer`).
+     */
+    private async syncApiSourceExplores(
+        account: RegisteredAccount,
+        connection: ExternalConnection,
+        onScanError: 'throw' | 'useBaseLayer',
+    ): Promise<void> {
+        const { apiSource } = connection;
+        if (connection.kind !== 'live_source' || !apiSource) {
+            return;
         }
+        const getScan = async (): Promise<ApiSourceScan> => {
+            try {
+                return await this.createApiConnector(account, connection, {
+                    isPerQuery: false,
+                }).scan();
+            } catch (error) {
+                if (onScanError === 'throw') {
+                    throw error;
+                }
+                this.logger.warn(
+                    `Saving the base semantic layer of live data source ${connection.externalConnectionUuid}; its scan failed: ${getErrorMessage(error)}`,
+                );
+                return {};
+            }
+        };
+        const explores = buildApiSourceExplores({
+            connectionUuid: connection.externalConnectionUuid,
+            name: connection.name,
+            apiSource,
+            scan: await getScan(),
+        });
+        await this.projectModel.replaceApiSourceExplores(
+            connection.projectUuid,
+            connection.externalConnectionUuid,
+            explores,
+        );
+    }
+
+    /** Explore sync after a source changes; a failure never undoes the change. */
+    private async syncApiSourceExploresAfterChange(
+        account: RegisteredAccount,
+        connection: ExternalConnection,
+        onScanError: 'throw' | 'useBaseLayer',
+    ): Promise<void> {
+        try {
+            await this.syncApiSourceExplores(account, connection, onScanError);
+        } catch (error) {
+            this.logger.error(
+                `Failed to save the explores of live data source ${connection.externalConnectionUuid}: ${getErrorMessage(error)}`,
+            );
+        }
+    }
+
+    private getMeteredApiConnector(
+        account: RegisteredAccount,
+        projectUuid: string,
+        connection: ExternalConnection,
+    ): MeteredApiConnector {
+        const { connector, usage } = this.createApiConnector(
+            account,
+            connection,
+            { isPerQuery: true },
+        );
         return {
             describe: () => connector.describe(),
             execute: (args) => connector.execute(args),
@@ -1151,6 +1194,133 @@ export class ExternalConnectionService extends BaseService {
                 }
             },
         };
+    }
+
+    /**
+     * The integration's connector over the guarded fetch. Per-query
+     * connectors refuse to make more calls than one query may.
+     */
+    private createApiConnector(
+        account: RegisteredAccount,
+        storedConnection: ExternalConnection,
+        { isPerQuery }: { isPerQuery: boolean },
+    ): {
+        connector: ApiConnector;
+        usage: ApiConnectorUsage;
+        scan: () => Promise<ApiSourceScan>;
+    } {
+        const { apiSource } = storedConnection;
+        if (storedConnection.kind !== 'live_source' || !apiSource) {
+            throw new ParameterError(
+                `"${storedConnection.name}" is not a live data source`,
+            );
+        }
+        // Live source access rules come from the integration, so sources
+        // saved before a rule changed get the current rules.
+        const connection = withApiSourceAccessRules(storedConnection);
+        let connector: ApiConnector;
+        let callsThisQuery = 0;
+        const usage: ApiConnectorUsage = {
+            apiCalls: 0,
+            responseBytes: 0,
+            providerStatus: null,
+        };
+        const sendOnce: ApiConnectorTransport = async (request) => {
+            const secret =
+                await this.externalConnectionModel.getDecryptedSecret(
+                    connection.externalConnectionUuid,
+                );
+            usage.apiCalls += 1;
+            try {
+                const { response, responseBytes } =
+                    await this.executeExternalFetch(
+                        connection,
+                        secret,
+                        {
+                            method: request.method,
+                            path: request.path,
+                            query: request.query,
+                            body: request.body,
+                        },
+                        { account, appUuid: null },
+                    );
+                usage.responseBytes += responseBytes;
+                usage.providerStatus = response.status;
+                return {
+                    status: response.status,
+                    headers: response.headers,
+                    body: response.body,
+                };
+            } catch (error) {
+                if (error instanceof SecureFetchError) {
+                    if (error.reason === 'timeout') {
+                        throw new TimeoutError(
+                            `Live data source "${connection.name}" did not respond within ${
+                                connection.timeoutMs / 1000
+                            } seconds`,
+                        );
+                    }
+                    throw new ParameterError(
+                        `Request to live data source "${connection.name}" was blocked (${error.reason})`,
+                    );
+                }
+                throw error;
+            }
+        };
+        const send: ApiConnectorTransport = async (request) => {
+            const { label, limits } = connector.describe();
+            callsThisQuery += 1;
+            if (isPerQuery && callsThisQuery > limits.callsPerQuery) {
+                throw new ParameterError(
+                    `This query needs more than ${limits.callsPerQuery} ${label} API calls. Narrow it with filters or a shorter time range.`,
+                );
+            }
+            return this.apiSourceCallLimiter.run(connection, limits, () =>
+                sendOnce(request),
+            );
+        };
+        switch (apiSource.connector) {
+            case ApiConnectorType.POSTHOG: {
+                const postHog = new PostHogConnector({
+                    projectId: apiSource.projectId,
+                    send,
+                });
+                connector = postHog;
+                return {
+                    connector,
+                    usage,
+                    scan: async () => {
+                        const [event, person] = await Promise.all([
+                            postHog.getPropertyDefinitions('event'),
+                            postHog.getPropertyDefinitions('person'),
+                        ]);
+                        return { posthogProperties: { event, person } };
+                    },
+                };
+            }
+            case ApiConnectorType.SEARCH_CONSOLE:
+                connector = new SearchConsoleConnector({
+                    siteUrl: apiSource.siteUrl,
+                    send,
+                });
+                return { connector, usage, scan: async () => ({}) };
+            case ApiConnectorType.GA4: {
+                const ga4 = new Ga4Connector({
+                    propertyId: apiSource.propertyId,
+                    send,
+                });
+                connector = ga4;
+                return {
+                    connector,
+                    usage,
+                    scan: async () => ({
+                        ga4Metadata: await ga4.getMetadata(),
+                    }),
+                };
+            }
+            default:
+                return assertUnreachable(apiSource, 'Unknown api connector');
+        }
     }
 
     private static isPostHogRegion(region: string): region is PostHogRegion {
@@ -1402,6 +1572,11 @@ export class ExternalConnectionService extends BaseService {
                     ...ExternalConnectionService.kindProperties(updated),
                 },
             });
+            await this.syncApiSourceExploresAfterChange(
+                account,
+                updated,
+                'throw',
+            );
             return updated;
         }
 
@@ -1422,6 +1597,11 @@ export class ExternalConnectionService extends BaseService {
                 authType: connection.type,
             },
         });
+        await this.syncApiSourceExploresAfterChange(
+            account,
+            connection,
+            'useBaseLayer',
+        );
         return connection;
     }
 

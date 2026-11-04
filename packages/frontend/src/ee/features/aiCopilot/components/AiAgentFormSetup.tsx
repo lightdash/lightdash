@@ -952,7 +952,7 @@ export const AiAgentFormSetup = ({
                                 label={
                                     <SwitchLabel
                                         text="Create and edit content"
-                                        help="Requires reading rows to be enabled. Only works for users with content-as-code access (admins, developers, and editors)."
+                                        help="Requires reading rows to be enabled. Users only get the actions their role allows."
                                         badge={<BetaBadge />}
                                     />
                                 }

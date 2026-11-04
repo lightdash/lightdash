@@ -741,8 +741,7 @@ describe('dashboard controls flag', () => {
         renderDashboard(`${DASHBOARD_PATH}/edit`);
         await waitForLoaded();
         await click('Drag tile-1');
-        // With the flag on, Save is the edit band's
-        await click(server.isControlsFlagOn ? 'Save dashboard' : 'Save');
+        await click('Save');
         await waitFor(() => expect(patches()).toHaveLength(1));
         return patches()[0].filters.dimensions;
     };

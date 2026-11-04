@@ -1,5 +1,4 @@
-import merge from 'lodash/merge';
-import partition from 'lodash/partition';
+import { merge, partition } from 'es-toolkit/compat';
 import {
     getDeferredExploreName,
     getManifestNamespaceKey,
@@ -67,6 +66,7 @@ import {
     getCatalogNestedColumnsUnavailableReason,
     getCatalogTimestampDomain,
     WAREHOUSE_MISSING_ENTRIES_KEY,
+    WAREHOUSE_NATIVE_TYPES_KEY,
     WAREHOUSE_NESTED_COLUMNS_KEY,
     WAREHOUSE_NESTED_COLUMNS_UNAVAILABLE_KEY,
     WAREHOUSE_TIMESTAMP_DOMAINS_KEY,
@@ -2355,6 +2355,7 @@ const RESERVED_CATALOG_KEYS = new Set<string>([
     WAREHOUSE_NESTED_COLUMNS_KEY,
     WAREHOUSE_NESTED_COLUMNS_UNAVAILABLE_KEY,
     WAREHOUSE_MISSING_ENTRIES_KEY,
+    WAREHOUSE_NATIVE_TYPES_KEY,
 ]);
 
 const catalogTableKey = (database: string, schema: string, table: string) =>

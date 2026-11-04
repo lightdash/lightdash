@@ -6,11 +6,8 @@ import {
     type CreateAthenaCredentials,
 } from '@lightdash/common';
 import { type AwsWebIdentityAudienceModel } from '../../models/AwsWebIdentityAudienceModel';
+import { type GoogleIdentityTokenSource } from '../googleIdentity/googleIdentityTokenSource';
 import { AwsWebIdentityResolver } from './AwsWebIdentityResolver';
-import {
-    GcpMetadataIdentityTokenSource,
-    type GoogleIdentityTokenSource,
-} from './googleIdentityTokenSource';
 
 const { mockFromWebToken } = vi.hoisted(() => ({
     mockFromWebToken: vi.fn(),
@@ -218,44 +215,5 @@ describe('AwsWebIdentityResolver', () => {
 
             await expect(resolver.getSubject()).resolves.toBeUndefined();
         });
-    });
-});
-
-describe('GcpMetadataIdentityTokenSource', () => {
-    afterEach(() => {
-        vi.unstubAllGlobals();
-    });
-
-    test('requests a token for the audience from the metadata server', async () => {
-        const fetchMock = vi.fn(async () => ({
-            ok: true,
-            text: async () => 'token',
-        }));
-        vi.stubGlobal('fetch', fetchMock);
-
-        await expect(
-            new GcpMetadataIdentityTokenSource().getIdToken('lightdash-a'),
-        ).resolves.toBe('token');
-        expect(fetchMock).toHaveBeenCalledWith(
-            expect.stringContaining('audience=lightdash-a&format=full'),
-            expect.objectContaining({
-                headers: { 'Metadata-Flavor': 'Google' },
-            }),
-        );
-    });
-
-    test('hides the raw error when the metadata server is unreachable', async () => {
-        vi.stubGlobal(
-            'fetch',
-            vi.fn(async () => {
-                throw new Error('getaddrinfo ENOTFOUND');
-            }),
-        );
-
-        await expect(
-            new GcpMetadataIdentityTokenSource().getIdToken('lightdash-a'),
-        ).rejects.toThrow(
-            "Lightdash couldn't get its identity token. This is on our side, not your AWS setup. Try again, or contact support.",
-        );
     });
 });

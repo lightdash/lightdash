@@ -101,6 +101,17 @@ describe('getPersonSignIn', () => {
         ).toBeNull();
     });
 
+    it('ignores stale user credentials on a federated BigQuery connection', () => {
+        expect(
+            getPersonSignIn(
+                bigquery(
+                    { type: 'authorized_user', refresh_token: 'ignored' },
+                    BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION,
+                ),
+            ),
+        ).toBeNull();
+    });
+
     it('finds Snowflake SSO and Databricks U2M with a stored token only', () => {
         expect(
             getPersonSignIn(snowflake(SnowflakeAuthenticationType.SSO, 's1'))

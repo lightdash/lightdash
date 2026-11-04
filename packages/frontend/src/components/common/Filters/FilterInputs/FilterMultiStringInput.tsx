@@ -1,7 +1,7 @@
 import { interpolateUiString } from '@lightdash/common';
 import { Group, Text, type ComboboxProps } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
-import uniq from 'lodash/uniq';
+import { uniq } from 'es-toolkit/compat';
 import {
     useCallback,
     useMemo,
@@ -128,7 +128,8 @@ const FilterMultiStringInput: FC<Props> = ({
             onClose={() => {
                 setPastePopUpOpened(false);
                 setTempPasteValues(undefined);
-                handleResetSearch();
+                // Clear now so the blur that follows doesn't commit the pasted text
+                setSearch('');
             }}
             onMultiValue={() => {
                 if (!tempPasteValues) {

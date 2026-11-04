@@ -53,6 +53,17 @@ describe('AiAgentContentValidation', () => {
         ).toEqual([]);
     });
 
+    it('accepts Date timestamps by validating them as ISO strings', () => {
+        expect(
+            getValidationErrors(() =>
+                validation.validateNewContent('sql_chart', {
+                    ...sqlChart,
+                    updatedAt: new Date(0),
+                }),
+            ),
+        ).toEqual([]);
+    });
+
     it('reports only the missing field for a SQL chart without sql', () => {
         const { sql, ...withoutSql } = sqlChart;
         expect(

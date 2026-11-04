@@ -139,6 +139,34 @@ engine limit, and streams uploads with one 8 MB part in flight. See
 for resource limits, retries and operational caveats. Reader resource settings
 below apply to interactive queries, not this background export.
 
+Scheduled processing includes only organizations with a managed Analytics project
+(`provisioning_source = 'analytics'); feature-flag checks still apply. Regular,
+preview and playground projects alone do not qualify. Raw event capture continues
+for other organizations, but their events are not processed by scheduled runs.
+Creating Analytics still queues explicit organization-scoped initial processing
+and makes the organization eligible for future nightly runs. Explicit recovery
+runs remain available. Initial and nightly processing prepare the last seven
+closed UTC days first, then enqueue a low-priority history pass after one minute
+when older work remains. Project setup also checks previously compacted history.
+History processing includes all retained closed raw partitions, including events
+captured before the Analytics project existed. It uses the same compactor and
+serial queue, so recent processing and history cannot compact the same inputs
+concurrently. Today's events remain excluded until the next UTC day.
+
+Recent processing retains its 5,000-partition work budget. History batches
+process up to 100 raw partitions and 100 changed People summaries, then schedule
+a continuation while deferred work is making progress. Successful raw inputs are
+removed and unchanged People summaries are skipped, so subsequent batches resume
+from storage without a new database cursor. Failed or unsupported partitions do
+not cause an endless continuation loop; nightly processing revisits retained
+work. Nightly processing also revives exhausted history jobs, including failed
+People summaries whose raw inputs were already compacted. Runs with no deferred
+history or failed jobs avoid rescanning old summaries;
+organization-scoped setup and recovery still perform a history pass. Settings
+counts older pending partitions and polls between batches while
+keeping Explore available. The retained-database import is separate and
+supplements, rather than replaces, captured event history.
+
 ### Project creation and models
 
 [`ProjectService.ensureAnalyticsProject`](../../packages/backend/src/services/ProjectService/ProjectService.ts)
@@ -167,7 +195,8 @@ derives dimensions from the compacted schemas and metrics from
 It explicitly includes `query_events`, `ai_usage`, `data_app_events` and
 `export_events`; registering another writer stream does not expose another
 explore automatically. Query Events joins Charts, Dashboards and Users; AI Usage
-joins Users and Agents; the other models join Users. These optional many-to-one
+joins Users and Agents; event models can join Users. Content inventory reads only
+the current `lightdash_content` snapshot, without user or event joins. These optional many-to-one
 LEFT joins match organization and
 entity ID, preserving events whose lookup is missing. Compiled models
 refer to table names, not signed URLs. SQL and aggregations are generated from

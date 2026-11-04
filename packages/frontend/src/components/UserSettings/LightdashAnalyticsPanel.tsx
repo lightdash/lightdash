@@ -27,6 +27,7 @@ import { SettingsCard } from '../common/Settings/SettingsCard';
 import { SettingsPage } from '../common/Settings/SettingsPage';
 import AnalyticsDashboardCard from './AnalyticsDashboardCard';
 import AnalyticsHistoryBackfill from './AnalyticsHistoryBackfill';
+import AnalyticsProcessingSummary from './AnalyticsProcessingSummary';
 
 const LightdashAnalyticsPanel = ({
     activeProjectUuid,
@@ -85,15 +86,15 @@ const LightdashAnalyticsPanel = ({
                                     ? 'Open your dedicated project to explore AI usage and query events.'
                                     : 'Create a dedicated project with built-in AI usage and query event models. No connection setup is needed.'}
                             </Text>
-                        </Stack>
-                        {analyticsProject && (
-                            <Text fz="xs" c="dimmed">
-                                Created{' '}
-                                {new Date(
-                                    analyticsProject.createdAt,
-                                ).toLocaleString()}
+                            <Text fz="sm" c="dimmed">
+                                We prepare dashboard data for the last seven
+                                complete days first, then add all older events
+                                still stored in the background. This can take a
+                                few minutes, or longer for larger histories.
+                                Once created, you can explore available data or
+                                leave this page while history continues loading.
                             </Text>
-                        )}
+                        </Stack>
                         {createProject.isError && (
                             <Callout
                                 variant="danger"
@@ -167,6 +168,11 @@ const LightdashAnalyticsPanel = ({
                                 </Button>
                             )}
                         </Group>
+                        {analyticsProject && (
+                            <AnalyticsProcessingSummary
+                                processing={analyticsProject.processing}
+                            />
+                        )}
                         {installSampleContent.isError && (
                             <Callout
                                 variant="danger"

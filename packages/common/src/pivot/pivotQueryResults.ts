@@ -1,4 +1,4 @@
-import last from 'lodash/last';
+import { last } from 'es-toolkit/compat';
 import { LightdashParameters } from '../compiler/parameters';
 import type { ReadyQueryResultsPage } from '../index';
 import { UnexpectedIndexError } from '../types/errors';

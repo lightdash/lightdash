@@ -249,6 +249,35 @@ export class ExternalConnectionController extends BaseController {
     }
 
     /**
+     * Rebuild the explores of a live data source from its integration's
+     * semantic layer and the fields it reports, such as GA4 custom
+     * dimensions or PostHog properties
+     * @summary Refresh live data source explores
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('external-connections/{connectionUuid}/refresh-explores')
+    @OperationId('refreshExternalConnectionExplores')
+    async refreshExternalConnectionExplores(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() connectionUuid: string,
+    ): Promise<{ status: 'ok'; results: undefined }> {
+        assertRegisteredAccount(req.account);
+        await this.getService().refreshApiSourceExplores(
+            req.account,
+            projectUuid,
+            connectionUuid,
+        );
+        this.setStatus(200);
+        return { status: 'ok', results: undefined };
+    }
+
+    /**
      * Rotate the secret of an external connection
      * @summary Rotate external connection secret
      */

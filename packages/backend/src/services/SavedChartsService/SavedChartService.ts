@@ -893,13 +893,27 @@ export class SavedChartService
 
     private async applyOpenDraftOverlay(
         user: SessionUser,
-        chart: SavedChart,
+        publishedChart: SavedChart,
     ): Promise<SavedChart> {
         try {
             const settings = await this.contentAsCodeProjectSettingsModel.get(
-                chart.projectUuid,
+                publishedChart.projectUuid,
             );
-            if (!settings?.syncEnabled) return chart;
+            if (!settings?.syncEnabled) return publishedChart;
+            const repositorySnapshot =
+                await this.contentAsCodeSnapshotModel.get(
+                    publishedChart.projectUuid,
+                    ContentAsCodeType.CHART,
+                    publishedChart.slug,
+                );
+            const chart: SavedChart = repositorySnapshot
+                ? {
+                      ...publishedChart,
+                      managedFromRepository: {
+                          filePath: repositorySnapshot.filePath,
+                      },
+                  }
+                : publishedChart;
             const draft = await this.contentDraftModel.findOpenDraft(
                 chart.projectUuid,
                 'chart',
@@ -972,7 +986,7 @@ export class SavedChartService
             return chartForViewer;
         } catch (error) {
             this.logger.warn('Chart draft overlay failed', error);
-            return chart;
+            return publishedChart;
         }
     }
 

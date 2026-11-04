@@ -28,7 +28,7 @@ import {
     IconPlus,
     IconRefresh,
 } from '@tabler/icons-react';
-import uniq from 'lodash/uniq';
+import { uniq } from 'es-toolkit/compat';
 import {
     useCallback,
     useEffect,
@@ -452,7 +452,8 @@ const FilterStringAutoComplete: FC<Props> = ({
                 onClose={() => {
                     setPastePopUpOpened(false);
                     setTempPasteValues(undefined);
-                    handleResetSearch();
+                    // Clear now so the blur that follows doesn't commit the pasted text
+                    setSearch('');
                 }}
                 onMultiValue={() => {
                     if (!tempPasteValues) {

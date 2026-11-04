@@ -56,7 +56,7 @@ import {
     type MetricsTreeWithDetails,
     type PrevMetricsTreeNode,
 } from '@lightdash/common';
-import { uniqBy } from 'lodash';
+import { uniqBy } from 'es-toolkit/compat';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { fromSession } from '../../auth/account/account';
 import { LightdashConfig } from '../../config/parseConfig';

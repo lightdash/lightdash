@@ -390,6 +390,18 @@ the `/etc/hosts` configuration in your computer otherwise it will fail with a `D
    `127.0.0.1    minio`
 3. Save the file
 
+#### Backend debugger
+
+The direct backend `dev` command and PM2 listen on `127.0.0.1` for debugging.
+The default inspector port is `9229`; `DEBUG_PORT` selects a different port for
+an isolated instance. A different listen address requires an explicit
+`DEBUG_HOST` value. For PM2, put these settings in `.env.development.local`.
+
+To debug inside the development container, explicitly set `DEBUG_HOST=0.0.0.0`
+for `lightdash-dev` and run the backend `dev` command. Docker continues to publish
+the inspector at `127.0.0.1:9229:9229` on the host. Use an SSH local forward when
+connecting to a remote development host.
+
 #### Setup Development Environment without Docker
 
 To setup Development Environment without Docker you need following pre-requisites before running Lightdash:

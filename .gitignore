@@ -144,7 +144,6 @@ scripts/har-replay-server.ts
 !.agents/plugins/marketplace.json
 .codex
 .claude/*.lock
-AGENTS.md
 
 # octarine
 .octarine/properties.json

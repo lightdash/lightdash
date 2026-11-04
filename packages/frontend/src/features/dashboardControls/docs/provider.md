@@ -74,7 +74,7 @@ edited: there is no separate list or open state.
   (`getPending` treats a vanished rule as none) and the popover asks at its
   top (`isAsking`).
 - A press outside the editor (`useEditorDismiss`, `pointerdown`, never on a
-  pill or while a list is open) cancels the edit as Cancel does, unapplied
+  pill, a date calendar or while a list is open) cancels the edit as Cancel does, unapplied
   changes and any pending question included, and never asks: what was
   clicked (a tile's data-point menu, a cell) acts at once.
 - `resolvePending(isApply)` applies or discards, then opens the pill clicked

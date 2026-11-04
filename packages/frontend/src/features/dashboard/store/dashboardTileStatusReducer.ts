@@ -1,6 +1,6 @@
 import { type CacheMetadata } from '@lightdash/common';
 import { createAction, type UnknownAction } from '@reduxjs/toolkit';
-import min from 'lodash/min';
+import { min } from 'es-toolkit/compat';
 import { type SqlChartTileMetadata } from '../../../providers/Dashboard/types';
 
 /** One chart/SQL tile's query, published for AI analysis sources. */

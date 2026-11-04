@@ -21,8 +21,8 @@ import {
     type UpdateAnnouncementRequest,
     type UpdateOrganizationHomepageSettings,
 } from '@lightdash/common';
+import { isEqual } from 'es-toolkit/compat';
 import { type Knex } from 'knex';
-import isEqual from 'lodash/isEqual';
 import { UserTableName } from '../../database/entities/users';
 import { OrganizationHomepageSettingsTableName } from '../database/entities/organizationHomepageSettings';
 import {

@@ -69,6 +69,9 @@ export const getListWarehouseTables = ({
                                         schema: schemaName,
                                         table: tableName,
                                         qualifiedName: `${database}.${schemaName}.${tableName}`,
+                                        partitionColumn:
+                                            tables[tableName].partitionColumn
+                                                ?.field ?? null,
                                     });
                                 }
                             }
@@ -163,7 +166,13 @@ export const getListWarehouseTables = ({
                         lines.push(`\n${key}:`);
                         previousSchema = key;
                     }
-                    lines.push(`  - ${key}.${m.table}`);
+                    lines.push(
+                        `  - ${key}.${m.table}${
+                            m.partitionColumn
+                                ? ` (partitioned by ${m.partitionColumn})`
+                                : ''
+                        }`,
+                    );
                 }
 
                 return {
