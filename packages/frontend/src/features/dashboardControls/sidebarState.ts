@@ -1,10 +1,10 @@
 import {
-    isFilterLockedOnTab,
-    isWithValueFilter,
     type DashboardFilterRule,
     type DashboardFilters,
 } from '@lightdash/common';
-import isEqual from 'lodash/isEqual';
+import { isEqual, isUndefined, omit, omitBy } from 'es-toolkit/compat';
+import { hasFilterValueSet } from '../dashboardFilters/FilterConfiguration/utils';
+import { type ControlsSidebarContextValue } from './useControlsSidebar';
 
 export type ControlsSidebarSnapshot = {
     dashboardFilters: DashboardFilters;
@@ -15,6 +15,23 @@ export type ControlsSidebarSnapshot = {
 export const PLACEHOLDER_TARGET = { fieldId: '', tableName: '' };
 export const isPlaceholderRule = (rule: DashboardFilterRule): boolean =>
     rule.target.fieldId === '';
+
+// Until its field is picked a new filter has no pill: the editor anchors on
+// the section "+" it was started from, else on the bar's "Add filter"
+export const isPickingNewField = (c: ControlsSidebarContextValue) =>
+    c.isSidebarOpen && c.isNew && c.isPlaceholder;
+
+export const isNewFilterIn = (
+    c: ControlsSidebarContextValue,
+    sectionIds: string[],
+): boolean =>
+    isPickingNewField(c) && sectionIds.includes(c.editingRule?.sectionId ?? '');
+
+// A folded section renders no pills, so its "+" holds the editor of a member
+export const isEditingIn = (
+    c: ControlsSidebarContextValue,
+    sectionId: string,
+): boolean => c.isSidebarOpen && c.editingRule?.sectionId === sectionId;
 
 export const findFilterRule = (
     filters: DashboardFilters,
@@ -44,35 +61,179 @@ export const removeFilterRule = (
     metrics: filters.metrics.filter((rule) => rule.id !== filterId),
 });
 
+// A rule with the field entries that equal the tile's default dropped
+type ToSavedRule = (rule: DashboardFilterRule) => DashboardFilterRule;
+
+// Undefined keys, `required: false` and `disabled: false` read as absent,
+// locks as a set; empty tile targets stay, since tabs read them differently
+const toComparableRule = (rule: DashboardFilterRule, toSaved: ToSavedRule) => {
+    const { required, disabled, lockedTabUuids, ...rest } = toSaved(rule);
+    return omitBy(
+        {
+            ...rest,
+            required: required || undefined,
+            disabled: disabled || undefined,
+            lockedTabUuids: lockedTabUuids && [...lockedTabUuids].sort(),
+        },
+        isUndefined,
+    );
+};
+
+const isSameRule = (
+    a: DashboardFilterRule | null,
+    b: DashboardFilterRule | null,
+    toSaved: ToSavedRule,
+): boolean => {
+    if (a === b) return true;
+    if (a === null || b === null) return false;
+    return isEqual(toComparableRule(a, toSaved), toComparableRule(b, toSaved));
+};
+
+const isSameFilters = (
+    a: DashboardFilters,
+    b: DashboardFilters,
+    toSaved: ToSavedRule,
+): boolean =>
+    (['dimensions', 'metrics', 'tableCalculations'] as const).every(
+        (group) =>
+            a[group].length === b[group].length &&
+            a[group].every((rule, index) =>
+                isSameRule(rule, b[group][index], toSaved),
+            ),
+    );
+
 export const isFilterRuleDirty = (
     snapshot: DashboardFilters,
     current: DashboardFilters,
     filterId: string,
+    toSaved: ToSavedRule,
 ): boolean =>
-    !isEqual(
+    !isSameRule(
         findFilterRule(snapshot, filterId),
         findFilterRule(current, filterId),
+        toSaved,
     );
 
-// Locks or unlocks the filter on one tab; lockKey is the tab uuid, or the
-// dashboard uuid when the dashboard has no tabs
-export const toggleFilterLockOnTab = (
-    rule: DashboardFilterRule,
-    lockKey: string,
-    hasTabs: boolean,
+// The other rules the editor wrote to that Discard can put back: in the
+// snapshot and still there
+export const haveOtherFilterRulesChanged = (
+    snapshot: DashboardFilters,
+    current: DashboardFilters,
+    filterIds: string[],
+    toSaved: ToSavedRule,
+): boolean =>
+    filterIds.some((filterId) => {
+        const saved = findFilterRule(snapshot, filterId);
+        const now = findFilterRule(current, filterId);
+        return (
+            saved !== null && now !== null && !isSameRule(saved, now, toSaved)
+        );
+    });
+
+// Section membership applies to the dashboard at once, so it is never undone
+export const withSectionOf = (
+    saved: DashboardFilterRule,
+    now: DashboardFilterRule,
 ): DashboardFilterRule => {
-    const existing = rule.lockedTabUuids ?? [];
-    const next = isFilterLockedOnTab(rule, lockKey, hasTabs)
-        ? existing.filter((uuid) => uuid !== lockKey)
-        : [...existing, lockKey];
-    return { ...rule, lockedTabUuids: next.length > 0 ? next : undefined };
+    if (saved.sectionId === now.sectionId) return saved;
+    return now.sectionId === undefined
+        ? omit(saved, 'sectionId')
+        : { ...saved, sectionId: now.sectionId };
 };
 
-/** An enabled rule whose operator needs a value but has none. */
+// Puts a rule of the snapshot back in the list the snapshot holds it in: in
+// place when it is still there, else out of any other list and at its index
+const putBackFilterRule = (
+    filters: DashboardFilters,
+    snapshot: DashboardFilters,
+    saved: DashboardFilterRule,
+): DashboardFilters => {
+    const group = snapshot.metrics.includes(saved) ? 'metrics' : 'dimensions';
+    const now = filters[group].find((rule) => rule.id === saved.id);
+    // Still there: it keeps its place and the section it is in now
+    if (now !== undefined)
+        return replaceFilterRule(filters, withSectionOf(saved, now));
+    const others = removeFilterRule(filters, saved.id);
+    const index = snapshot[group].indexOf(saved);
+    return {
+        ...others,
+        [group]: [
+            ...others[group].slice(0, index),
+            saved,
+            ...others[group].slice(index),
+        ],
+    };
+};
+
+// Undoes one rule: back to what the snapshot holds, or out when the snapshot
+// does not hold it. Every other rule keeps what was written since
+export const restoreFilterRule = (
+    filters: DashboardFilters,
+    snapshot: DashboardFilters,
+    filterId: string,
+): DashboardFilters => {
+    const saved = findFilterRule(snapshot, filterId);
+    return saved === null
+        ? removeFilterRule(filters, filterId)
+        : putBackFilterRule(filters, snapshot, saved);
+};
+
+// Undoes the editor's writes to other rules. A rule that is not in the
+// snapshot, or that is gone, is left as it is
+export const restoreFilterRules = (
+    filters: DashboardFilters,
+    snapshot: DashboardFilters,
+    filterIds: string[],
+): DashboardFilters =>
+    filterIds
+        .map((filterId) => findFilterRule(snapshot, filterId))
+        .filter((saved): saved is DashboardFilterRule => saved !== null)
+        .filter((saved) => findFilterRule(filters, saved.id) !== null)
+        .reduce(
+            (next, saved) => putBackFilterRule(next, snapshot, saved),
+            filters,
+        );
+
+// Apply: the draft's version of the edited rule and of the other rules the
+// editor wrote goes onto the dashboard's filters, each in its current section
+export const applyDraft = (
+    filters: DashboardFilters,
+    draft: DashboardFilters,
+    filterId: string,
+    otherIds: string[],
+): DashboardFilters =>
+    restoreFilterRules(
+        restoreFilterRule(filters, draft, filterId),
+        draft,
+        otherIds,
+    );
+
+// What the dashboard's "changed" flag is once the editor is done
+export const haveFiltersChangedSince = (
+    snapshot: ControlsSidebarSnapshot,
+    filters: DashboardFilters,
+    toSaved: ToSavedRule,
+): boolean =>
+    snapshot.haveFiltersChanged ||
+    !isSameFilters(snapshot.dashboardFilters, filters, toSaved);
+
+// An emptied label leaves the key as it was found, so the rule equals what it
+// was: a saved rule comes from JSON, which has no undefined, so it has no key
+export const withFilterRuleLabel = (
+    rule: DashboardFilterRule,
+    text: string,
+    hadLabelKey: boolean,
+): DashboardFilterRule => {
+    const label = text.trim();
+    if (label !== '') return { ...rule, label };
+    return hadLabelKey
+        ? { ...rule, label: undefined }
+        : (omit(rule, 'label') as DashboardFilterRule);
+};
+
+/** A default that is switched on but has no value the shipped form accepts. */
 export const isDefaultValueIncomplete = (rule: DashboardFilterRule) =>
-    !rule.disabled &&
-    isWithValueFilter(rule.operator) &&
-    (rule.values ?? []).length === 0;
+    !rule.disabled && !hasFilterValueSet(rule);
 
 // A control with no field cannot be kept; a label is optional
 export const canKeepFilterRule = (rule: DashboardFilterRule): boolean =>

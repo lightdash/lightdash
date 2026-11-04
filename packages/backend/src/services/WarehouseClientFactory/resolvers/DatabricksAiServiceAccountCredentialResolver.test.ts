@@ -1,9 +1,13 @@
 import {
     DatabricksAuthenticationType,
+    ParameterError,
     WarehouseTypes,
     type CreateDatabricksCredentials,
 } from '@lightdash/common';
-import { exchangeDatabricksOAuthCredentials } from '@lightdash/warehouses';
+import {
+    DatabricksWarehouseClient,
+    exchangeDatabricksOAuthCredentials,
+} from '@lightdash/warehouses';
 import {
     parseAiServiceAccountSecrets,
     type AiServiceAccountSecrets,
@@ -33,7 +37,7 @@ const selection = (): CredentialSelection<
 > => ({
     connection: {
         type: WarehouseTypes.DATABRICKS,
-        serverHostName: 'workspace.example.com',
+        serverHostName: 'adb-123.4.azuredatabricks.net',
         httpPath: '/sql/warehouse',
         catalog: 'catalog',
         database: 'schema',
@@ -74,7 +78,7 @@ beforeEach(() => {
 it('constructs only routing and slot identity from a hostile connection', () => {
     expect(resolver.buildCredentials(selection().connection, secrets)).toEqual({
         ...secrets,
-        serverHostName: 'workspace.example.com',
+        serverHostName: 'adb-123.4.azuredatabricks.net',
         httpPath: '/sql/warehouse',
         catalog: 'catalog',
         database: 'schema',
@@ -100,7 +104,7 @@ it('mints each materialization from the slot and routing host without caching or
     }
     expect(exchangeDatabricksOAuthCredentials).toHaveBeenCalledTimes(2);
     expect(exchangeDatabricksOAuthCredentials).toHaveBeenLastCalledWith(
-        'workspace.example.com',
+        'adb-123.4.azuredatabricks.net',
         'slot-id',
         ' slot-secret ',
     );
@@ -245,3 +249,32 @@ it.each([
         expect(exchangeDatabricksOAuthCredentials).not.toHaveBeenCalled();
     },
 );
+
+it('rejects a host outside Databricks before exchanging credentials', async () => {
+    const input = selection();
+    input.connection.serverHostName = 'evil.example.com';
+    await expect(resolver.resolve(input)).rejects.toBeInstanceOf(
+        ParameterError,
+    );
+    expect(exchangeDatabricksOAuthCredentials).not.toHaveBeenCalled();
+});
+it('exchanges credentials with the normalized Databricks host', async () => {
+    const input = selection();
+    input.connection.serverHostName =
+        ' https://ADB-123.4.azuredatabricks.net/ ';
+    const { clientCredentials } = await resolver.resolve(input);
+    const host = 'adb-123.4.azuredatabricks.net';
+    expect(clientCredentials.serverHostName).toBe(host);
+    const client = new DatabricksWarehouseClient(clientCredentials);
+    expect(client.connectionOptions.host).toBe(host);
+    expect(
+        new URL(
+            `https://${client.connectionOptions.host}:443${client.connectionOptions.path}`,
+        ).hostname,
+    ).toBe(host);
+    expect(exchangeDatabricksOAuthCredentials).toHaveBeenCalledExactlyOnceWith(
+        clientCredentials.serverHostName,
+        'slot-id',
+        ' slot-secret ',
+    );
+});

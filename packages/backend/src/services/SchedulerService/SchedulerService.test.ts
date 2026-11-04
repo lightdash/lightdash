@@ -95,6 +95,7 @@ const chartSchedulerInPrivateSpace: ChartScheduler = {
     enabled: true,
     includeLinks: true,
     plainTextEmail: false,
+    useCachedResults: false,
 };
 
 const dashboardScheduler = {
@@ -286,6 +287,7 @@ describe('SchedulerService', () => {
             enabled: true,
             includeLinks: true,
             plainTextEmail: false,
+            useCachedResults: false,
             targets: [{ recipient: 'recipient@example.com' }],
         } as unknown as SendNowScheduler;
 
@@ -444,6 +446,7 @@ describe('SchedulerService', () => {
                     enabled: true,
                     includeLinks: true,
                     plainTextEmail: false,
+                    useCachedResults: false,
                     targets: [{ recipient: 'recipient@example.com' }],
                 }) as unknown as SendNowScheduler;
 
@@ -1241,6 +1244,7 @@ describe('SchedulerService', () => {
                 enabled: true,
                 includeLinks: true,
                 plainTextEmail: false,
+                useCachedResults: false,
                 targets: [],
             }) as unknown as Parameters<
                 SchedulerService['createAppScheduler']

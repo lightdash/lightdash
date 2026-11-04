@@ -18,6 +18,7 @@ import {
     DimensionType,
     DuckdbConnectionType,
     ExploreType,
+    FeatureFlags,
     FieldType,
     MetricType,
     NotFoundError,
@@ -27,13 +28,14 @@ import {
     ServiceAccountScope,
     SpaceMemberRole,
     USER_MANAGED_EXPLORE_TYPES,
+    WarehouseConnectionError,
     WarehouseTypes,
 } from '@lightdash/common';
 import { MotherduckInstanceCache } from '@lightdash/warehouses';
+import { isEqual } from 'es-toolkit/compat';
 import knex from 'knex';
 import { getTracker, MockClient, RawQuery, Tracker } from 'knex-mock-client';
 import { FunctionQueryMatcher } from 'knex-mock-client/types/mock-client';
-import isEqual from 'lodash/isEqual';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { DashboardsTableName } from '../../database/entities/dashboards';
 import { DashboardSlugMappingsTableName } from '../../database/entities/dashboardSlugMappings';
@@ -116,6 +118,62 @@ describe('ProjectModel', () => {
         tracker.reset();
         vi.restoreAllMocks();
     });
+    test('uses Console organization flags for BigQuery federation and rechecks changes', async () => {
+        let enabled = false;
+        tracker.on.select('feature_flags').response([
+            {
+                flag_id: FeatureFlags.BigqueryWorkloadIdentityAuth,
+                default_enabled: false,
+            },
+        ]);
+        tracker.on
+            .select('feature_flag_overrides')
+            .response((query) =>
+                query.bindings.includes('enabled-org') ? [{ enabled }] : [],
+            );
+        const productionModel = new ProjectModel({
+            database,
+            encryptionUtil: encryptionUtilMock,
+            lightdashConfig: {
+                ...lightdashConfigMock,
+                enabledFeatureFlags: new Set(),
+                disabledFeatureFlags: new Set(),
+                previewFeatureFlags: { enabled: false },
+            },
+            googleIdentityTokenSource: { getIdToken: vi.fn() },
+        });
+        const federated: CreateBigqueryCredentials = {
+            type: WarehouseTypes.BIGQUERY,
+            project: 'project',
+            dataset: 'dataset',
+            keyfileContents: {},
+            authenticationType:
+                BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION,
+            workloadIdentityProvider:
+                'projects/123/locations/global/workloadIdentityPools/pool-id/providers/provider-id',
+            timeoutSeconds: undefined,
+            priority: undefined,
+            retries: undefined,
+            location: undefined,
+            maximumBytesBilled: undefined,
+        };
+        const resolve = (org = 'enabled-org') =>
+            productionModel.getWarehouseClientIdentityOptions(federated, org);
+        await expect(resolve()).rejects.toThrow(WarehouseConnectionError);
+        enabled = true;
+        await expect(resolve()).resolves.toMatchObject({
+            bigqueryExternalAccount: { type: 'external_account' },
+        });
+        await expect(resolve('other-org')).rejects.toThrow(
+            WarehouseConnectionError,
+        );
+        enabled = false;
+        await expect(resolve()).rejects.toThrow(WarehouseConnectionError);
+        enabled = true;
+        await expect(resolve()).resolves.toMatchObject({
+            bigqueryExternalAccount: { type: 'external_account' },
+        });
+    });
     test('should get project with no sensitive properties', async () => {
         tracker.on
             .select(queryMatcher(ProjectTableName, [projectUuid]))
@@ -124,6 +182,32 @@ describe('ProjectModel', () => {
         const project = await model.get(projectUuid);
         expect(project).toEqual(expectedProject);
         expect(tracker.history.select).toHaveLength(1);
+    });
+    test('rejects a legacy organization link instead of using stale project credentials', async () => {
+        tracker.on
+            .select(queryMatcher(ProjectTableName, [projectUuid]))
+            .response([
+                {
+                    ...projectMock,
+                    organization_warehouse_credentials_uuid: 'retired',
+                },
+            ]);
+        await expect(model.getWithSensitiveFields(projectUuid)).rejects.toThrow(
+            'Organization warehouse credentials are no longer supported',
+        );
+    });
+    test('rejects a legacy organization link in the query credential loader', async () => {
+        tracker.on.select(/warehouse_credentials/).response([
+            {
+                ...projectMock,
+                organization_warehouse_credentials_uuid: 'retired',
+            },
+        ]);
+        await expect(
+            model.getWarehouseCredentialsForProjectUncached(projectUuid),
+        ).rejects.toThrow(
+            'Organization warehouse credentials are no longer supported',
+        );
     });
     test('the project GET strips the stored identity version at the model loader', async () => {
         let stored: CreateWarehouseCredentials;
@@ -193,6 +277,148 @@ describe('ProjectModel', () => {
             model.getDbtSourceIdentity(projectUuid),
         ).rejects.toBeInstanceOf(NotFoundError);
     });
+    describe('dbt source warehouse bindings', () => {
+        const primarySourceUuid = 'primary-source';
+        const extraConnectionUuid = 'bigquery-connection';
+
+        beforeEach(() => {
+            vi.spyOn(model, 'getDbtSourceIdentity').mockResolvedValue({
+                dbtSourceUuid: primarySourceUuid,
+                dbtSourceName: 'dbt_project',
+            });
+        });
+
+        test.each([
+            [primarySourceUuid, null, WarehouseTypes.POSTGRES],
+            ['unbound-source', null, WarehouseTypes.POSTGRES],
+            ['bound-source', extraConnectionUuid, WarehouseTypes.BIGQUERY],
+            ['same-type-source', extraConnectionUuid, WarehouseTypes.POSTGRES],
+        ])(
+            'resolves the warehouse type for %s from metadata',
+            async (sourceUuid, warehouseConnectionUuid, warehouseType) => {
+                tracker.on
+                    .select(
+                        queryMatcher('project_dbt_sources', [
+                            projectUuid,
+                            sourceUuid,
+                            1,
+                        ]),
+                    )
+                    .response([
+                        { warehouse_connection_uuid: warehouseConnectionUuid },
+                    ]);
+                const getMetadata = vi
+                    .spyOn(model, 'getWarehouseConnectionsMetadata')
+                    .mockResolvedValue([
+                        {
+                            name: 'Original',
+                            warehouseConnectionUuid: null,
+                            warehouseType: WarehouseTypes.POSTGRES,
+                            isOriginal: true,
+                        },
+                        {
+                            name: 'Extra',
+                            warehouseConnectionUuid: extraConnectionUuid,
+                            warehouseType,
+                            isOriginal: false,
+                        },
+                    ]);
+                const decrypt = vi
+                    .spyOn(encryptionUtilMock, 'decrypt')
+                    .mockClear();
+
+                await expect(
+                    model.getDbtSourceWarehouseType(projectUuid, sourceUuid),
+                ).resolves.toBe(warehouseType);
+                expect(getMetadata).toHaveBeenCalledWith(projectUuid);
+                expect(decrypt).not.toHaveBeenCalled();
+                expect(tracker.history.select).toHaveLength(
+                    sourceUuid === primarySourceUuid ? 0 : 1,
+                );
+            },
+        );
+
+        test('rejects a source outside the project', async () => {
+            tracker.on
+                .select(
+                    queryMatcher('project_dbt_sources', [
+                        projectUuid,
+                        'unknown-source',
+                        1,
+                    ]),
+                )
+                .response([]);
+            const getMetadata = vi.spyOn(
+                model,
+                'getWarehouseConnectionsMetadata',
+            );
+
+            await expect(
+                model.getDbtSourceWarehouseType(projectUuid, 'unknown-source'),
+            ).rejects.toThrow(ParameterError);
+            expect(getMetadata).not.toHaveBeenCalled();
+        });
+
+        test.each([
+            [primarySourceUuid, null],
+            ['unbound-source', null],
+            ['bound-source', extraConnectionUuid],
+            [null, extraConnectionUuid],
+        ])(
+            'keeps deploy start of week bound to the warehouse for %s',
+            async (sourceUuid, warehouseConnectionUuid) => {
+                tracker.on
+                    .select(
+                        queryMatcher('project_dbt_sources', [
+                            projectUuid,
+                            sourceUuid,
+                            1,
+                        ]),
+                    )
+                    .response([
+                        { warehouse_connection_uuid: warehouseConnectionUuid },
+                    ]);
+                const getExploreBinding = vi
+                    .spyOn(model, 'getExploreWarehouseConnectionUuid')
+                    .mockResolvedValue(warehouseConnectionUuid);
+                const getConnection = vi
+                    .spyOn(model, 'getWarehouseConnectionForBinding')
+                    .mockResolvedValue({
+                        ...IncompletePostgresCredentialsWithoutSecrets,
+                        startOfWeek: 1,
+                    });
+
+                await expect(
+                    model.getDeployStartOfWeek(
+                        projectUuid,
+                        'orders',
+                        sourceUuid,
+                    ),
+                ).resolves.toEqual(
+                    warehouseConnectionUuid === null
+                        ? { kind: 'original' }
+                        : { kind: 'extra', startOfWeek: 1 },
+                );
+                if (warehouseConnectionUuid === null) {
+                    expect(getConnection).not.toHaveBeenCalled();
+                } else {
+                    expect(getConnection).toHaveBeenCalledWith(projectUuid, {
+                        kind: 'connection',
+                        warehouseConnectionUuid,
+                    });
+                }
+                if (sourceUuid === null) {
+                    expect(getExploreBinding).toHaveBeenCalledWith(
+                        projectUuid,
+                        'orders',
+                    );
+                } else {
+                    expect(getExploreBinding).not.toHaveBeenCalled();
+                }
+            },
+        );
+    });
+
     test('should get project tables configuration', async () => {
         tracker.on
             .select(queryMatcher(ProjectTableName, [projectUuid]))
@@ -1366,11 +1592,13 @@ describe('ProjectModel', () => {
                 project_id: 2,
                 project_uuid: previewProjectUuid,
                 organization_id: 10,
+                created_by_user_uuid: 'user-1-uuid',
             },
         ]);
         tracker.on.select(matchSql(ProjectMembershipsTableName)).response([
             {
                 user_id: 1,
+                user_uuid: 'user-1-uuid',
                 role: ProjectMemberRole.EDITOR,
                 role_uuid: null,
                 is_internal: false,
@@ -1378,6 +1606,7 @@ describe('ProjectModel', () => {
             },
             {
                 user_id: 2,
+                user_uuid: 'user-2-uuid',
                 role: ProjectMemberRole.VIEWER,
                 role_uuid: null,
                 is_internal: false,
@@ -1385,6 +1614,7 @@ describe('ProjectModel', () => {
             },
             {
                 user_id: 3,
+                user_uuid: 'service-account-user-uuid',
                 role: ProjectMemberRole.VIEWER,
                 role_uuid: null,
                 is_internal: true,
@@ -1453,6 +1683,72 @@ describe('ProjectModel', () => {
         );
         expect(groupAccessQuery?.sql).toContain('groups');
         expect(groupAccessQuery?.bindings).toContain(10);
+    });
+
+    test('copies a service account access into a preview it created', async () => {
+        const upstreamProjectUuid = 'upstream-project-uuid';
+        const previewProjectUuid = 'preview-project-uuid';
+        const matchSql =
+            (table: string) =>
+            ({ sql }: RawQuery) =>
+                sql.includes(table);
+
+        tracker.on.select(matchSql(ProjectTableName)).response([
+            {
+                project_id: 1,
+                project_uuid: upstreamProjectUuid,
+                organization_id: 10,
+                created_by_user_uuid: 'user-1-uuid',
+            },
+            {
+                project_id: 2,
+                project_uuid: previewProjectUuid,
+                organization_id: 10,
+                created_by_user_uuid: 'creator-sa-user-uuid',
+            },
+        ]);
+        tracker.on.select(matchSql(ProjectMembershipsTableName)).response([
+            {
+                user_id: 3,
+                user_uuid: 'creator-sa-user-uuid',
+                role: ProjectMemberRole.DEVELOPER,
+                role_uuid: null,
+                is_internal: true,
+                organization_id: 10,
+            },
+            {
+                user_id: 4,
+                user_uuid: 'other-sa-user-uuid',
+                role: ProjectMemberRole.DEVELOPER,
+                role_uuid: null,
+                is_internal: true,
+                organization_id: 10,
+            },
+        ]);
+        tracker.on.select(matchSql(ProjectGroupAccessTableName)).response([]);
+        tracker.on.insert(matchSql(ProjectMembershipsTableName)).response([]);
+        tracker.on
+            .delete(matchSql(ProjectMembershipCustomRolesTableName))
+            .response(0);
+        tracker.on
+            .insert(matchSql(ProjectMembershipCustomRolesTableName))
+            .response([]);
+
+        await expect(
+            model.copyProjectAccess(upstreamProjectUuid, previewProjectUuid),
+        ).resolves.toEqual({
+            userAccessCount: 1,
+            skippedUserAccessCount: 1,
+            groupAccessCount: 0,
+        });
+
+        const [membershipInsert] = tracker.history.insert.filter(({ sql }) =>
+            sql.includes(`"${ProjectMembershipsTableName}"`),
+        );
+        expect(membershipInsert.bindings).toEqual(
+            expect.arrayContaining([3, 2, ProjectMemberRole.DEVELOPER]),
+        );
+        expect(membershipInsert.bindings).not.toContain(4);
     });
 
     test('updateProjectAccess clears extra custom roles for every updated membership', async () => {
@@ -2343,6 +2639,33 @@ describe('ProjectModel', () => {
             expect(promotionIndex).toBeGreaterThan(liveDeleteIndex);
         });
 
+        test('keeps the uuid of explores that survive a compile', async () => {
+            oneRowChunks();
+            mockStagedCacheQueries();
+
+            await model.saveExploreStreamToCache(
+                projectUuid,
+                stream([exploreWithMetricFilters]),
+            );
+
+            const transactionQueries = tracker.history.transactions[0].queries;
+            const liveDelete = transactionQueries.find(({ sql }) =>
+                sql.startsWith('delete from "cached_explore"'),
+            );
+            const promotion = transactionQueries.find(
+                ({ sql }) =>
+                    sql.startsWith('INSERT INTO "cached_explore"') &&
+                    sql.includes('SELECT cached_explore_uuid'),
+            );
+            // Only explores missing from the staged set are deleted
+            expect(liveDelete?.sql).toContain('not exists');
+            expect(liveDelete?.sql).toContain('"cached_explore_staging"');
+            // Survivors are upserted by name so rows referencing them persist
+            expect(promotion?.sql).toContain(
+                'ON CONFLICT (name, project_uuid) DO UPDATE',
+            );
+        });
+
         test('keeps managed overrides, late managed writes, and result order', async () => {
             oneRowChunks();
             const managedOverride = {
@@ -2591,6 +2914,29 @@ describe('ProjectModel', () => {
     });
 
     describe('mergeMissingWarehouseSecrets', () => {
+        test('never carries an old BigQuery key into workload identity federation', () => {
+            const federated: CreateBigqueryCredentials = {
+                type: WarehouseTypes.BIGQUERY,
+                project: 'project',
+                dataset: 'dataset',
+                authenticationType:
+                    BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION,
+                keyfileContents: {},
+                timeoutSeconds: undefined,
+                priority: undefined,
+                retries: undefined,
+                location: undefined,
+                maximumBytesBilled: undefined,
+            };
+            const previous = {
+                ...federated,
+                authenticationType: BigqueryAuthenticationType.PRIVATE_KEY,
+                keyfileContents: { private_key: 'old-secret' },
+            };
+            expect(
+                ProjectModel.mergeMissingWarehouseSecrets(federated, previous),
+            ).toEqual(federated);
+        });
         test('should merge secrets when key is missing', async () => {
             const result = ProjectModel.mergeMissingWarehouseSecrets(
                 IncompletePostgresCredentialsWithoutSecrets as CreatePostgresCredentials,

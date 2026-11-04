@@ -1,6 +1,6 @@
-import { FeatureFlags } from '@lightdash/common';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
+import { resolveAiDecisionClient } from '../ai/decisions/AiDecisionClient';
 import { MCP_PERMISSION_MESSAGE } from '../ai/utils/mcpErrors';
 import { AiAgentService } from './AiAgentService';
 
@@ -24,17 +24,15 @@ const setup = (
     vi.stubGlobal('fetch', request);
     const featureFlagService = { get: vi.fn().mockResolvedValue({ enabled }) };
     const postMessage = vi.fn().mockResolvedValue({ ok: true });
+    const decisions = {
+        apiKey: enabled ? `test-${error.message}` : null,
+        model: 'test',
+        timeoutMs: 100,
+    };
     const service = new AiAgentService({
         lightdashConfig: {
             ...lightdashConfigMock,
-            ai: {
-                ...lightdashConfigMock.ai,
-                decisions: {
-                    apiKey: `test-${enabled}-${error.message}`,
-                    model: 'test',
-                    timeoutMs: 100,
-                },
-            },
+            ai: { ...lightdashConfigMock.ai, decisions },
         },
         featureFlagService,
         slackClient: { postMessage },
@@ -51,27 +49,22 @@ const setup = (
             }),
         },
         orgAiCopilotConfigResolver: {
-            isOrgBedrockRouted: async () => false,
+            getDecisionClient: async () => resolveAiDecisionClient(decisions),
         },
     } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
-    return { service, request, postMessage, featureFlagService };
+    return { service, request, postMessage };
 };
 
 afterEach(() => vi.unstubAllGlobals());
 
 describe('Slack error reply', () => {
     it.each([false, true])(
-        'uses the organization decision flag (%s) on the actual failure path',
+        'uses the deployment decision key (%s) on the actual failure path',
         async (enabled) => {
-            const { service, request, postMessage, featureFlagService } =
-                setup(enabled);
+            const { service, request, postMessage } = setup(enabled);
             await expect(
                 service.replyToSlackPrompt('prompt-1'),
             ).rejects.toThrow('Failed to generate response');
-            expect(featureFlagService.get).toHaveBeenCalledExactlyOnceWith({
-                user: { userUuid: 'user-1', organizationUuid: 'org-1' },
-                featureFlagId: FeatureFlags.AiAgentFastDecisions,
-            });
             expect(postMessage).toHaveBeenCalledExactlyOnceWith(
                 expect.objectContaining({
                     organizationUuid: 'org-1',
@@ -86,21 +79,8 @@ describe('Slack error reply', () => {
         },
     );
 
-    it('retains the error reply when flag resolution fails', async () => {
-        const { service, request, postMessage, featureFlagService } =
-            setup(true);
-        featureFlagService.get.mockRejectedValue(
-            new Error('flag service unavailable'),
-        );
-        await expect(service.replyToSlackPrompt('prompt-1')).rejects.toThrow(
-            'Failed to generate response',
-        );
-        expect(postMessage).toHaveBeenCalledOnce();
-        expect(request).not.toHaveBeenCalled();
-    });
-
     it('does not call the provider for a known MCP failure', async () => {
-        const { service, request, postMessage, featureFlagService } = setup(
+        const { service, request, postMessage } = setup(
             true,
             new Error('MCP HTTP Transport Error: HTTP 403 Forbidden'),
         );
@@ -110,10 +90,6 @@ describe('Slack error reply', () => {
         expect(postMessage).toHaveBeenCalledWith(
             expect.objectContaining({ text: `🔴 ${MCP_PERMISSION_MESSAGE}` }),
         );
-        expect(featureFlagService.get).toHaveBeenCalledExactlyOnceWith({
-            user: { userUuid: 'user-1', organizationUuid: 'org-1' },
-            featureFlagId: FeatureFlags.AiAgentFastDecisions,
-        });
         expect(request).not.toHaveBeenCalled();
     });
 });
@@ -189,7 +165,7 @@ describe.each([false, true])(
                     createToolResults,
                 },
                 orgAiCopilotConfigResolver: {
-                    isOrgBedrockRouted: async () => false,
+                    getDecisionClient: async () => undefined,
                 },
             } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
 

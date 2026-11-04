@@ -24,6 +24,7 @@ import { useLocation, useParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import ResizableSplitter from '../../../../../components/common/ResizableSplitter';
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
+import { useLightdashApi } from '../../../../../providers/LightdashApi/useLightdashApi';
 import useEmbed from '../../../../providers/Embed/useEmbed';
 import { useAgentMaxWidth } from '../../hooks/useAgentMaxWidth';
 import {
@@ -42,6 +43,7 @@ import {
 import { AiArtifactPanel } from '../ChatElements/AiArtifactPanel';
 import { AiDataAppPreviewPanel } from '../ChatElements/AiDataAppPreviewPanel';
 import { AiDocumentPreviewPanel } from '../ChatElements/AiDocumentPreviewPanel';
+import { AiQueryPipelinePreviewPanel } from '../ChatElements/AiQueryPipelinePreviewPanel';
 import { AiSavedChartPreviewPanel } from '../ChatElements/AiSavedChartPreviewPanel';
 import styles from './aiAgentPageLayout.module.css';
 import {
@@ -63,6 +65,8 @@ const renderPreviewPanel = (preview: AiPreview) => {
             );
         case 'document':
             return <AiDocumentPreviewPanel documentPreview={preview} />;
+        case 'queryPipeline':
+            return <AiQueryPipelinePreviewPanel pipelinePreview={preview} />;
         default:
             return assertUnreachable(preview, 'Unknown preview type');
     }
@@ -88,6 +92,8 @@ export const AiAgentPageLayout: React.FC<Props> = ({
     isAgentSidebarCollapsed,
     isEmbed = false,
 }) => {
+    const lightdashApi = useLightdashApi();
+
     const dispatch = useAiAgentStoreDispatch();
     const splitterRef = useRef<UseSplitterReturnValue>(null);
     const { mode: embedMode } = useEmbed();
@@ -111,7 +117,7 @@ export const AiAgentPageLayout: React.FC<Props> = ({
     // panel owns error handling.
     const artifactQuery =
         preview?.type === 'artifact'
-            ? aiAgentArtifactVersionQuery(preview)
+            ? aiAgentArtifactVersionQuery(lightdashApi, preview)
             : null;
     const { data: previewArtifact } = useQuery<AiArtifact, ApiError>({
         queryKey: artifactQuery?.queryKey ?? [AI_AGENT_ARTIFACT_KEY, 'none'],
@@ -184,7 +190,8 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                     if (index === 0 && Sidebar && !isMobile)
                         setIsAgentSidebarCollapsed?.(collapsed);
                 }}
-                style={{ flex: 1, minWidth: 0 }}
+                flex={1}
+                miw={0}
             >
                 {Sidebar && !isMobile && (
                     <ResizableSplitter.Pane
@@ -369,18 +376,12 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                     withCloseButton={false}
                     classNames={{
                         inner: isSdk ? styles.sdkDrawerInner : undefined,
+                        body: styles.previewDrawerBody,
                     }}
                     transitionProps={{
                         transition: 'slide-up',
                         duration: 200,
                         timingFunction: 'ease-out',
-                    }}
-                    styles={{
-                        body: {
-                            padding: 0,
-                            paddingBottom: 'var(--mantine-spacing-lg)',
-                            height: '100%',
-                        },
                     }}
                 >
                     {preview && renderPreviewPanel(preview)}

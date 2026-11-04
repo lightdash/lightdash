@@ -1,4 +1,4 @@
-import type { AiAgentBattleProfile } from '@lightdash/common';
+import { type AiAgentBattleProfile } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -59,6 +59,7 @@ import {
     getModelOptionByKey,
     useAiAgentModelSelection,
 } from '../../features/aiCopilot/hooks/useAiAgentModelSelection';
+import { useAiAgentQueryPathBattleAvailable } from '../../features/aiCopilot/hooks/useAiAgentQueryPathBattleAvailable';
 import { useAiAgentSpeedBattleAvailable } from '../../features/aiCopilot/hooks/useAiAgentSpeedBattleAvailable';
 import { useAiAgentSqlModeAvailable } from '../../features/aiCopilot/hooks/useAiAgentSqlModeAvailable';
 import { useStartDeepResearchForThreadMutation } from '../../features/aiCopilot/hooks/useDeepResearch';
@@ -72,6 +73,8 @@ import { setThreadSqlMode } from '../../features/aiCopilot/store/aiAgentThreadMo
 import { useAiAgentStoreDispatch } from '../../features/aiCopilot/store/hooks';
 import { type AiAgentToolResult } from '../../features/aiCopilot/types';
 import { getDashboardNavigationUrlFromContentToolResult } from '../../features/aiCopilot/utils/contentToolResultNavigation';
+import { getThreadSetupRequestFields } from '../../providers/Embed/embedAiAgentThreadSetup';
+import useEmbed from '../../providers/Embed/useEmbed';
 import useIsEmbedded from '../../providers/Embed/useIsEmbedded';
 import { type AgentContext } from './AgentPage';
 import styles from './AiAgentNewThreadPage.module.css';
@@ -90,10 +93,34 @@ const agentTourProps = {
     'data-tour-resultdocs': 'agents/set-up-agents.mdx#data-access:1',
 };
 
+const battleProfileA: Record<BattleType, AiAgentBattleProfile | undefined> = {
+    speed: 'fast',
+    queryPath: 'classic',
+    models: undefined,
+};
+
 const battleProfileB: Record<BattleType, AiAgentBattleProfile | undefined> = {
     speed: 'baseline',
-    decisions: 'luna',
+    queryPath: 'composer',
     models: undefined,
+};
+
+const resolveBattleType = (
+    choice: BattleType,
+    {
+        speedBattleAvailable,
+        queryPathBattleAvailable,
+    }: { speedBattleAvailable: boolean; queryPathBattleAvailable: boolean },
+): BattleType => {
+    const available: Record<BattleType, boolean> = {
+        speed: speedBattleAvailable,
+        queryPath: queryPathBattleAvailable,
+        models: true,
+    };
+    if (available[choice]) return choice;
+    if (available.speed) return 'speed';
+    if (available.queryPath) return 'queryPath';
+    return 'models';
 };
 
 const AiAgentNewThreadPage: FC = () => {
@@ -102,6 +129,7 @@ const AiAgentNewThreadPage: FC = () => {
     const accessGate = useAiAccessGate(projectUuid);
     const { track } = useTracking();
     const isEmbed = useIsEmbedded();
+    const { aiAgentThreadSetup } = useEmbed();
     const emitEmbedAiAgentThreadChange = useEmitEmbedAiAgentThreadChange();
     const [searchParams] = useSearchParams();
     const chartUuid = searchParams.get('chartUuid');
@@ -129,9 +157,12 @@ const AiAgentNewThreadPage: FC = () => {
     const [battleMode, setBattleMode] = useState(false);
     const speedBattleAvailable = useAiAgentSpeedBattleAvailable();
     const [battleTypeChoice, setBattleType] = useState<BattleType>('speed');
-    const battleType: BattleType = speedBattleAvailable
-        ? battleTypeChoice
-        : 'models';
+    const queryPathBattleAvailable =
+        useAiAgentQueryPathBattleAvailable() && agent.enableDataAccess;
+    const battleType = resolveBattleType(battleTypeChoice, {
+        speedBattleAvailable,
+        queryPathBattleAvailable,
+    });
     const [battleModelBKey, setBattleModelBKey] = useState<string | null>(null);
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
     const canStartDeepResearch = useDeepResearchAccess(projectUuid);
@@ -300,8 +331,7 @@ const AiAgentNewThreadPage: FC = () => {
                     createBattleThread({
                         ...shared,
                         modelConfig: modelAConfig,
-                        battleProfile:
-                            battleType === 'models' ? undefined : 'fast',
+                        battleProfile: battleProfileA[battleType],
                     }),
                     createBattleThread({
                         ...shared,
@@ -326,6 +356,7 @@ const AiAgentNewThreadPage: FC = () => {
                 enableSqlMode: sqlModeAvailable && sqlMode,
                 toolHints,
                 modelConfig: explicitModelConfig,
+                ...getThreadSetupRequestFields(aiAgentThreadSetup),
             });
         },
         [
@@ -348,6 +379,7 @@ const AiAgentNewThreadPage: FC = () => {
             navigate,
             track,
             isEmbed,
+            aiAgentThreadSetup,
         ],
     );
 
@@ -364,6 +396,7 @@ const AiAgentNewThreadPage: FC = () => {
                 optimisticContext: previewItems,
                 modelConfig: explicitModelConfig,
                 skipAgentResponse: true,
+                ...getThreadSetupRequestFields(aiAgentThreadSetup),
             });
             await startDeepResearch.mutateAsync({
                 question,
@@ -382,6 +415,7 @@ const AiAgentNewThreadPage: FC = () => {
             previewItems,
             setPendingPrompt,
             startDeepResearch,
+            aiAgentThreadSetup,
         ],
     );
 
@@ -529,6 +563,9 @@ const AiAgentNewThreadPage: FC = () => {
                                 battleType={battleType}
                                 onBattleTypeChange={setBattleType}
                                 speedBattleAvailable={speedBattleAvailable}
+                                queryPathBattleAvailable={
+                                    queryPathBattleAvailable
+                                }
                                 models={battleModels}
                                 modelAKey={selectedModelKey}
                                 modelBKey={effectiveBattleModelBKey}
@@ -549,9 +586,6 @@ const AiAgentNewThreadPage: FC = () => {
                                 isCreatingThread || isCreatingBattleThreads
                             }
                             disabled={!isPinnedContextReady}
-                            showFastMode={
-                                !(isBattle && battleType !== 'models')
-                            }
                             placeholder={
                                 isBattle
                                     ? `Ask both models anything about your data...`

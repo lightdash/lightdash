@@ -60,6 +60,7 @@ const AgentIdentityRule = ({
                 saving={save.isLoading}
                 verificationStatus={getVerificationStatus(verify)}
                 setupExpanded={setupExpanded}
+                settingUpSource={pending ? 'agent_sign_in' : null}
                 onToggleSetup={
                     active ? () => setExpanded(!setupExpanded) : null
                 }

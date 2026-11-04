@@ -26,9 +26,12 @@ import {
     MCP_QUERY_ERROR_NOTE,
     MCP_QUERY_RESULT_USAGE_NOTE,
 } from './toolMcpQueryResultDescription';
-import { mcpAsyncQueryUuidSchema } from './toolQueryResultSchemas';
+import {
+    executionStatsContentSchema,
+    mcpAsyncQueryUuidSchema,
+} from './toolQueryResultSchemas';
 
-const parameterValueSchema = z.union([
+export const parameterValueSchema = z.union([
     z.string(),
     z.number(),
     z.array(z.string()),
@@ -45,7 +48,7 @@ export const queryConfigBaseSchema = z.object({
     dimensions: z
         .array(getFieldIdSchema({ additionalDescription: null }))
         .describe(
-            'The field ids for the dimensions to group the metrics by. dimensions[0] is the primary grouping (x-axis for charts). dimensions[1+] create additional grouping levels.',
+            'The field ids for the dimensions to group the metrics by. dimensions[0] is the primary grouping (x-axis for charts). dimensions[1+] create additional grouping levels. For a date, pick the field at the grain the user asked for (`order_date_month`, not `order_date`, for "by month").',
         ),
     metrics: z
         .array(getFieldIdSchema({ additionalDescription: null }))
@@ -55,7 +58,7 @@ export const queryConfigBaseSchema = z.object({
     sorts: z
         .array(sortFieldSchema)
         .describe(
-            'Sort configuration for the query, it can use a combination of metrics and dimensions.',
+            'Sort configuration for the query. Every sorted field must also be selected in dimensions, metrics or tableCalculations: to order by one field (e.g. `order_date_month_num`) while displaying another (`order_date_month_name`), select both as dimensions.',
         ),
     limit: z.coerce
         .number()
@@ -68,7 +71,7 @@ export const queryConfigBaseSchema = z.object({
         .nullable()
         .default(null)
         .describe(
-            'Lightdash parameter values for this query, keyed by parameter name exactly as shown in the explore metadata (e.g. {"orders.metric": "active_users"}). REQUIRED whenever a selected field is marked "requires parameters" and the default value does not match what the user asked for — an unset parameter silently resolves to its default, which can return the wrong data. null when the explore has no parameters or the defaults are correct.',
+            'Lightdash parameter values for this query, keyed by parameter name exactly as shown in the explore metadata (e.g. {"orders.metric": "active_users"}). Set them whenever a selected field is marked "requires parameters" and the default does not match what the user asked for: an unset parameter silently resolves to its default, which can return the wrong data. null when the explore has no parameters or the defaults are correct.',
         ),
 });
 
@@ -82,7 +85,11 @@ const queryConfigSchemaV1 = queryConfigBaseSchema.extend({
 const queryConfigSchemaV2 = queryConfigBaseSchema.extend({
     customMetrics: customMetricsSchema,
     tableCalculations: tableCalcsSchema,
-    filters: filtersSchemaV2.nullable(),
+    filters: filtersSchemaV2
+        .nullable()
+        .describe(
+            '`type` sets how rules combine within each category; dimensions, metrics and tableCalculations always combine with each other by AND. `or` makes every rule in a category optional, so a non-date filter beside alternative date ranges is silently dropped. For several periods at one granularity (e.g. "Mar or May 2025"), keep `and` with one `equals` rule on the date field at that grain and a value per period (`2025-03-01`, `2025-05-01`). Use `or`, with one `inBetween` per range, only when arbitrary date ranges (e.g. "Mar 1–6 vs Apr 1–6") are the sole dimension filters.',
+        ),
 });
 
 // V4 narrows the advertised tableCalculations contract to formula-only.
@@ -183,7 +190,7 @@ const chartConfigBuiltinSchema = z.object({
         .array(getFieldIdSchema({ additionalDescription: null }))
         .nullable()
         .describe(
-            'Dimensions to split metrics into separate series (e.g., one line per region, one bar per status). IMPORTANT: Do NOT include the x-axis dimension in groupBy - only include dimensions you want to use for breaking down the data into multiple series. Example: dimensions=["order_date", "status"], groupBy=["status"] creates separate series for each status value. Leave null for simple single-series charts.',
+            'Dimensions that split metrics into separate series (one line per region, one bar per status), never the x-axis dimension. Example: dimensions=["order_date", "status"], groupBy=["status"] creates one series per status value. null for a single-series chart.',
         ),
 
     // Bar and horizontal bar chart specific
@@ -225,7 +232,7 @@ const chartConfigBuiltinSchema = z.object({
         .describe('A helpful label for the secondary y-axis'),
 });
 
-const customChartTypeOptionValueSchema = z.union([
+export const customChartTypeOptionValueSchema = z.union([
     dataAppVizGradientValueSchema,
     z.string(),
     z.number(),
@@ -238,7 +245,7 @@ const chartConfigCustomChartTypeSchema = z.object({
     customChartTypeSlug: z
         .string()
         .describe(
-            'Slug of the custom chart type to render this answer through. Must be a slug from availableCustomChartTypes or findCustomChartTypes.',
+            'Slug of the custom chart type to render this answer through, as returned by the custom chart type discovery tools.',
         ),
     fieldMapping: z
         .record(
@@ -274,7 +281,7 @@ export const chartConfigSchema = z
     .nullable();
 
 // Builtin-only view pinning surfaces that do not support custom chart types
-// (MCP run_metric_query / render_chart, the dashboard tool): their contracts
+// (MCP run_metric_query, the dashboard tool): their contracts
 // stay byte-identical to before the union existed.
 export const chartConfigBuiltinOnlySchema = chartConfigBuiltinSchema.nullable();
 
@@ -295,22 +302,14 @@ export const isCustomChartTypeSlugChartConfig = (
 // the agent runtime has its own prompt and different sibling tool names.
 const MCP_RUN_QUERY_LEAD = `Run a governed metric query through the Lightdash semantic layer. Choose an explore and its metrics and dimensions (from grep_fields / get_metadata), add filters, sorts and a limit, and get consistent, centrally defined results. This is the preferred way to answer data questions and to reproduce a saved chart's query — prefer it over raw SQL whenever the fields exist in a modeled explore. For running queries, follow the polling instructions in the response.`;
 
-const RUN_QUERY_PARAMETER_GUIDANCE = `If any selected field is marked "requires parameters" in field discovery or metadata, set the right values in queryConfig.parameters — an unset parameter silently resolves to its default, which can make the query return data that does not match the question.`;
-
 export const TOOL_RUN_QUERY_DESCRIPTION = ({
     runtime,
 }: ToolDescriptionContext): string => {
     switch (runtime) {
         case 'agent':
-            return `Execute a metric query.
-
-${RUN_QUERY_PARAMETER_GUIDANCE}
-
-The tool handles execution and chart artifacts. It returns a result summary and CSV data when data access is enabled. For empty results, follow the returned guidance. Correct validation or execution errors before retrying.`;
+            return `Execute a metric query. The tool handles execution and chart artifacts and returns a result summary, plus CSV data when data access is enabled.`;
         case 'mcp':
             return `${MCP_RUN_QUERY_LEAD}
-
-${RUN_QUERY_PARAMETER_GUIDANCE}
 
 If the user mentions any time period, add an explicit date filter; never use sort + limit instead. Use inThePast for relative windows. Date fields from joined tables work identically in filters.
 
@@ -411,27 +410,32 @@ export const toolRunQueryArgsSchema = toolRunQueryArgsSchemaV4;
 //   narrow it — old threads must keep parsing.
 export const toolRunQueryArgsSchemaPersisted = toolRunQueryArgsSchemaV3;
 
-// For runtimes where merge queries are disabled: a merge-shaped payload
-// must fail validation, not have Zod strip mergeConfig and run only the
-// primary query. The preprocess leaves the emitted JSON schema unchanged.
+export const AI_AGENT_MERGE_REFUSAL =
+    'Merge queries are not supported by the agent.';
+
+// The agent cannot build merges: a merge-shaped payload must fail validation,
+// not have Zod strip mergeConfig and run only the primary query. Used with
+// z.preprocess, it leaves the emitted JSON schema unchanged.
+export const rejectAgentMergeConfig = (raw: unknown, ctx: z.RefinementCtx) => {
+    if (
+        raw !== null &&
+        typeof raw === 'object' &&
+        'mergeConfig' in raw &&
+        raw.mergeConfig !== null &&
+        raw.mergeConfig !== undefined
+    ) {
+        ctx.addIssue({
+            code: 'custom',
+            path: ['mergeConfig'],
+            message: AI_AGENT_MERGE_REFUSAL,
+        });
+        return z.NEVER;
+    }
+    return raw;
+};
+
 export const toolRunQueryArgsSchemaV2RejectingMerge = z.preprocess(
-    (raw, ctx) => {
-        if (
-            raw !== null &&
-            typeof raw === 'object' &&
-            'mergeConfig' in raw &&
-            raw.mergeConfig !== null &&
-            raw.mergeConfig !== undefined
-        ) {
-            ctx.addIssue({
-                code: 'custom',
-                path: ['mergeConfig'],
-                message: 'Merge queries are not enabled for this organization.',
-            });
-            return z.NEVER;
-        }
-        return raw;
-    },
+    rejectAgentMergeConfig,
     toolRunQueryArgsSchemaV2FormulaOnly,
 );
 
@@ -567,7 +571,7 @@ export const parsePersistedRunQueryArgs = (
 
 export const TOOL_RENDER_CHART_DESCRIPTION = `Render a completed run_metric_query result in Lightdash's built-in chart app in MCP App-capable clients.
 
-Use when the user wants a visual. If the query is running, call get_query_result first. This tool does not start, poll or rerun queries.
+Use when the user wants a visual. If the query is running, call get_query_result first. For a grouped bar, horizontal_bar, line or scatter chart (chartConfig.groupBy), this tool runs the grouped query for the chart itself. While that query runs it returns status "running", not an error: wait nextPollAfterMs, then call render_chart again with the same arguments. Otherwise it does not start, poll or rerun queries.
 Pass the exact queryUuid returned for this query by run_metric_query or get_query_result (also available in the \`queryUuid: <id>\` text block). Never invent an ID or reuse one from another query or session. SQL Runner/run_sql results are not supported.
 
 Supported types: table, bar, horizontal_bar, line, scatter, pie, funnel.
@@ -576,7 +580,9 @@ Supported types: table, bar, horizontal_bar, line, scatter, pie, funnel.
 - For single values or detailed data: use \`table\`.
 - Always provide axis labels.
 
-The full chart payload is app metadata; structuredContent contains only a lightweight placeholder. Custom artifacts should build visuals from query data instead.
+To render a custom chart type instead, set chartConfig to { customChartTypeSlug, fieldMapping, options } using the slots and options from find_custom_chart_types or list_custom_chart_types.
+
+The full chart payload is app metadata, drawn only by MCP App-capable clients. In structuredContent, \`echartsOption: {}\` is a placeholder for that payload, not a failed render. If your client cannot display MCP Apps, the user has not seen the chart: build the visual from the query rows. Custom artifacts should build visuals from query data instead.
 
 ${MCP_ARTIFACT_INTEGRATION_NOTE}`;
 
@@ -585,7 +591,7 @@ export const toolRenderChartArgsSchema = createToolSchema()
         queryUuid: mcpAsyncQueryUuidSchema.describe(
             'Completed query UUID returned by run_metric_query (or get_query_result) in this conversation, copied from the `queryUuid: <id>` text block of that response. Do not fabricate, guess, or reuse a UUID from another query. Currently render_chart supports UUIDs from run_metric_query and does not support SQL Runner/run_sql UUIDs.',
         ),
-        chartConfig: chartConfigBuiltinOnlySchema,
+        chartConfig: chartConfigSchema,
         title: z
             .string()
             .optional()
@@ -602,7 +608,7 @@ export const toolRenderChartArgsSchema = createToolSchema()
 
 export const toolRenderChartArgsSchemaTransformed = toolRenderChartArgsSchema
     .extend({
-        chartConfig: chartConfigBuiltinOnlySchema.default(null),
+        chartConfig: chartConfigSchema.default(null),
     })
     .transform((data) => ({
         ...data,
@@ -616,7 +622,7 @@ export type ToolRenderChartArgsTransformed = z.infer<
     typeof toolRenderChartArgsSchemaTransformed
 >;
 
-const appliedParametersSchema = z
+export const appliedParametersSchema = z
     .object({
         applied: z
             .record(z.string(), parameterValueSchema)
@@ -772,6 +778,7 @@ export const toolRunQueryStructuredContentSchema = z.discriminatedUnion(
                     'null when the explore references no parameters or the query was a merge.',
                 ),
             data: shownResultsSchema,
+            executionStats: executionStatsContentSchema,
         }),
     ],
 );

@@ -52,16 +52,16 @@ it.each(permissionCases)(
                 listForSubject: vi.fn(),
                 revoke: vi.fn(),
             },
-            userModel: {
+            userModel: Object.assign(f.userModel, {
                 findSessionUserAndOrgByUuid: vi.fn().mockResolvedValue(f.user),
-            },
-            projectModel: {
+            }),
+            projectModel: Object.assign(f.projectModel, {
                 getAllByOrganizationUuid: vi
                     .fn()
                     .mockResolvedValue([
                         { projectUuid: f.projectUuid, name: 'Visible project' },
                     ]),
-            },
+            }),
             featureFlags: { get: vi.fn().mockResolvedValue({ enabled: true }) },
             getAgentPermissionService: () => f.permissions,
         });

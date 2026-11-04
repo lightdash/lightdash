@@ -4,7 +4,7 @@ import {
     SupportedDbtVersions,
 } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
-import fs, { writeFileSync } from 'fs';
+import fs from 'fs';
 import * as fspromises from 'fs/promises';
 import * as path from 'path';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
@@ -54,13 +54,24 @@ export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
         dbtDepsErrorHint,
         partialParseBaselinePath,
     }: DbtLocalCredentialsProjectAdapterArgs) {
-        const { profile, environment: injectedEnvironment } = profileFromTarget(
-            dbtTarget,
-            targetName,
-        );
         const profilesDir = fs.mkdtempSync('/tmp/local_');
-        const profilesFilename = path.join(profilesDir, 'profiles.yml');
-        writeFileSync(profilesFilename, profile);
+        let injectedEnvironment: Record<string, string>;
+        try {
+            const {
+                profile,
+                environment: profileEnvironment,
+                files,
+            } = profileFromTarget(dbtTarget, profilesDir, targetName);
+            injectedEnvironment = profileEnvironment;
+            const profilesFilename = path.join(profilesDir, 'profiles.yml');
+            fs.writeFileSync(profilesFilename, profile);
+            files.forEach((file) => {
+                fs.writeFileSync(file.path, file.content, { mode: 0o600 });
+            });
+        } catch (error) {
+            fs.rmSync(profilesDir, { recursive: true, force: true });
+            throw error;
+        }
         const { environment: safeEnvironment, blockedKeys } =
             buildSafeDbtEnvironmentVariables(environment);
         if (blockedKeys.length > 0) {
@@ -96,7 +107,13 @@ export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
 
     async destroy() {
         Logger.debug(`Destroy local project adapter`);
-        await fspromises.rm(this.profilesDir, { recursive: true, force: true });
-        await super.destroy();
+        try {
+            await super.destroy();
+        } finally {
+            await fspromises.rm(this.profilesDir, {
+                recursive: true,
+                force: true,
+            });
+        }
     }
 }

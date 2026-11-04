@@ -77,7 +77,7 @@ const FORBIDDEN_SIGNATURES = [
 // A fresh build is the canonical count; a stale local Vite/rollup cache only ever
 // lowers it, so this exact ceiling never false-fails — only a genuinely new
 // code-generator pushes the total above it.
-const BASELINE = 32;
+const BASELINE = 27;
 
 const regressions = FORBIDDEN_SIGNATURES.map((s) => ({
     ...s,

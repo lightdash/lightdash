@@ -10,6 +10,7 @@ import {
     WarehouseTableType,
     WarehouseTypes,
     type CreateAthenaCredentials,
+    type CreateDatabricksCredentials,
     type CreatePostgresCredentials,
     type CreateSnowflakeCredentials,
     type CreateWarehouseCredentials,
@@ -22,7 +23,6 @@ import { randomUUID } from 'node:crypto';
 import { fromSession } from '../../../auth/account/account';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
-import { OrganizationWarehouseCredentialsModel } from '../../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { UserWarehouseCredentialsModel } from '../../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseConnectionModel } from '../../../models/WarehouseConnectionModel/WarehouseConnectionModel';
@@ -317,11 +317,6 @@ describe('SQL runner catalog by connection on the real schema', () => {
                 },
             },
         } as never);
-        const organizationWarehouseCredentialsModel =
-            new OrganizationWarehouseCredentialsModel({
-                database,
-                encryptionUtil,
-            });
         tablesModel = new WarehouseConnectionTablesModel({ database });
         service = new ProjectService({
             lightdashConfig: lightdashConfigMock,
@@ -337,11 +332,9 @@ describe('SQL runner catalog by connection on the real schema', () => {
                 database,
                 encryptionUtil,
             }),
-            organizationWarehouseCredentialsModel,
             warehouseConnectionModel: new WarehouseConnectionModel({
                 database,
                 encryptionUtil,
-                organizationWarehouseCredentialsModel,
             }),
             warehouseConnectionTablesModel: tablesModel,
         } as never);
@@ -1103,6 +1096,122 @@ describe('SQL runner catalog by connection on the real schema', () => {
             });
             expect(getTablesForDatabase).not.toHaveBeenCalled();
             expect(getAllTables).toHaveBeenCalledOnce();
+        });
+
+        test('returns Snowflake fields using the catalog database case', async () => {
+            const fixture = await createProject({
+                mode: 'multi',
+                withExtra: true,
+                extraCredentials: {
+                    type: WarehouseTypes.SNOWFLAKE,
+                    account: 'example-account',
+                    user: 'user',
+                    password: 'password',
+                    database: 'ANALYTICS',
+                    warehouse: 'REPORTING_WH',
+                    schema: 'PUBLIC',
+                },
+            });
+            const getFields = vi.fn(async () => ({
+                ANALYTICS: {
+                    PUBLIC: {
+                        ORDERS: { ID: DimensionType.NUMBER },
+                    },
+                },
+            }));
+            stubClient({ getFields });
+
+            await expect(
+                service.getConnectionTableFields(
+                    fixture.developer,
+                    fixture.projectUuid,
+                    fixture.extraUuid!,
+                    {
+                        databaseName: 'ANALYTICS',
+                        schemaName: 'PUBLIC',
+                        tableName: 'ORDERS',
+                    },
+                ),
+            ).resolves.toEqual({ ID: DimensionType.NUMBER });
+            expect(getFields).toHaveBeenCalledWith(
+                'ORDERS',
+                'PUBLIC',
+                'ANALYTICS',
+                expect.anything(),
+            );
+        });
+
+        test('uses the exact Postgres catalog key when database names differ only by case', async () => {
+            const fixture = await createProject({
+                mode: 'multi',
+                withExtra: true,
+                extraCredentials: postgresCredentials('analytics'),
+                additionalDatabases: ['ANALYTICS'],
+            });
+            const getFields = vi.fn(async () => ({
+                analytics: {
+                    public: {
+                        orders: { lower: DimensionType.STRING },
+                    },
+                },
+                ANALYTICS: {
+                    public: {
+                        orders: { upper: DimensionType.NUMBER },
+                    },
+                },
+            }));
+            const acquire = stubClient({ getFields });
+
+            await expect(
+                service.getConnectionTableFields(
+                    fixture.developer,
+                    fixture.projectUuid,
+                    fixture.extraUuid!,
+                    {
+                        databaseName: 'ANALYTICS',
+                        schemaName: 'public',
+                        tableName: 'orders',
+                    },
+                ),
+            ).resolves.toEqual({ upper: DimensionType.NUMBER });
+            expect(acquire.mock.calls[0]?.[1]).toMatchObject({
+                dbname: 'ANALYTICS',
+            });
+        });
+
+        test('accepts a Databricks catalog key when listing returns a placeholder', async () => {
+            const databricksCredentials = {
+                type: WarehouseTypes.DATABRICKS,
+                database: 'default',
+                serverHostName: 'example-host',
+                httpPath: '/sql',
+            } as CreateDatabricksCredentials;
+            const fixture = await createProject({
+                mode: 'multi',
+                withExtra: true,
+                extraCredentials: databricksCredentials,
+            });
+            const getFields = vi.fn(async () => ({
+                hive_metastore: {
+                    default: {
+                        orders: { id: DimensionType.NUMBER },
+                    },
+                },
+            }));
+            stubClient({ getFields });
+
+            await expect(
+                service.getConnectionTableFields(
+                    fixture.developer,
+                    fixture.projectUuid,
+                    fixture.extraUuid!,
+                    {
+                        databaseName: 'hive_metastore',
+                        schemaName: 'default',
+                        tableName: 'orders',
+                    },
+                ),
+            ).resolves.toEqual({ id: DimensionType.NUMBER });
         });
 
         test('returns fields for an Athena catalog requested by its database', async () => {

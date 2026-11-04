@@ -1,4 +1,3 @@
-import { FeatureFlags } from '@lightdash/common';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { AiAgentService } from './AiAgentService';
 
@@ -14,7 +13,6 @@ vi.mock('../ai/AiAgentMcpRuntimeClient', () => ({
 type PrivateService = {
     getIsCopilotEnabled: () => Promise<boolean>;
     getAgentSettings: (...args: unknown[]) => Promise<unknown>;
-    canCreateDashboardsInProject: (...args: unknown[]) => Promise<boolean>;
     getAgentRuntimeMcpServers: (...args: unknown[]) => Promise<unknown[]>;
     createAuditedAbility: (...args: unknown[]) => { can: () => boolean };
     getAiAgentDependencies: (
@@ -45,7 +43,6 @@ describe('Document runtime access', () => {
             slack: true,
             trusted: true,
             authorized: true,
-            enabled: true,
             expected: true,
         },
         {
@@ -53,23 +50,13 @@ describe('Document runtime access', () => {
             slack: true,
             trusted: false,
             authorized: true,
-            enabled: true,
             expected: false,
         },
         {
-            name: 'denied ContentAsCode',
+            name: 'no space the user can save in',
             slack: false,
             trusted: true,
             authorized: false,
-            enabled: true,
-            expected: false,
-        },
-        {
-            name: 'disabled Documents flag',
-            slack: false,
-            trusted: true,
-            authorized: true,
-            enabled: false,
             expected: false,
         },
         {
@@ -77,12 +64,11 @@ describe('Document runtime access', () => {
             slack: false,
             trusted: true,
             authorized: true,
-            enabled: true,
             expected: true,
         },
     ])(
         '$name passes effective access to discovery and authoring',
-        async ({ slack, trusted, authorized, enabled, expected }) => {
+        async ({ slack, trusted, authorized, expected }) => {
             const service = new AiAgentService({
                 agentPermissionService: {
                     loadRequest: vi.fn().mockResolvedValue({
@@ -106,7 +92,7 @@ describe('Document runtime access', () => {
                     isAiAgentMemoryEnabled: vi.fn().mockResolvedValue(false),
                 },
                 orgAiCopilotConfigResolver: {
-                    isOrgBedrockRouted: vi.fn().mockResolvedValue(false),
+                    getDecisionClient: vi.fn().mockResolvedValue(undefined),
                 },
                 slackAuthenticationModel: {
                     getInstallationFromOrganizationUuid: vi
@@ -130,22 +116,11 @@ describe('Document runtime access', () => {
                     findLatestProgressByRunUuids: vi.fn().mockResolvedValue([]),
                 },
                 featureFlagService: {
-                    get: vi
-                        .fn()
-                        .mockImplementation(
-                            async ({
-                                featureFlagId,
-                            }: {
-                                featureFlagId: FeatureFlags;
-                            }) => ({
-                                enabled:
-                                    featureFlagId === FeatureFlags.Documents &&
-                                    enabled,
-                            }),
-                        ),
+                    get: vi.fn().mockResolvedValue({ enabled: false }),
                 },
                 aiAgentToolsService: {
                     canGenerateDataApp: vi.fn().mockResolvedValue(false),
+                    canAuthorContent: vi.fn().mockResolvedValue(authorized),
                 },
             } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
             const privateService = service as unknown as PrivateService;
@@ -160,14 +135,10 @@ describe('Document runtime access', () => {
             });
             vi.spyOn(
                 privateService,
-                'canCreateDashboardsInProject',
-            ).mockResolvedValue(false);
-            vi.spyOn(
-                privateService,
                 'getAgentRuntimeMcpServers',
             ).mockResolvedValue([]);
             vi.spyOn(privateService, 'createAuditedAbility').mockReturnValue({
-                can: () => authorized,
+                can: () => true,
             });
             const stopAtDependencies = new Error('Dependency boundary reached');
             const dependencies = vi
@@ -183,6 +154,7 @@ describe('Document runtime access', () => {
                 projectUuid: 'project',
                 promptUuid: 'prompt',
                 threadUuid: 'thread',
+                battleProfile: null,
                 ...(slack ? { slackUserId: 'slack-user' } : {}),
             };
 

@@ -58,10 +58,11 @@ export type PreAggregateStatsFilters = {
 
 export interface PreAggregateStrategy {
     getRoutingDecision(params: {
+        organizationUuid: string;
         metricQuery: MetricQuery;
         explore: Explore;
         context: QueryExecutionContext;
-    }): PreAggregationRoutingDecision;
+    }): Promise<PreAggregationRoutingDecision>;
 
     resolveExecution(params: {
         projectUuid: string;
@@ -71,8 +72,10 @@ export interface PreAggregateStrategy {
         resolveArgs: ResolveExecutionArgs;
     }): Promise<PreAggregateExecutionResolution>;
 
-    // The DuckDB client that reads managed materializations
-    createPreAggregateWarehouseClient(): WarehouseClient;
+    // The DuckDB client that reads the project's managed materializations
+    createPreAggregateWarehouseClient(
+        projectUuid: string,
+    ): Promise<WarehouseClient>;
 
     recordStats(params: {
         projectUuid: string;
@@ -127,7 +130,7 @@ export type PreAggregateExecutionResolution =
 
 /* eslint-disable class-methods-use-this */
 export class NoOpPreAggregateStrategy implements PreAggregateStrategy {
-    getRoutingDecision(): PreAggregationRoutingDecision {
+    async getRoutingDecision(): Promise<PreAggregationRoutingDecision> {
         return { target: 'warehouse' };
     }
 
@@ -135,7 +138,7 @@ export class NoOpPreAggregateStrategy implements PreAggregateStrategy {
         return { resolved: false, reason: 'not_available', isFatal: false };
     }
 
-    createPreAggregateWarehouseClient(): never {
+    async createPreAggregateWarehouseClient(): Promise<never> {
         throw new NotImplementedError(
             'Managed pre-aggregate execution is not available in this edition',
         );

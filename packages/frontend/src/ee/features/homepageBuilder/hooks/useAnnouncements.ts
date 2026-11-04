@@ -6,8 +6,9 @@ import {
     type UpdateAnnouncementRequest,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../../../api';
+import { type LightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 
 export const ANNOUNCEMENTS_QUERY_KEY = 'project_announcements';
 
@@ -19,6 +20,7 @@ type ListOptions = {
 };
 
 const listAnnouncementsApi = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     options: ListOptions,
 ) => {
@@ -39,8 +41,9 @@ const listAnnouncementsApi = async (
 export const useAnnouncements = (
     projectUuid: string,
     options: ListOptions = {},
-) =>
-    useQuery<AnnouncementsPage, ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<AnnouncementsPage, ApiError>({
         queryKey: [
             ANNOUNCEMENTS_QUERY_KEY,
             projectUuid,
@@ -48,11 +51,13 @@ export const useAnnouncements = (
             options.pageSize ?? 25,
             options.includeUnpublished ?? false,
         ],
-        queryFn: () => listAnnouncementsApi(projectUuid, options),
+        queryFn: () => listAnnouncementsApi(lightdashApi, projectUuid, options),
         keepPreviousData: true,
     });
+};
 
 export const useCreateAnnouncement = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
     return useMutation<
@@ -80,6 +85,7 @@ export const useCreateAnnouncement = (projectUuid: string) => {
 };
 
 export const useUpdateAnnouncement = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
     return useMutation<
@@ -107,6 +113,7 @@ export const useUpdateAnnouncement = (projectUuid: string) => {
 };
 
 export const useDeleteAnnouncement = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
     return useMutation<undefined, ApiError, string>({
@@ -130,6 +137,7 @@ export const useDeleteAnnouncement = (projectUuid: string) => {
 };
 
 export const useUploadAnnouncementImage = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
     const { showToastApiError } = useToaster();
     return useMutation<{ url: string }, ApiError, File>({
         mutationFn: (file) =>

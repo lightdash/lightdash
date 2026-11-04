@@ -36,6 +36,8 @@ function useEmbed(): EmbedContext {
             theme: 'light',
             backgroundColor: null,
             timezone: null,
+            aiAgentThreadSetup: null,
+            aiAgentNavigationDisabled: false,
         };
     }
 

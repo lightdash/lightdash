@@ -27,7 +27,6 @@ const slot: AiServiceAccountSlot = Object.freeze({
     updatedAt: new Date(0),
 });
 const sentinel = Object.freeze({ slot, secrets });
-const nullOwner = { credentialUuid: null, generation: null };
 const setup = () => {
     const model = {
         getSecrets: vi.fn().mockResolvedValue(sentinel),
@@ -50,12 +49,7 @@ describe('readSlotWithSecrets', () => {
                 'project-uuid',
                 connection,
             );
-            expect(read.value).toBe(sentinel);
-            expect(read.store).toBe('aiServiceAccount');
-            expect(read.owner).toEqual({
-                credentialUuid: 'slot-uuid',
-                generation: 'generation-uuid',
-            });
+            expect(read).toBe(sentinel);
             expect(model.getSecrets).toHaveBeenCalledTimes(1);
             expect(model.getSecrets.mock.calls[0]).toEqual([
                 'project-uuid',
@@ -70,9 +64,7 @@ describe('readSlotWithSecrets', () => {
         const { model, reader } = setup();
         model.getSecrets.mockResolvedValue(null);
         const read = await reader.readSlotWithSecrets('project-uuid', null);
-        expect(read.value).toBeNull();
-        expect(read.store).toBe('aiServiceAccount');
-        expect(read.owner).toEqual(nullOwner);
+        expect(read).toBeNull();
         expect(model.getSecrets).toHaveBeenCalledTimes(1);
         expect(model.getReplaceableSecrets).not.toHaveBeenCalled();
     });
@@ -87,6 +79,13 @@ describe('readSlotWithSecrets', () => {
         expect(model.getSecrets).toHaveBeenCalledTimes(1);
         expect(model.getReplaceableSecrets).not.toHaveBeenCalled();
     });
+
+    test('returns the promise of the model', () => {
+        const { model, reader } = setup();
+        const promise = Promise.resolve(sentinel);
+        model.getSecrets.mockReturnValue(promise);
+        expect(reader.readSlotWithSecrets('project-uuid', null)).toBe(promise);
+    });
 });
 
 describe('readReplaceableSecrets', () => {
@@ -98,9 +97,7 @@ describe('readReplaceableSecrets', () => {
                 'project-uuid',
                 connection,
             );
-            expect(read.value).toBe(secrets);
-            expect(read.store).toBe('aiServiceAccount');
-            expect(read.owner).toEqual(nullOwner);
+            expect(read).toBe(secrets);
             expect(model.getReplaceableSecrets).toHaveBeenCalledTimes(1);
             expect(model.getReplaceableSecrets.mock.calls[0]).toHaveLength(2);
             expect(model.getReplaceableSecrets.mock.calls[0]).toEqual([
@@ -115,9 +112,7 @@ describe('readReplaceableSecrets', () => {
         const { model, reader } = setup();
         model.getReplaceableSecrets.mockResolvedValue(null);
         const read = await reader.readReplaceableSecrets('project-uuid', null);
-        expect(read.value).toBeNull();
-        expect(read.store).toBe('aiServiceAccount');
-        expect(read.owner).toEqual(nullOwner);
+        expect(read).toBeNull();
         expect(model.getReplaceableSecrets).toHaveBeenCalledTimes(1);
         expect(model.getSecrets).not.toHaveBeenCalled();
     });
@@ -131,5 +126,14 @@ describe('readReplaceableSecrets', () => {
         ).rejects.toBe(error);
         expect(model.getReplaceableSecrets).toHaveBeenCalledTimes(1);
         expect(model.getSecrets).not.toHaveBeenCalled();
+    });
+
+    test('returns the promise of the model', () => {
+        const { model, reader } = setup();
+        const promise = Promise.resolve(secrets);
+        model.getReplaceableSecrets.mockReturnValue(promise);
+        expect(reader.readReplaceableSecrets('project-uuid', null)).toBe(
+            promise,
+        );
     });
 });

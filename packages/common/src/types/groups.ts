@@ -24,6 +24,11 @@ export type ApiGroupAsCodeUpsertResponse = {
     };
 };
 
+export type GroupSort = {
+    sortBy: 'name';
+    sortDirection: 'asc' | 'desc';
+};
+
 export type Group = {
     /**
      * The group's UUID

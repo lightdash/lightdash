@@ -1,15 +1,28 @@
 import {
     AuthorizationError,
     NotFoundError,
+    SupportedDbtVersions,
     UnexpectedGitError,
     UnexpectedServerError,
     type DbtManifest,
     type ExploreError,
 } from '@lightdash/common';
 import { GitError } from 'simple-git';
+import { warehouseClientMock } from '../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { DbtBaseProjectAdapter } from './dbtBaseProjectAdapter';
 import { DbtGitProjectAdapter } from './dbtGitProjectAdapter';
 import { gitErrorHandler } from './gitRepository';
+
+const buildGitAdapter = () => {
+    const adapter = new DbtBaseProjectAdapter(
+        {} as DbtGitProjectAdapter['dbtClient'],
+        warehouseClientMock,
+        { warehouseCatalog: undefined, onWarehouseCatalogChange: vi.fn() },
+        SupportedDbtVersions.V1_7,
+    );
+    Object.setPrototypeOf(adapter, DbtGitProjectAdapter.prototype);
+    return adapter as DbtGitProjectAdapter;
+};
 
 const TOKEN_URL =
     'https://lightdash:ghp_secret_token_123@github.com/org/repo.git';
@@ -97,11 +110,12 @@ describe('Git explore compilation', () => {
     it.each(['prepareExploreStream', 'compileAllExplores'] as const)(
         '%s refreshes the checkout before preparing the compile',
         async (method) => {
-            const adapter = Object.create(
-                DbtGitProjectAdapter.prototype,
-            ) as DbtGitProjectAdapter;
+            const adapter = buildGitAdapter();
             const refresh = vi.fn(async () => undefined);
             Object.defineProperty(adapter, '_refreshRepo', { value: refresh });
+            adapter.dbtClient = {
+                installDeps: vi.fn(async () => undefined),
+            } as unknown as DbtGitProjectAdapter['dbtClient'];
             const explore: ExploreError = {
                 name: 'orders',
                 label: 'Orders',
@@ -146,33 +160,35 @@ describe('Git manifest fetch', () => {
         vi.restoreAllMocks();
     });
 
-    it('adds the checkout refresh time to the dependency and manifest timings', async () => {
-        const adapter = Object.create(
-            DbtGitProjectAdapter.prototype,
-        ) as DbtGitProjectAdapter;
+    it('refreshes and installs dependencies once across two manifest fetches', async () => {
+        const adapter = buildGitAdapter();
         const refresh = vi.fn(async () => {
             vi.advanceTimersByTime(12500);
         });
         Object.defineProperty(adapter, '_refreshRepo', { value: refresh });
         const manifest = { nodes: {} } as unknown as DbtManifest;
-        vi.spyOn(
-            DbtBaseProjectAdapter.prototype,
-            'getDbtManifest',
-        ).mockImplementation(async () => {
-            expect(refresh).toHaveBeenCalledTimes(1);
-            return {
-                manifest,
-                timings: {
-                    gitRefreshMs: null,
-                    depsMs: 2300,
-                    manifestMs: 15300,
-                },
-            };
+        const installDeps = vi.fn(async () => {
+            vi.advanceTimersByTime(2300);
         });
-
+        const getDbtManifest = vi.fn(async () => {
+            vi.advanceTimersByTime(15300);
+            return { manifest };
+        });
+        adapter.dbtClient = {
+            installDeps,
+            getDbtManifest,
+        } as unknown as DbtGitProjectAdapter['dbtClient'];
+        await adapter.prepareDbtSource();
         await expect(adapter.getDbtManifest()).resolves.toEqual({
             manifest,
             timings: { gitRefreshMs: 12500, depsMs: 2300, manifestMs: 15300 },
         });
+        await expect(adapter.getDbtManifest()).resolves.toEqual({
+            manifest,
+            timings: { gitRefreshMs: null, depsMs: null, manifestMs: 15300 },
+        });
+        expect(refresh).toHaveBeenCalledTimes(1);
+        expect(installDeps).toHaveBeenCalledTimes(1);
+        expect(getDbtManifest).toHaveBeenCalledTimes(2);
     });
 });

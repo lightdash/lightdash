@@ -1,4 +1,5 @@
 import {
+    getDashboardFilterableFieldKey,
     getItemId,
     isDashboardDataAppTileType,
     isDashboardFieldTarget,
@@ -45,6 +46,17 @@ export const getTilesOnTab = (
     tabUuid: string,
 ): DashboardTile[] =>
     tiles.filter((tile) => getEffectiveTabUuid(tile, tabs) === tabUuid);
+
+// False while the tile's fields are not loaded: what it offers is not known,
+// which is not the same as offering nothing
+export const isTileFieldKnown = (
+    tile: DashboardTile,
+    fieldsByTile: FieldsByTile,
+    sqlColumnsByTile: SqlColumnsByTile,
+): boolean =>
+    fieldsByTile !== undefined ||
+    isDashboardDataAppTileType(tile) ||
+    isSqlTile(tile, sqlColumnsByTile);
 
 export type FieldCount = { applied: number; possible: number };
 export type TabCount = { applied: number; total: number };
@@ -93,17 +105,69 @@ export const getTileField = (
     return getDefaultTileField(rule, tile, fieldsByTile);
 };
 
-// The field a tile is on. A data app tile that is on is on no particular field
-const getFieldIdOnTile = (
+// The mappings on tiles that exist; with `tiles` undefined (not loaded),
+// every one counts
+const getTileTargets = (
     rule: DashboardFilterRule,
+    tiles: DashboardTile[] | undefined,
+): DashboardFieldTarget[] => {
+    const tileUuids =
+        tiles === undefined ? null : new Set(tiles.map((tile) => tile.uuid));
+    return Object.entries(rule.tileTargets ?? {})
+        .filter(([tileUuid]) => tileUuids === null || tileUuids.has(tileUuid))
+        .map(([, target]) => target)
+        .filter(isDashboardFieldTarget)
+        .filter((target) => target.fieldId !== '');
+};
+
+// A row is a SQL column when the filter's column is it, or only SQL chart
+// tiles are mapped to it; a field of the same id wins
+export const isSqlColumnRow = (
+    rule: DashboardFilterRule,
+    rowId: string,
+): boolean => {
+    if (rule.target.fieldId === rowId) return rule.target.isSqlColumn === true;
+    const targets = getTileTargets(rule, undefined).filter(
+        (target) => target.fieldId === rowId,
+    );
+    return (
+        targets.length > 0 &&
+        targets.every((target) => target.isSqlColumn === true)
+    );
+};
+
+// A SQL column is never a field: the two only match within their own kind
+const isTargetOfKind = (
+    target: DashboardFieldTarget | null,
+    rowId: string,
+    isSqlColumn: boolean,
+): boolean =>
+    target !== null &&
+    target.fieldId === rowId &&
+    (target.isSqlColumn === true) === isSqlColumn;
+
+export const isTargetOnRow = (
+    rule: DashboardFilterRule,
+    target: DashboardFieldTarget | null,
+    rowId: string,
+): boolean => isTargetOfKind(target, rowId, isSqlColumnRow(rule, rowId));
+
+// A data app tile that is on is on no particular row. `isSqlColumn` says the
+// row is a column: SQL chart tiles are mapped to one on a filter of any kind
+const isTileOnRow = (
+    rule: DashboardFilterRule,
+    rowId: string,
     tile: DashboardTile,
     fieldsByTile: FieldsByTile,
-    sqlColumnsByTile: SqlColumnsByTile = {},
-): string | null =>
-    isDashboardDataAppTileType(tile)
-        ? null
-        : (getTileField(rule, tile, fieldsByTile, sqlColumnsByTile)?.fieldId ??
-          null);
+    sqlColumnsByTile: SqlColumnsByTile,
+    isSqlColumn: boolean,
+): boolean =>
+    !isDashboardDataAppTileType(tile) &&
+    isTargetOfKind(
+        getTileField(rule, tile, fieldsByTile, sqlColumnsByTile),
+        rowId,
+        isSqlColumn,
+    );
 
 // Mirrors the shipped invalid state: the tile is mapped to a field or column
 // it does not offer. Null while the tile's fields are not known
@@ -129,32 +193,126 @@ export const getMissingTileFieldId = (
     return doesTileOfferField(tile, fieldId, fieldsByTile) ? null : fieldId;
 };
 
-export const isTileChanged = (
+// Never a field of the filter: a SQL column mapping, or one left behind by
+// a tile that is gone. With `tiles` undefined (not loaded) every one counts
+const getPeerTargets = (
     rule: DashboardFilterRule,
-    tile: DashboardTile,
-    fieldsByTile: FieldsByTile,
-): boolean => {
-    if (rule.tileTargets?.[tile.uuid] === undefined) return false;
-    const current = getTileField(rule, tile, fieldsByTile);
-    const fallback = getDefaultTileField(rule, tile, fieldsByTile);
-    return (current?.fieldId ?? null) !== (fallback?.fieldId ?? null);
-};
-
-// SQL column mappings are per tile and never fields of the filter
-const getPeerTargets = (rule: DashboardFilterRule): DashboardFieldTarget[] =>
-    Object.values(rule.tileTargets ?? {})
-        .filter(isDashboardFieldTarget)
-        .filter((target) => !target.isSqlColumn && target.fieldId !== '');
+    tiles: DashboardTile[] | undefined,
+): DashboardFieldTarget[] =>
+    getTileTargets(rule, tiles).filter((target) => !target.isSqlColumn);
 
 // A placeholder has an empty target, which is never a field
-export const getFilterFields = (rule: DashboardFilterRule): string[] => [
+export const getFilterFields = (
+    rule: DashboardFilterRule,
+    tiles: DashboardTile[] | undefined,
+): string[] => [
     ...new Set(
         [
             rule.target.fieldId,
-            ...getPeerTargets(rule).map((target) => target.fieldId),
+            ...getPeerTargets(rule, tiles).map((target) => target.fieldId),
         ].filter((fieldId) => fieldId !== ''),
     ),
 ];
+
+// What the rail lists: the filter's fields, then the columns SQL chart tiles
+// are mapped to, as the tile cards show them
+export const getFilterRows = (
+    rule: DashboardFilterRule,
+    tiles: DashboardTile[] | undefined,
+): string[] => [
+    ...new Set([
+        ...getFilterFields(rule, tiles),
+        ...getTileTargets(rule, tiles)
+            .filter((target) => target.isSqlColumn === true)
+            .map((target) => target.fieldId),
+    ]),
+];
+
+// The dashboard's fields and metrics by id
+export type FieldsMap = Record<string, DashboardFilterableField | undefined>;
+
+// A chip is a field as a tile's explore labels it, keyed as the shipped bar
+// keys distinct filter fields: two explores can join one table under two
+// labels, so one field id is two chips. A SQL column goes by its reference
+const getFieldRowKey = (
+    fieldId: string,
+    field: DashboardFilterableField | undefined,
+): string => (field ? getDashboardFilterableFieldKey(field) : fieldId);
+
+// A chip: its key, and the field id or column reference it filters by
+export type FilterChip = { key: string; fieldId: string };
+
+// The field id a chip filters by. A key that is no chip (a field cleared off
+// its last tile) is the field a tile labels so; anything else stands for itself
+export const getChipFieldId = (
+    chips: FilterChip[],
+    key: string,
+    fieldsByTile: FieldsByTile,
+): string => {
+    const chip = chips.find((candidate) => candidate.key === key);
+    if (chip !== undefined) return chip.fieldId;
+    const field = Object.values(fieldsByTile ?? {})
+        .flat()
+        .find((candidate) => getDashboardFilterableFieldKey(candidate) === key);
+    return field === undefined ? key : getItemId(field);
+};
+
+// The chip a tile is on for the field: its own explore's, else the dashboard's
+export const getTileRowKey = (
+    tile: DashboardTile,
+    fieldId: string,
+    fieldsByTile: FieldsByTile,
+    fieldsMap: FieldsMap,
+): string =>
+    getFieldRowKey(
+        fieldId,
+        fieldsByTile?.[tile.uuid]?.find(
+            (field) => getItemId(field) === fieldId,
+        ) ?? fieldsMap[fieldId],
+    );
+
+// Whether a chip's counts and actions reach the tile. A key that is only an
+// id (a column, an unknown field) reaches every tile
+export const isTileInRow = (
+    tile: DashboardTile,
+    chip: FilterChip,
+    fieldsByTile: FieldsByTile,
+    fieldsMap: FieldsMap,
+): boolean =>
+    chip.key === chip.fieldId ||
+    getTileRowKey(tile, chip.fieldId, fieldsByTile, fieldsMap) === chip.key;
+
+// The chips: a row per label its tiles give the field, in tile order; a
+// field on no tile is one chip, as the dashboard labels it
+export const getFilterChips = (
+    rule: DashboardFilterRule,
+    tiles: DashboardTile[] | undefined,
+    fieldsByTile: FieldsByTile,
+    fieldsMap: FieldsMap,
+    sqlColumnsByTile: SqlColumnsByTile = {},
+): FilterChip[] =>
+    getFilterRows(rule, tiles).flatMap((fieldId) => {
+        if (isSqlColumnRow(rule, fieldId)) return [{ key: fieldId, fieldId }];
+        const keys = (tiles ?? [])
+            .filter((tile) =>
+                isTileOnRow(
+                    rule,
+                    fieldId,
+                    tile,
+                    fieldsByTile,
+                    sqlColumnsByTile,
+                    false,
+                ),
+            )
+            .map((tile) =>
+                getTileRowKey(tile, fieldId, fieldsByTile, fieldsMap),
+            );
+        return (
+            keys.length > 0
+                ? [...new Set(keys)]
+                : [getFieldRowKey(fieldId, fieldsMap[fieldId])]
+        ).map((key) => ({ key, fieldId }));
+    });
 
 export const getFieldCount = (
     rule: DashboardFilterRule,
@@ -162,10 +320,17 @@ export const getFieldCount = (
     tiles: DashboardTile[],
     fieldsByTile: FieldsByTile,
     sqlColumnsByTile: SqlColumnsByTile = {},
+    isSqlColumn: boolean = isSqlColumnRow(rule, fieldId),
 ): FieldCount => {
     const isOnField = (tile: DashboardTile) =>
-        getFieldIdOnTile(rule, tile, fieldsByTile, sqlColumnsByTile) ===
-        fieldId;
+        isTileOnRow(
+            rule,
+            fieldId,
+            tile,
+            fieldsByTile,
+            sqlColumnsByTile,
+            isSqlColumn,
+        );
     return {
         // A tile on a field it no longer offers still counts as one of its
         // tiles, so applied never exceeds possible
@@ -211,6 +376,10 @@ export const getFieldScope = (
     };
 };
 
+// The tiles an apply would change
+export const getChangeCount = (scope: FieldScope) =>
+    scope.unfiltered + scope.replaced;
+
 const withTileTargets = (
     rule: DashboardFilterRule,
     tileTargets: NonNullable<DashboardFilterRule['tileTargets']>,
@@ -221,6 +390,39 @@ const withTileTargets = (
     return Object.keys(tileTargets).length > 0
         ? { ...rest, tileTargets }
         : rest;
+};
+
+// Field and table both: a query reads the table of the entry it gets
+const isDefaultTileField = (
+    field: DashboardFieldTarget | null,
+    fallback: DashboardFieldTarget | null,
+): boolean =>
+    field === null || fallback === null
+        ? field === fallback
+        : !field.isSqlColumn &&
+          field.fieldId === fallback.fieldId &&
+          field.tableName === fallback.tableName;
+
+// Drops the field entries that equal the tile's default. Exclusions stay, and
+// so does the key: shipped tab code reads both
+export const withoutDefaultTileTargets = (
+    rule: DashboardFilterRule,
+    tiles: DashboardTile[] | undefined,
+    fieldsByTile: FieldsByTile,
+): DashboardFilterRule => {
+    if (tiles === undefined || fieldsByTile === undefined) return rule;
+    const entries = Object.entries(rule.tileTargets ?? {});
+    const kept = entries.filter(([tileUuid, target]) => {
+        const tile = tiles.find(({ uuid }) => uuid === tileUuid);
+        if (tile === undefined || target === false) return true;
+        return !isDefaultTileField(
+            target,
+            getDefaultTileField(rule, tile, fieldsByTile),
+        );
+    });
+    return kept.length === entries.length
+        ? rule
+        : { ...rule, tileTargets: Object.fromEntries(kept) };
 };
 
 export const setTileField = (
@@ -238,37 +440,50 @@ export const setTileField = (
             ([tileUuid]) => tileUuid !== tile.uuid,
         ),
     );
-    if ((field?.fieldId ?? null) === (fallback?.fieldId ?? null)) {
+    // An entry is only dropped when the default is known to say the same
+    if (
+        isTileFieldKnown(tile, fieldsByTile, sqlColumnsByTile) &&
+        isDefaultTileField(field, fallback)
+    ) {
         return withTileTargets(rule, others);
     }
     return withTileTargets(rule, { ...others, [tile.uuid]: field ?? false });
 };
 
-// Moves the tiles this filter is on through another field onto the given one;
-// unfiltered tiles stay as they are
-export const switchTilesToField = (
+// Puts every tile that offers the field (a SQL chart tile that has the
+// column, for a column) on it: no entry, left out or on another field. A data
+// app tile is never touched; it takes the filter as a whole
+export const applyFieldToAllTiles = (
     rule: DashboardFilterRule,
     field: DashboardFieldTarget,
     tiles: DashboardTile[],
     fieldsByTile: FieldsByTile,
     sqlColumnsByTile: SqlColumnsByTile = {},
-): DashboardFilterRule =>
-    tiles
-        .filter((tile) => {
-            if (!doesTileOfferField(tile, field.fieldId, fieldsByTile))
-                return false;
-            const onTile = getTileField(
-                rule,
-                tile,
-                fieldsByTile,
-                sqlColumnsByTile,
-            );
-            return onTile !== null && onTile.fieldId !== field.fieldId;
-        })
+): DashboardFilterRule => {
+    const isSqlColumn = field.isSqlColumn === true;
+    const offers = (tile: DashboardTile) =>
+        isSqlColumn
+            ? (sqlColumnsByTile[tile.uuid] ?? []).some(
+                  (column) => column.reference === field.fieldId,
+              )
+            : doesTileOfferField(tile, field.fieldId, fieldsByTile);
+    return tiles
+        .filter(
+            (tile) =>
+                !isDashboardDataAppTileType(tile) &&
+                offers(tile) &&
+                !isTargetOfKind(
+                    getTileField(rule, tile, fieldsByTile, sqlColumnsByTile),
+                    field.fieldId,
+                    isSqlColumn,
+                ),
+        )
         .reduce(
-            (next, tile) => setTileField(next, tile, field, fieldsByTile),
+            (next, tile) =>
+                setTileField(next, tile, field, fieldsByTile, sqlColumnsByTile),
             rule,
         );
+};
 
 // Maps the field onto every tile that offers it and this filter does not
 // reach yet; tiles already filtered by another field keep that field
@@ -296,13 +511,23 @@ export const removeFieldFromAll = (
     fieldId: string,
     tiles: DashboardTile[],
     fieldsByTile: FieldsByTile,
+    sqlColumnsByTile: SqlColumnsByTile = {},
+    isSqlColumn: boolean = isSqlColumnRow(rule, fieldId),
 ): DashboardFilterRule =>
     tiles
-        .filter(
-            (tile) => getFieldIdOnTile(rule, tile, fieldsByTile) === fieldId,
+        .filter((tile) =>
+            isTileOnRow(
+                rule,
+                fieldId,
+                tile,
+                fieldsByTile,
+                sqlColumnsByTile,
+                isSqlColumn,
+            ),
         )
         .reduce(
-            (next, tile) => setTileField(next, tile, null, fieldsByTile),
+            (next, tile) =>
+                setTileField(next, tile, null, fieldsByTile, sqlColumnsByTile),
             rule,
         );
 
@@ -311,23 +536,42 @@ export const removeField = (
     fieldId: string,
     tiles: DashboardTile[],
     fieldsByTile: FieldsByTile,
+    sqlColumnsByTile: SqlColumnsByTile = {},
 ): DashboardFilterRule => {
     if (fieldId !== rule.target.fieldId) {
+        const isOnField = (entry: unknown) =>
+            isDashboardFieldTarget(entry) &&
+            isTargetOnRow(rule, entry, fieldId);
         const kept = Object.fromEntries(
             Object.entries(rule.tileTargets ?? {}).filter(
-                ([, entry]) =>
-                    !(
-                        isDashboardFieldTarget(entry) &&
-                        entry.fieldId === fieldId
-                    ),
+                ([, entry]) => !isOnField(entry),
             ),
         );
-        return withTileTargets(rule, kept);
+        // Its tiles stop being filtered, as when the first field is removed
+        return tiles
+            .filter((tile) => isOnField(rule.tileTargets?.[tile.uuid]))
+            .reduce(
+                (next, tile) =>
+                    setTileField(
+                        next,
+                        tile,
+                        null,
+                        fieldsByTile,
+                        sqlColumnsByTile,
+                    ),
+                withTileTargets(rule, kept),
+            );
     }
 
-    const promoted = getPeerTargets(rule).find(
-        (target) => target.fieldId !== fieldId,
-    );
+    // The next row takes its place: a field, else a column
+    const promoted =
+        getPeerTargets(rule, tiles).find(
+            (target) => target.fieldId !== fieldId,
+        ) ??
+        getTileTargets(rule, tiles).find(
+            (target) =>
+                target.isSqlColumn === true && target.fieldId !== fieldId,
+        );
     if (promoted === undefined) return rule;
 
     const base: DashboardFilterRule = withTileTargets(
@@ -335,20 +579,20 @@ export const removeField = (
         {},
     );
     return tiles.reduce((next, tile) => {
-        const effective = getTileField(rule, tile, fieldsByTile);
+        const effective = getTileField(
+            rule,
+            tile,
+            fieldsByTile,
+            sqlColumnsByTile,
+        );
+        const write = (field: DashboardFieldTarget | null) =>
+            setTileField(next, tile, field, fieldsByTile, sqlColumnsByTile);
         // A data app tile stays on or off, whatever the first field is
-        if (isDashboardDataAppTileType(tile)) {
-            return setTileField(
-                next,
-                tile,
-                effective === null ? null : promoted,
-                fieldsByTile,
-            );
-        }
-        if (effective?.fieldId === fieldId) {
-            return setTileField(next, tile, null, fieldsByTile);
-        }
-        return setTileField(next, tile, effective, fieldsByTile);
+        if (isDashboardDataAppTileType(tile))
+            return write(effective === null ? null : promoted);
+        return write(
+            isTargetOnRow(rule, effective, fieldId) ? null : effective,
+        );
     }, base);
 };
 
@@ -380,6 +624,25 @@ export const getTabCounts = (
         }),
     );
 
+// Mapping's counts: over the tiles that can take the filter only, so the
+// tabs add up to the mapping row's total
+export const getTakeableTabCounts = (
+    rule: DashboardFilterRule,
+    tiles: DashboardTile[],
+    tabs: DashboardTab[],
+    fieldsByTile: FieldsByTile,
+    sqlColumnsByTile: SqlColumnsByTile = {},
+): Record<string, TabCount> =>
+    getTabCounts(
+        rule,
+        tiles.filter((tile) =>
+            canTileTakeFilter(tile, fieldsByTile, sqlColumnsByTile),
+        ),
+        tabs,
+        fieldsByTile,
+        sqlColumnsByTile,
+    );
+
 // Per tab: how many tiles the given field is on, out of every tile on the tab.
 export const getTabCountsForField = (
     rule: DashboardFilterRule,
@@ -393,8 +656,14 @@ export const getTabCountsForField = (
         tabs.map((tab) => {
             const tabTiles = getTilesOnTab(tiles, tabs, tab.uuid);
             const isOnField = (tile: DashboardTile) =>
-                getFieldIdOnTile(rule, tile, fieldsByTile, sqlColumnsByTile) ===
-                fieldId;
+                isTileOnRow(
+                    rule,
+                    fieldId,
+                    tile,
+                    fieldsByTile,
+                    sqlColumnsByTile,
+                    isSqlColumnRow(rule, fieldId),
+                );
             // Only the tiles that could be on the field, as its card counts
             const canBeOnField = (tile: DashboardTile) =>
                 isOnField(tile) ||

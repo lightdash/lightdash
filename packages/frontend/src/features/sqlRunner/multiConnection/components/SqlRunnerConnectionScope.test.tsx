@@ -16,7 +16,7 @@ import {
     vi,
     type Mock,
 } from 'vitest';
-import { lightdashApi } from '../../../../api';
+import { sharedLightdashApi } from '../../../../api';
 import { renderWithProviders } from '../../../../testing/testUtils';
 import { executeSqlQuery } from '../../../queryRunner/executeQuery';
 import { SqlEditor, SqlEditorView } from '../../components/SqlEditor';
@@ -36,9 +36,7 @@ import { runSqlQuery } from '../../store/thunks';
 import { SqlRunnerConnectionScope } from './SqlRunnerConnectionScope';
 import { SqlRunnerSidebar } from './SqlRunnerSidebar';
 
-vi.mock('../../../../api', () => ({
-    lightdashApi: vi.fn(),
-}));
+vi.mock('../../../../api');
 
 vi.mock('../../../queryRunner/executeQuery', () => ({
     executeSqlQuery: vi.fn(async () => ({
@@ -82,7 +80,7 @@ vi.mock('../../../../components/DataViz/VisualizationConfigPanel', () => ({
     VisualizationConfigPanel: () => null,
 }));
 
-const mockApi = lightdashApi as unknown as Mock;
+const mockApi = sharedLightdashApi as unknown as Mock;
 const projectUuid = 'project-uuid';
 const connectionsUrl = `/projects/${projectUuid}/sqlRunner/connections`;
 const financeFieldsUrl = `${connectionsUrl}/finance-uuid/fields?databaseName=finance&schemaName=public&tableName=ledger`;
@@ -280,6 +278,7 @@ describe('SqlRunnerConnectionScope', () => {
         );
         await waitFor(() =>
             expect(executeSqlQuery).toHaveBeenCalledWith(
+                expect.anything(),
                 projectUuid,
                 'select 1',
                 10,

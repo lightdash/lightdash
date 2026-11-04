@@ -6,6 +6,48 @@ import { type ReactNode } from 'react';
 import { MemoryRouter } from 'react-router';
 import DocumentChartEditorModal from './DocumentChartEditorModal';
 
+vi.mock('../../hooks/useExplore', async () => {
+    const { FieldType, MetricType, SupportedDbtAdapter } =
+        await import('@lightdash/common');
+    const payments = {
+        name: 'payments',
+        label: 'Payments',
+        tags: [],
+        baseTable: 'payments',
+        joinedTables: [],
+        tables: {
+            payments: {
+                name: 'payments',
+                label: 'Payments',
+                database: '',
+                schema: '',
+                sqlTable: 'payments',
+                dimensions: {},
+                metrics: {
+                    count: {
+                        fieldType: FieldType.METRIC,
+                        type: MetricType.COUNT,
+                        name: 'count',
+                        label: 'Payment count',
+                        table: 'payments',
+                        tableLabel: 'Payments',
+                        sql: '',
+                        compiledSql: '',
+                        tablesReferences: [],
+                        hidden: false,
+                    },
+                },
+                lineageGraph: {},
+            },
+        },
+        targetDatabase: SupportedDbtAdapter.POSTGRES,
+    };
+    return {
+        useExplore: (tableName: string | undefined) => ({
+            data: tableName === 'payments' ? payments : undefined,
+        }),
+    };
+});
 vi.mock('../../hooks/useExplorerQueryEffects', () => ({
     useExplorerQueryEffects: () => {},
 }));
@@ -236,4 +278,29 @@ it('ignores a form submission while the query is invalid', async () => {
     const nameInput = screen.getByRole('textbox', { name: 'Chart name' });
     fireEvent.submit(nameInput.closest('form')!);
     expect(apply).not.toHaveBeenCalled();
+});
+
+it('names an unnamed chart after its query and shows that name as the placeholder', async () => {
+    const apply = renderModal(null);
+    fireEvent.click(
+        await screen.findByRole('button', { name: 'Pick payments' }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Select count' }));
+    expect(screen.getByRole('textbox', { name: 'Chart name' })).toHaveAttribute(
+        'placeholder',
+        'Payment count',
+    );
+    const applyButton = screen.getByRole('button', {
+        name: 'Apply to Document',
+    });
+    expect(applyButton).toBeEnabled();
+    fireEvent.click(applyButton);
+    await waitFor(() =>
+        expect(apply).toHaveBeenCalledWith(
+            expect.objectContaining({
+                name: 'Payment count',
+                tableName: 'payments',
+            }),
+        ),
+    );
 });

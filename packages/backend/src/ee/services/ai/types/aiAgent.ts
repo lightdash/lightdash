@@ -18,6 +18,7 @@ import {
     type AiDeepResearchWorkerTask,
     type AiDeepResearchWorkerTaskInput,
     type AiSemanticChartArtifactConfig,
+    type ComposerApiConnection,
 } from '@lightdash/common';
 // eslint-disable-next-line import/extensions
 import { type OAuthClientProvider } from '@modelcontextprotocol/sdk/client/auth.js';
@@ -52,7 +53,6 @@ import {
     EditContentFn,
     EditDbtProjectFn,
     EditProjectContextFn,
-    EditRepoFn,
     ExploreRepoFn,
     ExportCustomChartTypeImageFn,
     FindContentFn,
@@ -67,18 +67,21 @@ import {
     GetPromptFn,
     GetPullRequestDiffFn,
     GetSavedChartFn,
+    GetSqlChartFn,
+    GetThreadComposerNodeColumnsFn,
     GetVerifiedFieldUsageFn,
     IsPromptInterruptedFn,
     IsThreadSqlAutoApprovedFn,
     IterateDataAppFn,
     ListContentFn,
     ListCustomChartTypesFn,
+    ListDataAppConnectionsFn,
     ListDataAppThemesFn,
     ListExploresFn,
     ListKnowledgeDocumentsFn,
     ListProjectsFn,
     ListSqlApprovalDecisionsFn,
-    ListThreadComposerPipelinesFn,
+    ListThreadComposerQueryNodesFn,
     ListWarehouseTablesFn,
     ListWorkstreamsFn,
     LoadAgentSkillFn,
@@ -88,18 +91,19 @@ import {
     RecordMcpToolCallFn,
     RecordPromptDecisionFn,
     RecordSqlApprovalFn,
+    RegisterThreadComposerQueryNodesFn,
     ResolveCustomChartTypeFn,
     ResolveUrlFn,
-    RunAsyncMergeQueryFn,
     RunAsyncQueryFn,
     RunComposerQueriesFn,
     RunSavedChartQueryFn,
+    RunSqlChartQueryFn,
     RunSqlJobFn,
     SearchFieldValuesFn,
     SearchSemanticLayerFn,
     SendFileFn,
     SendSlackBlocksFn,
-    SetupPreviewDeployFn,
+    StoreLoadoutFn,
     StoreReasoningFn,
     StoreToolCallErrorFn,
     StoreToolCallFn,
@@ -139,7 +143,20 @@ export type AiAgentRequestingUser = {
     name: string;
     role: AiAgentRequestingUserRole | null;
     groups: string[];
+    // A service account is shared by everyone using its token.
+    isServiceAccount: boolean;
 };
+
+/** The resource a thread is bound to, resolved for the prompt. The resource is null once it no longer exists. */
+export type AiAgentThreadBindingContext =
+    | {
+          type: 'dashboard';
+          dashboard: { name: string; slug: string } | null;
+      }
+    | {
+          type: 'chart';
+          chart: { name: string; slug: string } | null;
+      };
 
 /**
  * The structured role a deep-research call plays. Absent for the legacy
@@ -238,6 +255,9 @@ export type AiAgentArgs = AnyAiModel & {
     externalUserId: string | null;
     agentSettings: AiAgent;
     requestingUser: AiAgentRequestingUser | null;
+    threadBinding: AiAgentThreadBindingContext | null;
+    // User-supplied background set when the thread was created.
+    threadContext: string | null;
     knowledgeDocuments: AiAgentDocumentContext[];
     deepResearchRuns: AiAgentDeepResearchRunContext[];
     projectContext: ProjectContextEntry[];
@@ -256,6 +276,8 @@ export type AiAgentArgs = AnyAiModel & {
     telemetryEnabled: boolean;
     enableDataAccess: boolean;
     enableSelfImprovement: boolean;
+    // Content setting on; read tools enforce view access per item, so authoring isn't required.
+    enableContentReads: boolean;
     enableContentTools: boolean;
     enableDocuments: boolean;
     // Data apps enabled + user may create them + content tools (trusted identity).
@@ -267,17 +289,11 @@ export type AiAgentArgs = AnyAiModel & {
     // Which GitHub identity a writeback PR would be attributed to (advisory,
     // resolved at prompt-assembly time). null when not applicable/unresolved.
     writebackAttribution: AiWritebackAttribution | null;
-    enablePreviewDeploySetup: boolean;
     enableRepoDiscovery: boolean;
     // The thread owns at least one attached document, so readAttachments is
     // registered.
     enableReadAttachments: boolean;
-    enableMergeQueries: boolean;
     enableFilterExpressions: boolean;
-    // Whether the general-purpose coding agent (`editRepo`) is available — the
-    // CodingAgent flag, the org has a writable Git installation, and (in Slack)
-    // a trusted prompt identity. Independent of enableAiWriteback.
-    enableCodingAgent: boolean;
     // dbt project root within the repo (from project_sub_path); '.' = repo root,
     // null when repo discovery is off or the project is not git-backed.
     repoFsRoot: string | null;
@@ -285,13 +301,18 @@ export type AiAgentArgs = AnyAiModel & {
     // Drives whether the prompt tells the agent to use `search`.
     repoFsSupportsCodeSearch: boolean;
     canRunSql: boolean;
-    // Whether the runComposerQueries tool (multi-source pipelines) is
-    // available: the MultiSourceQuery flag + data access, web chat only in v0.
+    // Whether the composer query tool is the query path: composer flags, data
+    // access and the agent's enableComposerQueries opt-in.
     enableComposerQueries: boolean;
+    // Project API connections composer api nodes may query; empty disables them.
+    composerApiConnections: ComposerApiConnection[];
     // Whether the user can save a generated dashboard anywhere in the project.
     // Gates generateDashboard so the agent does not build one the user is then
     // refused permission to keep.
     canCreateDashboards: boolean;
+    // Gates createScheduledDelivery the same way, so a role without
+    // create:ScheduledDeliveries keeps content tools but loses scheduling.
+    canCreateScheduledDeliveries: boolean;
     autoApproveSql: boolean;
     autoApproveSqlUserUuid: string | null;
     // When the modern Slack streaming card is driving progress, tools render
@@ -305,7 +326,16 @@ export type AiAgentArgs = AnyAiModel & {
     slackLinksOnly: boolean;
     warehouseType: WarehouseTypes | null;
     warehouseSchema: string | null;
-    availableSkills: AiAgentSkillReference[];
+    warehouseConnections?: {
+        name: string;
+        warehouseConnectionUuid: string | null;
+        warehouseType: WarehouseTypes;
+        isOriginal: boolean;
+    }[];
+    /** Agent-available built-in skills; the run lists those in `loadout.skills`. */
+    builtInSkills: AiAgentSkillReference[];
+    /** Model-servable custom skills bound to the agent. */
+    customSkills: AiAgentSkillReference[];
     modelReasoningEnabled: boolean | null;
 
     toolDescriptionMaxChars: number;
@@ -313,7 +343,6 @@ export type AiAgentArgs = AnyAiModel & {
     maxQueryLimit: number;
     runSqlMaxLimit: number;
     sqlScope?: AgentSqlScope | null;
-    hyphenatedIdentifiers: boolean;
     /** Rows of a query result written into model context; the query keeps the rest. */
     maxContextRows: number;
     siteUrl: string;
@@ -380,8 +409,8 @@ export type AiAgentDependencies = {
     searchSemanticLayer: SearchSemanticLayerFn;
     analyzeFieldImpact: AnalyzeFieldImpactFn;
     runAsyncQuery: RunAsyncQueryFn;
-    runAsyncMergeQuery: RunAsyncMergeQueryFn;
     runSavedChartQuery: RunSavedChartQueryFn;
+    runSqlChartQuery: RunSqlChartQueryFn;
     runSqlJob: RunSqlJobFn;
     runComposerQueries: RunComposerQueriesFn;
     listWarehouseTables: ListWarehouseTablesFn;
@@ -391,6 +420,7 @@ export type AiAgentDependencies = {
     readPinnedThread: ReadPinnedThreadFn;
     readAttachments: ReadAttachmentsFn;
     getSavedChart: GetSavedChartFn;
+    getSqlChart: GetSqlChartFn;
     getPrompt: GetPromptFn;
     sendFile: SendFileFn;
     deferSlackVisualization?: import('./aiAgentDependencies').DeferSlackVisualizationFn;
@@ -404,20 +434,22 @@ export type AiAgentDependencies = {
     storeToolResults: StoreToolResultsFn;
     recordMcpToolCall: RecordMcpToolCallFn;
     storeReasoning: StoreReasoningFn;
+    storeLoadout: StoreLoadoutFn;
     isPromptInterrupted: IsPromptInterruptedFn;
     consumePromptSteers: ConsumePromptSteersFn;
     searchFieldValues: SearchFieldValuesFn;
     trackEvent: TrackEventFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
-    listThreadComposerPipelines: ListThreadComposerPipelinesFn;
+    listThreadComposerQueryNodes: ListThreadComposerQueryNodesFn;
+    getThreadComposerNodeColumns: GetThreadComposerNodeColumnsFn;
+    registerThreadComposerQueryNodes: RegisterThreadComposerQueryNodesFn;
     generateDataApp: GenerateDataAppFn;
     iterateDataApp: IterateDataAppFn;
     listDataAppThemes: ListDataAppThemesFn;
+    listDataAppConnections: ListDataAppConnectionsFn;
     editDbtProject: EditDbtProjectFn;
     editProjectContext: EditProjectContextFn;
-    editRepo: EditRepoFn;
     syncDbtProject: SyncDbtProjectFn;
-    setupPreviewDeploy: SetupPreviewDeployFn;
     exploreRepo: ExploreRepoFn;
     discoverRepos: DiscoverReposFn;
     listWorkstreams: ListWorkstreamsFn;

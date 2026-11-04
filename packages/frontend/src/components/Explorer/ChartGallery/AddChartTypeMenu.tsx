@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type FC } from 'react';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
 import ChartTypeLibraryModal from '../../../features/chartTypes/components/ChartTypeLibraryModal';
+import { useChartStudioAvailable } from '../../../features/chartTypes/hooks/useChartStudioAvailable';
 import { getDataAppVisualization } from '../../../features/chartTypes/hooks/useDataAppVisualization';
 import {
     explorerActions,
@@ -14,12 +15,14 @@ import {
 } from '../../../features/explorer/store';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import MantineIcon from '../../common/MantineIcon';
-import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
+import { useVisualizationInputs } from '../../LightdashVisualization/useVisualizationContext';
 import { useSelectProjectChartType } from '../../VisualizationConfigs/CustomChartType/useSelectProjectChartType';
 import { ProvenanceGlyph } from './ChartTypeGallery';
 
 const AddChartTypeMenu: FC = () => {
+    const lightdashApi = useLightdashApi();
     const projectUuid = useProjectUuid();
     const dispatch = useExplorerDispatch();
     const store = useExplorerStore();
@@ -32,17 +35,15 @@ const AddChartTypeMenu: FC = () => {
         [projectUuid],
     );
     const [isLibraryOpen, setIsLibraryOpen] = useState(false);
-    const dataAppsEnabled =
-        useServerFeatureFlag(FeatureFlags.EnableDataApps).data?.enabled ===
-        true;
+    const chartStudioAvailable = useChartStudioAvailable();
     const libraryEnabled =
         useServerFeatureFlag(FeatureFlags.ChartTypeRegistry).data?.enabled ===
         true;
     const canCreateChartType = useCanCreateDataApp(projectUuid);
-    const { itemsMap } = useVisualizationContext();
+    const { itemsMap } = useVisualizationInputs();
     const selectProjectChartType = useSelectProjectChartType();
     const onCreateNew =
-        dataAppsEnabled && canCreateChartType
+        chartStudioAvailable && canCreateChartType
             ? () =>
                   dispatch(
                       explorerActions.startChartTypeAuthoring({
@@ -171,6 +172,7 @@ const AddChartTypeMenu: FC = () => {
                                 ],
                                 queryFn: () =>
                                     getDataAppVisualization(
+                                        lightdashApi,
                                         projectUuid,
                                         appUuid,
                                         null,

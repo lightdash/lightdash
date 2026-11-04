@@ -188,6 +188,8 @@ export class SavedSqlModel {
         projectUuid?: string;
         deleted?: boolean;
     }) {
+        // Lateral top-1 keeps the planner from hashing every version row;
+        // the version uuid tiebreak matches getLatestVersionWarehouseConnectionUuid.
         return this.database
             .from(SavedSqlTableName)
             .leftJoin(DashboardsTableName, function nonDeletedDashboardJoin() {
@@ -218,10 +220,18 @@ export class SavedSqlModel {
                 `${OrganizationTableName}.organization_id`,
                 `${ProjectTableName}.organization_id`,
             )
-            .innerJoin(
-                SavedSqlVersionsTableName,
-                `${SavedSqlTableName}.saved_sql_uuid`,
-                `${SavedSqlVersionsTableName}.saved_sql_uuid`,
+            .joinRaw(
+                `INNER JOIN LATERAL (
+                    SELECT * FROM ?? AS latest_version
+                    WHERE latest_version.saved_sql_uuid = ??
+                    ORDER BY latest_version.created_at DESC, latest_version.saved_sql_version_uuid DESC
+                    LIMIT 1
+                ) AS ?? ON TRUE`,
+                [
+                    SavedSqlVersionsTableName,
+                    `${SavedSqlTableName}.saved_sql_uuid`,
+                    SavedSqlVersionsTableName,
+                ],
             )
             .leftJoin(
                 `${UserTableName} as createdByUser`,
@@ -296,21 +306,6 @@ export class SavedSqlModel {
                         options.projectUuid,
                     );
                 }
-
-                // Required filter to join only the latest version
-                void builder.where(
-                    `${SavedSqlVersionsTableName}.created_at`,
-                    '=',
-                    this.database
-                        .from(SavedSqlVersionsTableName)
-                        .max('created_at')
-                        .where(
-                            `${SavedSqlVersionsTableName}.saved_sql_uuid`,
-                            this.database.ref(
-                                `${SavedSqlTableName}.saved_sql_uuid`,
-                            ),
-                        ),
-                );
             })
             .orderBy(`${SavedSqlVersionsTableName}.created_at`, 'desc');
     }

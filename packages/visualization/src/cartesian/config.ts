@@ -342,7 +342,9 @@ export function getXAxisSortConfig(
 }
 
 export const EMPTY_CARTESIAN_CHART_CONFIG: CartesianChart = {
-    layout: {},
+    layout: {
+        showIncompletePeriod: true, // Applies to new charts only. Saved charts without the setting keep it off.
+    },
     eChartsConfig: {
         showAxisTicks: false, // New charts default to hiding tick lines
     },

@@ -9,11 +9,12 @@ export const isBitbucketCloudConnection = (
             'bitbucket.org');
 
 export const getWritebackConnectionSupport = (connection: DbtProjectConfig) => {
-    const editRepo =
+    const supportsProjectContext =
         connection.type === DbtProjectType.GITHUB ||
         connection.type === DbtProjectType.GITLAB;
     return {
-        editRepo,
-        editDbtProject: editRepo || isBitbucketCloudConnection(connection),
+        supportsProjectContext,
+        editDbtProject:
+            supportsProjectContext || isBitbucketCloudConnection(connection),
     };
 };

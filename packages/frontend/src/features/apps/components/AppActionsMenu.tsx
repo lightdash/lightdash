@@ -6,7 +6,6 @@ import {
     type ApiDuplicateAppResponse,
     type AppVersionStatus,
     type ContentVerificationInfo,
-    type DataAppAutoAnalysis,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -19,7 +18,6 @@ import {
 import {
     IconArrowsUpDown,
     IconCamera,
-    IconCheck,
     IconCircleCheck,
     IconCircleCheckFilled,
     IconCirclesRelation,
@@ -57,7 +55,6 @@ import {
 } from '../../directAccess';
 import { AppSchedulersModal } from '../../scheduler/components/SchedulerModals';
 import { AppSyncModal } from '../../sync/components';
-import { useDataAppAnalysisAvailability } from '../analysis/useDataAppAnalysisAvailability';
 import {
     refreshAppThumbnailQueries,
     useAppThumbnailDelete,
@@ -66,9 +63,9 @@ import {
 } from '../hooks/useAppThumbnail';
 import { useCanCreateDataApp } from '../hooks/useCanCreateDataApp';
 import { useCanEditVerifiedDataApp } from '../hooks/useCanEditDataApp';
+import { useDataAppCapturesEnabled } from '../hooks/useDataAppCapturesEnabled';
 import { useDuplicateApp } from '../hooks/useDuplicateApp';
 import { type SdkUpgradeOffer } from '../hooks/useSdkUpgradeStatus';
-import { useUpdateApp } from '../hooks/useUpdateApp';
 import AppUpgradeModal from './AppUpgradeModal';
 import { MoveAppToSpaceModal } from './MoveAppToSpaceModal';
 import { PromoteAppModal } from './PromoteAppModal';
@@ -81,9 +78,6 @@ export type AppActionsMenuProps = {
     appSpaceUuid: string | null;
     appCreatedByUserUuid: string | null;
     verification: ContentVerificationInfo | null;
-    /** The app's analyse-on-load choice; null hides the control (unknown, or
-     *  a surface that does not load the app record). */
-    autoAnalysis?: DataAppAutoAnalysis | null;
     /** The latest ready version's number + status — used by the favorite flow
      *  and to gate the Promote action. */
     latestVersionNumber: number | null;
@@ -138,12 +132,6 @@ export type AppActionsMenuProps = {
     };
 };
 
-const AUTO_ANALYSIS_OPTIONS: { value: DataAppAutoAnalysis; label: string }[] = [
-    { value: 'inherit', label: 'Use organization default' },
-    { value: 'on', label: 'On' },
-    { value: 'off', label: 'Off' },
-];
-
 /**
  * Walkthrough action for manage:DataApp: duplicating the seeded app makes
  * one of the learner's own; adding it to a space then shares it.
@@ -179,7 +167,6 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
     appSpaceUuid,
     appCreatedByUserUuid,
     verification,
-    autoAnalysis = null,
     latestVersionNumber,
     latestVersionStatus,
     viewNetwork,
@@ -247,11 +234,20 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
     // is deferred until the menu first opens; invalidations from captures
     // keep it current afterwards. The error guard matters because
     // react-query keeps stale data when a refetch fails.
+    //
+    // While the org has captures off, "Capture thumbnail" is hidden and the
+    // thumbnail URLs answer 404 whether or not an image is stored, so the
+    // existence check is skipped and removal stays available: deleting is
+    // the one thumbnail action that must still work with captures off.
+    const capturesEnabled = useDataAppCapturesEnabled();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
     const [menuOpened, setMenuOpened] = useState(false);
     const checksThumbnail =
-        menuOpened && canEditVerified && captureThumbnail !== null;
+        menuOpened &&
+        canEditVerified &&
+        captureThumbnail !== null &&
+        capturesEnabled;
     // The app's thumbnail is its latest ready version's, so any other version
     // on screen is asked about directly.
     const isViewingAnotherVersion =
@@ -301,23 +297,6 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
         showToastSuccess,
         showToastError,
     ]);
-
-    const analysisAvailability = useDataAppAnalysisAvailability();
-    const showAutoAnalysis =
-        autoAnalysis !== null &&
-        canEditVerified &&
-        (analysisAvailability.status === 'available' ||
-            (analysisAvailability.status === 'unavailable' &&
-                analysisAvailability.reason !== 'not_rolled_out'));
-    const orgAutoAnalyses =
-        analysisAvailability.status === 'available' &&
-        analysisAvailability.autoAnalyseDefault;
-    const { mutate: updateApp } = useUpdateApp({ appUuidOrSlug: appUuid });
-    const setAutoAnalysis = useCallback(
-        (value: DataAppAutoAnalysis) =>
-            updateApp({ projectUuid, appUuid, autoAnalysis: value }),
-        [updateApp, projectUuid, appUuid],
-    );
 
     const [schedulerModalOpen, setSchedulerModalOpen] = useState(false);
     const [syncModalOpen, setSyncModalOpen] = useState(false);
@@ -516,62 +495,30 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
                             Rename
                         </Menu.Item>
                     )}
-                    {showAutoAnalysis && (
-                        <Menu.Sub>
-                            <Menu.Sub.Target>
-                                <Menu.Sub.Item
+                    {canEditVerified && captureThumbnail && (
+                        <>
+                            {capturesEnabled && (
+                                <Menu.Item
                                     leftSection={
                                         <MantineIcon
-                                            icon={IconSparkles}
+                                            icon={IconCamera}
                                             size={14}
                                         />
                                     }
+                                    disabled={captureThumbnail.disabled}
+                                    onClick={captureThumbnail.onCapture}
                                 >
-                                    Analyse on load
-                                </Menu.Sub.Item>
-                            </Menu.Sub.Target>
-                            <Menu.Sub.Dropdown>
-                                {AUTO_ANALYSIS_OPTIONS.map((option) => (
-                                    <Menu.Item
-                                        key={option.value}
-                                        onClick={() =>
-                                            setAutoAnalysis(option.value)
-                                        }
-                                        rightSection={
-                                            autoAnalysis === option.value ? (
-                                                <MantineIcon
-                                                    icon={IconCheck}
-                                                    size={14}
-                                                />
-                                            ) : null
-                                        }
-                                    >
-                                        {option.value === 'inherit'
-                                            ? `Use organization default (${
-                                                  orgAutoAnalyses ? 'on' : 'off'
-                                              })`
-                                            : option.label}
-                                    </Menu.Item>
-                                ))}
-                            </Menu.Sub.Dropdown>
-                        </Menu.Sub>
-                    )}
-                    {canEditVerified && captureThumbnail && (
-                        <>
-                            <Menu.Item
-                                leftSection={
-                                    <MantineIcon icon={IconCamera} size={14} />
-                                }
-                                disabled={captureThumbnail.disabled}
-                                onClick={captureThumbnail.onCapture}
-                            >
-                                Capture thumbnail
-                            </Menu.Item>
+                                    Capture thumbnail
+                                </Menu.Item>
+                            )}
                             <Menu.Item
                                 leftSection={
                                     <MantineIcon icon={IconPhotoX} size={14} />
                                 }
-                                disabled={!hasThumbnail || isDeletingThumbnail}
+                                disabled={
+                                    (capturesEnabled && !hasThumbnail) ||
+                                    isDeletingThumbnail
+                                }
                                 onClick={() => void handleRemoveThumbnail()}
                             >
                                 Remove thumbnail

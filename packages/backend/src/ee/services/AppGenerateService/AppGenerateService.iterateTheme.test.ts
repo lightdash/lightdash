@@ -448,3 +448,67 @@ describe('Agent build job markers', () => {
         },
     );
 });
+
+describe('AppGenerateService.iterateApp with external connections', () => {
+    const withConnectionModel = (service: AppGenerateService) => {
+        const externalConnectionModel = {
+            findByUuid: vi.fn().mockResolvedValue({
+                externalConnectionUuid: 'conn-1',
+                projectUuid: 'project-1',
+                organizationUuid: 'org-1',
+                name: 'Amplitude',
+                allowDataAppBuilderLinking: true,
+            }),
+            linkToApp: vi.fn().mockResolvedValue(undefined),
+        };
+        Object.assign(service, { externalConnectionModel });
+        return externalConnectionModel;
+    };
+
+    const iterate = (service: AppGenerateService) =>
+        service.iterateApp(
+            USER,
+            'project-1',
+            'app-1',
+            'Add Amplitude events',
+            [],
+            undefined,
+            undefined,
+            undefined,
+            {
+                creationExperience: 'mcp',
+                externalConnections: [
+                    { externalConnectionUuid: 'conn-1', alias: 'amplitude' },
+                ],
+            },
+        );
+
+    it('links the connections when the version starts', async () => {
+        const { service } = buildService();
+        const externalConnectionModel = withConnectionModel(service);
+
+        await iterate(service);
+
+        expect(externalConnectionModel.linkToApp).toHaveBeenCalledWith(
+            'app-1',
+            'conn-1',
+            'amplitude',
+        );
+    });
+
+    it('links nothing when a version is already building', async () => {
+        const { service, appModel } = buildService();
+        const externalConnectionModel = withConnectionModel(service);
+        appModel.getLatestVersion.mockResolvedValue({
+            version: 1,
+            status: 'generating',
+            dependencies: null,
+            created_at: new Date(),
+        });
+
+        await expect(iterate(service)).rejects.toThrow(
+            'A version is already building for this app',
+        );
+        expect(externalConnectionModel.linkToApp).not.toHaveBeenCalled();
+    });
+});

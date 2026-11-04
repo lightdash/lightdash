@@ -8,6 +8,16 @@
     padding: 0 rem(4px) 0 rem(12px);
 }
 
+.headerCopy {
+    opacity: 0;
+    transition: opacity 120ms ease;
+}
+
+.header:hover .headerCopy,
+.header:focus-within .headerCopy {
+    opacity: 1;
+}
+
 /* Leading ellipsis: the table name matters more than its schema */
 .pathPrefix {
     flex: 0 1 auto;

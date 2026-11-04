@@ -251,7 +251,31 @@ const registerContentAccessTests = (
             });
         });
 
-        it.each(['../dashboard', 'UPPERCASE', '', 'a'.repeat(256)])(
+        it('renames a dashboard whose current slug is longer than any file name allows', async () => {
+            const service = buildService();
+            const from = `${'quarterly-revenue-'.repeat(15)}by-region`;
+            vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue({
+                uuid: 'dashboard-uuid',
+                slug: from,
+                spaceUuid: SPACE_UUID,
+            } as AnyType);
+            await service.renameContentSlug(
+                makeUser([
+                    { subject: 'ContentAsCode', action: 'create' },
+                    {
+                        subject: 'Dashboard',
+                        action: 'update',
+                        conditions: { projectUuid: PROJECT_UUID },
+                    },
+                ]),
+                PROJECT_UUID,
+                { ...request, from },
+            );
+            expect(from.length).toBeGreaterThan(255);
+            expect(service.dashboardModel.renameSlug).toHaveBeenCalledOnce();
+        });
+
+        it.each(['../dashboard', 'UPPERCASE', '', 'a'.repeat(201)])(
             'rejects malformed target %s before looking up a dashboard',
             async (to) => {
                 const service = buildService();
@@ -317,6 +341,45 @@ const registerContentAccessTests = (
                 chartAsCode,
             ),
         ).resolves.toMatchObject({ charts: [{ action: 'create' }] });
+    });
+
+    const spaceOnlyRules: RawRuleOf<Ability<PossibleAbilities>>[] = [
+        {
+            subject: 'SavedChart',
+            action: 'create',
+            conditions: { projectUuid: PROJECT_UUID },
+        },
+    ];
+
+    it('lets agent surfaces create charts on space access alone', async () => {
+        const service = buildService();
+        prepareChartCreate(service);
+
+        await expect(
+            service.upsertChart(
+                makeUser(spaceOnlyRules),
+                PROJECT_UUID,
+                chartAsCode.slug,
+                chartAsCode,
+                { authorization: 'space_access' },
+            ),
+        ).resolves.toMatchObject({ charts: [{ action: 'create' }] });
+    });
+
+    it('still requires the content-as-code scope for uploads', async () => {
+        const service = buildService();
+        prepareChartCreate(service);
+
+        await expect(
+            service.upsertChart(
+                makeUser(spaceOnlyRules),
+                PROJECT_UUID,
+                chartAsCode.slug,
+                chartAsCode,
+            ),
+        ).rejects.toThrow(
+            'You don\'t have permission to upload content as code to this project (content slug "chart")',
+        );
     });
 
     it('allows write-only callers to create formula table calculations', async () => {

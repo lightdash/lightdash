@@ -2,6 +2,7 @@ import { type AgentOnboardingRun } from '@lightdash/common';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
+import { mockedLightdashApi } from '../../../../testing/mockedLightdashApi';
 import {
     useCancelAgentOnboardingRun,
     useStartAgentOnboardingRun,
@@ -23,9 +24,9 @@ const run: AgentOnboardingRun = {
     completedAt: null,
 };
 
-const lightdashApi = vi.hoisted(() => vi.fn());
+const lightdashApi = mockedLightdashApi;
 
-vi.mock('../../../../api', () => ({ lightdashApi }));
+vi.mock('../../../../api');
 
 vi.mock('../../../../hooks/toaster/useToaster', () => ({
     default: () => ({ showToastApiError: vi.fn() }),

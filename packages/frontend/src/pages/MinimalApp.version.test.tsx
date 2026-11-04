@@ -38,44 +38,45 @@ vi.mock('../hooks/useServerOrClientFeatureFlag', () => ({
 
 // Stands in for the server: the app read pages versions newest first and 404s
 // when nothing matches, and a preview token is minted for whatever is asked.
-vi.mock('../api', () => ({
-    lightdashApi: vi.fn(async ({ url }: { url: string }) => {
-        const { pathname, searchParams } = new URL(url, 'http://server');
-        const tokenMatch = pathname.match(/\/versions\/(\d+)\/preview-token$/);
-        if (tokenMatch) return { token: `token-v${tokenMatch[1]}` };
+vi.mock('../api');
 
-        const beforeVersion = searchParams.get('beforeVersion');
-        const limit = Number(searchParams.get('limit'));
-        const all = Object.entries(mocks.versions)
-            .map(([version, status]) => ({ version: Number(version), status }))
-            .sort((a, b) => b.version - a.version);
-        const matching = all.filter(
-            (v) => beforeVersion === null || v.version < Number(beforeVersion),
-        );
-        if (beforeVersion !== null && matching.length === 0) {
-            // eslint-disable-next-line @typescript-eslint/no-throw-literal
-            throw {
-                status: 'error',
-                error: {
-                    statusCode: 404,
-                    name: 'NotFoundError',
-                    message: 'App not found',
-                    data: {},
-                },
-            };
-        }
-        return {
-            appUuid: 'app-uuid',
-            versions: matching.slice(0, limit),
-            hasMore: matching.length > limit,
-            latestReadyVersion:
-                all.find((v) => v.status === 'ready')?.version ?? null,
-        };
-    }),
-}));
-
+import { mockedLightdashApi } from '../testing/mockedLightdashApi';
 // eslint-disable-next-line import/first
 import MinimalApp from './MinimalApp';
+
+mockedLightdashApi.mockImplementation(async ({ url }: { url: string }) => {
+    const { pathname, searchParams } = new URL(url, 'http://server');
+    const tokenMatch = pathname.match(/\/versions\/(\d+)\/preview-token$/);
+    if (tokenMatch) return { token: `token-v${tokenMatch[1]}` };
+
+    const beforeVersion = searchParams.get('beforeVersion');
+    const limit = Number(searchParams.get('limit'));
+    const all = Object.entries(mocks.versions)
+        .map(([version, status]) => ({ version: Number(version), status }))
+        .sort((a, b) => b.version - a.version);
+    const matching = all.filter(
+        (v) => beforeVersion === null || v.version < Number(beforeVersion),
+    );
+    if (beforeVersion !== null && matching.length === 0) {
+        // eslint-disable-next-line @typescript-eslint/no-throw-literal
+        throw {
+            status: 'error',
+            error: {
+                statusCode: 404,
+                name: 'NotFoundError',
+                message: 'App not found',
+                data: {},
+            },
+        };
+    }
+    return {
+        appUuid: 'app-uuid',
+        versions: matching.slice(0, limit),
+        hasMore: matching.length > limit,
+        latestReadyVersion:
+            all.find((v) => v.status === 'ready')?.version ?? null,
+    };
+});
 
 const setVersions = (versions: Record<number, AppVersionStatus>) => {
     mocks.versions = versions;

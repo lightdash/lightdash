@@ -1,0 +1,80 @@
+version: 2
+models:
+  - name: uses_public
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics:
+          row_count:
+            type: count
+            sql: ${TABLE}.id
+    columns:
+      - name: id
+        meta:
+          dimension:
+            type: number
+  - name: uses_versioned
+    access: public
+    config:
+      meta:
+        primary_key: product_id
+        metrics:
+          row_count:
+            type: count
+            sql: ${TABLE}.product_id
+    columns:
+      - name: product_id
+        meta:
+          dimension:
+            type: number
+      - name: product_name
+        meta:
+          dimension:
+            type: string
+  - name: uses_versioned_latest
+    access: public
+    config:
+      meta:
+        primary_key: product_id
+        metrics:
+          row_count:
+            type: count
+            sql: ${TABLE}.product_id
+    columns:
+      - name: product_id
+        meta:
+          dimension:
+            type: number
+      - name: product_name
+        meta:
+          dimension:
+            type: string
+  - name: uses_protected
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics:
+          row_count:
+            type: count
+            sql: ${TABLE}.id
+    columns:
+      - name: id
+        meta:
+          dimension:
+            type: number
+  - name: uses_private
+    access: public
+    config:
+      meta:
+        primary_key: id
+        metrics:
+          row_count:
+            type: count
+            sql: ${TABLE}.id
+    columns:
+      - name: id
+        meta:
+          dimension:
+            type: number

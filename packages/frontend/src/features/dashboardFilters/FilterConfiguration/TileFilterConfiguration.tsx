@@ -38,10 +38,17 @@ import FieldSelect from '../../../components/common/FieldSelect';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getChartIcon } from '../../../components/common/ResourceIcon/utils';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
-import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
+import {
+    selectSqlChartTilesMetadata,
+    useDashboardSelector,
+} from '../../dashboard/store';
 import { FilterActions } from './constants';
 import classes from './FilterConfiguration.module.css';
-import { getFilterTileRelation, getValidSqlColumnReferences } from './utils';
+import {
+    getFilterTileRelation,
+    getTileFieldOptions,
+    getValidSqlColumnReferences,
+} from './utils';
 
 type TileWithTargetFields = {
     targetType: 'field';
@@ -122,8 +129,8 @@ const TileFilterConfiguration: FC<Props> = ({
     const [collapsedTabs, setCollapsedTabs] = useState<Record<string, boolean>>(
         {},
     );
-    const sqlChartTilesMetadata = useDashboardTileStatusContext(
-        (c) => c.sqlChartTilesMetadata,
+    const sqlChartTilesMetadata = useDashboardSelector(
+        selectSqlChartTilesMetadata,
     );
     const sortTilesByFieldMatch = useCallback(
         (
@@ -135,20 +142,6 @@ const TileFilterConfiguration: FC<Props> = ({
 
             const matchA = a.some(fieldMatcher(field));
             const matchB = b.some(fieldMatcher(field));
-            return matchA === matchB ? 0 : matchA ? -1 : 1;
-        },
-        [field],
-    );
-
-    const sortFieldsByMatch = useCallback(
-        (
-            fieldMatcher: (a: Field) => (b: Field) => boolean,
-            a: Field,
-            b: Field,
-        ) => {
-            if (!field) return 0;
-            const matchA = fieldMatcher(field)(a);
-            const matchB = fieldMatcher(field)(b);
             return matchA === matchB ? 0 : matchA ? -1 : 1;
         },
         [field],
@@ -209,20 +202,7 @@ const TileFilterConfiguration: FC<Props> = ({
                         ? (filters?.some(matchFieldByType(field)) ?? false)
                         : false;
 
-                    const sortedFilters = field
-                        ? filters
-                              ?.filter(matchFieldByType(field))
-                              .sort((a, b) =>
-                                  sortFieldsByMatch(
-                                      matchFieldByTypeAndName,
-                                      a,
-                                      b,
-                                  ),
-                              )
-                              .sort((a, b) =>
-                                  sortFieldsByMatch(matchFieldExact, a, b),
-                              )
-                        : filters;
+                    const sortedFilters = getTileFieldOptions(field, filters);
 
                     const tileWithoutTitle =
                         !tile?.properties.title ||
@@ -361,7 +341,6 @@ const TileFilterConfiguration: FC<Props> = ({
         tiles,
         filterRule,
         field,
-        sortFieldsByMatch,
     ]);
 
     const filteredTileTargetList = (tabUUid: string) => {

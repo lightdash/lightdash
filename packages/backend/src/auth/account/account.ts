@@ -15,6 +15,7 @@ import {
     EmbedContent,
     FilterInteractivityValues,
     ForbiddenError,
+    getEmbedWriteSpaceUuids,
     isDashboardContent,
     isJwtUser,
     MemberAbility,
@@ -250,7 +251,8 @@ export const toSessionUser = (account: RegisteredAccount): SessionUser => ({
 export type AccountWriteContext = {
     user: SessionUser;
     embedWriteActions?: {
-        spaceUuid: string;
+        /** Token order; the first is the default save target. */
+        writeSpaceUuids: string[];
     };
 };
 
@@ -269,31 +271,34 @@ export const getAccountWriteContext = (
     }
 
     const { embedWriteUser } = account;
-    const { spaceUuid } = account.authentication.data.writeActions ?? {};
+    const writeSpaceUuids = getEmbedWriteSpaceUuids(
+        account.authentication.data.writeActions,
+    );
 
-    if (!embedWriteUser || !spaceUuid) {
+    if (!embedWriteUser || writeSpaceUuids.length === 0) {
         throw new ForbiddenError('Embed token does not allow write actions');
     }
 
     return {
         user: embedWriteUser,
         embedWriteActions: {
-            spaceUuid,
+            writeSpaceUuids,
         },
     };
 };
 
-/** Spaces whose charts the embed write actor's own permissions authorize: the write space plus any source spaces. */
+/** Spaces whose charts the embed write actor's own permissions authorize: the write spaces plus any source spaces. */
 export const getEmbedActorChartSpaceUuids = (account: Account): string[] => {
     if (!isJwtUser(account) || !account.embedWriteUser) return [];
     const { writeActions, content } = account.authentication.data;
+    const writeSpaceUuids = getEmbedWriteSpaceUuids(writeActions);
     // apiAccess tokens may omit the write space.
-    if (!writeActions?.spaceUuid) return [];
+    if (writeSpaceUuids.length === 0) return [];
     const sourceSpaceUuids =
-        content?.type === 'dashboard'
-            ? (writeActions.sourceSpaceUuids ?? [])
+        content?.type === 'dashboard' || content?.type === 'aiAgent'
+            ? (writeActions?.sourceSpaceUuids ?? [])
             : [];
-    return [writeActions.spaceUuid, ...sourceSpaceUuids];
+    return [...new Set([...writeSpaceUuids, ...sourceSpaceUuids])];
 };
 
 /** Tokens that opt in with sourceSpaceUuids may only list content from the actor chart spaces. */

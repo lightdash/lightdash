@@ -1,4 +1,5 @@
 import { Navigate, type RouteObject } from 'react-router';
+import { NavBarLayout } from '../components/NavBarLayout';
 import PrivateRoute from '../components/PrivateRoute';
 import { loadLazyRouteDefault } from '../features/chunkErrorHandler';
 import { TrackPage } from '../providers/Tracking/TrackingProvider';
@@ -529,7 +530,31 @@ const COMMERCIAL_SLACK_AUTH_ROUTES: RouteObject[] = [
     },
 ];
 
+const COMMERCIAL_RELEASE_HIGHLIGHTS_ROUTES: RouteObject[] = [
+    {
+        element: (
+            <PrivateRoute>
+                <NavBarLayout />
+            </PrivateRoute>
+        ),
+        children: [
+            {
+                path: '/whats-new',
+                lazy: async () => {
+                    const WhatsNewPage = await loadLazyRouteDefault(
+                        './features/releaseHighlights/WhatsNewPage',
+                        () =>
+                            import('./features/releaseHighlights/WhatsNewPage'),
+                    );
+                    return { Component: WhatsNewPage };
+                },
+            },
+        ],
+    },
+];
+
 export const CommercialWebAppRoutes = [
+    ...COMMERCIAL_RELEASE_HIGHLIGHTS_ROUTES,
     ...COMMERCIAL_EMBED_ROUTES,
     ...COMMERCIAL_AI_AGENTS_ROUTES,
     ...COMMERCIAL_SLACK_AUTH_ROUTES,

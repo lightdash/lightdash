@@ -1,46 +1,42 @@
 # Usage capture and processing
 
-The organization `analytics-project` feature flag controls both capture and
-processing. Configure it through Console, or use the standard feature-flag ENV
-lists for a deployment-wide self-hosted override. The shared resolver's normal
-precedence applies; user overrides do not control organization capture/jobs.
-Authorization remains separate: access to managed analytics requires organization
-administration permission and a matching project organization.
+Usage capture runs for every organization on deployments with a commercial
+license and working usage S3 configuration. The organization `analytics-project`
+feature flag controls processing and analytics availability, not raw collection.
+Configure the flag through Console, or use the standard feature-flag ENV lists
+for a deployment-wide self-hosted override. The shared resolver's normal
+precedence applies; user overrides do not control organization jobs.
+Authorization and organization isolation remain separate from capture.
 
-`USAGE_EVENTS_ENABLED` is removed and ignored. A commercial license and working
-usage S3 configuration are still infrastructure prerequisites. Usage storage
-continues to inherit base S3 settings unless overridden by `USAGE_EVENTS_S3_*`.
-Do not rely on an old `USAGE_EVENTS_ENABLED=false` to prevent collection: use an
-explicit organization off override or the standard disable list (with no
-conflicting force-on). Existing enabled Analytics organizations start capturing
-when this release starts, even if the old ENV gate was off.
+`USAGE_EVENTS_ENABLED` is removed and ignored. Usage storage continues to inherit
+base S3 settings unless overridden by `USAGE_EVENTS_S3_*`. Disabling the
+`analytics-project` flag does not stop raw uploads. This behavior applies to all
+configured deployments, including self-hosted commercial deployments, not just
+shared Cloud instances.
 
 ## Capture
 
 The existing shared event sink/writer handles every allowlisted event. `track()`
-does not await a feature lookup, compression or upload. The writer's bounded
-buffer is drained asynchronously; the flag is checked before group serialization
-and compression. No individual event producer changes are required.
+does not await compression or upload. The bounded buffer is drained asynchronously
+with at most eight complete serialization/compression/upload operations at a time.
+Capture does not look up organization feature flags or require project creation.
+Existing buffer-drop and PUT-failure metrics still apply. This is best-effort
+telemetry, not an audit ledger; process interruption or exhausted upload retries
+can lose buffered events.
 
-Each process keeps at most 1,000 organization flag results, including off/error
-results, for 60 seconds. Concurrent requests for the same organization share a
-promise. At most eight complete group operations (flag lookup, compression and
-upload) run together. Flag errors fail closed. No timer polls inactive orgs.
-A slow lookup can delay the flush and cause the existing bounded event buffer to
-drop events; it cannot create unbounded per-event promises. Existing buffer-drop
-and PUT-failure metrics still apply.
-
-Changes take effect on the next flush after cache expiry, so allow up to 60
-seconds plus flush/in-flight time. This is best-effort telemetry, not an audit
-ledger. There is no data from before capture starts. Disabling capture does not
-erase already captured data or retroactively cancel in-flight uploads. Other
-analytics destinations and AI billing/usage tracking are unchanged.
+Collection starts when the configured deployment runs this code. There is no data
+from before capture starts. Flag-disabled organizations retain raw events for
+possible later processing, but the seven-day processing window below still
+applies. Other analytics destinations and AI billing/usage tracking are unchanged.
 
 ## Nightly and manual processing
 
 The existing serial `usage-events-compaction` scheduler queue runs at 00:30 UTC,
-with no whole-job retries. At the start of every run, eligibility is resolved
-through the standard flag model for each organization. Only eligible orgs enter
+with no whole-job retries. Nightly runs select only organizations with a managed
+Analytics project (`projects.provisioning_source = 'analytics'). Regular, preview
+and playground projects alone do not qualify. Explicit organization-scoped runs,
+including initial processing on project creation, retain their existing scope.
+Eligibility is then resolved through the standard flag model. Only eligible orgs enter
 raw compaction, dimension export and user-summary generation. Eligibility is a
 run snapshot; changing a flag does not cancel a running pipeline. Access checks
 for subsequent user queries continue to evaluate their own flag and permissions.
@@ -48,15 +44,26 @@ for subsequent user queries continue to evaluate their own flag and permissions.
 Only the previous seven closed UTC dates are processed. For a run on 8 October,
 that is 1–7 October inclusive. Current-day events wait for the next run; raw events
 older than that window are left unprocessed. Existing published history stays
-queryable. Dimension snapshots reflect current inventory. Existing partition caps,
-SQL timeouts and query resource limits remain. Missing several nights can consume
+queryable. Dimension snapshots reflect current inventory. Each run processes at
+most 5,000 raw stream/day partitions and, independently, 5,000 changed or failed
+user-summary partitions. Deferred work remains for a subsequent run within this
+window. Processing remains serial, with one DuckDB thread and a 256 MB managed-memory
+limit; SQL timeouts and query resource limits remain. Missing several nights can consume
 the catch-up window; this is a deliberate limit, not unlimited historical repair.
+
+The partition budget is not a runtime guarantee. Graphile Worker expires job and
+queue locks after four hours; monitor processing times and backlog before increasing
+rollout cohorts so that scheduled and initial processing jobs do not overlap.
 
 The explicit `build-usage-user-activity` command also checks the organization flag
 and rejects dates older than this window. It remains a privileged maintenance
-script, using the configured production database/usage storage. A newly enabled
-organization can receive the existing no-data error until a successful nightly
-run. Project creation does not enable capture or run a backfill.
+script, using the configured production database/usage storage. Creating Analytics
+queues initial processing on the same serial queue and a separate
+[retained-database history import](usage-analytics/history-backfill.md). Creation
+returns before either completes, so data may be unavailable until processing
+finishes. Initial processing uses the same seven-day window; the history import
+does not replay older raw events or reconstruct historical People membership.
+Project creation does not control capture.
 
 ## Recovery and retention
 
@@ -72,11 +79,13 @@ until pending cleanup has completed.
 
 This prevents new partial-cleanup duplication; it does not identify or repair
 already duplicated parts from older releases. Raw objects whose dates leave the
-window will no longer be processed. Configure and review raw-object retention
-separately, allowing margin beyond seven days; do not apply that expiry to
-compacted history or pending recovery checkpoints. This change does not delete
-historical files or change bucket lifecycle policy.
+window will no longer be processed. Raw data for flag-disabled organizations or
+organizations without Analytics projects is not compacted or cleaned up by this
+pipeline and accumulates under the existing bucket retention policy. Retaining
+months of raw data does not enable historical catch-up beyond seven days. This
+change adds no expiry policy, archive, or historical backfill; successful
+compaction still deletes its exact raw inputs after publishing Parquet.
 
-Canary a small organization through complete nightly cycles before broad rollout.
+Canary a deployment before broad rollout: uploads now include flag-disabled orgs.
 Check failures, dropped events, backlog, memory and reconciliation. Local loopback
 benchmarks are correctness evidence, not production GCS latency predictions.

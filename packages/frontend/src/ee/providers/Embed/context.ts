@@ -22,6 +22,8 @@ const EmbedProviderContext = createContext<EmbedContext>({
     theme: 'light',
     backgroundColor: null,
     timezone: null,
+    aiAgentThreadSetup: null,
+    aiAgentNavigationDisabled: false,
 });
 
 export default EmbedProviderContext;

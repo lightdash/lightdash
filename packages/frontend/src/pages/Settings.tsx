@@ -61,7 +61,6 @@ import GenericOidcSsoPanel from '../components/UserSettings/OrganizationSso/Gene
 import GoogleSsoPanel from '../components/UserSettings/OrganizationSso/GoogleSsoPanel';
 import OktaSsoPanel from '../components/UserSettings/OrganizationSso/OktaSsoPanel';
 import OneLoginSsoPanel from '../components/UserSettings/OrganizationSso/OneLoginSsoPanel';
-import { OrganizationWarehouseCredentialsPanel } from '../components/UserSettings/OrganizationWarehouseCredentialsPanel';
 import PasswordPanel from '../components/UserSettings/PasswordPanel';
 import ProfilePanel from '../components/UserSettings/ProfilePanel';
 import ProjectManagementPanel from '../components/UserSettings/ProjectManagementPanel';
@@ -176,8 +175,10 @@ const Settings: FC = () => {
         isScimTokenManagementEnabled,
         dataAppsFlag,
         dataAppAnalysisFlag,
+        dashboardAnalysisFlag,
         externalSourcesFlag,
         isDataAppsFlagLoading,
+        isChartStudioAvailable,
         isAiCopilotEnabledOrTrial,
         shouldShowAiAgentReviews,
         canManageOrgAiAgent,
@@ -185,7 +186,6 @@ const Settings: FC = () => {
         isAiOrganizationSettingsLoading,
         showImpersonationPanel,
         isCustomRolesEnabled,
-        isProLimitsEnabled,
         canAccessAnalyticsSettings,
         isAnalyticsProjectFlagLoading,
         isOrganizationRoadmapEnabled,
@@ -450,7 +450,7 @@ const Settings: FC = () => {
                 element: <AiCreditsSettingsPage />,
             });
         }
-        if (isProLimitsEnabled && user?.ability.can('manage', 'Organization')) {
+        if (user?.ability.can('manage', 'Organization')) {
             allowedRoutes.push({
                 path: '/limits',
                 element: (
@@ -501,19 +501,6 @@ const Settings: FC = () => {
             });
         }
         if (
-            user?.ability.can(
-                'manage',
-                subject('OrganizationWarehouseCredentials', {
-                    organizationUuid: organization?.organizationUuid,
-                }),
-            )
-        ) {
-            allowedRoutes.push({
-                path: '/warehouseCredentials',
-                element: <OrganizationWarehouseCredentialsPanel />,
-            });
-        }
-        if (
             organization &&
             !organization.needsProject &&
             user?.ability.can('view', 'Project')
@@ -551,13 +538,39 @@ const Settings: FC = () => {
             });
         }
 
+        if (
+            (dataAppsFlag?.enabled || isChartStudioAvailable) &&
+            user?.ability.can('manage', 'OrganizationDesign')
+        ) {
+            allowedRoutes.push({
+                path: '/dataApps/themes',
+                element: <DesignListPage />,
+            });
+        }
+
+        // The AI-analysis page hosts the shared consent toggle; dashboard
+        // analysis shares it, so a dashboard-only rollout must still reach it.
+        {
+            const canManageOrganization =
+                user?.ability.can('manage', 'Organization') ?? false;
+            const canManageAiAnalysis =
+                canManageOrganization &&
+                ((dataAppsFlag?.enabled === true &&
+                    dataAppAnalysisFlag?.enabled === true) ||
+                    dashboardAnalysisFlag?.enabled === true);
+            if (canManageAiAnalysis) {
+                allowedRoutes.push({
+                    path: '/dataApps/aiAnalysis',
+                    element: <DataAppAiAnalysisSettingsPage />,
+                });
+            }
+        }
+
         if (dataAppsFlag?.enabled) {
             const canManageThemes =
                 user?.ability.can('manage', 'OrganizationDesign') ?? false;
             const canManageOrganization =
                 user?.ability.can('manage', 'Organization') ?? false;
-            const canManageAiAnalysis =
-                canManageOrganization && dataAppAnalysisFlag?.enabled === true;
 
             if (canManageOrganization) {
                 allowedRoutes.push({
@@ -565,22 +578,10 @@ const Settings: FC = () => {
                     element: <DataAppGeneralSettingsPage />,
                 });
             }
-            if (canManageThemes) {
-                allowedRoutes.push({
-                    path: '/dataApps/themes',
-                    element: <DesignListPage />,
-                });
-            }
             if (canManageOrganization) {
                 allowedRoutes.push({
                     path: '/dataApps/activity',
                     element: <DataAppActivitySettingsPage />,
-                });
-            }
-            if (canManageAiAnalysis) {
-                allowedRoutes.push({
-                    path: '/dataApps/aiAnalysis',
-                    element: <DataAppAiAnalysisSettingsPage />,
                 });
             }
             // Land on whichever sub-page the user can actually reach.
@@ -910,8 +911,9 @@ const Settings: FC = () => {
         health?.auth.google.enabled,
         dataAppsFlag?.enabled,
         dataAppAnalysisFlag?.enabled,
+        dashboardAnalysisFlag?.enabled,
+        isChartStudioAvailable,
         externalSourcesFlag?.enabled,
-        isProLimitsEnabled,
         canAccessAnalyticsSettings,
         isOrganizationRoadmapEnabled,
         canAccessAiCredits,
@@ -955,6 +957,12 @@ const Settings: FC = () => {
             !matchPath(
                 {
                     path: '/generalSettings/projectManagement/:projectUuid/dataAppConnections',
+                },
+                location.pathname,
+            ) &&
+            !matchPath(
+                {
+                    path: '/generalSettings/projectManagement/:projectUuid/liveDataSources',
                 },
                 location.pathname,
             ) &&

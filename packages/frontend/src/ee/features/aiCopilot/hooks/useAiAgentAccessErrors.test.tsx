@@ -11,9 +11,9 @@ import { screen, waitFor } from '@testing-library/react';
 import { type ReactNode } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../../../api';
 import { getAiAccessRefusal } from '../../../../features/aiAccess/errors';
 import { useAiAccessGate } from '../../../../features/aiAccess/useAiAccessGate';
+import { mockedLightdashApi } from '../../../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../../../testing/testUtils';
 import { AiAccessCallout } from '../components/ChatElements/AiAccessCallout';
 import { AiAccessGate } from '../components/ChatElements/AiAccessGate';
@@ -24,7 +24,7 @@ import {
     useProjectAiAgents,
 } from './useProjectAiAgents';
 
-vi.mock('../../../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../../../api');
 vi.mock('../../../../hooks/health/useHealth', () => ({
     default: () => ({ data: {} }),
 }));
@@ -121,7 +121,7 @@ const apiError = (error: ApiError['error']): ApiError => ({
 
 beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(lightdashApi).mockImplementation(async ({ url }) => {
+    mockedLightdashApi.mockImplementation(async ({ url }) => {
         if (url.endsWith('/threads/thread'))
             return {
                 messages: [
@@ -175,9 +175,7 @@ describe('agent page identity refusal navigation', () => {
     });
 
     it('still routes an ordinary permission failure to the not-authorized page', async () => {
-        vi.mocked(lightdashApi).mockRejectedValue(
-            apiError(new ForbiddenError()),
-        );
+        mockedLightdashApi.mockRejectedValue(apiError(new ForbiddenError()));
         renderPage(<ArtifactView />);
         expect(
             await screen.findByText(/not authorized to interact/),

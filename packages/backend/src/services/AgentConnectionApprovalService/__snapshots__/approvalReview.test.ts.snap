@@ -542,6 +542,22 @@ exports[`pins every real admitted contract, base requirement and payload effect 
     "candidates": [
       {
         "capabilities": [
+          "raw_sql",
+        ],
+        "key": "QueryController.executeAsyncPythonQuery",
+        "mapped": true,
+      },
+    ],
+    "key": "QueryController.executeAsyncPythonQuery",
+    "kind": "path_project",
+    "required": [
+      "raw_sql",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
           "read_discover",
         ],
         "key": "QueryController.getAsyncQueryResults",

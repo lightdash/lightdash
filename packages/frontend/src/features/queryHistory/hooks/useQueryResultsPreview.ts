@@ -1,10 +1,15 @@
 import { type ApiError, type ApiGetAsyncQueryResults } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 const PREVIEW_PAGE_SIZE = 25;
 
-const getResultsPreview = async (projectUuid: string, queryUuid: string) =>
+const getResultsPreview = async (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+    queryUuid: string,
+) =>
     lightdashApi<ApiGetAsyncQueryResults>({
         version: 'v2',
         url: `/projects/${projectUuid}/query/${queryUuid}?page=1&pageSize=${PREVIEW_PAGE_SIZE}`,
@@ -20,11 +25,14 @@ export const useQueryResultsPreview = (
     projectUuid: string | undefined,
     queryUuid: string | undefined,
     enabled: boolean,
-) =>
-    useQuery<ApiGetAsyncQueryResults, ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ApiGetAsyncQueryResults, ApiError>({
         queryKey: ['query-history-results-preview', projectUuid, queryUuid],
-        queryFn: () => getResultsPreview(projectUuid!, queryUuid!),
+        queryFn: () =>
+            getResultsPreview(lightdashApi, projectUuid!, queryUuid!),
         enabled: enabled && !!projectUuid && !!queryUuid,
         retry: false,
         keepPreviousData: false,
     });
+};

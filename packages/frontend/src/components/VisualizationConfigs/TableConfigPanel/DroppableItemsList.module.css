@@ -1,0 +1,9 @@
+.droppableList {
+    padding: var(--mantine-spacing-xs);
+    background-color: var(--mantine-color-ldGray-0);
+    border-radius: var(--mantine-radius-sm);
+}
+
+.hiddenItem {
+    visibility: hidden;
+}

@@ -5,7 +5,6 @@ import type {
 import type {
     AiServiceAccountCredentialReader,
     AiServiceAccountSlotWithSecrets,
-    WarehouseCredentialRead,
 } from './WarehouseCredentialReader';
 
 export class LegacyAiServiceAccountCredentialReader implements AiServiceAccountCredentialReader {
@@ -18,44 +17,24 @@ export class LegacyAiServiceAccountCredentialReader implements AiServiceAccountC
         },
     ) {}
 
-    async readSlotWithSecrets(
+    readSlotWithSecrets(
         projectUuid: string,
         warehouseConnectionUuid: string | null,
-    ): Promise<
-        WarehouseCredentialRead<AiServiceAccountSlotWithSecrets | null>
-    > {
-        const value =
-            await this.args.aiServiceAccountCredentialsModel.getSecrets(
-                projectUuid,
-                warehouseConnectionUuid,
-                true,
-            );
-        return {
-            value,
-            store: 'aiServiceAccount',
-            owner:
-                value === null
-                    ? { credentialUuid: null, generation: null }
-                    : {
-                          credentialUuid: value.slot.uuid,
-                          generation: value.slot.identityUuid,
-                      },
-        };
+    ): Promise<AiServiceAccountSlotWithSecrets | null> {
+        return this.args.aiServiceAccountCredentialsModel.getSecrets(
+            projectUuid,
+            warehouseConnectionUuid,
+            true,
+        );
     }
 
-    async readReplaceableSecrets(
+    readReplaceableSecrets(
         projectUuid: string,
         warehouseConnectionUuid: string | null,
-    ): Promise<WarehouseCredentialRead<AiServiceAccountSecrets | null>> {
-        const value =
-            await this.args.aiServiceAccountCredentialsModel.getReplaceableSecrets(
-                projectUuid,
-                warehouseConnectionUuid,
-            );
-        return {
-            value,
-            store: 'aiServiceAccount',
-            owner: { credentialUuid: null, generation: null },
-        };
+    ): Promise<AiServiceAccountSecrets | null> {
+        return this.args.aiServiceAccountCredentialsModel.getReplaceableSecrets(
+            projectUuid,
+            warehouseConnectionUuid,
+        );
     }
 }

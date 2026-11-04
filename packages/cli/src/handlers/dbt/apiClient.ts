@@ -16,6 +16,10 @@ import fetch, { BodyInit, type Response } from 'node-fetch';
 import { Readable } from 'stream';
 import { URL } from 'url';
 import { gzipSync } from 'zlib';
+import {
+    ConnectionServerError,
+    connectionServerError,
+} from '../../agentConnections/serverError';
 import { getConfig } from '../../config';
 import {
     getAgentConnectionSelection,
@@ -24,7 +28,7 @@ import {
 import { CLI_VERSION, getUpdateInstructions } from '../../env';
 import GlobalState from '../../globalState';
 import * as styles from '../../styles';
-import { buildCredentialHeaders, buildRequestHeaders } from '../utils';
+import { buildCredentialHeaders } from '../utils';
 
 type LightdashApiProps = {
     method: 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'PUT';
@@ -94,6 +98,8 @@ const fetchWithTimeout = async (
         clearTimeout(timer);
     }
 };
+
+const connectionResponses = new WeakSet<Response>();
 
 export const lightdashRawApi = async ({
     method,
@@ -264,29 +270,51 @@ export const lightdashRawApi = async ({
                 `Agent connection ${getAgentConnectionSelection()} could not authenticate. No personal credential was used.`,
             );
         if (!response.ok)
-            throw new Error(
-                `The server rejected the agent connection request (status ${response.status}).`,
+            throw connectionServerError(
+                response.status,
+                await response.json().catch(() => null),
             );
+        connectionResponses.add(response);
         return response;
     }
-    if (!(config.context?.apiKey && config.context.serverUrl)) {
+    if (!config.context?.serverUrl) {
         throw new AuthorizationError(
             `Not logged in. Run 'lightdash login --help'`,
         );
     }
-    const headers = {
-        ...buildRequestHeaders(config.context.apiKey),
-        ...requestHeaders,
-    };
     const fullUrl = new URL(url, config.context.serverUrl).href;
+    let credential = await resolveCredential(config);
+    const send = () =>
+        fetchWithTimeout(fullUrl, {
+            method,
+            headers: {
+                ...buildCredentialHeaders(
+                    credential,
+                    config.context?.proxyAuthorization ?? null,
+                ),
+                ...requestHeaders,
+            },
+            body,
+            signal,
+        });
     GlobalState.debug(`> Making HTTP ${method} request to: ${fullUrl}`);
 
-    const response = await fetchWithTimeout(fullUrl, {
-        method,
-        headers,
-        body,
-        signal,
-    });
+    let response = await send();
+    if (
+        response.status === 401 &&
+        safeToRetry &&
+        method === 'GET' &&
+        body === undefined &&
+        credential.kind === 'personal_oauth'
+    ) {
+        if (response.body instanceof Readable) response.body.destroy();
+        credential = await resolveCredential(
+            config,
+            null,
+            credential.login.tokens.generation,
+        );
+        response = await send();
+    }
     GlobalState.debug(`> HTTP request returned status: ${response.status}`);
 
     if (!response.ok) {
@@ -304,23 +332,56 @@ export const lightdashRawApi = async ({
     return response;
 };
 
-async function agentSafeReadApi<T extends ApiResponse['results']>(
-    props: LightdashApiProps,
-): Promise<T> {
-    return lightdashRawApi({ ...props })
-        .then((r) => r.json())
-        .then((d: ApiResponse | ApiError) => {
-            GlobalState.debug(`> HTTP request returned status: ${d.status}`);
-            switch (d.status) {
-                case 'ok':
-                    return d.results as T;
-                case 'error':
-                    throw new LightdashError(d.error);
-                default:
-                    throw new Error(d);
-            }
-        });
-}
+export const readRawApiJson = async (response: Response): Promise<unknown> => {
+    const connection =
+        connectionResponses.has(response) ||
+        getAgentConnectionSelection() !== null;
+    try {
+        const value: unknown = await response.json();
+        if (
+            connection &&
+            typeof value === 'object' &&
+            value !== null &&
+            'status' in value &&
+            value.status === 'error'
+        )
+            throw connectionServerError(response.status, value);
+        return value;
+    } catch (error) {
+        if (connection) {
+            if (error instanceof ConnectionServerError) throw error;
+            throw connectionServerError(response.status, null);
+        }
+        throw error;
+    }
+};
+
+const readApiResults = async <T extends ApiResponse['results']>(
+    response: Response,
+): Promise<T> => {
+    const connection = getAgentConnectionSelection() !== null;
+    let data: ApiResponse | ApiError;
+    try {
+        data = await response.json();
+    } catch (error) {
+        if (connection) throw connectionServerError(response.status, null);
+        throw error;
+    }
+    if (
+        connection &&
+        (typeof data !== 'object' || data === null || data.status !== 'ok')
+    )
+        throw connectionServerError(response.status, data);
+    GlobalState.debug(`> HTTP request returned status: ${data.status}`);
+    switch (data.status) {
+        case 'ok':
+            return data.results as T;
+        case 'error':
+            throw new LightdashError(data.error);
+        default:
+            throw new Error(data);
+    }
+};
 
 export const lightdashApi = async <T extends ApiResponse['results']>({
     method,
@@ -329,13 +390,10 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
     signal,
     safeToRetry,
 }: LightdashApiProps): Promise<T> => {
-    if (
-        getAgentConnectionSelection() !== null &&
-        safeToRetry &&
-        method === 'GET' &&
-        body === undefined
-    ) {
-        return agentSafeReadApi<T>({ method, url, body, signal, safeToRetry });
+    if (safeToRetry && method === 'GET' && body === undefined) {
+        return readApiResults<T>(
+            await lightdashRawApi({ method, url, body, signal, safeToRetry }),
+        );
     }
     const headers: Record<string, string> = {};
 
@@ -360,6 +418,17 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
             );
         }
     }
+
+    if (getAgentConnectionSelection() !== null)
+        return readApiResults<T>(
+            await lightdashRawApi({
+                method,
+                url,
+                body: requestBody,
+                headers,
+                signal,
+            }),
+        );
 
     return lightdashRawApi({
         method,
@@ -633,9 +702,24 @@ export const checkLightdashVersion = async (): Promise<void> => {
             safeToRetry: true,
         });
 
+        if (
+            getAgentConnectionSelection() !== null &&
+            (typeof health?.version !== 'string' ||
+                !/^\d+\.\d+\.\d+(?:-[a-z0-9.-]+)?(?:\+[a-z0-9.-]+)?$/i.test(
+                    health.version,
+                ))
+        )
+            throw new Error('The server returned invalid version data.');
+
         const cliMajor = CLI_VERSION.split('.')[0];
         const serverMajor = health.version.split('.')[0];
         if (cliMajor !== serverMajor) {
+            if (getAgentConnectionSelection() !== null) {
+                console.error(
+                    'The CLI and server use different major versions. Use a CLI version that matches your server.',
+                );
+                return;
+            }
             const config = await (getAgentConnectionSelection() === null
                 ? getConfig()
                 : getConfig({ readOnly: true }));

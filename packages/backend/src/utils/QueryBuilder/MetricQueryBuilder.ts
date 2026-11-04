@@ -5231,9 +5231,15 @@ export class MetricQueryBuilder {
                 restriction.scope === 'visiblePage'
                     ? VISIBLE_PAGE_ROWS_CTE_NAME
                     : SOURCE_ROWS_CTE_NAME;
-            const distinctColumns = restriction.joinDimensions.map(
-                (dimId) => `  ${fieldQuoteChar}${dimId}${fieldQuoteChar}`,
-            );
+            // A metric-only source has no group columns; a constant key keeps
+            // the CTE valid SQL while still gating on whether any row passed.
+            const distinctColumns =
+                restriction.joinDimensions.length > 0
+                    ? restriction.joinDimensions.map(
+                          (dimId) =>
+                              `  ${fieldQuoteChar}${dimId}${fieldQuoteChar}`,
+                      )
+                    : [`  1 AS ${fieldQuoteChar}source_group${fieldQuoteChar}`];
             leadingCtes.push(
                 `${cteName} AS (\nSELECT DISTINCT\n${distinctColumns.join(
                     ',\n',

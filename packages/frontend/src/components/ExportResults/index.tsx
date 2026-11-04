@@ -31,6 +31,7 @@ import useToaster from '../../hooks/toaster/useToaster';
 import { scheduleDownloadQuery } from '../../hooks/useQueryResults';
 import useUser from '../../hooks/user/useUser';
 import { Can } from '../../providers/Ability';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import MantineIcon from '../common/MantineIcon';
 import { NumberInput } from '../common/NumberInput';
 import classes from './ExportResults.module.css';
@@ -92,6 +93,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
         forceShowLimitSelection = false,
         renderDialogActions,
     }) => {
+        const lightdashApi = useLightdashApi();
         const { showToastError, showToastInfo, showToastWarning } =
             useToaster();
 
@@ -148,6 +150,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
                     };
 
                     return scheduleDownloadQuery(
+                        lightdashApi,
                         projectUuid,
                         queryUuid,
                         downloadOptions,
@@ -166,6 +169,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
                     },
                     onSuccess: (response) => {
                         pollJobStatus(
+                            lightdashApi,
                             response.jobId,
                             isEmbedded ? projectUuid : undefined,
                         )

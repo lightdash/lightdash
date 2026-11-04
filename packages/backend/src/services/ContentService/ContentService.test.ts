@@ -13,7 +13,6 @@ import {
 import type { DeletedContentItem, SessionUser } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import type { ContentModel } from '../../models/ContentModel/ContentModel';
-import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type { SpaceModel } from '../../models/SpaceModel';
 import type { ValidationModel } from '../../models/ValidationModel/ValidationModel';
@@ -66,7 +65,6 @@ const createOrganizationAdminUser = (): SessionUser => ({
 });
 
 const createService = ({
-    documentsEnabled = false,
     contentModel = {} as ContentModel,
     spaceModel = {} as SpaceModel,
     spacePermissionService = {} as SpacePermissionService,
@@ -85,7 +83,6 @@ const createService = ({
         document: {},
     },
 }: {
-    documentsEnabled?: boolean;
     contentModel?: ContentModel;
     spaceModel?: SpaceModel;
     spacePermissionService?: SpacePermissionService;
@@ -134,7 +131,7 @@ const createService = ({
     };
     const directAccessService = {
         findSharedWithMeAccess: vi.fn().mockResolvedValue({
-            uuidsByType: sharedWithMeUuids,
+            uuidsByType: { document: [], ...sharedWithMeUuids },
             rolesByType: sharedWithMeRoles,
         }),
         findGrantedRoles: vi
@@ -157,9 +154,6 @@ const createService = ({
 
     return {
         service: new ContentService({
-            featureFlagModel: {
-                get: vi.fn().mockResolvedValue({ enabled: documentsEnabled }),
-            } as unknown as FeatureFlagModel,
             documentService: documentService as unknown as DocumentService,
             analytics: analyticsMock,
             projectModel: projectModel as unknown as ProjectModel,
@@ -170,7 +164,10 @@ const createService = ({
             savedChartService:
                 savedChartService as unknown as SavedChartService,
             savedSqlService: savedSqlService as unknown as SavedSqlService,
-            spacePermissionService,
+            spacePermissionService: {
+                resolveAccessBatch: vi.fn().mockResolvedValue([]),
+                ...(spacePermissionService as Partial<SpacePermissionService>),
+            } as unknown as SpacePermissionService,
             directAccessService: directAccessService as never,
             validationModel: validationModel as unknown as ValidationModel,
             appMoveService: undefined,
@@ -230,37 +227,29 @@ describe('Document discovery', () => {
         },
     );
 
-    it.each([true, false])(
-        'gates Recently deleted Documents with flag=%s and scopes nonadmins to their own deletions',
-        async (documentsEnabled) => {
-            const findDeletedContents = vi.fn().mockResolvedValue({ data: [] });
-            const deps = createService({
-                documentsEnabled,
-                contentModel: {
-                    findDeletedContents,
-                } as unknown as ContentModel,
-            });
-            const user = createUser();
-            user.ability.update([{ action: 'view', subject: 'Project' }]);
-            await deps.service.findDeleted(user, {
-                projectUuids: [projectUuid],
-                deletedByUserUuids: ['other-user'],
-            });
-            expect(findDeletedContents).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    deletedByUserUuids: [userUuid],
-                    documents: documentsEnabled
-                        ? { allowedSpaceUuids: [] }
-                        : undefined,
-                }),
-                undefined,
-            );
-            const { contentTypes } = findDeletedContents.mock.calls[0][0];
-            expect(contentTypes.includes(ContentType.DOCUMENT)).toBe(
-                documentsEnabled,
-            );
-        },
-    );
+    it('includes Recently deleted Documents and scopes nonadmins to their own deletions', async () => {
+        const findDeletedContents = vi.fn().mockResolvedValue({ data: [] });
+        const deps = createService({
+            contentModel: {
+                findDeletedContents,
+            } as unknown as ContentModel,
+        });
+        const user = createUser();
+        user.ability.update([{ action: 'view', subject: 'Project' }]);
+        await deps.service.findDeleted(user, {
+            projectUuids: [projectUuid],
+            deletedByUserUuids: ['other-user'],
+        });
+        expect(findDeletedContents).toHaveBeenCalledWith(
+            expect.objectContaining({
+                deletedByUserUuids: [userUuid],
+                documents: { allowedSpaceUuids: [] },
+            }),
+            undefined,
+        );
+        const { contentTypes } = findDeletedContents.mock.calls[0][0];
+        expect(contentTypes).toContain(ContentType.DOCUMENT);
+    });
     const page = {
         data: [],
         pagination: {
@@ -270,7 +259,7 @@ describe('Document discovery', () => {
             totalResults: 0,
         },
     };
-    const createDocumentDiscovery = (documentsEnabled: boolean) => {
+    const createDocumentDiscovery = () => {
         const findSummaryContents = vi.fn().mockResolvedValue(page);
         const resolveAccessBatch = vi.fn().mockResolvedValue([
             {
@@ -284,7 +273,6 @@ describe('Document discovery', () => {
             },
         ]);
         const deps = createService({
-            documentsEnabled,
             contentModel: { findSummaryContents } as unknown as ContentModel,
             spaceModel: {
                 find: vi.fn().mockResolvedValue([{ uuid: 'space' }]),
@@ -299,7 +287,7 @@ describe('Document discovery', () => {
     };
 
     it('unions only authorized direct Documents into the top-level list before pagination', async () => {
-        const deps = createDocumentDiscovery(true);
+        const deps = createDocumentDiscovery();
         deps.directAccessService.findSharedWithMeAccess.mockResolvedValue({
             uuidsByType: { document: ['allowed', 'denied'] },
             rolesByType: {
@@ -345,7 +333,7 @@ describe('Document discovery', () => {
     });
 
     it('leaves personal Documents out unless the caller opts in', async () => {
-        const deps = createDocumentDiscovery(true);
+        const deps = createDocumentDiscovery();
         await deps.service.find(
             createUser(),
             { contentTypes: [ContentType.DOCUMENT] },
@@ -364,7 +352,7 @@ describe('Document discovery', () => {
     });
 
     it("lists only an editor's own personal Documents", async () => {
-        const deps = createDocumentDiscovery(true);
+        const deps = createDocumentDiscovery();
         const editor = {
             ...createUser(),
             ability: defineUserAbility(
@@ -411,7 +399,7 @@ describe('Document discovery', () => {
     ])(
         'does not expand direct discovery outside All documents: %j',
         async (filters) => {
-            const deps = createDocumentDiscovery(true);
+            const deps = createDocumentDiscovery();
             await deps.service.find(
                 createUser(),
                 filters,
@@ -432,26 +420,8 @@ describe('Document discovery', () => {
         },
     );
 
-    it('does not resolve grants for All documents when the flag is disabled', async () => {
-        const deps = createDocumentDiscovery(false);
-        await deps.service.find(
-            createUser(),
-            { contentTypes: [ContentType.DOCUMENT] },
-            {},
-            { page: 1, pageSize: 10 },
-        );
-        expect(
-            deps.directAccessService.findSharedWithMeAccess,
-        ).not.toHaveBeenCalled();
-        expect(deps.findSummaryContents).toHaveBeenCalledWith(
-            expect.objectContaining({ documents: undefined }),
-            {},
-            { page: 1, pageSize: 10 },
-        );
-    });
-
     it('enriches ordinary Document rows with direct access roles', async () => {
-        const deps = createDocumentDiscovery(true);
+        const deps = createDocumentDiscovery();
         deps.findSummaryContents.mockResolvedValue({
             ...page,
             data: [{ uuid: 'document', contentType: ContentType.DOCUMENT }],
@@ -515,24 +485,27 @@ describe('Document discovery', () => {
         );
     });
 
-    it('overwrites a caller-supplied Documents filter when the flag is disabled', async () => {
-        const deps = createDocumentDiscovery(false);
+    it('overwrites a caller-supplied Documents filter', async () => {
+        const deps = createDocumentDiscovery();
         await deps.service.find(
             createUser(),
-            { documents: { allowedSpaceUuids: ['space'] } },
+            { documents: { allowedSpaceUuids: ['injected'] } },
             {},
             { page: 1, pageSize: 10 },
         );
         expect(deps.findSummaryContents).toHaveBeenCalledWith(
-            expect.objectContaining({ documents: undefined }),
+            expect.objectContaining({
+                documents: expect.objectContaining({
+                    allowedSpaceUuids: ['space'],
+                }),
+            }),
             {},
             { page: 1, pageSize: 10 },
         );
-        expect(deps.resolveAccessBatch).not.toHaveBeenCalled();
     });
 
     it('does not discover Documents with a custom role that can view Spaces but not Documents', async () => {
-        const deps = createDocumentDiscovery(true);
+        const deps = createDocumentDiscovery();
         const user = createUser();
         user.ability.update([
             { action: 'view', subject: 'Project' },
@@ -547,7 +520,7 @@ describe('Document discovery', () => {
     });
 
     it('passes Document-authorized Spaces to both discovery and count queries', async () => {
-        const deps = createDocumentDiscovery(true);
+        const deps = createDocumentDiscovery();
         await deps.service.find(
             createUser(),
             {},
@@ -566,7 +539,6 @@ describe('Document discovery', () => {
     it('removes directly granted Documents denied by Document authorization before pagination', async () => {
         const findSummaryContents = vi.fn();
         const deps = createService({
-            documentsEnabled: true,
             contentModel: { findSummaryContents } as unknown as ContentModel,
             sharedWithMeUuids: {
                 dashboard: [],
@@ -593,65 +565,56 @@ describe('Document discovery', () => {
         expect(result.data).toEqual([]);
     });
 
-    it.each([true, false])(
-        'Shared with me respects the Documents flag (%s) and hydrates only granted UUIDs',
-        async (documentsEnabled) => {
-            const findSummaryContents = vi.fn().mockResolvedValue({
-                ...page,
-                data: [{ uuid: 'document', contentType: ContentType.DOCUMENT }],
-            });
-            const deps = createService({
-                documentsEnabled,
-                contentModel: {
-                    findSummaryContents,
-                } as unknown as ContentModel,
-                sharedWithMeUuids: {
-                    dashboard: [],
-                    chart: [],
-                    sqlChart: [],
-                    app: [],
-                    document: ['document'],
+    it('Shared with me hydrates only granted Document UUIDs', async () => {
+        const findSummaryContents = vi.fn().mockResolvedValue({
+            ...page,
+            data: [{ uuid: 'document', contentType: ContentType.DOCUMENT }],
+        });
+        const deps = createService({
+            contentModel: {
+                findSummaryContents,
+            } as unknown as ContentModel,
+            sharedWithMeUuids: {
+                dashboard: [],
+                chart: [],
+                sqlChart: [],
+                app: [],
+                document: ['document'],
+            },
+            sharedWithMeRoles: {
+                dashboard: {},
+                chart: {},
+                sqlChart: {},
+                app: {},
+                document: { document: [SpaceMemberRole.VIEWER] },
+            },
+        });
+        const result = await deps.service.find(
+            createUser(),
+            { sharedWithMe: true, contentTypes: [ContentType.DOCUMENT] },
+            {},
+            { page: 1, pageSize: 10 },
+        );
+        expect(findSummaryContents).toHaveBeenCalledWith(
+            expect.objectContaining({
+                uuids: ['document'],
+                spaceUuids: undefined,
+                documents: {
+                    allowedSpaceUuids: [],
+                    grantedUuids: ['document'],
                 },
-                sharedWithMeRoles: {
-                    dashboard: {},
-                    chart: {},
-                    sqlChart: {},
-                    app: {},
-                    document: { document: [SpaceMemberRole.VIEWER] },
-                },
-            });
-            const result = await deps.service.find(
-                createUser(),
-                { sharedWithMe: true, contentTypes: [ContentType.DOCUMENT] },
-                {},
-                { page: 1, pageSize: 10 },
-            );
-            if (documentsEnabled) {
-                expect(findSummaryContents).toHaveBeenCalledWith(
-                    expect.objectContaining({
-                        uuids: ['document'],
-                        spaceUuids: undefined,
-                        documents: {
-                            allowedSpaceUuids: [],
-                            grantedUuids: ['document'],
-                        },
-                    }),
-                    {},
-                    { page: 1, pageSize: 10 },
-                );
-                expect(result.data).toEqual([
-                    {
-                        uuid: 'document',
-                        contentType: ContentType.DOCUMENT,
-                        directAccessRoles: [SpaceMemberRole.VIEWER],
-                    },
-                ]);
-            } else {
-                expect(findSummaryContents).not.toHaveBeenCalled();
-                expect(result.data).toEqual([]);
-            }
-        },
-    );
+            }),
+            {},
+            { page: 1, pageSize: 10 },
+        );
+        expect(result.data).toEqual([
+            {
+                uuid: 'document',
+                contentType: ContentType.DOCUMENT,
+                directAccessRoles: [SpaceMemberRole.VIEWER],
+            },
+        ]);
+    });
 });
 
 describe('ContentService deleted content actions', () => {
@@ -1286,10 +1249,13 @@ describe('ContentService.find sharedWithMe', () => {
                     ContentType.DASHBOARD,
                     ContentType.CHART,
                     ContentType.DATA_APP,
+                    ContentType.DOCUMENT,
                 ],
                 search: undefined,
                 dataAppVizsFilter: undefined,
                 sharedWithMe: true,
+                spaceUuids: undefined,
+                documents: { allowedSpaceUuids: [], grantedUuids: [] },
             },
             expect.any(Object),
             expect.objectContaining({ page: 1, pageSize: 10 }),

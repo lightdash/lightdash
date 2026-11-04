@@ -1,10 +1,33 @@
+import { PassThrough } from 'stream';
+import { ChecksumStreamStandIn } from '../../clients/Aws/s3Streams.testUtils';
 import {
     createContentDispositionHeader,
     getSafeContentDispositionHeader,
     sanitizeGenericFileName,
+    streamJsonlData,
 } from './FileDownloadUtils';
 
 describe('FileDownloadUtils', () => {
+    describe('streamJsonlData', () => {
+        it('closes the HTTP response behind a checksum-wrapped body when it stops at maxLines', async () => {
+            // The response is still mid-flight: more rows than the cap and
+            // no end, like a large results file on AWS S3
+            const response = new PassThrough();
+            const body = new ChecksumStreamStandIn(response);
+            response.write('{"n":1}\n{"n":2}\n{"n":3}\n');
+
+            const { results, truncated } = await streamJsonlData({
+                readStream: body,
+                onRow: (row) => row,
+                maxLines: 1,
+            });
+
+            expect(results).toEqual([{ n: 1 }]);
+            expect(truncated).toBe(true);
+            expect(response.destroyed).toBe(true);
+        });
+    });
+
     describe('sanitizeGenericFileName', () => {
         // Test cases as data arrays for faster execution
         const preserveTestCases = [

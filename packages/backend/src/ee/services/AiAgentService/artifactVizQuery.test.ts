@@ -106,7 +106,7 @@ const buildService = () => {
             agentUuid: 'agent-uuid',
         }),
         getThread: vi.fn().mockResolvedValue({ user: { uuid: 'user-uuid' } }),
-        getWebAppThreadEmbedSpace: vi.fn().mockResolvedValue('space-uuid'),
+        isWebAppThreadInEmbedSpaces: vi.fn().mockResolvedValue(true),
     };
     const asyncQueryService = {
         bindQueryToArtifact: vi.fn(),
@@ -115,15 +115,16 @@ const buildService = () => {
             .fn()
             .mockResolvedValue({ outcome: 'success', query }),
     };
+    const featureFlagService = {
+        get: vi.fn().mockResolvedValue({ enabled: true }),
+    };
     const service = new AiAgentService({
         aiAgentModel,
         asyncQueryService,
         aiAgentToolsService: {
             getExplore: vi.fn().mockResolvedValue(validExplore),
         },
-        featureFlagService: {
-            get: vi.fn().mockResolvedValue({ enabled: true }),
-        },
+        featureFlagService,
         analytics: { track: vi.fn() },
         lightdashConfig: { ai: { copilot: { maxQueryLimit: 5000 } } },
     } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
@@ -193,7 +194,11 @@ describe.each([
                         : await service.getArtifactVizQuery(user, options);
                 }
 
-                expect(result.query).toEqual(embedded ? redactedQuery : query);
+                expect(result).toEqual(
+                    expect.objectContaining({
+                        query: embedded ? redactedQuery : query,
+                    }),
+                );
                 expect(
                     asyncQueryService.executeAsyncMetricQuery,
                 ).toHaveBeenCalledWith(
@@ -249,7 +254,11 @@ describe.each([
                   )
                 : await service.getArtifactVizQuery(user, options);
 
-            expect(result.query).toEqual(embedded ? redactedQuery : query);
+            expect(result).toEqual(
+                expect.objectContaining({
+                    query: embedded ? redactedQuery : query,
+                }),
+            );
             expect(
                 asyncQueryService.executeAsyncMergeQuery,
             ).toHaveBeenCalledWith(
@@ -286,7 +295,7 @@ describe('AI artifact visualization SQL redaction', () => {
             ...artifactArgs,
         );
 
-        expect(result.query).toEqual(query);
+        expect(result).toEqual(expect.objectContaining({ query }));
     });
 });
 

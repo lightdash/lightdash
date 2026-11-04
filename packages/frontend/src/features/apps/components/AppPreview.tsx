@@ -51,6 +51,8 @@ export type AppPreviewProps = {
     insights?: DataAppInsightsPayload | null;
     onInsightAction?: (action: DataAppInsightAction) => void;
     onInsightsInUse?: () => void;
+    onInsightInstructionsChange?: (instructions: string | null) => void;
+    onInsightAnalyseOnLoadChange?: (analyseOnLoad: boolean | null) => void;
     onMountedQueriesChange?: (queryUuids: string[]) => void;
 };
 
@@ -82,6 +84,8 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
             insights,
             onInsightAction,
             onInsightsInUse,
+            onInsightInstructionsChange,
+            onInsightAnalyseOnLoadChange,
             onMountedQueriesChange,
         },
         ref,
@@ -158,6 +162,8 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
                 insights={insights}
                 onInsightAction={onInsightAction}
                 onInsightsInUse={onInsightsInUse}
+                onInsightInstructionsChange={onInsightInstructionsChange}
+                onInsightAnalyseOnLoadChange={onInsightAnalyseOnLoadChange}
                 onMountedQueriesChange={onMountedQueriesChange}
             />
         );

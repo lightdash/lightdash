@@ -84,6 +84,8 @@ export const summarizeToolCall = (toolName: string, input: AnyType) => {
             return 'Iterating on a data app';
         case 'listDataAppThemes':
             return 'Checking data app themes';
+        case 'listDataAppConnections':
+            return 'Checking data app connections';
         case 'editRepo':
             return 'Editing repository';
         default:

@@ -28,7 +28,10 @@ const CustomDimensionSchema = z.object({
 
 export type GeneratedCustomDimension = z.infer<typeof CustomDimensionSchema>;
 
-export type CustomDimensionContext = GenerateCustomDimensionRequest & {
+export type CustomDimensionContext = Omit<
+    GenerateCustomDimensionRequest,
+    'exploreName'
+> & {
     warehouseType: string;
 };
 

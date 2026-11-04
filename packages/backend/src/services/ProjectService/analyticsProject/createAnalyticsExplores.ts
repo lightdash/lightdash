@@ -13,6 +13,7 @@ import {
     type UncompiledExplore,
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
+import { contentInventoryColumns } from '../../../analytics/eventStream/contentInventory';
 import { compactedStreamSchemas } from '../../../analytics/eventStream/registry';
 import type { CompactedColumnType } from '../../../analytics/eventStream/types';
 import {
@@ -20,6 +21,7 @@ import {
     usageDimensionTable,
     type UsageDimensionName,
 } from '../../../analytics/eventStream/usageDimensions';
+import { historicalActivityColumns } from '../../../analytics/eventStream/usageHistorySources';
 import {
     analyticsStreams,
     userActivityColumns,
@@ -28,17 +30,26 @@ import {
     agentRequestsColumns,
     agentRequestsMetrics,
     agentRequestsSql,
+    agentRequestStartsColumns,
+    agentRequestStartsMetrics,
+    agentRequestStartsSql,
 } from '../../../analytics/systemExplores/agentRequests';
 import {
     contentHealthColumns,
     contentHealthMetrics,
     contentHealthSql,
 } from '../../../analytics/systemExplores/contentHealth';
+import { contentInventoryMetrics } from '../../../analytics/systemExplores/contentInventory';
 import {
     contentReachColumns,
     contentReachMetrics,
     contentReachSql,
 } from '../../../analytics/systemExplores/contentReach';
+import {
+    dataAppOutcomesColumns,
+    dataAppOutcomesMetrics,
+    dataAppOutcomesSql,
+} from '../../../analytics/systemExplores/dataAppOutcomes';
 import {
     dataAppReachColumns,
     dataAppReachMetrics,
@@ -48,6 +59,11 @@ import {
     analyticsTableDescriptions,
     describeAnalyticsDimensions,
 } from '../../../analytics/systemExplores/descriptions';
+import {
+    embedReachColumns,
+    embedReachMetrics,
+    embedReachSql,
+} from '../../../analytics/systemExplores/embedReach';
 import {
     peopleAdoptionColumns,
     peopleAdoptionMetrics,
@@ -73,6 +89,7 @@ const dimensionFields = {
     dashboards: { key: 'dashboard_id', label: 'Dashboard name' },
     users: { key: 'user_id', label: 'User name' },
     agents: { key: 'agent_id', label: 'Agent name' },
+    projects: { key: 'project_id', label: 'Project name' },
 };
 
 const dimensionTypes: Record<CompactedColumnType, DimensionType> = {
@@ -88,29 +105,72 @@ export const analyticsExploreNames = [
         (name) => name !== 'mcp_tool_calls' && name !== 'content_views',
     ),
     'user_activity',
+    'historical_activity',
     'tool_activity',
     'content_reach',
     'content_health',
+    'content_inventory',
     'agent_requests',
+    'agent_request_starts',
     'agent_request_events',
     'semantic_usage',
     'data_app_reach',
+    'data_app_outcomes',
     'people_adoption',
+    'embed_reach',
 ] as const;
+
+// Keep managed chart field IDs and existing filter targets stable.
+const getBaseTableName = (name: (typeof analyticsExploreNames)[number]) =>
+    name === 'content_inventory' ? 'content_health' : name;
 
 /** Compile backend-owned system models without querying remote storage. */
 export const createAnalyticsExplores = (): Explore[] => {
     const sqlBuilder = warehouseSqlBuilderFromType(WarehouseTypes.DUCKDB);
     const compiler = new ExploreCompiler(sqlBuilder);
-    const buildTable = (name: (typeof analyticsExploreNames)[number]) => {
+    const buildTable = (
+        name: Exclude<
+            (typeof analyticsExploreNames)[number],
+            'agent_request_starts'
+        >,
+        startsOnly = false,
+    ) => {
         const label = friendlyName(name);
+        const tableName = getBaseTableName(name);
         const base = {
-            table: name,
+            table: tableName,
             tableLabel: label,
             fieldType: FieldType.METRIC as const,
             hidden: false,
         };
         const model = {
+            embed_reach: {
+                columns: embedReachColumns,
+                metrics: embedReachMetrics,
+            },
+            historical_activity: {
+                columns: historicalActivityColumns,
+                metrics: [
+                    {
+                        name: 'record_count',
+                        type: MetricType.COUNT,
+                        column: 'record_id',
+                        description:
+                            'Retained database records. Filter by activity type; these are not additional captured views or requests.',
+                    },
+                    {
+                        name: 'distinct_people',
+                        type: MetricType.COUNT_DISTINCT,
+                        column: 'user_id',
+                        description:
+                            'Distinct identified people in the selected historical records; null actors are excluded.',
+                    },
+                ],
+            },
+            data_app_outcomes: {
+                columns: dataAppOutcomesColumns,
+                metrics: dataAppOutcomesMetrics,
+            },
             data_app_reach: {
                 columns: dataAppReachColumns,
                 metrics: dataAppReachMetrics,
@@ -127,6 +187,10 @@ export const createAnalyticsExplores = (): Explore[] => {
                 columns: contentHealthColumns,
                 metrics: contentHealthMetrics,
             },
+            content_inventory: {
+                columns: contentInventoryColumns,
+                metrics: contentInventoryMetrics,
+            },
             content_reach: {
                 columns: contentReachColumns,
                 metrics: contentReachMetrics,
@@ -140,8 +204,12 @@ export const createAnalyticsExplores = (): Explore[] => {
                 metrics: toolActivityMetrics,
             },
             agent_requests: {
-                columns: agentRequestsColumns,
-                metrics: agentRequestsMetrics,
+                columns: startsOnly
+                    ? agentRequestStartsColumns
+                    : agentRequestsColumns,
+                metrics: startsOnly
+                    ? agentRequestStartsMetrics
+                    : agentRequestsMetrics,
             },
             agent_request_events: {
                 columns: compactedStreamSchemas.agent_request_events,
@@ -157,14 +225,18 @@ export const createAnalyticsExplores = (): Explore[] => {
             },
         };
         const modelDefinition =
+            name === 'embed_reach' ||
+            name === 'historical_activity' ||
             name === 'semantic_usage' ||
             name === 'user_activity' ||
             name === 'tool_activity' ||
             name === 'content_reach' ||
             name === 'content_health' ||
+            name === 'content_inventory' ||
             name === 'agent_requests' ||
             name === 'agent_request_events' ||
             name === 'data_app_reach' ||
+            name === 'data_app_outcomes' ||
             name === 'people_adoption'
                 ? model[name]
                 : {
@@ -228,7 +300,7 @@ export const createAnalyticsExplores = (): Explore[] => {
                 sql: '1.0 * COUNT(DISTINCT ${verified_viewer_id}) / NULLIF(COUNT(DISTINCT ${known_verification_viewer_id}), 0)',
             };
         }
-        if (name === 'agent_requests') {
+        if (name === 'agent_requests' && !startsOnly) {
             const ratio = (
                 metricName: string,
                 condition: string,
@@ -272,29 +344,34 @@ export const createAnalyticsExplores = (): Explore[] => {
             };
         }
         const table = {
-            name,
+            name: tableName,
             label,
             ...(name === 'query_events'
                 ? { primaryKey: ['org_id', 'query_id'] }
                 : {}),
-            sqlTable:
-                (
-                    {
-                        tool_activity: toolActivitySql,
-                        content_reach: contentReachSql,
-                        content_health: contentHealthSql,
-                        agent_requests: agentRequestsSql,
-                        semantic_usage: semanticUsageSql,
-                        data_app_reach: dataAppReachSql,
-                        people_adoption: peopleAdoptionSql,
-                    } as Partial<Record<typeof name, string>>
-                )[name] ?? `"${name}"`,
+            sqlTable: startsOnly
+                ? agentRequestStartsSql
+                : ((
+                      {
+                          embed_reach: embedReachSql,
+                          tool_activity: toolActivitySql,
+                          content_reach: contentReachSql,
+                          content_health: contentHealthSql,
+                          content_inventory: '"lightdash_content"',
+                          agent_requests: agentRequestsSql,
+                          semantic_usage: semanticUsageSql,
+                          data_app_reach: dataAppReachSql,
+                          data_app_outcomes: dataAppOutcomesSql,
+                          people_adoption: peopleAdoptionSql,
+                      } as Partial<Record<typeof name, string>>
+                  )[name] ?? `"${name}"`),
+
             database: 'memory',
             schema: 'main',
             lineageGraph: { nodes: [], edges: [] },
             dimensions: buildDimensionsFromColumns({
                 qualifyColumnReferences: true,
-                tableName: name,
+                tableName,
                 tableLabel: label,
                 columns: modelDefinition.columns.map(
                     ({ name: reference, type }) => ({
@@ -309,8 +386,33 @@ export const createAnalyticsExplores = (): Explore[] => {
         if (table.dimensions.user_id)
             table.dimensions.user_id.label = 'User UUID';
         table.dimensions.project_id.label = 'Project UUID';
+        if (startsOnly) table.dimensions.org_id.hidden = true;
+        if (name === 'embed_reach') {
+            for (const field of [
+                'org_id',
+                'event_id',
+                'viewer_key',
+                'dashboard_key',
+            ]) {
+                table.dimensions[field].hidden = true;
+            }
+            table.dimensions.external_user_id.description =
+                'Explicit external ID supplied by the embed issuer; not a registered user or a tenant ID. Missing IDs remain null.';
+            table.dimensions.event_ts.description =
+                'Time of the successful authorized dashboard fetch. Capture begins after deployment; no historical loads are reconstructed.';
+        }
         if (name === 'query_events') {
             table.dimensions.semantic_field_references.hidden = true;
+        }
+        if (name === 'historical_activity') {
+            table.dimensions.org_id.hidden = true;
+            table.dimensions.schema_version.hidden = true;
+            table.dimensions.current_status.description =
+                'Status stored at the last import, not status at the historical record timestamp.';
+            table.dimensions.event_ts.description =
+                'Timestamp retained by the source record. No missing lifecycle timestamps are reconstructed.';
+            table.dimensions.activity_type.description =
+                'Meaning of the database record. Chart view records can include query executions; these counts must not be added to captured view totals.';
         }
         if (name === 'semantic_usage') {
             table.dimensions.org_id.hidden = true;
@@ -326,10 +428,21 @@ export const createAnalyticsExplores = (): Explore[] => {
             table.dimensions.view_context.description =
                 'UI surface captured at token creation, not historical builder identity. Older loads have unknown context. Reloads remain included.';
         }
+        if (name === 'data_app_outcomes') {
+            table.dimensions.org_id.hidden = true;
+            table.dimensions.event_name.hidden = true;
+            table.dimensions.navigation_key.hidden = true;
+            table.dimensions.navigation_id.label = 'Navigation UUID';
+            table.dimensions.version.description =
+                'App version authorized by the preview capability when this signal was captured.';
+        }
         if (name === 'people_adoption') {
             table.dimensions.org_id.hidden = true;
             table.dimensions.project_id.hidden = true;
             table.dimensions.name.label = 'User name';
+            table.dimensions.email.label = 'User email';
+            table.dimensions.email.description =
+                'Current primary email at the latest membership refresh, not the email at event time. Unavailable emails are NULL.';
             table.dimensions.group_ids.description =
                 'JSON array of current group UUIDs. Filter by a quoted UUID to select a group without multiplying people. Groups are not inferred HR teams.';
             table.dimensions.group_names.description =
@@ -339,14 +452,16 @@ export const createAnalyticsExplores = (): Explore[] => {
             table.dimensions.no_observed_activity.description =
                 'No confirmed human activity in retained capture, not proof that the person has never used Lightdash.';
         }
-        if (name === 'content_health') {
+        if (name === 'content_health' || name === 'content_inventory') {
             table.dimensions.org_id.hidden = true;
+            table.dimensions.owner_status.description =
+                'Current ownership evidence. Not an organization member does not imply employment ended. Creators and editors are not inferred to be owners.';
+        }
+        if (name === 'content_health') {
             table.dimensions.observed_viewers.description =
                 'Distinct qualifying registered viewers per item across retained history. Do not sum across items.';
             table.dimensions.first_observed_event_at.description =
                 'Earliest retained event for this organization; this is not proof of complete capture since that date.';
-            table.dimensions.owner_status.description =
-                'Current ownership evidence. Not an organization member does not imply employment ended. Creators and editors are not inferred to be owners.';
         }
         if (name === 'content_reach') {
             for (const column of [
@@ -379,7 +494,9 @@ export const createAnalyticsExplores = (): Explore[] => {
         return table;
     };
 
-    return analyticsExploreNames.map((name) => {
+    return analyticsExploreNames.map((exploreName) => {
+        const startsOnly = exploreName === 'agent_request_starts';
+        const name = startsOnly ? 'agent_requests' : exploreName;
         const dimensions: Exclude<UsageDimensionName, 'content' | 'people'>[] =
             [];
         if (
@@ -388,7 +505,12 @@ export const createAnalyticsExplores = (): Explore[] => {
             name === 'semantic_usage'
         ) {
             dimensions.push('charts', 'dashboards', 'users');
-        } else if (name !== 'content_health' && name !== 'people_adoption') {
+        } else if (
+            name !== 'content_health' &&
+            name !== 'content_inventory' &&
+            name !== 'people_adoption' &&
+            name !== 'embed_reach'
+        ) {
             dimensions.push('users');
         }
         if (
@@ -396,9 +518,12 @@ export const createAnalyticsExplores = (): Explore[] => {
             name === 'agent_steps' ||
             name === 'agent_requests' ||
             name === 'agent_request_events' ||
-            name === 'tool_activity'
+            name === 'tool_activity' ||
+            name === 'historical_activity'
         )
             dimensions.push('agents');
+        if (name === 'ai_usage' || name === 'historical_activity')
+            dimensions.push('projects');
         const dimensionTables = Object.fromEntries(
             dimensions.map((dimension) => {
                 const tableName = usageDimensionTable(dimension);
@@ -417,11 +542,18 @@ export const createAnalyticsExplores = (): Explore[] => {
                 });
                 fields.org_id.hidden = true;
                 fields.name.label = dimensionFields[dimension].label;
-                if (dimension === 'users')
+                if (dimension === 'users') {
                     fields.name.sql = "COALESCE(${TABLE}.name, 'Unknown user')";
+                    fields.email.label = 'User email';
+                    fields.email.description =
+                        'Current primary email at the latest user metadata refresh, not the email at event time. Unavailable emails are NULL.';
+                }
                 if (dimension === 'agents')
                     fields.name.sql =
                         "COALESCE(${TABLE}.name, 'Unknown agent')";
+                if (dimension === 'projects')
+                    fields.name.sql =
+                        "COALESCE(${TABLE}.name, 'Unknown project')";
                 return [
                     tableName,
                     {
@@ -438,13 +570,32 @@ export const createAnalyticsExplores = (): Explore[] => {
                 ];
             }),
         );
-        const label = friendlyName(name);
+        const label = friendlyName(exploreName);
+        const includeContentMetadata =
+            name === 'content_reach' || name === 'historical_activity';
+        const contentTableName = usageDimensionTable('content');
+        const contentFields = buildDimensionsFromColumns({
+            qualifyColumnReferences: true,
+            tableName: contentTableName,
+            tableLabel: 'Content',
+            columns: [
+                'org_id',
+                'project_id',
+                'content_id',
+                'content_type',
+                'content_url',
+                ...(name === 'historical_activity' ? ['content_name'] : []),
+            ].map((reference) => ({ reference, type: DimensionType.STRING })),
+            warehouseSqlBuilder: sqlBuilder,
+        });
         const includeQueryMetadata = name === 'export_events';
         const appTableName = 'lightdash_apps';
         const includeAppMetadata =
             name === 'data_app_events' ||
             name === 'semantic_usage' ||
-            name === 'data_app_reach';
+            name === 'data_app_reach' ||
+            name === 'data_app_outcomes' ||
+            name === 'historical_activity';
         const appFields = buildDimensionsFromColumns({
             qualifyColumnReferences: true,
             tableName: appTableName,
@@ -461,12 +612,28 @@ export const createAnalyticsExplores = (): Explore[] => {
         appFields.org_id.hidden = true;
         appFields.name.label = 'App name';
         appFields.name.sql = `COALESCE(\${TABLE}.name, \${${name}.app_id}, 'Unknown app')`;
+        if (name === 'historical_activity')
+            appFields.name.sql = `CASE WHEN \${${name}.app_id} IS NULL THEN NULL ELSE ${appFields.name.sql} END`;
         const explore: UncompiledExplore = {
-            name,
+            name: exploreName,
             label,
             tags: [],
-            baseTable: name,
+            baseTable: getBaseTableName(name),
             joinedTables: [
+                ...(includeContentMetadata
+                    ? [
+                          {
+                              table: contentTableName,
+                              type: 'left' as const,
+                              relationship: JoinRelationship.MANY_TO_ONE,
+                              fields:
+                                  name === 'historical_activity'
+                                      ? ['content_name', 'content_url']
+                                      : ['content_url'],
+                              sqlOn: `\${${name}.org_id} = \${lightdash_content.org_id} AND \${${name}.project_id} = \${lightdash_content.project_id} AND \${${name}.content_id} = \${lightdash_content.content_id} AND CASE WHEN \${${name}.content_type} = 'chart' THEN 'saved_chart' ELSE \${${name}.content_type} END = \${lightdash_content.content_type}`,
+                          },
+                      ]
+                    : []),
                 ...(includeAppMetadata
                     ? [
                           {
@@ -510,6 +677,26 @@ export const createAnalyticsExplores = (): Explore[] => {
             meta: {},
             targetDatabase: sqlBuilder.getAdapterType(),
             tables: {
+                ...(includeContentMetadata
+                    ? {
+                          [contentTableName]: {
+                              name: contentTableName,
+                              label: 'Content',
+                              primaryKey: [
+                                  'org_id',
+                                  'project_id',
+                                  'content_type',
+                                  'content_id',
+                              ],
+                              sqlTable: `"${contentTableName}"`,
+                              database: 'memory',
+                              schema: 'main',
+                              lineageGraph: { nodes: [], edges: [] },
+                              dimensions: contentFields,
+                              metrics: {},
+                          },
+                      }
+                    : {}),
                 ...(includeAppMetadata
                     ? {
                           [appTableName]: {
@@ -528,7 +715,7 @@ export const createAnalyticsExplores = (): Explore[] => {
                       }
                     : {}),
                 ...dimensionTables,
-                [name]: buildTable(name),
+                [getBaseTableName(name)]: buildTable(name, startsOnly),
                 ...(includeQueryMetadata
                     ? { query_events: buildTable('query_events') }
                     : {}),
@@ -536,8 +723,14 @@ export const createAnalyticsExplores = (): Explore[] => {
         };
 
         for (const table of Object.values(explore.tables)) {
-            table.description = analyticsTableDescriptions[table.name];
-            describeAnalyticsDimensions(table.name, table.dimensions);
+            const modelName =
+                table.name === explore.baseTable ? name : table.name;
+            table.description = analyticsTableDescriptions[modelName];
+            describeAnalyticsDimensions(modelName, table.dimensions);
+        }
+        if (startsOnly) {
+            explore.tables[name].description =
+                'One row per captured human prompt, using the same event and creation deduplication as Agent requests. Counts questions and exact distinct requesters without preparing outcomes or model usage. Pending and failed prompts remain included.';
         }
 
         // Keep the joins lazy, but present their fields alongside the activity.
@@ -546,9 +739,10 @@ export const createAnalyticsExplores = (): Explore[] => {
             lightdash_dashboards: 'dashboard',
             lightdash_users: 'user',
             lightdash_agents: 'agent',
+            lightdash_projects: 'project',
             lightdash_apps: 'app',
         };
-        const baseTable = explore.tables[name];
+        const baseTable = explore.tables[explore.baseTable];
         for (const join of explore.joinedTables) {
             const prefix = metadataPrefixes[join.table];
             for (const dimension of Object.values(
@@ -576,6 +770,17 @@ export const createAnalyticsExplores = (): Explore[] => {
                 }
             }
             join.hidden = true;
+        }
+        for (const contentType of ['chart', 'dashboard', 'content']) {
+            const nameField = baseTable.dimensions[`${contentType}_name`];
+            if (nameField && baseTable.dimensions[`${contentType}_url`]) {
+                nameField.urls = [
+                    {
+                        label: `Open ${contentType}`,
+                        url: `\${row.${baseTable.name}.${contentType}_url.raw}`,
+                    },
+                ];
+            }
         }
         return compiler.compileExplore(explore);
     });

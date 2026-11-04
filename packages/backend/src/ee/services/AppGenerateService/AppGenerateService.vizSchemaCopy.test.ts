@@ -199,6 +199,7 @@ function buildService() {
             unverify: async () => undefined,
         } as never,
     });
+    vi.spyOn(service, 'isChartStudioAvailable').mockReturnValue(true);
 
     vi.spyOn(
         service as unknown as { createAuditedAbility: () => unknown },

@@ -48,6 +48,7 @@ import { ElementPickerButton } from '../../apps/components/ElementPickerButton';
 import { ElementRefPill } from '../../apps/components/ElementRefPill';
 import { SampleDataButton } from '../../apps/components/SampleDataButton';
 import { type ClarificationRound } from '../../apps/hooks/useClarificationRound';
+import { useDataAppCapturesEnabled } from '../../apps/hooks/useDataAppCapturesEnabled';
 import { type DataAppModelSelection } from '../../apps/hooks/useDataAppModelSelection';
 import { type UseElementPickerResult } from '../../apps/hooks/useElementPicker';
 import { elementRefKey } from '../../apps/utils/elementRefs';
@@ -238,6 +239,9 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
         const canIncludeSampleData =
             health.data?.dataApps.sampleDataEnabled !== false &&
             Boolean(buildContext?.sampleRows?.length);
+        // Org switch for screenshots and file attachments; the backend
+        // rejects the uploads regardless, this only hides the affordances.
+        const capturesEnabled = useDataAppCapturesEnabled();
         const sourceIdentity =
             savedChartSource?.sourceIdentity ??
             exploreSource?.sourceIdentity ??
@@ -514,6 +518,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
         const handlePaste: ClipboardEventHandler = (event) => {
             if (event.clipboardData.files.length === 0) return;
             event.preventDefault();
+            if (!capturesEnabled) return;
             attachments.add(Array.from(event.clipboardData.files));
         };
 
@@ -523,6 +528,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
 
         const handleDrop: DragEventHandler = (event) => {
             event.preventDefault();
+            if (!capturesEnabled) return;
             attachments.add(Array.from(event.dataTransfer.files));
         };
 
@@ -797,6 +803,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                 onPanelChange={setComposerPanel}
                                 disabled={isComposerLocked}
                                 onAttach={() => fileInputRef.current?.click()}
+                                canAttach={capturesEnabled}
                                 selectedConnections={selectedConnections}
                                 onSelectConnection={(connection) =>
                                     setSelectedConnections((current) => [
@@ -816,7 +823,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                     disabled={isComposerLocked}
                                 />
                             )}
-                            {onCaptureScreenshot && (
+                            {onCaptureScreenshot && capturesEnabled && (
                                 <Tooltip label="Attach screenshot of current render">
                                     <ActionIcon
                                         variant="subtle"

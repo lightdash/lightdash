@@ -17,6 +17,7 @@ import Fuse from 'fuse.js';
 import { useCallback, useMemo, useState, useTransition } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { AddDataModal } from '../../../features/externalSources/components/AddDataModal';
+import useHealth from '../../../hooks/health/useHealth';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useExplores } from '../../../hooks/useExplores';
 import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
@@ -74,6 +75,7 @@ const BasePanel = ({ onExploreClick, onExploreCreated }: Props) => {
     const { data: externalSourcesFlag } = useServerFeatureFlag(
         FeatureFlags.ExternalSources,
     );
+    const { data: health } = useHealth();
     const [
         isAddDataModalOpen,
         { open: openAddDataModal, close: closeAddDataModal },
@@ -84,6 +86,7 @@ const BasePanel = ({ onExploreClick, onExploreCreated }: Props) => {
     // handles the created table itself via onExploreCreated.
     const canShowAddData =
         externalSourcesFlag?.enabled === true &&
+        health?.externalSources.engineAvailable === true &&
         (!onExploreClick || !!onExploreCreated) &&
         !!projectUuid;
 

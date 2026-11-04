@@ -100,6 +100,8 @@ const schedulerWorkerFactory = (context: {
             context.serviceRepository.getAgentConnectionGrantService(),
         agentActionLogModel: context.models.getAgentActionLogModel(),
         usageDimensionsModel: context.models.getUsageDimensionsModel(),
+        usageHistoryModel: context.models.getUsageHistoryModel(),
+        usageProcessingModel: context.models.getUsageProcessingModel(),
         featureFlagModel: context.models.getFeatureFlagModel(),
         lightdashConfig: context.lightdashConfig,
         analytics: context.analytics,
@@ -136,6 +138,8 @@ const schedulerWorkerFactory = (context: {
             context.serviceRepository.getEmailWhitelabelService(),
         warehouseConnectCodeModel:
             context.models.getWarehouseConnectCodeModel(),
+        agentConnectionApprovalRequestModel:
+            context.models.getAgentConnectionApprovalRequestModel(),
         aiUsageLedgerModel: context.models.getAiUsageLedgerModel(),
         learnSandboxService: context.serviceRepository.getLearnSandboxService(),
         workerHealth: context.workerHealth,
@@ -185,7 +189,6 @@ export default class SchedulerApp {
         this.eventStreamWriter = createEventStreamWriter(
             this.lightdashConfig,
             this.prometheusMetrics,
-            () => this.models.getFeatureFlagModel(),
         );
         this.analytics = new LightdashAnalytics({
             lightdashConfig: this.lightdashConfig,
@@ -212,6 +215,12 @@ export default class SchedulerApp {
             this.environment === 'production'
                 ? args.knexConfig.production
                 : args.knexConfig.development,
+            {
+                logRollbacks:
+                    this.lightdashConfig.database.logTransactionRollbacks,
+                slowTransactionThresholdMs:
+                    this.lightdashConfig.database.slowTransactionThresholdMs,
+            },
         );
 
         const utils = new UtilRepository({

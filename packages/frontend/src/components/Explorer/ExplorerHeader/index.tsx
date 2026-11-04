@@ -1,5 +1,9 @@
 import { subject } from '@casl/ability';
-import { assertUnreachable, type UiStringKey } from '@lightdash/common';
+import {
+    assertUnreachable,
+    getEmbedWriteSpaceUuids,
+    type UiStringKey,
+} from '@lightdash/common';
 import { Badge, Box, Button, Group, Tooltip } from '@mantine/core';
 import {
     IconAlertCircle,
@@ -22,6 +26,10 @@ import { useMergeChangeSinceRun } from '../../../features/mergeQuery/hooks/useMe
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
 import { useExploreConnectionName } from '../../../hooks/useConnectionBadges';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../../hooks/useExplorerRoute';
+import {
+    useExploreWarehouseConnection,
+    useMixedWarehouseConnectionsEnabled,
+} from '../../../hooks/useExploreWarehouseConnection';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useCreateInAnySpaceAccess from '../../../hooks/user/useCreateInAnySpaceAccess';
 import { useVerificationSavePrompt } from '../../../hooks/useVerificationSavePrompt';
@@ -29,6 +37,7 @@ import { Can } from '../../../providers/Ability';
 import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
 import useApp from '../../../providers/App/useApp';
 import { useIsModalHosted } from '../../../providers/Explorer/useIsModalHosted';
+import { getExplorerConnectionLabel } from '../../../utils/mixedWarehouseConnections';
 import ConnectionBadge from '../../common/ConnectionBadge';
 import MantineIcon from '../../common/MantineIcon';
 import ShareShortLinkButton from '../../common/ShareShortLinkButton';
@@ -36,6 +45,7 @@ import { RefreshButton } from '../../RefreshButton';
 import RefreshDbtButton from '../../RefreshDbtButton';
 import SaveChartButton from '../SaveChartButton';
 import { useExplorerResultsData } from '../VisualizationCard/useExplorerResultsData';
+import classes from './ExplorerHeader.module.css';
 import QueryWarnings from './QueryWarnings';
 
 const getBackButtonLabelKey = (
@@ -98,6 +108,18 @@ const ExplorerHeader: FC = memo(() => {
         unsavedChartVersion.tableName,
     );
 
+    const { warehouseType } = useExploreWarehouseConnection(
+        unsavedChartVersion.tableName,
+        projectUuid,
+    );
+    const mixedWarehouseConnectionsEnabled =
+        useMixedWarehouseConnectionsEnabled();
+    const connectionLabel = getExplorerConnectionLabel(
+        connectionName,
+        warehouseType,
+        mixedWarehouseConnectionsEnabled,
+    );
+
     const { getHasDashboardChanges } = useDashboardStorage();
 
     const userCanCreateChartsInSpace = useCreateInAnySpaceAccess(
@@ -117,9 +139,9 @@ const ExplorerHeader: FC = memo(() => {
     const isModalHosted = useIsModalHosted();
     const verificationSavePrompt = useVerificationSavePrompt(savedChart);
     const hasEmbedWriteActions =
-        !!embed.writeActions?.spaceUuid &&
-        (!!embed.writeActions.userUuid ||
-            !!embed.writeActions.serviceAccountUserUuid);
+        getEmbedWriteSpaceUuids(embed.writeActions).length > 0 &&
+        (!!embed.writeActions?.userUuid ||
+            !!embed.writeActions?.serviceAccountUserUuid);
     const canCreateEmbedSavedChart =
         hasEmbedWriteActions &&
         embed.embedWriteContext?.canCreateSavedChart === true;
@@ -197,7 +219,7 @@ const ExplorerHeader: FC = memo(() => {
             </Box>
 
             <Group gap="xs">
-                <ConnectionBadge name={connectionName} />
+                <ConnectionBadge name={connectionLabel} />
                 {showMergeOutOfDate && (
                     <Tooltip
                         w={400}
@@ -213,7 +235,7 @@ const ExplorerHeader: FC = memo(() => {
                             }
                             color="yellow"
                             variant="outline"
-                            style={{ cursor: 'help' }}
+                            className={classes.helpBadge}
                         >
                             Results out of date
                         </Badge>
@@ -231,7 +253,7 @@ const ExplorerHeader: FC = memo(() => {
                             }
                             color="yellow"
                             variant="outline"
-                            style={{ cursor: 'help' }}
+                            className={classes.helpBadge}
                         >
                             Results may be incomplete
                         </Badge>

@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { FeatureFlags } from '@lightdash/common';
-import { Stack, Text, Title } from '@mantine/core';
+import { Box, Stack, Text, Title } from '@mantine/core';
 import * as Sentry from '@sentry/react';
 import {
     useMemo,
@@ -36,7 +36,6 @@ import { useProject } from '../../hooks/useProject';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
-import Callout from '../common/Callout';
 import { DocumentTitle } from '../common/DocumentTitle';
 import ErrorState from '../common/ErrorState';
 import PageBreadcrumbs from '../common/PageBreadcrumbs';
@@ -68,6 +67,7 @@ import { SettingsValidator } from '../SettingsValidator';
 import CorsSettingsPanel from '../UserSettings/CorsSettingsPanel';
 import VerifiedContentPanel from '../VerifiedContent/VerifiedContentPanel';
 import DataAppConnectionsPanel from './DataAppConnectionsPanel';
+import LiveDataSourcesPanel from './LiveDataSourcesPanel';
 import SemanticLayerConnectionPanel from './SemanticLayerConnectionPanel';
 
 type ProjectSettingsPageProps = PropsWithChildren<{
@@ -123,6 +123,10 @@ const ProjectSettings: FC<{
 
     const { data: dataAppsFlag, isLoading: isDataAppsFlagLoading } =
         useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const {
+        data: apiQuerySourcesFlag,
+        isLoading: isApiQuerySourcesFlagLoading,
+    } = useServerFeatureFlag(FeatureFlags.ApiQuerySources);
     const { data: resultsCacheFlag, isLoading: isResultsCacheFlagLoading } =
         useServerFeatureFlag(FeatureFlags.ResultsCacheEnabled);
     const { data: agentIdentityFlag, isLoading: isAgentIdentityFlagLoading } =
@@ -140,8 +144,7 @@ const ProjectSettings: FC<{
             false);
     const isResultsCacheEnabled = resultsCacheFlag?.enabled ?? false;
     const isDataAppsEnabled = dataAppsFlag?.enabled ?? false;
-    const canManageExternalConnections =
-        isDataAppsEnabled &&
+    const canManageProjectConnections =
         !!project &&
         (user.data?.ability.can(
             'manage',
@@ -151,6 +154,10 @@ const ProjectSettings: FC<{
             }),
         ) ??
             false);
+    const canManageExternalConnections =
+        isDataAppsEnabled && canManageProjectConnections;
+    const canManageLiveDataSources =
+        apiQuerySourcesFlag?.enabled === true && canManageProjectConnections;
 
     const canManageExternalSources =
         externalSourcesEnabled &&
@@ -214,7 +221,7 @@ const ProjectSettings: FC<{
                 },
             ];
         }
-        return [
+        const projectRoutes: RouteObject[] = [
             {
                 path: `/settings`,
                 element: (
@@ -260,7 +267,11 @@ const ProjectSettings: FC<{
                 element: (
                     <ProjectSettingsPage
                         title="Project access"
-                        description="Manage who can access this project and what they can do."
+                        description={
+                            project?.provisioningSource === 'analytics'
+                                ? 'Grant access with a custom role containing View managed analytics. Standard project roles alone do not grant access to organization analytics.'
+                                : 'Manage who can access this project and what they can do.'
+                        }
                         actions={
                             <SettingsPageDocumentationLink
                                 href="https://docs.lightdash.com/references/roles"
@@ -611,7 +622,43 @@ const ProjectSettings: FC<{
                       },
                   ]
                 : []),
+            ...(canManageLiveDataSources
+                ? [
+                      {
+                          path: `/liveDataSources`,
+                          element: (
+                              <LiveDataSourcesPanel projectUuid={projectUuid} />
+                          ),
+                      },
+                  ]
+                : []),
         ];
+        if (project?.provisioningSource === 'analytics') {
+            return [
+                ...projectRoutes.filter(
+                    ({ path }) =>
+                        path === '/recentlyDeleted' ||
+                        (path === '/projectAccess' &&
+                            user.data?.ability.can(
+                                'manage',
+                                subject('Project', {
+                                    organizationUuid: project.organizationUuid,
+                                    projectUuid,
+                                }),
+                            )),
+                ),
+                {
+                    path: '*',
+                    element: (
+                        <Navigate
+                            to="/generalSettings/lightdashAnalytics"
+                            replace
+                        />
+                    ),
+                },
+            ];
+        }
+        return projectRoutes;
     }, [
         projectUuid,
         projectSettingsAccess,
@@ -621,6 +668,7 @@ const ProjectSettings: FC<{
         isResultsCacheEnabled,
         user.data?.ability,
         canManageExternalConnections,
+        canManageLiveDataSources,
         canManageAgentIdentity,
         project,
         canManageExternalSources,
@@ -642,6 +690,12 @@ const ProjectSettings: FC<{
         isDataAppsFlagLoading &&
         !!matchPath(
             '/generalSettings/projectManagement/:projectUuid/dataAppConnections',
+            location.pathname,
+        );
+    const isAwaitingLiveDataSourcesRoute =
+        isApiQuerySourcesFlagLoading &&
+        !!matchPath(
+            '/generalSettings/projectManagement/:projectUuid/liveDataSources',
             location.pathname,
         );
     const isAwaitingAgentIdentityRoute =
@@ -668,14 +722,15 @@ const ProjectSettings: FC<{
         !project ||
         !projectUuid ||
         isAwaitingDataAppConnectionsRoute ||
+        isAwaitingLiveDataSourcesRoute ||
         isAwaitingCachingRoute ||
         isAwaitingAgentIdentityRoute ||
         isAwaitingReviewRequestsRoute
     ) {
         return (
-            <div style={{ marginTop: '20px' }}>
+            <Box mt="lg">
                 <SuboptimalState title="Loading project" loading />
-            </div>
+            </Box>
         );
     }
 
@@ -707,19 +762,7 @@ const ProjectSettings: FC<{
                         ]}
                     />
                 </SettingsPageContainer>
-                {project.provisioningSource === 'analytics' ? (
-                    <ProjectSettingsPage
-                        title="Project settings"
-                        description="Lightdash manages this analytics project's configuration."
-                    >
-                        <Callout
-                            variant="warning"
-                            title="Settings cannot be changed for managed analytics projects."
-                        />
-                    </ProjectSettingsPage>
-                ) : (
-                    routesElements
-                )}
+                {routesElements}
             </Stack>
         </>
     );

@@ -65,6 +65,9 @@ export class CommercialSlackIntegrationService extends SlackIntegrationService<C
             hasRequiredScopes: this.slackClient.hasRequiredScopes(
                 installation.scopes,
             ),
+            features: this.slackClient.getFeatureAvailability(
+                installation.scopes,
+            ),
             slackChannelProjectMappings:
                 installation.slackChannelProjectMappings,
             aiThreadAccessConsent: installation.aiThreadAccessConsent,
@@ -72,6 +75,7 @@ export class CommercialSlackIntegrationService extends SlackIntegrationService<C
             aiLinksOnly: installation.aiLinksOnly,
             aiMultiAgentChannelId: installation.aiMultiAgentChannelId,
             aiMultiAgentProjectUuids: installation.aiMultiAgentProjectUuids,
+            aiMultiAgentRequireMention: installation.aiMultiAgentRequireMention,
             unfurlsEnabled: installation.unfurlsEnabled,
             aiAgentsEnabled: installation.aiAgentsEnabled,
         };

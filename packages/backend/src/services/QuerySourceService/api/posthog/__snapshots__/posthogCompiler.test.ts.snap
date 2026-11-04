@@ -1,0 +1,42 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`PostHog semantic layer > keeps its field ids stable 1`] = `
+[
+  "posthog_events_date",
+  "posthog_events_week",
+  "posthog_events_month",
+  "posthog_events_timestamp",
+  "posthog_events_event",
+  "posthog_events_distinct_id",
+  "posthog_events_person_id",
+  "posthog_events_current_url",
+  "posthog_events_pathname",
+  "posthog_events_referring_domain",
+  "posthog_events_utm_source",
+  "posthog_events_browser",
+  "posthog_events_os",
+  "posthog_events_device_type",
+  "posthog_events_country",
+  "posthog_events_event_count",
+  "posthog_events_unique_users",
+  "posthog_events_unique_sessions",
+]
+`;
+
+exports[`compilePostHogQuery > compiles one HogQL query, reading the last 30 days by default 1`] = `
+"SELECT "posthog_events_week" AS c0, "posthog_events_browser" AS c1, "posthog_events_unique_users" AS c2, "posthog_events_event_count" AS c3
+FROM (
+SELECT
+  toStartOfWeek("posthog_events".timestamp, 1) AS "posthog_events_week",
+  "posthog_events".properties.$browser AS "posthog_events_browser",
+  COUNT(DISTINCT "posthog_events".person_id) AS "posthog_events_unique_users",
+  COUNT("posthog_events".uuid) AS "posthog_events_event_count"
+FROM "events" AS "posthog_events"
+
+WHERE ((
+  ((toDate("posthog_events".timestamp)) >= ('2026-10-05') AND (toDate("posthog_events".timestamp)) <= ('2026-11-04'))
+))
+GROUP BY 1,2
+) AS live_query
+ORDER BY c2 DESC"
+`;

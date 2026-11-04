@@ -15,7 +15,8 @@ const sources = async () => {
                     entry.name.endsWith('.ts') &&
                     !entry.name.endsWith('.test.ts') &&
                     !entry.name.endsWith('.d.ts') &&
-                    !entry.name.endsWith('.mocks.ts'),
+                    !entry.name.endsWith('.mocks.ts') &&
+                    entry.parentPath !== path.join(sourceRoot, 'testing'),
             )
             .map(async (entry) => {
                 const file = path.join(entry.parentPath, entry.name);
@@ -59,7 +60,7 @@ it('keeps whole config and credential serializers in the audited inventory', asy
             )
             .map(({ name }) => name)
             .sort(),
-    ).toEqual(['handlers/dbt/getWarehouseClient.ts', 'handlers/getProject.ts']);
+    ).toEqual(['handlers/dbt/getWarehouseClient.ts']);
 });
 it.each([
     'handlers/apps/createApp.ts',
@@ -96,3 +97,24 @@ it.each([
         expect(launches(current)).toMatchSnapshot();
     },
 );
+
+it('keeps remaining config API-key reads and legacy header calls explicit', async () => {
+    expect(
+        (await sources())
+            .flatMap(({ name, text }) =>
+                text
+                    .split('\n')
+                    .flatMap((line) =>
+                        /context\??\.apiKey|buildRequestHeaders\(/.test(line) &&
+                        !line.trim().startsWith('//')
+                            ? [{ name, line: line.trim() }]
+                            : [],
+                    ),
+            )
+            .sort(
+                (a, b) =>
+                    a.name.localeCompare(b.name) ||
+                    a.line.localeCompare(b.line),
+            ),
+    ).toMatchSnapshot();
+});

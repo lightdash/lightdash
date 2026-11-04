@@ -74,7 +74,7 @@ describe('ChartDataTable — pivoted column sort affordance (#12560)', () => {
         const sortableHeaderTh = screen.getByText('indexCol').closest('th');
         const pivotedHeaderTh = screen.getByText('pivotedCol').closest('th');
 
-        expect(sortableHeaderTh).toHaveStyle({ cursor: 'pointer' });
-        expect(pivotedHeaderTh).not.toHaveStyle({ cursor: 'pointer' });
+        expect(sortableHeaderTh).toHaveAttribute('data-sortable');
+        expect(pivotedHeaderTh).not.toHaveAttribute('data-sortable');
     });
 });

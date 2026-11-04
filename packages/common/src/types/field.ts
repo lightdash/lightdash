@@ -1,10 +1,11 @@
-import words from 'lodash/words';
+import { words } from 'es-toolkit/compat';
 import type {
     AdditionalMetric,
     currencies,
     DefaultTimeDimension,
     LightdashProjectConfig,
 } from '..';
+import { type WeekDay } from '../utils/timeFrames';
 import { type AnyType } from './any';
 import { CompileError } from './errors';
 import { type MetricFilterRule } from './filter';
@@ -805,6 +806,7 @@ export const filterStaticFilterAutocompleteValues = (
     searchFilterAutocompleteValues(values, search).map(({ value }) => value);
 
 export interface Dimension extends Field {
+    filterStartOfWeek?: WeekDay;
     fieldType: FieldType.DIMENSION;
     type: DimensionType;
     /**
@@ -1158,7 +1160,7 @@ export const friendlyName = (text: string): string => {
         return '';
     }
 
-    // Use lodash's words function with a safe custom pattern
+    // Use words() with a safe custom pattern
     // Pattern explanation (avoids backtracking):
     // - [A-Z][a-z]+: Uppercase letter followed by 1+ lowercase (avoids * quantifier)
     // - [a-z]+: One or more lowercase letters

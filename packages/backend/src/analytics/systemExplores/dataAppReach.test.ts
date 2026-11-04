@@ -75,7 +75,7 @@ describe('Data app reach from existing loads', () => {
             ('other','project','data_app','app','Other tenant','Other'),
             ('org','other-project','data_app','app','Other project','Other'),
             ('org','project','dashboard','app','Dashboard collision','Sales')`);
-        await db.run(`INSERT INTO lightdash_users VALUES
+        await db.run(`INSERT INTO lightdash_users (org_id, user_id, name) VALUES
             ('org','reader','Reader'), ('org','builder','Builder'),
             ('org','issuer','Token issuer'), ('other','reader','Other tenant')`);
     });

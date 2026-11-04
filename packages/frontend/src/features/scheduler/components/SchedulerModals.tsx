@@ -9,6 +9,11 @@ import {
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import { readAppUrlState } from '../../apps/hooks/useAppUrlStateSync';
 import {
+    selectDashboardParameterDefinitions,
+    selectParameterValues,
+    useDashboardSelector,
+} from '../../dashboard/store';
+import {
     useAppSchedulerCreateMutation,
     useAppSchedulers,
 } from '../hooks/useAppSchedulers';
@@ -47,11 +52,9 @@ export const DashboardSchedulersModal: FC<DashboardSchedulersProps> = ({
     const createMutation = useDashboardSchedulerCreateMutation();
 
     // Extract parameter data from dashboard context
-    const currentParameterValues = useDashboardContext(
-        (c) => c.parameterValues,
-    );
-    const availableParameters = useDashboardContext(
-        (c) => c.parameterDefinitions,
+    const currentParameterValues = useDashboardSelector(selectParameterValues);
+    const availableParameters = useDashboardSelector(
+        selectDashboardParameterDefinitions,
     );
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,

@@ -10,6 +10,7 @@ import { FiltersExamplePage } from './FiltersExamplePage';
 import { HostStylesExamplePage } from './HostStylesExamplePage';
 import { I18nExamplePage } from './I18nExamplePage';
 import { MetricsCatalogExamplePage } from './MetricsCatalogExamplePage';
+import { MultipleEmbedsExamplePage } from './MultipleEmbedsExamplePage';
 import { PaletteUuidExamplePage } from './PaletteUuidExamplePage';
 import { ThemeExamplePage } from './ThemeExamplePage';
 import { TokenRotationExamplePage } from './TokenRotationExamplePage';
@@ -115,7 +116,7 @@ export const examples: ExampleDefinition[] = [
         path: '/examples/theme',
         title: 'Theme demo',
         description:
-            'Switch the embedded dashboard between light and dark mode via the `theme` prop.',
+            'Switch the embedded dashboard between light, dark and the OS scheme via the `theme` prop.',
         sourcePath: 'packages/sdk-test-app/src/examples/ThemeExamplePage.tsx',
         component: ThemeExamplePage,
     },
@@ -148,6 +149,16 @@ export const examples: ExampleDefinition[] = [
         sourcePath:
             'packages/sdk-test-app/src/examples/HostStylesExamplePage.tsx',
         component: HostStylesExamplePage,
+    },
+    {
+        slug: 'multiple-embeds',
+        path: '/examples/multiple-embeds',
+        title: 'Multiple embeds demo',
+        description:
+            'A dashboard and a chart on the same page, each embedded with its own token.',
+        sourcePath:
+            'packages/sdk-test-app/src/examples/MultipleEmbedsExamplePage.tsx',
+        component: MultipleEmbedsExamplePage,
     },
     // Future examples:
     // {

@@ -53,7 +53,7 @@ const FieldRow: FC<{
                     ml="auto"
                 />
             ) : (
-                <Text ff="monospace" fz="xs" c="ldGray.5" ml="auto">
+                <Text ff="monospace" fz="xs" c="dimmed" ml="auto">
                     {field.type}
                 </Text>
             )}
@@ -92,14 +92,14 @@ export const TableFieldsList: FC<Props> = ({
                 <Text
                     ff="monospace"
                     fz="xs"
-                    c="ldGray.5"
+                    c="dimmed"
                     className={styles.pathPrefix}
                 >
                     {pathPrefix}
                 </Text>
             )}
             {pathPrefix && (
-                <Text ff="monospace" fz="xs" c="ldGray.5" flex="0 0 auto">
+                <Text ff="monospace" fz="xs" c="dimmed" flex="0 0 auto">
                     .
                 </Text>
             )}
@@ -112,6 +112,7 @@ export const TableFieldsList: FC<Props> = ({
                 copiedLabel="Copied to clipboard"
                 tooltipPosition="left"
                 ml="auto"
+                className={styles.headerCopy}
             />
         </Group>
         <Box px="xs" pb="xs">

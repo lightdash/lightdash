@@ -12,7 +12,6 @@ import BuildSkewRefresher from './features/buildHashHandshake/BuildSkewRefresher
 import { installChunkLoadErrorHandler } from './features/chunkErrorHandler/chunkErrorHandler';
 import ChunkErrorRouteBoundary from './features/errorBoundary/ChunkErrorRouteBoundary';
 import ErrorBoundary from './features/errorBoundary/ErrorBoundary';
-import { SourceCodeEditorProvider } from './features/sourceCodeEditor';
 import ChartColorMappingContextProvider from './hooks/useChartColorConfig/ChartColorMappingContextProvider';
 import AbilityProvider from './providers/Ability/AbilityProvider';
 import ActiveJobProvider from './providers/ActiveJob/ActiveJobProvider';
@@ -65,18 +64,16 @@ const router = sentryCreateBrowserRouter([
                                     <ActiveJobProvider>
                                         <SchedulerJobsProvider>
                                             <ChartColorMappingContextProvider>
-                                                <SourceCodeEditorProvider>
-                                                    <AiAgentsGlobalProvider>
-                                                        {!isMinimalPage && (
-                                                            <Suspense
-                                                                fallback={null}
-                                                            >
-                                                                <AgentOnboardingCompletionWatcher />
-                                                            </Suspense>
-                                                        )}
-                                                        <Outlet />
-                                                    </AiAgentsGlobalProvider>
-                                                </SourceCodeEditorProvider>
+                                                <AiAgentsGlobalProvider>
+                                                    {!isMinimalPage && (
+                                                        <Suspense
+                                                            fallback={null}
+                                                        >
+                                                            <AgentOnboardingCompletionWatcher />
+                                                        </Suspense>
+                                                    )}
+                                                    <Outlet />
+                                                </AiAgentsGlobalProvider>
                                             </ChartColorMappingContextProvider>
                                         </SchedulerJobsProvider>
                                     </ActiveJobProvider>

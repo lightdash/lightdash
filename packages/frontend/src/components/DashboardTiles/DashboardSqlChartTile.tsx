@@ -22,6 +22,11 @@ import {
     useState,
     type FC,
 } from 'react';
+import {
+    selectInvalidateCache,
+    selectParameterValues,
+    useDashboardSelector,
+} from '../../features/dashboard/store';
 import { useSavedSqlChartResults } from '../../features/sqlRunner/hooks/useSavedSqlChartResults';
 import useDashboardFiltersForTile from '../../hooks/dashboard/useDashboardFiltersForTile';
 import { useConnectionBadges } from '../../hooks/useConnectionBadges';
@@ -30,6 +35,7 @@ import useSearchParams from '../../hooks/useSearchParams';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../providers/Dashboard/useDashboardTileStatusContext';
+import { useRegisterTileQuery } from '../../providers/Dashboard/useRegisterTileQuery';
 import { getConnectionName } from '../common/connectionName';
 import LinkMenuItem from '../common/LinkMenuItem';
 import MantineIcon from '../common/MantineIcon';
@@ -37,6 +43,7 @@ import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import BigNumberView from '../DataViz/visualizations/BigNumberView';
 import ChartView from '../DataViz/visualizations/ChartView';
 import { Table } from '../DataViz/visualizations/Table';
+import tileClasses from './DashboardTiles.module.css';
 import ExportDataModal from './ExportDataModal';
 import TileBase from './TileBase';
 
@@ -107,7 +114,8 @@ const SqlChartTile: FC<Props> = ({
     const updateSqlChartTilesMetadata = useDashboardTileStatusContext(
         (c) => c.updateSqlChartTilesMetadata,
     );
-    const parameters = useDashboardContext((c) => c.parameterValues);
+    const parameters = useDashboardSelector(selectParameterValues);
+    const invalidateCache = useDashboardSelector(selectInvalidateCache);
     const addParameterReferences = useDashboardContext(
         (c) => c.addParameterReferences,
     );
@@ -161,9 +169,53 @@ const SqlChartTile: FC<Props> = ({
                   dashboardFilters,
                   dashboardSorts: [],
                   parameters,
+                  invalidateCache,
               },
     );
     const connections = useConnectionBadges(effectiveProjectUuid);
+
+    // Publish this tile's query as an AI analysis source once it settles.
+    const sqlQueryUuid = chartResultsData?.queryUuid ?? null;
+    const tileError = chartError ?? chartResultsError ?? null;
+    const registration = useMemo(() => {
+        const label =
+            tile.properties.title || tile.properties.chartName || 'Chart';
+        // Errors settle the tile before any loading guard: a failed chart
+        // fetch leaves the dependent results query disabled with
+        // isLoading: true forever, which would pin the dashboard in flight.
+        if (tileError) {
+            return {
+                tileUuid: tile.uuid,
+                queryUuid: sqlQueryUuid,
+                label,
+                status: 'error' as const,
+            };
+        }
+        // Withdraw during background refetches too: a cached tab remount
+        // keeps the old queryUuid while replacement results load, and stale
+        // uuids must never be analysed.
+        if (isChartLoading || isChartResultsLoading || isChartResultsFetching) {
+            return null;
+        }
+        if (!sqlQueryUuid) return null;
+        return {
+            tileUuid: tile.uuid,
+            queryUuid: sqlQueryUuid,
+            label,
+            status: 'ready' as const,
+        };
+    }, [
+        sqlQueryUuid,
+        tileError,
+        isChartLoading,
+        isChartResultsLoading,
+        isChartResultsFetching,
+        tile.uuid,
+        tile.properties.title,
+        tile.properties.chartName,
+    ]);
+    useRegisterTileQuery(registration);
+
     // Charts in Dashboard shouldn't have animation
     const specWithoutAnimation = useMemo(() => {
         if (!chartResultsData?.chartSpec) return chartResultsData?.chartSpec;
@@ -372,7 +424,11 @@ const SqlChartTile: FC<Props> = ({
             {chartData.config.type === ChartKind.TABLE &&
                 isVizTableConfig(chartData.config) && (
                     // So that the Table tile isn't cropped by the overflow
-                    <Box w="100%" h="100%" style={{ overflow: 'auto' }}>
+                    <Box
+                        w="100%"
+                        h="100%"
+                        className={tileClasses.scrollContainer}
+                    >
                         <Table
                             resultsRunner={chartResultsData.resultsRunner}
                             columnsConfig={chartData.config.columns}
@@ -397,11 +453,7 @@ const SqlChartTile: FC<Props> = ({
                     spec={specWithoutAnimation}
                     isLoading={isChartResultsFetching}
                     error={undefined}
-                    style={{
-                        minHeight: 'inherit',
-                        height: '100%',
-                        width: '100%',
-                    }}
+                    className={tileClasses.chartView}
                 />
             )}
             <ExportDataModal

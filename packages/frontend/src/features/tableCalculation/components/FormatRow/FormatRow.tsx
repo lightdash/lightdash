@@ -44,6 +44,7 @@ import { useMemo, type FC } from 'react';
 import { type ValueOf } from 'type-fest';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { NumberInput } from '../../../../components/common/NumberInput';
+import { formatTextInputProps } from '../../../../components/Explorer/FormatForm/formatTextInputProps';
 import { optionalNumber } from '../../../../utils/numberInputUtils';
 import classes from './FormatRow.module.css';
 
@@ -505,14 +506,18 @@ export const FormatRow: FC<Props> = ({
                                 size="xs"
                                 label="Prefix"
                                 placeholder="$"
-                                {...formatInputProps('prefix')}
+                                {...formatTextInputProps(
+                                    formatInputProps('prefix'),
+                                )}
                             />
                             <TextInput
                                 className={classes.subFieldTextNarrow}
                                 size="xs"
                                 label="Suffix"
                                 placeholder="km/h"
-                                {...formatInputProps('suffix')}
+                                {...formatTextInputProps(
+                                    formatInputProps('suffix'),
+                                )}
                             />
                             <Select
                                 className={classes.subFieldSeparator}
@@ -636,7 +641,7 @@ export const FormatRow: FC<Props> = ({
                                     w="100%"
                                     gap={6}
                                 >
-                                    <Text size="xs" fw={500} c="ldGray.7">
+                                    <Text size="xs" fw={500} c="dimmed">
                                         Format expression
                                     </Text>
                                     <Anchor
@@ -656,7 +661,9 @@ export const FormatRow: FC<Props> = ({
                                 </Group>
                             }
                             classNames={{ label: classes.fullWidthLabel }}
-                            {...formatInputProps('custom')}
+                            {...formatTextInputProps(
+                                formatInputProps('custom'),
+                            )}
                         />
                     )}
 
@@ -708,7 +715,7 @@ const DateFormatBody: FC<{
                     w="100%"
                     gap={6}
                 >
-                    <Text size="xs" fw={500} c="ldGray.7">
+                    <Text size="xs" fw={500} c="dimmed">
                         {isTimestamp ? 'Timestamp format' : 'Date format'}
                     </Text>
                     <Anchor
@@ -752,7 +759,7 @@ const DateFormatBody: FC<{
                                     <Text size="xs" fw={600} c="ldDark.8">
                                         {example}
                                     </Text>
-                                    <Text size="xs" c="ldGray.5">
+                                    <Text size="xs" c="dimmed">
                                         {fmt}
                                     </Text>
                                 </Stack>
@@ -761,7 +768,7 @@ const DateFormatBody: FC<{
                     </Menu.Dropdown>
                 </Menu>
             }
-            {...formatInputProps('custom')}
+            {...formatTextInputProps(formatInputProps('custom'))}
         />
     );
 };

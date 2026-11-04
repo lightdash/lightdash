@@ -60,7 +60,23 @@ export const TablesToolbar: FC<Props> = ({
     isRefreshDisabled,
 }) => {
     const searchRef = useRef<HTMLInputElement>(null);
-    useHotkeys([['/', () => searchRef.current?.focus()]]);
+    useHotkeys([
+        [
+            '/',
+            (event) => {
+                // Monaco's EditContext input is neither a textarea nor contentEditable, so useHotkeys doesn't ignore it
+                if (
+                    event.target instanceof Element &&
+                    event.target.closest('.monaco-editor')
+                ) {
+                    return;
+                }
+                event.preventDefault();
+                searchRef.current?.focus();
+            },
+            { preventDefault: false },
+        ],
+    ]);
 
     return (
         <Group gap="xs" wrap="nowrap">

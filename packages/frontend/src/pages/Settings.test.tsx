@@ -8,8 +8,9 @@ import {
     type LightdashUserWithAbilityRules,
 } from '@lightdash/common';
 import { Text } from '@mantine/core';
+import { notifications } from '@mantine/notifications';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import nock from 'nock';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -23,6 +24,8 @@ import {
 import { LAST_PROJECT_KEY } from '../hooks/useActiveProject';
 import { mockViewport } from '../testing/mockViewport';
 import { renderWithProviders } from '../testing/testUtils';
+import flagOffBaseline from './__fixtures__/agentConnections-disabled-false.json';
+import loadingBaseline from './__fixtures__/agentConnections-disabled-null.json';
 import Settings from './Settings';
 
 const projectUuid = '3675b69e-8324-4110-bdca-059031aa8da3';
@@ -44,6 +47,9 @@ const renderSettings = (
     agentIdentityEnabled: boolean | null = false,
     aiSettings = { isCopilotEnabled: false, isTrial: false },
     seedAdminSettings = true,
+    cold = false,
+    isAnalyticsProject = false,
+    isChartStudioAvailable = false,
 ) => {
     const queryClient = new QueryClient({
         defaultOptions: { queries: { retry: false, staleTime: Infinity } },
@@ -59,6 +65,7 @@ const renderSettings = (
         name: 'Test project',
         type: ProjectType.DEFAULT,
         dbtConnection: { type: DbtProjectType.NONE },
+        provisioningSource: isAnalyticsProject ? 'analytics' : null,
     });
     queryClient.setQueryData(['organization'], {
         organizationUuid: 'org',
@@ -82,6 +89,16 @@ const renderSettings = (
     ].forEach((id) => {
         queryClient.setQueryData(['feature-flag', id], { id, enabled: false });
     });
+    if (isAnalyticsProject) {
+        queryClient.setQueryData(
+            ['feature-flag', FeatureFlags.AnalyticsProject],
+            {
+                id: FeatureFlags.AnalyticsProject,
+                enabled: true,
+            },
+        );
+        queryClient.setQueryData(['analytics-project'], { project: null });
+    }
     if (agentIdentityEnabled === null) {
         queryClient.removeQueries(['feature-flag', FeatureFlags.AgentIdentity]);
     } else {
@@ -94,7 +111,6 @@ const renderSettings = (
         ['ai-access', 'org', 'agent-identity'],
         agentSettingsIdentityMock,
     );
-    queryClient.setQueryData(['organization-warehouse-credentials'], []);
     nock(BASE_API_URL)
         .get('/api/v1/user/account')
         .reply(200, {
@@ -120,7 +136,8 @@ const renderSettings = (
             },
         });
 
-    return renderWithProviders(
+    if (cold) queryClient.clear();
+    const result = renderWithProviders(
         <QueryClientProvider client={queryClient}>
             <MemoryRouter initialEntries={[initialPath]}>
                 <Location />
@@ -133,10 +150,17 @@ const renderSettings = (
         {
             health: {
                 softDelete: { enabled: isSoftDeleteEnabled, retentionDays: 30 },
+                dataApps: {
+                    previewOrigin: null,
+                    sampleDataEnabled: true,
+                    capturesEnabled: true,
+                    runtimeAvailable: isChartStudioAvailable,
+                },
             },
             user,
         },
     );
+    return { ...result, queryClient };
 };
 
 const viewProject = {
@@ -152,6 +176,116 @@ describe('limited project settings routes', () => {
         viewport = mockViewport(1280);
     });
     afterEach(() => viewport.restore());
+
+    it.each(['settings', 'tablesConfiguration', 'unavailable', ''])(
+        'redirects managed analytics /%s to analytics settings',
+        async (page) => {
+            renderSettings(
+                page,
+                [{ action: 'manage', subject: 'all' }],
+                true,
+                `${base}/${page}`,
+                false,
+                { isCopilotEnabled: false, isTrial: false },
+                true,
+                false,
+                true,
+            );
+            expect(
+                await screen.findByRole('heading', {
+                    name: 'Lightdash analytics',
+                }),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByRole('status', { name: 'Current URL' }),
+            ).toHaveTextContent('/generalSettings/lightdashAnalytics');
+            expect(
+                screen.queryByRole('link', { name: 'Connection settings' }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByText(
+                    'Settings cannot be changed for managed analytics projects.',
+                ),
+            ).not.toBeInTheDocument();
+            fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+            expect(
+                await screen.findByRole('menuitem', {
+                    name: 'Project settings',
+                }),
+            ).toHaveAttribute('href', '/generalSettings/lightdashAnalytics');
+        },
+    );
+
+    it.each(['projectAccess', 'recentlyDeleted'])(
+        'keeps managed analytics /%s accessible',
+        async (page) => {
+            renderSettings(
+                page,
+                [{ action: 'manage', subject: 'all' }],
+                true,
+                `${base}/${page}`,
+                false,
+                { isCopilotEnabled: false, isTrial: false },
+                true,
+                false,
+                true,
+            );
+            expect(
+                await screen.findByRole('heading', {
+                    name:
+                        page === 'projectAccess'
+                            ? 'Project access'
+                            : 'Recently deleted',
+                }),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByRole('status', { name: 'Current URL' }),
+            ).toHaveTextContent(`${base}/${page}`);
+            if (page === 'projectAccess') {
+                expect(
+                    screen.getByText(
+                        /Standard project roles alone do not grant access/,
+                    ),
+                ).toBeInTheDocument();
+            }
+            expect(
+                screen.queryByRole('link', { name: 'Connection settings' }),
+            ).not.toBeInTheDocument();
+        },
+    );
+
+    it('keeps analytics recovery available without project administration', async () => {
+        renderSettings(
+            'recentlyDeleted',
+            [
+                viewProject,
+                {
+                    action: 'manage',
+                    subject: 'DeletedContent',
+                    conditions: scope,
+                },
+            ],
+            true,
+            `${base}/recentlyDeleted`,
+            false,
+            { isCopilotEnabled: false, isTrial: false },
+            true,
+            false,
+            true,
+        );
+        expect(
+            await screen.findByRole('heading', {
+                name: 'Recently deleted',
+            }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('link', { name: 'Project access' }),
+        ).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+        expect(
+            await screen.findByRole('menuitem', { name: 'Project settings' }),
+        ).toHaveAttribute('href', `${base}/recentlyDeleted`);
+    });
 
     it.each([
         'settings',
@@ -464,43 +598,105 @@ describe('Agent identity settings routes', () => {
             screen.getByRole('status', { name: 'Current URL' }),
         ).toHaveTextContent('/generalSettings/agentIdentity');
     });
-
-    it('keeps Warehouse credentials available without the agent identity card', async () => {
+    it('redirects the removed organization warehouse credentials settings to Profile', async () => {
         renderSettings(
             '',
-            [
-                viewProject,
-                manageOrganization,
-                {
-                    action: 'manage',
-                    subject: 'OrganizationWarehouseCredentials',
-                },
-            ],
+            [viewProject, manageOrganization],
             true,
             '/generalSettings/warehouseCredentials',
             true,
         );
+        expect(
+            await screen.findByRole('heading', { name: 'Profile' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('link', { name: 'Warehouse credentials' }),
+        ).not.toBeInTheDocument();
+    });
+});
+
+describe('Themes settings with Chart Studio', () => {
+    let viewport: ReturnType<typeof mockViewport>;
+    beforeEach(() => {
+        localStorage.clear();
+        viewport = mockViewport(1280);
+    });
+    afterEach(() => viewport.restore());
+
+    const manageRules: LightdashUserWithAbilityRules['abilityRules'] = [
+        viewProject,
+        {
+            action: 'manage',
+            subject: 'Organization',
+            conditions: { organizationUuid: 'org' },
+        },
+        {
+            action: 'manage',
+            subject: 'OrganizationDesign',
+            conditions: { organizationUuid: 'org' },
+        },
+    ];
+
+    const renderThemes = (path: string, isChartStudioAvailable: boolean) => {
+        nock(BASE_API_URL)
+            .get('/api/v1/org/designs')
+            .optionally()
+            .reply(200, { status: 'ok', results: [] });
+        renderSettings(
+            '',
+            manageRules,
+            true,
+            path,
+            false,
+            undefined,
+            true,
+            false,
+            false,
+            isChartStudioAvailable,
+        );
+    };
+
+    it('opens Themes without the data apps flag', async () => {
+        renderThemes('/generalSettings/dataApps/themes', true);
 
         expect(
-            await screen.findByRole('heading', {
-                name: 'Warehouse credentials',
-            }),
+            await screen.findByRole('heading', { name: 'Themes' }),
         ).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'Themes' })).toHaveAttribute(
+            'href',
+            '/generalSettings/dataApps/themes',
+        );
         expect(
-            screen.getByText('No warehouse credentials'),
-        ).toBeInTheDocument();
-        expect(
-            screen.queryByRole('heading', { name: 'Identity' }),
+            screen.queryByRole('link', { name: 'Data apps' }),
         ).not.toBeInTheDocument();
         expect(
-            screen.queryByRole('heading', { name: 'Agents' }),
-        ).not.toBeInTheDocument();
+            screen.getByRole('status', { name: 'Current URL' }),
+        ).toHaveTextContent('/generalSettings/dataApps/themes');
+    });
+
+    it.each([
+        '/generalSettings/dataApps/general',
+        '/generalSettings/dataApps/activity',
+    ])('keeps %s behind the data apps flag', async (path) => {
+        renderThemes(path, true);
+
         expect(
-            screen.getByRole('link', { name: 'Agents' }),
+            await screen.findByRole('heading', { name: 'Profile' }),
         ).toBeInTheDocument();
         expect(
             screen.getByRole('status', { name: 'Current URL' }),
-        ).toHaveTextContent('/generalSettings/warehouseCredentials');
+        ).toHaveTextContent('/generalSettings/profile');
+    });
+
+    it('hides Themes without Chart Studio or the data apps flag', async () => {
+        renderThemes('/generalSettings/dataApps/themes', false);
+
+        expect(
+            await screen.findByRole('heading', { name: 'Profile' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('link', { name: 'Themes' }),
+        ).not.toBeInTheDocument();
     });
 });
 
@@ -603,7 +799,10 @@ describe('MCP settings route permission parity', () => {
                     true,
                     AGENT_IDENTITY_SETTINGS_PATH,
                     enabled,
-                    { isCopilotEnabled: true, isTrial: false },
+                    {
+                        isCopilotEnabled: true,
+                        isTrial: false,
+                    },
                 );
                 await screen.findByRole('heading', { name: 'Profile' });
                 expect(
@@ -646,7 +845,10 @@ describe('MCP settings route permission parity', () => {
                 true,
                 '/generalSettings/mcp/general',
                 enabled,
-                { isCopilotEnabled: true, isTrial: false },
+                {
+                    isCopilotEnabled: true,
+                    isTrial: false,
+                },
             );
             if (!manageAi) {
                 expect(
@@ -683,4 +885,274 @@ describe('MCP settings route permission parity', () => {
             ).toBeEnabled();
         },
     );
+});
+
+describe('agent connections flag-off baseline', () => {
+    let viewport: ReturnType<typeof mockViewport>;
+    beforeEach(() => {
+        notifications.clean();
+        localStorage.clear();
+        viewport = mockViewport(1280);
+    });
+    afterEach(() => {
+        viewport.restore();
+        vi.restoreAllMocks();
+    });
+    const observeFetches = () => {
+        const fetch = globalThis.fetch;
+        const requests: string[] = [];
+        let pending = 0;
+        vi.spyOn(globalThis, 'fetch').mockImplementation(
+            async (input, init) => {
+                const request = input instanceof Request ? input : null;
+                const url = new URL(request?.url ?? String(input));
+                requests.push(
+                    `${init?.method ?? request?.method ?? 'GET'} ${url.pathname}${url.search}`,
+                );
+                pending += 1;
+                try {
+                    return await fetch(input, init);
+                } finally {
+                    pending -= 1;
+                }
+            },
+        );
+        return { requests, pending: () => pending };
+    };
+    const normalizeDom = (container: HTMLElement) =>
+        container.innerHTML
+            .replace(/<style[\s\S]*?<\/style>/g, '')
+            .replace(/id="[^"]*"/g, 'id="ID"')
+            .replace(/mantine-[a-z0-9]{8,}/g, 'mantine-ID')
+            .replace(/__m__-_r_[a-z0-9]+_/g, '__m__-ID');
+    const mockProfile = () => {
+        nock(BASE_API_URL)
+            .get('/api/v1/org/users')
+            .optionally()
+            .reply(200, { status: 'ok', results: { data: [] } });
+        nock(BASE_API_URL)
+            .get('/api/v1/user/me/email/status')
+            .reply(200, { status: 'ok', results: { isVerified: true } });
+    };
+    const expectSettled = async (
+        client: QueryClient,
+        pending: () => number,
+    ) => {
+        await screen.findByRole('heading', { name: 'Profile' });
+        await waitFor(() => {
+            expect(
+                client.getQueryData([
+                    'feature-flag',
+                    FeatureFlags.AgentIdentity,
+                ]),
+            ).toMatchObject({ enabled: false });
+            expect(client.isFetching()).toBe(0);
+            expect(pending()).toBe(0);
+        });
+        await act(async () => {});
+        expect(client.isFetching()).toBe(0);
+        expect(pending()).toBe(0);
+        expect(screen.queryByText('My agent identity')).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('tab', { name: 'Agent connections' }),
+        ).not.toBeInTheDocument();
+    };
+    it.each([false, null])(
+        'preserves the full settings lifecycle with initial flag %s',
+        async (enabled) => {
+            const observed = observeFetches();
+            mockProfile();
+            let releaseFlag!: () => void;
+            if (enabled === null)
+                nock(BASE_API_URL)
+                    .get('/api/v2/feature-flag/agent-identity')
+                    .reply((_uri, _body, callback) => {
+                        releaseFlag = () =>
+                            callback(null, [
+                                200,
+                                { status: 'ok', results: { enabled: false } },
+                            ]);
+                    });
+            const result = renderSettings(
+                '',
+                [viewProject],
+                true,
+                '/generalSettings/myAgentConnections',
+                enabled,
+            );
+            if (enabled === null) {
+                await waitFor(() => {
+                    expect(releaseFlag).toBeDefined();
+                    expect(result.queryClient.isFetching()).toBe(1);
+                    expect(observed.pending()).toBe(1);
+                    expect(
+                        result.queryClient.getQueryData(['account']),
+                    ).toBeDefined();
+                });
+                expect([...observed.requests].sort()).toEqual(
+                    loadingBaseline.requests,
+                );
+                expect(normalizeDom(result.container)).toEqual(
+                    loadingBaseline.dom,
+                );
+                await act(async () => releaseFlag());
+            }
+            await expectSettled(result.queryClient, observed.pending);
+            expect([...observed.requests].sort()).toEqual(
+                [
+                    ...flagOffBaseline.requests,
+                    ...(enabled === null
+                        ? ['GET /api/v2/feature-flag/agent-identity']
+                        : []),
+                ].sort(),
+            );
+            expect(normalizeDom(result.container)).toEqual(flagOffBaseline.dom);
+            result.unmount();
+            expect(observed.pending()).toBe(0);
+        },
+    );
+    it('makes no agent data request on a cold profile route with the flag false', async () => {
+        const observed = observeFetches();
+        mockProfile();
+        nock(BASE_API_URL)
+            .persist()
+            .get(/\/api\/v2\/feature-flag\//)
+            .reply(200, (uri) => ({
+                status: 'ok',
+                results: { id: uri.split('/').at(-1), enabled: false },
+            }));
+        nock(BASE_API_URL)
+            .get('/api/v1/org')
+            .reply(200, {
+                status: 'ok',
+                results: {
+                    organizationUuid: 'org',
+                    name: 'Test organization',
+                    defaultProjectUuid: projectUuid,
+                },
+            });
+        nock(BASE_API_URL)
+            .get('/api/v1/org/projects')
+            .reply(200, { status: 'ok', results: [] });
+        nock(BASE_API_URL)
+            .get(`/api/v1/projects/${projectUuid}`)
+            .reply(200, {
+                status: 'ok',
+                results: {
+                    ...scope,
+                    name: 'Test project',
+                    type: ProjectType.DEFAULT,
+                    dbtConnection: { type: DbtProjectType.NONE },
+                },
+            });
+        nock(BASE_API_URL)
+            .get('/api/v1/aiAgents/settings')
+            .reply(200, {
+                status: 'ok',
+                results: { isCopilotEnabled: false, isTrial: false },
+            });
+        const result = renderSettings(
+            '',
+            [viewProject],
+            true,
+            '/generalSettings/profile',
+            null,
+            undefined,
+            true,
+            true,
+        );
+        await expectSettled(result.queryClient, observed.pending);
+        expect(
+            result.queryClient
+                .getQueryCache()
+                .getAll()
+                .filter((query) => query.state.status === 'error')
+                .map((query) => ({
+                    key: query.queryKey,
+                    error: query.state.error,
+                })),
+        ).toEqual([]);
+        expect(observed.requests).toContain(
+            'GET /api/v2/feature-flag/agent-identity',
+        );
+        expect(
+            observed.requests
+                .filter((request) => !request.includes('/feature-flag/'))
+                .filter((request) =>
+                    /agent-connections|agent-identity|ai-access|warehouse.*[Cc]redentials|warehouse-connection-user-credentials/.test(
+                        request,
+                    ),
+                ),
+        ).toEqual([]);
+        result.unmount();
+        expect(observed.pending()).toBe(0);
+    });
+});
+
+describe('agent identity tabs', () => {
+    let viewport: ReturnType<typeof mockViewport>;
+    beforeEach(() => {
+        notifications.clean();
+        localStorage.clear();
+        viewport = mockViewport(1280);
+    });
+    afterEach(() => {
+        viewport.restore();
+        vi.restoreAllMocks();
+    });
+    it('shows tabs for a revoked row and shares one list request with the table', async () => {
+        const list = nock(BASE_API_URL)
+            .get('/api/v2/user/agent-connections')
+            .reply(200, {
+                status: 'ok',
+                results: [
+                    {
+                        grantUuid: 'retained',
+                        name: 'Retained connection',
+                        approvedProjects: [],
+                        approvedAt: '2026-10-12T12:00:00Z',
+                        expiresAt: '2099-10-12T12:00:00Z',
+                        lastUsedAt: null,
+                        status: 'revoked',
+                        revokedAt: '2026-10-12T12:00:00Z',
+                        limitsStatus: 'ok',
+                    },
+                ],
+            });
+        const credentials = nock(BASE_API_URL)
+            .get('/api/v1/user/warehouseCredentials')
+            .reply(200, { status: 'ok', results: [] });
+        const fetchSpy = vi.spyOn(globalThis, 'fetch');
+        renderSettings(
+            '',
+            [viewProject],
+            true,
+            '/generalSettings/myAgentConnections',
+            true,
+        );
+        expect(
+            await screen.findByRole('heading', { name: 'My agent identity' }),
+        ).toBeVisible();
+        expect(
+            await screen.findByRole('tab', { name: 'Agent connections' }),
+        ).toHaveAttribute('aria-selected', 'true');
+        expect(await screen.findByText('Retained connection')).toBeVisible();
+        expect(list.isDone()).toBe(true);
+        await waitFor(() => expect(credentials.isDone()).toBe(true));
+        fireEvent.click(
+            screen.getByRole('tab', { name: 'Warehouse sign-ins' }),
+        );
+        expect(await screen.findByText('Your agents run as you')).toBeVisible();
+        expect(credentials.isDone()).toBe(true);
+        expect(
+            fetchSpy.mock.calls.filter(([url]) =>
+                String(url).includes('/feature-flag/agent-identity'),
+            ),
+        ).toHaveLength(0);
+        expect(
+            fetchSpy.mock.calls.filter(([url]) =>
+                String(url).includes('/user/agent-connections'),
+            ),
+        ).toHaveLength(1);
+    });
 });

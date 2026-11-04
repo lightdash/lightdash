@@ -1,7 +1,7 @@
 import { type DashboardFilterRule } from '@lightdash/common';
 import { useMemo } from 'react';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
-import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import { useDashboardUnmetFilterRequirements } from '../../dashboard/store';
 
 export type FilterChipRequirementState = {
     showRequirementIcon: boolean;
@@ -12,9 +12,7 @@ export type FilterChipRequirementState = {
 export const useFilterChipRequirementState = (
     filterRule: DashboardFilterRule,
 ): FilterChipRequirementState => {
-    const unmetFilterRequirements = useDashboardContext(
-        (c) => c.unmetFilterRequirements,
-    );
+    const unmetFilterRequirements = useDashboardUnmetFilterRequirements();
     const getUiString = useUiStrings();
 
     return useMemo(() => {

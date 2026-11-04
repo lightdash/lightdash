@@ -18,6 +18,7 @@ import {
     Tooltip,
     useMatches,
 } from '@mantine/core';
+import { clsx } from 'clsx';
 import { useCallback, useEffect, useRef, type FC } from 'react';
 import CalendarRangePicker from '../../../../components/common/DatePickers/CalendarRangePicker';
 import MonthRangePicker from '../../../../components/common/DatePickers/MonthRangePicker';
@@ -168,6 +169,7 @@ export const MetricExploreDatePicker: FC<Props> = ({
                             variant="default"
                             size="xs"
                             className={styles.rangeButton}
+                            classNames={{ label: styles.rangeButtonLabel }}
                             disabled={isFetching || disabled}
                             onClick={() => handleOpen(!isOpen)}
                             aria-expanded={isOpen}
@@ -272,6 +274,13 @@ export const MetricExploreDatePicker: FC<Props> = ({
                                     mih={180}
                                     w="100%"
                                     size="xs"
+                                    classNames={{
+                                        levelsGroup: styles.levelsGroup,
+                                        yearsList: styles.pickerList,
+                                        yearsListControl: styles.pickerControl,
+                                        calendarHeaderControl:
+                                            styles.headerControl,
+                                    }}
                                 />
                             ) : calendarConfig?.type === TimeFrames.MONTH ? (
                                 <MonthRangePicker
@@ -279,6 +288,13 @@ export const MetricExploreDatePicker: FC<Props> = ({
                                     numberOfColumns={compact ? 1 : 2}
                                     mih={180}
                                     size="xs"
+                                    classNames={{
+                                        levelsGroup: styles.levelsGroup,
+                                        monthsList: styles.pickerList,
+                                        monthsListControl: styles.pickerControl,
+                                        calendarHeaderControl:
+                                            styles.headerControl,
+                                    }}
                                 />
                             ) : calendarConfig ? (
                                 <CalendarRangePicker
@@ -287,6 +303,13 @@ export const MetricExploreDatePicker: FC<Props> = ({
                                     mih={225}
                                     size="xs"
                                     withCellSpacing={false}
+                                    classNames={{
+                                        levelsGroup: styles.levelsGroup,
+                                        monthsList: styles.pickerList,
+                                        day: styles.day,
+                                        calendarHeaderControl:
+                                            styles.headerControl,
+                                    }}
                                 />
                             ) : null}
                         </Box>
@@ -303,14 +326,11 @@ export const MetricExploreDatePicker: FC<Props> = ({
                                         value={formattedTempDateRange[0]}
                                         readOnly
                                         disabled={!formattedTempDateRange[0]}
-                                        styles={(theme) => ({
-                                            input: {
-                                                boxShadow: theme.shadows.subtle,
-                                                border: `1px solid ${theme.colors.ldGray[2]}`,
-                                            },
-                                        })}
+                                        classNames={{
+                                            input: styles.rangeInput,
+                                        }}
                                     />
-                                    <Text size="xs" c="ldGray.5">
+                                    <Text size="xs" c="dimmed">
                                         -
                                     </Text>
                                     <TextInput
@@ -322,12 +342,9 @@ export const MetricExploreDatePicker: FC<Props> = ({
                                         value={formattedTempDateRange[1]}
                                         readOnly
                                         disabled={!formattedTempDateRange[1]}
-                                        styles={(theme) => ({
-                                            input: {
-                                                boxShadow: theme.shadows.subtle,
-                                                border: `1px solid ${theme.colors.ldGray[2]}`,
-                                            },
-                                        })}
+                                        classNames={{
+                                            input: styles.rangeInput,
+                                        }}
                                     />
                                 </Group>
 
@@ -335,24 +352,22 @@ export const MetricExploreDatePicker: FC<Props> = ({
                                     <Button
                                         size="xs"
                                         variant="default"
+                                        className={clsx(
+                                            styles.footerButton,
+                                            styles.cancelButton,
+                                        )}
                                         onClick={() => handleOpen(false)}
-                                        style={(theme) => ({
-                                            boxShadow: theme.shadows.subtle,
-                                            border: `1px solid ${theme.colors.ldGray[2]}`,
-                                        })}
                                     >
                                         Cancel
                                     </Button>
                                     <Button
                                         size="xs"
+                                        className={styles.footerButton}
                                         onClick={() => {
                                             handleApply();
 
                                             handleTrackDateFilterApplied();
                                         }}
-                                        style={(theme) => ({
-                                            boxShadow: theme.shadows.subtle,
-                                        })}
                                     >
                                         Apply
                                     </Button>

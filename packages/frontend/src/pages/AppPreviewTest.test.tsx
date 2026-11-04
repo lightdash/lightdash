@@ -1,5 +1,6 @@
 import { act } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { BrandedAppNameSync } from '../components/common/DocumentTitle';
 import type { QueryEvent } from '../features/apps/hooks/useAppSdkBridge';
 import { renderWithProviders } from '../testing/testUtils';
 
@@ -74,6 +75,10 @@ vi.mock('../features/apps/hooks/useGetApp', () => ({
         isLoading: mocks.isLoading,
         error: undefined,
     }),
+}));
+
+vi.mock('../hooks/organization/useWhiteLabelBrand', () => ({
+    useWhiteLabelBrand: () => ({ brand: null, isResolved: true }),
 }));
 
 vi.mock('../hooks/useProjectUuid', () => ({
@@ -198,23 +203,29 @@ describe('AppPreviewTest', () => {
     });
 
     it('sets the tab title when the app loads and updates it when the app changes', () => {
+        const BrandedAppPreview = () => (
+            <>
+                <BrandedAppNameSync />
+                <AppPreviewTest />
+            </>
+        );
         mocks.isLoading = true;
-        const { rerender } = renderWithProviders(<AppPreviewTest />);
+        const { rerender } = renderWithProviders(<BrandedAppPreview />);
         expect(document.title).not.toContain('Sales app');
 
         mocks.isLoading = false;
         mocks.spaceUuid = null;
         mocks.recordView.mockClear();
-        rerender(<AppPreviewTest />);
+        rerender(<BrandedAppPreview />);
         expect(document.title).toBe('(DEV) Sales app - Lightdash');
 
         mocks.appName = 'Revenue app';
-        rerender(<AppPreviewTest />);
+        rerender(<BrandedAppPreview />);
         expect(document.title).toBe('(DEV) Revenue app - Lightdash');
 
         mocks.appUuid = 'another-app-uuid';
         mocks.appName = 'Inventory app';
-        rerender(<AppPreviewTest />);
+        rerender(<BrandedAppPreview />);
         expect(document.title).toBe('(DEV) Inventory app - Lightdash');
     });
 

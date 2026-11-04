@@ -9,8 +9,9 @@ import {
 } from '@lightdash/common';
 import { waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../api';
+import { sharedLightdashApi } from '../api';
 import useEmbed from '../ee/providers/Embed/useEmbed';
+import { mockedLightdashApi } from '../testing/mockedLightdashApi';
 import { renderHookWithProviders } from '../testing/testUtils';
 import {
     getFieldValuesAsync,
@@ -19,9 +20,7 @@ import {
     useFieldValues,
 } from './useFieldValues';
 
-vi.mock('../api', () => ({
-    lightdashApi: vi.fn(),
-}));
+vi.mock('../api');
 
 vi.mock('../ee/providers/Embed/useEmbed', () => ({
     default: vi.fn(() => ({ embedToken: undefined })),
@@ -55,15 +54,16 @@ describe('pollForFieldValueResults', () => {
             pivotDetails: null,
         };
 
-        vi.mocked(lightdashApi).mockResolvedValueOnce(readyResult as never);
+        mockedLightdashApi.mockResolvedValueOnce(readyResult as never);
 
         const result = await pollForFieldValueResults(
+            sharedLightdashApi,
             'project-uuid',
             'query-uuid',
         );
 
         expect(result).toEqual(readyResult);
-        expect(lightdashApi).toHaveBeenCalledTimes(1);
+        expect(sharedLightdashApi).toHaveBeenCalledTimes(1);
     });
 
     it('returns error results without retrying', async () => {
@@ -73,15 +73,16 @@ describe('pollForFieldValueResults', () => {
             error: 'Something went wrong',
         };
 
-        vi.mocked(lightdashApi).mockResolvedValueOnce(errorResult as never);
+        mockedLightdashApi.mockResolvedValueOnce(errorResult as never);
 
         const result = await pollForFieldValueResults(
+            sharedLightdashApi,
             'project-uuid',
             'query-uuid',
         );
 
         expect(result).toEqual(errorResult);
-        expect(lightdashApi).toHaveBeenCalledTimes(1);
+        expect(sharedLightdashApi).toHaveBeenCalledTimes(1);
     });
 
     it('polls until READY with backoff', async () => {
@@ -104,12 +105,13 @@ describe('pollForFieldValueResults', () => {
             pivotDetails: null,
         };
 
-        vi.mocked(lightdashApi)
+        mockedLightdashApi
             .mockResolvedValueOnce(pendingResult as never)
             .mockResolvedValueOnce(pendingResult as never)
             .mockResolvedValueOnce(readyResult as never);
 
         const pollPromise = pollForFieldValueResults(
+            sharedLightdashApi,
             'project-uuid',
             'query-uuid',
         );
@@ -121,7 +123,7 @@ describe('pollForFieldValueResults', () => {
         const result = await pollPromise;
 
         expect(result).toEqual(readyResult);
-        expect(lightdashApi).toHaveBeenCalledTimes(3);
+        expect(sharedLightdashApi).toHaveBeenCalledTimes(3);
     });
 
     it('throws after MAX_POLL_ATTEMPTS', async () => {
@@ -130,10 +132,11 @@ describe('pollForFieldValueResults', () => {
             queryUuid: 'test-uuid',
         };
 
-        vi.mocked(lightdashApi).mockResolvedValue(pendingResult as never);
+        mockedLightdashApi.mockResolvedValue(pendingResult as never);
 
         // Catch the rejection early to prevent unhandled rejection noise
         const pollPromise = pollForFieldValueResults(
+            sharedLightdashApi,
             'project-uuid',
             'query-uuid',
         ).catch((e) => e);
@@ -147,7 +150,7 @@ describe('pollForFieldValueResults', () => {
         expect(error).toBeInstanceOf(WarehouseQueryError);
         expect((error as Error).message).toBe('Field value search timed out.');
 
-        expect(lightdashApi).toHaveBeenCalledTimes(MAX_POLL_ATTEMPTS);
+        expect(sharedLightdashApi).toHaveBeenCalledTimes(MAX_POLL_ATTEMPTS);
     });
 });
 
@@ -190,11 +193,12 @@ describe('getFieldValuesAsync', () => {
             pivotDetails: null,
         };
 
-        vi.mocked(lightdashApi)
+        mockedLightdashApi
             .mockResolvedValueOnce(executeResult as never)
             .mockResolvedValueOnce(readyResult as never);
 
         const result = await getFieldValuesAsync(
+            sharedLightdashApi,
             'project-uuid',
             'join_1',
             'join_1_region',
@@ -222,11 +226,12 @@ describe('getFieldValuesAsync', () => {
             pivotDetails: null,
         };
 
-        vi.mocked(lightdashApi)
+        mockedLightdashApi
             .mockResolvedValueOnce(executeResult as never)
             .mockResolvedValueOnce(readyResult as never);
 
         const result = await getFieldValuesAsync(
+            sharedLightdashApi,
             'project-uuid',
             'orders',
             'orders_status',
@@ -271,11 +276,12 @@ describe('getFieldValuesAsync', () => {
             pivotDetails: null,
         };
 
-        vi.mocked(lightdashApi)
+        mockedLightdashApi
             .mockResolvedValueOnce(executeResultWithLabel as never)
             .mockResolvedValueOnce(readyResult as never);
 
         const result = await getFieldValuesAsync(
+            sharedLightdashApi,
             'project-uuid',
             'users',
             'users_user_id',
@@ -295,7 +301,7 @@ describe('getFieldValuesAsync', () => {
 describe('useFieldValues', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        vi.mocked(lightdashApi).mockReset();
+        mockedLightdashApi.mockReset();
     });
 
     const fieldWithStaticAutocomplete: FilterableItem = {
@@ -347,13 +353,13 @@ describe('useFieldValues', () => {
     it.each([filtersForCountry('France'), undefined])(
         'clears retained suggestions immediately when active filters change to %j',
         async (nextFilters) => {
-            vi.mocked(lightdashApi).mockResolvedValueOnce({
+            mockedLightdashApi.mockResolvedValueOnce({
                 search: '',
                 results: ['London'],
                 cached: false,
                 refreshedAt: new Date(),
             });
-            vi.mocked(lightdashApi).mockRejectedValueOnce(
+            mockedLightdashApi.mockRejectedValueOnce(
                 new Error('Search failed'),
             );
 
@@ -389,7 +395,7 @@ describe('useFieldValues', () => {
     );
 
     it('preserves suggestions when only the filter group wrapper changes', async () => {
-        vi.mocked(lightdashApi).mockResolvedValue({
+        mockedLightdashApi.mockResolvedValue({
             search: '',
             results: ['London'],
             cached: false,
@@ -416,11 +422,11 @@ describe('useFieldValues', () => {
         rerender({ ...filtersForCountry('UK'), id: 'new-wrapper-id' });
 
         expect(result.current.results).toEqual([{ value: 'London' }]);
-        expect(lightdashApi).toHaveBeenCalledTimes(1);
+        expect(sharedLightdashApi).toHaveBeenCalledTimes(1);
     });
 
     it('keeps autocomplete results independent for distinct active filters', async () => {
-        vi.mocked(lightdashApi)
+        mockedLightdashApi
             .mockResolvedValueOnce({
                 search: '',
                 results: ['London'],
@@ -480,7 +486,7 @@ describe('useFieldValues', () => {
             ),
         );
 
-        expect(lightdashApi).not.toHaveBeenCalled();
+        expect(sharedLightdashApi).not.toHaveBeenCalled();
         expect(result.current.results).toEqual([]);
     });
 
@@ -496,7 +502,7 @@ describe('useFieldValues', () => {
             ),
         );
 
-        expect(lightdashApi).not.toHaveBeenCalled();
+        expect(sharedLightdashApi).not.toHaveBeenCalled();
         expect(result.current.results).toEqual([
             { value: 'active', label: 'Active customer' },
         ]);
@@ -514,14 +520,14 @@ describe('useFieldValues', () => {
             ),
         ).result;
 
-        expect(lightdashApi).not.toHaveBeenCalled();
+        expect(sharedLightdashApi).not.toHaveBeenCalled();
         expect(staticResult.current.results).toEqual([
             { value: 'active', label: 'Active customer' },
             { value: 'prospect' },
             { value: 'trial', label: 'Trial account' },
         ]);
 
-        vi.mocked(lightdashApi).mockResolvedValueOnce({
+        mockedLightdashApi.mockResolvedValueOnce({
             search: 'act',
             results: ['active', 'prospect'],
             cached: false,
@@ -552,7 +558,7 @@ describe('useFieldValues', () => {
         vi.mocked(useEmbed).mockReturnValue({
             embedToken: 'embed-token',
         } as ReturnType<typeof useEmbed>);
-        vi.mocked(lightdashApi).mockResolvedValueOnce({
+        mockedLightdashApi.mockResolvedValueOnce({
             search: '',
             results: [],
             cached: false,
@@ -581,7 +587,7 @@ describe('useFieldValues', () => {
         );
 
         await waitFor(() => {
-            expect(lightdashApi).toHaveBeenCalledWith(
+            expect(sharedLightdashApi).toHaveBeenCalledWith(
                 expect.objectContaining({
                     body: expect.stringContaining(
                         '"parameters":{"date_granularity":"Month"}',
@@ -596,7 +602,7 @@ describe('useFieldValues', () => {
             embedToken: 'embed-token',
             content: { type: 'dashboard', dashboardUuid: 'dashboard-uuid' },
         } as unknown as ReturnType<typeof useEmbed>);
-        vi.mocked(lightdashApi)
+        mockedLightdashApi
             .mockResolvedValueOnce({
                 queryUuid: 'query-uuid',
                 cacheMetadata: { cacheHit: false },
@@ -633,7 +639,7 @@ describe('useFieldValues', () => {
         );
 
         await waitFor(() => {
-            expect(lightdashApi).toHaveBeenCalledWith(
+            expect(sharedLightdashApi).toHaveBeenCalledWith(
                 expect.objectContaining({
                     url: '/projects/project-uuid/query/field-values',
                     version: 'v2',

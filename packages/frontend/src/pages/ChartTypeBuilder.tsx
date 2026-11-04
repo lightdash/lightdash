@@ -3,7 +3,6 @@ import {
     ChartType,
     deriveDataAppVizPivotConfig,
     DATA_APP_VIZ_TEMPLATE,
-    FeatureFlags,
     getDataAppVizFieldIds,
     getItemLabelWithoutTableName,
     type CreateSavedChartVersion,
@@ -64,6 +63,7 @@ import {
 import { useSavedChartBindingPreview } from '../features/chartTypes/builder/useSavedChartBindingPreview';
 import { useSavedChartPreviewData } from '../features/chartTypes/builder/useSavedChartPreviewData';
 import ChartTypePreviewTableModal from '../features/chartTypes/components/ChartTypePreviewTableModal';
+import { useChartStudioAvailable } from '../features/chartTypes/hooks/useChartStudioAvailable';
 import { type VizBuildRequest } from '../features/chartTypes/hooks/useDataAppVizBuild';
 import { useDataAppVizResolvedColors } from '../features/chartTypes/hooks/useDataAppVizResolvedColors';
 import { useVizSubtotalSource } from '../features/chartTypes/hooks/useVizSubtotalSource';
@@ -95,7 +95,6 @@ import {
 } from '../hooks/useExplorerRoute';
 import { useOptionalProjectRoute } from '../hooks/useProjectRoute';
 import { useProjectUuid } from '../hooks/useProjectUuid';
-import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import classes from './ChartTypeBuilder.module.css';
 
 // Stable identities, so the workspace does not rebind between renders.
@@ -136,7 +135,7 @@ const ChartTypeBuilder: FC = () => {
             return null;
         }
     }, [location.search]);
-    const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const chartStudioAvailable = useChartStudioAvailable();
     const isAmbientAiEnabled = useAmbientAiEnabled(projectUuid) === true;
     const canCreate = useCanCreateDataApp(projectUuid);
 
@@ -151,8 +150,7 @@ const ChartTypeBuilder: FC = () => {
     // create permission that built it covers it until its row loads.
     const [claimedVizUuid, setClaimedVizUuid] = useState<string | null>(null);
     const canPreviewSavedChart =
-        !dataAppsFlag.isLoading &&
-        dataAppsFlag.data?.enabled === true &&
+        chartStudioAvailable &&
         (urlVizUuid === undefined ||
         (urlVizUuid === claimedVizUuid && appMeta === null)
             ? canCreate
@@ -1003,8 +1001,7 @@ const ChartTypeBuilder: FC = () => {
     );
 
     if (!projectUuid) return null;
-    if (dataAppsFlag.isLoading) return null;
-    if (!dataAppsFlag.data?.enabled) {
+    if (!chartStudioAvailable) {
         return (
             <Navigate to={`/projects/${projectUrlIdentifier}/home`} replace />
         );

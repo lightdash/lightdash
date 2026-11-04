@@ -8,15 +8,14 @@ import { fireEvent, screen } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../../../../api';
+import { mockedLightdashApi } from '../../../../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../../../../testing/testUtils';
 import { store } from '../../store';
 import { clearPreview } from '../../store/aiArtifactSlice';
 import { AiAgentThreadStreamAbortControllerContextProvider } from '../../streaming/AiAgentThreadStreamAbortControllerContextProvider';
 import { AgentChatDisplay } from './AgentChatDisplay';
 
-vi.mock('../../../../../api', () => ({ lightdashApi: vi.fn() }));
-const mockedLightdashApi = vi.mocked(lightdashApi);
+vi.mock('../../../../../api');
 
 vi.mock('../../hooks/useProjectAiMcpServers', () => ({
     useAgentAiMcpServers: () => ({ data: [] }),
@@ -47,9 +46,11 @@ const app: ApiGetAppResponse['results'] = {
     versions: [],
     hasMore: false,
     latestReadyVersion: 3,
+    latestReadyVersionUsesAiAnalysis: null,
+    latestReadyVersionHasAnalyzableData: null,
+    addAnalysisDismissed: false,
     icon: null,
     verification: null,
-    autoAnalysis: 'inherit',
 };
 
 const userMessage = (
@@ -90,6 +91,7 @@ const assistantMessage = (
     tokenUsage: null,
     responseTiming: null,
     jevDecision: null,
+    loadout: null,
     ...overrides,
 });
 
@@ -103,6 +105,8 @@ const thread: AiAgentThread = {
     pinnedAt: null,
     battleProfile: null,
     liveStatus: null,
+    binding: null,
+    threadContext: null,
     firstMessage: { uuid: 'prompt-1', message: 'Build me a revenue app' },
     user: { uuid: 'user-1', name: 'Demo User' },
     compactions: [],

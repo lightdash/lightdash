@@ -95,7 +95,9 @@ export class CommercialCacheService implements ICacheService {
                 cacheKey,
                 projectUuid,
                 {
-                    ...(identityEnabled ? { excludeAgentClaims: true } : {}),
+                    ...(identityEnabled
+                        ? { excludeAgentClaims: true, excludeCacheHits: true }
+                        : {}),
                     excludeAgentProduced:
                         identityEnabled ||
                         this.lightdashConfig?.ai
@@ -160,6 +162,7 @@ export class CommercialCacheService implements ICacheService {
                 queryHistory: latestMatchingQuery.queryHistory,
                 resultProducer: latestMatchingQuery.resultProducer ?? null,
                 cacheKey: latestMatchingQuery.cacheKey,
+                cacheGeneration: latestMatchingQuery.cacheGeneration,
                 fileName: latestMatchingQuery.resultsFileName,
                 createdAt: latestMatchingQuery.resultsCreatedAt,
                 updatedAt: latestMatchingQuery.resultsUpdatedAt,

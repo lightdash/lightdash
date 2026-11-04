@@ -20,8 +20,12 @@ import {
 import inquirer from 'inquirer';
 import path from 'path';
 import { URL } from 'url';
-import { v4 as uuidv4 } from 'uuid';
+import { validate as isUuid, v4 as uuidv4 } from 'uuid';
 import { assertAgentCommandAllowed } from '../agentConnections/commandPolicy';
+import {
+    assertConnectionResponse,
+    isResponseCount,
+} from '../agentConnections/responseValidation';
 import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig, setProject } from '../config';
 import { getAgentConnectionSelection } from '../credentials';
@@ -39,10 +43,7 @@ import {
     hasBlockingCompileError,
     stripWarehouseColumnErrors,
 } from './compile';
-import {
-    createProject,
-    resolveOrganizationCredentialsName,
-} from './createProject';
+import { createProject } from './createProject';
 import {
     checkLightdashVersion,
     lightdashApi,
@@ -69,7 +70,6 @@ type DeployHandlerOptions = DbtCompileOptions & {
     ignoreErrors: boolean;
     startOfWeek?: number;
     warehouseCredentials?: boolean;
-    organizationCredentials?: string;
     assumeYes?: boolean;
     batchedDeploy?: boolean;
     batchSize?: string;
@@ -156,6 +156,13 @@ const logDeployWarnings = (
         return;
     }
 
+    if (getAgentConnectionSelection() !== null) {
+        console.error(
+            'The server reported compilation warnings. Review the project in the app.',
+        );
+        return;
+    }
+
     console.error(
         styles.warning(
             `\nCompilation warnings (${warningResults.warningCount})`,
@@ -199,10 +206,16 @@ const replaceProjectParameters = async (
     projectUuid: string,
     lightdashProjectConfig: LightdashProjectConfig,
 ) => {
+    if (lightdashProjectConfig.parameters === undefined) {
+        GlobalState.log(
+            'No parameters section in lightdash.config.yml; project parameters left unchanged (use `parameters: {}` to clear)',
+        );
+        return;
+    }
     await lightdashApi<null>({
         method: 'PUT',
         url: `/api/v2/projects/${projectUuid}/parameters`,
-        body: JSON.stringify(lightdashProjectConfig.parameters ?? {}),
+        body: JSON.stringify(lightdashProjectConfig.parameters),
     });
 };
 
@@ -320,6 +333,10 @@ const deployBatched = async (
             url: `/api/v2/projects/${options.projectUuid}/deploy`,
             body: JSON.stringify({}),
         })) as { deploySessionUuid: string };
+        assertConnectionResponse(
+            typeof startSessionResponse?.deploySessionUuid === 'string' &&
+                isUuid(startSessionResponse.deploySessionUuid),
+        );
         sessionUuid = startSessionResponse.deploySessionUuid;
     } catch (error) {
         if (getAgentConnectionSelection() !== null) throw error;
@@ -368,6 +385,10 @@ const deployBatched = async (
             batchIndex + 1,
         );
 
+        assertConnectionResponse(
+            isResponseCount(response?.exploreCount) &&
+                isResponseCount(response?.batchNumber),
+        );
         GlobalState.log(
             styles.success(
                 `  ✓ Batch ${batchIndex + 1} uploaded (${response.exploreCount} explores)`,
@@ -417,6 +438,7 @@ const deployBatched = async (
         }),
     });
 
+    assertConnectionResponse(isResponseCount(finalizeResponse?.exploreCount));
     GlobalState.log(
         styles.success(
             `Deploy completed! ${finalizeResponse.exploreCount} explores deployed.`,
@@ -472,61 +494,6 @@ export const deploy = async (
         path.resolve(options.projectDir),
         options.projectUuid,
     );
-
-    // These two methods are not critical to the deployment process, so we can ignore errors and show warnings instead
-    try {
-        await replaceProjectYamlTags(
-            options.projectUuid,
-            lightdashProjectConfig,
-        );
-    } catch (e) {
-        console.error(
-            styles.warning(
-                `\nError replacing YAML tags: ${getErrorMessage(e)}\n`,
-            ),
-        );
-    }
-
-    try {
-        await replaceProjectParameters(
-            options.projectUuid,
-            lightdashProjectConfig,
-        );
-    } catch (e) {
-        console.error(
-            styles.warning(
-                `\nError replacing project parameters: ${getErrorMessage(e)}\n`,
-            ),
-        );
-    }
-
-    try {
-        await replaceProjectDefaults(
-            options.projectUuid,
-            lightdashProjectConfig,
-        );
-    } catch (e) {
-        console.error(
-            styles.warning(
-                `\nError replacing project defaults: ${getErrorMessage(e)}\n`,
-            ),
-        );
-    }
-
-    try {
-        await replaceProjectTableGroups(
-            options.projectUuid,
-            lightdashProjectConfig,
-        );
-    } catch (e) {
-        console.error(
-            styles.warning(
-                `\nError replacing project table groups: ${getErrorMessage(
-                    e,
-                )}\n`,
-            ),
-        );
-    }
 
     const shouldUseLegacyDeploy =
         options.batchedDeploy === false ||
@@ -614,6 +581,60 @@ export const deploy = async (
             // Re-throw other errors to be handled by the caller
             throw error;
         }
+    }
+
+    try {
+        await replaceProjectYamlTags(
+            options.projectUuid,
+            lightdashProjectConfig,
+        );
+    } catch (e) {
+        console.error(
+            styles.warning(
+                `\nError replacing YAML tags: ${getErrorMessage(e)}\n`,
+            ),
+        );
+    }
+
+    try {
+        await replaceProjectParameters(
+            options.projectUuid,
+            lightdashProjectConfig,
+        );
+    } catch (e) {
+        console.error(
+            styles.warning(
+                `\nError replacing project parameters: ${getErrorMessage(e)}\n`,
+            ),
+        );
+    }
+
+    try {
+        await replaceProjectDefaults(
+            options.projectUuid,
+            lightdashProjectConfig,
+        );
+    } catch (e) {
+        console.error(
+            styles.warning(
+                `\nError replacing project defaults: ${getErrorMessage(e)}\n`,
+            ),
+        );
+    }
+
+    try {
+        await replaceProjectTableGroups(
+            options.projectUuid,
+            lightdashProjectConfig,
+        );
+    } catch (e) {
+        console.error(
+            styles.warning(
+                `\nError replacing project table groups: ${getErrorMessage(
+                    e,
+                )}\n`,
+            ),
+        );
     }
 };
 
@@ -771,22 +792,6 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
         }
     }
 
-    // Resolve organization credentials early before doing any heavy work
-    if (options.organizationCredentials) {
-        try {
-            await resolveOrganizationCredentialsName(
-                options.organizationCredentials,
-            );
-        } catch (error) {
-            console.error(
-                styles.error(
-                    error instanceof Error ? error.message : 'Unknown error',
-                ),
-            );
-            process.exit(1);
-        }
-    }
-
     // Only check dbt version for dbt projects (YAML-only projects don't need dbt)
     // For YAML-only projects, we return success: false to indicate dbt wasn't checked,
     // with null error since this is expected behavior, not an error condition.
@@ -831,6 +836,7 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
         const projectSettings = await getProjectDeploySettings(
             options.disableTimestampConversion,
             existingProjectSelection.projectUuid,
+            sourceUuid,
         );
         options.disableTimestampConversion =
             projectSettings.disableTimestampConversion;

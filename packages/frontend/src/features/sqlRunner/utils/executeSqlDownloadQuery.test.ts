@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { sharedLightdashApi } from '../../../api';
 import { executeSqlQuery } from '../../queryRunner/executeQuery';
 import { executeSqlDownloadQuery } from './executeSqlDownloadQuery';
 
@@ -16,7 +17,7 @@ describe('executeSqlDownloadQuery', () => {
         { name: 'the original as null', connection: null },
         { name: 'no connection', connection: undefined },
     ])('re-runs the SQL on $name', async ({ connection }) => {
-        await executeSqlDownloadQuery({
+        await executeSqlDownloadQuery(sharedLightdashApi, {
             projectUuid: 'project-uuid',
             sql: 'select 1',
             limit: 100,
@@ -25,6 +26,7 @@ describe('executeSqlDownloadQuery', () => {
         });
 
         expect(executeSqlQuery).toHaveBeenCalledWith(
+            expect.anything(),
             'project-uuid',
             'select 1',
             100,

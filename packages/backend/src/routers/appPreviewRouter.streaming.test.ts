@@ -1,5 +1,6 @@
 import { S3Client } from '@aws-sdk/client-s3';
 import express from 'express';
+import jwt from 'jsonwebtoken';
 import { createHash } from 'node:crypto';
 import { once } from 'node:events';
 import {
@@ -15,7 +16,11 @@ import { createS3ClientFromConfig } from '../clients/Aws/S3BaseClient';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
 import Logger from '../logging/logger';
 import { createAppPreviewRouter } from './appPreviewRouter';
-import { mintPreviewToken } from './appPreviewToken';
+import {
+    deriveSigningKey,
+    mintPreviewToken,
+    type PreviewTokenPayload,
+} from './appPreviewToken';
 
 vi.mock('../clients/Aws/S3BaseClient', () => ({
     createS3ClientFromConfig: vi.fn(),
@@ -35,6 +40,7 @@ describe('preview storage connection lifecycle', () => {
     let client: S3Client;
     let agent: Agent;
     let baseUrl: string;
+    let previewUrl: string;
     let storageResponse: ServerResponse | null;
     let storageClosed: boolean;
     let sendHeaders: boolean;
@@ -46,6 +52,8 @@ describe('preview storage connection lifecycle', () => {
     let cancelOnStorageHeaders: boolean;
     let previewResponse: express.Response;
     const downloads: IncomingMessage[] = [];
+    const onPreviewView = vi.fn();
+    const onPreviewOutcome = vi.fn();
 
     const download = async (url: string) =>
         new Promise<{ status: number | undefined; body: string }>(
@@ -150,6 +158,8 @@ describe('preview storage connection lifecycle', () => {
                 },
                 lightdashConfigMock.lightdashSecrets,
                 ["'self'"],
+                onPreviewView,
+                onPreviewOutcome,
             ),
         );
         preview = app.listen(0, '127.0.0.1');
@@ -162,7 +172,8 @@ describe('preview storage connection lifecycle', () => {
             'org',
             'project',
         );
-        baseUrl = `http://127.0.0.1:${(preview.address() as AddressInfo).port}/${APP_UUID}/versions/1/t/${token}/`;
+        previewUrl = `http://127.0.0.1:${(preview.address() as AddressInfo).port}`;
+        baseUrl = `${previewUrl}/${APP_UUID}/versions/1/t/${token}/`;
     });
 
     afterEach(async () => {
@@ -237,6 +248,18 @@ describe('preview storage connection lifecycle', () => {
             });
             await expectNextDownload();
             expect(storageConnections).toBe(1);
+            if (route === '') {
+                await vi.waitFor(() =>
+                    expect(onPreviewOutcome).toHaveBeenCalledWith(
+                        expect.objectContaining({ appUuid: APP_UUID }),
+                        null,
+                        'html_loaded',
+                    ),
+                );
+                expect(onPreviewView).toHaveBeenCalledTimes(1);
+            } else {
+                expect(onPreviewOutcome).not.toHaveBeenCalled();
+            }
         });
 
         it('terminates the browser response when the storage stream fails', async () => {
@@ -255,6 +278,16 @@ describe('preview storage connection lifecycle', () => {
             storageResponse!.destroy();
 
             await vi.waitFor(() => expect(response.destroyed).toBe(true));
+            if (route === '') {
+                await vi.waitFor(() =>
+                    expect(onPreviewOutcome).toHaveBeenCalledWith(
+                        expect.anything(),
+                        null,
+                        'html_error',
+                    ),
+                );
+                expect(onPreviewView).toHaveBeenCalledTimes(1);
+            }
             await expectNextDownload();
         });
 
@@ -268,7 +301,147 @@ describe('preview storage connection lifecycle', () => {
                     error: { message: 'Not found' },
                 }),
             );
+            if (route === '') {
+                await vi.waitFor(() =>
+                    expect(onPreviewOutcome).toHaveBeenCalledWith(
+                        expect.anything(),
+                        null,
+                        'html_error',
+                    ),
+                );
+                expect(onPreviewView).not.toHaveBeenCalled();
+            }
             await expectNextDownload();
+        });
+    });
+
+    it('correlates an HTML load without letting tracking failure break streaming', async () => {
+        completeDownload = true;
+        const navigationId = '11111111-1111-4111-8111-111111111111';
+        onPreviewView.mockImplementationOnce(() => {
+            throw new Error('unavailable');
+        });
+        onPreviewOutcome.mockImplementationOnce(() => {
+            throw new Error('unavailable');
+        });
+        expect(
+            await download(`${baseUrl}?navigationId=${navigationId}`),
+        ).toEqual({ status: 200, body: SMALL_BODY });
+        await vi.waitFor(() =>
+            expect(onPreviewOutcome).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({ version: 1 }),
+                navigationId,
+                'html_loaded',
+            ),
+        );
+    });
+
+    describe('index.html cross-origin access', () => {
+        const mint = (viewContext: PreviewTokenPayload['viewContext']) =>
+            mintPreviewToken(
+                lightdashConfigMock.lightdashSecrets,
+                APP_UUID,
+                1,
+                'user',
+                'org',
+                'project',
+                [],
+                viewContext,
+            );
+        const getIndex = async (token: string) =>
+            new Promise<IncomingMessage>((resolve, reject) => {
+                get(
+                    `${previewUrl}/${APP_UUID}/versions/1/t/${token}/`,
+                    { agent: false },
+                    (res) => {
+                        downloads.push(res);
+                        res.resume();
+                        res.on('end', () => resolve(res));
+                    },
+                ).on('error', reject);
+            });
+
+        beforeEach(() => {
+            completeDownload = true;
+        });
+
+        it('lets an mcp view fetch the document without credentials', async () => {
+            const res = await getIndex(mint('mcp'));
+
+            expect(res.statusCode).toBe(200);
+            expect(res.headers['access-control-allow-origin']).toBe('*');
+            expect(res.headers).not.toHaveProperty(
+                'access-control-allow-credentials',
+            );
+        });
+
+        it.each(['chart', 'embed', 'unknown'] as const)(
+            'keeps a %s view same-origin only',
+            async (viewContext) => {
+                const res = await getIndex(mint(viewContext));
+
+                expect(res.statusCode).toBe(200);
+                expect(res.headers).not.toHaveProperty(
+                    'access-control-allow-origin',
+                );
+                expect(res.headers).not.toHaveProperty(
+                    'access-control-allow-credentials',
+                );
+            },
+        );
+
+        it.each([
+            [
+                'a token signed with another secret',
+                () =>
+                    mintPreviewToken(
+                        {
+                            active: 'other-secret',
+                            fallbacks: [],
+                            all: ['other-secret'],
+                        },
+                        APP_UUID,
+                        1,
+                        'user',
+                        'org',
+                        'project',
+                        [],
+                        'mcp',
+                    ),
+            ],
+            [
+                'an expired mcp token',
+                () =>
+                    jwt.sign(
+                        {
+                            type: 'app-preview',
+                            appUuid: APP_UUID,
+                            version: 1,
+                            userUuid: 'user',
+                            organizationUuid: 'org',
+                            projectUuid: 'project',
+                            browserImageOrigins: [],
+                            viewContext: 'mcp',
+                        },
+                        deriveSigningKey(
+                            lightdashConfigMock.lightdashSecrets.active,
+                        ),
+                        {
+                            expiresIn: -60,
+                            issuer: 'lightdash',
+                            audience: 'app-preview',
+                            algorithm: 'HS256',
+                        },
+                    ),
+            ],
+        ])('refuses %s without cross-origin headers', async (_case, token) => {
+            const res = await getIndex(token());
+
+            expect(res.statusCode).toBe(403);
+            expect(res.headers).not.toHaveProperty(
+                'access-control-allow-origin',
+            );
+            expect(storageRequests).toBe(0);
         });
     });
 });

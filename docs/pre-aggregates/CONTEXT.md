@@ -47,7 +47,28 @@ _Avoid_: rebuild, re-run, sync
 **Trigger**:
 What initiated a materialization: compile (dbt project compiled), cron
 (scheduled refresh), or manual (user-requested refresh). Not a scheduler
-delivery trigger or DB trigger.
+delivery trigger or DB trigger. A compile materializes a definition that
+has never completed a materialization, so a new pre-aggregate is live
+without waiting for cron, and one whose definition fingerprint moved,
+unless it sets `refresh.on_change: false` in YAML. Everything else is left
+to cron or a manual refresh; the registry still syncs on every compile.
+There is no page override: YAML is the only source of the trigger
+settings.
+
+**Definition fingerprint**:
+A hash of what a managed pre-aggregate's materialization query reads: the
+YAML definition, the stored metric query, the compiled SQL of the fields it
+selects or filters on, and the source tables and joins those fields reach.
+Field labels, descriptions, formatting, YAML key order, SQL whitespace and
+comments, filter rule ids, sort order and `refresh` settings do not move
+it. Stored on the definition at every compile and copied onto each
+materialization when it starts. When the fingerprint moves, the active
+materialization is superseded on that compile; the definition is rebuilt
+on the same compile unless `refresh.on_change: false`, in which case cron
+or a manual refresh rebuilds it. A materialization started under an older fingerprint
+never becomes active and is never served. Rows written before fingerprints
+existed take the next compile's value as their baseline.
+_Avoid_: checksum, version, hash (bare), signature
 
 **Source explore**:
 The explore a pre-aggregate is defined on and summarizes.
@@ -120,6 +141,31 @@ To answer a matched query from the pre-aggregate — the active materialization
 (via DuckDB) or an external table (on the project warehouse) — rather than
 from the source tables.
 
+**Serve instance**:
+The warm DuckDB instance that reads a project's managed materializations.
+User-authored SQL (custom SQL dimensions) is inlined into the served query, so
+whoever can run a query on the instance effectively holds its storage
+credentials. The instance is therefore never shared across projects — one per
+project, keyed `pre-aggregate-query-instance:{projectUuid}` — and its S3
+secret is scoped to exactly that project's materialization URIs (read from
+`pre_aggregate_materializations` when the serve client is built, widened in
+place as new materializations appear, never narrowed). The instance itself is
+confined to the storage bucket and a private temp directory for spill
+(`objectStorageOnly`); it has no other use for local disk. This is a per-project,
+cross-tenant boundary only: one project's serve instance cannot read another
+project's or organization's files. It does not enforce per-user access within
+the project — see access policy. See
+`PreAggregationDuckDbClient.createPreAggregateWarehouseClient`.
+
+**Access policy**:
+Pre-aggregates are a project-scoped shared artifact. Any user with SQL access
+to the project can read pre-aggregated data regardless of their own warehouse
+credentials, exactly as raw SQL on the project already reaches past the data
+models. User-attribute row filters continue to apply to normal semantic-layer
+serving of a pre-aggregate, but, as everywhere else, they are not a boundary
+against raw SQL (including custom SQL dimensions), so the serve path does not
+try to block file access in user SQL.
+
 **Additivity**:
 A metric's capacity to be re-aggregated from pre-computed results: additive
 (sum, count), decomposable (average — derivable from stored components), or
@@ -150,3 +196,27 @@ context, and chart/dashboard. Shown in Project Settings > Pre-aggregates.
 Outside this context, always "pre-aggregate analytics" — unqualified
 "analytics" elsewhere in the repo means product usage tracking.
 _Avoid_: stats, usage, metrics (in this context)
+
+## Enablement
+
+One instance-wide switch, no feature flag. Pre-aggregates are available to
+every organization when the instance has all of:
+
+- `LIGHTDASH_LICENSE_KEY` (a valid licence)
+- `PRE_AGGREGATES_ENABLED=true`
+- pre-aggregate results storage (`PRE_AGGREGATE_RESULTS_S3_*`); startup fails
+  if `PRE_AGGREGATES_ENABLED=true` is set without it
+
+These parse into `lightdashConfig.preAggregates.enabled`. Without them nothing
+runs. Preview mode, `LIGHTDASH_ENABLED_FEATURE_FLAGS` and Console overrides do
+not turn pre-aggregates on or off.
+
+Backend code asks `isPreAggregatesEnabled(lightdashConfig)`
+(`packages/backend/src/ee/preAggregates/isPreAggregatesEnabled.ts`) and never
+reads the env directly. Gated entry points: compile-time registry sync and
+materialization enqueue, CLI deploy explore enhancement, query routing, the
+daily cron generator, the materialize task, manual refresh, the pre-aggregate
+match check, pre-aggregate explore visibility, the autopilot candidates tool,
+and `/api/v1/health`. The compile post-processor that generates virtual
+pre-aggregate explores checks the same config.
+

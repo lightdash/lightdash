@@ -1,6 +1,5 @@
 import {
     ChartType,
-    FeatureFlags,
     getAppDisplayName,
     MERGE_TABLE_NAME,
     type DataAppVizOptionValues,
@@ -13,6 +12,7 @@ import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDa
 import { useCanEditDataApp } from '../../../features/apps/hooks/useCanEditDataApp';
 import { useDeleteApp } from '../../../features/apps/hooks/useDeleteApp';
 import { useChartTypeBuilderWorkspace } from '../../../features/chartTypes/builder/useChartTypeBuilderWorkspace';
+import { useChartStudioAvailable } from '../../../features/chartTypes/hooks/useChartStudioAvailable';
 import { type VizBuildRequest } from '../../../features/chartTypes/hooks/useDataAppVizBuild';
 import { useDataAppVizResolvedColors } from '../../../features/chartTypes/hooks/useDataAppVizResolvedColors';
 import { useVizSubtotalSource } from '../../../features/chartTypes/hooks/useVizSubtotalSource';
@@ -35,7 +35,6 @@ import {
 import useHealth from '../../../hooks/health/useHealth';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { type ChartTypeAuthoringState } from '../../../providers/Explorer/types';
 import Callout from '../../common/Callout';
 import { CHART_GALLERY_SIDEBAR_TITLE_ID } from '../../common/ChartGallery/ChartGalleryContext';
@@ -141,14 +140,14 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
     const cleanupAbandonedTypeRef = useRef<() => void>(() => {});
 
     // The entry points gate already; this closes a door opened by hand.
-    const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const chartStudioAvailable = useChartStudioAvailable();
     const canCreate = useCanCreateDataApp(projectUuid);
     const canEdit = useCanEditDataApp(projectUuid, {
         spaceUuid: dataAppViz?.spaceUuid ?? null,
         createdByUserUuid: dataAppViz?.createdByUserUuid ?? null,
     });
     const isForbidden =
-        (!dataAppsFlag.isLoading && !dataAppsFlag.data?.enabled) ||
+        !chartStudioAvailable ||
         (dataAppVizUuid === null && !canCreate) ||
         (dataAppViz !== undefined && !canEdit) ||
         (dataAppViz !== undefined && dataAppViz.registrySlug !== null);

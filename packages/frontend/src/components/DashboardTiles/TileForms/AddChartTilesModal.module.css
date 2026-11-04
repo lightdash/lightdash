@@ -1,0 +1,17 @@
+.form {
+    min-height: 360px;
+}
+
+.comboboxGroupLabel {
+    position: sticky;
+    top: 0;
+    z-index: var(--mantine-z-index-modal);
+    color: var(--mantine-color-dimmed);
+    font-weight: 500;
+    background-color: var(--mantine-color-body);
+}
+
+.comboboxOption {
+    padding-top: var(--mantine-spacing-xxs);
+    padding-bottom: var(--mantine-spacing-xxs);
+}

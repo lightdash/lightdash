@@ -3,6 +3,7 @@ import { DuckdbWarehouseClient } from '@lightdash/warehouses';
 import { Knex } from 'knex';
 import { lightdashConfig } from '../../../config/lightdashConfig';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
+import { CommercialFeatureFlagModel } from '../../../ee/models/CommercialFeatureFlagModel';
 import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import {
     assertAnalyticsProjectEnabled,
@@ -40,7 +41,7 @@ describe('analytics project gate', () => {
         };
         return builder;
     });
-    const flags = new FeatureFlagModel({
+    const flags = new CommercialFeatureFlagModel({
         database: database as unknown as Knex,
         lightdashConfig: lightdashConfigMock,
     });
@@ -62,6 +63,19 @@ describe('analytics project gate', () => {
         overrides.set('org', true);
     });
     afterEach(() => vi.unstubAllEnvs());
+
+    it('rejects analytics access without commercial registration even when enabled', async () => {
+        lightdashConfig.enabledFeatureFlags.add(FeatureFlags.AnalyticsProject);
+        const unlicensedFlags = new FeatureFlagModel({
+            database: database as unknown as Knex,
+            lightdashConfig: lightdashConfigMock,
+        });
+        await expect(
+            createAnalyticsClient('org', unlicensedFlags),
+        ).rejects.toThrow(/not enabled/);
+        expect(createS3AnalyticsSourceResolver).not.toHaveBeenCalled();
+        expect(DuckdbWarehouseClient).not.toHaveBeenCalled();
+    });
 
     it('honors a Console organization flag without an ENV flag', async () => {
         await expect(

@@ -1,5 +1,7 @@
 import prometheus from 'prom-client';
+import type { S3Config } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
+import type { UsageProcessingModel } from '../../models/UsageProcessingModel';
 import PrometheusMetrics from '../../prometheus/PrometheusMetrics';
 import { UsageProcessingMetrics } from '../../prometheus/UsageProcessingMetrics';
 import { queryEventsCompactedColumns } from './queryEventsStream';
@@ -13,6 +15,22 @@ import {
     UsageEventsCompactor,
 } from './UsageEventsCompactor';
 import { UsageUserActivityBuilder } from './UsageUserActivityBuilder';
+
+const workLimit = vi.hoisted(() => ({ override: null as number | null }));
+vi.mock('./usageProcessingLimits', async (importOriginal) => {
+    const original =
+        await importOriginal<typeof import('./usageProcessingLimits')>();
+    return {
+        get MAX_HISTORY_PARTITIONS_PER_RUN() {
+            return (
+                workLimit.override ?? original.MAX_HISTORY_PARTITIONS_PER_RUN
+            );
+        },
+        get MAX_PARTITIONS_PER_RUN() {
+            return workLimit.override ?? original.MAX_PARTITIONS_PER_RUN;
+        },
+    };
+});
 
 vi.mock('../../logging/logger', () => ({
     __esModule: true,
@@ -110,20 +128,30 @@ let listedOrgs = ['org-1'];
 
 type MetricsMock = ReturnType<typeof createMetricsMock>;
 
-const createCompactor = (metrics: MetricsMock) =>
+const createCompactor = (
+    metrics: MetricsMock,
+    storageConfig: Omit<S3Config, 'expirationTime'> = s3Config,
+    usageProcessingModel?: Pick<UsageProcessingModel, 'start' | 'finish'>,
+) =>
     new UsageEventsCompactor({
         featureFlagModel: {
             get: async () => ({ id: 'analytics-project', enabled: true }),
         },
-        s3Config,
+        s3Config: storageConfig,
         usageDimensionsModel: {
-            async *getOrganizations() {
-                for (const [index, id] of listedOrgs.entries())
-                    yield { organization_id: index + 1, organization_uuid: id };
+            async *getOrganizations(organizationUuid?: string) {
+                for (const [index, id] of listedOrgs.entries()) {
+                    if (!organizationUuid || id === organizationUuid)
+                        yield {
+                            organization_id: index + 1,
+                            organization_uuid: id,
+                        };
+                }
             },
             async *getJsonLines() {},
         },
         prometheusMetrics: metrics as unknown as PrometheusMetrics,
+        usageProcessingModel,
     });
 
 const mockListedKeys = (keys: string[]) => {
@@ -258,7 +286,7 @@ describe('buildCompactionSql', () => {
         );
         expect(sql).toEqual(
             'COPY (SELECT "event_name", "org_id", "user_id", "event_ts", "schema_version", ' +
-                '"project_id", "query_id", "status", "context", "explore_name", "chart_id", ' +
+                '"project_id", "query_id", "status", "error", "context", "explore_name", "chart_id", ' +
                 '"dashboard_id", "response_time_ms", "response_timing_basis", "workload_origin", "dashboard_tile_id", "app_id", "app_version", "request_id", "parent_operation_id", "initiating_actor_type", "scheduler_id", "semantic_lineage_status", "semantic_field_references", "cache_hit", "execution_source", "warehouse_type", ' +
                 '"connection_warehouse_type", "warehouse_connection_id", "connection_kind", "connection_count", ' +
                 '"warehouse_execution_time_ms", "warehouse_ssh_tunnel_ms", ' +
@@ -269,7 +297,7 @@ describe('buildCompactionSql', () => {
                 "format='newline_delimited', " +
                 'columns={"event_name": \'VARCHAR\', "org_id": \'VARCHAR\', "user_id": \'VARCHAR\', ' +
                 '"event_ts": \'TIMESTAMP\', "schema_version": \'INTEGER\', "project_id": \'VARCHAR\', ' +
-                '"query_id": \'VARCHAR\', "status": \'VARCHAR\', "context": \'VARCHAR\', ' +
+                '"query_id": \'VARCHAR\', "status": \'VARCHAR\', "error": \'VARCHAR\', "context": \'VARCHAR\', ' +
                 '"explore_name": \'VARCHAR\', "chart_id": \'VARCHAR\', "dashboard_id": \'VARCHAR\', ' +
                 '"response_time_ms": \'BIGINT\', "response_timing_basis": \'VARCHAR\', "workload_origin": \'VARCHAR\', "dashboard_tile_id": \'VARCHAR\', "app_id": \'VARCHAR\', "app_version": \'INTEGER\', "request_id": \'VARCHAR\', "parent_operation_id": \'VARCHAR\', "initiating_actor_type": \'VARCHAR\', "scheduler_id": \'VARCHAR\', ' +
                 '"semantic_lineage_status": \'VARCHAR\', "semantic_field_references": \'VARCHAR\', ' +
@@ -289,6 +317,7 @@ describe('UsageEventsCompactor.run', () => {
     let metrics: MetricsMock;
 
     beforeEach(() => {
+        workLimit.override = null;
         vi.clearAllMocks();
         metrics = createMetricsMock();
         duckdbMocks.runSqlWithMetrics.mockResolvedValue({
@@ -327,6 +356,111 @@ describe('UsageEventsCompactor.run', () => {
         vi.restoreAllMocks();
     });
 
+    it('scopes raw discovery, dimensions and summaries to the requested organization', async () => {
+        mockListedKeys([
+            rawKey('org-1', 'query_events', '2026-07-01'),
+            rawKey('org-2', 'query_events', '2026-07-01'),
+        ]);
+        const compactor = createCompactor(metrics);
+        expect((await compactor.run(NOW, 'org-2')).partitionsCompacted).toBe(1);
+        expect(s3Mocks.listObjectsV2).toHaveBeenCalledWith(
+            expect.objectContaining({
+                Prefix: 'events/raw/org_id=org-2/',
+            }),
+        );
+        expect(s3Mocks.listObjectsV2).not.toHaveBeenCalledWith(
+            expect.objectContaining({
+                Prefix: 'events/raw/org_id=org-1/',
+            }),
+        );
+        expect(UsageUserActivityBuilder.prototype.runAll).toHaveBeenCalledWith(
+            NOW,
+            ['org-2'],
+            expect.any(Function),
+            false,
+        );
+        const refresher = vi.spyOn(UsageDimensionsRefresher.prototype, 'run');
+        expect(refresher).toHaveBeenCalledOnce();
+    });
+
+    it('prepares recent data first, then catches up older closed events in bounded batches', async () => {
+        workLimit.override = 1;
+        const old = rawKey('org-1', 'query_events', '2026-06-01');
+        const recent = rawKey('org-1', 'query_events', '2026-07-01');
+        const today = rawKey('org-1', 'query_events', '2026-07-02');
+        mockListedKeys([old, recent, today]);
+        const first = await createCompactor(metrics).run(NOW, 'org-1');
+        expect(first).toMatchObject({
+            partitionsDiscovered: 2,
+            partitionsCompacted: 1,
+            partitionsDeferred: 1,
+        });
+        expect(duckdbMocks.runSqlWithMetrics).toHaveBeenLastCalledWith(
+            expect.stringContaining(recent),
+        );
+        const lateRecent = rawKey(
+            'org-1',
+            'query_events',
+            '2026-07-01',
+            'late.jsonl.gz',
+        );
+        mockListedKeys([old, lateRecent, today]);
+        const batch = await createCompactor(metrics).run(NOW, 'org-1', true);
+        expect(batch).toMatchObject({
+            partitionsDiscovered: 2,
+            partitionsCompacted: 1,
+            partitionsDeferred: 1,
+        });
+        expect(duckdbMocks.runSqlWithMetrics).toHaveBeenLastCalledWith(
+            expect.stringContaining(lateRecent),
+        );
+        mockListedKeys([old, today]);
+        const history = await createCompactor(metrics).run(NOW, 'org-1', true);
+        expect(history).toMatchObject({
+            partitionsDiscovered: 1,
+            partitionsCompacted: 1,
+            partitionsDeferred: 0,
+        });
+        expect(duckdbMocks.runSqlWithMetrics).toHaveBeenLastCalledWith(
+            expect.stringContaining(old),
+        );
+        expect(s3Mocks.deleteObjects).not.toHaveBeenCalledWith(
+            expect.objectContaining({
+                Delete: { Objects: [{ Key: today }], Quiet: true },
+            }),
+        );
+        expect(
+            UsageUserActivityBuilder.prototype.runAll,
+        ).toHaveBeenLastCalledWith(NOW, ['org-1'], expect.any(Function), true);
+    });
+
+    it('rechecks eligibility and leaves all storage untouched if the scoped org is disabled', async () => {
+        const compactor = new UsageEventsCompactor({
+            s3Config,
+            prometheusMetrics: null,
+            featureFlagModel: {
+                get: async () => ({ id: 'analytics-project', enabled: false }),
+            },
+            usageDimensionsModel: {
+                async *getOrganizations() {
+                    yield { organization_id: 1, organization_uuid: 'org-1' };
+                },
+                async *getJsonLines() {},
+            },
+        });
+        const summary = await compactor.run(NOW, 'org-1');
+        expect(summary.partitionsCompacted).toBe(0);
+        expect(s3Mocks.listObjectsV2).not.toHaveBeenCalled();
+        expect(s3Mocks.putObject).not.toHaveBeenCalled();
+        expect(s3Mocks.deleteObjects).not.toHaveBeenCalled();
+        expect(UsageUserActivityBuilder.prototype.runAll).toHaveBeenCalledWith(
+            NOW,
+            [],
+            expect.any(Function),
+            false,
+        );
+    });
+
     it('never deletes raw files when the compaction write fails', async () => {
         duckdbMocks.runSqlWithMetrics.mockRejectedValue(
             new Error('duckdb exploded'),
@@ -363,6 +497,62 @@ describe('UsageEventsCompactor.run', () => {
             expect.stringContaining('duckdb exploded'),
         );
     });
+
+    it('retries a GCS 401 with the same inputs before deleting raw files', async () => {
+        mockListedKeys([rawKey('org-1', 'query_events', '2026-07-01')]);
+        duckdbMocks.runSqlWithMetrics
+            .mockRejectedValueOnce(
+                new Error('HTTP Error: HTTP GET error (HTTP 401 Unauthorized)'),
+            )
+            .mockImplementationOnce(async () => {
+                expect(s3Mocks.deleteObjects).not.toHaveBeenCalled();
+                expect(s3Mocks.deleteObject).not.toHaveBeenCalled();
+            });
+
+        const summary = await createCompactor(metrics, {
+            ...s3Config,
+            authMode: 'gcp_oauth',
+        }).run(NOW);
+
+        expect(summary.partitionsCompacted).toBe(1);
+        expect(summary.partitionsFailed).toBe(0);
+        expect(duckdbMocks.runSqlWithMetrics).toHaveBeenCalledTimes(2);
+        expect(duckdbMocks.runSqlWithMetrics.mock.calls[1]).toEqual(
+            duckdbMocks.runSqlWithMetrics.mock.calls[0],
+        );
+        expect(s3Mocks.putObject).toHaveBeenCalledOnce();
+        expect(s3Mocks.deleteObjects).toHaveBeenCalledOnce();
+        expect(s3Mocks.deleteObject).toHaveBeenCalledOnce();
+    });
+
+    it.each([
+        ['gcp_oauth', '(HTTP 401 Unauthorized)', 2],
+        ['gcp_oauth', '(HTTP 403 Forbidden)', 1],
+        ['gcp_oauth', 'invalid input', 1],
+        ['default', '(HTTP 401 Unauthorized)', 1],
+    ] as const)(
+        'retains raw files for %s failures: %s',
+        async (authMode, error, attempts) => {
+            mockListedKeys([rawKey('org-1', 'query_events', '2026-07-01')]);
+            duckdbMocks.runSqlWithMetrics.mockRejectedValue(new Error(error));
+
+            const summary = await createCompactor(metrics, {
+                ...s3Config,
+                authMode,
+            }).run(NOW);
+
+            expect(summary.partitionsFailed).toBe(1);
+            expect(summary.partitionsCompacted).toBe(0);
+            expect(duckdbMocks.runSqlWithMetrics).toHaveBeenCalledTimes(
+                attempts,
+            );
+            expect(s3Mocks.deleteObjects).not.toHaveBeenCalled();
+            expect(s3Mocks.deleteObject).not.toHaveBeenCalled();
+            expect(
+                metrics.setUsageEventsCompactionBacklog,
+            ).toHaveBeenCalledWith(1);
+        },
+    );
 
     it('uses GCS paths and token resolution for workload identity compaction', async () => {
         const key = rawKey('org-1', 'query_events', '2026-07-01');
@@ -555,8 +745,9 @@ describe('UsageEventsCompactor.run', () => {
         },
     );
 
-    it('reports returned dimension failures and still stops before user summaries', async () => {
+    it('refreshes user activity for every tenant before reporting dimension failures', async () => {
         mockListedKeys([]);
+        listedOrgs = ['org-1', 'org-2'];
         vi.spyOn(UsageDimensionsRefresher.prototype, 'run').mockResolvedValue({
             refreshed: 4,
             failed: 1,
@@ -565,11 +756,167 @@ describe('UsageEventsCompactor.run', () => {
         await expect(createCompactor(metrics).run(NOW)).rejects.toThrow(
             'previous snapshots retained',
         );
-        expect(users).not.toHaveBeenCalled();
+        expect(users).toHaveBeenCalledWith(
+            NOW,
+            ['org-1', 'org-2'],
+            expect.any(Function),
+            false,
+        );
+        expect(metrics.usageProcessing.finish).toHaveBeenCalledWith(
+            'users',
+            expect.objectContaining({ outcome: 'success' }),
+            expect.any(Number),
+        );
+        expect(metrics.usageProcessing.finish).toHaveBeenLastCalledWith(
+            'pipeline',
+            { outcome: 'failed' },
+            expect.any(Number),
+        );
         expect(metrics.usageProcessing.finish).toHaveBeenCalledWith(
             'dimensions',
             { outcome: 'failed', failed: 1, remaining: 1 },
             expect.any(Number),
+        );
+    });
+
+    it('records partial progress separately from another organization succeeding', async () => {
+        mockListedKeys([
+            rawKey('org-1', 'query_events', '2026-07-01'),
+            rawKey('org-2', 'query_events', '2026-07-01'),
+        ]);
+        const model = { start: vi.fn(), finish: vi.fn() };
+        vi.spyOn(UsageDimensionsRefresher.prototype, 'run').mockImplementation(
+            async (onOrganizationFinished) => {
+                onOrganizationFinished?.('org-1', { refreshed: 1, failed: 1 });
+                onOrganizationFinished?.('org-2', { refreshed: 2, failed: 0 });
+                return { refreshed: 3, failed: 1 };
+            },
+        );
+        vi.spyOn(
+            UsageUserActivityBuilder.prototype,
+            'runAll',
+        ).mockImplementation(async (_now, orgIds, onOrganizationFinished) => {
+            const summary = {
+                published: 0,
+                unchanged: 1,
+                skipped: 0,
+                failed: 0,
+                deferred: 0,
+                limitReached: false,
+            };
+            for (const orgId of orgIds) {
+                onOrganizationFinished?.(orgId, summary, true);
+            }
+            return { ...summary, unchanged: 2 };
+        });
+
+        await expect(
+            createCompactor(metrics, s3Config, model).run(NOW),
+        ).rejects.toThrow('previous snapshots retained');
+
+        expect(model.finish).toHaveBeenCalledWith(
+            expect.objectContaining({
+                organizationUuid: 'org-1',
+                status: 'partial',
+                stats: expect.objectContaining({
+                    partitionsDiscovered: 1,
+                    partitionsCompacted: 1,
+                    partitionsFailed: 0,
+                    rawObjectsDeleted: 1,
+                    dimensionsFailed: 1,
+                }),
+            }),
+        );
+        expect(model.finish).toHaveBeenCalledWith(
+            expect.objectContaining({
+                organizationUuid: 'org-2',
+                status: 'success',
+                stats: expect.objectContaining({
+                    partitionsDiscovered: 1,
+                    partitionsCompacted: 1,
+                    partitionsFailed: 0,
+                    dimensionsFailed: 0,
+                }),
+            }),
+        );
+    });
+
+    it('records failure when raw discovery fails before any work is completed', async () => {
+        mockListedKeys([]);
+        s3Mocks.listObjectsV2.mockRejectedValue(
+            new Error('Storage unavailable'),
+        );
+        const model = { start: vi.fn(), finish: vi.fn() };
+        await expect(
+            createCompactor(metrics, s3Config, model).run(NOW),
+        ).rejects.toThrow('Storage unavailable');
+        expect(model.finish).toHaveBeenCalledWith(
+            expect.objectContaining({
+                organizationUuid: 'org-1',
+                status: 'failed',
+            }),
+        );
+    });
+
+    it('keeps recovered checkpoint cleanup partial while listed late arrivals remain', async () => {
+        const original = rawKey(
+            'org-1',
+            'query_events',
+            '2026-07-01',
+            'original.jsonl.gz',
+        );
+        const late = rawKey(
+            'org-1',
+            'query_events',
+            '2026-07-01',
+            'late.jsonl.gz',
+        );
+        mockListedKeys([original, late]);
+        s3Mocks.getObject.mockResolvedValue({
+            Body: { transformToString: async () => JSON.stringify([original]) },
+        });
+        s3Mocks.headObject.mockResolvedValue({});
+        vi.spyOn(UsageDimensionsRefresher.prototype, 'run').mockImplementation(
+            async (finished) => {
+                finished?.('org-1', { refreshed: 1, failed: 0 });
+                return { refreshed: 1, failed: 0 };
+            },
+        );
+        vi.spyOn(
+            UsageUserActivityBuilder.prototype,
+            'runAll',
+        ).mockImplementation(async (_now, _orgIds, finished) => {
+            const summary = {
+                published: 0,
+                unchanged: 0,
+                skipped: 0,
+                failed: 0,
+                deferred: 0,
+                limitReached: false,
+            };
+            finished?.('org-1', summary, true);
+            return summary;
+        });
+        const model = { start: vi.fn(), finish: vi.fn() };
+
+        await createCompactor(metrics, s3Config, model).run(NOW);
+
+        expect(model.finish).toHaveBeenCalledWith(
+            expect.objectContaining({
+                organizationUuid: 'org-1',
+                status: 'partial',
+                stats: expect.objectContaining({
+                    partitionsDiscovered: 1,
+                    partitionsCompacted: 0,
+                    partitionsFailed: 0,
+                    rawObjectsDeleted: 1,
+                }),
+            }),
+        );
+        expect(s3Mocks.deleteObjects).toHaveBeenCalledWith(
+            expect.objectContaining({
+                Delete: { Objects: [{ Key: original }], Quiet: true },
+            }),
         );
     });
 
@@ -602,22 +949,86 @@ describe('UsageEventsCompactor.run', () => {
         },
     );
 
-    it('reports raw work capped at 500 partitions as partial', async () => {
+    it('compacts more than 500 partitions with the default work budget', async () => {
         mockListedKeys(
             Array.from({ length: 501 }, (_, index) =>
                 rawKey(`org-${index}`, 'query_events', '2026-07-01'),
             ),
         );
         const summary = await createCompactor(metrics).run(NOW);
-        expect(summary.partitionsCompacted).toBe(500);
+        expect(summary.partitionsCompacted).toBe(501);
         expect(metrics.usageProcessing.finish).toHaveBeenCalledWith(
             'compaction',
-            { outcome: 'partial', failed: 0, remaining: 1, limitReached: true },
+            {
+                outcome: 'success',
+                failed: 0,
+                remaining: 0,
+                limitReached: false,
+            },
+            expect.any(Number),
+        );
+    });
+
+    it.each([
+        {
+            discovered: 3,
+            remaining: 0,
+            outcome: 'success',
+            limitReached: false,
+        },
+        { discovered: 4, remaining: 1, outcome: 'partial', limitReached: true },
+    ])(
+        'reports $outcome for $discovered partitions with a three-partition budget',
+        async ({ discovered, remaining, outcome, limitReached }) => {
+            workLimit.override = 3;
+            mockListedKeys(
+                Array.from({ length: discovered }, (_, index) =>
+                    rawKey(`org-${index}`, 'query_events', '2026-07-01'),
+                ),
+            );
+            const summary = await createCompactor(metrics).run(NOW);
+            expect(summary.partitionsCompacted).toBe(3);
+            expect(summary.rawObjectsDeleted).toBe(3);
+            expect(s3Mocks.deleteObjects).toHaveBeenCalledTimes(3);
+            expect(metrics.usageProcessing.finish).toHaveBeenCalledWith(
+                'compaction',
+                { outcome, failed: 0, remaining, limitReached },
+                expect.any(Number),
+            );
+            expect(metrics.usageProcessing.finish).toHaveBeenLastCalledWith(
+                'pipeline',
+                { outcome },
+                expect.any(Number),
+            );
+        },
+    );
+
+    it('counts failed raw partitions toward the work budget without deleting their inputs', async () => {
+        workLimit.override = 2;
+        mockListedKeys(
+            Array.from({ length: 3 }, (_, index) =>
+                rawKey(`org-${index}`, 'query_events', '2026-07-01'),
+            ),
+        );
+        duckdbMocks.runSqlWithMetrics.mockRejectedValue(
+            new Error('conversion failed'),
+        );
+        const summary = await createCompactor(metrics).run(NOW);
+        expect(summary).toMatchObject({
+            partitionsDiscovered: 3,
+            partitionsCompacted: 0,
+            partitionsFailed: 2,
+        });
+        expect(duckdbMocks.runSqlWithMetrics).toHaveBeenCalledTimes(2);
+        expect(s3Mocks.deleteObjects).not.toHaveBeenCalled();
+        expect(metrics.usageProcessing.finish).toHaveBeenCalledWith(
+            'compaction',
+            { outcome: 'failed', failed: 2, remaining: 3, limitReached: true },
             expect.any(Number),
         );
         expect(metrics.usageProcessing.finish).toHaveBeenLastCalledWith(
             'pipeline',
-            { outcome: 'partial' },
+            { outcome: 'failed' },
             expect.any(Number),
         );
     });

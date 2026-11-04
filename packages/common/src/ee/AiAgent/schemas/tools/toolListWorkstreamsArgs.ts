@@ -5,9 +5,8 @@ import {
 } from '../outputMetadata';
 
 export const TOOL_LIST_WORKSTREAMS_DESCRIPTION = [
-    'List the pull requests this conversation has already opened with the repository-edit tools editRepo and editDbtProject (its "workstreams"), so you can decide where a change should go.',
-    "Use this before editRepo / editDbtProject when the user asks to change a repo you may have an open pull request on already: read the list, then either pass an existing pull request URL as the edit tool's `prUrl` to continue that one, or set `startNewPullRequest` to open a separate pull request.",
-    'Returns each workstream as owner/repo with its pull request URL, number, and a short summary. Optionally filter to a single repository. Read-only.',
+    'List the pull requests this conversation opened with the repository edit tools, each with its URL and a short summary.',
+    'Call it before an edit when you are unsure whether the change belongs to a pull request that is already open.',
 ].join(' ');
 
 export const toolListWorkstreamsArgsSchema = z.object({
@@ -15,7 +14,7 @@ export const toolListWorkstreamsArgsSchema = z.object({
         .string()
         .nullable()
         .describe(
-            'Restrict the list to a single repository, as "owner/repo" (e.g. "acme/web-app"). Pass null to list the pull requests this conversation has opened across all repositories.',
+            'One repository to list, as "owner/repo" (e.g. "acme/web-app"); null lists every repository.',
         ),
 });
 

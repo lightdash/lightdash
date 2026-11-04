@@ -73,6 +73,7 @@ beforeEach(async () => {
                     refresh_token: 'new-refresh',
                     token_type: 'Bearer',
                     expires_in: 3600,
+                    refresh_expires_in: 3600,
                     scope: 'read write',
                 }),
             );

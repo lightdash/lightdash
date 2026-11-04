@@ -7,6 +7,7 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../features/explorer/store';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import { useExplorerQueryManager } from './useExplorerQueryManager';
 import {
     executeQueryAndWaitForResults,
@@ -25,6 +26,7 @@ import {
  * For effects/orchestration, use useExplorerQueryEffects at the root.
  */
 export const useExplorerQuery = () => {
+    const lightdashApi = useLightdashApi();
     // Get all state and runQuery from manager (single source of truth)
     const manager = useExplorerQueryManager();
     const { queryResults, validQueryArgs, unpivotedQueryResults } = manager;
@@ -93,8 +95,10 @@ export const useExplorerQuery = () => {
                                   : undefined,
                           }
                         : null;
-                const downloadQuery =
-                    await executeQueryAndWaitForResults(queryArgsWithLimit);
+                const downloadQuery = await executeQueryAndWaitForResults(
+                    lightdashApi,
+                    queryArgsWithLimit,
+                );
                 queryUuid = downloadQuery.queryUuid;
             }
             if (!queryUuid) {
@@ -108,6 +112,7 @@ export const useExplorerQuery = () => {
             queryResults.queryUuid,
             queryResults.totalResults,
             validQueryArgs,
+            lightdashApi,
         ],
     );
 

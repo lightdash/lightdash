@@ -21,6 +21,7 @@ export const getHorizontalBarChartEchartsConfig = async (
     const xDimension = chartConfig?.xAxisDimension || dimensions[0];
     const yMetrics = chartConfig?.yAxisMetrics || queryMetrics;
     let metrics: string[] = yMetrics;
+    let getSeriesName = (key: string) => formatFieldLabel(key, fieldsMap);
     let chartData = rows;
 
     if (chartConfig?.groupBy?.length) {
@@ -29,10 +30,12 @@ export const getHorizontalBarChartEchartsConfig = async (
             fieldsMap,
             chartConfig.groupBy,
             yMetrics,
+            [],
             sorts as SortField[],
         );
         chartData = pivoted.results;
         metrics = pivoted.metrics;
+        getSeriesName = (key: string) => pivoted.labels[key];
     }
 
     // Get axis field items for formatting (note: x/y are flipped for horizontal charts)
@@ -72,10 +75,7 @@ export const getHorizontalBarChartEchartsConfig = async (
         ],
         series: metrics.map((metric) => ({
             type: 'bar',
-            // Use formatted label for non-pivoted metrics, otherwise use the metric name as-is (already formatted by pivot)
-            name: yMetrics.includes(metric)
-                ? formatFieldLabel(metric, fieldsMap)
-                : metric,
+            name: getSeriesName(metric),
             encode: {
                 x: metric,
                 y: xDimension,

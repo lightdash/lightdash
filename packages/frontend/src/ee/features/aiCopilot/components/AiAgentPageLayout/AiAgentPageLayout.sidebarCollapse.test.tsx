@@ -80,7 +80,7 @@ describe('AiAgentPageLayout sidebar collapse with a preview open', () => {
                 schemaVersion: 1,
                 queries: [],
                 terminalNodeId: 'node',
-                lastQueryUuid: 'query',
+                vizConfig: null,
             },
         };
         await act(async () => rerender(<Page />));

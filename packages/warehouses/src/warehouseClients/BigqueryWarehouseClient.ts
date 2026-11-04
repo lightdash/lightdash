@@ -10,10 +10,12 @@ import {
     Job,
     QueryResultsOptions,
     QueryRowsResponse,
+    type BigQueryOptions,
 } from '@google-cloud/bigquery';
 import bigquery from '@google-cloud/bigquery/build/src/types';
 import {
     AnyType,
+    assertUnreachable,
     BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER,
     BigqueryAuthenticationType,
     BigqueryDataset,
@@ -29,9 +31,11 @@ import {
     Metric,
     MetricType,
     PartitionColumn,
+    PartitionGranularity,
     PartitionType,
     sanitizeQueryTagKey,
     sanitizeQueryTagValue,
+    setCatalogNativeType,
     setCatalogNestedColumnShape,
     setCatalogTimestampDomain,
     SupportedDbtAdapter,
@@ -43,8 +47,11 @@ import {
     WarehouseResults,
     WarehouseTypes,
     type ResultNumericKind,
+    type TablePartitioning,
     type TimestampDomain,
+    type WarehouseExecutionStats,
     type WarehouseNestedColumnShape,
+    type WarehouseQueryEstimate,
 } from '@lightdash/common';
 import { pipeline, Transform } from 'stream';
 import {
@@ -431,8 +438,73 @@ export const getGoogleOauthTokenError = (
     };
 };
 
+export type BigqueryExternalAccountCredentials = {
+    type: 'external_account';
+    audience: string;
+    subject_token_type: 'urn:ietf:params:oauth:token-type:jwt';
+    token_url: 'https://sts.googleapis.com/v1/token';
+    subject_token_supplier: { getSubjectToken: () => Promise<string> };
+};
+
+export type BigqueryWarehouseClientOptions = {
+    bigqueryExternalAccount?: BigqueryExternalAccountCredentials;
+    agentSession?: boolean;
+    agentJobControls?: boolean;
+};
+
+const isPartitionGranularity = (
+    value: string | undefined,
+): value is PartitionGranularity =>
+    Object.values<string | undefined>(PartitionGranularity).includes(value);
+
+const getTablePartitioningFromMetadata = (
+    metadata: bigquery.ITable,
+): TablePartitioning | null => {
+    const requiresPartitionFilter = Boolean(
+        metadata.requirePartitionFilter ??
+        metadata.timePartitioning?.requirePartitionFilter,
+    );
+    if (metadata.timePartitioning) {
+        return {
+            partitionColumn: {
+                // No field means ingestion-time partitioning.
+                field: metadata.timePartitioning.field ?? '_PARTITIONTIME',
+                partitionType: PartitionType.DATE,
+            },
+            granularity: isPartitionGranularity(metadata.timePartitioning.type)
+                ? metadata.timePartitioning.type
+                : null,
+            requiresPartitionFilter,
+        };
+    }
+    if (metadata.rangePartitioning?.field) {
+        return {
+            partitionColumn: {
+                field: metadata.rangePartitioning.field,
+                partitionType: PartitionType.RANGE,
+            },
+            granularity: null,
+            requiresPartitionFilter,
+        };
+    }
+    return null;
+};
+
 export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryCredentials> {
     private static readonly MAX_LABELS = 64;
+
+    private static readonly AGENT_IDENTITY_LABEL_KEYS = [
+        'agent_surface',
+        'agent_client',
+        'agent_uuid',
+        'user_uuid',
+    ];
+
+    // Kept ahead of other labels so attribution survives the label limit.
+    private static readonly PRIORITY_LABEL_KEYS = [
+        'agent',
+        ...BigqueryWarehouseClient.AGENT_IDENTITY_LABEL_KEYS,
+    ];
 
     client: BigQuery;
 
@@ -440,7 +512,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
 
     constructor(
         credentials: CreateBigqueryCredentials,
-        options?: { agentSession?: boolean; agentJobControls?: boolean },
+        options?: BigqueryWarehouseClientOptions,
     ) {
         super(
             credentials,
@@ -456,17 +528,10 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 maxRetries: credentials.retries,
                 apiEndpoint: credentials.accessUrl || undefined,
 
-                ...(credentials.authenticationType ===
-                BigqueryAuthenticationType.ADC
-                    ? {
-                          // Support ADC via workforce identity federation / external_account configuration.
-                          // In this case we should rely on ADC at runtime and not pass explicit credentials.
-                      }
-                    : {
-                          credentials: getBigqueryKeyfileCredentials(
-                              credentials.keyfileContents,
-                          ),
-                      }),
+                ...BigqueryWarehouseClient.getAuthenticationOptions(
+                    credentials,
+                    options,
+                ),
             });
         } catch (e: unknown) {
             throw new WarehouseConnectionError(
@@ -477,16 +542,59 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         }
     }
 
+    private static getAuthenticationOptions(
+        credentials: CreateBigqueryCredentials,
+        options: BigqueryWarehouseClientOptions | undefined,
+    ): Pick<BigQueryOptions, 'credentials'> {
+        switch (credentials.authenticationType) {
+            case BigqueryAuthenticationType.ADC:
+                // Support ADC via workforce identity federation / external_account configuration.
+                // In this case we should rely on ADC at runtime and not pass explicit credentials.
+                return {};
+            case BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION:
+                if (!options?.bigqueryExternalAccount) {
+                    throw new WarehouseConnectionError(
+                        'BigQuery workload identity federation credentials are unavailable.',
+                    );
+                }
+                return { credentials: options.bigqueryExternalAccount };
+            case BigqueryAuthenticationType.PRIVATE_KEY:
+            case BigqueryAuthenticationType.SSO:
+            case undefined:
+                return {
+                    credentials: getBigqueryKeyfileCredentials(
+                        credentials.keyfileContents,
+                    ),
+                };
+            default:
+                return assertUnreachable(
+                    credentials.authenticationType,
+                    'Unknown BigQuery authentication type',
+                );
+        }
+    }
+
     static isBigqueryError(error: unknown): error is BigqueryError {
         return error !== null && typeof error === 'object' && 'errors' in error;
     }
 
     private usesUserRefreshToken(): boolean {
-        return (
-            this.credentials.authenticationType !==
-                BigqueryAuthenticationType.ADC &&
-            this.credentials.keyfileContents?.type === 'authorized_user'
-        );
+        switch (this.credentials.authenticationType) {
+            case BigqueryAuthenticationType.ADC:
+            case BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION:
+                return false;
+            case BigqueryAuthenticationType.PRIVATE_KEY:
+            case BigqueryAuthenticationType.SSO:
+            case undefined:
+                return (
+                    this.credentials.keyfileContents?.type === 'authorized_user'
+                );
+            default:
+                return assertUnreachable(
+                    this.credentials.authenticationType,
+                    'Unknown BigQuery authentication type',
+                );
+        }
     }
 
     private translateGoogleOauthTokenError(error: unknown): Error | undefined {
@@ -534,8 +642,14 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
     ): Record<string, string> | undefined {
         if (!labels) return undefined;
         const entries = Object.entries(labels);
+        const isPriority = (key: string) =>
+            BigqueryWarehouseClient.PRIORITY_LABEL_KEYS.includes(key);
         const orderedEntries = [
-            ...entries.filter(([key]) => !key.startsWith('user_attribute_')),
+            ...entries.filter(([key]) => isPriority(key)),
+            ...entries.filter(
+                ([key]) =>
+                    !isPriority(key) && !key.startsWith('user_attribute_'),
+            ),
             ...entries.filter(([key]) => key.startsWith('user_attribute_')),
         ];
         return Object.fromEntries(
@@ -577,17 +691,21 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             values?: AnyType[];
             tags?: Record<string, string>;
             timezone?: string;
+            maximumBytesBilled?: number;
+            dryRun?: boolean;
         },
     ) {
+        const maximumBytesBilled =
+            options.maximumBytesBilled ?? this.credentials.maximumBytesBilled;
         const tags = options?.tags;
         const labels = BigqueryWarehouseClient.sanitizeLabelsWithValues(tags);
         const identityLabels =
             this.agentJobControls && tags
                 ? (BigqueryWarehouseClient.sanitizeLabelsWithValues(
                       Object.fromEntries(
-                          ['agent_surface', 'agent_client']
-                              .filter((key) => tags[key] !== undefined)
-                              .map((key) => [key, tags[key]]),
+                          BigqueryWarehouseClient.AGENT_IDENTITY_LABEL_KEYS.filter(
+                              (key) => tags[key] !== undefined,
+                          ).map((key) => [key, tags[key]]),
                       ),
                   ) ?? {})
                 : {};
@@ -595,15 +713,18 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             query,
             params: options?.values,
             useLegacySql: false,
-            ...(this.agentJobControls ? { useQueryCache: false } : {}),
+            ...(this.agentJobControls || options.dryRun
+                ? { useQueryCache: false }
+                : {}),
+            ...(options.dryRun ? { dryRun: true } : {}),
             // BigQuery has no session timezone; the `time_zone` connection
             // property is the per-job equivalent — naive DATETIME coercions
             // and offset-less literals are read in this zone.
             connectionProperties: options?.timezone
                 ? [{ key: 'time_zone', value: options.timezone }]
                 : undefined,
-            maximumBytesBilled: this.credentials.maximumBytesBilled
-                ? `${this.credentials.maximumBytesBilled}`
+            maximumBytesBilled: maximumBytesBilled
+                ? `${maximumBytesBilled}`
                 : undefined,
             priority: this.credentials.priority,
             jobTimeoutMs:
@@ -641,6 +762,32 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 autoCreate: false,
             });
         return job;
+    }
+
+    static getExecutionStats(
+        jobId: string | null,
+        statistics: bigquery.IJobStatistics | undefined,
+    ): WarehouseExecutionStats {
+        const toNumber = (value: string | undefined): number | null => {
+            if (value === undefined) return null;
+            const parsed = Number(value);
+            return Number.isFinite(parsed) ? parsed : null;
+        };
+        const startTime = toNumber(statistics?.startTime);
+        const endTime = toNumber(statistics?.endTime);
+        return {
+            jobId,
+            bytesProcessed: toNumber(
+                statistics?.query?.totalBytesProcessed ??
+                    statistics?.totalBytesProcessed,
+            ),
+            bytesBilled: toNumber(statistics?.query?.totalBytesBilled),
+            executionTimeMs:
+                startTime !== null && endTime !== null
+                    ? endTime - startTime
+                    : null,
+            cacheHit: statistics?.query?.cacheHit ?? null,
+        };
     }
 
     private async getJobResultsMetadata(job: Job) {
@@ -696,6 +843,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             values?: AnyType[];
             tags?: Record<string, string>;
             timezone?: string;
+            maximumBytesBilled?: number;
         },
     ): Promise<void> {
         try {
@@ -756,7 +904,24 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                     table,
                 ).catch((e) => {
                     this.throwIfGoogleOauthTokenError(e);
+                    // BigQuery reports a table the credentials can't read as
+                    // "denied (or it may not exist)", so treat it like 404:
+                    // the model compiles without warehouse types instead of
+                    // failing the whole project. Other 403s (rate limit,
+                    // quota, API disabled) still fail the refresh.
                     if (e?.code === 404) {
+                        return undefined;
+                    }
+                    if (
+                        e?.code === 403 &&
+                        BigqueryWarehouseClient.isBigqueryError(e) &&
+                        e.errors.some(({ reason }) => reason === 'accessDenied')
+                    ) {
+                        console.warn(
+                            `Skipping table metadata for '${database}.${schema}.${table}': ${getErrorMessage(
+                                e,
+                            )}`,
+                        );
                         return undefined;
                     }
                     throw new WarehouseConnectionError(
@@ -811,7 +976,11 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
     }
 
     private async getAllTablesFromClient() {
-        const [datasets] = await this.client.getDatasets();
+        // The client defaults to the execution project, which only bills
+        // jobs; tables live in the connection's project.
+        const [datasets] = await this.client.getDatasets({
+            projectId: this.credentials.project,
+        });
         const datasetTablesResponses = await Promise.all(
             datasets.map((d) => d.getTables()),
         );
@@ -821,7 +990,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 try {
                     const [rows] = await this.client.query(`
                         SELECT table_name, column_name, data_type
-                        FROM \`${dataset.id}.INFORMATION_SCHEMA.COLUMNS\`
+                        FROM \`${dataset.projectId}.${dataset.id}.INFORMATION_SCHEMA.COLUMNS\`
                         WHERE is_partitioning_column = "YES"
                     `);
                     return {
@@ -864,7 +1033,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                         : undefined;
 
                 return {
-                    database: t.bigQuery.projectId,
+                    database: t.dataset.projectId,
                     schema: t.dataset.id!,
                     table: t.id!,
                     tableType: getWarehouseTableType(t.metadata?.type),
@@ -872,6 +1041,23 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 };
             }),
         );
+    }
+
+    async getTablePartitioning(
+        tableName: string,
+        schema: string,
+        database: string,
+    ): Promise<TablePartitioning | null> {
+        const dataset = new Dataset(this.client, schema, {
+            projectId: database,
+        });
+        try {
+            const [metadata] = await dataset.table(tableName).getMetadata();
+            return getTablePartitioningFromMetadata(metadata);
+        } catch (e: unknown) {
+            this.throwIfGoogleOauthTokenError(e);
+            throw e;
+        }
     }
 
     async getFields(
@@ -902,7 +1088,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             mapFieldType,
             getBigqueryTimestampDomain,
         );
-        flattenedFields.forEach(({ path, shape }) =>
+        flattenedFields.forEach(({ path, type, shape }) => {
             setCatalogNestedColumnShape(
                 catalog,
                 tableCatalog,
@@ -910,8 +1096,18 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 table,
                 path,
                 shape,
-            ),
-        );
+            );
+            if (type && mapFieldType(type) === DimensionType.TIMESTAMP) {
+                setCatalogNativeType(
+                    catalog,
+                    tableCatalog,
+                    tableSchema,
+                    table,
+                    path,
+                    type,
+                );
+            }
+        });
         return catalog;
     }
 
@@ -1012,8 +1208,74 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         );
     }
 
+    async estimateQuery({
+        sql,
+        values,
+        tags,
+        timezone,
+    }: WarehouseExecuteAsyncQueryArgs): Promise<WarehouseQueryEstimate> {
+        try {
+            const [job] = await this.createJob(sql, {
+                values,
+                tags,
+                timezone,
+                dryRun: true,
+            });
+            const totalBytesProcessed = Number(
+                job.metadata?.statistics?.totalBytesProcessed ?? 0,
+            );
+            return {
+                totalBytesProcessed: Number.isFinite(totalBytesProcessed)
+                    ? totalBytesProcessed
+                    : 0,
+            };
+        } catch (e: unknown) {
+            this.throwIfGoogleOauthTokenError(e);
+            if (BigqueryWarehouseClient.isBigqueryError(e)) {
+                const responseError: bigquery.IErrorProto | undefined =
+                    e?.errors[0];
+                if (responseError) {
+                    throw this.parseError(responseError, sql);
+                }
+            }
+            throw e;
+        }
+    }
+
+    async getQueryFields(
+        sql: string,
+        { tags, values }: { tags: Record<string, string>; values?: AnyType[] },
+    ): Promise<WarehouseResults['fields']> {
+        try {
+            const [job] = await this.createJob(sql, {
+                values,
+                tags,
+                dryRun: true,
+            });
+            return BigqueryWarehouseClient.getFieldsFromResponse(
+                job.metadata?.statistics?.query,
+            );
+        } catch (e: unknown) {
+            this.throwIfGoogleOauthTokenError(e);
+            if (BigqueryWarehouseClient.isBigqueryError(e)) {
+                const responseError: bigquery.IErrorProto | undefined =
+                    e?.errors[0];
+                if (responseError) {
+                    throw this.parseError(responseError, sql);
+                }
+            }
+            throw e;
+        }
+    }
+
     async executeAsyncQuery(
-        { sql, values, tags, timezone }: WarehouseExecuteAsyncQueryArgs,
+        {
+            sql,
+            values,
+            tags,
+            timezone,
+            maximumBytesBilled,
+        }: WarehouseExecuteAsyncQueryArgs,
         resultsStreamCallback?: (
             rows: WarehouseResults['rows'],
             fields: WarehouseResults['fields'],
@@ -1024,6 +1286,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             const [job] = await this.createJob(sql, {
                 tags,
                 timezone,
+                maximumBytesBilled,
             });
 
             if (!job.id) {
@@ -1069,6 +1332,10 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 totalRows,
                 durationMs: startTime && endTime ? endTime - startTime : 0,
                 phaseTimings: { query: queryMs, fetch: fetchMs },
+                executionStats: BigqueryWarehouseClient.getExecutionStats(
+                    job.id,
+                    job.metadata?.statistics,
+                ),
             };
         } catch (e: unknown) {
             this.throwIfGoogleOauthTokenError(e);

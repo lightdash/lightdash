@@ -155,6 +155,7 @@ const operationContracts = {
     'QueryController.executeAsyncMetricQuery': pathProject,
     'QueryController.executeAsyncSqlQuery': pathProject,
     'QueryController.executeAsyncComposeSqlQuery': pathProject,
+    'QueryController.executeAsyncPythonQuery': pathProject,
     'QueryController.getAsyncQueryResults': {
         kind: 'resource',
         resourceType: 'query',
@@ -252,7 +253,8 @@ export const GRANT_MCP_TOOL_CONTRACTS: Readonly<Record<string, never>> = {};
 export const sourceRequiresRawSql = (sourceType: QuerySourceType): boolean =>
     sourceType === QuerySourceType.SQL ||
     sourceType === QuerySourceType.DUCKDB ||
-    sourceType === QuerySourceType.EXTERNAL;
+    sourceType === QuerySourceType.EXTERNAL ||
+    sourceType === QuerySourceType.PYTHON;
 export const sourceEffectCapabilities = (
     sources: QuerySourceType[],
 ): AgentCapability[] =>

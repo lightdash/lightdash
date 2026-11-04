@@ -14,18 +14,27 @@ import {
     UnstyledButton,
 } from '@mantine/core';
 import {
-    IconCheck,
+    IconApi,
+    IconBrandPython,
     IconChevronRight,
     IconDatabase,
     IconFileSpreadsheet,
     IconGitMerge,
     IconSitemap,
-    IconX,
 } from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import { useMemo, useState, type FC } from 'react';
+import CodeBlock from '../../../../../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../../../../../components/common/MantineIcon';
+import { getLiveSource } from '../../../../../../../features/externalConnections/liveSources/liveSourceCatalog';
+import { LiveSourceIcon } from '../../../../../../../features/externalConnections/liveSources/LiveSourceIcon';
+import { useLiveSourceConnection } from '../../../../../../../features/externalConnections/liveSources/useLiveSourceConnection';
 import { useCanViewAiAgentSql } from '../../../../hooks/useCanViewAiAgentSql';
+import {
+    useComposerNodeStatusLabel,
+    type ComposerQueryNodeStatus,
+} from '../../composerNodeStatus';
+import { NodeStatusIndicator } from '../../ComposerNodeStatusIndicator';
 import {
     SqlApprovalActions,
     type SqlApprovalTarget,
@@ -33,19 +42,8 @@ import {
 import { ToolCallChip } from '../ToolCallChip';
 import rowStyles from '../ToolCallRow.module.css';
 import { ToolCallSqlBlock } from '../ToolCallSqlBlock';
+import sqlBlockStyles from '../ToolCallSqlBlock.module.css';
 import styles from './ComposerQueriesToolCallDescription.module.css';
-
-/**
- * Live execution status of one pipeline node, derived from the transient
- * step-progress events the composer tool emits while it runs. Undefined maps
- * (the persisted, post-run view) render the pipeline without indicators.
- */
-export type ComposerQueryNodeStatus =
-    | { status: 'pending' }
-    | { status: 'awaiting_approval' }
-    | { status: 'running' }
-    | { status: 'success' }
-    | { status: 'error'; errorMessage: string | null };
 
 type ComposerQueriesToolCallDescriptionProps = {
     queries: ToolComposerQueriesArgs['queries'];
@@ -54,57 +52,14 @@ type ComposerQueriesToolCallDescriptionProps = {
     approval?: SqlApprovalTarget;
 };
 
-const NODE_STATUS_LABELS = {
-    pending: 'Queued',
-    awaiting_approval: 'Awaiting approval',
-    running: 'Running',
-    success: 'Completed',
-    error: 'Failed',
-} as const;
-
-// Trailing status word on the row; success reads from the check mark alone.
-const getNodeStatusText = (nodeStatus: ComposerQueryNodeStatus) =>
-    nodeStatus.status === 'success'
-        ? null
-        : NODE_STATUS_LABELS[nodeStatus.status].toLowerCase();
-
 const isActiveStatus = (nodeStatus: ComposerQueryNodeStatus | undefined) =>
     nodeStatus?.status === 'running' ||
     nodeStatus?.status === 'awaiting_approval';
 
-const NodeStatusIndicator: FC<{ nodeStatus: ComposerQueryNodeStatus }> = ({
-    nodeStatus,
-}) => {
-    const label =
-        nodeStatus.status === 'error' && nodeStatus.errorMessage
-            ? `Failed: ${nodeStatus.errorMessage}`
-            : NODE_STATUS_LABELS[nodeStatus.status];
-    return (
-        <Tooltip label={label} position="top">
-            <Box
-                className={styles.statusIndicator}
-                data-status={nodeStatus.status}
-                aria-label={label}
-            >
-                {nodeStatus.status === 'success' ? (
-                    <MantineIcon icon={IconCheck} size={11} stroke={2.4} />
-                ) : nodeStatus.status === 'error' ? (
-                    <MantineIcon icon={IconX} size={11} stroke={2.4} />
-                ) : (
-                    <Box
-                        className={styles.statusDot}
-                        data-status={nodeStatus.status}
-                    />
-                )}
-            </Box>
-        </Tooltip>
-    );
-};
-
 const referenceAliases = (items: string[] | Record<string, string>) =>
     Array.isArray(items) ? items : Object.keys(items);
 
-// Map-form values are node ids or stored queryUuids; only node ids get titles
+// Reads of nodes from earlier versions have no title in this submission
 const referenceTargets = (items: string[] | Record<string, string>) =>
     Array.isArray(items) ? items : Object.values(items);
 
@@ -143,6 +98,22 @@ const getNodePresentation = (
                 detail: `Reads ${references.join(', ')}`,
             } as const;
         }
+        case QuerySourceType.PYTHON: {
+            const references = referenceTargets(node.references).map(
+                (reference) => titlesByNodeId[reference] ?? reference,
+            );
+            return {
+                icon: IconBrandPython,
+                badge: 'Python',
+                detail: `Reads ${references.join(', ')}`,
+            } as const;
+        }
+        case QuerySourceType.API:
+            return {
+                icon: IconApi,
+                badge: 'Live data source',
+                detail: '',
+            } as const;
     }
 };
 
@@ -159,6 +130,36 @@ const NodeBody: FC<{ node: ToolComposerQueryNode }> = ({ node }) => {
                     <ToolCallChip key={fieldId}>{fieldId}</ToolCallChip>
                 ))}
             </Group>
+        );
+    }
+    if (node.sourceType === QuerySourceType.PYTHON) {
+        if (!canViewSql || !node.code) return null;
+        return (
+            <Box className={sqlBlockStyles.code}>
+                <CodeBlock
+                    code={node.code}
+                    language="python"
+                    classNames={{
+                        codeHighlight: sqlBlockStyles.codeHighlight,
+                        code: sqlBlockStyles.codeInner,
+                    }}
+                />
+            </Box>
+        );
+    }
+    if (node.sourceType === QuerySourceType.API) {
+        if (!canViewSql || !node.payload.query) return null;
+        return (
+            <Box className={sqlBlockStyles.code}>
+                <CodeBlock
+                    code={node.payload.query}
+                    language="sql"
+                    classNames={{
+                        codeHighlight: sqlBlockStyles.codeHighlight,
+                        code: sqlBlockStyles.codeInner,
+                    }}
+                />
+            </Box>
         );
     }
     if (!canViewSql || !node.sql) return null;
@@ -182,9 +183,13 @@ const ComposerQueryNode: FC<{
     approval?: SqlApprovalTarget;
 }> = ({ node, titlesByNodeId, nodeStatus, approval }) => {
     const presentation = getNodePresentation(node, titlesByNodeId);
+    const liveSource = useLiveSourceConnection(
+        node.sourceType === QuerySourceType.API ? node.connectionUuid : null,
+    );
     const active = isActiveStatus(nodeStatus);
-    // Active and failed nodes open by default; a user toggle wins until the status changes.
-    const defaultOpen = active || nodeStatus?.status === 'error';
+    // Only nodes awaiting approval open by default; a user toggle wins until
+    // the status changes.
+    const defaultOpen = nodeStatus?.status === 'awaiting_approval';
     const [userToggle, setUserToggle] = useState<{
         status: ComposerQueryNodeStatus['status'] | undefined;
         open: boolean;
@@ -194,7 +199,12 @@ const ComposerQueryNode: FC<{
     const setUserOpen = (value: boolean) =>
         setUserToggle({ status: nodeStatus?.status, open: value });
     const open = userOpen ?? defaultOpen;
-    const statusText = nodeStatus ? getNodeStatusText(nodeStatus) : null;
+    const statusLabel = useComposerNodeStatusLabel();
+    // Trailing status word on the row; success reads from the check mark alone.
+    const statusText =
+        nodeStatus && nodeStatus.status !== 'success'
+            ? statusLabel(nodeStatus.status).toLowerCase()
+            : null;
     const showApproval =
         approval !== undefined && nodeStatus?.status === 'awaiting_approval';
 
@@ -217,15 +227,43 @@ const ComposerQueryNode: FC<{
                     className={rowStyles.head}
                 >
                     {nodeStatus ? (
-                        <NodeStatusIndicator nodeStatus={nodeStatus} />
+                        <NodeStatusIndicator status={nodeStatus.status} />
                     ) : null}
-                    <MantineIcon
-                        icon={presentation.icon}
-                        size={13}
-                        stroke={1.6}
-                        className={rowStyles.icon}
-                        data-status={active ? 'running' : undefined}
-                    />
+                    {node.sourceType === QuerySourceType.API ? (
+                        <Tooltip
+                            label={
+                                liveSource
+                                    ? getLiveSource(liveSource.connector).label
+                                    : null
+                            }
+                            disabled={!liveSource}
+                        >
+                            <Box
+                                component="span"
+                                display="inline-flex"
+                                role="img"
+                                aria-label={
+                                    liveSource
+                                        ? getLiveSource(liveSource.connector)
+                                              .label
+                                        : presentation.badge
+                                }
+                            >
+                                <LiveSourceIcon
+                                    connector={liveSource?.connector ?? null}
+                                    size={13}
+                                />
+                            </Box>
+                        </Tooltip>
+                    ) : (
+                        <MantineIcon
+                            icon={presentation.icon}
+                            size={13}
+                            stroke={1.6}
+                            className={rowStyles.icon}
+                            data-status={active ? 'running' : undefined}
+                        />
+                    )}
                     <Text size="xs" className={rowStyles.label} truncate>
                         {node.title ?? node.nodeId}
                     </Text>
@@ -236,7 +274,7 @@ const ComposerQueryNode: FC<{
                         truncate
                         className={styles.detail}
                     >
-                        {presentation.detail}
+                        {liveSource?.name ?? presentation.detail}
                     </Text>
                     {statusText ? (
                         <Text

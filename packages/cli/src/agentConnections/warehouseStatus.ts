@@ -89,32 +89,6 @@ export type WarehouseStatus = {
     state: 'ready' | 'partial' | 'needs_setup' | 'unknown';
     projects: WarehouseRow[];
 };
-const safeLink = (
-    link: string | null,
-    slot: AgentConnectionSlot,
-): string | null => {
-    const instance = slot.instanceUrl;
-    if (
-        link !== null &&
-        [slot.tokens.accessToken, slot.tokens.refreshToken].some(
-            (secret) =>
-                link.includes(secret) ||
-                link.includes(encodeURIComponent(secret)),
-        )
-    )
-        return null;
-    if (link === null) return null;
-    try {
-        const url = new URL(link, `${instance}/`);
-        return url.origin === new URL(instance).origin &&
-            !url.username &&
-            !url.password
-            ? url.href
-            : null;
-    } catch {
-        return null;
-    }
-};
 export const readWarehouseStatus = async (
     slot: AgentConnectionSlot,
     lightdashRawApi: typeof defaultWarehouseRequest = defaultWarehouseRequest,
@@ -173,11 +147,12 @@ export const readWarehouseStatus = async (
                             source: 'server',
                             reason: access.refusal.reason,
                             identity: access.identity,
-                            expiresAt: access.expiresAt,
-                            settingsUrl:
-                                safeLink(access.refusal.connectUrl, slot) ??
-                                safeLink(access.refusal.settingsUrl, slot) ??
-                                unknown.settingsUrl,
+                            expiresAt:
+                                access.expiresAt?.replace(
+                                    /[\u0000-\u001f\u007f-\u009f]/g,
+                                    '',
+                                ) ?? null,
+                            settingsUrl: unknown.settingsUrl,
                         };
                     if (
                         access.expiresAt !== null &&
@@ -188,7 +163,11 @@ export const readWarehouseStatus = async (
                             state: 'needs_setup',
                             source: 'server',
                             reason: 'Warehouse sign-in expired.',
-                            expiresAt: access.expiresAt,
+                            expiresAt:
+                                access.expiresAt?.replace(
+                                    /[\u0000-\u001f\u007f-\u009f]/g,
+                                    '',
+                                ) ?? null,
                         };
                     const ready =
                         access.identity === 'connected_person' ||
@@ -206,7 +185,11 @@ export const readWarehouseStatus = async (
                         state: ready ? 'ready' : 'unknown',
                         source: 'server',
                         identity: access.identity,
-                        expiresAt: access.expiresAt,
+                        expiresAt:
+                            access.expiresAt?.replace(
+                                /[\u0000-\u001f\u007f-\u009f]/g,
+                                '',
+                            ) ?? null,
                         reason,
                     };
                 } catch {

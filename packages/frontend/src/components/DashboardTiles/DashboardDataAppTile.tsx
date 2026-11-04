@@ -29,6 +29,11 @@ import { useAppPreviewToken } from '../../features/apps/hooks/useAppPreviewToken
 import { useGetApp } from '../../features/apps/hooks/useGetApp';
 import { usePreviewOrigin } from '../../features/apps/previewOrigin';
 import { DashboardTileComments } from '../../features/comments';
+import {
+    selectInvalidateCache,
+    selectRefreshCounter,
+    useDashboardSelector,
+} from '../../features/dashboard/store';
 import useDashboardFiltersForTile from '../../hooks/dashboard/useDashboardFiltersForTile';
 import { useProject } from '../../hooks/useProject';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
@@ -41,6 +46,7 @@ import LinkMenuItem from '../common/LinkMenuItem';
 import MantineIcon from '../common/MantineIcon';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import DashboardDataAppIframe from './DashboardDataAppIframe';
+import tileClasses from './DashboardTiles.module.css';
 import TileBase from './TileBase/index';
 import { TileHeaderPopover } from './TileBase/TileHeaderPopover';
 
@@ -86,10 +92,10 @@ const DashboardFiltersIndicator: FC<{
             <Popover.Dropdown
                 maw="calc(100vw - 24px)"
                 mah="calc(100dvh - 24px)"
-                style={{ overflowY: 'auto' }}
+                className={tileClasses.scrollableDropdown}
             >
                 <Stack gap="xs" align="flex-start">
-                    <Text c="ldGray.7" fw={500} fz="xs">
+                    <Text c="dimmed" fw={500} fz="xs">
                         Dashboard filter{filterRules.length === 1 ? '' : 's'}{' '}
                         available to this Data App:
                     </Text>
@@ -97,7 +103,7 @@ const DashboardFiltersIndicator: FC<{
                         <Badge
                             maw="100%"
                             h="auto"
-                            style={{ whiteSpace: 'normal' }}
+                            className={tileClasses.wrapBadge}
                             key={filterRule.id}
                             variant="outline"
                             color="ldGray.4"
@@ -203,12 +209,8 @@ const DataAppTile: FC<Props> = (props) => {
     // reload, so we bake the counter into the URL to force one, and forward
     // invalidateCache so those re-fired queries bypass the warehouse cache —
     // matching how a chart refreshes.
-    const invalidateCache = useDashboardTileStatusContext(
-        (c) => c.invalidateCache,
-    );
-    const refreshCounter = useDashboardTileStatusContext(
-        (c) => c.refreshCounter,
-    );
+    const invalidateCache = useDashboardSelector(selectInvalidateCache);
+    const refreshCounter = useDashboardSelector(selectRefreshCounter);
 
     const previewOrigin = usePreviewOrigin();
     const { data: project } = useProject(projectUuid);

@@ -96,4 +96,20 @@ describe('transformFormValues', () => {
 
         expect(result.plainTextEmail).toBe(false);
     });
+
+    test('defaults new deliveries to fresh queries', () => {
+        expect(DEFAULT_VALUES.useCachedResults).toBe(false);
+        expect(
+            transformFormValues(DEFAULT_VALUES, 'dashboard').useCachedResults,
+        ).toBe(false);
+    });
+
+    test('passes the cached results opt-in through', () => {
+        const result = transformFormValues(
+            { ...DEFAULT_VALUES, useCachedResults: true },
+            'dashboard',
+        );
+
+        expect(result.useCachedResults).toBe(true);
+    });
 });

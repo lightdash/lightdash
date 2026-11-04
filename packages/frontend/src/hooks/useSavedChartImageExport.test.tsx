@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const showToastError = vi.fn();
 
-vi.mock('../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../api');
 vi.mock('../components/common/ChartDownload/chartDownloadUtils', () => ({
     downloadImageUrl: vi.fn(),
 }));
@@ -13,8 +13,9 @@ vi.mock('./toaster/useToaster', () => ({
     default: () => ({ showToastError }),
 }));
 
-import { lightdashApi } from '../api';
+import { sharedLightdashApi } from '../api';
 import { downloadImageUrl } from '../components/common/ChartDownload/chartDownloadUtils';
+import { mockedLightdashApi } from '../testing/mockedLightdashApi';
 import { useSavedChartImageExport } from './useSavedChartImageExport';
 
 const createWrapper = () => {
@@ -32,7 +33,7 @@ describe('useSavedChartImageExport', () => {
     beforeEach(() => vi.clearAllMocks());
 
     it('exports the saved chart PNG and downloads the resulting URL', async () => {
-        vi.mocked(lightdashApi).mockResolvedValue(
+        mockedLightdashApi.mockResolvedValue(
             'https://images.example/chart.png',
         );
         const { result } = renderHook(() => useSavedChartImageExport(), {
@@ -47,7 +48,7 @@ describe('useSavedChartImageExport', () => {
             }),
         );
 
-        expect(lightdashApi).toHaveBeenCalledWith({
+        expect(sharedLightdashApi).toHaveBeenCalledWith({
             url: '/saved/chart-uuid/export?projectUuid=project%20uuid',
             method: 'POST',
             body: undefined,
@@ -59,7 +60,7 @@ describe('useSavedChartImageExport', () => {
     });
 
     it('shows an error and does not download when export fails', async () => {
-        vi.mocked(lightdashApi).mockRejectedValue(new Error('offline'));
+        mockedLightdashApi.mockRejectedValue(new Error('offline'));
         const { result } = renderHook(() => useSavedChartImageExport(), {
             wrapper: createWrapper(),
         });

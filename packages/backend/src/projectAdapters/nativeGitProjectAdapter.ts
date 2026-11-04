@@ -24,7 +24,12 @@ import {
     type GitCredentialFiles,
 } from '../dbt/gitCredentials';
 import { preAggregatePostProcessor } from '../ee/preAggregates/postProcessor';
-import { type ProjectAdapter, type TrackingParams } from '../types';
+import {
+    type DbtManifestFetchOptions,
+    type DbtSourcePreparation,
+    type ProjectAdapter,
+    type TrackingParams,
+} from '../types';
 import {
     DEFAULT_BITBUCKET_HOST_DOMAIN,
     DEFAULT_GITHUB_HOST_DOMAIN,
@@ -34,6 +39,11 @@ import { GIT_REPOSITORY_ENVIRONMENT, GitRepository } from './gitRepository';
 
 export class NativeGitProjectAdapter implements ProjectAdapter {
     readonly dbtProjectDir: string;
+
+    private readonly sourcePreparation: DbtSourcePreparation = {
+        projectDir: null,
+        timings: { gitRefreshMs: null, depsMs: null },
+    };
 
     private readonly localRepositoryDir: string;
 
@@ -111,6 +121,7 @@ export class NativeGitProjectAdapter implements ProjectAdapter {
             `https://${host}/${repository}.git`,
             repository,
             branch,
+            { GIT_CONFIG_GLOBAL: this.credentials.configPath },
         );
     }
 
@@ -163,8 +174,11 @@ export class NativeGitProjectAdapter implements ProjectAdapter {
     async compileAllExplores(
         _trackingParams?: TrackingParams,
         loadSources = false,
+        _allowPartialCompilation = true,
+        signal?: AbortSignal,
     ): Promise<Explore[]> {
-        await this.checkout.refresh();
+        if (signal) await this.checkout.refresh(signal);
+        else await this.checkout.refresh();
         await this.assertWithinCheckout(this.dbtProjectDir);
         const models = await loadLightdashModels(this.dbtProjectDir);
         if (models.length === 0) {
@@ -208,8 +222,15 @@ export class NativeGitProjectAdapter implements ProjectAdapter {
         })();
     }
 
-    async test(): Promise<void> {
-        await this.compileAllExplores();
+    async test(options?: { signal?: AbortSignal }): Promise<void> {
+        if (options?.signal)
+            await this.compileAllExplores(
+                undefined,
+                false,
+                true,
+                options.signal,
+            );
+        else await this.compileAllExplores();
         await this.warehouseClient.test();
     }
 
@@ -218,11 +239,23 @@ export class NativeGitProjectAdapter implements ProjectAdapter {
         return undefined;
     }
 
-    // eslint-disable-next-line class-methods-use-this
-    async getDbtManifest(): Promise<never> {
+    async prepareDbtSource(_options?: {
+        signal?: AbortSignal;
+    }): Promise<DbtSourcePreparation> {
+        return this.sourcePreparation;
+    }
+
+    async getDbtManifest(options?: DbtManifestFetchOptions): Promise<never> {
+        await this.prepareDbtSource(
+            options?.signal ? { signal: options.signal } : undefined,
+        );
         throw new ParameterError(
             'Native YAML projects cannot be combined with additional dbt sources.',
         );
+    }
+
+    async releaseDisk(): Promise<void> {
+        await this.destroy();
     }
 
     async destroy(): Promise<void> {

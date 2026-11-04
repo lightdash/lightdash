@@ -54,10 +54,7 @@
     width: 26px;
     height: 26px;
     border-radius: 6px;
-    background: light-dark(
-        var(--mantine-color-ldGray-0),
-        var(--mantine-color-dark-5)
-    );
+    background: var(--mantine-color-ldGray-0);
 }
 
 .sparkline {

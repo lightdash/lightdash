@@ -1,4 +1,9 @@
-import { assertUnreachable, generateSlug } from '@lightdash/common';
+import {
+    assertUnreachable,
+    generateSlug,
+    MAX_CONTENT_SLUG_LENGTH,
+    truncateSlug,
+} from '@lightdash/common';
 import { Knex } from 'knex';
 import { AppsTableName } from '../database/entities/apps';
 import { DashboardsTableName } from '../database/entities/dashboards';
@@ -23,8 +28,11 @@ const PROJECT_SLUG_LOCK_NAMESPACE = 2;
 const SPACE_ACCESS_LOCK_NAMESPACE = 3;
 const ORGANIZATION_PROJECT_SLUG_LOCK_NAMESPACE = 5;
 
-const MAX_GENERATED_SAVED_CHART_SLUG_LENGTH = 255;
 const MAX_GENERATED_APP_SLUG_LENGTH = 255;
+
+// The slug alias tables store varchar(255). A longer previous slug was never
+// usable as a content-as-code file name, so renames do not keep it as an alias.
+export const MAX_SLUG_ALIAS_LENGTH = 255;
 const MAX_GENERATED_PROJECT_SLUG_LENGTH = 255;
 
 const getSlugCandidate = (
@@ -34,22 +42,20 @@ const getSlugCandidate = (
 ): string => {
     const suffix = increment === 0 ? '' : `-${increment}`;
     switch (tableName) {
-        case SavedChartsTableName:
-            if (increment === 0) return baseSlug;
-            return `${baseSlug.slice(
-                0,
-                MAX_GENERATED_SAVED_CHART_SLUG_LENGTH - suffix.length,
-            )}${suffix}`;
         case AppsTableName:
             return `${baseSlug.slice(
                 0,
                 MAX_GENERATED_APP_SLUG_LENGTH - suffix.length,
             )}${suffix}`;
+        case SavedChartsTableName:
         case DashboardsTableName:
         case DocumentsTableName:
         case SavedSqlTableName:
         case SpaceTableName:
-            return `${baseSlug}${suffix}`;
+            return `${truncateSlug(
+                baseSlug,
+                MAX_CONTENT_SLUG_LENGTH - suffix.length,
+            )}${suffix}`;
         default:
             return assertUnreachable(tableName, 'getSlugCandidate');
     }

@@ -1,6 +1,7 @@
 import { type DashboardTab } from '../types/dashboard';
 import {
     getPagedExportOrphanHomeTabUuid,
+    isTileInEmbedExport,
     isTileInPagedExport,
     resolveExportTabs,
     sortTilesByDashboardOrder,
@@ -125,6 +126,18 @@ describe('isTileInPagedExport', () => {
 
     it('drops orphan tiles when no tab is resolved', () => {
         expect(isTileInPagedExport({ tabUuid: null }, [])).toBe(false);
+    });
+});
+
+describe('isTileInEmbedExport', () => {
+    it('renders a tabbed tile only when its tab is exported', () => {
+        expect(isTileInEmbedExport({ tabUuid: 'a' }, ['a'])).toBe(true);
+        expect(isTileInEmbedExport({ tabUuid: 'b' }, ['a'])).toBe(false);
+    });
+
+    it('always renders orphan tiles, even with no exported tabs', () => {
+        expect(isTileInEmbedExport({ tabUuid: null }, ['a'])).toBe(true);
+        expect(isTileInEmbedExport({ tabUuid: undefined }, [])).toBe(true);
     });
 });
 

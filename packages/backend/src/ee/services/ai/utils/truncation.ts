@@ -22,5 +22,18 @@ export const truncate = (value: string, max: number) => {
     return `${valueChars.slice(0, maxChars).join('')}${TRUNCATED_SUFFIX}`;
 };
 
+const ELIDED_MARKER = '\n...(truncated)...\n';
+
+// Keeps the head and the tail, where a traceback names the failing line and
+// the exception.
+export const truncateMiddle = (value: string, maxChars: number): string => {
+    if (value.length <= maxChars) return value;
+    const kept = Math.max(maxChars - ELIDED_MARKER.length, 0);
+    const head = Math.floor(kept / 4);
+    return `${value.slice(0, head)}${ELIDED_MARKER}${value.slice(
+        value.length - (kept - head),
+    )}`;
+};
+
 // TODO: move this out...
 export const DASHBOARD_CHARTS_PREVIEW_COUNT = 5;

@@ -5,9 +5,11 @@ import {
     AiAccessRefusedError,
     DELIVERY_CAPTURE_GLOBAL,
     DownloadFileType,
+    ForbiddenError,
     LightdashPage,
     LightdashRequestMethodHeader,
     NotFoundError,
+    ParameterError,
     RequestMethod,
     SCREENSHOT_FAILED_STATUS,
     SCREENSHOT_SELECTORS,
@@ -20,6 +22,7 @@ import type { Route, WebSocketRoute } from 'playwright';
 import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { type SlackClient } from '../../clients/Slack/SlackClient';
+import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { setupGrantAuthentication } from '../../controllers/authentication/agentConnectionGrants.mock';
 import { allowApiKeyAuthentication } from '../../controllers/authentication/middlewares';
@@ -114,6 +117,8 @@ function createService(
         documentService: Partial<DocumentService>;
         userModel: Partial<UserModel>;
         headlessBrowser: Record<string, unknown>;
+        lightdashConfig: Record<string, unknown>;
+        organizationSettingsModel: { get: () => Promise<unknown> };
     }> = {},
 ) {
     return new UnfurlService({
@@ -124,6 +129,7 @@ function createService(
                 screenshotTimeoutMs: 45_000,
                 ...(overrides.headlessBrowser ?? {}),
             },
+            ...(overrides.lightdashConfig ?? {}),
         } as unknown as LightdashConfig,
         dashboardModel: (overrides.dashboardModel ??
             {}) as unknown as DashboardModel,
@@ -152,6 +158,10 @@ function createService(
         documentService: (overrides.documentService ??
             {}) as unknown as DocumentService,
         userModel: (overrides.userModel ?? {}) as unknown as UserModel,
+        // Nothing stored: every org setting inherits the instance default.
+        organizationSettingsModel: (overrides.organizationSettingsModel ?? {
+            get: async () => ({}),
+        }) as never,
     });
 }
 
@@ -228,6 +238,165 @@ describe('UnfurlService', () => {
         );
         return { service, browser, page };
     };
+
+    describe('exportEmbedDashboardPdf', () => {
+        const PROJECT_UUID = '11111111-1111-4111-8111-111111111111';
+        const DASHBOARD_UUID = '22222222-2222-4222-8222-222222222222';
+        const dashboard = {
+            uuid: DASHBOARD_UUID,
+            name: 'Embedded dashboard',
+            projectUuid: PROJECT_UUID,
+            organizationUuid: 'org-uuid-1',
+            tiles: [],
+            tabs: [
+                { uuid: 'tab-visible', name: 'Visible', order: 0 },
+                {
+                    uuid: 'tab-hidden',
+                    name: 'Hidden',
+                    order: 1,
+                    hidden: true,
+                },
+            ],
+        };
+
+        const setup = () => {
+            const page = createScreenshotMockPage();
+            page.waitForSelector.mockRejectedValue(new Error('stop render'));
+            const browser = {
+                newPage: vi.fn().mockResolvedValue(page),
+                close: vi.fn().mockResolvedValue(undefined),
+            };
+            playwrightMocks.connectOverCDP.mockResolvedValue(browser);
+            const service = createService({
+                dashboardModel: {
+                    getByIdOrSlug: vi.fn().mockResolvedValue(dashboard),
+                },
+                headlessBrowser: {
+                    host: 'headless-browser',
+                    browserEndpoint: 'ws://headless-browser:3000',
+                    maxScreenshotRetries: 1,
+                },
+            });
+            const getUserCookie = vi.spyOn(
+                service as unknown as {
+                    getUserCookie: (userUuid: string) => Promise<string>;
+                },
+                'getUserCookie',
+            );
+            return { service, page, getUserCookie };
+        };
+
+        const exportArgs = {
+            projectUuid: PROJECT_UUID,
+            dashboardUuid: DASHBOARD_UUID,
+            embedToken: 'embed.jwt.token',
+            externalId: 'external::viewer',
+            selectedTabs: null,
+            dashboardFilters: null,
+            parameters: null,
+            dateZoomGranularity: 'Month',
+            gridWidth: null,
+            contextId: 'job-1',
+        };
+
+        it('renders the minimal embed page with the token only in the URL hash', async () => {
+            const { service, page, getUserCookie } = setup();
+
+            await expect(
+                service.exportEmbedDashboardPdf(exportArgs),
+            ).rejects.toThrow();
+
+            const navigatedUrl = new URL(page.goto.mock.calls[0][0]);
+            expect(navigatedUrl.pathname).toBe(`/embed/${PROJECT_UUID}`);
+            expect(navigatedUrl.searchParams.get('minimal')).toBe('true');
+            expect(navigatedUrl.searchParams.has('selectedTabs')).toBe(false);
+            expect(navigatedUrl.searchParams.get('dateZoom')).toBe('month');
+            expect(navigatedUrl.hash).toBe('#embed.jwt.token');
+            expect(getUserCookie).not.toHaveBeenCalled();
+            expect(page.pageContext.addCookies).not.toHaveBeenCalled();
+        });
+
+        it('forwards an explicit tab selection to the page', async () => {
+            const { service, page } = setup();
+
+            await expect(
+                service.exportEmbedDashboardPdf({
+                    ...exportArgs,
+                    selectedTabs: ['tab-visible'],
+                }),
+            ).rejects.toThrow();
+
+            const navigatedUrl = new URL(page.goto.mock.calls[0][0]);
+            expect(navigatedUrl.searchParams.get('selectedTabs')).toBe(
+                JSON.stringify(['tab-visible']),
+            );
+        });
+
+        it('rejects hidden tabs', async () => {
+            const { service, page } = setup();
+
+            await expect(
+                service.exportEmbedDashboardPdf({
+                    ...exportArgs,
+                    selectedTabs: ['tab-hidden'],
+                }),
+            ).rejects.toThrow(ParameterError);
+            expect(page.goto).not.toHaveBeenCalled();
+        });
+
+        it('renders images through the same minimal embed page', async () => {
+            const { service, page, getUserCookie } = setup();
+
+            await expect(
+                service.exportEmbedDashboardImage(exportArgs),
+            ).rejects.toThrow();
+
+            const navigatedUrl = new URL(page.goto.mock.calls[0][0]);
+            expect(navigatedUrl.pathname).toBe(`/embed/${PROJECT_UUID}`);
+            expect(navigatedUrl.searchParams.get('minimal')).toBe('true');
+            expect(navigatedUrl.hash).toBe('#embed.jwt.token');
+            expect(getUserCookie).not.toHaveBeenCalled();
+        });
+
+        it('returns an expiring storage URL for images, not a preview link', async () => {
+            const { service } = setup();
+            vi.spyOn(
+                service as unknown as {
+                    renderEmbedDashboard: () => Promise<unknown>;
+                },
+                'renderEmbedDashboard',
+            ).mockResolvedValue({
+                dashboard,
+                imageId: 'embed-image_id',
+                result: { imageBuffer: Buffer.from('png-bytes') },
+            });
+            mockFileStorageClient.uploadImage.mockResolvedValue(
+                'https://storage.example/embed-image_id.png?X-Amz-Expires=259200',
+            );
+
+            await expect(
+                service.exportEmbedDashboardImage(exportArgs),
+            ).resolves.toBe(
+                'https://storage.example/embed-image_id.png?X-Amz-Expires=259200',
+            );
+            expect(mockFileStorageClient.uploadImage).toHaveBeenCalledWith(
+                Buffer.from('png-bytes'),
+                'embed-image_id',
+            );
+            expect(mockSlackUnfurlImageModel.create).not.toHaveBeenCalled();
+        });
+
+        it('rejects dashboards outside the token project', async () => {
+            const { service } = setup();
+
+            await expect(
+                service.exportEmbedDashboardPdf({
+                    ...exportArgs,
+                    projectUuid: '33333333-3333-4333-8333-333333333333',
+                }),
+            ).rejects.toThrow(ForbiddenError);
+        });
+    });
 
     describe('exportChart', () => {
         it('keeps legacy slug export compatible without a project', async () => {
@@ -1166,6 +1335,120 @@ describe('UnfurlService', () => {
             );
 
             expect(result.isValid).toBe(false);
+        });
+    });
+
+    describe('unfurlSlackUrls - data apps', () => {
+        const ORGANIZATION_UUID = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
+        const PROJECT_UUID = '21eef0b9-5bae-40f3-851e-9554588e71a6';
+        const APP_UUID = '44444444-5555-4666-8777-888888888888';
+        const APP_URL = `https://app.lightdash.cloud/projects/${PROJECT_UUID}/apps/${APP_UUID}`;
+
+        const setup = (storedCapturesChoice: boolean | null) => {
+            const getInstallationFromOrganizationUuid = vi
+                .fn()
+                .mockResolvedValue(undefined);
+            const service = createService({
+                headlessBrowser: { host: undefined },
+                lightdashConfig: {
+                    auth: lightdashConfigMock.auth,
+                    persistentDownloadUrls:
+                        lightdashConfigMock.persistentDownloadUrls,
+                    query: lightdashConfigMock.query,
+                    appRuntime: { capturesEnabled: true },
+                    slack: { linkShareImagePreviewEnabled: true },
+                },
+                organizationSettingsModel: {
+                    get: async () => ({
+                        dataAppCapturesEnabled: storedCapturesChoice,
+                    }),
+                },
+                slackAuthenticationModel: {
+                    getUnfurlsEnabled: vi.fn().mockResolvedValue(true),
+                    getOrganizationUuidFromTeamId: vi
+                        .fn()
+                        .mockResolvedValue(ORGANIZATION_UUID),
+                    getUserUuid: vi.fn().mockResolvedValue('installer-uuid'),
+                    getInstallationFromOrganizationUuid,
+                },
+            });
+            service.appModel = {
+                findAppByUuid: vi.fn().mockResolvedValue({
+                    app_id: APP_UUID,
+                    name: 'Revenue app',
+                    description: null,
+                    organization_uuid: ORGANIZATION_UUID,
+                    project_uuid: PROJECT_UUID,
+                }),
+            } as unknown as AppModel;
+            const unfurl = vi.fn().mockResolvedValue({ ok: true });
+            const message = {
+                event: {
+                    channel: 'C1',
+                    message_ts: '1.0',
+                    links: [{ url: APP_URL, domain: 'lightdash.cloud' }],
+                },
+                client: { chat: { unfurl } },
+                context: { teamId: 'T1', botUserId: 'B1' },
+            };
+            return {
+                service,
+                unfurl,
+                message,
+                getInstallationFromOrganizationUuid,
+            };
+        };
+
+        const unfurlAndSettle = async (
+            service: UnfurlService,
+            message: unknown,
+        ) => {
+            await service.unfurlSlackUrls(
+                message as Parameters<UnfurlService['unfurlSlackUrls']>[0],
+            );
+            await new Promise((resolve) => {
+                setTimeout(resolve, 0);
+            });
+        };
+
+        it('posts the text unfurl only, without rendering, while the organization has captures off', async () => {
+            const {
+                service,
+                unfurl,
+                message,
+                getInstallationFromOrganizationUuid,
+            } = setup(false);
+
+            await unfurlAndSettle(service, message);
+
+            expect(unfurl).toHaveBeenCalledTimes(1);
+            expect(unfurl).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    unfurls: {
+                        [APP_URL]: expect.not.objectContaining({
+                            image_url: expect.anything(),
+                        }),
+                    },
+                }),
+            );
+            // The image path starts by looking the installation up.
+            expect(getInstallationFromOrganizationUuid).not.toHaveBeenCalled();
+        });
+
+        it('goes on to render the preview image while captures are on', async () => {
+            const {
+                service,
+                unfurl,
+                message,
+                getInstallationFromOrganizationUuid,
+            } = setup(null);
+
+            await unfurlAndSettle(service, message);
+
+            expect(unfurl).toHaveBeenCalled();
+            expect(getInstallationFromOrganizationUuid).toHaveBeenCalledWith(
+                ORGANIZATION_UUID,
+            );
         });
     });
 

@@ -122,6 +122,7 @@ export const surfaceFromQueryContext = (
         case QueryExecutionContext.MCP_RUN_METRIC_QUERY:
         case QueryExecutionContext.MCP_RUN_SQL:
         case QueryExecutionContext.MCP_SEARCH_FIELD_VALUES:
+        case QueryExecutionContext.MCP_QUERY:
             return ConnectionSurface.MCP;
         case QueryExecutionContext.EMBED:
             return ConnectionSurface.EMBED;
@@ -156,6 +157,7 @@ export const surfaceFromQueryContext = (
         case QueryExecutionContext.METRICS_EXPLORER:
         case QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION:
         case QueryExecutionContext.COMPOSE_SQL_RUNNER:
+        case QueryExecutionContext.PYTHON_RUNNER:
         case QueryExecutionContext.MULTI_SOURCE_QUERY:
         case QueryExecutionContext.DESKTOP:
             return ConnectionSurface.APP;

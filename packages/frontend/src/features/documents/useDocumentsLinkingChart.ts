@@ -4,15 +4,16 @@ import {
     type DocumentSavedChartKind,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../../api';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 
 /** Documents the user can view whose current version links this chart. */
 export const useDocumentsLinkingChart = (
     projectUuid: string | undefined,
     kind: DocumentSavedChartKind,
     chartUuid: string,
-) =>
-    useQuery<DocumentLinkingChart[], ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<DocumentLinkingChart[], ApiError>({
         queryKey: ['documents-linking-chart', projectUuid, kind, chartUuid],
         queryFn: ({ signal }) =>
             lightdashApi<DocumentLinkingChart[]>({
@@ -29,3 +30,4 @@ export const useDocumentsLinkingChart = (
         enabled: projectUuid !== undefined,
         retry: false,
     });
+};

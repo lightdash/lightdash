@@ -5,17 +5,20 @@ import { randomUUID } from 'crypto';
 import knex from 'knex';
 import { gzipSync } from 'zlib';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
-import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
+import { up as createUsageProcessingStatus } from '../../database/migrations/20261030100000_create_usage_processing_status';
+import { CommercialFeatureFlagModel } from '../../ee/models/CommercialFeatureFlagModel';
+import { UsageProcessingModel } from '../../models/UsageProcessingModel';
 import type PrometheusMetrics from '../../prometheus/PrometheusMetrics';
 import { createS3AnalyticsSourceResolver } from '../../services/ProjectService/analyticsProject/S3AnalyticsSource';
 import { createEventStreamWriter } from './createEventStreamWriter';
+import { usageDimensionKey, type UsageDimensionName } from './usageDimensions';
 import { UsageEventsCompactor } from './UsageEventsCompactor';
 
 // Opt-in: isolated local Postgres, native DuckDB and a disposable MinIO bucket.
 describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
     'organization usage processing live locally',
     () => {
-        it('gates capture and all stages, bounds history, and recovers partial cleanup without duplicates', async () => {
+        it('processes recent data before retained raw history, gates organizations, and recovers cleanup', async () => {
             vi.unstubAllGlobals();
             const schema = `usage_policy_${randomUUID().replaceAll('-', '')}`;
             const db = knex({
@@ -31,7 +34,9 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
                 pool: { min: 0, max: 2 },
             });
             const storage = {
-                endpoint: 'http://127.0.0.1:9000',
+                endpoint:
+                    process.env.USAGE_EVENTS_S3_ENDPOINT ??
+                    'http://127.0.0.1:9000',
                 bucket: `usage-policy-${randomUUID()}`,
                 region: 'us-east-1',
                 accessKey: process.env.USAGE_EVENTS_S3_ACCESS_KEY!,
@@ -48,8 +53,16 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
             const org = randomUUID();
             const otherOrg = randomUUID();
             const now = new Date('2026-10-08T00:30:00Z');
-            let clock = Date.now();
-            vi.spyOn(Date, 'now').mockImplementation(() => clock);
+            const historicalDates = Array.from(
+                { length: 23 },
+                (_, index) => `2026-09-${String(index + 8).padStart(2, '0')}`,
+            );
+            const recentDates = Array.from(
+                { length: 5 },
+                (_, index) => `2026-10-0${index + 2}`,
+            );
+            const recentEvents = 10001 + recentDates.length;
+            const processedEvents = recentEvents + historicalDates.length;
             const config = {
                 ...lightdashConfigMock,
                 enabledFeatureFlags: new Set<string>(),
@@ -66,10 +79,11 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
                     bufferMaxSize: 100000,
                 },
             };
-            const flags = new FeatureFlagModel({
+            const flags = new CommercialFeatureFlagModel({
                 database: db,
                 lightdashConfig: config,
             });
+            const processing = new UsageProcessingModel(db);
             const get = vi.spyOn(flags, 'get');
             const metrics = {
                 incrementUsageEventsPushed: vi.fn(),
@@ -78,31 +92,38 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
                 incrementUsageEventsDropped: vi.fn(),
                 incrementUsageEventsPutFailure: vi.fn(),
             } as unknown as PrometheusMetrics;
-            const writer = createEventStreamWriter(
-                config,
-                metrics,
-                () => flags,
-            )!;
+            const writer = createEventStreamWriter(config, metrics)!;
             const dimensionsRead: string[] = [];
+            const failedContentOrganizations = new Set<string>();
             const model = {
                 async *getOrganizations() {
                     yield { organization_id: 1, organization_uuid: org };
                     yield { organization_id: 2, organization_uuid: otherOrg };
                 },
-                async *getJsonLines(organization: {
-                    organization_uuid: string;
-                }) {
+                async *getJsonLines(
+                    organization: { organization_uuid: string },
+                    dimension: UsageDimensionName,
+                ) {
                     dimensionsRead.push(organization.organization_uuid);
+                    if (
+                        dimension === 'content' &&
+                        failedContentOrganizations.has(
+                            organization.organization_uuid,
+                        )
+                    ) {
+                        throw new Error('synthetic tenant snapshot timeout');
+                    }
                     yield* [];
                 },
             };
-            const run = () =>
+            const run = (includeHistory = false) =>
                 new UsageEventsCompactor({
                     s3Config: storage,
                     prometheusMetrics: null,
                     usageDimensionsModel: model,
                     featureFlagModel: flags,
-                }).run(now);
+                    usageProcessingModel: processing,
+                }).run(now, undefined, includeHistory);
             const event = (orgId: string, date = '2026-10-07') => ({
                 org_id: orgId,
                 user_id: 'test-user',
@@ -137,6 +158,14 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
             let created = false;
             try {
                 await db.raw('CREATE SCHEMA ??', [schema]);
+                await db.schema.createTable('organizations', (table) => {
+                    table.uuid('organization_uuid').primary();
+                });
+                await db.raw(
+                    'INSERT INTO organizations (organization_uuid) VALUES (?), (?)',
+                    [org, otherOrg],
+                );
+                await db.transaction(createUsageProcessingStatus);
                 await db.raw(
                     'CREATE TABLE feature_flags (flag_id text PRIMARY KEY, default_enabled boolean); CREATE TABLE feature_flag_overrides (flag_id text, organization_uuid uuid, user_uuid uuid, enabled boolean)',
                 );
@@ -161,13 +190,13 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
                 writer.push('query_events', event(org));
                 writer.push('query_events', event(otherOrg));
                 await writer.flush();
-                expect(await list()).toHaveLength(0);
+                expect(await list('events/raw/')).toHaveLength(2);
+                expect(get).not.toHaveBeenCalled();
                 expect((await run()).dimensions.refreshed).toBe(0);
                 expect(dimensionsRead).toEqual([]);
                 await db('feature_flag_overrides')
                     .where({ organization_uuid: org })
                     .update({ enabled: true });
-                clock += 60001;
                 get.mockClear();
                 const captureStart = performance.now();
                 for (let index = 0; index < 10000; index += 1) {
@@ -177,32 +206,79 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
                     );
                     writer.push('query_events', event(otherOrg));
                 }
-                writer.push('query_events', event(org, '2026-09-30'));
+                for (const date of [...historicalDates, ...recentDates]) {
+                    writer.push('query_events', event(org, date));
+                }
                 writer.push('query_events', event(org, '2026-10-08'));
                 await writer.flush();
                 const captureMs = performance.now() - captureStart;
-                expect(get).toHaveBeenCalledTimes(2);
+                expect(get).not.toHaveBeenCalled();
                 expect(
                     await list(`events/raw/org_id=${otherOrg}/`),
-                ).toHaveLength(0);
+                ).toHaveLength(2);
                 const runStart = performance.now();
                 const summary = await run();
                 const processingMs = performance.now() - runStart;
                 expect(summary).toMatchObject({
-                    partitionsCompacted: 2,
+                    partitionsDiscovered: 30,
+                    partitionsCompacted: 7,
                     partitionsFailed: 0,
-                    dimensions: { refreshed: 6, failed: 0 },
-                    users: { published: 2, failed: 0 },
+                    dimensions: { refreshed: 7, failed: 0 },
+                    users: { published: 7, failed: 0 },
+                });
+                expect(await processing.find(org)).toMatchObject({
+                    status: 'partial',
+                    stats: { partitionsDiscovered: 30, partitionsCompacted: 7 },
                 });
                 expect(new Set(dimensionsRead)).toEqual(new Set([org]));
-                expect(await total('query_events', 'count(*)')).toBe(10000);
-                expect(await total('user_activity', 'sum(event_count)')).toBe(
-                    10000,
+                expect(
+                    await list(`events/compacted/org_id=${otherOrg}/`),
+                ).toHaveLength(0);
+                expect(
+                    await list(`events/raw/org_id=${otherOrg}/`),
+                ).toHaveLength(2);
+                expect(await total('query_events', 'count(*)')).toBe(
+                    recentEvents,
                 );
-                expect(await list(`events/raw/org_id=${org}/`)).toHaveLength(2); // current day and day eight
+                expect(await total('user_activity', 'sum(event_count)')).toBe(
+                    recentEvents,
+                );
+                expect(await list(`events/raw/org_id=${org}/`)).toHaveLength(
+                    24,
+                );
                 expect((await run()).users).toMatchObject({
                     published: 0,
-                    unchanged: 2,
+                    unchanged: 7,
+                });
+                const historyStart = performance.now();
+                expect(await run(true)).toMatchObject({
+                    partitionsDiscovered: 23,
+                    partitionsCompacted: 23,
+                    partitionsFailed: 0,
+                    users: { published: 23, unchanged: 7, failed: 0 },
+                });
+                const historyMs = performance.now() - historyStart;
+                expect(await processing.find(org)).toMatchObject({
+                    status: 'success',
+                    stats: {
+                        partitionsDiscovered: 23,
+                        partitionsCompacted: 23,
+                    },
+                });
+                expect(await total('query_events', 'count(*)')).toBe(
+                    processedEvents,
+                );
+                expect(await total('user_activity', 'sum(event_count)')).toBe(
+                    processedEvents,
+                );
+                expect(await list(`events/raw/org_id=${org}/`)).toEqual([
+                    expect.objectContaining({
+                        Key: expect.stringContaining('dt=2026-10-08/'),
+                    }),
+                ]);
+                expect((await run(true)).users).toMatchObject({
+                    published: 0,
+                    unchanged: 30,
                 });
 
                 const putRaw = async (count: number) => {
@@ -247,12 +323,16 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
                         } as never;
                     });
                 expect((await run()).partitionsFailed).toBe(1);
-                expect(await total('query_events', 'count(*)')).toBe(10010);
+                expect(await total('query_events', 'count(*)')).toBe(
+                    processedEvents + 10,
+                );
                 deletion.mockRestore();
                 expect((await run()).partitionsFailed).toBe(0);
-                expect(await total('query_events', 'count(*)')).toBe(10010);
+                expect(await total('query_events', 'count(*)')).toBe(
+                    processedEvents + 10,
+                );
                 expect(await total('user_activity', 'sum(event_count)')).toBe(
-                    10010,
+                    processedEvents + 10,
                 );
                 expect(
                     (await list('events/raw/')).some((item) =>
@@ -270,32 +350,89 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
                 await putRaw(1);
                 await run();
                 await run();
-                expect(await total('query_events', 'count(*)')).toBe(10021);
+                expect(await total('query_events', 'count(*)')).toBe(
+                    processedEvents + 21,
+                );
                 expect(await total('user_activity', 'sum(event_count)')).toBe(
-                    10021,
+                    processedEvents + 21,
                 );
                 expect(await list('events/compaction/')).toHaveLength(0);
-                // Disable on an existing process: capture cache expires; processing rechecks immediately.
+                // A failed tenant snapshot must not stop either tenant's users
+                // stage, even when the failed snapshot has never been published.
+                const retainedSnapshot = await s3.headObject({
+                    Bucket: storage.bucket,
+                    Key: usageDimensionKey(org, 'content'),
+                });
+                await db('feature_flag_overrides')
+                    .where({ organization_uuid: otherOrg })
+                    .update({ enabled: true });
+                failedContentOrganizations.add(org);
+                failedContentOrganizations.add(otherOrg);
+                await putRaw(1);
+                await expect(run()).rejects.toThrow(
+                    '2 refreshes failed; previous snapshots retained',
+                );
+                expect(await total('user_activity', 'sum(event_count)')).toBe(
+                    processedEvents + 22,
+                );
+                const otherReader = new DuckdbWarehouseClient({
+                    type: 'duckdb_parquet',
+                    resolveSource: createS3AnalyticsSourceResolver({
+                        storage,
+                        organizationUuid: otherOrg,
+                    }),
+                });
+                expect(
+                    Number(
+                        (
+                            await otherReader.runQuery(
+                                'SELECT sum(event_count) AS total FROM user_activity',
+                            )
+                        ).rows[0].total,
+                    ),
+                ).toBe(10001);
+                expect(
+                    (
+                        await s3.headObject({
+                            Bucket: storage.bucket,
+                            Key: usageDimensionKey(org, 'content'),
+                        })
+                    ).ETag,
+                ).toBe(retainedSnapshot.ETag);
+                expect(
+                    await list(usageDimensionKey(otherOrg, 'content')),
+                ).toHaveLength(0);
+                failedContentOrganizations.clear();
+                await db('feature_flag_overrides')
+                    .where({ organization_uuid: otherOrg })
+                    .update({ enabled: false });
+                // Disabling processing leaves capture running on the existing writer.
                 await db('feature_flag_overrides')
                     .where({ organization_uuid: org })
                     .update({ enabled: false });
                 const before = (await list()).length;
-                clock += 60001;
                 writer.push('query_events', event(org));
                 await writer.flush();
                 dimensionsRead.length = 0;
                 expect((await run()).dimensions.refreshed).toBe(0);
                 expect(dimensionsRead).toEqual([]);
-                expect((await list()).length).toBe(before);
+                expect((await list()).length).toBe(before + 1);
                 process.stdout.write(
                     `${JSON.stringify({
-                        captureInputEvents: 20002,
-                        capturedEvents: 10002,
-                        eligibleEvents: 10000,
+                        captureInputEvents:
+                            20000 +
+                            historicalDates.length +
+                            recentDates.length +
+                            1,
+                        closedRawDays: 30,
+                        recentEvents,
+                        historicalEvents: historicalDates.length,
                         captureMs,
                         processingMs,
-                        recoveredTotal: 10021,
-                        flagLookupsPerFlush: 2,
+                        historyMs,
+                        recoveredTotal: processedEvents + 22,
+                        usersPublishedDespiteDimensionFailure: true,
+                        flagLookupsPerFlush: 0,
                     })}\n`,
                 );
             } finally {

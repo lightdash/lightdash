@@ -2,7 +2,6 @@ import {
     ChartType,
     deriveDataAppVizPivotConfig,
     diffDataAppVizSchema,
-    FeatureFlags,
     getAppDisplayName,
     getEffectiveOptionValues,
     getItemId,
@@ -16,6 +15,7 @@ import { Link, useLocation, useNavigate } from 'react-router';
 import useEmbed from '../../../ee/providers/Embed/useEmbed';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../../../features/apps/hooks/useCanEditDataApp';
+import { useChartStudioAvailable } from '../../../features/chartTypes/hooks/useChartStudioAvailable';
 import { useDataAppVisualization } from '../../../features/chartTypes/hooks/useDataAppVisualization';
 import { useDataAppVizRenderMetadata } from '../../../features/chartTypes/hooks/useDataAppVizRender';
 import { reconcileDataAppVizFieldMapping } from '../../../features/chartTypes/utils/autoMapDataAppVizFields';
@@ -30,11 +30,14 @@ import {
 import { type SelectedDataAppViz } from '../../../hooks/useDataAppVizVisualizationConfig';
 import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import Callout from '../../common/Callout';
 import { useIsInsideChartGallery } from '../../common/ChartGallery/ChartGalleryContext';
 import { isDataAppVizVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
+import {
+    useVisualizationConfig,
+    useVisualizationInputs,
+    useVisualizationServices,
+} from '../../LightdashVisualization/useVisualizationContext';
 import { useIsVegaEditorAvailable } from '../ChartConfigPanel/CustomVis/useIsVegaEditorAvailable';
 import { ColorPaletteSection } from '../common/ColorPaletteSection';
 import { useAddFieldsToQuery } from '../common/useAddFieldsToQuery';
@@ -59,13 +62,11 @@ export const ConfigTabs: FC = memo(() => {
         projectRoute?.projectUrlIdentifier ?? projectUuid;
     const location = useLocation();
     const navigate = useNavigate();
-    const {
-        visualizationConfig,
-        itemsMap,
-        colorPalette: resolvedColorPalette,
-        setChartType,
-        setPivotDimensions,
-    } = useVisualizationContext();
+    const { setChartType, setPivotDimensions } = useVisualizationServices();
+    // The edit actions live on the aggregate, so this panel reads it whole
+    const visualizationConfig = useVisualizationConfig();
+    const { itemsMap, colorPalette: resolvedColorPalette } =
+        useVisualizationInputs();
     const { addableItems, isFieldPending } = useAddFieldsToQuery();
     const selectProjectChartType = useSelectProjectChartType();
     const dispatch = useExplorerDispatch();
@@ -146,11 +147,8 @@ export const ConfigTabs: FC = memo(() => {
     // the type card are redundant there.
     const isInsideChartGallery = useIsInsideChartGallery();
     const isVegaEditorAvailable = useIsVegaEditorAvailable();
-    // In-place authoring needs data-apps; without it, fall back to the
-    // standalone builder link the panel always offered.
-    const dataAppsEnabled =
-        useServerFeatureFlag(FeatureFlags.EnableDataApps).data?.enabled ===
-        true;
+    // Creating a chart type is authoring, so it needs Chart Studio.
+    const chartStudioAvailable = useChartStudioAvailable();
     const canEditSelectedType = useCanEditDataApp(projectUuid, {
         spaceUuid: dataAppViz?.spaceUuid ?? null,
         createdByUserUuid: dataAppViz?.createdByUserUuid ?? null,
@@ -341,7 +339,7 @@ export const ConfigTabs: FC = memo(() => {
                             setPivotDimensions(undefined);
                         }}
                         onCreateNew={
-                            canCreateApp && dataAppsEnabled
+                            canCreateApp && chartStudioAvailable
                                 ? () =>
                                       void navigate({
                                           pathname: chartTypeBuilderPath(
@@ -379,10 +377,10 @@ export const ConfigTabs: FC = memo(() => {
                 ) : (
                     <Text size="xs" c="dimmed">
                         Pick a chart type above
-                        {canCreateApp && dataAppsEnabled ? (
+                        {canCreateApp && chartStudioAvailable ? (
                             <>
                                 , or create a new one in the{' '}
-                                {isInsideChartGallery && dataAppsEnabled ? (
+                                {isInsideChartGallery ? (
                                     <Anchor
                                         component="button"
                                         type="button"

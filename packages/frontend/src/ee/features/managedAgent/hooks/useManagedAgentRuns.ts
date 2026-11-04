@@ -1,12 +1,14 @@
 import { type ManagedAgentRunsListResponse } from '@lightdash/common';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../../../../api';
+import { type LightdashApi } from '../../../../api';
 import { useProjectUuid } from '../../../../hooks/useProjectUuid';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 
 const PAGE_SIZE = 20;
 const FIRST_PAGE_REFETCH_MS = 30000;
 
 const getRuns = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     cursor: string | null,
 ): Promise<ManagedAgentRunsListResponse> => {
@@ -20,12 +22,17 @@ const getRuns = async (
 };
 
 export const useManagedAgentRuns = (opts: { enabled?: boolean } = {}) => {
+    const lightdashApi = useLightdashApi();
     const projectUuid = useProjectUuid();
     const isEnabled = opts.enabled ?? true;
     return useInfiniteQuery<ManagedAgentRunsListResponse>({
         queryKey: ['managed-agent-runs', projectUuid],
         queryFn: ({ pageParam }) =>
-            getRuns(projectUuid!, (pageParam as string | null) ?? null),
+            getRuns(
+                lightdashApi,
+                projectUuid!,
+                (pageParam as string | null) ?? null,
+            ),
         getNextPageParam: (lastPage) => lastPage.nextCursor,
         enabled: !!projectUuid && isEnabled,
         // Only poll while the user is on the first page. Once they "Load

@@ -1,3 +1,4 @@
+import { peopleNoActivitySections } from './peopleNoActivityCharts';
 import type { UsageDashboardSpec } from './usageDashboardTypes';
 
 export const usageDashboardSpecs: UsageDashboardSpec[] = [
@@ -69,6 +70,22 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
         description:
             'Query performance, failures, origins, caching and the metrics and dimensions people use.',
         tabs: [
+            {
+                key: 'monthly-comparison',
+                name: 'Monthly comparison',
+                sections: [
+                    {
+                        title: 'How is query usage changing?',
+                        noteHeight: 3,
+                        description:
+                            'Last 12 completed calendar months (UTC), excluding the current month. Changes compare adjacent months. ∅ means unavailable history or a zero percentage baseline. Missing months are omitted; capture and retention can leave history incomplete.',
+                        charts: [
+                            'querying-users-month-over-month',
+                            'queries-run-month-over-month',
+                        ],
+                    },
+                ],
+            },
             {
                 key: 'latency',
                 name: 'Latency & failures',
@@ -155,12 +172,13 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
             },
             {
                 key: 'returning',
-                name: 'Returning users',
+                name: 'Returning & inactive people',
                 sections: [
+                    ...peopleNoActivitySections,
                     {
                         title: 'Activity over time',
                         description:
-                            'Weekly activity is a return-use proxy. A complete retention cohort or dormant-user report requires an eligibility baseline and continuous historical capture.',
+                            'Weekly activity is a return-use proxy. This is not a complete retention cohort or a history of who was eligible in each period.',
                         charts: ['observed-activity-by-person-and-week'],
                     },
                 ],

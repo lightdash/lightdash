@@ -163,7 +163,7 @@ export function validateCustomMetricsDefinition(
                 availableDimensions.length > shown.length
                     ? ` (and ${
                           availableDimensions.length - shown.length
-                      } more — use findFields to search them)`
+                      } more — use grepFields to search them)`
                     : '';
             errors.push(
                 `Error: base dimension "${expectedFieldId}" does not exist in the explore "${metric.table}". ` +

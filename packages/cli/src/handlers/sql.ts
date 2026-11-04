@@ -10,7 +10,11 @@ import { getConfig } from '../config';
 import { getAgentConnectionSelection } from '../credentials';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
-import { pollForResults, resultsToCsv } from './asyncQuery';
+import {
+    pollForResults,
+    resultsToCsv,
+    validateConnectionQueryUuid,
+} from './asyncQuery';
 import { lightdashApi } from './dbt/apiClient';
 
 type SqlHandlerOptions = {
@@ -78,16 +82,13 @@ export const sqlHandler = async (
             },
         );
 
-        GlobalState.debug(`> Query UUID: ${submitResult.queryUuid}`);
+        const queryUuid = validateConnectionQueryUuid(submitResult.queryUuid);
+        GlobalState.debug(`> Query UUID: ${queryUuid}`);
         spinner.text = 'Waiting for query results...';
 
-        const result = await pollForResults(
-            projectUuid,
-            submitResult.queryUuid,
-            {
-                pageSize,
-            },
-        );
+        const result = await pollForResults(projectUuid, queryUuid, {
+            pageSize,
+        });
 
         if (result.status === QueryHistoryStatus.ERROR) {
             spinner.fail('Query failed');

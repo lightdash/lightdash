@@ -366,6 +366,12 @@ export async function seed(knex: Knex): Promise<void> {
         await new ProjectParametersModel({
             database: knex,
         }).replace(projectUuid, lightdashProjectConfig.parameters ?? {});
+
+        // Seed table group labels & descriptions for the explore sidebar
+        await projectModel.setTableGroups(
+            projectUuid,
+            lightdashProjectConfig.table_groups,
+        );
     } catch (e) {
         console.error(e);
         throw e;

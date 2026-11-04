@@ -10,6 +10,7 @@ import {
     getCompiledModels,
     getDbtManifestVersion,
     getErrorMessage,
+    getModelInventoryFromManifest,
     getModelsFromManifest,
     getSchemaStructureFromDbtModels,
     InlineErrorType,
@@ -20,6 +21,7 @@ import {
     ParseError,
     preAggregatePostProcessor,
     QueryExecutionContext,
+    stripExternalDbtNodes,
     WarehouseCatalog,
     type WarehouseClient,
 } from '@lightdash/common';
@@ -43,7 +45,7 @@ import { readAndLoadLightdashProjectConfig } from '../lightdash-config';
 import { loadLightdashModels } from '../lightdash/loader';
 import { detectProjectType } from '../lightdash/projectType';
 import * as styles from '../styles';
-import { lightdashRawApi } from './dbt/apiClient';
+import { lightdashRawApi, readRawApiJson } from './dbt/apiClient';
 import { DbtCompileOptions, maybeCompileModelsAndJoins } from './dbt/compile';
 import { tryGetDbtVersion } from './dbt/getDbtVersion';
 import getWarehouseClient from './dbt/getWarehouseClient';
@@ -476,7 +478,9 @@ export const compileProject = async (
                 { targetDir: context.targetDir },
                 options,
             );
-        let manifest = await loadManifest({ targetDir: context.targetDir });
+        let manifest = stripExternalDbtNodes(
+            await loadManifest({ targetDir: context.targetDir }),
+        );
         const projectManifestModels = getModelsFromManifest(manifest);
         if (
             !options.combineManifest &&
@@ -520,7 +524,10 @@ export const compileProject = async (
                     url: manifestEndpoint,
                     body: undefined,
                 });
-                const servedManifest: unknown = await response.json();
+                const servedManifest: unknown =
+                    await (getAgentConnectionSelection() === null
+                        ? response.json()
+                        : readRawApiJson(response));
                 if (!isServedDbtManifest(servedManifest)) {
                     throw new Error(
                         `${manifestEndpoint} returned an invalid manifest: expected an object with metadata and a nodes record`,
@@ -757,6 +764,10 @@ export const compileProject = async (
                 disableTimestampConversion: options.disableTimestampConversion,
                 allowPartialCompilation,
                 postProcessors: [preAggregatePostProcessor],
+                includeModelIdentity: true,
+                modelInventory: getModelInventoryFromManifest(manifest),
+                allowCrossSourceJoinFallback:
+                    manifest.lightdash_model_inventory_complete !== false,
             },
         );
         const validatedExplores =

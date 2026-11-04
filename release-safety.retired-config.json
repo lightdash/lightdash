@@ -1,0 +1,16 @@
+{
+    "LUNA_API_KEY": "Set only on the internal analytics deployment for the OpenAI Decisions shadow experiment; never documented for operators. The provider is removed, so the key has nothing to authenticate.",
+    "LUNA_MODEL": "Model name for the removed OpenAI Decisions provider; set only on the internal analytics deployment and never documented for operators.",
+    "LUNA_TIMEOUT_MS": "Timeout for the removed OpenAI Decisions provider; set only on the internal analytics deployment and never documented for operators.",
+    "LUNA_SHADOW_ENABLED": "Toggled the removed shadow comparison between Jev and OpenAI Decisions; set only on the internal analytics deployment and never documented for operators.",
+    "SERVICE_ACCOUNT_ENABLED": "Self-hosted operators set it to turn on service accounts. Service accounts are now always on for licensed instances, so the variable has no effect and nothing breaks when it is left set or removed.",
+    "CHANGE_CHART_EXPLORE_ENABLED": "Cloud and self-hosted operators set it to enable the Change explore action. The action is now always available to chart authors on the chart page, so leaving or removing this variable preserves its enabled behaviour.",
+    "EDIT_YAML_IN_UI_ENABLED": "Turned on the edit-yaml-in-ui source editor drawer; set only for internal testing and never documented for operators. The drawer and its gated endpoints are removed, so the variable has nothing to enable.",
+    "E2B_PYTHON_WARM_TEMPLATE_NAME": "Set only by internal composer experiment deployments since 3.53.1; mentioned only in the sandbox README, never in operator docs. The warm build now ships as the default lightdash-python-runner template, so nothing breaks without this setting.",
+    "E2B_PYTHON_WARM_TEMPLATE_TAG": "Set only by internal composer experiment deployments since 3.53.1; mentioned only in the sandbox README, never in operator docs. The warm build now ships as the default lightdash-python-runner template, so nothing breaks without this setting.",
+    "AI_CODING_AGENT_MAX_REPO_SIZE_MB": "Set by developers for the internal general-purpose coding-agent experiment and not documented for operators. That experiment is removed, so this unused setting no longer configures a sandbox or run.",
+    "E2B_CODING_AGENT_TEMPLATE_NAME": "Set by developers for the internal general-purpose coding-agent experiment and not documented for operators. That experiment is removed, so this unused setting no longer configures a sandbox or run.",
+    "E2B_CODING_AGENT_TEMPLATE_TAG": "Set by developers for the internal general-purpose coding-agent experiment and not documented for operators. That experiment is removed, so this unused setting no longer configures a sandbox or run.",
+    "METRIC_DASHBOARD_FILTERS_ENABLED": "Self-hosted operators set it to turn on the beta metric dashboard filter UI. The feature is now on for everyone, so nothing breaks when the variable is left set or removed.",
+    "ORGANIZATION_WAREHOUSE_CREDENTIALS_ENABLED": "Self-hosted operators set it to turn on organization warehouse credentials; never documented for operators. The flag it fed has no readers since the credentials UI was removed, and the credentials API and project linking do not check it, so nothing changes when it is left set or removed."
+}

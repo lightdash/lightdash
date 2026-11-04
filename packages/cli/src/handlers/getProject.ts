@@ -48,7 +48,18 @@ export const getProjectHandler = async (options: GetProjectOptions) => {
             }
             return;
         }
-        GlobalState.debug(`> Config: ${JSON.stringify(config)}`);
+        const displayContext = config.context && {
+            ...config.context,
+            apiKey: config.context.apiKey
+                ? '[redacted]'
+                : config.context.apiKey,
+            proxyAuthorization: config.context.proxyAuthorization
+                ? '[redacted]'
+                : config.context.proxyAuthorization,
+        };
+        GlobalState.debug(
+            `> Config: ${JSON.stringify({ ...config, context: displayContext })}`,
+        );
 
         const projectUuid = config.context?.project;
         const projectName = config.context?.projectName;

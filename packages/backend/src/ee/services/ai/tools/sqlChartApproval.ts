@@ -61,6 +61,7 @@ const getSqlChartApproveSql =
             ? call.approveSql({
                   sql,
                   heading: getSqlChartApprovalHeading(chartName),
+                  steps: null,
               })
             : call.settleUnchangedSql();
 

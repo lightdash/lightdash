@@ -43,6 +43,17 @@ export class SlackIntegrationService<
             throw new ForbiddenError();
         }
 
+        // Installing replaces the organization's Slack connection, so it needs
+        // the same permission as removing it.
+        if (
+            this.createAuditedAbility(user).cannot(
+                'manage',
+                subject('Organization', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
         const slackOptions = this.slackClient.getSlackOptions();
 
         const metadata = {
@@ -98,6 +109,9 @@ export class SlackIntegrationService<
             notificationChannel: installation.notificationChannel,
             appProfilePhotoUrl: installation.appProfilePhotoUrl,
             hasRequiredScopes: this.slackClient.hasRequiredScopes(
+                installation.scopes,
+            ),
+            features: this.slackClient.getFeatureAvailability(
                 installation.scopes,
             ),
             unfurlsEnabled: installation.unfurlsEnabled,
@@ -177,6 +191,22 @@ export class SlackIntegrationService<
     ) {
         const organizationUuid = user?.organizationUuid;
         if (!organizationUuid) throw new ForbiddenError();
+
+        // Saved from the Slack integration settings (organization admins) and
+        // from the organization AI settings (anyone who manages AI agents).
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('OrganizationAiAgent', { organizationUuid }),
+            ) &&
+            auditedAbility.cannot(
+                'manage',
+                subject('Organization', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
 
         return this.slackClient.updateAppCustomSettings(
             `${user.firstName} ${user.lastName}`,

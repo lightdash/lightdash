@@ -434,3 +434,45 @@ describe('explorerSlice saved chart metadata', () => {
         expect(result.savedChart).toBeUndefined();
     });
 });
+
+describe('explorerSlice query cost confirmation', () => {
+    const args = {
+        projectUuid: 'project',
+        tableId: 'orders',
+        query: defaultState.unsavedChartVersion.metricQuery,
+    };
+    const pending = {
+        args,
+        totalBytesProcessed: 50_000_000_000,
+        confirmEstimatedBytesAbove: 10_000_000_000,
+    };
+
+    it('holds the query until confirmed, then runs it', () => {
+        const held = explorerReducer(
+            defaultState,
+            explorerActions.requestQueryCostConfirmation(pending),
+        );
+        expect(held.queryExecution.validQueryArgs).toBeNull();
+        expect(held.queryExecution.pendingCostConfirmation).toEqual(pending);
+
+        const confirmed = explorerReducer(
+            held,
+            explorerActions.confirmQueryCost(),
+        );
+        expect(confirmed.queryExecution.validQueryArgs).toEqual(args);
+        expect(confirmed.queryExecution.pendingCostConfirmation).toBeNull();
+    });
+
+    it('drops the held query when cancelled', () => {
+        const held = explorerReducer(
+            defaultState,
+            explorerActions.requestQueryCostConfirmation(pending),
+        );
+        const cancelled = explorerReducer(
+            held,
+            explorerActions.cancelQueryCostConfirmation(),
+        );
+        expect(cancelled.queryExecution.validQueryArgs).toBeNull();
+        expect(cancelled.queryExecution.pendingCostConfirmation).toBeNull();
+    });
+});

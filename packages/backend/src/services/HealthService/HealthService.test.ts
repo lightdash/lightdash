@@ -1,7 +1,11 @@
 import { LightdashInstallType, LightdashMode } from '@lightdash/common';
 import { createHmac } from 'crypto';
 import { getDockerHubVersion } from '../../clients/DockerHub/DockerHub';
-import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import {
+    lightdashConfigMock,
+    lightdashConfigWithAppRuntimeMock,
+} from '../../config/lightdashConfig.mock';
+import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { MigrationModel } from '../../models/MigrationModel/MigrationModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
@@ -45,6 +49,13 @@ vi.spyOn(validLicenseService, 'getLicenseStatus').mockReturnValue({
     valid: true,
 });
 
+const featureFlagModelMock = {
+    get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => ({
+        id: featureFlagId,
+        enabled: false,
+    })),
+} as unknown as FeatureFlagModel;
+
 const learnSandboxServiceMock = {
     isRuntimeAvailable: vi.fn(async () => false),
 };
@@ -57,6 +68,7 @@ describe('health', () => {
         migrationModel: migrationModel as unknown as MigrationModel,
         organizationSettingsModel:
             organizationSettingsModel as unknown as OrganizationSettingsModel,
+        featureFlagModel: featureFlagModelMock,
         learnSandboxService: learnSandboxServiceMock,
     });
 
@@ -92,10 +104,44 @@ describe('health', () => {
                 migrationModel: migrationModel as unknown as MigrationModel,
                 organizationSettingsModel:
                     organizationSettingsModel as unknown as OrganizationSettingsModel,
+                featureFlagModel: featureFlagModelMock,
                 learnSandboxService: learnSandboxServiceMock,
             });
             const health = await service.getHealthState(undefined);
             expect(health.auth.snowflakeAi.enabled).toBe(licenseKey !== null);
+        },
+    );
+    it.each([
+        ['no', licenseService, lightdashConfigWithAppRuntimeMock, false],
+        [
+            'an invalid',
+            invalidLicenseService,
+            lightdashConfigWithAppRuntimeMock,
+            false,
+        ],
+        ['a valid', validLicenseService, lightdashConfigMock, false],
+        [
+            'a valid',
+            validLicenseService,
+            lightdashConfigWithAppRuntimeMock,
+            true,
+        ],
+    ])(
+        'reports the app runtime available only with a valid licence and a configured runtime (%s licence)',
+        async (_licence, caseLicenseService, config, expected) => {
+            const service = new HealthService({
+                organizationModel:
+                    organizationModel as unknown as OrganizationModel,
+                lightdashConfig: config,
+                licenseService: caseLicenseService,
+                migrationModel: migrationModel as unknown as MigrationModel,
+                organizationSettingsModel:
+                    organizationSettingsModel as unknown as OrganizationSettingsModel,
+                learnSandboxService: learnSandboxServiceMock,
+                featureFlagModel: featureFlagModelMock,
+            });
+            const health = await service.getHealthState(undefined);
+            expect(health.dataApps.runtimeAvailable).toBe(expected);
         },
     );
     it('Should return last version as undefined when fails fetch', async () => {
@@ -131,6 +177,7 @@ describe('health', () => {
             migrationModel: migrationModel as unknown as MigrationModel,
             organizationSettingsModel:
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
+            featureFlagModel: featureFlagModelMock,
             learnSandboxService: learnSandboxServiceMock,
         });
 
@@ -159,6 +206,7 @@ describe('health', () => {
             migrationModel: migrationModel as unknown as MigrationModel,
             organizationSettingsModel:
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
+            featureFlagModel: featureFlagModelMock,
             learnSandboxService: learnSandboxServiceMock,
         });
 
@@ -188,6 +236,7 @@ describe('health', () => {
             migrationModel: migrationModel as unknown as MigrationModel,
             organizationSettingsModel:
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
+            featureFlagModel: featureFlagModelMock,
             learnSandboxService: learnSandboxServiceMock,
         });
 
@@ -216,6 +265,7 @@ describe('health', () => {
             migrationModel: migrationModel as unknown as MigrationModel,
             organizationSettingsModel:
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
+            featureFlagModel: featureFlagModelMock,
             learnSandboxService: learnSandboxServiceMock,
         });
         expect(
@@ -223,6 +273,36 @@ describe('health', () => {
                 .hasPlaygroundProjects,
         ).toBe(true);
     });
+    it.each([true, false])(
+        'reports the instance config for pre-aggregates to every caller: %s',
+        async (enabled) => {
+            const service = new HealthService({
+                organizationModel:
+                    organizationModel as unknown as OrganizationModel,
+                lightdashConfig: {
+                    ...lightdashConfigMock,
+                    preAggregates: {
+                        ...lightdashConfigMock.preAggregates,
+                        enabled,
+                    },
+                },
+                licenseService,
+                migrationModel: migrationModel as unknown as MigrationModel,
+                organizationSettingsModel:
+                    organizationSettingsModel as unknown as OrganizationSettingsModel,
+                featureFlagModel: featureFlagModelMock,
+                learnSandboxService: learnSandboxServiceMock,
+            });
+
+            expect(
+                (await service.getHealthState(userMock)).preAggregates,
+            ).toEqual({ enabled });
+            expect(
+                (await service.getHealthState(undefined)).preAggregates,
+            ).toEqual({ enabled });
+        },
+    );
+
     it('returns the enterprise license validation result', async () => {
         expect((await healthService.getHealthState(undefined)).license).toEqual(
             {
@@ -239,6 +319,7 @@ describe('health', () => {
             migrationModel: migrationModel as unknown as MigrationModel,
             organizationSettingsModel:
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
+            featureFlagModel: featureFlagModelMock,
             learnSandboxService: learnSandboxServiceMock,
         });
 
@@ -257,6 +338,7 @@ describe('health', () => {
             migrationModel: migrationModel as unknown as MigrationModel,
             organizationSettingsModel:
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
+            featureFlagModel: featureFlagModelMock,
             learnSandboxService: learnSandboxServiceMock,
         });
 
@@ -279,6 +361,7 @@ describe('health', () => {
             migrationModel: migrationModel as unknown as MigrationModel,
             organizationSettingsModel:
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
+            featureFlagModel: featureFlagModelMock,
             learnSandboxService: learnSandboxServiceMock,
         });
         expect(await service.getHealthState(undefined)).toEqual({
@@ -350,6 +433,7 @@ describe('health', () => {
             migrationModel: migrationModel as unknown as MigrationModel,
             organizationSettingsModel:
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
+            featureFlagModel: featureFlagModelMock,
             readinessService: { getReadiness },
             learnSandboxService: learnSandboxServiceMock,
         });
@@ -388,6 +472,7 @@ describe('health', () => {
                 migrationModel: migrationModel as unknown as MigrationModel,
                 organizationSettingsModel:
                     organizationSettingsModel as unknown as OrganizationSettingsModel,
+                featureFlagModel: featureFlagModelMock,
                 learnSandboxService: learnSandboxServiceMock,
             });
 
@@ -410,6 +495,7 @@ describe('health', () => {
                 migrationModel: migrationModel as unknown as MigrationModel,
                 organizationSettingsModel:
                     organizationSettingsModel as unknown as OrganizationSettingsModel,
+                featureFlagModel: featureFlagModelMock,
                 learnSandboxService: learnSandboxServiceMock,
             });
 
@@ -424,5 +510,41 @@ describe('health', () => {
 
             expect(result.pylon.verificationHash).toBe(expectedHash);
         });
+    });
+});
+
+describe('fast decisions in health', () => {
+    const withKey = {
+        ...lightdashConfigMock,
+        ai: {
+            ...lightdashConfigMock.ai,
+            decisions: { ...lightdashConfigMock.ai.decisions, apiKey: 'test' },
+        },
+    };
+    const build = (lightdashConfig: typeof lightdashConfigMock) =>
+        new HealthService({
+            organizationModel:
+                organizationModel as unknown as OrganizationModel,
+            lightdashConfig,
+            licenseService,
+            migrationModel: migrationModel as unknown as MigrationModel,
+            organizationSettingsModel:
+                organizationSettingsModel as unknown as OrganizationSettingsModel,
+            featureFlagModel: featureFlagModelMock,
+            learnSandboxService: learnSandboxServiceMock,
+        });
+
+    it('is off without a decision key', async () => {
+        expect(
+            (await build(lightdashConfigMock).getHealthState(userMock)).ai
+                .fastDecisionsEnabled,
+        ).toBe(false);
+    });
+
+    it('is on with a decision key', async () => {
+        expect(
+            (await build(withKey).getHealthState(userMock)).ai
+                .fastDecisionsEnabled,
+        ).toBe(true);
     });
 });

@@ -1,9 +1,9 @@
 import {
     getItemId,
     type DashboardFieldTarget,
+    type DashboardFilterableField,
     type DashboardFilterRule,
     type DashboardTile,
-    type FilterableDimension,
 } from '@lightdash/common';
 import { getFieldCandidates } from './fieldCandidates';
 import {
@@ -21,21 +21,23 @@ const toTarget = (
     tableName,
 });
 
-// Fields of a newly added tile that a filter could reach but does not yet:
-// the filter's peer fields first, else any field of exactly the target's
-// type, the rule the tile dropdown and "Add another field" use.
+// Fields of a new tile a filter could use: its other fields first (a field
+// left by a deleted tile is not one), else any of exactly the target's type
 export const getLinkCandidates = (
     rule: DashboardFilterRule,
     tile: DashboardTile,
+    tiles: DashboardTile[] | undefined,
     fieldsByTile: FieldsByTile,
-    fieldsMap: Record<string, FilterableDimension>,
+    fieldsMap: Record<string, DashboardFilterableField>,
 ): DashboardFieldTarget[] => {
+    // A SQL column is not a field: it matches no field of a chart tile
+    if (rule.target.isSqlColumn) return [];
     if (!canTileTakeFilter(tile, fieldsByTile)) return [];
     if (rule.tileTargets?.[tile.uuid] !== undefined) return [];
     if (doesTileOfferField(tile, rule.target.fieldId, fieldsByTile)) return [];
 
     const tileFields = fieldsByTile?.[tile.uuid] ?? [];
-    const peerIds = new Set(getFilterFields(rule));
+    const peerIds = new Set(getFilterFields(rule, tiles));
     const peers = tileFields.filter((field) => peerIds.has(getItemId(field)));
     if (peers.length > 0) {
         return dedupe(peers.map((f) => toTarget(getItemId(f), f.table)));
@@ -48,6 +50,24 @@ export const getLinkCandidates = (
             toTarget(getItemId(f), f.table),
         ),
     );
+};
+
+// Chosen up front only on an exact match: one of the filter's own fields, or
+// a field under the filter field's label. Anything else starts not filtered
+export const getLinkDefault = (
+    rule: DashboardFilterRule,
+    candidates: DashboardFieldTarget[],
+    tiles: DashboardTile[] | undefined,
+    fieldsMap: Record<string, DashboardFilterableField>,
+): string | null => {
+    const ownIds = new Set(getFilterFields(rule, tiles));
+    const label = fieldsMap[rule.target.fieldId]?.label;
+    const matches = candidates.filter(
+        ({ fieldId }) =>
+            ownIds.has(fieldId) ||
+            (label !== undefined && fieldsMap[fieldId]?.label === label),
+    );
+    return matches.length === 1 ? matches[0].fieldId : null;
 };
 
 const dedupe = (targets: DashboardFieldTarget[]): DashboardFieldTarget[] =>

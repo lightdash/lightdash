@@ -70,11 +70,25 @@ const CreateGroupModal: FC<CreateGroupModalProps> = ({
 
     const users = useMemo(() => {
         if (organizationUsers === undefined) return [];
-        return organizationUsers.map((u) => ({
-            value: u.userUuid,
-            label: u.email,
-        }));
+        return organizationUsers
+            .map((u) => ({
+                value: u.userUuid,
+                label: u.email,
+            }))
+            .sort((a, b) => a.label.localeCompare(b.label));
     }, [organizationUsers]);
+
+    // Pills render in value order, so sort by email to keep large groups scannable
+    const selectedMemberUuids = useMemo(() => {
+        const emailByUuid = new Map(users.map((u) => [u.value, u.label]));
+        return (form.values.members ?? [])
+            .map((m) => m.userUuid)
+            .sort((a, b) =>
+                (emailByUuid.get(a) ?? a).localeCompare(
+                    emailByUuid.get(b) ?? b,
+                ),
+            );
+    }, [users, form.values.members]);
 
     if (user.data?.ability?.cannot('manage', 'Group')) {
         return null;
@@ -131,9 +145,7 @@ const CreateGroupModal: FC<CreateGroupModalProps> = ({
                         nothingFoundMessage="No users found"
                         rightSection={isLoadingUsers && <Loader size="sm" />}
                         data={users}
-                        value={
-                            form?.values.members?.map((v) => v.userUuid) ?? []
-                        }
+                        value={selectedMemberUuids}
                         onChange={(userIds) => {
                             form?.setValues({
                                 members: userIds.map((userUuid) => ({

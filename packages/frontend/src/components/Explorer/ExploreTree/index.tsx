@@ -34,6 +34,10 @@ import {
 import { useModalHostedDashboardMetricIds } from '../../../providers/Explorer/useIsModalHosted';
 import MantineIcon from '../../common/MantineIcon';
 import { CustomMetricSourceContext } from './CustomMetricSourceContext';
+import {
+    FieldFilterTargetContext,
+    type FieldFilterTarget,
+} from './FieldFilterTargetContext';
 import SelectedFieldsSection, {
     type SelectedField,
 } from './SelectedFieldsSection';
@@ -65,6 +69,8 @@ type ExploreTreeProps = {
     hideSelectedFields?: boolean;
     /** Merge source that owns custom metrics created from this tree. */
     customMetricSourceId?: string;
+    /** Merge source that the tree's filter actions add filters to. */
+    filterTarget?: FieldFilterTarget;
 };
 
 type Records = Record<string, AdditionalMetric | Dimension | Metric>;
@@ -81,6 +87,7 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
     selectedFieldsOverride,
     hideSelectedFields = false,
     customMetricSourceId,
+    filterTarget,
 }) => {
     const explorerAdditionalMetrics = useExplorerSelector(
         selectAdditionalMetrics,
@@ -314,51 +321,53 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
 
     return (
         <CustomMetricSourceContext.Provider value={customMetricSourceId}>
-            <TextInput
-                leftSection={<MantineIcon icon={IconSearch} />}
-                rightSectionPointerEvents={isPending ? 'none' : 'all'}
-                rightSection={
-                    isPending ? (
-                        <Loader
-                            size="xs"
-                            data-testid="ExploreTree/SearchInput-Loader"
-                        />
-                    ) : search ? (
-                        <ActionIcon
-                            aria-label="Clear search"
-                            onMouseDown={(event) => event.preventDefault()}
-                            onClick={handleClearSearch}
-                        >
-                            <MantineIcon icon={IconX} />
-                        </ActionIcon>
-                    ) : null
-                }
-                placeholder="Search metrics + dimensions"
-                value={search}
-                onChange={handleSearchChange}
-                data-testid="ExploreTree/SearchInput"
-                // Typed anchor for scope walkthroughs and developer lessons:
-                // the field tree is virtualised, so a field far down it is
-                // reached by searching for it.
-                data-tour-anchor="explore-field-search"
-                data-tour-hint="Search for the field"
-                data-tour-input="true"
-                data-tour-suggest="Total revenue"
-            />
-
-            {!hideSelectedFields && (
-                <SelectedFieldsSection
-                    fields={selectedFieldsOverride ?? selectedFields}
-                    onDeselect={onSelectedFieldChange}
+            <FieldFilterTargetContext.Provider value={filterTarget ?? null}>
+                <TextInput
+                    leftSection={<MantineIcon icon={IconSearch} />}
+                    rightSectionPointerEvents={isPending ? 'none' : 'all'}
+                    rightSection={
+                        isPending ? (
+                            <Loader
+                                size="xs"
+                                data-testid="ExploreTree/SearchInput-Loader"
+                            />
+                        ) : search ? (
+                            <ActionIcon
+                                aria-label="Clear search"
+                                onMouseDown={(event) => event.preventDefault()}
+                                onClick={handleClearSearch}
+                            >
+                                <MantineIcon icon={IconX} />
+                            </ActionIcon>
+                        ) : null
+                    }
+                    placeholder="Search metrics + dimensions"
+                    value={search}
+                    onChange={handleSearchChange}
+                    data-testid="ExploreTree/SearchInput"
+                    // Typed anchor for scope walkthroughs and developer lessons:
+                    // the field tree is virtualised, so a field far down it is
+                    // reached by searching for it.
+                    data-tour-anchor="explore-field-search"
+                    data-tour-hint="Search for the field"
+                    data-tour-input="true"
+                    data-tour-suggest="Total revenue"
                 />
-            )}
 
-            <VirtualizedTreeList
-                data={virtualizedTreeData}
-                onToggleTable={toggleTable}
-                onToggleGroup={toggleGroup}
-                onSelectedFieldChange={onSelectedFieldChange}
-            />
+                {!hideSelectedFields && (
+                    <SelectedFieldsSection
+                        fields={selectedFieldsOverride ?? selectedFields}
+                        onDeselect={onSelectedFieldChange}
+                    />
+                )}
+
+                <VirtualizedTreeList
+                    data={virtualizedTreeData}
+                    onToggleTable={toggleTable}
+                    onToggleGroup={toggleGroup}
+                    onSelectedFieldChange={onSelectedFieldChange}
+                />
+            </FieldFilterTargetContext.Provider>
         </CustomMetricSourceContext.Provider>
     );
 };

@@ -132,6 +132,13 @@ describe('isNativeSqlApprovalToolCall', () => {
         expect(isNativeSqlApprovalToolCall('runComposerQueries', {})).toBe(
             false,
         );
+        expect(
+            isNativeSqlApprovalToolCall('runComposerQueries', {
+                queries: [
+                    { nodeId: 'raw', sourceType: 'sql', sql: 'select 1' },
+                ],
+            }),
+        ).toBe(true);
     });
 });
 
@@ -201,18 +208,29 @@ describe('findSameTurnSqlApproval', () => {
         ).toBeNull();
     });
 
-    it('ignores composer pipelines, whose approval covers several queries', () => {
-        expect(
-            findSameTurnSqlApproval(
-                [
-                    {
-                        ...runSqlApproved,
-                        toolName: 'runComposerQueries',
-                    },
+    it('matches a composer approval only against its whole pipeline SQL', () => {
+        const composerApproved: SqlApprovalDecisionOnCall = {
+            ...runSqlApproved,
+            toolCallId: 'composer-1',
+            toolName: 'runComposerQueries',
+            toolArgs: {
+                queries: [
+                    { nodeId: 'raw', sourceType: 'sql', sql: 'select 1' },
                 ],
-                { toolCallId: 'create-1', sql: 'select 1' },
-            ),
+            },
+        };
+        expect(
+            findSameTurnSqlApproval([composerApproved], {
+                toolCallId: 'run-sql-2',
+                sql: 'select 1',
+            }),
         ).toBeNull();
+        expect(
+            findSameTurnSqlApproval([composerApproved], {
+                toolCallId: 'composer-2',
+                sql: '-- raw\nselect 1',
+            }),
+        ).toEqual({ decidedByUserUuid: 'user-uuid' });
     });
 
     it('leaves a call that has its own decision to that decision', () => {

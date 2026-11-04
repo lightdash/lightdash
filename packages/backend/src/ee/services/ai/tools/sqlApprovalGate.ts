@@ -12,7 +12,13 @@ import type {
     UpdateSlackMessageFn,
     WaitForSqlApprovalFn,
 } from '../types/aiAgentDependencies';
-import { renderBlocks, type SectionState } from './slackSqlAggregate';
+import {
+    getAgentThreadUrl,
+    getSqlApprovalDisplay,
+    renderBlocks,
+    type SectionState,
+    type SqlApprovalStep,
+} from './slackSqlAggregate';
 import {
     findSameTurnSqlApproval,
     SqlNotApprovedError,
@@ -157,9 +163,12 @@ export const createSqlApprovalGate = (
         const approveSql = async ({
             sql,
             heading,
+            steps,
         }: {
             sql: string;
             heading: string;
+            // Pipeline steps to show one by one; null shows `sql` as one block.
+            steps: SqlApprovalStep[] | null;
         }): Promise<void> => {
             if (timedOut) {
                 throw new SqlNotApprovedError(
@@ -203,7 +212,14 @@ export const createSqlApprovalGate = (
             if (isSlack) {
                 await renderState({
                     kind: 'pending',
-                    sql,
+                    display: getSqlApprovalDisplay({
+                        sql,
+                        steps,
+                        threadUrl: getAgentThreadUrl(
+                            dependencies.siteUrl,
+                            prompt,
+                        ),
+                    }),
                     toolCallId,
                     threadUuid: prompt.threadUuid,
                     heading,

@@ -63,6 +63,17 @@ const sqlChartApprovalContext = {
     hasResult: false,
 };
 
+const composerApprovalContext = {
+    promptUuid: PROMPT_UUID,
+    threadUuid: THREAD_UUID,
+    agentUuid: AGENT_UUID,
+    toolName: 'runComposerQueries',
+    toolArgs: {
+        queries: [{ nodeId: 'raw', sourceType: 'sql', sql: 'select 1' }],
+    },
+    hasResult: false,
+};
+
 type ActionHandlerArgs = {
     ack: () => Promise<void>;
     body: unknown;
@@ -218,40 +229,34 @@ const clickButton = async (
 };
 
 describe('AiAgentService.decideSqlApproval for Slack queries', () => {
-    it.each(['web prompt', 'composer query'] as const)(
-        'does not enqueue another run for a blocking %s approval',
-        async (kind) => {
+    it('does not enqueue another run for a blocking web prompt approval', async () => {
+        const { service, aiAgentModel, schedulerClient } = buildService({});
+        aiAgentModel.findSlackPrompt.mockResolvedValue(undefined);
+
+        await service.decideSqlApproval(approverUser, {
+            agentUuid: AGENT_UUID,
+            threadUuid: THREAD_UUID,
+            toolCallId: TOOL_CALL_ID,
+            decision: 'approved',
+        });
+
+        expect(schedulerClient.slackAiPrompt).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        ['approved', 'runSql'],
+        ['rejected', 'runSql'],
+        ['approved', 'runComposerQueries'],
+        ['rejected', 'runComposerQueries'],
+    ] as const)(
+        'resumes a Slack query once when it is %s from the web app (%s)',
+        async (decision, toolName) => {
             const { service, aiAgentModel, schedulerClient } = buildService({
-                approvalContext: {
-                    promptUuid: PROMPT_UUID,
-                    threadUuid: THREAD_UUID,
-                    agentUuid: AGENT_UUID,
-                    toolName:
-                        kind === 'composer query'
-                            ? 'runComposerQueries'
-                            : 'runSql',
-                    hasResult: false,
-                },
+                approvalContext:
+                    toolName === 'runComposerQueries'
+                        ? composerApprovalContext
+                        : undefined,
             });
-            if (kind === 'web prompt') {
-                aiAgentModel.findSlackPrompt.mockResolvedValue(undefined);
-            }
-
-            await service.decideSqlApproval(approverUser, {
-                agentUuid: AGENT_UUID,
-                threadUuid: THREAD_UUID,
-                toolCallId: TOOL_CALL_ID,
-                decision: 'approved',
-            });
-
-            expect(schedulerClient.slackAiPrompt).not.toHaveBeenCalled();
-        },
-    );
-
-    it.each(['approved', 'rejected'] as const)(
-        'resumes a Slack query once when it is %s from the web app',
-        async (decision) => {
-            const { service, aiAgentModel, schedulerClient } = buildService({});
             aiAgentModel.recordSqlApproval
                 .mockResolvedValueOnce(true)
                 .mockResolvedValue(false);
@@ -459,11 +464,8 @@ describe('SQL approval decision analytics', () => {
         async (decision, toolName) => {
             const { service, analytics } = buildService({
                 approvalContext: {
-                    promptUuid: PROMPT_UUID,
-                    threadUuid: THREAD_UUID,
-                    agentUuid: AGENT_UUID,
+                    ...composerApprovalContext,
                     toolName,
-                    hasResult: false,
                 },
             });
 

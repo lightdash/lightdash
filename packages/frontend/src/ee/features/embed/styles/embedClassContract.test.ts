@@ -35,6 +35,7 @@ describe('embed class contract', () => {
             'ld-dashboard-parameter-dropdown',
             'ld-dashboard-guided-setup',
             'ld-dashboard-export-all',
+            'ld-dashboard-filter-rail',
             'ld-sdk-root',
             'ld-sdk-portal',
         ]);

@@ -5,25 +5,29 @@ import {
     type MyAppsSortBy,
 } from '@lightdash/common';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 type MyAppsResult = ApiMyAppsResponse['results'];
 
-const fetchMyApps = async ({
-    page,
-    pageSize,
-    excludePreviewProjects,
-    projectUuids,
-    search,
-    sortBy,
-}: {
-    page: number;
-    pageSize: number;
-    excludePreviewProjects: boolean;
-    projectUuids: string[];
-    search?: string;
-    sortBy?: MyAppsSortBy;
-}): Promise<MyAppsResult> => {
+const fetchMyApps = async (
+    lightdashApi: LightdashApi,
+    {
+        page,
+        pageSize,
+        excludePreviewProjects,
+        projectUuids,
+        search,
+        sortBy,
+    }: {
+        page: number;
+        pageSize: number;
+        excludePreviewProjects: boolean;
+        projectUuids: string[];
+        search?: string;
+        sortBy?: MyAppsSortBy;
+    },
+): Promise<MyAppsResult> => {
     const params = new URLSearchParams({
         page: String(page),
         pageSize: String(pageSize),
@@ -55,8 +59,9 @@ export const useMyApps = (
         projectUuids?: string[];
         search?: string;
     } = {},
-) =>
-    useInfiniteQuery<MyAppsResult, ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useInfiniteQuery<MyAppsResult, ApiError>({
         queryKey: [
             'myApps',
             FETCH_SIZE,
@@ -65,7 +70,7 @@ export const useMyApps = (
             options.search,
         ],
         queryFn: async ({ pageParam = 1 }) =>
-            fetchMyApps({
+            fetchMyApps(lightdashApi, {
                 page: pageParam as number,
                 pageSize: FETCH_SIZE,
                 excludePreviewProjects: options.excludePreviewProjects ?? true,
@@ -80,15 +85,17 @@ export const useMyApps = (
         keepPreviousData: true,
         refetchOnWindowFocus: false,
     });
+};
 
 export const useRecentApps = (
     projectUuid: string | undefined,
     pageSize: number,
-) =>
-    useQuery<MyAppsResult, ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<MyAppsResult, ApiError>({
         queryKey: ['myApps', 'recent', projectUuid, pageSize, 'latestActivity'],
         queryFn: () =>
-            fetchMyApps({
+            fetchMyApps(lightdashApi, {
                 page: 1,
                 pageSize,
                 excludePreviewProjects: false,
@@ -99,5 +106,6 @@ export const useRecentApps = (
         staleTime: 0,
         refetchOnWindowFocus: false,
     });
+};
 
 export type { ApiAppSummary };

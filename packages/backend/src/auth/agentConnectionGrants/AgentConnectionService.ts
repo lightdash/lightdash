@@ -73,12 +73,19 @@ export class AgentConnectionService extends BaseService {
                 AgentConnectionGrantModel,
                 'find' | 'revoke' | 'listForSubject'
             >;
-            userModel: Pick<UserModel, 'findSessionUserAndOrgByUuid'>;
-            projectModel: Pick<ProjectModel, 'getAllByOrganizationUuid'>;
+            userModel: Pick<
+                UserModel,
+                | 'findSessionUserAndOrgByUuid'
+                | 'getAgentRoleAssignmentsForProjects'
+            >;
+            projectModel: Pick<
+                ProjectModel,
+                'getAllByOrganizationUuid' | 'getSummaries'
+            >;
             featureFlags: Pick<FeatureFlagModel, 'get'>;
             getAgentPermissionService: () => Pick<
                 AgentPermissionService,
-                'assertOperation'
+                'evaluateOperations'
             >;
         },
     ) {
@@ -253,67 +260,108 @@ export class AgentConnectionService extends BaseService {
             },
         );
         const ability = this.createAuditedAbility(person);
-        const effectiveProjects = await Promise.all(
-            record.approvedProjects.map(async (project) => ({
-                projectUuid: project.projectUuid,
-                capabilities: await Promise.all(
-                    (record.limitsStatus === 'invalid'
-                        ? Object.values(AgentCapability)
-                        : project.approvedCapabilities
-                    ).map(async (capability) => {
-                        let reason: AgentConnectionStatus['effectiveProjects'][number]['capabilities'][number]['reason'] =
-                            null;
-                        if (record.limitsStatus === 'invalid')
-                            reason = 'invalid_grant';
-                        else if (record.status !== 'active')
-                            reason = record.status;
-                        else if (!enabled) reason = 'agent_identity_disabled';
-                        else if (
-                            project.name === null ||
-                            !ability.can(
-                                'view',
-                                subject('Project', {
-                                    projectUuid: project.projectUuid,
-                                    organizationUuid: grant.organizationUuid,
-                                }),
-                            )
-                        )
-                            reason = 'project_access';
-                        else if (
-                            !personAllowsAgentCapability(
-                                this.createAuditedAbility(person),
-                                person.organization.organizationUuid!,
-                                project.projectUuid,
-                                capability,
-                            )
-                        )
-                            reason = 'person_permission';
-                        else if (!supportsAgentConnectionCapability(capability))
-                            reason = 'not_supported';
-                        else {
-                            try {
-                                await this.deps
-                                    .getAgentPermissionService()
-                                    .assertOperation({
-                                        account: person,
-                                        organizationUuid:
-                                            grant.organizationUuid,
-                                        projectUuid: project.projectUuid,
-                                        kind: 'capability',
-                                        key: capability,
-                                        surface: AgentActorSurface.CLI,
-                                    });
-                            } catch (error) {
-                                if (!(error instanceof ForbiddenError))
-                                    throw error;
-                                reason = 'agent_policy';
-                            }
+        type CapabilityStatus =
+            AgentConnectionStatus['effectiveProjects'][number]['capabilities'][number];
+        const pending: {
+            projectUuid: UUID;
+            result: CapabilityStatus;
+        }[] = [];
+        const effectiveProjects = record.approvedProjects.map((project) => ({
+            projectUuid: project.projectUuid,
+            capabilities: (record.limitsStatus === 'invalid'
+                ? Object.values(AgentCapability)
+                : project.approvedCapabilities
+            ).map((capability): CapabilityStatus => {
+                let reason: CapabilityStatus['reason'] = null;
+                if (record.limitsStatus === 'invalid') reason = 'invalid_grant';
+                else if (record.status !== 'active') reason = record.status;
+                else if (!enabled) reason = 'agent_identity_disabled';
+                else if (
+                    project.name === null ||
+                    !ability.can(
+                        'view',
+                        subject('Project', {
+                            projectUuid: project.projectUuid,
+                            organizationUuid: grant.organizationUuid,
+                        }),
+                    )
+                )
+                    reason = 'project_access';
+                else if (
+                    !personAllowsAgentCapability(
+                        this.createAuditedAbility(person),
+                        person.organization.organizationUuid!,
+                        project.projectUuid,
+                        capability,
+                    )
+                )
+                    reason = 'person_permission';
+                else if (!supportsAgentConnectionCapability(capability))
+                    reason = 'not_supported';
+                const result = { capability, allowed: reason === null, reason };
+                if (reason === null)
+                    pending.push({ projectUuid: project.projectUuid, result });
+                return result;
+            }),
+        }));
+        const refuse = (cell: (typeof pending)[number]) => {
+            Object.assign(cell.result, {
+                allowed: false,
+                reason: 'agent_policy',
+            });
+        };
+        const evaluate = async (cells: typeof pending) => {
+            const checks = await this.deps
+                .getAgentPermissionService()
+                .evaluateOperations(
+                    {
+                        account: person,
+                        organizationUuid: grant.organizationUuid,
+                        surface: AgentActorSurface.CLI,
+                        operations: cells.map(({ projectUuid, result }) => ({
+                            projectUuid,
+                            kind: 'capability',
+                            key: result.capability,
+                        })),
+                    },
+                    {
+                        userModel: this.deps.userModel,
+                        projectModel: this.deps.projectModel,
+                    },
+                );
+            checks.forEach((check, index) => {
+                if (check !== null) refuse(cells[index]);
+            });
+        };
+        if (pending.length > 0) {
+            try {
+                await evaluate(pending);
+            } catch (error) {
+                if (!(error instanceof ForbiddenError)) throw error;
+                // A refusal raised while loading is answered per project, as the single check did.
+                const byProject = new Map<UUID, typeof pending>();
+                pending.forEach((cell) =>
+                    byProject.set(cell.projectUuid, [
+                        ...(byProject.get(cell.projectUuid) ?? []),
+                        cell,
+                    ]),
+                );
+                // One project at a time, so this rare path cannot flood the connection pool.
+                await [...byProject.values()].reduce(
+                    async (previous, cells) => {
+                        await previous;
+                        try {
+                            await evaluate(cells);
+                        } catch (projectError) {
+                            if (!(projectError instanceof ForbiddenError))
+                                throw projectError;
+                            cells.forEach(refuse);
                         }
-                        return { capability, allowed: reason === null, reason };
-                    }),
-                ),
-            })),
-        );
+                    },
+                    Promise.resolve(),
+                );
+            }
+        }
         return { ...record, effectiveProjects };
     }
 

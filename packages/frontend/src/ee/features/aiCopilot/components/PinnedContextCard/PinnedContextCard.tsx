@@ -10,6 +10,7 @@ import { dataAppHref } from '../../../../../features/apps/utils/appUrls';
 import { elementRefChipLabel } from '../../../../../features/apps/utils/elementRefs';
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
 import { useEmbedAiAgentDashboardOpener } from '../../hooks/useEmbedAiAgentDashboardOpener';
+import { useIsAiAgentNavigationDisabled } from '../../hooks/useIsAiAgentNavigationDisabled';
 import { ContentReferenceLink } from '../ChatElements/ContentReferenceLink';
 import {
     getDataAppContextItemLabel,
@@ -43,7 +44,8 @@ type ItemMeta = {
         | 'repository'
         | 'external_source'
         | 'thread_file'
-        | 'data_app_element';
+        | 'data_app_element'
+        | 'composer_node';
     label: string;
     href: string | null;
     icon?: Icon;
@@ -59,7 +61,8 @@ const getItemMeta = (
                 | 'repository'
                 | 'external_source'
                 | 'thread_file'
-                | 'data_app_element';
+                | 'data_app_element'
+                | 'composer_node';
         }
     >,
 ): ItemMeta => {
@@ -99,6 +102,9 @@ const getItemMeta = (
                 label: elementRefChipLabel(item),
                 href: null,
             };
+        // The node lives in a thread artifact, so no link.
+        case 'composer_node':
+            return { kind: 'composer_node', label: item.title, href: null };
         default:
             return assertUnreachable(item, 'Unknown AiPromptContextItem type');
     }
@@ -155,7 +161,16 @@ const PinnedDashboardCard: FC<{
     projectUuid: string;
 }> = ({ item, projectUuid }) => {
     const openEmbedDashboard = useEmbedAiAgentDashboardOpener(projectUuid);
+    const navigationDisabled = useIsAiAgentNavigationDisabled();
     const label = item.displayName ?? 'Dashboard';
+
+    if (navigationDisabled) {
+        return (
+            <ContentReferenceLink kind="dashboard" showArrow={false}>
+                {label}
+            </ContentReferenceLink>
+        );
+    }
 
     if (openEmbedDashboard) {
         return (
@@ -224,7 +239,8 @@ export const PinnedContextCard: FC<Props> = ({
         case 'repository':
         case 'external_source':
         case 'thread_file':
-        case 'data_app_element': {
+        case 'data_app_element':
+        case 'composer_node': {
             const meta = getItemMeta(item);
             return (
                 <ContentReferenceLink

@@ -1,6 +1,9 @@
 import {
     BigqueryAuthenticationType,
     FeatureFlags,
+    ProjectMemberRole,
+    ProjectMemberRoleLabels,
+    usesBigqueryWorkloadIdentity,
     WarehouseTypes,
 } from '@lightdash/common';
 import {
@@ -58,6 +61,8 @@ import {
     getBigqueryDefaultAuthenticationType,
     largestDatasetName,
 } from './bigQuerySso';
+import BigQueryWorkloadIdentityFields from './BigQueryWorkloadIdentityFields';
+import { useBigqueryWorkloadIdentity } from './bigqueryWorkloadIdentityHooks';
 import DataTimezoneField from './DataTimezoneField';
 import { BigQueryDefaultValues } from './defaultValues';
 
@@ -263,7 +268,16 @@ const BigQueryForm: FC<{
     const project = form.getInputProps('warehouse.project');
     const hasAppliedProjectRecommendation = useRef(false);
     const [debouncedProject] = useDebouncedValue(project.value, 300);
-    const { savedProject } = useProjectFormContext();
+    const { savedProject, projectUuid } = useProjectFormContext();
+    const workloadIdentityStatus = useBigqueryWorkloadIdentity(
+        savedProject?.projectUuid ?? projectUuid,
+    );
+    const isWorkloadIdentity = usesBigqueryWorkloadIdentity(
+        form.values.warehouse,
+    );
+    const showWorkloadIdentityOption =
+        workloadIdentityStatus.kind === 'available' ||
+        (isWorkloadIdentity && workloadIdentityStatus.kind !== 'not-enabled');
     const { health } = useApp();
     const isAdcEnabled = health.data?.auth.google?.enableGCloudADC;
     const isGoogleSsoAvailable = health.data?.auth.google?.enabled ?? false;
@@ -387,7 +401,7 @@ const BigQueryForm: FC<{
             },
         });
     };
-    const authenticationType: string =
+    const authenticationType =
         form.values.warehouse.authenticationType ?? defaultAuthenticationType;
     const locationField = form.getInputProps('warehouse.location');
     const hasProjectValue =
@@ -426,20 +440,40 @@ const BigQueryForm: FC<{
         (e: ChangeEvent<HTMLInputElement>) => {
             onChange(e.target.value === '' ? undefined : e.target.value);
         };
-    const authenticationTypes = [
+    const authenticationTypeInput = form.getInputProps(
+        'warehouse.authenticationType',
+    );
+    const authenticationTypes: ComboboxItem[] = [
         {
             value: BigqueryAuthenticationType.PRIVATE_KEY,
             label: 'Service Account (JSON key file)',
         },
-        (isGoogleSsoAvailable || isSavedBigquerySsoProject) && {
-            value: BigqueryAuthenticationType.SSO,
-            label: 'User Account (Sign in with Google)',
-        },
-        isAdcEnabled && {
-            value: BigqueryAuthenticationType.ADC,
-            label: 'Application Default Credentials',
-        },
-    ].filter(Boolean) as ComboboxItem[];
+        ...(isGoogleSsoAvailable || isSavedBigquerySsoProject
+            ? [
+                  {
+                      value: BigqueryAuthenticationType.SSO,
+                      label: 'User Account (Sign in with Google)',
+                  },
+              ]
+            : []),
+        ...(isAdcEnabled
+            ? [
+                  {
+                      value: BigqueryAuthenticationType.ADC,
+                      label: 'Application Default Credentials',
+                  },
+              ]
+            : []),
+        ...(showWorkloadIdentityOption
+            ? [
+                  {
+                      value: BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION,
+                      label: 'Workload Identity Federation',
+                      disabled: workloadIdentityStatus.kind !== 'available',
+                  },
+              ]
+            : []),
+    ];
     return (
         <>
             <Stack mt={8}>
@@ -448,10 +482,57 @@ const BigQueryForm: FC<{
                         <Select
                             allowDeselect={false}
                             name="warehouse.authenticationType"
-                            {...form.getInputProps(
-                                'warehouse.authenticationType',
-                            )}
-                            defaultValue={defaultAuthenticationType}
+                            {...authenticationTypeInput}
+                            value={
+                                isWorkloadIdentity &&
+                                !showWorkloadIdentityOption
+                                    ? null
+                                    : authenticationType
+                            }
+                            placeholder={
+                                isWorkloadIdentity &&
+                                !showWorkloadIdentityOption
+                                    ? 'Workload Identity Federation (unavailable)'
+                                    : undefined
+                            }
+                            onChange={(value) => {
+                                const isSwitchingWorkloadIdentity =
+                                    (value ===
+                                        BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION) !==
+                                    isWorkloadIdentity;
+                                const keyfileContents =
+                                    value ===
+                                    BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION
+                                        ? {}
+                                        : BigQueryDefaultValues.keyfileContents;
+                                if (isSwitchingWorkloadIdentity) {
+                                    form.setFieldValue(
+                                        'warehouse.keyfileContents',
+                                        keyfileContents,
+                                    );
+                                    setTemporaryFile(null);
+                                    form.clearFieldError(
+                                        'warehouse.keyfileContents',
+                                    );
+                                    if (isWorkloadIdentity) {
+                                        form.setFieldValue(
+                                            'warehouse.workloadIdentityProvider',
+                                            undefined,
+                                        );
+                                        form.setFieldValue(
+                                            'warehouse.workloadIdentityAudience',
+                                            undefined,
+                                        );
+                                        form.clearFieldError(
+                                            'warehouse.workloadIdentityProvider',
+                                        );
+                                        form.clearFieldError(
+                                            'warehouse.workloadIdentityAudience',
+                                        );
+                                    }
+                                }
+                                authenticationTypeInput.onChange(value);
+                            }}
                             label="Authentication Type"
                             description={
                                 isAuthenticated ? (
@@ -488,6 +569,13 @@ const BigQueryForm: FC<{
                         )}
                     </Group>
                 }
+
+                {isWorkloadIdentity && (
+                    <BigQueryWorkloadIdentityFields
+                        disabled={disabled}
+                        status={workloadIdentityStatus}
+                    />
+                )}
 
                 {authenticationType === BigqueryAuthenticationType.SSO && (
                     <BigQuerySSOInput
@@ -534,7 +622,7 @@ const BigQueryForm: FC<{
                                         isLoadingProjects ||
                                         isLoadingProjectRecommendation
                                     }
-                                    labelProps={{ style: { marginTop: '8px' } }}
+                                    labelProps={{ mt: 'xs' }}
                                     w={hasDatasets ? '90%' : '100%'}
                                     data={
                                         gcpProjects?.map((p) => p.projectId) ??
@@ -616,7 +704,7 @@ const BigQueryForm: FC<{
                                     required
                                     {...form.getInputProps('warehouse.project')}
                                     disabled={disabled}
-                                    labelProps={{ style: { marginTop: '8px' } }}
+                                    labelProps={{ mt: 'xs' }}
                                     w={hasDatasets ? '90%' : '100%'}
                                     error={
                                         datasetsError ? (
@@ -760,7 +848,7 @@ const BigQueryForm: FC<{
                                 />
                             </>
                         ) : (
-                            /* BigqueryAuthenticationType.ADC */
+                            /* ADC and workload identity do not use a key file. */
                             <></>
                         )}
                         <FormSection isOpen={isOpen} name="advanced">
@@ -971,6 +1059,105 @@ const BigQueryForm: FC<{
                                             0 value means no limit.
                                         </p>
                                     }
+                                    disabled={disabled}
+                                />
+
+                                <Stack gap="xs">
+                                    <Text size="sm" fw={500}>
+                                        Maximum bytes billed by role
+                                    </Text>
+                                    <Text size="xs" c="dimmed">
+                                        Overrides the limit above for queries
+                                        run in the app, using each person's
+                                        highest project role. Leave a role empty
+                                        to use the limit above; 0 means no
+                                        limit. Custom roles use the limit above.
+                                    </Text>
+                                    {Object.values(ProjectMemberRole).map(
+                                        (role) => {
+                                            const path = `warehouse.maximumBytesBilledByRole.${role}`;
+                                            return (
+                                                <NumberInput
+                                                    key={role}
+                                                    name={path}
+                                                    label={
+                                                        ProjectMemberRoleLabels[
+                                                            role
+                                                        ]
+                                                    }
+                                                    min={0}
+                                                    value={
+                                                        form.getInputProps(path)
+                                                            .value ?? ''
+                                                    }
+                                                    onNumberChange={(value) =>
+                                                        form.setFieldValue(
+                                                            path,
+                                                            value,
+                                                        )
+                                                    }
+                                                    disabled={disabled}
+                                                />
+                                            );
+                                        },
+                                    )}
+                                </Stack>
+
+                                <NumberInput
+                                    name="warehouse.agentMaximumBytesBilled"
+                                    label="AI agent maximum bytes billed"
+                                    description="Applies to queries run by AI agents and agent service accounts, before any role limit. Leave empty to use the role or connection limit; 0 means no limit."
+                                    min={0}
+                                    value={
+                                        form.getInputProps(
+                                            'warehouse.agentMaximumBytesBilled',
+                                        ).value ?? ''
+                                    }
+                                    onNumberChange={(value) =>
+                                        form.setFieldValue(
+                                            'warehouse.agentMaximumBytesBilled',
+                                            value,
+                                        )
+                                    }
+                                    disabled={disabled}
+                                />
+
+                                <Switch
+                                    name="warehouse.estimateQueryBytes"
+                                    {...form.getInputProps(
+                                        'warehouse.estimateQueryBytes',
+                                        { type: 'checkbox' },
+                                    )}
+                                    label="Show query cost estimates"
+                                    description="Runs a free BigQuery dry run before queries in the explorer and SQL runner and shows the estimated bytes processed."
+                                    disabled={disabled}
+                                />
+
+                                <NumberInput
+                                    name="warehouse.confirmEstimatedBytesAbove"
+                                    {...form.getInputProps(
+                                        'warehouse.confirmEstimatedBytesAbove',
+                                    )}
+                                    label="Confirm queries estimated above (bytes)"
+                                    description="Users must confirm before running a query whose estimate is above this. Requires query cost estimates. Leave empty for no confirmation."
+                                    disabled={
+                                        disabled ||
+                                        !(
+                                            form.values.warehouse.type ===
+                                                WarehouseTypes.BIGQUERY &&
+                                            form.values.warehouse
+                                                .estimateQueryBytes
+                                        )
+                                    }
+                                />
+
+                                <NumberInput
+                                    name="warehouse.agentMaximumEstimatedBytes"
+                                    {...form.getInputProps(
+                                        'warehouse.agentMaximumEstimatedBytes',
+                                    )}
+                                    label="AI agent query limit (estimated bytes)"
+                                    description="AI agent queries whose dry run estimate is above this are refused, and the agent is told the estimate so it can narrow the query. Dry runs can underreport, so keep maximum bytes billed as the hard limit. Leave empty for no limit."
                                     disabled={disabled}
                                 />
 

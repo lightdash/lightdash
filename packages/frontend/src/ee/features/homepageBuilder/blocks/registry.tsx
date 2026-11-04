@@ -8,6 +8,7 @@ import {
     IconMarkdown,
     IconMessageChatbot,
     IconRocket,
+    IconSchool,
     IconSpeakerphone,
     IconStar,
     type Icon,
@@ -24,6 +25,7 @@ import { CollectionBlockBuild, CollectionBlockView } from './CollectionBlock';
 import { CtaBlockBuild, CtaBlockView } from './CtaBlock';
 import { FavoritesBlockBuild, FavoritesBlockView } from './FavoritesBlock';
 import { GreetingBlockBuild, GreetingBlockView } from './GreetingBlock';
+import { LearnBlockBuild, LearnBlockView } from './LearnBlock';
 import { MarkdownBlockBuild, MarkdownBlockView } from './MarkdownBlock';
 import { MetricsBlockBuild, MetricsBlockView } from './MetricsBlock';
 import { getDefaultQuickActions } from './quickActionDefaults';
@@ -54,7 +56,7 @@ export const blockLibrary: BlockDefinition[] = [
     {
         type: 'ask-ai-hero',
         label: 'Ask AI',
-        description: 'AI chat composer with live suggestions, and a greeting.',
+        description: 'Chat box with live suggestions.',
         icon: IconMessageChatbot,
         requiresAi: true,
         singleton: true,
@@ -69,7 +71,7 @@ export const blockLibrary: BlockDefinition[] = [
     {
         type: 'greeting',
         label: 'Greeting',
-        description: 'A time-of-day welcome, personalised per viewer.',
+        description: 'Time-of-day welcome per viewer.',
         icon: IconSun,
         create: () => ({
             id: uuidv4(),
@@ -84,7 +86,7 @@ export const blockLibrary: BlockDefinition[] = [
     {
         type: 'quick-actions',
         label: 'Quick actions',
-        description: 'Primary CTA cards — tailor the main action per audience.',
+        description: 'Shortcut chips to common places.',
         icon: IconBolt,
         create: () => ({
             id: uuidv4(),
@@ -97,7 +99,7 @@ export const blockLibrary: BlockDefinition[] = [
     {
         type: 'cta',
         label: 'Call to action',
-        description: 'One brand-themed banner with a single button.',
+        description: 'One banner with a single button.',
         icon: IconRocket,
         singleton: true,
         create: () => ({
@@ -114,7 +116,7 @@ export const blockLibrary: BlockDefinition[] = [
     {
         type: 'metrics',
         label: 'Metrics',
-        description: 'KPI cards from the metrics catalog, with deltas.',
+        description: 'Headline numbers with trends.',
         icon: IconChartDots,
         singleton: true,
         create: () => ({
@@ -128,8 +130,7 @@ export const blockLibrary: BlockDefinition[] = [
     {
         type: 'collection',
         label: 'Collection',
-        description:
-            'A curated set of dashboards, charts, spaces, and data apps.',
+        description: 'Hand-picked or pinned content.',
         icon: IconLayoutGrid,
         create: () => ({
             id: uuidv4(),
@@ -142,8 +143,7 @@ export const blockLibrary: BlockDefinition[] = [
     {
         type: 'resources',
         label: 'Resources',
-        description:
-            'Rich cards — data apps, Claude artifacts, YouTube, docs, links.',
+        description: 'Apps, artifacts, videos and links.',
         icon: IconBook,
         create: () => ({
             id: uuidv4(),
@@ -156,7 +156,7 @@ export const blockLibrary: BlockDefinition[] = [
     {
         type: 'announcements',
         label: 'Announcements',
-        description: 'Updates from the data team, newest first.',
+        description: 'News from the data team.',
         icon: IconSpeakerphone,
         singleton: true,
         create: () => ({
@@ -170,7 +170,7 @@ export const blockLibrary: BlockDefinition[] = [
     {
         type: 'favorites',
         label: 'Favorites',
-        description: 'Each viewer’s starred content, only visible to them.',
+        description: 'Each viewer’s starred content.',
         icon: IconStar,
         personal: true,
         create: () => ({
@@ -184,7 +184,7 @@ export const blockLibrary: BlockDefinition[] = [
     {
         type: 'recent',
         label: 'Recently viewed',
-        description: 'Each viewer’s recently opened charts and dashboards.',
+        description: 'What each viewer opened last.',
         icon: IconClock,
         singleton: true,
         personal: true,
@@ -197,9 +197,25 @@ export const blockLibrary: BlockDefinition[] = [
         Build: RecentBlockBuild,
     },
     {
+        type: 'learn',
+        label: 'Learn',
+        description:
+            'Each viewer’s next Learn module and their progress, with a button to start it.',
+        icon: IconSchool,
+        singleton: true,
+        personal: true,
+        create: () => ({
+            id: uuidv4(),
+            type: 'learn',
+            config: { title: 'Keep learning' },
+        }),
+        View: LearnBlockView,
+        Build: LearnBlockBuild,
+    },
+    {
         type: 'markdown',
         label: 'Text / banner',
-        description: 'Markdown text, notes or a welcome banner.',
+        description: 'Notes, headings or a banner.',
         icon: IconMarkdown,
         create: () => ({
             id: uuidv4(),

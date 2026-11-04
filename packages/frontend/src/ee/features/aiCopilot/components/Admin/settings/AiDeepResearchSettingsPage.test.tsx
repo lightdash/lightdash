@@ -81,14 +81,14 @@ describe('AiDeepResearchSettingsPage', () => {
         mutationState.current.isLoading = false;
     });
 
-    it('labels the settings page as beta exactly once', () => {
+    it('does not label the settings page as beta', () => {
         renderWithProviders(
             <MemoryRouter>
                 <AiDeepResearchSettingsPage />
             </MemoryRouter>,
         );
 
-        expect(screen.getAllByText('Beta')).toHaveLength(1);
+        expect(screen.queryByText('Beta')).not.toBeInTheDocument();
     });
 
     it('saves all limits with a single update button', async () => {

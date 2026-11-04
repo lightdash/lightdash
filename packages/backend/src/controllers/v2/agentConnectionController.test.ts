@@ -40,16 +40,16 @@ const setup = () => {
     const service = new AgentConnectionService({
         model,
         featureFlags: flags,
-        userModel: {
+        userModel: Object.assign(f.userModel, {
             findSessionUserAndOrgByUuid: vi.fn().mockResolvedValue(f.user),
-        },
-        projectModel: {
+        }),
+        projectModel: Object.assign(f.projectModel, {
             getAllByOrganizationUuid: vi
                 .fn()
                 .mockResolvedValue([
                     { projectUuid: f.projectUuid, name: 'Visible' },
                 ]),
-        },
+        }),
         getAgentPermissionService: () => f.permissions,
     });
     const controller = new AgentConnectionController({
@@ -249,7 +249,7 @@ it.each(unreadableLimits)(
     async (limits) => {
         const f = setup();
         Object.assign(f.grant, { resourceConstraints: limits });
-        const policy = vi.spyOn(f.permissions, 'assertOperation');
+        const policy = vi.spyOn(f.permissions, 'evaluateOperations');
         const { results } = await f.controller.getConnectionStatus(
             f.req,
             'grant',

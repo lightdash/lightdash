@@ -2,6 +2,7 @@ import assertUnreachable from '../utils/assertUnreachable';
 import { type WeekDay } from '../utils/timeFrames';
 import { type ProjectDefaults } from './lightdashProjectConfig';
 import { type ProjectGroupAccess } from './projectGroupAccess';
+import { type ProjectMemberRole } from './projectMemberRole';
 
 export enum ProjectType {
     DEFAULT = 'DEFAULT',
@@ -15,6 +16,16 @@ export enum ProjectType {
     TRAINING = 'TRAINING',
     /** Backend-provisioned usage metadata project, never user-configurable. */
 }
+
+const userCreatableProjectType = {
+    [ProjectType.DEFAULT]: true,
+    [ProjectType.PREVIEW]: true,
+    [ProjectType.TRAINING]: false,
+} satisfies Record<ProjectType, boolean>;
+
+export const USER_CREATABLE_PROJECT_TYPES = Object.values(ProjectType).filter(
+    (type) => userCreatableProjectType[type],
+);
 
 export enum DbtProjectType {
     DBT = 'dbt',
@@ -80,7 +91,12 @@ export enum BigqueryAuthenticationType {
     SSO = 'sso',
     PRIVATE_KEY = 'private_key',
     ADC = 'adc', // Application Default Credentials
+    WORKLOAD_IDENTITY_FEDERATION = 'workload_identity_federation',
 }
+export type BigqueryMaximumBytesBilledByRole = {
+    [role in ProjectMemberRole]?: number;
+};
+
 export type CreateBigqueryCredentials = {
     type: WarehouseTypes.BIGQUERY;
     project: string;
@@ -89,6 +105,8 @@ export type CreateBigqueryCredentials = {
     timeoutSeconds: number | undefined;
     priority: 'interactive' | 'batch' | undefined;
     authenticationType?: BigqueryAuthenticationType;
+    workloadIdentityProvider?: string;
+    workloadIdentityAudience?: string;
     // Index signature (not Record) so tsoa generates additionalProperties and
     // intersection-body validation preserves the keyfile fields.
     keyfileContents: { [key: string]: string }; // used for both sso and private key
@@ -97,6 +115,15 @@ export type CreateBigqueryCredentials = {
     retries: number | undefined;
     location: string | undefined;
     maximumBytesBilled: number | undefined;
+    // Per-role and AI agent overrides of maximumBytesBilled; 0 means no limit.
+    maximumBytesBilledByRole?: BigqueryMaximumBytesBilledByRole;
+    agentMaximumBytesBilled?: number;
+    /** Show a dry-run bytes estimate in the explorer and SQL runner. */
+    estimateQueryBytes?: boolean;
+    /** Ask users to confirm before running a query estimated above this. */
+    confirmEstimatedBytesAbove?: number;
+    /** Refuse AI agent queries whose dry-run estimate is above this. */
+    agentMaximumEstimatedBytes?: number;
     startOfWeek?: WeekDay | null;
     dataTimezone?: string;
     executionProject?: string;
@@ -149,6 +176,18 @@ export const usesAwsWebIdentity = (
 ) =>
     credentials?.type === WarehouseTypes.ATHENA &&
     credentials.authenticationType === AthenaAuthenticationType.WEB_IDENTITY;
+
+export const usesBigqueryWorkloadIdentity = (
+    credentials:
+        | { type: WarehouseTypes; authenticationType?: string }
+        | undefined,
+): credentials is {
+    type: WarehouseTypes.BIGQUERY;
+    authenticationType: BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION;
+} =>
+    credentials?.type === WarehouseTypes.BIGQUERY &&
+    credentials.authenticationType ===
+        BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION;
 
 export type CreateDatabricksCredentials = {
     type: WarehouseTypes.DATABRICKS;
@@ -454,12 +493,24 @@ export type DuckdbCredentials =
 /**
  * Normalize legacy credential values at decrypt time so callers receive a
  * valid discriminated union without requiring data migrations.
+ * Also normalize omitted values before validating and saving credentials.
  */
 export const normalizeWarehouseCredentials = <
     T extends CreateWarehouseCredentials,
 >(
     credentials: T,
 ): T => {
+    if (usesBigqueryWorkloadIdentity(credentials)) {
+        return {
+            ...credentials,
+            keyfileContents: credentials.keyfileContents || {},
+            workloadIdentityAudience:
+                credentials.workloadIdentityAudience === ''
+                    ? undefined
+                    : credentials.workloadIdentityAudience,
+        };
+    }
+
     if (
         credentials.type === WarehouseTypes.DUCKDB &&
         (credentials as { connectionType?: DuckdbConnectionType })
@@ -780,7 +831,9 @@ export const maybeOverrideWarehouseConnection = <
  * This is useful when creating preview projects where we want to use new connection details
  * (like from dbt profiles) but preserve advanced configuration from the parent project.
  */
-export const mergeWarehouseCredentials = <T extends CreateWarehouseCredentials>(
+export const mergeWarehouseCredentials = <
+    T extends CreateWarehouseCredentialsWithOptionalSecrets,
+>(
     baseCredentials: T,
     newCredentials: T,
 ): T => {
@@ -1295,6 +1348,22 @@ export type ApiUpdateProjectDbtSource = {
     warehouseLocation?: WarehouseLocation;
 };
 
+/**
+ * Whether a role on this project counts towards the org-wide AI admin pages.
+ * Preview and training access is a copy taken at creation, so it can be stale.
+ */
+export const isAiAdminScopedProjectType = (type: ProjectType): boolean => {
+    switch (type) {
+        case ProjectType.DEFAULT:
+            return true;
+        case ProjectType.PREVIEW:
+        case ProjectType.TRAINING:
+            return false;
+        default:
+            return assertUnreachable(type, `Unknown project type ${type}`);
+    }
+};
+
 export const isGitProjectType = (
     connection: DbtProjectConfig,
 ): connection is
@@ -1439,6 +1508,8 @@ export type EnsurePlaygroundProjectRequest = {
 export type CreateTrainingPreviewResults = {
     projectUuid: string;
     expiresAt: Date | null;
+    /** The learner's live copy was handed back, with what earlier walkthroughs left in it. */
+    reused: boolean;
 };
 
 export type ApiCreateTrainingPreviewResponse = {

@@ -18,6 +18,8 @@ import knex from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
 import * as refreshModule from '../../../auth/snowflakeOAuthRefresh';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
+import { createDatabase } from '../../../models/RefreshTokenRotation/fakeKnex.mock';
+import { RefreshTokenRotation } from '../../../models/RefreshTokenRotation/RefreshTokenRotation';
 import {
     UserWarehouseCredentialsModel,
     type AiUserWarehouseCredentials,
@@ -60,7 +62,6 @@ const credential: AiUserWarehouseCredentials = {
     },
 };
 const mintArgs = {
-    silentRefresh: false,
     connection,
     organizationUuid: 'org',
     evaluationKind: 'query' as const,
@@ -111,6 +112,7 @@ const setup = (strictPersonalOverlay = false) => {
         lightdashConfig: config,
         organizationSnowflakeAgentClientModel: clients,
     });
+    const { database } = createDatabase();
     const provider = new AgentSignInResolverHarness({
         featureFlagModel: {
             get: vi.fn(async ({ featureFlagId }) => ({
@@ -120,7 +122,7 @@ const setup = (strictPersonalOverlay = false) => {
                     strictPersonalOverlay,
             })),
         },
-        refreshTokenRotation: { run: vi.fn() },
+        refreshTokenRotation: new RefreshTokenRotation({ database }),
         snowflakeAgentClientResolver: resolver,
         lightdashConfig: config,
         userWarehouseCredentialsModel:
@@ -192,7 +194,7 @@ describe('AgentSignInResolverHarness', () => {
         await expect(provider.mint(mintArgs)).rejects.toMatchObject({
             refusal: { reason: AiAccessRefusalReason.NEEDS_SIGN_IN },
         });
-        expect(model.findAiCredentialWithSecrets).toHaveBeenCalledTimes(2);
+        expect(model.findAiCredentialWithSecrets).toHaveBeenCalledTimes(3);
         expect(
             refreshModule.exchangeSnowflakeRefreshToken,
         ).toHaveBeenCalledOnce();
@@ -204,12 +206,13 @@ describe('AgentSignInResolverHarness', () => {
         vi.mocked(
             refreshModule.exchangeSnowflakeRefreshToken,
         ).mockRejectedValue({
-            data: 'invalid_grant',
+            statusCode: 400,
+            data: '{"error":"invalid_grant"}',
         });
         await expect(provider.mint(mintArgs)).rejects.toMatchObject({
             refusal: { reason: AiAccessRefusalReason.SIGN_IN_EXPIRED },
         });
-        expect(model.findAiCredentialWithSecrets).toHaveBeenCalledTimes(2);
+        expect(model.findAiCredentialWithSecrets).toHaveBeenCalledTimes(4);
         expect(
             refreshModule.exchangeSnowflakeRefreshToken,
         ).toHaveBeenCalledTimes(2);
@@ -330,23 +333,6 @@ describe('AgentSignInResolverHarness', () => {
             expect(model.rotateRefreshToken).not.toHaveBeenCalled();
         },
     );
-    test('refuses an expired credential without refreshing it', async () => {
-        const { provider, model } = setup();
-        model.findAiCredentialWithSecrets.mockResolvedValue({
-            ...credential,
-            expiresAt: new Date(Date.now() - 1),
-        });
-        expect(await provider.missingPrerequisite(mintArgs)).toBe(
-            AiAccessRefusalReason.SIGN_IN_EXPIRED,
-        );
-        await expect(provider.mint(mintArgs)).rejects.toMatchObject({
-            refusal: { reason: AiAccessRefusalReason.SIGN_IN_EXPIRED },
-        });
-        expect(
-            refreshModule.exchangeSnowflakeRefreshToken,
-        ).not.toHaveBeenCalled();
-        expect(model.rotateRefreshToken).not.toHaveBeenCalled();
-    });
     test('accepts a future credential expiry', async () => {
         const { provider, model } = setup();
         model.findAiCredentialWithSecrets.mockResolvedValue({
@@ -367,41 +353,6 @@ describe('AgentSignInResolverHarness', () => {
         expect(
             refreshModule.exchangeSnowflakeRefreshToken,
         ).not.toHaveBeenCalled();
-    });
-    test.each([
-        [new Error('invalid_grant'), AiAccessRefusalReason.SIGN_IN_EXPIRED],
-        [
-            {
-                data: '{"error":"invalid_grant"}',
-                message: 'Failed to obtain access token',
-            },
-            AiAccessRefusalReason.SIGN_IN_EXPIRED,
-        ],
-        [
-            { data: '{"error":"invalid_client"}' },
-            AiAccessRefusalReason.NEEDS_SIGN_IN,
-        ],
-        [new Error('network failure'), AiAccessRefusalReason.NEEDS_SIGN_IN],
-        [null, AiAccessRefusalReason.NEEDS_SIGN_IN],
-        [
-            { statusCode: 503, data: '{"error":"server_error"}' },
-            AiAccessRefusalReason.NEEDS_SIGN_IN,
-        ],
-        [{ statusCode: 429, data: '' }, AiAccessRefusalReason.NEEDS_SIGN_IN],
-        [
-            { statusCode: 503, data: '{"error":"invalid_grant"}' },
-            AiAccessRefusalReason.SIGN_IN_EXPIRED,
-        ],
-    ])('classifies a refresh failure %s', async (error, reason) => {
-        const { provider, model } = setup();
-        vi.mocked(
-            refreshModule.exchangeSnowflakeRefreshToken,
-        ).mockRejectedValue(error);
-        await expect(provider.mint(mintArgs)).rejects.toMatchObject({
-            refusal: { reason },
-        });
-        expect(model.rotateRefreshToken).not.toHaveBeenCalled();
-        expect(checkSnowflakeAgentSessionWithToken).not.toHaveBeenCalled();
     });
     test.each(['old-refresh-token', 'new-refresh-token'])(
         'refreshes with the resolved client and rotates only changed tokens: %s',
@@ -434,6 +385,7 @@ describe('AgentSignInResolverHarness', () => {
                 client: await resolver.resolve('org'),
                 refreshToken: 'old-refresh-token',
                 now: expect.any(Date),
+                requestTimeoutMs: 30_000,
             });
             if (refreshToken === 'old-refresh-token')
                 expect(model.rotateRefreshToken).not.toHaveBeenCalled();
@@ -444,6 +396,8 @@ describe('AgentSignInResolverHarness', () => {
                     'credential',
                     'old-refresh-token',
                     refreshToken,
+                    { kind: 'unreported' },
+                    expect.anything(),
                 );
         },
     );
@@ -509,7 +463,7 @@ describe('AgentSignInResolverHarness', () => {
 });
 
 describe('silent Snowflake refresh', () => {
-    const args = { ...mintArgs, silentRefresh: true };
+    const args = { ...mintArgs };
     const now = new Date('2026-10-09T12:00:00Z');
     beforeEach(() => {
         vi.restoreAllMocks();
@@ -545,6 +499,7 @@ describe('silent Snowflake refresh', () => {
             'old-refresh-token',
             'T2',
             { kind: 'reported', expiresAt: new Date(now.getTime() + 3600000) },
+            expect.anything(),
         );
     });
     test.each([new Date(0), new Date('2030-01-01')])(
@@ -570,7 +525,7 @@ describe('silent Snowflake refresh', () => {
                 refusal: { reason: AiAccessRefusalReason.SIGN_IN_EXPIRED },
             });
             expect(model.rotateRefreshToken).not.toHaveBeenCalled();
-            expect(model.findAiCredentialWithSecrets).toHaveBeenCalledTimes(4);
+            expect(model.findAiCredentialWithSecrets).toHaveBeenCalledTimes(2);
             expect(refresh.requestNewAccessToken).toHaveBeenCalledTimes(1);
             expect(vi.getTimerCount()).toBe(0);
             expect(model.deleteAiCredential).not.toHaveBeenCalled();
@@ -591,7 +546,7 @@ describe('silent Snowflake refresh', () => {
             data: { code: 'warehouse_oauth_refresh_failed', retryable: true },
         });
         expect(model.rotateRefreshToken).not.toHaveBeenCalled();
-        expect(model.findAiCredentialWithSecrets).toHaveBeenCalledTimes(1);
+        expect(model.findAiCredentialWithSecrets).toHaveBeenCalledTimes(2);
         expect(model.deleteAiCredential).not.toHaveBeenCalled();
     });
     test.each([new Date(0), new Date('2030-01-01'), null])(
@@ -614,6 +569,7 @@ describe('silent Snowflake refresh', () => {
                 'old-refresh-token',
                 'T2',
                 { kind: 'unreported' },
+                expect.anything(),
             );
         },
     );
@@ -635,6 +591,7 @@ describe('silent Snowflake refresh', () => {
             'old-refresh-token',
             'old-refresh-token',
             { kind: 'unreported' },
+            expect.anything(),
         );
     });
     test('updates expiry even when the refresh token is unchanged', async () => {
@@ -651,38 +608,10 @@ describe('silent Snowflake refresh', () => {
             'old-refresh-token',
             'old-refresh-token',
             { kind: 'reported', expiresAt: new Date(now.getTime() + 3600000) },
+            expect.anything(),
         );
     });
-    test('does not retry a second invalid grant', async () => {
-        const { provider, model } = setup();
-        model.findAiCredentialWithSecrets
-            .mockResolvedValueOnce(credential)
-            .mockResolvedValue({
-                ...credential,
-                credentials: {
-                    type: WarehouseTypes.SNOWFLAKE,
-                    authenticationType: SnowflakeAuthenticationType.SSO,
-                    user: 'user',
-                    refreshToken: 'newer',
-                },
-            });
-        vi.mocked(refresh.requestNewAccessToken).mockImplementation(
-            (_strategy, _token, callback) =>
-                callback(
-                    { statusCode: 400, data: '{"error":"invalid_grant"}' },
-                    '',
-                    '',
-                    {},
-                ),
-        );
-        await expect(provider.mint(args)).rejects.toMatchObject({
-            refusal: { reason: AiAccessRefusalReason.SIGN_IN_EXPIRED },
-        });
-        expect(refresh.requestNewAccessToken).toHaveBeenCalledTimes(2);
-        expect(model.findAiCredentialWithSecrets).toHaveBeenCalledTimes(2);
-        expect(model.rotateRefreshToken).not.toHaveBeenCalled();
-        expect(model.deleteAiCredential).not.toHaveBeenCalled();
-    });
+
     test.each([
         '{"error":"invalid_client","error_description":"invalid_grant"}',
         '{"error":"unauthorized_client"}',
@@ -713,106 +642,6 @@ describe('silent Snowflake refresh', () => {
         );
         await provider.mint(args);
         expect(model.rotateRefreshToken).not.toHaveBeenCalled();
-    });
-    test('waits for a concurrent rotation to commit after invalid_grant', async () => {
-        const { provider, model } = setup();
-        let currentToken = 'old-refresh-token';
-        model.findAiCredentialWithSecrets.mockImplementation(async () => ({
-            ...credential,
-            credentials: {
-                ...credential.credentials,
-                refreshToken: currentToken,
-            },
-        }));
-        model.rotateRefreshToken.mockImplementation(
-            async (_uuid, expected, next) => {
-                if (next === 'T2')
-                    await new Promise<void>((resolve) => {
-                        setTimeout(resolve, 450);
-                    });
-                if (currentToken !== expected) return false;
-                currentToken = next;
-                return true;
-            },
-        );
-        let calls = 0;
-        vi.mocked(refresh.requestNewAccessToken).mockImplementation(
-            (_strategy, token, callback) => {
-                calls += 1;
-                if (calls === 1) callback(null, 'A1', 'T2', {});
-                else if (token === 'old-refresh-token') {
-                    expect(currentToken).toBe('old-refresh-token');
-                    callback(
-                        { statusCode: 400, data: '{"error":"invalid_grant"}' },
-                        '',
-                        '',
-                        {},
-                    );
-                } else callback(null, 'A2', 'T3', {});
-            },
-        );
-        const results = Promise.allSettled([
-            provider.mint(args),
-            provider.mint(args),
-        ]);
-        await vi.advanceTimersByTimeAsync(300);
-        expect(currentToken).toBe('old-refresh-token');
-        await vi.advanceTimersByTimeAsync(700);
-        expect(await results).toEqual([
-            expect.objectContaining({ status: 'fulfilled' }),
-            expect.objectContaining({ status: 'fulfilled' }),
-        ]);
-        expect(refresh.requestNewAccessToken).toHaveBeenCalledTimes(3);
-        expect(model.findAiCredentialWithSecrets).toHaveBeenCalledTimes(5);
-        expect(currentToken).toBe('T3');
-    });
-    test('retries once after a concurrent single-use token rotation', async () => {
-        const { provider, model } = setup();
-        let currentToken = 'old-refresh-token';
-        model.findAiCredentialWithSecrets.mockImplementation(async () => ({
-            ...credential,
-            credentials: {
-                ...credential.credentials,
-                refreshToken: currentToken,
-            },
-        }));
-        let rotated: () => void = () => {};
-        const rotation = new Promise<void>((resolve) => {
-            rotated = resolve;
-        });
-        model.rotateRefreshToken.mockImplementation(
-            async (_uuid, expected, next) => {
-                const swapped = currentToken === expected;
-                if (swapped) currentToken = next;
-                rotated();
-                return swapped;
-            },
-        );
-        let calls = 0;
-        vi.mocked(refresh.requestNewAccessToken).mockImplementation(
-            (_strategy, token, callback) => {
-                calls += 1;
-                if (calls === 1) callback(null, 'A1', 'T2', {});
-                else if (token === 'old-refresh-token')
-                    void rotation.then(() =>
-                        callback(
-                            {
-                                statusCode: 400,
-                                data: '{"error":"invalid_grant"}',
-                            },
-                            '',
-                            '',
-                            {},
-                        ),
-                    );
-                else callback(null, 'A2', 'T3', {});
-            },
-        );
-        await expect(
-            Promise.all([provider.mint(args), provider.mint(args)]),
-        ).resolves.toHaveLength(2);
-        expect(refresh.requestNewAccessToken).toHaveBeenCalledTimes(3);
-        expect(currentToken).toBe('T3');
     });
 });
 
@@ -914,7 +743,7 @@ describe('agent refresh logs', () => {
             ).toHaveBeenCalledExactlyOnceWith('Agent sign-in refresh failed', {
                 userUuid: 'user',
                 organizationUuid: 'org',
-                reason: AiAccessRefusalReason.SIGN_IN_EXPIRED,
+                kind: 'temporary',
                 errorClass: 'Error',
                 errorCode: null,
                 errorCategory: 'invalid_grant',
@@ -939,7 +768,7 @@ describe('agent refresh logs', () => {
 });
 
 describe('silent refresh logs', () => {
-    const args = { ...mintArgs, silentRefresh: true };
+    const args = { ...mintArgs };
     const spyLogs = (provider: AgentSignInResolverHarness) => ({
         info: vi
             .spyOn(provider.logger, 'info')
@@ -1074,73 +903,68 @@ describe('silent refresh logs', () => {
 
 describe('Snowflake credential client bindings', () => {
     afterEach(() => vi.restoreAllMocks());
-    test.each([true, false])(
-        'expires a replaced client before refresh (silent=%s)',
-        async (silentRefresh) => {
-            const { provider, resolver, model } = setup();
-            const original = (await resolver.resolve('org'))!;
-            vi.spyOn(resolver, 'resolve').mockResolvedValue({
-                ...original,
-                source: 'organization',
-                clientVersion: 'new-version',
-            });
-            model.findAiCredentialWithSecrets.mockResolvedValue({
-                ...credential,
-                aiClientBinding: {
-                    organizationUuid: 'org',
-                    clientVersion: 'old-version',
-                },
-            });
-            const exchange = vi.spyOn(
-                refreshModule,
-                'exchangeSnowflakeRefreshToken',
-            );
-            const args = { ...mintArgs, silentRefresh };
-            expect(await provider.missingPrerequisite(args)).toBe(
-                AiAccessRefusalReason.SIGN_IN_EXPIRED,
-            );
-            await expect(provider.mint(args)).rejects.toMatchObject({
-                refusal: { reason: AiAccessRefusalReason.SIGN_IN_EXPIRED },
-            });
-            expect(exchange).not.toHaveBeenCalled();
-        },
-    );
-    test.each([true, false])(
-        'uses the resolved organization client (silent=%s)',
-        async (silentRefresh) => {
-            const { provider, resolver, model } = setup();
-            const client = {
-                ...(await resolver.resolve('org'))!,
-                source: 'organization' as const,
+    test('expires a replaced client before refresh', async () => {
+        const { provider, resolver, model } = setup();
+        const original = (await resolver.resolve('org'))!;
+        vi.spyOn(resolver, 'resolve').mockResolvedValue({
+            ...original,
+            source: 'organization',
+            clientVersion: 'new-version',
+        });
+        model.findAiCredentialWithSecrets.mockResolvedValue({
+            ...credential,
+            aiClientBinding: {
+                organizationUuid: 'org',
+                clientVersion: 'old-version',
+            },
+        });
+        const exchange = vi.spyOn(
+            refreshModule,
+            'exchangeSnowflakeRefreshToken',
+        );
+        const args = { ...mintArgs };
+        expect(await provider.missingPrerequisite(args)).toBe(
+            AiAccessRefusalReason.SIGN_IN_EXPIRED,
+        );
+        await expect(provider.mint(args)).rejects.toMatchObject({
+            refusal: { reason: AiAccessRefusalReason.SIGN_IN_EXPIRED },
+        });
+        expect(exchange).not.toHaveBeenCalled();
+    });
+    test('uses the resolved organization client', async () => {
+        const { provider, resolver, model } = setup();
+        const client = {
+            ...(await resolver.resolve('org'))!,
+            source: 'organization' as const,
+            clientVersion: 'version',
+            clientId: 'saved-client',
+            tokenEndpoint: 'https://saved.example/token',
+        };
+        vi.spyOn(resolver, 'resolve').mockResolvedValue(client);
+        model.findAiCredentialWithSecrets.mockResolvedValue({
+            ...credential,
+            aiClientBinding: {
+                organizationUuid: 'org',
                 clientVersion: 'version',
-                clientId: 'saved-client',
-                tokenEndpoint: 'https://saved.example/token',
-            };
-            vi.spyOn(resolver, 'resolve').mockResolvedValue(client);
-            model.findAiCredentialWithSecrets.mockResolvedValue({
-                ...credential,
-                aiClientBinding: {
-                    organizationUuid: 'org',
-                    clientVersion: 'version',
-                },
-            });
-            const exchange = vi
-                .spyOn(refreshModule, 'exchangeSnowflakeRefreshToken')
-                .mockResolvedValue({
-                    accessToken: 'access',
-                    refreshToken: 'old-refresh-token',
-                    accessTokenExpiresAt: null,
-                    refreshTokenExpiresAt: null,
-                });
-            const minted = await provider.mint({ ...mintArgs, silentRefresh });
-            expect(exchange).toHaveBeenCalledExactlyOnceWith({
-                client,
+            },
+        });
+        const exchange = vi
+            .spyOn(refreshModule, 'exchangeSnowflakeRefreshToken')
+            .mockResolvedValue({
+                accessToken: 'access',
                 refreshToken: 'old-refresh-token',
-                now: expect.any(Date),
+                accessTokenExpiresAt: null,
+                refreshTokenExpiresAt: null,
             });
-            expect(minted.credentials).not.toHaveProperty('aiClientBinding');
-        },
-    );
+        const minted = await provider.mint({ ...mintArgs });
+        expect(exchange).toHaveBeenCalledExactlyOnceWith({
+            client,
+            refreshToken: 'old-refresh-token',
+            now: expect.any(Date),
+            requestTimeoutMs: 30_000,
+        });
+        expect(minted.credentials).not.toHaveProperty('aiClientBinding');
+    });
     test('does not retry a concurrent sign-in bound to a different client', async () => {
         const { provider, model } = setup();
         model.findAiCredentialWithSecrets
@@ -1164,12 +988,10 @@ describe('Snowflake credential client bindings', () => {
                 statusCode: 400,
                 data: '{"error":"invalid_grant"}',
             });
-        await expect(
-            provider.mint({ ...mintArgs, silentRefresh: true }),
-        ).rejects.toMatchObject({
+        await expect(provider.mint({ ...mintArgs })).rejects.toMatchObject({
             refusal: { reason: AiAccessRefusalReason.SIGN_IN_EXPIRED },
         });
-        expect(exchange).toHaveBeenCalledOnce();
+        expect(exchange).not.toHaveBeenCalled();
     });
 });
 

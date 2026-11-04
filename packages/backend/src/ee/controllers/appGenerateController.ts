@@ -19,6 +19,7 @@ import {
     type ApiDataAppVizRenderMetadataResponse,
     type ApiDataAppVizUpgradeImpactResponse,
     type ApiDeleteAppResponse,
+    type ApiDismissAddAnalysisOfferResponse,
     type ApiDuplicateAppRequest,
     type ApiDuplicateAppResponse,
     type ApiEmbedProjectAppsResponse,
@@ -49,6 +50,7 @@ import {
     type ImportAppCodeRequestBody,
     type InstallRegistryChartTypeBody,
     type MyAppsSortBy,
+    type RecordDataAppViewOutcome,
     type UpgradeAppRequestBody,
     type UUID,
     type UuidOrSlug,
@@ -1057,6 +1059,33 @@ export class AppGenerateController extends BaseController {
     }
 
     /**
+     * Dismiss the builder-side "add AI analysis" offer for this app, for
+     * everyone who builds it. One-way: the offer also disappears on its own
+     * once a build wires up the analysis surface.
+     * @summary Dismiss the add-AI-analysis offer
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/{appUuid}/analysis-offer/dismiss')
+    @OperationId('dismissAddAnalysisOffer')
+    async dismissAddAnalysisOffer(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() appUuid: UUID,
+    ): Promise<ApiDismissAddAnalysisOfferResponse> {
+        assertRegisteredAccount(req.account);
+        await this.getAppGenerateService().dismissAddAnalysisOffer(
+            toSessionUser(req.account),
+            projectUuid,
+            appUuid,
+        );
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    /**
      * Delete an app. When soft delete is enabled, the app is marked as
      * deleted and can be restored via the admin flow. Otherwise the app
      * row, every version, and all S3 artifacts are permanently removed.
@@ -1139,6 +1168,28 @@ export class AppGenerateController extends BaseController {
             status: 'ok',
             results: { token },
         };
+    }
+
+    /**
+     * Records a technical observation authorized by an exact-version preview token.
+     * @summary Record app outcome
+     */
+    @Post('/{appUuid}/versions/{version}/view-outcome')
+    @SuccessResponse('200', 'Success')
+    @OperationId('recordDataAppViewOutcome')
+    async recordViewOutcome(
+        @Path() projectUuid: string,
+        @Path() appUuid: string,
+        @Path() version: number,
+        @Body() body: RecordDataAppViewOutcome,
+    ): Promise<ApiSuccessEmpty> {
+        this.getAppGenerateService().recordViewOutcome(
+            projectUuid,
+            appUuid,
+            version,
+            body,
+        );
+        return { status: 'ok', results: undefined };
     }
 
     /**

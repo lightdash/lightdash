@@ -30,6 +30,11 @@ export const identityLabels: Record<
     },
 };
 
+export const identityChoiceStateLabels = {
+    current: 'Current',
+    settingUp: 'Setting up',
+};
+
 export const identityWarehouseNames = {
     [WarehouseTypes.POSTGRES]: 'Postgres',
     [WarehouseTypes.REDSHIFT]: 'Redshift',

@@ -106,4 +106,41 @@ describe('useDashboardPageContextCuration', () => {
             ],
         });
     });
+
+    it('does not pin a different dashboard in a bound thread', () => {
+        const { result } = renderHook(() =>
+            useDashboardPageContextCuration({
+                previousContext: [],
+                projectUuid: 'project-1',
+                threadId: 'thread-1',
+                boundDashboardUuid: 'dashboard-b',
+            }),
+        );
+
+        expect(result.current.curateContext({})).toEqual({
+            context: undefined,
+            optimisticContext: undefined,
+        });
+    });
+
+    it('pins the bound dashboard when it is the open one', () => {
+        const { result } = renderHook(() =>
+            useDashboardPageContextCuration({
+                previousContext: [],
+                projectUuid: 'project-1',
+                threadId: 'thread-1',
+                boundDashboardUuid: 'dashboard-a',
+            }),
+        );
+
+        expect(result.current.curateContext({})).toMatchObject({
+            context: [
+                {
+                    type: 'dashboard',
+                    dashboardUuid: 'dashboard-a',
+                    runtimeOverrides,
+                },
+            ],
+        });
+    });
 });

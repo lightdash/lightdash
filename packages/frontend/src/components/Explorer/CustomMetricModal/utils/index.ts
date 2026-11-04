@@ -27,6 +27,24 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 import { type MetricFilterRuleWithFieldId } from '../FilterForm';
 
+export const getCustomMetricSourceDimension = (
+    item: Dimension | AdditionalMetric | CustomDimension | Metric | undefined,
+    customDimensions: CustomDimension[] | undefined,
+): CustomDimension | undefined => {
+    if (isCustomDimension(item)) return item;
+    if (
+        !isAdditionalMetric(item) ||
+        item.baseDimensionName ||
+        item.baseMetricName
+    )
+        return undefined;
+    return customDimensions?.find(
+        (dimension) =>
+            dimension.table === item.table &&
+            item.sql === `\${${dimension.table}.${dimension.id}}`,
+    );
+};
+
 export const addFieldRefToFilterRule = (
     filterRule: FilterRule,
     fields: ReturnType<typeof getFilterableDimensionsFromItemsMap>,

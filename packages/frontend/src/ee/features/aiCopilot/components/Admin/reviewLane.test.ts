@@ -5,7 +5,6 @@ import {
     getStartWritebackKind,
     isWritebackRetry,
     LANE_TARGET_STATUS,
-    partitionInProgress,
 } from './reviewLane';
 
 const base = (
@@ -73,16 +72,6 @@ describe('getReviewLane', () => {
             expect(getReviewLane(base({ status }))).toBe('done');
         },
     );
-});
-
-describe('partitionInProgress', () => {
-    it('splits writeback-running items into active', () => {
-        const a = base({ status: 'in_progress', prWritebackStatus: 'running' });
-        const b = base({ status: 'in_progress' });
-        const { active, rest } = partitionInProgress([a, b]);
-        expect(active).toEqual([a]);
-        expect(rest).toEqual([b]);
-    });
 });
 
 describe('LANE_TARGET_STATUS', () => {

@@ -58,7 +58,7 @@ export const AiSavedChartPreviewPanel: FC<Props> = ({ savedChartPreview }) => {
     const authoringEnabled = useContentAuthoringEnabled();
     const dispatch = useAiAgentStoreDispatch();
     const ability = useAbilityContext();
-    const { content, onExplore } = useEmbed();
+    const { content, onExplore, aiAgentNavigationDisabled } = useEmbed();
     const isEmbed = useIsEmbedded();
 
     const {
@@ -77,7 +77,7 @@ export const AiSavedChartPreviewPanel: FC<Props> = ({ savedChartPreview }) => {
         content?.type === 'aiAgent' &&
         (content.canExplore === true || ability.can('view', 'EmbedExplore'));
     const hasExploreAction = isEmbed
-        ? canExploreFromEmbed && !!onExplore
+        ? canExploreFromEmbed && !!onExplore && !aiAgentNavigationDisabled
         : authoringEnabled;
 
     const closeButton = (

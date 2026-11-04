@@ -9,6 +9,7 @@ import type { ItemsMap } from './field';
 import type { MetricQuery } from './metricQuery';
 import type { ParametersValuesMap } from './parameters';
 import type { WarehouseTypes } from './projects';
+import type { WarehouseExecutionStats } from './warehouse';
 
 export interface IWarehouseQueryMetadata {
     type: WarehouseTypes;
@@ -122,6 +123,7 @@ export type QueryHistory = {
     projectUuid: string | null;
     warehouseQueryId: string | null;
     warehouseQueryMetadata: WarehouseQueryMetadata | null;
+    warehouseExecutionStats: WarehouseExecutionStats | null;
     context: QueryExecutionContext;
     defaultPageSize: number | null;
     compiledSql: string;
@@ -138,6 +140,12 @@ export type QueryHistory = {
             agentUuid: string;
             artifactUuid: string;
             versionUuid: string;
+        };
+        /** Binds a run of a message's `query` pipeline, as resultArtifact does for artifacts. */
+        resultMessageQuery?: {
+            agentUuid: string;
+            promptUuid: string;
+            queryUuid: string;
         };
         resultEntitlementFingerprint?: string | null;
         resultEffectiveParameters?: ParametersValuesMap;

@@ -1,0 +1,22 @@
+version: 2
+models:
+  - name: pg_orders
+    description: The Jaffle shop orders table. Lightdash reads the existing table.
+    columns:
+      - name: order_id
+        meta:
+          dimension: { type: number }
+          metrics:
+            order_count: { type: count_distinct }
+      - name: customer_id
+        meta: { dimension: { type: number } }
+      - name: order_date
+        meta:
+          dimension: { type: date, time_intervals: ['DAY', 'WEEK', 'MONTH'] }
+      - name: status
+        meta: { dimension: { type: string } }
+      - name: amount
+        meta:
+          dimension: { type: number }
+          metrics:
+            total_amount: { type: sum, round: 2 }

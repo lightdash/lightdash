@@ -4,6 +4,14 @@
     color: var(--mantine-color-dark-7);
 }
 
+.itemButtonInner {
+    color: var(--mantine-color-ldDark-9);
+}
+
+.itemButtonLabel {
+    max-width: 100%;
+}
+
 .itemButton:hover {
     transform: none;
 }
@@ -17,4 +25,8 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.hoverDropdown {
+    overflow: auto;
 }

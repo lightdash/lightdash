@@ -9,6 +9,7 @@ import {
     JobStatusType,
     NotFoundError,
     OrganizationMemberRole,
+    ProjectType,
     PullRequestProvider,
     type AiAgentReviewItemSummary,
     type PossibleAbilities,
@@ -290,7 +291,6 @@ const makeService = ({
     aiAgentModel = {},
     aiAgentMemoryModel = {},
     aiAgentReviewClassifierModel = {},
-    aiAgentReviewClassifierService = {},
     aiAgentReviewNotificationModel = {},
     featureFlagService = {},
     aiOrganizationSettingsService = {},
@@ -312,7 +312,6 @@ const makeService = ({
     aiAgentModel?: Record<string, unknown>;
     aiAgentMemoryModel?: Record<string, unknown>;
     aiAgentReviewClassifierModel?: Record<string, unknown>;
-    aiAgentReviewClassifierService?: Record<string, unknown>;
     aiAgentReviewNotificationModel?: Record<string, unknown>;
     featureFlagService?: Record<string, unknown>;
     aiOrganizationSettingsService?: Record<string, unknown>;
@@ -437,10 +436,6 @@ const makeService = ({
                 linearProjectId: null,
             }),
             ...aiAgentReviewNotificationModel,
-        },
-        aiAgentReviewClassifierService: {
-            captureJudgeReplayInput: vi.fn().mockResolvedValue(null),
-            ...aiAgentReviewClassifierService,
         },
         featureFlagService: {
             get: vi.fn().mockResolvedValue({ enabled: true }),
@@ -811,12 +806,13 @@ describe('AiAgentAdminService.getAllMemories', () => {
         const service = makeService({
             aiAgentMemoryModel: { findAdminMemoriesPaginated },
             projectModel: {
-                getAllByOrganizationUuid: vi
-                    .fn()
-                    .mockResolvedValue([
-                        { projectUuid: PROJECT_UUID },
-                        { projectUuid: 'other-project-uuid' },
-                    ]),
+                getAllByOrganizationUuid: vi.fn().mockResolvedValue([
+                    { projectUuid: PROJECT_UUID, type: ProjectType.DEFAULT },
+                    {
+                        projectUuid: 'other-project-uuid',
+                        type: ProjectType.DEFAULT,
+                    },
+                ]),
             },
         });
 
@@ -837,9 +833,12 @@ describe('AiAgentAdminService.getAllMemories', () => {
         const service = makeService({
             aiAgentMemoryModel: { findAdminMemoriesPaginated },
             projectModel: {
-                getAllByOrganizationUuid: vi
-                    .fn()
-                    .mockResolvedValue([{ projectUuid: PROJECT_UUID }]),
+                getAllByOrganizationUuid: vi.fn().mockResolvedValue([
+                    {
+                        projectUuid: PROJECT_UUID,
+                        type: ProjectType.DEFAULT,
+                    },
+                ]),
             },
         });
 
@@ -851,6 +850,70 @@ describe('AiAgentAdminService.getAllMemories', () => {
 
         expect(result).toEqual({ data: { memories: [] } });
         expect(findAdminMemoriesPaginated).not.toHaveBeenCalled();
+    });
+
+    it('rejects principals whose AI admin access is only on preview or training projects', async () => {
+        const service = makeService({
+            projectModel: {
+                getAllByOrganizationUuid: vi.fn().mockResolvedValue([
+                    { projectUuid: PROJECT_UUID, type: ProjectType.PREVIEW },
+                    {
+                        projectUuid: 'other-project-uuid',
+                        type: ProjectType.TRAINING,
+                    },
+                ]),
+            },
+        });
+
+        await expect(
+            service.getAllMemories({
+                ...makeProjectUser(),
+                ability: new Ability<PossibleAbilities>([
+                    {
+                        action: 'manage',
+                        subject: 'AiAgent',
+                        conditions: { organizationUuid: ORGANIZATION_UUID },
+                    },
+                ]),
+            }),
+        ).rejects.toThrow(
+            'Insufficient permissions to access AI agent features',
+        );
+    });
+
+    it('leaves preview projects out of a project-scoped principal scope', async () => {
+        const findAdminMemoriesPaginated = vi
+            .fn()
+            .mockResolvedValue({ data: { memories: [] } });
+        const service = makeService({
+            aiAgentMemoryModel: { findAdminMemoriesPaginated },
+            projectModel: {
+                getAllByOrganizationUuid: vi.fn().mockResolvedValue([
+                    { projectUuid: PROJECT_UUID, type: ProjectType.DEFAULT },
+                    {
+                        projectUuid: 'preview-project-uuid',
+                        type: ProjectType.PREVIEW,
+                    },
+                ]),
+            },
+        });
+
+        await service.getAllMemories({
+            ...makeProjectUser(),
+            ability: new Ability<PossibleAbilities>([
+                {
+                    action: 'manage',
+                    subject: 'AiAgent',
+                    conditions: { organizationUuid: ORGANIZATION_UUID },
+                },
+            ]),
+        });
+
+        expect(findAdminMemoriesPaginated).toHaveBeenCalledWith(
+            expect.objectContaining({
+                filters: { projectUuids: [PROJECT_UUID] },
+            }),
+        );
     });
 
     it('passes pagination, filters and sort through for org admins', async () => {
@@ -1043,12 +1106,13 @@ describe('AiAgentAdminService.getAllEvals', () => {
         const service = makeService({
             aiAgentModel: { findAdminEvalsPaginated },
             projectModel: {
-                getAllByOrganizationUuid: vi
-                    .fn()
-                    .mockResolvedValue([
-                        { projectUuid: PROJECT_UUID },
-                        { projectUuid: OTHER_PROJECT_UUID },
-                    ]),
+                getAllByOrganizationUuid: vi.fn().mockResolvedValue([
+                    { projectUuid: PROJECT_UUID, type: ProjectType.DEFAULT },
+                    {
+                        projectUuid: OTHER_PROJECT_UUID,
+                        type: ProjectType.DEFAULT,
+                    },
+                ]),
             },
         });
 
@@ -1069,9 +1133,12 @@ describe('AiAgentAdminService.getAllEvals', () => {
         const service = makeService({
             aiAgentModel: { findAdminEvalsPaginated },
             projectModel: {
-                getAllByOrganizationUuid: vi
-                    .fn()
-                    .mockResolvedValue([{ projectUuid: PROJECT_UUID }]),
+                getAllByOrganizationUuid: vi.fn().mockResolvedValue([
+                    {
+                        projectUuid: PROJECT_UUID,
+                        type: ProjectType.DEFAULT,
+                    },
+                ]),
             },
         });
 
@@ -1109,12 +1176,10 @@ describe('AiAgentAdminService.getAllEvals', () => {
 
 describe('AiAgentAdminService.getEvalPrompts', () => {
     const projectModel = {
-        getAllByOrganizationUuid: vi
-            .fn()
-            .mockResolvedValue([
-                { projectUuid: PROJECT_UUID },
-                { projectUuid: OTHER_PROJECT_UUID },
-            ]),
+        getAllByOrganizationUuid: vi.fn().mockResolvedValue([
+            { projectUuid: PROJECT_UUID, type: ProjectType.DEFAULT },
+            { projectUuid: OTHER_PROJECT_UUID, type: ProjectType.DEFAULT },
+        ]),
     };
 
     it('rejects principals without manage access to any project', async () => {
@@ -1180,119 +1245,6 @@ describe('AiAgentAdminService.getEvalPrompts', () => {
         await expect(
             service.getEvalPrompts(makeProjectUser(), 'eval-1'),
         ).resolves.toEqual({ prompts });
-    });
-});
-
-describe('AiAgentAdminService.captureReviewReplayInputs', () => {
-    it('rejects when the feature flag is disabled', async () => {
-        const service = makeService({
-            featureFlagService: {
-                get: vi.fn().mockResolvedValue({ enabled: false }),
-            },
-        });
-
-        await expect(
-            service.captureReviewReplayInputs(makeAdminUser(), {
-                signalUuids: ['signal-1'],
-            }),
-        ).rejects.toThrow('Review replay capture is not enabled');
-    });
-
-    it('rejects non org admins', async () => {
-        const service = makeService();
-
-        await expect(
-            service.captureReviewReplayInputs(makeDeveloperUser(), {
-                signalUuids: ['signal-1'],
-            }),
-        ).rejects.toThrow();
-    });
-
-    it('rejects batches over 20 signals', async () => {
-        const service = makeService();
-
-        await expect(
-            service.captureReviewReplayInputs(makeAdminUser(), {
-                signalUuids: Array.from({ length: 21 }, (_, i) => `s-${i}`),
-            }),
-        ).rejects.toThrow('at most 20 signals');
-    });
-
-    it('returns a per-entry error for malformed uuids without querying them', async () => {
-        const findTurnSignalSubjects = vi.fn().mockResolvedValue([]);
-        const service = makeService({
-            aiAgentReviewClassifierModel: { findTurnSignalSubjects },
-        });
-
-        const results = await service.captureReviewReplayInputs(
-            makeAdminUser(),
-            { signalUuids: ['not-a-uuid'] },
-        );
-
-        expect(findTurnSignalSubjects).not.toHaveBeenCalled();
-        expect(results).toEqual([
-            {
-                signalUuid: 'not-a-uuid',
-                promptUuid: null,
-                threadUuid: null,
-                captureError: 'invalid signal uuid',
-                input: null,
-            },
-        ]);
-    });
-
-    it('resolves signals to prompts and returns captured inputs', async () => {
-        const replayInput = { candidate: {}, evidencePacket: {} };
-        const captureJudgeReplayInput = vi.fn().mockResolvedValue(replayInput);
-        const findTurnSignalSubjects = vi.fn().mockResolvedValue([
-            {
-                signalUuid: '11111111-1111-4111-8111-111111111111',
-                promptUuid: 'prompt-1',
-                threadUuid: 'thread-1',
-            },
-        ]);
-        const service = makeService({
-            aiAgentReviewClassifierModel: { findTurnSignalSubjects },
-            aiAgentReviewClassifierService: { captureJudgeReplayInput },
-        });
-
-        const results = await service.captureReviewReplayInputs(
-            makeAdminUser(),
-            {
-                signalUuids: [
-                    '11111111-1111-4111-8111-111111111111',
-                    '22222222-2222-4222-8222-222222222222',
-                ],
-            },
-        );
-
-        expect(findTurnSignalSubjects).toHaveBeenCalledWith({
-            organizationUuid: ORGANIZATION_UUID,
-            signalUuids: [
-                '11111111-1111-4111-8111-111111111111',
-                '22222222-2222-4222-8222-222222222222',
-            ],
-        });
-        expect(captureJudgeReplayInput).toHaveBeenCalledWith({
-            organizationUuid: ORGANIZATION_UUID,
-            promptUuid: 'prompt-1',
-        });
-        expect(results).toEqual([
-            {
-                signalUuid: '11111111-1111-4111-8111-111111111111',
-                promptUuid: 'prompt-1',
-                threadUuid: 'thread-1',
-                captureError: null,
-                input: replayInput,
-            },
-            {
-                signalUuid: '22222222-2222-4222-8222-222222222222',
-                promptUuid: null,
-                threadUuid: null,
-                captureError: 'signal not found',
-                input: null,
-            },
-        ]);
     });
 });
 
@@ -2628,12 +2580,10 @@ describe('AiAgentAdminService project-scoped read access', () => {
     });
 
     const projectModel = {
-        getAllByOrganizationUuid: vi
-            .fn()
-            .mockResolvedValue([
-                { projectUuid: PROJECT_UUID },
-                { projectUuid: OTHER_PROJECT_UUID },
-            ]),
+        getAllByOrganizationUuid: vi.fn().mockResolvedValue([
+            { projectUuid: PROJECT_UUID, type: ProjectType.DEFAULT },
+            { projectUuid: OTHER_PROJECT_UUID, type: ProjectType.DEFAULT },
+        ]),
     };
 
     it('lets a project-scoped user read an item in a project they can access', async () => {

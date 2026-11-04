@@ -17,6 +17,7 @@ import {
     LocalIssuerTypes,
     NotFoundError,
     OpenIdIdentityIssuerType,
+    OpenIdUser,
     OrganizationMemberProfile,
     OrganizationMemberRole,
     OrganizationSettings,
@@ -277,6 +278,11 @@ const rolesModelWithoutExtraRoles = {
         systemRole: null,
         customRoleUuids: [],
     })),
+};
+
+const licensedConfigMock: LightdashConfig = {
+    ...lightdashConfigMock,
+    license: { licenseKey: 'license-key', licenseCertificate: null },
 };
 
 const createUserService = (
@@ -794,11 +800,28 @@ describe('UserService', () => {
             expect(account.isServiceAccount()).toBe(false);
         });
 
-        test('should return a service account when the user backs a service account', async () => {
+        test('should not look up service accounts on an unlicensed instance', async () => {
             const service = createUserService({
                 ...lightdashConfigMock,
-                serviceAccount: {
-                    enabled: true,
+                license: { licenseKey: null, licenseCertificate: null },
+            });
+
+            const account = await service.getAccountByUserUuid('userUuid');
+
+            expect(
+                userModel.findServiceAccountByUserUuid,
+            ).not.toHaveBeenCalled();
+            expect(account.isSessionUser()).toBe(true);
+        });
+
+        test('should return a service account when the user backs a service account', async () => {
+            // No env var or feature flag is needed: the licence is the gate.
+            const service = createUserService(licensedConfigMock, {
+                featureFlagModel: {
+                    get: vi.fn(async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled: false,
+                    })),
                 },
             });
             (
@@ -838,12 +861,7 @@ describe('UserService', () => {
         });
 
         test('should preserve service-account authentication', async () => {
-            const service = createUserService({
-                ...lightdashConfigMock,
-                serviceAccount: {
-                    enabled: true,
-                },
-            });
+            const service = createUserService(licensedConfigMock);
             (
                 userModel.findServiceAccountByUserUuid as import('vitest').Mock
             ).mockResolvedValueOnce({
@@ -4001,6 +4019,177 @@ describe('UserService', () => {
                     OpenIdIdentityIssuerType.GOOGLE,
                 ),
             ).toBe(true);
+        });
+    });
+
+    describe('missing profile names from Google', () => {
+        const namelessUser: SessionUser = {
+            ...sessionUser,
+            firstName: '',
+            lastName: '',
+        };
+        const googleUser = (
+            firstName: string | undefined,
+            lastName: string | undefined,
+        ): OpenIdUser => ({
+            openId: { ...openIdUser.openId, firstName, lastName },
+        });
+        const signInWithExistingIdentity = (savedUser: SessionUser) => {
+            userModel.findSessionUserByOpenId.mockResolvedValueOnce(savedUser);
+            userModel.getOrganizationsForUser.mockResolvedValueOnce([
+                {
+                    organizationUuid: savedUser.organizationUuid,
+                    organizationName: savedUser.organizationName,
+                    organizationCreatedAt: savedUser.organizationCreatedAt,
+                },
+            ]);
+        };
+
+        test.each([
+            [
+                'fills both blank names',
+                { firstName: '', lastName: '' },
+                googleUser('Ana', 'Lee'),
+                { firstName: 'Ana', lastName: 'Lee' },
+            ],
+            [
+                'treats whitespace as blank and trims the Google name',
+                { firstName: '  ', lastName: '' },
+                googleUser(' Ana ', 'Lee'),
+                { firstName: 'Ana', lastName: 'Lee' },
+            ],
+            [
+                'keeps a saved last name while filling the first name',
+                { firstName: '', lastName: 'Custom' },
+                googleUser('Ana', 'Lee'),
+                { firstName: 'Ana', lastName: undefined },
+            ],
+        ])(
+            'existing Google identity %s',
+            async (_name, savedNames, googleProfile, expectedUpdate) => {
+                signInWithExistingIdentity({ ...sessionUser, ...savedNames });
+
+                const user = await userService.loginWithOpenId(
+                    googleProfile,
+                    undefined,
+                    undefined,
+                );
+
+                expect(userModel.updateUser).toHaveBeenCalledExactlyOnceWith(
+                    sessionUser.userUuid,
+                    undefined,
+                    expectedUpdate,
+                );
+                expect(user).toEqual(
+                    expect.objectContaining(
+                        Object.fromEntries(
+                            Object.entries(expectedUpdate).filter(
+                                ([, value]) => value !== undefined,
+                            ),
+                        ),
+                    ),
+                );
+            },
+        );
+
+        test.each([
+            [
+                'the user already has names',
+                sessionUser,
+                googleUser('Ana', 'Lee'),
+            ],
+            [
+                'Google sends no names',
+                namelessUser,
+                googleUser(undefined, undefined),
+            ],
+            ['Google sends blank names', namelessUser, googleUser('  ', '')],
+            [
+                'Google sends names the profile rejects',
+                namelessUser,
+                googleUser('<b>Ana', 'Lee>'),
+            ],
+        ])(
+            'existing Google identity is left unchanged when %s',
+            async (_name, savedUser, googleProfile) => {
+                signInWithExistingIdentity(savedUser);
+
+                await expect(
+                    userService.loginWithOpenId(
+                        googleProfile,
+                        undefined,
+                        undefined,
+                    ),
+                ).resolves.toEqual(
+                    expect.objectContaining({ userUuid: savedUser.userUuid }),
+                );
+                expect(userModel.updateUser).not.toHaveBeenCalled();
+            },
+        );
+
+        test('fills blank names when Google links to a verified-email account', async () => {
+            userModel.findSessionUserByPrimaryEmail.mockResolvedValueOnce(
+                namelessUser,
+            );
+            const service = createUserService({
+                ...lightdashConfigMock,
+                auth: {
+                    ...lightdashConfigMock.auth,
+                    enableOidcToEmailLinking: true,
+                },
+            });
+
+            const user = await service.loginWithOpenId(
+                googleUser('Ana', 'Lee'),
+                undefined,
+                undefined,
+            );
+
+            expect(openIdIdentityModel.createIdentity).toHaveBeenCalledOnce();
+            expect(userModel.updateUser).toHaveBeenCalledExactlyOnceWith(
+                namelessUser.userUuid,
+                undefined,
+                { firstName: 'Ana', lastName: 'Lee' },
+            );
+            expect(user).toEqual(
+                expect.objectContaining({ firstName: 'Ana', lastName: 'Lee' }),
+            );
+        });
+
+        test('fills blank names when Google links to the signed-in user', async () => {
+            const user = await userService.loginWithOpenId(
+                googleUser('Ana', 'Lee'),
+                { ...authenticatedUser, firstName: '', lastName: '' },
+                undefined,
+            );
+
+            expect(userModel.updateUser).toHaveBeenCalledExactlyOnceWith(
+                authenticatedUser.userUuid,
+                undefined,
+                { firstName: 'Ana', lastName: 'Lee' },
+            );
+            expect(user).toEqual(
+                expect.objectContaining({ firstName: 'Ana', lastName: 'Lee' }),
+            );
+        });
+
+        test('leaves names from other identity providers alone', async () => {
+            signInWithExistingIdentity(namelessUser);
+            const service = createUserService(lightdashConfigMock);
+            vi.spyOn(service, 'isLoginMethodAllowed').mockResolvedValue(true);
+
+            await service.loginWithOpenId(
+                {
+                    openId: {
+                        ...googleUser('Ana', 'Lee').openId,
+                        issuerType: OpenIdIdentityIssuerType.OKTA,
+                    },
+                },
+                undefined,
+                undefined,
+            );
+
+            expect(userModel.updateUser).not.toHaveBeenCalled();
         });
     });
 

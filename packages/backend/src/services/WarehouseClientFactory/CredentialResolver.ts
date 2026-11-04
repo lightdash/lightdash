@@ -12,7 +12,6 @@ import type { WarehouseCredentialResolutionContext } from './WarehouseCredential
 
 export type CredentialOwner =
     | { kind: 'project'; uuid: string }
-    | { kind: 'organization'; uuid: string }
     | { kind: 'user'; uuid: string; purpose: UserWarehouseCredentialPurpose }
     | { kind: 'warehouseConnection'; uuid: string }
     | {
@@ -119,10 +118,18 @@ export interface DbtTargetPolicy {
     explicitCredentials: boolean;
 }
 
+export type DbtTargetFile = {
+    name: string;
+    content: string;
+    environmentVariable: string;
+};
+
 export type DbtTargetResult =
     | {
           kind: 'target';
           target: Record<string, unknown>;
           environment: Record<string, string>;
+          // Optional for existing target builders; profileFromTarget binds file paths into environment.
+          files?: DbtTargetFile[];
       }
     | { kind: 'none'; reason: string };

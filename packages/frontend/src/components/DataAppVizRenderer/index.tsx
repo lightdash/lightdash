@@ -43,6 +43,7 @@ import {
     getVizHierarchyDimensions,
     hasVizSubtotalValues,
 } from '../../features/chartTypes/utils/vizSubtotals';
+import { useIsOwnedByMergeSource } from '../../features/mergeQuery/hooks/useIsOwnedByMergeSource';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
 import { useExplore } from '../../hooks/useExplore';
@@ -54,7 +55,10 @@ import LoadingChart from '../common/LoadingChart';
 import MantineIcon from '../common/MantineIcon';
 import { DefaultSkeleton } from '../DashboardTiles/TileBase/LoadingSkeletonOverlay';
 import { isDataAppVizVisualizationConfig } from '../LightdashVisualization/types';
-import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import {
+    useVisualizationConfig,
+    useVisualizationInputs,
+} from '../LightdashVisualization/useVisualizationContext';
 import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
 import {
     FIRST_PAINT_REVEAL_FALLBACK_MS,
@@ -154,8 +158,8 @@ const DataAppVizRenderer: FC<Props> = ({
     onScreenshotReady,
 }) => {
     const projectUuid = useProjectUuid();
+    const visualizationConfig = useVisualizationConfig();
     const {
-        visualizationConfig,
         resultsData,
         colorPalette,
         itemsMap,
@@ -167,7 +171,7 @@ const DataAppVizRenderer: FC<Props> = ({
         resolvedTimezone,
         isEditMode,
         isLoading,
-    } = useVisualizationContext();
+    } = useVisualizationInputs();
     const { embedToken } = useEmbed();
     const { canViewUnderlyingData, canDrillInto } = useContextMenuPermissions();
     const previewOrigin = usePreviewOrigin();
@@ -377,6 +381,7 @@ const DataAppVizRenderer: FC<Props> = ({
     const openDrillDownModal = metricQueryData?.openDrillDownModal;
     const openUnderlyingDataModal = metricQueryData?.openUnderlyingDataModal;
     const { showToastError } = useToaster();
+    const isOwnedByMergeSource = useIsOwnedByMergeSource();
 
     // Same shape as underlyingDataPreconditions plus the drill permission and
     // dialog; no explore fetch needed — DrillDownModal reads it from its provider.
@@ -398,12 +403,14 @@ const DataAppVizRenderer: FC<Props> = ({
             return undefined;
         return (intentBody: unknown) => {
             try {
-                openDrillDownModal(
-                    resolveVizDrillDownConfig(intentBody, {
-                        fieldMapping: reconciledFieldMapping,
-                        itemsMap: itemsMap ?? {},
-                    }),
-                );
+                const config = resolveVizDrillDownConfig(intentBody, {
+                    fieldMapping: reconciledFieldMapping,
+                    itemsMap: itemsMap ?? {},
+                });
+                if (!isOwnedByMergeSource(config.item)) {
+                    throw new Error('No merged query owns this column.');
+                }
+                openDrillDownModal(config);
                 trackingContext?.track({
                     name: EventName.DRILL_BY_CLICKED,
                     properties: {
@@ -425,6 +432,7 @@ const DataAppVizRenderer: FC<Props> = ({
         openDrillDownModal,
         reconciledFieldMapping,
         itemsMap,
+        isOwnedByMergeSource,
         showToastError,
         trackingContext,
         user,

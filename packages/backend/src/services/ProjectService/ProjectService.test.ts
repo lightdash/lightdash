@@ -6,6 +6,7 @@ import {
     AiAccessRefusalReason,
     AiAccessRefusedError,
     AiAgentMarkerLevel,
+    ApiConnectorType,
     assertUnreachable,
     AthenaAuthenticationType,
     BigqueryAuthenticationType,
@@ -13,11 +14,14 @@ import {
     CatalogType,
     ConflictError,
     convertExplores,
+    CreateTrainingPreviewResults,
     createVirtualView,
     CustomDimensionType,
+    CustomFormatType,
     CustomSqlQueryForbiddenError,
     DatabricksAuthenticationType,
     DatabricksTokenError,
+    DbtError,
     DbtExposureType,
     DbtProjectType,
     DbtVersionOptionLatest,
@@ -48,6 +52,7 @@ import {
     JobStepType,
     JobType,
     MAX_MERGE_TABLE_CALCULATION_FORMULA_LENGTH,
+    MERGE_TABLE_NAME,
     MergeJoinType,
     MergeQueryErrorKind,
     MetricQuery,
@@ -67,13 +72,16 @@ import {
     RedshiftAuthenticationType,
     RequestMethod,
     SessionUser,
+    setCatalogNativeType,
     SignInSubjectBasis,
     SnowflakeAuthenticationType,
     SnowflakeTokenError,
     SshTunnelError,
     SupportedDbtAdapter,
+    SupportedDbtVersions,
     TableCalculation,
     TableCalculationTemplateType,
+    TimeFrames,
     UserWarehouseCredentialPurpose,
     VizAggregationOptions,
     VizIndexType,
@@ -109,6 +117,7 @@ import {
     type PossibleAbilities,
     type Project,
     type ProjectDbtSource,
+    type ProjectSummary,
     type RegisteredAccount,
     type SchedulerIndexCatalogJobPayload,
     type UpdateProject,
@@ -119,18 +128,20 @@ import {
     type WarehouseTableSchema,
 } from '@lightdash/common';
 import {
-    checkSnowflakeAgentSessionWithToken,
     refreshDatabricksOAuthToken as refreshDatabricksToken,
     SshTunnel,
     warehouseClientFromCredentials,
     type WarehouseClient,
 } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
+import fs from 'fs/promises';
 import knex from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
 import fetch, { Response } from 'node-fetch';
 import { createHash } from 'node:crypto';
 import { text } from 'node:stream/consumers';
+import os from 'os';
+import nodePath from 'path';
 import { Readable } from 'stream';
 import { gunzipSync } from 'zlib';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
@@ -169,7 +180,6 @@ import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
-import { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectCompileLogModel } from '../../models/ProjectCompileLogModel';
 import { ProjectDbtSourcesModel } from '../../models/ProjectDbtSourcesModel';
 import {
@@ -197,12 +207,18 @@ import { WarehouseConnectionTablesModel } from '../../models/WarehouseConnection
 import { DbtBaseProjectAdapter } from '../../projectAdapters/dbtBaseProjectAdapter';
 import { GITHUB_APP_NOT_INSTALLED_MESSAGE } from '../../projectAdapters/githubAuthorization';
 import * as projectAdapterModule from '../../projectAdapters/projectAdapter';
+import {
+    CompileInterruptedError,
+    compileShutdown,
+    type CompileShutdownContext,
+} from '../../scheduler/compileShutdown';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import SchedulerTask from '../../scheduler/SchedulerTask';
 import type { DbtManifestFetchTimings, ProjectAdapter } from '../../types';
 import { buildCacheHash } from '../../utils/cacheUtils';
 import { metricQueryWithLimit } from '../../utils/csvLimitUtils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import { BigqueryWorkloadIdentityResolver } from '../../utils/googleIdentity/BigqueryWorkloadIdentityResolver';
 import {
     METRIC_QUERY,
     warehouseClientMock,
@@ -228,6 +244,7 @@ import {
 import { CatalogService } from '../CatalogService/CatalogService';
 import { DeployService } from '../DeployService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
+import { buildApiSourceExplores } from '../QuerySourceService/api/apiSourceExplores';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
 import { buildAiServiceAccountCredentials } from '../WarehouseClientFactory/aiServiceAccountCredentialResolvers';
@@ -367,6 +384,12 @@ vi.mock('@lightdash/warehouses', async (importOriginal) => ({
 }));
 
 const projectModel = {
+    bigqueryWorkloadIdentity: new BigqueryWorkloadIdentityResolver({
+        isEnabledFor: async () => false,
+        tokenSource: { getIdToken: vi.fn() },
+    }),
+    countCachedExploresForDbtSource: vi.fn(async () => 2),
+    hasExploreNameAllocations: vi.fn(async () => false),
     reconnectSharedSignIn: vi.fn<ProjectModel['reconnectSharedSignIn']>(
         async () => ({ kind: 'skipped' }),
     ),
@@ -375,9 +398,11 @@ const projectModel = {
         async (_org: string, callback: () => Promise<unknown>) => callback(),
     ),
     getWithSensitiveFields: vi.fn(async () => projectWithSensitiveFields),
+    updateMetadata: vi.fn(async () => undefined),
     get: vi.fn(async () => projectWithSensitiveFields),
     getAllByOrganizationUuid: vi.fn<ProjectModel['getAllByOrganizationUuid']>(),
-    getSummary: vi.fn(async () => projectSummary),
+    updateExpiresAt: vi.fn(async () => undefined),
+    getSummary: vi.fn(async (_projectUuid: string) => projectSummary),
     getDbtSourceIdentity: vi.fn(async () => ({
         dbtSourceUuid: 'primary-source-uuid',
         dbtSourceName: 'dbt_project',
@@ -387,7 +412,6 @@ const projectModel = {
     getExploreFromCache: vi.fn(async () => validExplore),
     getQueryTimezone: vi.fn(async (): Promise<string | null> => null),
     getProjectWarehouseConfig: vi.fn(async () => ({
-        organizationWarehouseCredentialsUuid: null,
         queryTimezone: null,
     })),
     findExploresFromCache: vi.fn(async () => allExplores),
@@ -448,6 +472,11 @@ const projectModel = {
     ),
     lockProcess: vi.fn((projectUuid, fun) => fun()),
     ...singleRouteProjectModelMethods,
+    getOwnWarehouseCredentialsForProject: vi.fn(
+        async (): Promise<CreateWarehouseCredentials> =>
+            projectModel.getWarehouseCredentialsForProject.mock.results.at(-1)
+                ?.value,
+    ),
     getWarehouseCredentialsForProject: vi.fn(
         async () => warehouseClientMock.credentials,
     ),
@@ -457,11 +486,21 @@ const projectModel = {
     })),
     findExploreByTableName: vi.fn(async () => validExplore),
     getAllExploresFromCache: vi.fn(async () => ({})),
+    getPreAggregateRefreshSummary:
+        vi.fn<ProjectModel['getPreAggregateRefreshSummary']>(),
     getTableGroups: vi.fn(async () => ({})),
     getCachedExploreNames: vi.fn(async () => []),
     getWarehouseFromCache: vi.fn(async () => undefined),
     saveWarehouseToCache: vi.fn(async () => undefined),
     saveExploresToCache: vi.fn(async () => ({ cachedExploreUuids: [] })),
+    saveMultiConnectionExplores: vi.fn<
+        ProjectModel['saveMultiConnectionExplores']
+    >(async (_projectUuid, stream, _carry, _beforeWrite, naming) => {
+        const explores: (Explore | ExploreError)[] = [];
+        for await (const { explore } of stream) explores.push(explore);
+        naming?.onPublished?.(explores);
+        return { cachedExploreUuids: [] };
+    }),
     saveExploreStreamToCache: vi.fn<ProjectModel['saveExploreStreamToCache']>(
         async (_projectUuid, explores) => {
             for await (const explore of explores) {
@@ -484,9 +523,29 @@ const projectModel = {
     delete: vi.fn(async () => undefined),
     deleteContentInBatches: vi.fn(async () => undefined),
     getResultsCacheSettings: vi.fn<ProjectModel['getResultsCacheSettings']>(
-        async () => ({ cacheTtlSeconds: null }),
+        async () => ({
+            cacheTtlSeconds: null,
+            cacheGeneration: 0,
+            lastInvalidatedAt: null,
+            clearCron: null,
+            clearNextRunAt: null,
+            schedulerTimezone: 'UTC',
+        }),
+    ),
+    updateResultsCacheClearSchedule: vi.fn(async () => undefined),
+    getDueResultsCacheClears: vi.fn<ProjectModel['getDueResultsCacheClears']>(
+        async () => [],
+    ),
+    claimDueResultsCacheClear: vi.fn<ProjectModel['claimDueResultsCacheClear']>(
+        async () => true,
     ),
     updateResultsCacheSettings: vi.fn(async () => undefined),
+    invalidateResultsCache: vi.fn<ProjectModel['invalidateResultsCache']>(
+        async () => ({
+            cacheGeneration: 1,
+            invalidatedAt: new Date('2026-10-29T12:00:00Z'),
+        }),
+    ),
     getEffectiveResultsCacheTtlSeconds: vi.fn(async () => 86400),
     deleteMergedManifest: vi.fn<ProjectModel['deleteMergedManifest']>(
         async () => undefined,
@@ -496,18 +555,39 @@ const projectModel = {
     ),
     getMergedManifest: vi.fn(async () => Buffer.from('merged-manifest')),
 };
-const organizationWarehouseCredentialsModel = {
-    getByUuidWithSensitiveData:
-        vi.fn<
-            OrganizationWarehouseCredentialsModel['getByUuidWithSensitiveData']
-        >(),
-};
 const preAggregateModel = {
-    upsertPreAggregateDefinitions: vi.fn(),
+    upsertPreAggregateDefinitions: vi.fn(async () => ({
+        changedDefinitionUuids: [] as string[],
+        supersededDefinitionUuids: [] as string[],
+    })),
     getPreAggregateDefinitionsForProject: vi.fn(async () => []),
     getPreAggregateDefinitionByDefinitionName: vi.fn(async () => undefined),
     getActiveMaterialization: vi.fn(async () => undefined),
+    getDefinitionUuidsEverMaterialized: vi.fn(async () => new Set<string>()),
 };
+projectModel.getPreAggregateRefreshSummary.mockImplementation(async () => {
+    const definitions =
+        (await preAggregateModel.getPreAggregateDefinitionsForProject()) as {
+            refreshCron: string | null;
+        }[];
+    const explores = (await projectModel.getAllExploresFromCache()) as Record<
+        string,
+        Explore | ExploreError
+    >;
+    return {
+        hasScheduledDefinition: definitions.some(
+            (definition) => definition.refreshCron !== null,
+        ),
+        hasScheduledRefresh: Object.values(explores).some(
+            (explore) =>
+                'preAggregates' in explore &&
+                !!explore.preAggregates?.some(
+                    (definition) => definition.refresh?.cron != null,
+                ),
+        ),
+        hasMalformedPreAggregates: false,
+    };
+});
 const onboardingModel = {
     getByOrganizationUuid: vi.fn(async () => ({
         ranQueryAt: new Date(),
@@ -562,6 +642,7 @@ const dashboardModel = {
     ),
 };
 const jobModel = {
+    appendJobStepWarning: vi.fn(async () => undefined),
     get: vi.fn(async () => job),
     findActiveCreateProjectJob: vi.fn<JobModel['findActiveCreateProjectJob']>(),
     findStaleCreateProjectJobUuids: vi.fn<
@@ -577,6 +658,7 @@ const jobModel = {
     update: vi.fn(async () => undefined),
     updateJobStep: vi.fn(async () => undefined),
     setPendingJobsToSkipped: vi.fn(async () => undefined),
+    failRunningJob: vi.fn(async () => undefined),
     tryJobStep: vi.fn(
         async <T>(
             _jobUuid: string,
@@ -607,6 +689,7 @@ const emailModel = {
 };
 
 const schedulerClient = {
+    scheduleInitialUsageProcessing: vi.fn(async () => undefined),
     copyPreviewContent: vi.fn(),
     compileProject: vi.fn(),
     testAndCompileProject: vi.fn(async () => undefined),
@@ -630,6 +713,7 @@ const catalogModel = {
     getCatalogItemsWithIcons: vi.fn(async () => []),
     getAllMetricsTreeEdges: vi.fn(async () => []),
     getAllMetricsTreeNodes: vi.fn(async () => []),
+    getUpstreamDiff: vi.fn(async () => []),
 };
 
 const tagsModel = {
@@ -666,16 +750,20 @@ const getMockedProjectService = (
             | 'downloadFileModel'
             | 'getAiAgentService'
             | 'getAppGenerateService'
-            | 'organizationWarehouseCredentialsModel'
             | 'getDataAppCustomSqlProvenance'
             | 'featureFlagModel'
+            | 'dbtSourceRefCatalogModel'
             | 'projectDbtSourcesModel'
             | 'githubAppInstallationsModel'
         >
     > = {},
 ) =>
     new ProjectService({
-        refreshTokenRotation: { run: vi.fn() },
+        dbtSourceRefCatalogModel:
+            overrides.dbtSourceRefCatalogModel ?? ({} as never),
+        refreshTokenRotation: new RefreshTokenRotation({
+            database: createDatabase().database,
+        }),
         lightdashConfig,
         analytics: analyticsMock,
         projectModel:
@@ -684,6 +772,8 @@ const getMockedProjectService = (
             overrides.projectDbtSourcesModel ??
             ({
                 copySources: vi.fn(async () => undefined),
+                getSources: vi.fn(async () => []),
+                hasSources: vi.fn(async () => false),
             } as unknown as ProjectDbtSourcesModel),
         preAggregateModel: preAggregateModel as unknown as PreAggregateModel,
         onboardingModel: onboardingModel as unknown as OnboardingModel,
@@ -702,6 +792,18 @@ const getMockedProjectService = (
         analyticsModel: {} as AnalyticsModel,
         dashboardModel: dashboardModel as unknown as DashboardModel,
         userWarehouseCredentialsModel: {
+            getByUuidWithSecrets: vi.fn(
+                async function readUserCredentialsByUuid(this: {
+                    findForProjectWithSecrets: ReturnType<
+                        typeof vi.fn<
+                            UserWarehouseCredentialsModel['findForProjectWithSecrets']
+                        >
+                    >;
+                }) {
+                    return this.findForProjectWithSecrets.mock.results.at(-1)
+                        ?.value;
+                },
+            ),
             findForProjectWithSecrets: vi.fn(async () => undefined),
         } as unknown as UserWarehouseCredentialsModel,
         warehouseAvailableTablesModel: {} as WarehouseAvailableTablesModel,
@@ -755,9 +857,6 @@ const getMockedProjectService = (
             find: vi.fn(async () => []),
             replace: vi.fn(async () => undefined),
         } as unknown as ProjectParametersModel,
-        organizationWarehouseCredentialsModel:
-            overrides.organizationWarehouseCredentialsModel ??
-            (organizationWarehouseCredentialsModel as unknown as OrganizationWarehouseCredentialsModel),
         organizationModel: {} as unknown as OrganizationModel,
         githubAppInstallationsModel: overrides.githubAppInstallationsModel,
         projectCompileLogModel:
@@ -1153,12 +1252,11 @@ describe('ProjectService', () => {
 
     describe('Document counts in legacy Space listing', () => {
         it.each([
-            { enabled: false, canViewDocument: true, expectedCount: 0 },
-            { enabled: true, canViewDocument: false, expectedCount: 0 },
-            { enabled: true, canViewDocument: true, expectedCount: 2 },
+            { canViewDocument: false, expectedCount: 0 },
+            { canViewDocument: true, expectedCount: 2 },
         ])(
-            'flag=$enabled Document permission=$canViewDocument returns $expectedCount',
-            async ({ enabled, canViewDocument, expectedCount }) => {
+            'Document permission=$canViewDocument returns $expectedCount',
+            async ({ canViewDocument, expectedCount }) => {
                 const countUser = {
                     ...user,
                     ability: defineUserAbility(
@@ -1193,7 +1291,7 @@ describe('ProjectService', () => {
                     lightdashConfigWithGoogleOAuthMock,
                     {
                         featureFlagModel: {
-                            get: vi.fn().mockResolvedValue({ enabled }),
+                            get: vi.fn().mockResolvedValue({ enabled: true }),
                         } as unknown as FeatureFlagModel,
                         spacePermissionService: {
                             resolveAccessBatch: vi.fn().mockResolvedValue([
@@ -1222,19 +1320,15 @@ describe('ProjectService', () => {
                     projectUuid,
                 );
                 expect(result[0].documentCount).toBe(expectedCount);
-                if (!enabled) {
-                    expect(getDocumentCounts).not.toHaveBeenCalled();
-                } else {
-                    expect(getDocumentCounts).toHaveBeenCalledWith(
-                        canViewDocument ? [listedSpace.uuid] : [],
-                    );
-                }
+                expect(getDocumentCounts).toHaveBeenCalledWith(
+                    canViewDocument ? [listedSpace.uuid] : [],
+                );
                 getDocumentCounts.mockReset();
             },
         );
     });
 
-    describe('Learn flag guards', () => {
+    describe('Learn guards', () => {
         const learnUser: SessionUser = {
             ...user,
             organizationUuid: 'organization-uuid',
@@ -1242,7 +1336,7 @@ describe('ProjectService', () => {
             organizationCreatedAt: new Date('2026-09-01'),
         };
 
-        test('provisions training for an org admin when Learn is enabled', async () => {
+        test('provisions training for an org admin with no feature flag set', async () => {
             const provisionTrainingProject = vi.fn(async () => ({
                 projectUuid: 'training-project',
                 created: true,
@@ -1250,12 +1344,6 @@ describe('ProjectService', () => {
             const learnService = getMockedProjectService(
                 lightdashConfigWithGoogleOAuthMock,
                 {
-                    featureFlagModel: {
-                        get: vi.fn(async () => ({
-                            id: FeatureFlags.EnableLearn,
-                            enabled: true,
-                        })),
-                    } as unknown as FeatureFlagModel,
                     provisionTrainingProject,
                 },
             );
@@ -1276,49 +1364,41 @@ describe('ProjectService', () => {
             });
         });
         test.each(['enable', 'copy', 'delete'] as const)(
-            'blocks %s when the requesting org has Learn disabled',
+            'blocks %s when the user cannot view Learn',
             async (operation) => {
-                const get = vi.fn(async () => ({
-                    id: FeatureFlags.EnableLearn,
-                    enabled: false,
-                }));
                 const provisionTrainingProject = vi.fn();
                 const learnService = getMockedProjectService(
                     lightdashConfigWithGoogleOAuthMock,
-                    {
-                        featureFlagModel: {
-                            get,
-                        } as unknown as FeatureFlagModel,
-                        provisionTrainingProject,
-                    },
+                    { provisionTrainingProject },
                 );
+                const noLearnUser = {
+                    ...learnUser,
+                    ability: new Ability<PossibleAbilities>([
+                        { action: 'manage', subject: 'Organization' },
+                    ]),
+                };
                 const operations = {
-                    enable: () => learnService.enableLearn(learnUser),
+                    enable: () => learnService.enableLearn(noLearnUser),
                     copy: () =>
                         learnService.createTrainingPreview(
-                            learnUser,
+                            noLearnUser,
                             'training-project',
                         ),
                     delete: () =>
                         learnService.deleteTrainingPreviews(
-                            learnUser,
+                            noLearnUser,
                             'training-project',
                         ),
                 };
                 await expect(operations[operation]()).rejects.toThrow(
-                    'Learn is not enabled for this organization',
+                    new ForbiddenError('You do not have access to Learn'),
                 );
-                expect(get).toHaveBeenCalledExactlyOnceWith({
-                    user: learnUser,
-                    featureFlagId: FeatureFlags.EnableLearn,
-                });
                 expect(provisionTrainingProject).not.toHaveBeenCalled();
             },
         );
 
         describe('sample documents in a new training copy', () => {
-            const withDocumentsFlag = (
-                enabled: boolean,
+            const createLearnService = (
                 seedTrainingCopyEnterpriseContent?: NonNullable<
                     Parameters<typeof getMockedProjectService>[1]
                 >['seedTrainingCopyEnterpriseContent'],
@@ -1328,10 +1408,7 @@ describe('ProjectService', () => {
                     featureFlagModel: {
                         get: vi.fn(async ({ featureFlagId }) => ({
                             id: featureFlagId,
-                            enabled:
-                                featureFlagId === FeatureFlags.Documents
-                                    ? enabled
-                                    : true,
+                            enabled: true,
                         })),
                     } as unknown as FeatureFlagModel,
                 });
@@ -1356,7 +1433,7 @@ describe('ProjectService', () => {
                 spaceModel.find.mockResolvedValueOnce([
                     { uuid: 'training-space' },
                 ] as never);
-                await seed(withDocumentsFlag(true));
+                await seed(createLearnService());
                 expect(spaceModel.find).toHaveBeenCalledWith({
                     projectUuid: 'copy',
                     path: TRAINING_SPACE.path,
@@ -1371,15 +1448,9 @@ describe('ProjectService', () => {
                 );
             });
 
-            test('adds nothing while documents are off', async () => {
-                await seed(withDocumentsFlag(false));
-                expect(spaceModel.find).not.toHaveBeenCalled();
-                expect(documentModel.create).not.toHaveBeenCalled();
-            });
-
             test('adds nothing when the copy has no seeded space', async () => {
                 spaceModel.find.mockResolvedValueOnce([]);
-                await seed(withDocumentsFlag(true));
+                await seed(createLearnService());
                 expect(documentModel.create).not.toHaveBeenCalled();
             });
 
@@ -1403,7 +1474,7 @@ describe('ProjectService', () => {
                     spaceModel.find.mockResolvedValueOnce([
                         { uuid: 'training-space' },
                     ] as never);
-                    await seedAll(withDocumentsFlag(true, enterprise));
+                    await seedAll(createLearnService(enterprise));
                     expect(documentModel.create).toHaveBeenCalledTimes(1);
                     expect(enterprise).toHaveBeenCalledExactlyOnceWith({
                         organizationUuid: 'organization-uuid',
@@ -1418,7 +1489,7 @@ describe('ProjectService', () => {
                     const failure = new Error('no documents table');
                     spaceModel.find.mockRejectedValueOnce(failure);
                     await expect(
-                        seedAll(withDocumentsFlag(true, enterprise)),
+                        seedAll(createLearnService(enterprise)),
                     ).resolves.toBeUndefined();
                     expect(enterprise).toHaveBeenCalledTimes(1);
                     expect(reported).toHaveBeenCalledExactlyOnceWith(failure);
@@ -1430,14 +1501,14 @@ describe('ProjectService', () => {
                         throw failure;
                     });
                     await expect(
-                        seedAll(withDocumentsFlag(false, enterprise)),
+                        seedAll(createLearnService(enterprise)),
                     ).resolves.toBeUndefined();
                     expect(reported).toHaveBeenCalledExactlyOnceWith(failure);
                 });
 
                 test('does nothing more on an instance without the Enterprise seed', async () => {
                     await expect(
-                        seedAll(withDocumentsFlag(false)),
+                        seedAll(createLearnService()),
                     ).resolves.toBeUndefined();
                     expect(reported).not.toHaveBeenCalled();
                 });
@@ -1466,17 +1537,11 @@ describe('ProjectService', () => {
             );
         });
 
-        test('still requires org admin permissions when Learn is enabled', async () => {
+        test('still requires org admin permissions', async () => {
             const provisionTrainingProject = vi.fn();
             const learnService = getMockedProjectService(
                 lightdashConfigWithGoogleOAuthMock,
                 {
-                    featureFlagModel: {
-                        get: vi.fn(async () => ({
-                            id: FeatureFlags.EnableLearn,
-                            enabled: true,
-                        })),
-                    } as unknown as FeatureFlagModel,
                     provisionTrainingProject,
                 },
             );
@@ -1558,6 +1623,9 @@ describe('ProjectService', () => {
                 created: false,
             });
             expect(
+                schedulerClient.scheduleInitialUsageProcessing,
+            ).not.toHaveBeenCalled();
+            expect(
                 projectModel.runInAnalyticsProvisioningLock,
             ).toHaveBeenCalledWith('analytics-org', expect.any(Function));
             expect(projectModel.saveExploresToCache).toHaveBeenCalledWith(
@@ -1585,6 +1653,18 @@ describe('ProjectService', () => {
                 >);
             const result = await service.ensureAnalyticsProject(admin);
             expect(result.created).toBe(true);
+            expect(
+                schedulerClient.scheduleInitialUsageProcessing,
+            ).toHaveBeenCalledWith({
+                organizationUuid: admin.organizationUuid,
+                projectUuid: 'new',
+                userUuid: admin.userUuid,
+            });
+            expect(analyticsClient.createAnalyticsClient).toHaveBeenCalledWith(
+                admin.organizationUuid,
+                expect.anything(),
+                { allowEmpty: true },
+            );
             expect(create).toHaveBeenCalledWith(
                 admin,
                 expect.objectContaining({
@@ -1596,6 +1676,27 @@ describe('ProjectService', () => {
                 }),
                 RequestMethod.BACKEND,
                 { source: 'analytics' },
+            );
+        });
+
+        test('preserves a newly created project when initial processing cannot be queued', async () => {
+            projectModel.getAllByOrganizationUuid.mockResolvedValueOnce([]);
+            vi.spyOn(service, 'createWithoutCompile').mockResolvedValueOnce({
+                project: { projectUuid: 'new' },
+            } as Awaited<ReturnType<ProjectService['createWithoutCompile']>>);
+            schedulerClient.scheduleInitialUsageProcessing.mockRejectedValueOnce(
+                new Error('queue unavailable'),
+            );
+            await expect(
+                service.ensureAnalyticsProject(admin),
+            ).resolves.toMatchObject({
+                projectUuid: 'new',
+                created: true,
+            });
+            expect(projectModel.saveExploresToCache).toHaveBeenCalledWith(
+                'new',
+                expect.any(Array),
+                true,
             );
         });
 
@@ -1611,6 +1712,157 @@ describe('ProjectService', () => {
             ).not.toHaveBeenCalled();
         });
 
+        test.each(['organization', 'project'] as const)(
+            'allows explicit %s analytics readers but not administration',
+            async (level) => {
+                const reader = {
+                    ...admin,
+                    ability: new Ability<PossibleAbilities>([
+                        {
+                            subject: 'SystemAnalytics',
+                            action: 'view',
+                            conditions:
+                                level === 'organization'
+                                    ? { organizationUuid: 'analytics-org' }
+                                    : { projectUuid: 'analytics-project' },
+                        },
+                    ]),
+                };
+                await expect(
+                    service.assertAnalyticsProjectAccess(reader, {
+                        organizationUuid: 'analytics-org',
+                        projectUuid: 'analytics-project',
+                        provisioningSource: 'analytics',
+                    }),
+                ).resolves.toBeUndefined();
+                await expect(
+                    service.ensureAnalyticsProject(reader),
+                ).rejects.toThrow(/administration/);
+                await expect(
+                    service.assertAnalyticsProjectAdministration(reader),
+                ).rejects.toThrow(/administration/);
+                await expect(
+                    service.assertAnalyticsProjectAccess(
+                        {
+                            ...reader,
+                            ability: new Ability<PossibleAbilities>([]),
+                        },
+                        {
+                            organizationUuid: 'analytics-org',
+                            projectUuid: 'analytics-project',
+                            provisioningSource: 'analytics',
+                        },
+                    ),
+                ).rejects.toThrow(/View managed analytics/);
+                expect(
+                    projectModel.runInAnalyticsProvisioningLock,
+                ).not.toHaveBeenCalled();
+            },
+        );
+
+        test.each([
+            {
+                subject: 'SystemAnalytics',
+                action: 'view',
+                conditions: { projectUuid: 'other-project' },
+            },
+            {
+                subject: 'Analytics',
+                action: 'view',
+                conditions: { organizationUuid: 'analytics-org' },
+            },
+        ] as const)(
+            'rejects an unrelated analytics grant: %j',
+            async (rule) => {
+                await expect(
+                    service.assertAnalyticsProjectAccess(
+                        {
+                            ...admin,
+                            ability: new Ability<PossibleAbilities>([rule]),
+                        },
+                        {
+                            projectUuid: 'analytics-project',
+                            organizationUuid: 'analytics-org',
+                            provisioningSource: 'analytics',
+                        },
+                    ),
+                ).rejects.toThrow(/View managed analytics/);
+            },
+        );
+
+        test.each([false, true])(
+            'resolves analytics credentials using the current principal grant (service account: %s)',
+            async (isServiceAccount) => {
+                const credentials = {
+                    type: WarehouseTypes.DUCKDB as const,
+                    connectionType: DuckdbConnectionType.ANALYTICS as const,
+                    database: 'memory' as const,
+                    schema: 'main' as const,
+                };
+                projectModel.getWarehouseCredentialsForProject
+                    .mockResolvedValueOnce(credentials)
+                    .mockResolvedValueOnce(credentials)
+                    .mockResolvedValueOnce(credentials);
+                const analyticsSummary = {
+                    ...projectSummary,
+                    projectUuid: 'analytics-project',
+                    organizationUuid: 'analytics-org',
+                    provisioningSource: 'analytics',
+                };
+                projectModel.getSummary
+                    .mockResolvedValueOnce(analyticsSummary)
+                    .mockResolvedValueOnce(analyticsSummary);
+                const reload = vi.fn().mockResolvedValue({
+                    ...admin,
+                    userUuid: 'reader',
+                    ability: new Ability<PossibleAbilities>([
+                        {
+                            subject: 'SystemAnalytics',
+                            action: 'view',
+                            conditions: { projectUuid: 'analytics-project' },
+                        },
+                    ]),
+                });
+                const credentialService = getMockedProjectService(
+                    lightdashConfigWithGoogleOAuthMock,
+                );
+                Object.assign(credentialService.userModel, {
+                    findSessionUserAndOrgByUuid: reload,
+                });
+                const load = (isRegisteredUser: boolean) =>
+                    (
+                        credentialService as unknown as {
+                            loadSingleRouteCredentialBase: (args: {
+                                projectUuid: string;
+                                userId: string;
+                                isRegisteredUser: boolean;
+                                isServiceAccount: boolean;
+                            }) => Promise<unknown>;
+                        }
+                    ).loadSingleRouteCredentialBase({
+                        projectUuid: 'analytics-project',
+                        userId: 'reader',
+                        isRegisteredUser,
+                        isServiceAccount,
+                    });
+                await expect(load(true)).resolves.toMatchObject({
+                    credentials,
+                    organizationUuid: 'analytics-org',
+                });
+                expect(reload).toHaveBeenCalledWith('reader', 'analytics-org');
+                reload.mockResolvedValue({
+                    ...admin,
+                    ability: new Ability<PossibleAbilities>([]),
+                });
+                await expect(load(true)).rejects.toThrow(
+                    /View managed analytics/,
+                );
+                await expect(load(false)).rejects.toThrow(
+                    /authenticated organization member/,
+                );
+            },
+        );
+
         test('rejects another organization even with an unrestricted ability', async () => {
             await expect(
                 service.assertAnalyticsProjectAccess(
@@ -1621,6 +1873,7 @@ describe('ProjectService', () => {
                         ]),
                     },
                     {
+                        projectUuid: 'analytics-project',
                         provisioningSource: 'analytics',
                         organizationUuid: 'other-org',
                     },
@@ -1669,6 +1922,7 @@ describe('ProjectService', () => {
                 await expect(
                     service.assertAnalyticsProjectAccess(admin, {
                         organizationUuid: 'analytics-org',
+                        projectUuid: 'analytics-project',
                         provisioningSource: 'analytics',
                     }),
                 ).rejects.toThrow(/not enabled/);
@@ -1726,6 +1980,7 @@ describe('ProjectService', () => {
             expect(analyticsClient.createAnalyticsClient).toHaveBeenCalledWith(
                 admin.organizationUuid,
                 flags,
+                { allowEmpty: true },
             );
         });
 
@@ -1733,6 +1988,7 @@ describe('ProjectService', () => {
             await expect(
                 service.assertAnalyticsProjectAccess(admin, {
                     organizationUuid: 'analytics-org',
+                    projectUuid: 'analytics-project',
                     provisioningSource: null,
                 }),
             ).resolves.toBeUndefined();
@@ -2047,6 +2303,151 @@ describe('ProjectService', () => {
         });
     });
 
+    describe('results cache clear schedule', () => {
+        const cachingService = getMockedProjectService({
+            ...lightdashConfigWithGoogleOAuthMock,
+            results: {
+                ...lightdashConfigWithGoogleOAuthMock.results,
+                cacheEnabled: true,
+            },
+        });
+        const projectAdmin: SessionUser = {
+            ...user,
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'Project', action: ['manage'] },
+            ]),
+        };
+        const now = new Date('2026-01-15T07:00:02Z');
+        const dueClear = {
+            projectUuid,
+            organizationUuid: user.organizationUuid!,
+            cron: '0 7 * * *',
+            schedulerTimezone: 'UTC',
+            nextRunAt: new Date('2026-01-15T07:00:00Z'),
+        };
+
+        beforeEach(() => {
+            projectModel.updateResultsCacheClearSchedule.mockClear();
+            projectModel.getDueResultsCacheClears.mockReset();
+            projectModel.claimDueResultsCacheClear.mockReset();
+            projectModel.claimDueResultsCacheClear.mockResolvedValue(true);
+        });
+
+        test('rejects users who cannot manage the project', async () => {
+            await expect(
+                cachingService.updateProjectResultsCacheClearSchedule(
+                    user,
+                    projectUuid,
+                    { enabled: true, cron: '0 6 * * *' },
+                ),
+            ).rejects.toThrow(ForbiddenError);
+        });
+
+        test('rejects an unsupported cron', async () => {
+            await expect(
+                cachingService.updateProjectResultsCacheClearSchedule(
+                    projectAdmin,
+                    projectUuid,
+                    { enabled: true, cron: '30 6 * * *' },
+                ),
+            ).rejects.toThrow(ParameterError);
+            expect(
+                projectModel.updateResultsCacheClearSchedule,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('rejects an hourly cron', async () => {
+            await expect(
+                cachingService.updateProjectResultsCacheClearSchedule(
+                    projectAdmin,
+                    projectUuid,
+                    { enabled: true, cron: '0 * * * *' },
+                ),
+            ).rejects.toThrow(ParameterError);
+        });
+
+        test('saves a schedule with several hours a day', async () => {
+            await cachingService.updateProjectResultsCacheClearSchedule(
+                projectAdmin,
+                projectUuid,
+                { enabled: true, cron: '0 6,14,22 * * *' },
+            );
+            expect(
+                projectModel.updateResultsCacheClearSchedule,
+            ).toHaveBeenCalledWith(projectUuid, {
+                cron: '0 6,14,22 * * *',
+                nextRunAt: expect.any(Date),
+            });
+        });
+
+        test('rejects while results caching is disabled', async () => {
+            await expect(
+                service.updateProjectResultsCacheClearSchedule(
+                    projectAdmin,
+                    projectUuid,
+                    { enabled: true, cron: '0 6 * * *' },
+                ),
+            ).rejects.toThrow(ForbiddenError);
+        });
+
+        test('keeps the cron but clears the next run when disabled', async () => {
+            await cachingService.updateProjectResultsCacheClearSchedule(
+                projectAdmin,
+                projectUuid,
+                { enabled: false, cron: '0 6 * * *' },
+            );
+            expect(
+                projectModel.updateResultsCacheClearSchedule,
+            ).toHaveBeenCalledWith(projectUuid, {
+                cron: '0 6 * * *',
+                nextRunAt: null,
+            });
+        });
+
+        test('clears due projects and advances the next run', async () => {
+            projectModel.getDueResultsCacheClears.mockResolvedValue([dueClear]);
+            await cachingService.clearDueResultsCaches(now);
+            expect(projectModel.claimDueResultsCacheClear).toHaveBeenCalledWith(
+                projectUuid,
+                {
+                    expectedNextRunAt: dueClear.nextRunAt,
+                    nextRunAt: new Date('2026-01-16T07:00:00Z'),
+                    clear: true,
+                },
+            );
+        });
+
+        test('advances without clearing while the flag is off', async () => {
+            projectModel.getDueResultsCacheClears.mockResolvedValue([dueClear]);
+            await service.clearDueResultsCaches(now);
+            expect(projectModel.claimDueResultsCacheClear).toHaveBeenCalledWith(
+                projectUuid,
+                expect.objectContaining({ clear: false }),
+            );
+        });
+
+        test('one failing project does not stop the others', async () => {
+            projectModel.getDueResultsCacheClears.mockResolvedValue([
+                { ...dueClear, projectUuid: 'failing-project' },
+                dueClear,
+            ]);
+            projectModel.claimDueResultsCacheClear.mockImplementation(
+                async (uuid) => {
+                    if (uuid === 'failing-project') {
+                        throw new Error('boom');
+                    }
+                    return true;
+                },
+            );
+            await expect(
+                cachingService.clearDueResultsCaches(now),
+            ).resolves.toBeUndefined();
+            expect(
+                projectModel.claimDueResultsCacheClear,
+            ).toHaveBeenCalledTimes(2);
+        });
+    });
+
     describe('updateProjectResultsCacheSettings', () => {
         const cachingService = getMockedProjectService({
             ...lightdashConfigWithGoogleOAuthMock,
@@ -2117,6 +2518,14 @@ describe('ProjectService', () => {
         });
 
         test('persists a TTL within bounds', async () => {
+            projectModel.getResultsCacheSettings.mockResolvedValueOnce({
+                cacheTtlSeconds: 1800,
+                cacheGeneration: 0,
+                lastInvalidatedAt: null,
+                clearCron: null,
+                clearNextRunAt: null,
+                schedulerTimezone: 'UTC',
+            });
             const result =
                 await cachingService.updateProjectResultsCacheSettings(
                     user,
@@ -2133,6 +2542,9 @@ describe('ProjectService', () => {
                 instanceDefaultTtlSeconds:
                     lightdashConfigWithGoogleOAuthMock.results
                         .cacheStateTimeSeconds,
+                lastInvalidatedAt: null,
+                clearSchedule: null,
+                schedulerTimezone: 'UTC',
             });
         });
 
@@ -2153,6 +2565,61 @@ describe('ProjectService', () => {
                 instanceDefaultTtlSeconds:
                     lightdashConfigWithGoogleOAuthMock.results
                         .cacheStateTimeSeconds,
+                lastInvalidatedAt: null,
+                clearSchedule: null,
+                schedulerTimezone: 'UTC',
+            });
+        });
+    });
+
+    describe('invalidateProjectResultsCache', () => {
+        const cachingService = getMockedProjectService({
+            ...lightdashConfigWithGoogleOAuthMock,
+            results: {
+                ...lightdashConfigWithGoogleOAuthMock.results,
+                cacheEnabled: true,
+            },
+        });
+        const projectAdmin: SessionUser = {
+            ...user,
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'Project', action: ['manage'] },
+            ]),
+        };
+
+        beforeEach(() => {
+            projectModel.invalidateResultsCache.mockClear();
+        });
+
+        test('rejects users who cannot manage the project', async () => {
+            await expect(
+                cachingService.invalidateProjectResultsCache(user, projectUuid),
+            ).rejects.toThrow(ForbiddenError);
+            expect(projectModel.invalidateResultsCache).not.toHaveBeenCalled();
+        });
+
+        test('rejects invalidation while results caching is disabled', async () => {
+            await expect(
+                service.invalidateProjectResultsCache(
+                    projectAdmin,
+                    projectUuid,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(projectModel.invalidateResultsCache).not.toHaveBeenCalled();
+        });
+
+        test('starts a new cache generation for the project', async () => {
+            const result = await cachingService.invalidateProjectResultsCache(
+                projectAdmin,
+                projectUuid,
+            );
+
+            expect(projectModel.invalidateResultsCache).toHaveBeenCalledWith(
+                projectUuid,
+            );
+            expect(result).toEqual({
+                projectUuid,
+                invalidatedAt: new Date('2026-10-29T12:00:00Z'),
             });
         });
     });
@@ -2217,6 +2684,151 @@ describe('ProjectService', () => {
                 'No merged dbt manifest has been persisted for this project',
             );
         });
+    });
+
+    describe('upstream project link', () => {
+        const preview: ProjectSummary = {
+            ...projectSummary,
+            projectUuid: 'preview-uuid',
+            type: ProjectType.PREVIEW,
+            upstreamProjectUuid: 'upstream-uuid',
+        };
+        const upstream: ProjectSummary = {
+            ...projectSummary,
+            projectUuid: 'upstream-uuid',
+        };
+        const hidden: ProjectSummary = {
+            ...projectSummary,
+            projectUuid: 'hidden-uuid',
+        };
+        const otherOrganization: ProjectSummary = {
+            ...projectSummary,
+            organizationUuid: 'other-organization-uuid',
+            projectUuid: 'other-organization-project-uuid',
+        };
+        const training: ProjectSummary = {
+            ...projectSummary,
+            projectUuid: 'training-uuid',
+            type: ProjectType.TRAINING,
+        };
+        const summaries = [
+            preview,
+            upstream,
+            hidden,
+            otherOrganization,
+            training,
+        ];
+        // Manages the preview and views every project except the hidden one.
+        // The other-organization grant has no org condition, so rejecting it
+        // proves the explicit same-organization check.
+        const ability = new Ability<PossibleAbilities>([
+            {
+                subject: 'Project',
+                action: ['manage', 'view'],
+                conditions: { projectUuid: preview.projectUuid },
+            },
+            {
+                subject: 'Project',
+                action: 'view',
+                conditions: {
+                    projectUuid: {
+                        $in: [
+                            upstream.projectUuid,
+                            training.projectUuid,
+                            otherOrganization.projectUuid,
+                        ],
+                    },
+                },
+            },
+        ]);
+        const sessionUser: SessionUser = { ...user, ability };
+        const registeredAccount = {
+            ...account,
+            user: { ...account.user, ability },
+        } as RegisteredAccount;
+
+        beforeEach(() => {
+            projectModel.getSummary.mockImplementation(async (uuid: string) => {
+                const summary = summaries.find((s) => s.projectUuid === uuid);
+                if (!summary) throw new NotFoundError('Project not found');
+                return summary;
+            });
+        });
+
+        afterEach(() => {
+            projectModel.getSummary.mockImplementation(
+                async () => projectSummary,
+            );
+        });
+
+        test.each([
+            ['an unviewable project', hidden.projectUuid, ForbiddenError],
+            [
+                'a project in another organization',
+                otherOrganization.projectUuid,
+                ForbiddenError,
+            ],
+            ['the training project', training.projectUuid, ForbiddenError],
+            ['the project itself', preview.projectUuid, ParameterError],
+            ['a missing project', 'missing-uuid', NotFoundError],
+        ])(
+            'rejects linking to %s',
+            async (_label, upstreamProjectUuid, error) => {
+                await expect(
+                    service.updateMetadata(sessionUser, preview.projectUuid, {
+                        upstreamProjectUuid,
+                    }),
+                ).rejects.toThrow(error);
+                expect(projectModel.updateMetadata).not.toHaveBeenCalled();
+            },
+        );
+
+        test.each([upstream.projectUuid, null])(
+            'saves an upstream of %s',
+            async (upstreamProjectUuid) => {
+                await service.updateMetadata(sessionUser, preview.projectUuid, {
+                    upstreamProjectUuid,
+                });
+                expect(projectModel.updateMetadata).toHaveBeenCalledWith(
+                    preview.projectUuid,
+                    { upstreamProjectUuid },
+                );
+            },
+        );
+
+        test('diffs a preview against a viewable upstream', async () => {
+            await expect(
+                service.getUpstreamDiff(preview.projectUuid, registeredAccount),
+            ).resolves.toEqual({
+                upstreamProjectUuid: upstream.projectUuid,
+                fields: [],
+            });
+            expect(catalogModel.getUpstreamDiff).toHaveBeenCalledWith(
+                preview.projectUuid,
+                upstream.projectUuid,
+            );
+        });
+
+        test.each([hidden.projectUuid, otherOrganization.projectUuid])(
+            'refuses to diff against a stored upstream of %s',
+            async (upstreamProjectUuid) => {
+                const linked = { ...preview, upstreamProjectUuid };
+                projectModel.getSummary.mockImplementation(
+                    async (uuid: string) =>
+                        uuid === preview.projectUuid
+                            ? linked
+                            : summaries.find((s) => s.projectUuid === uuid)!,
+                );
+
+                await expect(
+                    service.getUpstreamDiff(
+                        preview.projectUuid,
+                        registeredAccount,
+                    ),
+                ).rejects.toThrow(ForbiddenError);
+                expect(catalogModel.getUpstreamDiff).not.toHaveBeenCalled();
+            },
+        );
     });
 
     describe('active create project jobs', () => {
@@ -2430,6 +3042,31 @@ describe('ProjectService', () => {
             });
         });
 
+        test('reaps a job whose worker died mid-run before recovery', async () => {
+            vi.mocked(
+                jobModel.findStaleCreateProjectJobUuids,
+            ).mockResolvedValueOnce(['dead-job', 'queued-job']);
+            vi.mocked(
+                schedulerClient.hasCreateProjectWithCompileJob,
+            ).mockImplementation(async (jobUuid) => jobUuid === 'queued-job');
+            vi.mocked(
+                jobModel.findActiveCreateProjectJob,
+            ).mockResolvedValueOnce(null);
+
+            await service.getActiveCreateProjectJob(projectCreator);
+
+            const [, lockedAfter] = vi.mocked(
+                schedulerClient.hasCreateProjectWithCompileJob,
+            ).mock.calls[0];
+            expect(lockedAfter).toEqual(
+                vi.mocked(jobModel.findStaleCreateProjectJobUuids).mock
+                    .calls[0][0].updatedBefore,
+            );
+            expect(jobModel.markCreateProjectJobsAsError).toHaveBeenCalledWith([
+                'dead-job',
+            ]);
+        });
+
         test("returns null for recovery when only another user's job is active", async () => {
             vi.mocked(
                 jobModel.findActiveCreateProjectJob,
@@ -2444,6 +3081,56 @@ describe('ProjectService', () => {
             });
         });
     });
+    test('keeps primary ref rows when the dbt connection is unchanged', async () => {
+        const deleteForSource = vi.fn();
+        const get = vi.fn(async ({ featureFlagId }) => ({
+            id: featureFlagId,
+            enabled: featureFlagId === FeatureFlags.CrossSourceDbtRefs,
+        }));
+        const warehouseConnection: CreateWarehouseCredentials = {
+            type: WarehouseTypes.POSTGRES,
+            host: 'localhost',
+            port: 5432,
+            user: 'postgres',
+            password: 'postgres',
+            dbname: 'analytics',
+            schema: 'public',
+        };
+        const saved = {
+            ...projectWithSensitiveFields,
+            warehouseConnection,
+            dbtConnection: { type: DbtProjectType.NONE as const },
+        };
+        const configured = getMockedProjectService(
+            lightdashConfigWithGoogleOAuthMock,
+            {
+                projectModel: {
+                    ...projectModel,
+                    getWithSensitiveFields: vi.fn(async () => saved),
+                } as unknown as ProjectModel,
+                dbtSourceRefCatalogModel: { deleteForSource } as never,
+                featureFlagModel: { get } as unknown as FeatureFlagModel,
+            },
+        );
+        await configured.updateAndScheduleAsyncWork(
+            projectUuid,
+            developerAccount,
+            {
+                name: saved.name,
+                dbtVersion: saved.dbtVersion,
+                warehouseConnection,
+                dbtConnection: saved.dbtConnection,
+            },
+            RequestMethod.WEB_APP,
+        );
+        expect(deleteForSource).not.toHaveBeenCalled();
+        expect(get).not.toHaveBeenCalledWith(
+            expect.objectContaining({
+                featureFlagId: FeatureFlags.CrossSourceDbtRefs,
+            }),
+        );
+    });
+
     describe('GitHub App connections on save', () => {
         const postgresWarehouseConnection: CreateWarehouseCredentials = {
             type: WarehouseTypes.POSTGRES,
@@ -2500,6 +3187,37 @@ describe('ProjectService', () => {
             );
         });
 
+        test('invalidates the primary ref catalogue after the dbt connection changes', async () => {
+            const deleteForSource = vi.fn(async () => undefined);
+            const configured = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+                {
+                    githubAppInstallationsModel: {
+                        findInstallationId: vi.fn(async () => '999'),
+                    } as unknown as GithubAppInstallationsModel,
+                    dbtSourceRefCatalogModel: { deleteForSource } as never,
+                    featureFlagModel: {
+                        get: vi.fn(async ({ featureFlagId }) => ({
+                            id: featureFlagId,
+                            enabled:
+                                featureFlagId ===
+                                FeatureFlags.CrossSourceDbtRefs,
+                        })),
+                    } as unknown as FeatureFlagModel,
+                },
+            );
+            await configured.updateAndScheduleAsyncWork(
+                projectUuid,
+                developerAccount,
+                updateData,
+                RequestMethod.WEB_APP,
+            );
+            expect(deleteForSource).toHaveBeenCalledWith(
+                projectUuid,
+                expect.any(String),
+            );
+        });
+
         test('fills the org installation id into an OAuth connection saved with an empty one', async () => {
             await serviceWithOrgInstallation('999').updateAndScheduleAsyncWork(
                 projectUuid,
@@ -2546,174 +3264,85 @@ describe('ProjectService', () => {
         });
     });
 
-    describe('organization warehouse credential authorization', () => {
-        const organizationWarehouseCredentialsUuid =
-            'organization-warehouse-credentials-uuid';
-        const warehouseConnection: CreateWarehouseCredentials = {
-            type: WarehouseTypes.SNOWFLAKE,
-            account: 'snowflake-account',
-            user: 'snowflake-user',
-            password: 'snowflake-password',
+    describe('removed organization warehouse credentials', () => {
+        const unsupported =
+            'Organization warehouse credentials are no longer supported';
+        const warehouseConnection = {
+            type: WarehouseTypes.SNOWFLAKE as const,
+            account: 'account',
+            user: 'person',
+            password: 'secret',
             database: 'analytics',
-            warehouse: 'transforming',
+            warehouse: 'warehouse',
             schema: 'public',
             authenticationType: SnowflakeAuthenticationType.PASSWORD,
-            organizationWarehouseCredentialsUuid,
         };
-        const createProjectData: CreateProject = {
-            name: 'New project',
-            type: ProjectType.DEFAULT,
-            dbtConnection: { type: DbtProjectType.NONE },
-            dbtVersion: DefaultSupportedDbtVersion,
-            warehouseConnection: {
-                ...warehouseConnection,
-                organizationWarehouseCredentialsUuid: undefined,
-            },
-            organizationWarehouseCredentialsUuid,
-        };
-        const updateProjectData: UpdateProject = {
-            name: projectWithSensitiveFields.name,
-            dbtConnection: projectWithSensitiveFields.dbtConnection,
-            dbtVersion: projectWithSensitiveFields.dbtVersion,
-            warehouseConnection,
-        };
-        const projectCreationUser: SessionUser = {
-            ...user,
-            organizationUuid: projectWithSensitiveFields.organizationUuid,
-            ability: new Ability<PossibleAbilities>([
-                { subject: 'Project', action: 'create' },
-            ]),
-        };
-        const authorizedDeveloperAccount = {
-            ...developerAccount,
-            user: {
-                ...developerAccount.user,
-                role: OrganizationMemberRole.DEVELOPER,
-                ability: defineUserAbility(
-                    {
-                        userUuid: developerAccount.user.id,
-                        role: OrganizationMemberRole.DEVELOPER,
-                        organizationUuid:
-                            projectWithSensitiveFields.organizationUuid,
-                    },
-                    [],
-                ),
-            },
-        } as typeof developerAccount;
-        const organizationWarehouseCredentials = {
-            organizationWarehouseCredentialsUuid,
-            organizationUuid: projectWithSensitiveFields.organizationUuid,
-            name: 'Shared Snowflake',
-            description: null,
-            warehouseType: WarehouseTypes.SNOWFLAKE,
-            createdAt: new Date('2026-08-03T00:00:00.000Z'),
-            createdByUserUuid: account.user.id,
-            credentials: warehouseConnection,
-        };
-
         beforeEach(() => {
-            organizationWarehouseCredentialsModel.getByUuidWithSensitiveData.mockResolvedValue(
-                organizationWarehouseCredentials,
-            );
+            projectModel.update.mockClear();
+            projectModel.createWithOptionalCredentials.mockClear();
+            jobModel.create.mockClear();
+            schedulerClient.createProjectWithCompile.mockClear();
         });
-
-        test('rejects save-without-compile before resolving organization credentials', async () => {
-            await expect(
-                service.updateWarehouseCredentials(
-                    projectUuid,
-                    developerAccount,
-                    { warehouseConnection },
-                ),
-            ).rejects.toThrowError(ForbiddenError);
-            expect(
-                organizationWarehouseCredentialsModel.getByUuidWithSensitiveData,
-            ).not.toHaveBeenCalled();
-            expect(projectModel.update).not.toHaveBeenCalled();
-        });
-
-        test('rejects create-without-compile before resolving organization credentials', async () => {
-            await expect(
-                service.createWithoutCompile(
-                    projectCreationUser,
-                    createProjectData,
-                    RequestMethod.WEB_APP,
-                ),
-            ).rejects.toThrowError(ForbiddenError);
-            expect(
-                organizationWarehouseCredentialsModel.getByUuidWithSensitiveData,
-            ).not.toHaveBeenCalled();
-            expect(
-                projectModel.createWithOptionalCredentials,
-            ).not.toHaveBeenCalled();
-        });
-
-        test('rejects scheduled create before creating a job', async () => {
-            await expect(
-                service.scheduleCreate(
-                    projectCreationUser,
-                    createProjectData,
-                    RequestMethod.WEB_APP,
-                ),
-            ).rejects.toThrowError(ForbiddenError);
-            expect(
-                organizationWarehouseCredentialsModel.getByUuidWithSensitiveData,
-            ).not.toHaveBeenCalled();
-            expect(jobModel.create).not.toHaveBeenCalled();
-            expect(
-                schedulerClient.createProjectWithCompile,
-            ).not.toHaveBeenCalled();
-        });
-
-        test('rejects update-and-compile before resolving organization credentials', async () => {
-            await expect(
-                service.updateAndScheduleAsyncWork(
-                    projectUuid,
-                    developerAccount,
-                    updateProjectData,
-                    RequestMethod.WEB_APP,
-                ),
-            ).rejects.toThrowError(ForbiddenError);
-            expect(
-                organizationWarehouseCredentialsModel.getByUuidWithSensitiveData,
-            ).not.toHaveBeenCalled();
-            expect(jobModel.create).not.toHaveBeenCalled();
-            expect(projectModel.update).not.toHaveBeenCalled();
-        });
-
-        test('allows organization credentials for an organization developer', async () => {
-            await expect(
-                service.updateWarehouseCredentials(
-                    projectUuid,
-                    authorizedDeveloperAccount,
-                    { warehouseConnection },
-                ),
-            ).resolves.toBeUndefined();
-            expect(
-                organizationWarehouseCredentialsModel.getByUuidWithSensitiveData,
-            ).toHaveBeenCalledWith(organizationWarehouseCredentialsUuid);
-            expect(projectModel.update).toHaveBeenCalledOnce();
-        });
-
-        test('rejects organization credentials from another organization after lookup', async () => {
-            organizationWarehouseCredentialsModel.getByUuidWithSensitiveData.mockResolvedValueOnce(
-                {
-                    ...organizationWarehouseCredentials,
-                    organizationUuid: 'another-organization-uuid',
-                },
-            );
-
-            await expect(
-                service.updateWarehouseCredentials(
-                    projectUuid,
-                    authorizedDeveloperAccount,
-                    { warehouseConnection },
-                ),
-            ).rejects.toThrowError(ForbiddenError);
-            expect(
-                organizationWarehouseCredentialsModel.getByUuidWithSensitiveData,
-            ).toHaveBeenCalledWith(organizationWarehouseCredentialsUuid);
-            expect(projectModel.update).not.toHaveBeenCalled();
-        });
+        test.each(['top-level', 'nested'] as const)(
+            'rejects %s organization credentials at create and update boundaries',
+            async (location) => {
+                const data =
+                    location === 'top-level'
+                        ? {
+                              warehouseConnection,
+                              organizationWarehouseCredentialsUuid:
+                                  'removed-credential',
+                          }
+                        : {
+                              warehouseConnection: {
+                                  ...warehouseConnection,
+                                  organizationWarehouseCredentialsUuid:
+                                      'removed-credential',
+                              },
+                          };
+                const creator = {
+                    ...user,
+                    organizationUuid:
+                        projectWithSensitiveFields.organizationUuid,
+                    organizationName: 'Organization',
+                    organizationCreatedAt: new Date(),
+                    ability: new Ability<PossibleAbilities>([
+                        { subject: 'all', action: 'manage' },
+                    ]),
+                };
+                await expect(
+                    service.createWithoutCompile(
+                        creator,
+                        {
+                            ...data,
+                            name: 'Rejected project',
+                            type: ProjectType.DEFAULT,
+                            dbtVersion: DefaultSupportedDbtVersion,
+                            dbtConnection: { type: DbtProjectType.NONE },
+                        },
+                        RequestMethod.WEB_APP,
+                    ),
+                ).rejects.toThrow(unsupported);
+                projectModel.getWithSensitiveFields.mockResolvedValueOnce(
+                    projectWithSensitiveFields,
+                );
+                await expect(
+                    service.updateWarehouseCredentials(
+                        projectWithSensitiveFields.projectUuid,
+                        developerAccount,
+                        data,
+                    ),
+                ).rejects.toThrow(unsupported);
+                expect(projectModel.update).not.toHaveBeenCalled();
+                expect(
+                    projectModel.createWithOptionalCredentials,
+                ).not.toHaveBeenCalled();
+                expect(jobModel.create).not.toHaveBeenCalled();
+                expect(
+                    schedulerClient.createProjectWithCompile,
+                ).not.toHaveBeenCalled();
+            },
+        );
     });
 
     describe('ensurePlaygroundProject', () => {
@@ -2879,8 +3508,6 @@ describe('ProjectService', () => {
         ).mockResolvedValueOnce({
             ...projectWithSensitiveFields,
             warehouseConnection: warehouseClientMock.credentials,
-            organizationWarehouseCredentialsUuid:
-                'organization-warehouse-credentials-uuid',
         });
         const createWithoutCompileSpy = vi
             .spyOn(service, 'createWithoutCompile')
@@ -2964,21 +3591,12 @@ describe('ProjectService', () => {
             projectModel.createWithOptionalCredentials.mockResolvedValueOnce(
                 previewProjectUuid,
             );
-            projectModel.get
-                .mockResolvedValueOnce({
-                    ...projectWithSensitiveFields,
-                    projectUuid: upstreamProjectUuid,
-                    dbtConnection: {
-                        ...primaryDbtConnection,
-                        branch: 'upstream-primary-branch',
-                    },
-                })
-                .mockResolvedValueOnce({
-                    ...projectWithSensitiveFields,
-                    projectUuid: previewProjectUuid,
-                    type: ProjectType.PREVIEW,
-                    dbtConnection: primaryDbtConnection,
-                });
+            projectModel.get.mockResolvedValueOnce({
+                ...projectWithSensitiveFields,
+                projectUuid: previewProjectUuid,
+                type: ProjectType.PREVIEW,
+                dbtConnection: primaryDbtConnection,
+            });
 
             try {
                 await previewService.createWithoutCompile(
@@ -2996,6 +3614,9 @@ describe('ProjectService', () => {
 
                 expect(copySources).toHaveBeenCalledWith(
                     upstreamProjectUuid,
+                    previewProjectUuid,
+                );
+                expect(projectModel.get).toHaveBeenCalledExactlyOnceWith(
                     previewProjectUuid,
                 );
                 expect(
@@ -3048,18 +3669,11 @@ describe('ProjectService', () => {
             const copyContentSpy = vi
                 .spyOn(service, 'copyContentOnPreview')
                 .mockResolvedValue();
-            vi.mocked(projectModel.get)
-                .mockResolvedValueOnce({
-                    ...projectWithSensitiveFields,
-                    projectUuid: upstreamProjectUuid,
-                    organizationWarehouseCredentialsUuid:
-                        'organization-warehouse-credentials-uuid',
-                })
-                .mockResolvedValueOnce({
-                    ...projectWithSensitiveFields,
-                    projectUuid: previewProjectUuid,
-                    type: ProjectType.PREVIEW,
-                });
+            vi.mocked(projectModel.get).mockResolvedValueOnce({
+                ...projectWithSensitiveFields,
+                projectUuid: previewProjectUuid,
+                type: ProjectType.PREVIEW,
+            });
             return {
                 copyAccessSpy,
                 copyContentSpy,
@@ -3116,11 +3730,14 @@ describe('ProjectService', () => {
             );
         };
 
-        test('queues an opted-in org preview without copying in the request', async () => {
+        test('queues an opted-in preview without copying in the request', async () => {
             const result = await createWithoutCompile({
                 mode: 'async',
                 compile: null,
             });
+            expect(projectModel.get).toHaveBeenCalledExactlyOnceWith(
+                previewProjectUuid,
+            );
             expect(mocks.copyContentSpy).not.toHaveBeenCalled();
             expect(schedulerClient.compileProject).not.toHaveBeenCalled();
             expect(result).toMatchObject({
@@ -3150,8 +3767,9 @@ describe('ProjectService', () => {
                 previewUser.userUuid,
                 previewUser.organizationUuid,
                 expect.objectContaining({
-                    organizationWarehouseCredentialsUuid:
-                        'organization-warehouse-credentials-uuid',
+                    name: 'Preview',
+                    type: ProjectType.PREVIEW,
+                    upstreamProjectUuid,
                 }),
                 null,
                 undefined,
@@ -3215,7 +3833,7 @@ describe('ProjectService', () => {
             expect(schedulerClient.compileProject).not.toHaveBeenCalled();
         });
 
-        test('waits for content before returning an org preview without opt-in', async () => {
+        test('waits for content before returning a preview without opt-in', async () => {
             let finishCopy!: () => void;
             mocks.copyContentSpy.mockImplementationOnce(
                 () =>
@@ -3441,6 +4059,179 @@ describe('ProjectService', () => {
         });
     });
 
+    describe('training copy reuse', () => {
+        const trainingProject = {
+            ...projectWithSensitiveFields,
+            type: ProjectType.TRAINING,
+            provisioningSource: 'training',
+        };
+        const learner: SessionUser = {
+            ...user,
+            role: OrganizationMemberRole.VIEWER,
+            organizationUuid: trainingProject.organizationUuid,
+            organizationName: 'Organization',
+            organizationCreatedAt: new Date(),
+            ability: defineUserAbility(
+                {
+                    userUuid: user.userUuid,
+                    organizationUuid: trainingProject.organizationUuid,
+                    role: OrganizationMemberRole.VIEWER,
+                },
+                [],
+            ),
+        };
+        const hour = 60 * 60 * 1000;
+        const copy = (overrides: {
+            createdAt: Date;
+            expiresAt: Date | null;
+        }) => ({
+            projectUuid: 'copy-project-uuid',
+            name: 'Training copy',
+            type: ProjectType.PREVIEW,
+            createdByUserUuid: user.userUuid,
+            createdByUserName: null,
+            upstreamProjectUuid: trainingProject.projectUuid,
+            provisioningSource: 'training',
+            ...overrides,
+        });
+        const learnService = () =>
+            getMockedProjectService(lightdashConfigWithGoogleOAuthMock, {});
+
+        beforeEach(() => {
+            projectModel.updateExpiresAt.mockClear();
+            projectModel.createWithOptionalCredentials.mockClear();
+        });
+
+        test('hands back the live copy with another day before it expires', async () => {
+            const service_ = learnService();
+            const live = copy({
+                createdAt: new Date(Date.now() - 2 * hour),
+                expiresAt: new Date(Date.now() + 22 * hour),
+            });
+            projectModel.get.mockResolvedValueOnce(trainingProject);
+            projectModel.getAllByOrganizationUuid.mockResolvedValueOnce([live]);
+            const makeCopy = vi
+                .spyOn(
+                    service_ as unknown as {
+                        makeTrainingCopy: () => Promise<CreateTrainingPreviewResults>;
+                    },
+                    'makeTrainingCopy',
+                )
+                .mockResolvedValue(
+                    undefined as unknown as CreateTrainingPreviewResults,
+                );
+            try {
+                const before = Date.now();
+                const result = await service_.createTrainingPreview(
+                    learner,
+                    trainingProject.projectUuid,
+                );
+                expect(result).toMatchObject({
+                    projectUuid: live.projectUuid,
+                    reused: true,
+                });
+                expect(result.expiresAt!.getTime()).toBeGreaterThanOrEqual(
+                    before + 24 * hour,
+                );
+                expect(projectModel.updateExpiresAt).toHaveBeenCalledWith(
+                    live.projectUuid,
+                    result.expiresAt,
+                );
+                expect(makeCopy).not.toHaveBeenCalled();
+            } finally {
+                makeCopy.mockRestore();
+            }
+        });
+
+        test('reuses a copy made moments ago instead of refusing it', async () => {
+            const service_ = learnService();
+            projectModel.get.mockResolvedValueOnce(trainingProject);
+            projectModel.getAllByOrganizationUuid.mockResolvedValueOnce([
+                copy({
+                    createdAt: new Date(Date.now() - 1000),
+                    expiresAt: new Date(Date.now() + 24 * hour),
+                }),
+            ]);
+            await expect(
+                service_.createTrainingPreview(
+                    learner,
+                    trainingProject.projectUuid,
+                ),
+            ).resolves.toMatchObject({ reused: true });
+        });
+
+        test('makes a new copy when the only one has expired', async () => {
+            const service_ = learnService();
+            projectModel.get.mockResolvedValueOnce(trainingProject);
+            projectModel.getAllByOrganizationUuid.mockResolvedValueOnce([
+                copy({
+                    createdAt: new Date(Date.now() - 30 * hour),
+                    expiresAt: new Date(Date.now() - hour),
+                }),
+            ]);
+            const made = {
+                projectUuid: 'new-copy-uuid',
+                expiresAt: new Date(Date.now() + 24 * hour),
+                reused: false,
+            };
+            const makeCopy = vi
+                .spyOn(
+                    service_ as unknown as {
+                        makeTrainingCopy: () => Promise<CreateTrainingPreviewResults>;
+                    },
+                    'makeTrainingCopy',
+                )
+                .mockResolvedValue(made);
+            try {
+                await expect(
+                    service_.createTrainingPreview(
+                        learner,
+                        trainingProject.projectUuid,
+                    ),
+                ).resolves.toEqual(made);
+                expect(makeCopy).toHaveBeenCalledTimes(1);
+                expect(projectModel.updateExpiresAt).not.toHaveBeenCalled();
+            } finally {
+                makeCopy.mockRestore();
+            }
+        });
+
+        test('still refuses a second creation moments after the last', async () => {
+            const service_ = learnService();
+            projectModel.get.mockResolvedValueOnce(trainingProject);
+            // Expired already, as a copy made with a zero-hour expiry would be.
+            projectModel.getAllByOrganizationUuid.mockResolvedValueOnce([
+                copy({
+                    createdAt: new Date(Date.now() - 1000),
+                    expiresAt: new Date(Date.now() - 1000),
+                }),
+            ]);
+            const makeCopy = vi
+                .spyOn(
+                    service_ as unknown as {
+                        makeTrainingCopy: () => Promise<CreateTrainingPreviewResults>;
+                    },
+                    'makeTrainingCopy',
+                )
+                .mockResolvedValue(
+                    undefined as unknown as CreateTrainingPreviewResults,
+                );
+            try {
+                await expect(
+                    service_.createTrainingPreview(
+                        learner,
+                        trainingProject.projectUuid,
+                    ),
+                ).rejects.toThrow(
+                    'A training copy was made moments ago; try again shortly',
+                );
+                expect(makeCopy).not.toHaveBeenCalled();
+            } finally {
+                makeCopy.mockRestore();
+            }
+        });
+    });
+
     describe('training project connection lock', () => {
         const trainingProject = {
             ...projectWithSensitiveFields,
@@ -3456,11 +4247,6 @@ describe('ProjectService', () => {
             warehouse: 'transforming',
             schema: 'public',
             authenticationType: SnowflakeAuthenticationType.PASSWORD,
-        };
-        const embeddedConnection = {
-            type: WarehouseTypes.DUCKDB as const,
-            connectionType: DuckdbConnectionType.EMBEDDED as const,
-            dataset: 'jaffle_shop',
         };
         const learner: SessionUser = {
             ...user,
@@ -3538,54 +4324,37 @@ describe('ProjectService', () => {
             {
                 reason: 'the upstream connection is not the shipped sample data',
                 credentials: snowflakeConnection,
-                organizationWarehouseCredentialsUuid: undefined,
             },
-            {
-                reason: 'the upstream is bound to organization credentials',
-                credentials: embeddedConnection,
-                organizationWarehouseCredentialsUuid: 'org-creds-uuid',
-            },
-        ])(
-            'refuses a training copy when $reason',
-            async ({ credentials, organizationWarehouseCredentialsUuid }) => {
-                const learnService = getMockedProjectService(
-                    lightdashConfigWithGoogleOAuthMock,
-                    {
-                        featureFlagModel: {
-                            get: vi.fn(async () => ({
-                                id: FeatureFlags.EnableLearn,
-                                enabled: true,
-                            })),
-                        } as unknown as FeatureFlagModel,
-                    },
-                );
-                projectModel.get.mockResolvedValueOnce({
-                    ...trainingProject,
-                    organizationWarehouseCredentialsUuid,
-                });
-                projectModel.getAllByOrganizationUuid.mockResolvedValueOnce([]);
-                projectModel.getWarehouseCredentialsForProject.mockResolvedValueOnce(
-                    credentials,
-                );
-                const deletePreviews = vi
-                    .spyOn(learnService, 'deleteTrainingPreviews')
-                    .mockResolvedValue({ deleted: 0 });
-                try {
-                    await expect(
-                        learnService.createTrainingPreview(
-                            learner,
-                            trainingProject.projectUuid,
-                        ),
-                    ).rejects.toThrow(managedMessage);
-                    expect(deletePreviews).not.toHaveBeenCalled();
-                    expect(
-                        projectModel.createWithOptionalCredentials,
-                    ).not.toHaveBeenCalled();
-                } finally {
-                    deletePreviews.mockRestore();
-                }
-            },
-        );
+        ])('refuses a training copy when $reason', async ({ credentials }) => {
+            const learnService = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+                {},
+            );
+            projectModel.get.mockResolvedValueOnce({
+                ...trainingProject,
+            });
+            projectModel.getAllByOrganizationUuid.mockResolvedValueOnce([]);
+            projectModel.getWarehouseCredentialsForProject.mockResolvedValueOnce(
+                credentials,
+            );
+            const deletePreviews = vi
+                .spyOn(learnService, 'deleteTrainingPreviews')
+                .mockResolvedValue({ deleted: 0 });
+            try {
+                await expect(
+                    learnService.createTrainingPreview(
+                        learner,
+                        trainingProject.projectUuid,
+                    ),
+                ).rejects.toThrow(managedMessage);
+                expect(deletePreviews).not.toHaveBeenCalled();
+                expect(
+                    projectModel.createWithOptionalCredentials,
+                ).not.toHaveBeenCalled();
+            } finally {
+                deletePreviews.mockRestore();
+            }
+        });
     });
 
     test.each(['createWithoutCompile', 'scheduleCreate'] as const)(
@@ -3598,6 +4367,7 @@ describe('ProjectService', () => {
             };
             const getProject = vi
                 .spyOn(projectModel, 'get')
+                .mockReset()
                 .mockResolvedValue(upstream);
             try {
                 await expect(
@@ -3725,7 +4495,7 @@ describe('ProjectService', () => {
             };
             const getProject = vi
                 .spyOn(projectModel, 'get')
-                .mockResolvedValueOnce(training)
+                .mockReset()
                 .mockResolvedValueOnce(training)
                 .mockResolvedValueOnce(preview);
             const getCredentials = vi
@@ -4386,7 +5156,10 @@ describe('ProjectService', () => {
                 },
             },
         };
-        const fields = { order_id: DimensionType.NUMBER };
+        const fields = {
+            order_id: DimensionType.NUMBER,
+            created_at: DimensionType.TIMESTAMP,
+        };
         const cases = [
             {
                 name: 'populateWarehouseTablesCache',
@@ -4412,7 +5185,8 @@ describe('ProjectService', () => {
                 expected: warehouseCatalog,
                 method: 'getAllTables' as const,
                 queryContext,
-                binding: { kind: 'connection', warehouseConnectionUuid: null },
+                // empty saved list: filled through the already-resolved connection
+                binding: null,
                 userUuid: user.userUuid,
             })),
             {
@@ -4426,7 +5200,7 @@ describe('ProjectService', () => {
                         'public',
                         'catalog_database',
                     ),
-                expected: fields,
+                expected: { fields, nativeTypes: { created_at: 'DATETIME' } },
                 method: 'getFields' as const,
                 queryContext: QueryExecutionContext.AI,
                 binding: { kind: 'connection', warehouseConnectionUuid: null },
@@ -4590,6 +5364,9 @@ describe('ProjectService', () => {
                 },
             );
             Object.assign(configured.warehouseAvailableTablesModel, {
+                getTablesForProjectWarehouseCredentials: vi.fn(
+                    async () => null,
+                ),
                 createAvailableTablesForProjectWarehouseCredentials: vi.fn(
                     async () => undefined,
                 ),
@@ -4602,9 +5379,20 @@ describe('ProjectService', () => {
                 getAllTables: vi.fn<WarehouseClient['getAllTables']>(
                     async () => warehouseTables,
                 ),
-                getFields: vi.fn<WarehouseClient['getFields']>(async () => ({
-                    catalog_database: { public: { orders: fields } },
-                })),
+                getFields: vi.fn<WarehouseClient['getFields']>(async () => {
+                    const catalog = {
+                        catalog_database: { public: { orders: fields } },
+                    };
+                    setCatalogNativeType(
+                        catalog,
+                        'catalog_database',
+                        'public',
+                        'orders',
+                        'created_at',
+                        'DATETIME',
+                    );
+                    return catalog;
+                }),
 
                 runQuery: vi.fn(async () => resultsWith1Row),
                 streamQuery: vi.fn<WarehouseClient['streamQuery']>(
@@ -4640,11 +5428,15 @@ describe('ProjectService', () => {
                     vi.mocked(SshTunnel).mock.results.at(-1)?.value.disconnect,
                 ).toHaveBeenCalledOnce();
                 expect(scoped).toHaveBeenCalledExactlyOnceWith(
-                    expect.objectContaining({
-                        kind: 'binding',
-                        projectUuid,
-                        binding: site.binding,
-                    }),
+                    expect.objectContaining(
+                        site.binding === null
+                            ? { kind: 'resolved', projectUuid }
+                            : {
+                                  kind: 'binding',
+                                  projectUuid,
+                                  binding: site.binding,
+                              },
+                    ),
                     expect.objectContaining({
                         organizationUuid: projectSummary.organizationUuid,
                         queryContext: site.queryContext,
@@ -4950,9 +5742,9 @@ describe('ProjectService', () => {
                 warehouseConnectionUuid: connectionUuid,
                 projectUuid,
                 name: 'SQL runner connection',
+                organizationWarehouseCredentialsUuid: null,
                 isOriginal: false,
                 warehouseType: WarehouseTypes.POSTGRES,
-                organizationWarehouseCredentialsUuid: null,
                 listAllDatabases: false,
                 additionalDatabases: ['listed_database'],
                 createdAt: new Date(),
@@ -4990,7 +5782,6 @@ describe('ProjectService', () => {
                     .fn<WarehouseConnectionModel['getExtraCredentialSource']>()
                     .mockResolvedValue({
                         credentials,
-                        organizationWarehouseCredentialsUuid: null,
                     }),
                 list: vi
                     .fn<WarehouseConnectionModel['list']>()
@@ -5662,7 +6453,6 @@ describe('ProjectService', () => {
             })),
             getExtraCredentialSource: vi.fn(async () => ({
                 credentials,
-                organizationWarehouseCredentialsUuid: null,
             })),
             list: vi.fn(async () => [
                 {
@@ -6203,17 +6993,13 @@ describe('ProjectService', () => {
                 vi.fn<
                     UserWarehouseCredentialsModel['findForProjectWithSecrets']
                 >();
-            const getCredentials = (
-                isRegisteredUser = true,
-                preloadedOrgWarehouseCredentialsUuid?: string,
-            ) =>
+            const getCredentials = (isRegisteredUser = true) =>
                 (
                     service as unknown as {
                         getWarehouseCredentials: (args: {
                             projectUuid: string;
                             userId: string;
                             isRegisteredUser: boolean;
-                            preloadedOrgWarehouseCredentialsUuid?: string;
                             binding: { kind: 'original' };
                         }) => Promise<CreateWarehouseCredentials>;
                     }
@@ -6221,7 +7007,6 @@ describe('ProjectService', () => {
                     projectUuid,
                     userId: sessionAccount.user.id,
                     isRegisteredUser,
-                    preloadedOrgWarehouseCredentialsUuid,
                     binding: { kind: 'original' },
                 });
 
@@ -6310,20 +7095,6 @@ describe('ProjectService', () => {
                     ...projectCredentials,
                     userWarehouseCredentialsUuid: undefined,
                 });
-            });
-
-            test('uses personal credentials with an organization connection', async () => {
-                findPersonalCredentials.mockResolvedValue(personalCredentials);
-
-                expect(await getCredentials(true, 'org-credentials')).toEqual(
-                    expect.objectContaining({
-                        keyfileContents: {
-                            ...personalCredentials.credentials.keyfileContents,
-                            client_secret: 'oauth-secret',
-                        },
-                        userWarehouseCredentialsUuid: personalCredentials.uuid,
-                    }),
-                );
             });
 
             test('requires personal credentials when the project requires them', async () => {
@@ -6834,7 +7605,7 @@ describe('ProjectService', () => {
             // Verify generateSnowflakeAccessToken was called with user's refreshToken
             expect(
                 UserService.generateSnowflakeAccessToken,
-            ).toHaveBeenCalledWith('user-refresh-token');
+            ).toHaveBeenCalledWith('user-refresh-token', 30_000);
             // Project's refreshToken should NOT have been used
             expect(
                 UserService.generateSnowflakeAccessToken,
@@ -6973,7 +7744,7 @@ describe('ProjectService', () => {
             // Verify generateSnowflakeAccessToken was called with project's refreshToken
             expect(
                 UserService.generateSnowflakeAccessToken,
-            ).toHaveBeenCalledWith('project-refresh-token');
+            ).toHaveBeenCalledWith('project-refresh-token', 30_000);
 
             // User credentials should NOT have been fetched
             expect(findForProjectWithSecretsMock).not.toHaveBeenCalled();
@@ -7058,6 +7829,8 @@ describe('ProjectService', () => {
                 'user-creds-uuid',
                 'user-refresh-token',
                 'rotated-refresh-token',
+                undefined,
+                expect.anything(),
             );
         });
 
@@ -7218,6 +7991,8 @@ describe('ProjectService', () => {
                 'user-creds-uuid',
                 'user-u2m-refresh-token',
                 'rotated-u2m-refresh-token',
+                undefined,
+                expect.anything(),
             );
         });
 
@@ -8302,6 +9077,36 @@ describe('ProjectService', () => {
             );
         });
 
+        test('queues catalog indexing after direct YAML tags are saved', async () => {
+            await service.replaceYamlTags(compileUser, projectUuid, [
+                {
+                    yamlReference: 'finance',
+                    name: 'Finance',
+                    color: 'blue',
+                },
+            ]);
+
+            expect(catalogModel.getCatalogItemsWithTags).toHaveBeenCalledWith(
+                projectUuid,
+                { onlyTagged: true, includeYamlTags: false },
+            );
+            expect(schedulerClient.indexCatalog).toHaveBeenLastCalledWith({
+                projectUuid,
+                userUuid: user.userUuid,
+                organizationUuid: projectSummary.organizationUuid,
+                refreshMetadataBeforeIndex: true,
+                prevCatalogItemsWithTags: [],
+                prevCatalogItemsWithIcons: [],
+                prevMetricTreeEdges: [],
+                prevMetricsTreeNodes: [],
+            });
+            expect(
+                tagsModel.replaceYamlTags.mock.invocationCallOrder.at(-1),
+            ).toBeLessThan(
+                schedulerClient.indexCatalog.mock.invocationCallOrder.at(-1)!,
+            );
+        });
+
         test('requires manage tag permissions for direct YAML tag sync', async () => {
             const noTagUser: SessionUser = {
                 ...user,
@@ -8395,6 +9200,202 @@ describe('ProjectService', () => {
             expect(result).toEqual([
                 { uuid: 'older-chart', name: 'Revenue chart' },
             ]);
+        });
+    });
+
+    describe.each([
+        'compileProject',
+        'testAndCompileProject',
+        '_create',
+    ] as const)('%s project parameters from config', (method) => {
+        const existingParameters = {
+            retained: {
+                label: 'Retained',
+                default: 'before',
+                allow_custom_values: true,
+            },
+        };
+        const replacementParameters = {
+            replacement: {
+                label: 'Replacement',
+                default: 'after',
+                allow_custom_values: true,
+            },
+        };
+        test.each([
+            {
+                name: 'absent section',
+                yaml: 'spotlight: {}',
+                expected: existingParameters,
+                writes: false,
+            },
+            {
+                name: 'missing config file',
+                yaml: undefined,
+                expected: existingParameters,
+                writes: false,
+            },
+            {
+                name: 'YAML null',
+                yaml: 'parameters:',
+                expected: existingParameters,
+                writes: false,
+            },
+            {
+                name: 'explicit empty map',
+                yaml: 'parameters: {}',
+                expected: {},
+                writes: true,
+            },
+            {
+                name: 'non-empty map',
+                yaml: 'parameters:\n  replacement:\n    label: Replacement\n    default: after\n    allow_custom_values: true',
+                expected: replacementParameters,
+                writes: true,
+            },
+        ])('$name', async ({ yaml, expected, writes }) => {
+            const projectDir = await fs.mkdtemp(
+                nodePath.join(os.tmpdir(), 'refresh-parameters-'),
+            );
+            const configAdapter = new DbtBaseProjectAdapter(
+                {} as ConstructorParameters<typeof DbtBaseProjectAdapter>[0],
+                warehouseClientMock,
+                {
+                    warehouseCatalog: undefined,
+                    onWarehouseCatalogChange: vi.fn(),
+                },
+                SupportedDbtVersions.V1_12,
+                projectDir,
+            );
+            const adapter = {
+                compileAllExplores: vi.fn(async () => [validExplore]),
+                prepareExploreStream: vi.fn(async () =>
+                    (async function* stream() {
+                        yield validExplore;
+                    })(),
+                ),
+                getLightdashProjectConfig: () =>
+                    configAdapter.getLightdashProjectConfig(),
+                destroy: vi.fn(async () => undefined),
+            } as unknown as ProjectAdapter;
+            const project = {
+                ...projectWithSensitiveFields,
+                warehouseConnection: warehouseClientMock.credentials,
+            };
+            const configured = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+                {
+                    projectModel: {
+                        ...projectModel,
+                        getWithSensitiveFields: vi.fn(async () => project),
+                        create: vi.fn(async () => projectUuid),
+                        createProjectAccess: vi.fn(async () => undefined),
+                    } as unknown as ProjectModel,
+                },
+            );
+            let storedParameters: LightdashProjectConfig['parameters'] =
+                existingParameters;
+            const replace = vi.fn(
+                async (
+                    _project: string,
+                    parameters: LightdashProjectConfig['parameters'],
+                ) => {
+                    storedParameters = parameters;
+                },
+            );
+            Object.assign(configured, { projectParametersModel: { replace } });
+            const replaceParameters = vi.spyOn(
+                configured,
+                'replaceProjectParameters',
+            );
+            const internals = configured as unknown as {
+                testProjectAdapter: () => Promise<unknown>;
+                getProjectContextFromAdapter: () => Promise<[]>;
+                resolveCompileAdapter: () => Promise<{
+                    adapter: ProjectAdapter;
+                }>;
+                runPostProjectCreationProvisioning: () => Promise<void>;
+                refreshTablesAndProjectConfig: RefreshForTest;
+            };
+            vi.spyOn(internals, 'testProjectAdapter').mockResolvedValue({
+                adapter,
+                lease: { release: vi.fn(async () => undefined) },
+                warehouseCredentials: warehouseClientMock.credentials,
+                cachedWarehouse: {},
+                dbtVersionOption: DefaultSupportedDbtVersion,
+                dbtPartialParse: false,
+                dbtTargetPolicy: { explicitCredentials: false },
+            });
+            vi.spyOn(internals, 'resolveCompileAdapter').mockResolvedValue({
+                adapter,
+            });
+            vi.spyOn(
+                internals,
+                'getProjectContextFromAdapter',
+            ).mockResolvedValue([]);
+            vi.spyOn(
+                internals,
+                'runPostProjectCreationProvisioning',
+            ).mockResolvedValue();
+            vi.spyOn(
+                internals,
+                'refreshTablesAndProjectConfig',
+            ).mockImplementation(
+                async (_user, _project, _method, _job, consume) =>
+                    consume({
+                        exploreStream:
+                            await adapter.prepareExploreStream(undefined),
+                        lightdashProjectConfig:
+                            await adapter.getLightdashProjectConfig(undefined),
+                        projectContext: undefined,
+                    }),
+            );
+            const caller = {
+                ...user,
+                organizationUuid: 'organizationUuid',
+                organizationName: 'Organization',
+                organizationCreatedAt: new Date(),
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'Project', action: ['update', 'view'] },
+                    { subject: 'Job', action: ['create'] },
+                    { subject: 'CompileProject', action: ['manage'] },
+                ]),
+            };
+            const parameterJob = 'parameters-job';
+            try {
+                if (yaml !== undefined)
+                    await fs.writeFile(
+                        nodePath.join(projectDir, 'lightdash.config.yml'),
+                        yaml,
+                    );
+                if (method === '_create')
+                    await configured._create(
+                        caller,
+                        project,
+                        parameterJob,
+                        RequestMethod.WEB_APP,
+                    );
+                else
+                    await configured[method](
+                        caller,
+                        projectUuid,
+                        RequestMethod.WEB_APP,
+                        parameterJob,
+                    );
+                expect(jobModel.update).toHaveBeenCalledWith(
+                    parameterJob,
+                    expect.objectContaining({ jobStatus: JobStatusType.DONE }),
+                );
+                expect(storedParameters).toEqual(expected);
+                expect(replace).toHaveBeenCalledTimes(writes ? 1 : 0);
+                expect(replaceParameters).toHaveBeenCalledTimes(writes ? 1 : 0);
+                if (writes)
+                    expect(replace).toHaveBeenCalledWith(projectUuid, expected);
+            } finally {
+                vi.restoreAllMocks();
+                vi.clearAllMocks();
+                await fs.rm(projectDir, { recursive: true, force: true });
+            }
         });
     });
 
@@ -9545,7 +10546,10 @@ describe('ProjectService', () => {
                 const result = await f.run(kind);
                 expect(result).toEqual(
                     kind === 'fields'
-                        ? { secret_column: { type: 'string' } }
+                        ? {
+                              fields: { secret_column: { type: 'string' } },
+                              nativeTypes: {},
+                          }
                         : {
                               agent_db: {
                                   agent_schema: {
@@ -10005,7 +11009,6 @@ describe('ProjectService', () => {
             },
         );
         test('a connection cannot repair a generated target retained beside a scheduled source with no registry row', async () => {
-            vi.stubEnv('PRE_AGGREGATES_ENABLED', 'true');
             const configured = getMockedProjectService({
                 ...lightdashConfigWithGoogleOAuthMock,
                 preAggregates: {
@@ -10462,6 +11465,9 @@ describe('ProjectService', () => {
                     explores,
                     undefined,
                     undefined,
+                    ...(kind === 'no-cron'
+                        ? [undefined, expect.any(Function)]
+                        : []),
                 );
             },
         );
@@ -10610,6 +11616,181 @@ describe('ProjectService', () => {
             expect(
                 schedulerClient.schedulePreAggregateCronJobs,
             ).not.toHaveBeenCalled();
+        });
+
+        test('a compile rebuilds a changed definition unless refresh.on_change is false', async () => {
+            const serviceWithPreAggregatesEnabled = getMockedProjectService({
+                ...lightdashConfigWithGoogleOAuthMock,
+                preAggregates: {
+                    ...lightdashConfigWithGoogleOAuthMock.preAggregates,
+                    enabled: true,
+                },
+            });
+            preAggregateModel.upsertPreAggregateDefinitions.mockResolvedValueOnce(
+                {
+                    changedDefinitionUuids: ['def-changed', 'def-waits'],
+                    // def-changed had nothing active to supersede
+                    supersededDefinitionUuids: ['def-waits'],
+                },
+            );
+            preAggregateModel.getPreAggregateDefinitionsForProject.mockResolvedValueOnce(
+                [
+                    {
+                        preAggregateDefinitionUuid: 'def-changed',
+                        refreshCron: null,
+                        materializeOnChange: true,
+                        materializationMetricQuery: {},
+                    },
+                    {
+                        preAggregateDefinitionUuid: 'def-waits',
+                        refreshCron: '0 3 * * *',
+                        materializeOnChange: false,
+                        materializationMetricQuery: {},
+                    },
+                    {
+                        preAggregateDefinitionUuid: 'def-unchanged',
+                        refreshCron: null,
+                        materializeOnChange: true,
+                        materializationMetricQuery: {},
+                    },
+                ] as never,
+            );
+            preAggregateModel.getDefinitionUuidsEverMaterialized.mockResolvedValueOnce(
+                new Set(['def-changed', 'def-waits', 'def-unchanged']),
+            );
+
+            await serviceWithPreAggregatesEnabled.saveExploresToCacheAndIndexCatalog(
+                {
+                    userUuid: user.userUuid,
+                    projectUuid,
+                    explores: [validExplore],
+                    compilationSource: 'cli_deploy',
+                },
+            );
+
+            expect(
+                preAggregateModel.upsertPreAggregateDefinitions,
+            ).toHaveBeenCalledWith([
+                expect.objectContaining({ materialize_on_change: true }),
+            ]);
+            expect(
+                schedulerClient.materializePreAggregate,
+            ).toHaveBeenCalledTimes(1);
+            expect(
+                schedulerClient.materializePreAggregate,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    preAggregateDefinitionUuid: 'def-changed',
+                    trigger: 'compile',
+                }),
+            );
+            // The changed definition that waits for cron keeps its schedule
+            expect(
+                schedulerClient.schedulePreAggregateCronJobs,
+            ).toHaveBeenCalledWith(
+                [
+                    expect.objectContaining({
+                        preAggregateDefinitionUuid: 'def-waits',
+                        refreshCron: '0 3 * * *',
+                    }),
+                ],
+                expect.any(Date),
+            );
+        });
+
+        test('a compile builds a definition that has never completed a materialization', async () => {
+            const serviceWithPreAggregatesEnabled = getMockedProjectService({
+                ...lightdashConfigWithGoogleOAuthMock,
+                preAggregates: {
+                    ...lightdashConfigWithGoogleOAuthMock.preAggregates,
+                    enabled: true,
+                },
+            });
+            preAggregateModel.getPreAggregateDefinitionsForProject.mockResolvedValueOnce(
+                [
+                    {
+                        preAggregateDefinitionUuid: 'def-new',
+                        refreshCron: '0 3 * * *',
+                        materializeOnChange: false,
+                        materializationMetricQuery: {},
+                    },
+                    {
+                        preAggregateDefinitionUuid: 'def-built',
+                        refreshCron: null,
+                        materializeOnChange: false,
+                        materializationMetricQuery: {},
+                    },
+                ] as never,
+            );
+            preAggregateModel.getDefinitionUuidsEverMaterialized.mockResolvedValueOnce(
+                new Set(['def-built']),
+            );
+
+            await serviceWithPreAggregatesEnabled.saveExploresToCacheAndIndexCatalog(
+                {
+                    userUuid: user.userUuid,
+                    projectUuid,
+                    explores: [validExplore],
+                    compilationSource: 'cli_deploy',
+                },
+            );
+
+            expect(
+                schedulerClient.materializePreAggregate,
+            ).toHaveBeenCalledTimes(1);
+            expect(
+                schedulerClient.materializePreAggregate,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    preAggregateDefinitionUuid: 'def-new',
+                    trigger: 'compile',
+                }),
+            );
+        });
+
+        test('stores materialize_on_change=false from refresh.on_change: false', async () => {
+            const serviceWithPreAggregatesEnabled = getMockedProjectService({
+                ...lightdashConfigWithGoogleOAuthMock,
+                preAggregates: {
+                    ...lightdashConfigWithGoogleOAuthMock.preAggregates,
+                    enabled: true,
+                },
+            });
+            const sourceExplore = {
+                ...validExplore,
+                preAggregates: [
+                    {
+                        name: 'rollup',
+                        dimensions: ['dim1'],
+                        metrics: ['met1'],
+                        refresh: { cron: '0 3 * * *', onChange: false },
+                    },
+                ],
+            } as Explore;
+            (
+                projectModel.getAllExploresFromCache as import('vitest').Mock
+            ).mockResolvedValue({
+                'source-uuid': sourceExplore,
+                'preagg-uuid': preAggregateExplore,
+            });
+
+            await serviceWithPreAggregatesEnabled.saveExploresToCacheAndIndexCatalog(
+                {
+                    userUuid: user.userUuid,
+                    projectUuid,
+                    explores: [sourceExplore],
+                    compilationSource: 'cli_deploy',
+                },
+            );
+
+            expect(
+                preAggregateModel.upsertPreAggregateDefinitions,
+            ).toHaveBeenCalledWith([
+                expect.objectContaining({
+                    refresh_cron: '0 3 * * *',
+                    materialize_on_change: false,
+                }),
+            ]);
         });
 
         test('checkPreAggregateMatch returns a hit for external pre-aggregates without a materialization', async () => {
@@ -10770,6 +11951,13 @@ describe('ProjectService', () => {
         });
 
         test('refreshPreAggregates schedules only materializable definitions', async () => {
+            const preAggregatesService = getMockedProjectService({
+                ...lightdashConfigWithGoogleOAuthMock,
+                preAggregates: {
+                    ...lightdashConfigWithGoogleOAuthMock.preAggregates,
+                    enabled: true,
+                },
+            });
             (
                 preAggregateModel.getPreAggregateDefinitionsForProject as import('vitest').Mock
             ).mockResolvedValue([
@@ -10815,7 +12003,7 @@ describe('ProjectService', () => {
                 schedulerClient.materializePreAggregate as import('vitest').Mock
             ).mockResolvedValueOnce({ jobId: 'job-valid' });
 
-            const result = await service.refreshPreAggregates(
+            const result = await preAggregatesService.refreshPreAggregates(
                 adminUser,
                 projectUuid,
             );
@@ -10835,6 +12023,13 @@ describe('ProjectService', () => {
         });
 
         test('refreshPreAggregateByDefinitionName throws actionable error when definition is invalid', async () => {
+            const preAggregatesService = getMockedProjectService({
+                ...lightdashConfigWithGoogleOAuthMock,
+                preAggregates: {
+                    ...lightdashConfigWithGoogleOAuthMock.preAggregates,
+                    enabled: true,
+                },
+            });
             (
                 preAggregateModel.getPreAggregateDefinitionByDefinitionName as import('vitest').Mock
             ).mockResolvedValue({
@@ -10856,7 +12051,7 @@ describe('ProjectService', () => {
             });
 
             await expect(
-                service.refreshPreAggregateByDefinitionName(
+                preAggregatesService.refreshPreAggregateByDefinitionName(
                     adminUser,
                     projectUuid,
                     'invalid',
@@ -11154,7 +12349,7 @@ describe('ProjectService', () => {
                 explore,
                 dashboardValues,
                 chartSavedValues,
-                isTargeted: true,
+                excludedKeys: [],
                 preloadedProjectParameters: [],
             });
 
@@ -11221,7 +12416,7 @@ describe('ProjectService', () => {
                     explore: statusExplore(false),
                     dashboardValues: {},
                     chartSavedValues: { region: 'US' },
-                    isTargeted: true,
+                    excludedKeys: [],
                     preloadedProjectParameters: null,
                 }),
             ).resolves.toEqual({ region: 'EU' });
@@ -11237,7 +12432,7 @@ describe('ProjectService', () => {
                         ...cancelledChart,
                         year: '2024',
                     },
-                    isTargeted: true,
+                    excludedKeys: [],
                 }),
             ).resolves.toEqual({ tier: 'gold', year: '2024' });
         });
@@ -11724,7 +12919,6 @@ describe('ProjectService', () => {
                 credentials,
             );
             projectModel.getProjectWarehouseConfig.mockResolvedValueOnce({
-                organizationWarehouseCredentialsUuid: null,
                 queryTimezone: null,
             });
             vi.spyOn(service, 'isTimezoneSupportEnabled').mockResolvedValueOnce(
@@ -11802,7 +12996,6 @@ describe('ProjectService', () => {
                 credentials,
             );
             projectModel.getProjectWarehouseConfig.mockResolvedValueOnce({
-                organizationWarehouseCredentialsUuid: null,
                 queryTimezone: null,
             });
             vi.spyOn(service, 'isTimezoneSupportEnabled').mockResolvedValueOnce(
@@ -11953,9 +13146,13 @@ describe('ProjectService', () => {
             },
         );
 
-        test.each(['stream', 'pivot'] as const)(
-            'downloads the %s writer output using its real sidecar',
-            async (writer) => {
+        test.each(
+            ['stream', 'pivot'].flatMap((writer) =>
+                [false, true].map((oldRecord) => ({ writer, oldRecord })),
+            ),
+        )(
+            'downloads the $writer writer output using its real sidecar with old record=$oldRecord',
+            async ({ writer, oldRecord }) => {
                 const configured = getMockedProjectService(
                     lightdashConfigWithGoogleOAuthMock,
                 );
@@ -11965,10 +13162,15 @@ describe('ProjectService', () => {
                         enabled: featureFlagId === FeatureFlags.AgentIdentity,
                     }),
                 );
-                vi.spyOn(configured, 'getUserAttributes').mockResolvedValue({
-                    userAttributes: {},
+                const controls = {
+                    userAttributes: {
+                        region: oldRecord ? ['US', 'EU'] : ['EU', 'US'],
+                    },
                     intrinsicUserAttributes: {},
-                });
+                };
+                vi.spyOn(configured, 'getUserAttributes').mockResolvedValue(
+                    controls,
+                );
                 vi.spyOn(
                     configured.warehouseClientFactory,
                     'resolveWarehouseCredentials',
@@ -12114,11 +13316,40 @@ describe('ProjectService', () => {
                         },
                     },
                 });
+                if (oldRecord) {
+                    if (!provenance)
+                        throw new Error('Expected producer provenance');
+                    provenance.resultProducer.entitlementFingerprint =
+                        createHash('sha256')
+                            .update(
+                                JSON.stringify([
+                                    Object.entries(controls.userAttributes)
+                                        .filter(
+                                            ([, values]) => values.length > 0,
+                                        )
+                                        .sort(([a], [b]) => a.localeCompare(b)),
+                                    Object.entries(
+                                        controls.intrinsicUserAttributes,
+                                    ).sort(([a], [b]) => a.localeCompare(b)),
+                                ]),
+                            )
+                            .digest('hex');
+                    expect(
+                        provenance.resultProducer.entitlementFingerprint,
+                    ).not.toBe(getResultEntitlementFingerprint(controls));
+                    files.set(
+                        `${rows.get(fileId)!.path}.provenance.txt`,
+                        JSON.stringify(provenance),
+                    );
+                }
+                controls.userAttributes.region = ['US', 'EU'];
+                vi.mocked(configured.getUserAttributes).mockClear();
                 const stream = await configured.getFileStream(
                     user,
                     projectUuid,
                     fileId,
                 );
+                expect(configured.getUserAttributes).toHaveBeenCalledTimes(1);
                 expect(await text(stream)).toBe(
                     `${JSON.stringify(resultsWith1Row.rows[0])}\n`,
                 );
@@ -12498,6 +13729,176 @@ describe('ProjectService', () => {
         });
     });
 
+    describe.each([
+        {
+            keyfileContents: undefined,
+            workloadIdentityAudience: 'custom-audience',
+        },
+        { keyfileContents: '', workloadIdentityAudience: 'custom-audience' },
+        { keyfileContents: {}, workloadIdentityAudience: 'custom-audience' },
+        { keyfileContents: undefined, workloadIdentityAudience: '' },
+    ])(
+        'BigQuery workload identity writes: %j',
+        ({ keyfileContents, workloadIdentityAudience }) => {
+            const disabledResolver = projectModel.bigqueryWorkloadIdentity;
+            const isEnabledFor = vi.fn(async () => true);
+            const getIdToken = vi.fn();
+            const creationUser: SessionUser = {
+                ...user,
+                organizationUuid: projectWithSensitiveFields.organizationUuid,
+                organizationName: 'Organization',
+                organizationCreatedAt: new Date(),
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'Project', action: ['view', 'create'] },
+                ]),
+            };
+            const credentials: CreateBigqueryCredentials = {
+                type: WarehouseTypes.BIGQUERY,
+                project: 'test-gcp-project',
+                dataset: 'test-dataset',
+                authenticationType:
+                    BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION,
+                workloadIdentityProvider:
+                    'projects/123456/locations/global/workloadIdentityPools/pool-id/providers/provider-id',
+                workloadIdentityAudience,
+                keyfileContents: {},
+                timeoutSeconds: undefined,
+                priority: undefined,
+                retries: undefined,
+                location: undefined,
+                maximumBytesBilled: undefined,
+            };
+            const expectedCredentials = {
+                ...credentials,
+                workloadIdentityAudience: workloadIdentityAudience || undefined,
+            };
+            const submittedProject = (): CreateProject => {
+                const warehouseConnection = { ...credentials };
+                // Legacy routes receive omitted or string keyfiles despite the credential type.
+                if (keyfileContents === undefined) {
+                    Reflect.deleteProperty(
+                        warehouseConnection,
+                        'keyfileContents',
+                    );
+                } else {
+                    Reflect.set(
+                        warehouseConnection,
+                        'keyfileContents',
+                        keyfileContents,
+                    );
+                }
+                return {
+                    name: 'Federated project',
+                    type: ProjectType.DEFAULT,
+                    dbtConnection: projectWithSensitiveFields.dbtConnection,
+                    dbtVersion: projectWithSensitiveFields.dbtVersion,
+                    warehouseConnection,
+                };
+            };
+
+            beforeEach(() => {
+                projectModel.bigqueryWorkloadIdentity =
+                    new BigqueryWorkloadIdentityResolver({
+                        isEnabledFor,
+                        tokenSource: { getIdToken },
+                    });
+            });
+            afterEach(() => {
+                projectModel.bigqueryWorkloadIdentity = disabledResolver;
+            });
+
+            test('persists the provider and audience on create without compile', async () => {
+                await service.createWithoutCompile(
+                    creationUser,
+                    submittedProject(),
+                    RequestMethod.WEB_APP,
+                );
+                expect(
+                    projectModel.createWithOptionalCredentials,
+                ).toHaveBeenCalledExactlyOnceWith(
+                    creationUser.userUuid,
+                    creationUser.organizationUuid,
+                    expect.objectContaining({
+                        warehouseConnection: expectedCredentials,
+                    }),
+                    null,
+                    undefined,
+                );
+                expect(isEnabledFor).toHaveBeenCalledExactlyOnceWith(
+                    creationUser.organizationUuid,
+                );
+                expect(getIdToken).not.toHaveBeenCalled();
+            });
+
+            test('queues normalized credentials with the provider and audience on scheduled create', async () => {
+                const data = submittedProject();
+                jobModel.createProjectJobIfNoActive.mockResolvedValueOnce({
+                    isCreated: true,
+                    job,
+                });
+                await service.scheduleCreate(
+                    creationUser,
+                    data,
+                    RequestMethod.WEB_APP,
+                );
+                expect(
+                    service.encryptionUtil.encrypt,
+                ).toHaveBeenCalledExactlyOnceWith(
+                    JSON.stringify({
+                        ...data,
+                        warehouseConnection: expectedCredentials,
+                    }),
+                );
+                expect(
+                    schedulerClient.createProjectWithCompile,
+                ).toHaveBeenCalledOnce();
+                expect(isEnabledFor).toHaveBeenCalledExactlyOnceWith(
+                    creationUser.organizationUuid,
+                );
+                expect(getIdToken).not.toHaveBeenCalled();
+            });
+
+            test.each([
+                'updateWarehouseCredentials',
+                'updateAndScheduleAsyncWork',
+            ] as const)(
+                'persists the provider and audience through %s without merging an old keyfile',
+                async (method) => {
+                    const savedCredentials: CreateBigqueryCredentials = {
+                        ...credentials,
+                        authenticationType:
+                            BigqueryAuthenticationType.PRIVATE_KEY,
+                        keyfileContents: {
+                            type: 'service_account',
+                            private_key: 'old-key',
+                        },
+                    };
+                    projectModel.getWithSensitiveFields.mockResolvedValueOnce({
+                        ...projectWithSensitiveFields,
+                        warehouseConnection: savedCredentials,
+                    });
+                    await service[method](
+                        projectUuid,
+                        developerAccount,
+                        submittedProject(),
+                        RequestMethod.WEB_APP,
+                    );
+                    expect(projectModel.update).toHaveBeenCalledExactlyOnceWith(
+                        projectUuid,
+                        expect.objectContaining({
+                            warehouseConnection: expectedCredentials,
+                        }),
+                        developerAccount.user.id,
+                    );
+                    expect(isEnabledFor).toHaveBeenCalledExactlyOnceWith(
+                        projectWithSensitiveFields.organizationUuid,
+                    );
+                    expect(getIdToken).not.toHaveBeenCalled();
+                },
+            );
+        },
+    );
+
     describe('validateConfigSecrets', () => {
         const projectWithSnowflakeAuth = (
             authenticationType: SnowflakeAuthenticationType,
@@ -12588,6 +13989,50 @@ describe('ProjectService', () => {
             client_email: 'sa@example.com',
             private_key: 'test-private-key',
         };
+        it.each([undefined, '', {}])(
+            'accepts %j as no keyfile for workload identity federation',
+            (keyfileContents) => {
+                const project = projectWithBigqueryKeyfile(
+                    {},
+                    BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION,
+                );
+                if (!project.warehouseConnection)
+                    throw new Error('Missing test credentials');
+                Reflect.set(
+                    project.warehouseConnection,
+                    'keyfileContents',
+                    keyfileContents,
+                );
+                expect(() =>
+                    service.validateConfigSecrets(project),
+                ).not.toThrow();
+            },
+        );
+        it('rejects a federation update when the organization flag is off', async () => {
+            const project = projectWithBigqueryKeyfile(
+                {},
+                BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION,
+            );
+            if (!project.warehouseConnection)
+                throw new Error('Missing test credentials');
+            await expect(
+                service.updateWarehouseCredentials(
+                    projectUuid,
+                    developerAccount,
+                    { warehouseConnection: project.warehouseConnection },
+                ),
+            ).rejects.toThrow('workload identity federation is not enabled');
+        });
+        it('rejects a keyfile for workload identity federation', () => {
+            expect(() =>
+                service.validateConfigSecrets(
+                    projectWithBigqueryKeyfile(
+                        serviceAccountKeyfile,
+                        BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION,
+                    ),
+                ),
+            ).toThrow('does not accept a keyfile');
+        });
         // What the CLI sends for a dbt `method: oauth` gcloud user login
         const authorizedUserKeyfile = {
             type: 'authorized_user',
@@ -12877,6 +14322,46 @@ describe('ProjectService', () => {
             expect(result.coreSql).toContain(
                 '("c0_0" / NULLIF("c1_0", 0)) AS "cross_source_ratio"',
             );
+        });
+
+        test('carries a merge calculation format onto its merged field', async () => {
+            const format = {
+                type: CustomFormatType.PERCENT,
+                round: 1,
+            };
+            const result = await service.compileMergeQuery({
+                account: sessionAccount,
+                projectUuid,
+                mergeQuery: mergeQuery({
+                    tableCalculations: [
+                        {
+                            name: 'share',
+                            displayName: 'Share',
+                            sql: '',
+                            formula: '=a_a_met1 / b_a_met1',
+                            format,
+                        },
+                        {
+                            name: 'unformatted',
+                            displayName: 'Unformatted',
+                            sql: '',
+                            formula: '=a_a_met1',
+                        },
+                    ],
+                }),
+            });
+
+            expect(result.errors).toEqual([]);
+            expect(
+                result.itemsMap[
+                    getItemId({ table: MERGE_TABLE_NAME, name: 'share' })
+                ],
+            ).toEqual(expect.objectContaining({ formatOptions: format }));
+            expect(
+                result.itemsMap[
+                    getItemId({ table: MERGE_TABLE_NAME, name: 'unformatted' })
+                ],
+            ).toEqual(expect.objectContaining({ formatOptions: undefined }));
         });
 
         test('refuses an oversized merge formula before parsing it', async () => {
@@ -13272,6 +14757,8 @@ type ResolveCompileAdapterArgs = {
 };
 
 type BuildMergedManifestAdapterArgs = {
+    jobUuid?: string;
+    userUuid: string;
     projectUuid: string;
     organizationUuid: string | undefined;
     primary: ResolveCompileAdapterArgs['primary'];
@@ -13282,6 +14769,7 @@ type BuildMergedManifestAdapterArgs = {
 type ResolvedCompileAdapter = {
     adapter: ProjectAdapter;
     stagedMergedManifest?: Buffer;
+    connectionWarnings?: string[];
 };
 
 // resolveCompileAdapter/buildMergedManifestAdapter/featureFlagModel/
@@ -13296,6 +14784,10 @@ type ProjectServiceInternals = {
     buildMergedManifestAdapter: (
         args: BuildMergedManifestAdapterArgs,
     ) => Promise<ResolvedCompileAdapter>;
+    persistMergedManifest: (
+        projectUuid: string,
+        manifest: Buffer | undefined,
+    ) => Promise<void>;
     stageMergedManifest: (
         projectUuid: string,
         manifest: DbtManifest,
@@ -13313,7 +14805,7 @@ const NO_FETCH_TIMINGS: DbtManifestFetchTimings = {
     manifestMs: 0,
 };
 
-describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firewall)', () => {
+describe('ProjectService.resolveCompileAdapter (single-source regression firewall)', () => {
     beforeEach(() => {
         projectModel.deleteMergedManifest
             .mockReset()
@@ -13358,10 +14850,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         manifestFetchAdapters: [],
     };
 
-    const buildServiceWithMocks = (
-        flagEnabled: boolean,
-        sources: unknown[],
-    ) => {
+    const buildServiceWithMocks = (sources: unknown[]) => {
         const getSources = vi.fn(async () => sources);
         const projectService = getMockedProjectService(
             lightdashConfigWithGoogleOAuthMock,
@@ -13373,10 +14862,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 const { featureFlagId } = args as { featureFlagId: string };
                 return {
                     id: featureFlagId,
-                    enabled:
-                        featureFlagId === FeatureFlags.MultiDbtSources
-                            ? flagEnabled
-                            : false,
+                    enabled: false,
                 };
             }),
         };
@@ -13449,6 +14935,8 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                         name: `country_codes_${seedPackageName}`,
                         package_name: seedPackageName,
                         resource_type: 'seed',
+                        path: 'seeds/country_codes.csv',
+                        original_file_path: 'seeds/country_codes.csv',
                         compiled: true,
                         database: 'analytics',
                         schema: 'public',
@@ -13478,6 +14966,11 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         timings: DbtManifestFetchTimings = NO_FETCH_TIMINGS,
     ) =>
         ({
+            prepareDbtSource: vi.fn(async () => ({
+                projectDir: null,
+                timings: { gitRefreshMs: null, depsMs: null },
+            })),
+            releaseDisk: vi.fn(async () => undefined),
             getDbtManifest: vi.fn(async () => ({
                 manifest,
                 ...(selectedModelIds ? { selectedModelIds } : {}),
@@ -13517,6 +15010,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         );
 
         const adapter = projectService.buildMergedManifestAdapter({
+            userUuid: 'user-uuid',
             projectUuid: 'project-uuid',
             organizationUuid: 'org-uuid',
             primary: {
@@ -13547,6 +15041,290 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         );
         return (await adapter).adapter;
     };
+
+    it('writes provisional source catalogues and confirms only when the merged artifact is saved', async () => {
+        const cacheModel = {
+            get: vi.fn(async () => []),
+            upsertProvisional: vi.fn(async () => 'digest'),
+            confirm: vi.fn(async () => undefined),
+        };
+        const projectService = getMockedProjectService(
+            lightdashConfigWithGoogleOAuthMock,
+            {
+                dbtSourceRefCatalogModel: cacheModel as never,
+                featureFlagModel: {
+                    get: vi.fn(async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled: true,
+                    })),
+                } as unknown as FeatureFlagModel,
+            },
+        ) as unknown as ProjectServiceInternals;
+        const primaryManifest = buildManifest([
+            {
+                uniqueId: 'model.catalogue_a.orders',
+                name: 'orders',
+                packageName: 'catalogue_a',
+            },
+        ]);
+        primaryManifest.metadata.project_name = 'catalogue_a';
+        const sourceManifest = buildManifest([
+            {
+                uniqueId: 'model.catalogue_b.customers',
+                name: 'customers',
+                packageName: 'catalogue_b',
+            },
+        ]);
+        sourceManifest.metadata.project_name = 'catalogue_b';
+        vi.spyOn(projectService, 'buildSourceAdapter').mockResolvedValue(
+            buildAdapterWithManifest(sourceManifest),
+        );
+        const built = await projectService.buildMergedManifestAdapter({
+            userUuid: 'user-uuid',
+            projectUuid: 'project-uuid',
+            organizationUuid: 'org-uuid',
+            primary: {
+                ...primary,
+                adapter: buildAdapterWithManifest(primaryManifest),
+            },
+            sources: [buildSource('source-b')],
+            manifestFetchAdapters: [],
+            jobUuid: 'compile-job',
+        });
+        expect(cacheModel.get).toHaveBeenCalledWith('project-uuid', 'original');
+        expect(cacheModel.upsertProvisional).toHaveBeenCalledTimes(2);
+        expect(cacheModel.upsertProvisional).toHaveBeenCalledWith(
+            expect.objectContaining({
+                projectUuid: 'project-uuid',
+                connectionGroup: 'original',
+                compileJobUuid: 'compile-job',
+                dbtSourceUuid: 'primary-source-uuid',
+                projectName: 'catalogue_a',
+                referencedProjects: [],
+            }),
+        );
+        expect(cacheModel.upsertProvisional).toHaveBeenCalledWith(
+            expect.objectContaining({
+                projectUuid: 'project-uuid',
+                connectionGroup: 'original',
+                dbtSourceUuid: 'source-b-uuid',
+            }),
+        );
+        expect(cacheModel.confirm).not.toHaveBeenCalled();
+        await projectService.persistMergedManifest(
+            'project-uuid',
+            built.stagedMergedManifest,
+        );
+        expect(cacheModel.confirm).toHaveBeenCalledWith(
+            expect.objectContaining({
+                projectUuid: 'project-uuid',
+                connectionGroup: 'original',
+                entries: expect.arrayContaining([
+                    expect.objectContaining({ nodesDigest: 'digest' }),
+                ]),
+            }),
+        );
+    });
+
+    it('fails a compile before adapter creation settles and releases its disk later', async () => {
+        vi.useFakeTimers();
+        const { projectService } = buildServiceWithMocks([]);
+        projectService.featureFlagModel.get = vi.fn(async (args: unknown) => ({
+            id: (args as { featureFlagId: FeatureFlags }).featureFlagId,
+            enabled: true,
+        }));
+        const sourceAdapter = buildAdapterWithManifest(buildManifest([]));
+        let finish!: (adapter: ProjectAdapter) => void;
+        vi.spyOn(projectService, 'buildSourceAdapter').mockImplementation(
+            () =>
+                new Promise<ProjectAdapter>((resolve) => {
+                    finish = resolve;
+                }),
+        );
+        const log = vi.spyOn(projectService.logger, 'info');
+        let failed = false;
+        const compile = projectService
+            .buildMergedManifestAdapter({
+                userUuid: 'user-uuid',
+                projectUuid: 'project-uuid',
+                organizationUuid: 'org-uuid',
+                primary: {
+                    ...primary,
+                    adapter: buildAdapterWithManifest(buildManifest([])),
+                },
+                sources: [buildSource('leaf_a')],
+                manifestFetchAdapters: [],
+            })
+            .catch((error: unknown) => {
+                failed = true;
+                return error;
+            });
+        try {
+            await vi.advanceTimersByTimeAsync(
+                lightdashConfigWithGoogleOAuthMock.dbt
+                    .crossSourcePrepareTimeoutMs + 20000,
+            );
+            expect(failed).toBe(true);
+            expect(log).toHaveBeenCalledWith(
+                'dbt.compile.crossSourceRefsResolved diskEvictions=0 diskRecreations=0 status=failed',
+                expect.objectContaining({
+                    status: 'failed',
+                    diskEvictions: 0,
+                    diskRecreations: 0,
+                }),
+            );
+            expect(await compile).toMatchObject({
+                message: expect.stringContaining('timed out'),
+            });
+            expect(sourceAdapter.releaseDisk).not.toHaveBeenCalled();
+            finish(sourceAdapter);
+            await vi.advanceTimersByTimeAsync(0);
+            expect(sourceAdapter.releaseDisk).toHaveBeenCalledOnce();
+            expect(sourceAdapter.getDbtManifest).not.toHaveBeenCalled();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('carries a source preparation failure and fetches the primary manifest', async () => {
+        const { projectService } = buildServiceWithMocks([]);
+        projectService.featureFlagModel.get = vi.fn(async (args: unknown) => ({
+            id: (args as { featureFlagId: FeatureFlags }).featureFlagId,
+            enabled: true,
+        }));
+        const preparedPrimary = buildAdapterWithManifest(buildManifest([]));
+        const sourceAdapter = buildAdapterWithManifest(buildManifest([]));
+        vi.mocked(sourceAdapter.prepareDbtSource).mockRejectedValue(
+            new Error('deps failed'),
+        );
+        vi.spyOn(projectService, 'buildSourceAdapter').mockResolvedValue(
+            sourceAdapter,
+        );
+        const resolved = await projectService.buildMergedManifestAdapter({
+            userUuid: 'user-uuid',
+            projectUuid: 'project-uuid',
+            organizationUuid: 'org-uuid',
+            primary: { ...primary, adapter: preparedPrimary },
+            sources: [buildSource('source-b')],
+            manifestFetchAdapters: [],
+        });
+        expect(resolved).toMatchObject({
+            failedDbtSourceUuids: ['source-b-uuid'],
+            connectionWarnings: [
+                expect.stringContaining('kept its 2 explores'),
+            ],
+        });
+        expect(preparedPrimary.getDbtManifest).toHaveBeenCalledOnce();
+        expect(sourceAdapter.getDbtManifest).not.toHaveBeenCalled();
+    });
+
+    it.each([true, false])(
+        'gates managed cross-source retries with flag enabled=%s',
+        async (enabled) => {
+            const { projectService } = buildServiceWithMocks([]);
+            projectService.featureFlagModel.get = vi.fn(
+                async (args: unknown) => {
+                    const { featureFlagId } = args as {
+                        featureFlagId: FeatureFlags;
+                    };
+                    return { id: featureFlagId, enabled };
+                },
+            );
+            const upstream = buildManifest([
+                {
+                    uniqueId: 'model.shared.calendar',
+                    name: 'calendar',
+                    packageName: 'shared',
+                },
+            ]);
+            upstream.metadata.project_name = 'shared';
+            const downstream = buildManifest([
+                {
+                    uniqueId: 'model.analytics.orders',
+                    name: 'orders',
+                    packageName: 'analytics',
+                },
+            ]);
+            downstream.metadata.project_name = 'analytics';
+            Object.assign(downstream.nodes['model.analytics.orders'], {
+                refs: [{ name: 'calendar', package: null, version: null }],
+                depends_on: { nodes: ['model.shared.calendar'] },
+            });
+            const stub = {
+                ...(upstream.nodes['model.shared.calendar'] as DbtRawModelNode &
+                    DbtManifest['nodes'][string]),
+                path: '',
+                original_file_path: '',
+            };
+            const error = new DbtError(
+                "depends on a node named 'calendar' in package or project 'shared' which was not found",
+            );
+            const downstreamAdapter = buildAdapterWithManifest(downstream);
+            const fetchManifest = vi
+                .mocked(downstreamAdapter.getDbtManifest)
+                .mockRejectedValueOnce(error)
+                .mockResolvedValueOnce({
+                    manifest: {
+                        ...downstream,
+                        nodes: { ...downstream.nodes, [stub.unique_id]: stub },
+                    },
+                    selectedModelIds: [
+                        stub.unique_id,
+                        'model.analytics.orders',
+                    ],
+                    timings: NO_FETCH_TIMINGS,
+                });
+            const build = vi
+                .spyOn(projectService, 'buildSourceAdapter')
+                .mockResolvedValue(downstreamAdapter);
+            const resolution = projectService.buildMergedManifestAdapter({
+                userUuid: 'user-uuid',
+                projectUuid: 'project-uuid',
+                organizationUuid: 'org-uuid',
+                primary: {
+                    ...primary,
+                    adapter: buildAdapterWithManifest(upstream),
+                },
+                sources: [buildSource('analytics')],
+                manifestFetchAdapters: [],
+            });
+            if (enabled) {
+                const { adapter, connectionWarnings } = await resolution;
+                expect(connectionWarnings).toEqual([
+                    "Model \"orders\" in dbt source \"analytics\" uses ref('calendar'), which resolved to external model model.shared.calendar from another dbt source. Use ref('shared', 'calendar') to make the cross-source reference explicit.",
+                ]);
+
+                const merged = await adapter.getDbtManifest();
+                expect(merged.manifest.nodes[stub.unique_id]).toMatchObject({
+                    path: 'models/calendar.sql',
+                });
+                expect(fetchManifest).toHaveBeenCalledTimes(2);
+                expect(downstreamAdapter.releaseDisk).toHaveBeenCalledOnce();
+                expect(
+                    vi.mocked(downstreamAdapter.releaseDisk).mock
+                        .invocationCallOrder[0],
+                ).toBeGreaterThan(fetchManifest.mock.invocationCallOrder[1]);
+                expect(fetchManifest.mock.calls[1][0]?.externalNodes).toEqual([
+                    expect.objectContaining({
+                        package_name: 'shared',
+                        name: 'calendar',
+                    }),
+                ]);
+                expect(build).toHaveBeenCalledTimes(1);
+            } else {
+                expect(await resolution).toMatchObject({
+                    connectionWarnings: [
+                        expect.stringContaining('Source "analytics" failed'),
+                    ],
+                });
+                expect(fetchManifest).toHaveBeenCalledTimes(1);
+            }
+            expect(projectService.featureFlagModel.get).toHaveBeenCalledWith({
+                featureFlagId: FeatureFlags.CrossSourceDbtRefs,
+                user: { userUuid: 'user-uuid', organizationUuid: 'org-uuid' },
+            });
+        },
+    );
 
     it('returns the deduplicated union when both sources select models', async () => {
         const primaryManifest = buildManifest([
@@ -13653,6 +15431,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 );
 
             await projectService.buildMergedManifestAdapter({
+                userUuid: 'user-uuid',
                 projectUuid: 'project-uuid',
                 organizationUuid: 'org-uuid',
                 primary: {
@@ -13709,6 +15488,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             waitFor: Promise<void> = Promise.resolve(),
         ) =>
             ({
+                releaseDisk: vi.fn(async () => undefined),
                 getDbtManifest: vi.fn(async () => {
                     events.push(`${name} started`);
                     await waitFor;
@@ -13736,9 +15516,11 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             vi.spyOn(projectService, 'buildSourceAdapter').mockImplementation(
                 async () =>
                     ({
+                        releaseDisk: vi.fn(async () => {
+                            sourceStarted();
+                        }),
                         getDbtManifest: vi.fn(async () => {
                             events.push('source-b started');
-                            sourceStarted();
                             events.push('source-b finished');
                             return {
                                 manifest: sourceManifest(),
@@ -13750,6 +15532,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
 
             const { adapter } = await projectService.buildMergedManifestAdapter(
                 {
+                    userUuid: 'user-uuid',
                     projectUuid: 'project-uuid',
                     organizationUuid: 'org-uuid',
                     primary: {
@@ -13789,6 +15572,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             );
 
             await projectService.buildMergedManifestAdapter({
+                userUuid: 'user-uuid',
                 projectUuid: 'project-uuid',
                 organizationUuid: 'org-uuid',
                 primary: {
@@ -13811,7 +15595,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             ]);
         });
 
-        it('fails on a source with broken credentials before fetching anything', async () => {
+        it('carries a source with broken credentials and fetches the primary', async () => {
             const events: string[] = [];
             const projectService = buildService(2);
             const buildSourceAdapter = vi.spyOn(
@@ -13821,6 +15605,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
 
             await expect(
                 projectService.buildMergedManifestAdapter({
+                    userUuid: 'user-uuid',
                     projectUuid: 'project-uuid',
                     organizationUuid: 'org-uuid',
                     primary: {
@@ -13839,10 +15624,12 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                     ],
                     manifestFetchAdapters: [],
                 }),
-            ).rejects.toThrow(
-                'Failed to load dbt source "source-b": its connection credentials could not be decrypted',
-            );
-            expect(events).toEqual([]);
+            ).resolves.toMatchObject({
+                connectionWarnings: [
+                    expect.stringContaining('Source "source-b" failed'),
+                ],
+            });
+            expect(events).toEqual(['primary started', 'primary finished']);
             expect(buildSourceAdapter).not.toHaveBeenCalled();
         });
 
@@ -13853,6 +15640,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             );
             const manifestFetchAdapters: ProjectAdapter[] = [];
             const failingPrimaryAdapter = {
+                releaseDisk: vi.fn(async () => undefined),
                 getDbtManifest: vi.fn(async () => {
                     throw new Error('dbt ls failed in the primary');
                 }),
@@ -13860,6 +15648,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
 
             await expect(
                 projectService.buildMergedManifestAdapter({
+                    userUuid: 'user-uuid',
                     projectUuid: 'project-uuid',
                     organizationUuid: 'org-uuid',
                     primary: { ...primary, adapter: failingPrimaryAdapter },
@@ -13899,6 +15688,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         );
 
         await projectService.buildMergedManifestAdapter({
+            userUuid: 'user-uuid',
             projectUuid: 'project-uuid',
             organizationUuid: 'org-uuid',
             primary: {
@@ -14248,6 +16038,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         };
 
         await projectService.buildMergedManifestAdapter({
+            userUuid: 'user-uuid',
             projectUuid: 'project-uuid',
             organizationUuid: 'org-uuid',
             primary: {
@@ -14269,7 +16060,10 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             manifestFetchAdapters: [],
         });
 
-        expect(getFlag).not.toHaveBeenCalled();
+        expect(getFlag).toHaveBeenCalledExactlyOnceWith({
+            featureFlagId: FeatureFlags.CrossSourceDbtRefs,
+            user: { userUuid: 'user-uuid', organizationUuid: 'org-uuid' },
+        });
         expect(projectModel.getSummary).not.toHaveBeenCalled();
         expect(buildSourceAdapter).toHaveBeenCalledTimes(2);
         expect(buildSourceAdapter).toHaveBeenNthCalledWith(
@@ -14372,6 +16166,8 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             name: 'countries',
             package_name: 'pkg_a',
             resource_type: 'seed',
+            path: 'seeds/country_codes.csv',
+            original_file_path: 'seeds/country_codes.csv',
             database: 'analytics',
             schema: 'public',
             config: { materialized: 'seed' },
@@ -14470,22 +16266,8 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         ).toHaveProperty('compiled', false);
     });
 
-    it('flag OFF returns the primary adapter by identity and never queries getSources', async () => {
-        const { projectService, getSources } = buildServiceWithMocks(false, [
-            { name: 'jaffle-2' },
-        ]);
-
-        const result = await projectService.resolveCompileAdapter(baseArgs);
-
-        expect(result.adapter).toBe(primaryAdapter);
-        expect(getSources).not.toHaveBeenCalled();
-        expect(projectModel.deleteMergedManifest).toHaveBeenCalledWith(
-            'project-uuid',
-        );
-    });
-
-    it('flag ON with zero sources (N=0) returns the primary adapter by identity', async () => {
-        const { projectService, getSources } = buildServiceWithMocks(true, []);
+    it('zero sources (N=0) returns the primary adapter by identity', async () => {
+        const { projectService, getSources } = buildServiceWithMocks([]);
 
         const result = await projectService.resolveCompileAdapter(baseArgs);
 
@@ -14497,36 +16279,27 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         expect(projectModel.upsertMergedManifest).not.toHaveBeenCalled();
     });
 
-    it.each([
-        { path: 'feature flag off', flagEnabled: false, sources: [] },
-        { path: 'zero additional sources', flagEnabled: true, sources: [] },
-    ])(
-        'BC-6: $path returns the primary adapter when stale manifest deletion fails',
-        async ({ flagEnabled, sources }) => {
-            const { projectService } = buildServiceWithMocks(
-                flagEnabled,
-                sources,
-            );
-            const warn = vi.spyOn(projectService.logger, 'warn');
-            projectModel.deleteMergedManifest.mockRejectedValueOnce(
-                new Error('database unavailable'),
-            );
+    it('BC-6: zero additional sources returns the primary adapter when stale manifest deletion fails', async () => {
+        const { projectService } = buildServiceWithMocks([]);
+        const warn = vi.spyOn(projectService.logger, 'warn');
+        projectModel.deleteMergedManifest.mockRejectedValueOnce(
+            new Error('database unavailable'),
+        );
 
-            const result = await projectService.resolveCompileAdapter(baseArgs);
+        const result = await projectService.resolveCompileAdapter(baseArgs);
 
-            expect(result.adapter).toBe(primaryAdapter);
-            expect(warn).toHaveBeenCalledWith(
-                'Failed to delete merged dbt manifest for project project-uuid: database unavailable',
-            );
-        },
-    );
+        expect(result.adapter).toBe(primaryAdapter);
+        expect(warn).toHaveBeenCalledWith(
+            'Failed to delete merged dbt manifest for project project-uuid: database unavailable',
+        );
+    });
 
     it('BC-7: carries the staged merged manifest through adapter resolution', async () => {
         const mergedAdapter = {
             id: 'merged-adapter',
         } as unknown as ProjectAdapter;
         const stagedMergedManifest = Buffer.from('staged-manifest');
-        const { projectService } = buildServiceWithMocks(true, [
+        const { projectService } = buildServiceWithMocks([
             { name: 'jaffle-2' },
         ]);
         const buildMergedManifestAdapterSpy = vi
@@ -14555,6 +16328,11 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             { subject: 'Project', action: ['update', 'view'] },
             { subject: 'Job', action: ['create'] },
             { subject: 'CompileProject', action: ['manage'] },
+            {
+                subject: 'DeployProject',
+                action: ['manage'],
+                conditions: { projectUuid: 'projectUuid' },
+            },
         ]),
     };
 
@@ -14565,7 +16343,24 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         primaryDestroy: ProjectAdapter['destroy'] = vi.fn(
             async () => undefined,
         ),
+        preparePrimary: ProjectAdapter['prepareDbtSource'] = vi.fn(
+            async () => ({
+                projectDir: null,
+                timings: { gitRefreshMs: null, depsMs: null },
+            }),
+        ),
     ) => {
+        projectModel.saveMultiConnectionExplores
+            .mockReset()
+            .mockImplementation(
+                async (_projectUuid, stream, _carry, _beforeWrite, naming) => {
+                    const explores: (Explore | ExploreError)[] = [];
+                    for await (const { explore } of stream)
+                        explores.push(explore);
+                    naming?.onPublished?.(explores);
+                    return { cachedExploreUuids: [] };
+                },
+            );
         const primaryManifest = buildManifest([
             {
                 uniqueId: 'model.pkg_a.orders',
@@ -14582,6 +16377,8 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         ]);
         const primaryCompileAdapter = {
             test: vi.fn(async () => undefined),
+            prepareDbtSource: preparePrimary,
+            releaseDisk: vi.fn(async () => undefined),
             getDbtManifest: vi.fn(async () => ({
                 manifest: primaryManifest,
                 timings: NO_FETCH_TIMINGS,
@@ -14590,6 +16387,8 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             dbtProjectDir: '/tmp/primary-dbt-project',
         } as unknown as ProjectAdapter;
         const sourceAdapter = {
+            prepareDbtSource: vi.fn(async () => ({ projectDir: null })),
+            releaseDisk: vi.fn(async () => undefined),
             getDbtManifest: vi.fn(async () => ({
                 manifest: sourceManifest,
                 timings: NO_FETCH_TIMINGS,
@@ -14637,7 +16436,6 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             .mockReset()
             .mockResolvedValue(warehouseClientMock.credentials);
         projectModel.getProjectWarehouseConfig.mockResolvedValue({
-            organizationWarehouseCredentialsUuid: null,
             queryTimezone: null,
         });
         projectModel.getSummary.mockReset().mockResolvedValue(projectSummary);
@@ -14653,12 +16451,13 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             get: vi.fn(
                 async ({ featureFlagId }: { featureFlagId: string }) => ({
                     id: featureFlagId,
-                    enabled: featureFlagId === FeatureFlags.MultiDbtSources,
+                    enabled: false,
                 }),
             ),
         } as unknown as FeatureFlagModel;
         const projectDbtSourcesModel = {
             getSources: vi.fn(async () => [buildSource('source-b')]),
+            hasSources: vi.fn(async () => false),
         } as unknown as ProjectDbtSourcesModel;
 
         return getMockedProjectService(lightdashConfigWithGoogleOAuthMock, {
@@ -14676,6 +16475,9 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         async ({ bound, scheduled }) => {
             vi.clearAllMocks();
             const configured = buildCompilationBoundaryService();
+            vi.mocked(
+                configured.projectDbtSourcesModel.getSources,
+            ).mockResolvedValue([]);
             vi.mocked(configured.featureFlagModel.get).mockResolvedValue({
                 enabled: false,
             } as never);
@@ -14868,9 +16670,9 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                     return { cachedExploreUuids: [] };
                 },
             );
-            projectModel.saveExploreStreamToCache.mockImplementationOnce(
+            projectModel.saveMultiConnectionExplores.mockImplementationOnce(
                 async (_uuid, stream) => {
-                    for await (const explore of stream)
+                    for await (const { explore } of stream)
                         expect(explore.name).toBeDefined();
                     return afterSave();
                 },
@@ -15148,7 +16950,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             projectModel.saveExploresToCache
                 .mockReset()
                 .mockResolvedValue({ cachedExploreUuids: [] });
-            projectModel.saveExploreStreamToCache
+            projectModel.saveMultiConnectionExplores
                 .mockReset()
                 .mockResolvedValue({ cachedExploreUuids: [] });
         },
@@ -15245,7 +17047,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             if (outcome === 'success') {
                 await run();
                 expect(
-                    projectModel.saveExploreStreamToCache,
+                    projectModel.saveMultiConnectionExplores,
                 ).toHaveBeenCalled();
                 expect(schedulerClient.indexCatalog).toHaveBeenCalledWith(
                     expect.not.objectContaining({
@@ -15266,7 +17068,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 expect(parameters).not.toHaveBeenCalled();
                 expect(projectModel.setTableGroups).not.toHaveBeenCalled();
                 expect(
-                    projectModel.saveExploreStreamToCache,
+                    projectModel.saveMultiConnectionExplores,
                 ).not.toHaveBeenCalled();
                 expect(
                     projectModel.upsertMergedManifest,
@@ -15291,10 +17093,10 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 projectAdapterModule.projectAdapterFromConfig,
             );
             const firstResult = adapterBuilder.mock.results.length;
-            projectModel.saveExploreStreamToCache
+            projectModel.saveMultiConnectionExplores
                 .mockReset()
                 .mockImplementationOnce(async (_uuid, explores) => {
-                    for await (const explore of explores)
+                    for await (const { explore } of explores)
                         expect(explore.name).toBeDefined();
                     return { cachedExploreUuids: [] };
                 });
@@ -15346,10 +17148,10 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             (projectService as unknown as ProjectServiceInternals).logger,
             'warn',
         );
-        projectModel.saveExploreStreamToCache
+        projectModel.saveMultiConnectionExplores
             .mockReset()
             .mockImplementationOnce(async (_uuid, explores) => {
-                for await (const explore of explores)
+                for await (const { explore } of explores)
                     expect(explore.name).toBeDefined();
                 return { cachedExploreUuids: [] };
             });
@@ -15372,6 +17174,122 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             expect.objectContaining({ jobStatus: JobStatusType.DONE }),
         );
     });
+
+    it.each([
+        { enabled: true, missingRef: true, warehouseFails: false },
+        { enabled: false, missingRef: true, warehouseFails: false },
+        { enabled: true, missingRef: false, warehouseFails: false },
+        { enabled: true, missingRef: true, warehouseFails: true },
+    ])(
+        'defers only missing cross-project refs when enabled=$enabled missingRef=$missingRef warehouseFails=$warehouseFails',
+        async ({ enabled, missingRef, warehouseFails }) => {
+            const dbtError = new DbtError(
+                missingRef
+                    ? "Model 'model.analytics.orders' depends on a node named 'orders' in package or project 'upstream' which was not found"
+                    : 'dbt parse failed: invalid configuration',
+            );
+            const warehouseError = new Error('warehouse connection failed');
+            const warehouseTest = vi.spyOn(warehouseClientMock, 'test');
+            if (warehouseFails)
+                warehouseTest.mockRejectedValueOnce(warehouseError);
+            const adapter = new DbtBaseProjectAdapter(
+                {
+                    test: vi.fn().mockRejectedValue(dbtError),
+                } as unknown as ConstructorParameters<
+                    typeof DbtBaseProjectAdapter
+                >[0],
+                warehouseClientMock,
+                {
+                    warehouseCatalog: undefined,
+                    onWarehouseCatalogChange: () => {},
+                },
+                SupportedDbtVersions.V1_12,
+            );
+            vi.spyOn(
+                projectAdapterModule,
+                'projectAdapterFromConfig',
+            ).mockResolvedValueOnce(adapter);
+            const flags = {
+                get: vi.fn(
+                    async ({ featureFlagId }: { featureFlagId: string }) => ({
+                        id: featureFlagId,
+                        enabled:
+                            featureFlagId === FeatureFlags.CrossSourceDbtRefs &&
+                            enabled,
+                    }),
+                ),
+            };
+            const projectService = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+                {
+                    featureFlagModel: flags as unknown as FeatureFlagModel,
+                },
+            );
+            const internals = projectService as unknown as {
+                logger: { info: (message: string, metadata: unknown) => void };
+                testProjectAdapter: (
+                    data: Omit<UpdateProject, 'warehouseConnection'> & {
+                        warehouseConnection: {
+                            kind: 'submitted_resolved';
+                            credentials: CreateWarehouseCredentials;
+                        };
+                    },
+                    caller: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+                    context: 'project_update',
+                    method: RequestMethod,
+                    projectUuid: string,
+                    projectOrganizationUuid: string,
+                ) => Promise<unknown>;
+            };
+            const info = vi.spyOn(internals.logger, 'info');
+            const tested = internals.testProjectAdapter(
+                {
+                    ...projectWithSensitiveFields,
+                    warehouseConnection: {
+                        kind: 'submitted_resolved',
+                        credentials: warehouseClientMock.credentials,
+                    },
+                },
+                compileUser,
+                'project_update',
+                RequestMethod.WEB_APP,
+                'projectUuid',
+                'organizationUuid',
+            );
+            if (enabled && missingRef) {
+                if (warehouseFails)
+                    await expect(tested).rejects.toBe(warehouseError);
+                else await expect(tested).resolves.toMatchObject({ adapter });
+                expect(warehouseTest).toHaveBeenCalledOnce();
+                expect(info).toHaveBeenCalledWith(
+                    'dbt.test.deferredCrossSourceRefs',
+                    {
+                        refs: [
+                            {
+                                packageName: 'upstream',
+                                model: 'orders',
+                                version: null,
+                            },
+                        ],
+                    },
+                );
+                expect(flags.get).toHaveBeenCalledWith({
+                    featureFlagId: FeatureFlags.CrossSourceDbtRefs,
+                    user: {
+                        userUuid: compileUser.userUuid,
+                        organizationUuid: 'organizationUuid',
+                    },
+                });
+            } else {
+                await expect(tested).rejects.toBe(dbtError);
+                expect(warehouseTest).not.toHaveBeenCalled();
+                expect(info).not.toHaveBeenCalledWith(
+                    'dbt.test.deferredCrossSourceRefs',
+                    expect.anything(),
+                );
+            }
+        },
+    );
 
     it('a failed adapter test destroys the adapter and releases the lease', async () => {
         const adapter = {
@@ -15460,6 +17378,279 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         ).toBeLessThan(tunnel.disconnect.mock.invocationCallOrder[0]);
     });
 
+    it.each(['shutdown', 'deadline'] as const)(
+        'arms primary preparation before test and deploy and handles %s',
+        async (cause) => {
+            const context: CompileShutdownContext = {
+                controller: new AbortController(),
+                jobUuid: 'leaf_a',
+                armed: false,
+                state: 'running',
+                isStopping: () => false,
+                interrupt: vi.fn(),
+            };
+            let signal: AbortSignal | undefined;
+            const prepare = vi.fn<ProjectAdapter['prepareDbtSource']>(
+                async (options) => {
+                    expect(context.armed).toBe(true);
+                    signal = options?.signal;
+                    return new Promise((_resolve, reject) => {
+                        signal!.addEventListener(
+                            'abort',
+                            () => reject(signal!.reason),
+                            { once: true },
+                        );
+                    });
+                },
+            );
+            const service = buildCompilationBoundaryService(
+                undefined,
+                undefined,
+                prepare,
+            );
+            vi.mocked(service.featureFlagModel.get).mockImplementation(
+                async ({ featureFlagId }) =>
+                    ({
+                        enabled:
+                            featureFlagId === FeatureFlags.CrossSourceDbtRefs,
+                    }) as never,
+            );
+            Object.assign(service, {
+                lightdashConfig: {
+                    ...lightdashConfigWithGoogleOAuthMock,
+                    dbt: {
+                        ...lightdashConfigWithGoogleOAuthMock.dbt,
+                        crossSourcePrepareTimeoutMs: 50,
+                    },
+                },
+            });
+            const reason = new CompileInterruptedError();
+            projectModel.saveMultiConnectionExplores.mockClear();
+            const work = compileShutdown
+                .run(context, () =>
+                    service.testAndCompileProject(
+                        compileUser,
+                        'projectUuid',
+                        RequestMethod.WEB_APP,
+                        'leaf_a',
+                    ),
+                )
+                .catch((error: unknown) => error);
+            await vi.waitFor(() => expect(prepare).toHaveBeenCalledOnce());
+            if (cause === 'shutdown') context.controller.abort(reason);
+            const error = await work;
+            if (cause === 'shutdown') expect(error).toBe(reason);
+            else
+                expect(error).toHaveProperty(
+                    'message',
+                    expect.stringContaining(
+                        'while cloning the repository and installing dbt packages',
+                    ),
+                );
+            expect(signal?.aborted).toBe(true);
+            expect(
+                projectModel.saveMultiConnectionExplores,
+            ).not.toHaveBeenCalled();
+            expect(context.state).toBe('terminal');
+        },
+    );
+
+    it.each(['compileProject', 'testAndCompileProject'] as const)(
+        '%s fences a shutdown after dbt ls before any publication',
+        async (method) => {
+            const context: CompileShutdownContext = {
+                controller: new AbortController(),
+                jobUuid: 'leaf_a',
+                armed: false,
+                state: 'running',
+                isStopping: () => false,
+                interrupt: vi.fn(),
+            };
+            const reason = new CompileInterruptedError();
+            const projectService = buildCompilationBoundaryService(
+                vi.fn(async () => {
+                    expect(context.armed).toBe(true);
+                    context.controller.abort(reason);
+                    return [validExplore];
+                }),
+            );
+            vi.mocked(projectService.featureFlagModel.get).mockImplementation(
+                async ({ featureFlagId }) =>
+                    ({
+                        enabled:
+                            featureFlagId === FeatureFlags.CrossSourceDbtRefs,
+                    }) as never,
+            );
+            projectModel.saveMultiConnectionExplores.mockClear();
+            jobModel.update.mockClear();
+            await expect(
+                compileShutdown.run(context, () =>
+                    projectService[method](
+                        compileUser,
+                        'projectUuid',
+                        RequestMethod.WEB_APP,
+                        'leaf_a',
+                    ),
+                ),
+            ).rejects.toBe(reason);
+            expect(
+                projectModel.saveMultiConnectionExplores,
+            ).not.toHaveBeenCalled();
+            expect(projectModel.upsertMergedManifest).not.toHaveBeenCalled();
+            expect(jobModel.update).not.toHaveBeenCalledWith(
+                'leaf_a',
+                expect.objectContaining({ jobStatus: JobStatusType.DONE }),
+            );
+            expect(jobModel.failRunningJob).toHaveBeenCalledWith(
+                'leaf_a',
+                reason.message,
+            );
+            expect(context.armed).toBe(false);
+        },
+    );
+
+    it.each(['compileProject', 'testAndCompileProject'] as const)(
+        '%s disarms shutdown before its scheduler wrapper finishes',
+        async (method) => {
+            const context: CompileShutdownContext = {
+                controller: new AbortController(),
+                jobUuid: 'leaf_a',
+                armed: false,
+                state: 'running',
+                isStopping: () => false,
+                interrupt: vi.fn(),
+            };
+            const projectService = buildCompilationBoundaryService(
+                vi.fn(async () => {
+                    expect(context.armed).toBe(true);
+                    return [validExplore];
+                }),
+            );
+            vi.mocked(projectService.featureFlagModel.get).mockImplementation(
+                async ({ featureFlagId }) =>
+                    ({
+                        enabled:
+                            featureFlagId === FeatureFlags.CrossSourceDbtRefs,
+                    }) as never,
+            );
+            await compileShutdown.run(context, () =>
+                projectService[method](
+                    compileUser,
+                    'projectUuid',
+                    RequestMethod.WEB_APP,
+                    'leaf_a',
+                ),
+            );
+            expect(jobModel.update).toHaveBeenCalledWith(
+                'leaf_a',
+                expect.objectContaining({ jobStatus: JobStatusType.DONE }),
+            );
+            expect(context.armed).toBe(false);
+        },
+    );
+
+    it.each(['compileProject', 'testAndCompileProject'] as const)(
+        '%s publishes nothing when shutdown occurs before the staged cache commit',
+        async (method) => {
+            const context: CompileShutdownContext = {
+                controller: new AbortController(),
+                jobUuid: 'leaf_a',
+                armed: false,
+                state: 'running',
+                isStopping: () => false,
+                interrupt: vi.fn(),
+            };
+            const reason = new CompileInterruptedError();
+            const projectService = buildCompilationBoundaryService();
+            vi.mocked(projectService.featureFlagModel.get).mockImplementation(
+                async ({ featureFlagId }) =>
+                    ({
+                        enabled:
+                            featureFlagId === FeatureFlags.CrossSourceDbtRefs,
+                    }) as never,
+            );
+            let committed = false;
+            projectModel.saveMultiConnectionExplores.mockImplementationOnce(
+                async (_projectUuid, stream, _carry, beforeWrite) => {
+                    const explores = [];
+                    for await (const { explore } of stream)
+                        explores.push(explore);
+                    expect(explores.length).toBeGreaterThan(0);
+                    context.controller.abort(reason);
+                    expect(beforeWrite).toBeDefined();
+                    await beforeWrite!(null as never, 'leaf_b');
+                    committed = true;
+                    return { cachedExploreUuids: [] };
+                },
+            );
+            jobModel.update.mockClear();
+            await expect(
+                compileShutdown.run(context, () =>
+                    projectService[method](
+                        compileUser,
+                        'projectUuid',
+                        RequestMethod.WEB_APP,
+                        'leaf_a',
+                    ),
+                ),
+            ).rejects.toBe(reason);
+            expect(committed).toBe(false);
+            expect(projectModel.upsertMergedManifest).not.toHaveBeenCalled();
+            expect(jobModel.update).not.toHaveBeenCalledWith(
+                'leaf_a',
+                expect.objectContaining({ jobStatus: JobStatusType.DONE }),
+            );
+        },
+    );
+
+    it.each(['compileProject', 'testAndCompileProject'] as const)(
+        '%s persists the manifest and marks DONE when shutdown follows the cache commit',
+        async (method) => {
+            const context: CompileShutdownContext = {
+                controller: new AbortController(),
+                jobUuid: 'leaf_a',
+                armed: false,
+                state: 'running',
+                isStopping: () => false,
+                interrupt: vi.fn(),
+            };
+            const projectService = buildCompilationBoundaryService();
+            vi.mocked(projectService.featureFlagModel.get).mockImplementation(
+                async ({ featureFlagId }) =>
+                    ({
+                        enabled:
+                            featureFlagId === FeatureFlags.CrossSourceDbtRefs,
+                    }) as never,
+            );
+            projectModel.saveMultiConnectionExplores.mockImplementationOnce(
+                async () => {
+                    context.controller.abort(new CompileInterruptedError());
+                    return { cachedExploreUuids: [] };
+                },
+            );
+            projectModel.upsertMergedManifest.mockImplementationOnce(
+                async () => {
+                    expect(context.armed).toBe(true);
+                    expect(context.state).toBe('published');
+                },
+            );
+            jobModel.update.mockClear();
+            await compileShutdown.run(context, () =>
+                projectService[method](
+                    compileUser,
+                    'projectUuid',
+                    RequestMethod.WEB_APP,
+                    'leaf_a',
+                ),
+            );
+            expect(projectModel.upsertMergedManifest).toHaveBeenCalledOnce();
+            expect(jobModel.update).toHaveBeenCalledWith(
+                'leaf_a',
+                expect.objectContaining({ jobStatus: JobStatusType.DONE }),
+            );
+        },
+    );
+
     it('BC-7: distinguishes manifest staging failures from persistence failures', async () => {
         const projectService = buildCompilationBoundaryService();
         const internals = projectService as unknown as ProjectServiceInternals;
@@ -15484,10 +17675,10 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         let cacheCompleted = false;
         let persistedManifest: Buffer | undefined;
         const projectService = buildCompilationBoundaryService();
-        projectModel.saveExploreStreamToCache
+        projectModel.saveMultiConnectionExplores
             .mockReset()
             .mockImplementationOnce(async (_projectUuid, explores) => {
-                for await (const explore of explores) {
+                for await (const { explore } of explores) {
                     expect(explore.name).toBeDefined();
                 }
                 await Promise.resolve();
@@ -15512,10 +17703,12 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             'compile-job-uuid',
         );
 
-        expect(projectModel.saveExploreStreamToCache).toHaveBeenCalledTimes(1);
+        expect(projectModel.saveMultiConnectionExplores).toHaveBeenCalledTimes(
+            1,
+        );
         expect(projectModel.upsertMergedManifest).toHaveBeenCalledTimes(1);
         expect(
-            vi.mocked(projectModel.saveExploreStreamToCache).mock
+            vi.mocked(projectModel.saveMultiConnectionExplores).mock
                 .invocationCallOrder[0],
         ).toBeLessThan(
             vi.mocked(projectModel.upsertMergedManifest).mock
@@ -15528,10 +17721,10 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         let cacheCompleted = false;
         let persistedManifest: Buffer | undefined;
         const projectService = buildCompilationBoundaryService();
-        projectModel.saveExploreStreamToCache
+        projectModel.saveMultiConnectionExplores
             .mockReset()
             .mockImplementationOnce(async (_projectUuid, explores) => {
-                for await (const explore of explores) {
+                for await (const { explore } of explores) {
                     expect(explore.name).toBeDefined();
                 }
                 await Promise.resolve();
@@ -15556,10 +17749,12 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             'compile-job-uuid',
         );
 
-        expect(projectModel.saveExploreStreamToCache).toHaveBeenCalledTimes(1);
+        expect(projectModel.saveMultiConnectionExplores).toHaveBeenCalledTimes(
+            1,
+        );
         expect(projectModel.upsertMergedManifest).toHaveBeenCalledTimes(1);
         expect(
-            vi.mocked(projectModel.saveExploreStreamToCache).mock
+            vi.mocked(projectModel.saveMultiConnectionExplores).mock
                 .invocationCallOrder[0],
         ).toBeLessThan(
             vi.mocked(projectModel.upsertMergedManifest).mock
@@ -15574,7 +17769,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             (projectService as unknown as ProjectServiceInternals).logger,
             'warn',
         );
-        projectModel.saveExploreStreamToCache
+        projectModel.saveMultiConnectionExplores
             .mockReset()
             .mockResolvedValueOnce({ cachedExploreUuids: [] });
         projectModel.upsertMergedManifest.mockRejectedValueOnce(
@@ -15638,7 +17833,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
     });
 
     it('propagates a ParameterError from buildMergedManifestAdapter when sources collide', async () => {
-        const { projectService } = buildServiceWithMocks(true, [
+        const { projectService } = buildServiceWithMocks([
             { name: 'jaffle-2' },
         ]);
         vi.spyOn(
@@ -16575,6 +18770,184 @@ describe('assertCustomSqlAuthorizedForQuery', () => {
     });
 });
 
+describe('available filter week boundaries', () => {
+    const weeklyExplore = (
+        name: string,
+        type = ExploreType.DEFAULT,
+    ): Explore => ({
+        ...validExplore,
+        name,
+        type,
+        tables: {
+            a: {
+                ...validExplore.tables.a,
+                dimensions: {
+                    week: {
+                        ...validExplore.tables.a.dimensions.dim1,
+                        name: 'week',
+                        type: DimensionType.DATE,
+                        timeInterval: TimeFrames.WEEK,
+                    },
+                },
+                metrics: {},
+            },
+        },
+    });
+
+    test.each([
+        {
+            type: ExploreType.EXTERNAL_SOURCE,
+            startOfWeek: null,
+            expected: WeekDay.MONDAY,
+        },
+        {
+            type: ExploreType.EXTERNAL_SOURCE,
+            startOfWeek: WeekDay.WEDNESDAY,
+            expected: WeekDay.WEDNESDAY,
+        },
+        {
+            type: ExploreType.DEFAULT,
+            startOfWeek: null,
+            expected: WeekDay.SUNDAY,
+        },
+        {
+            type: ExploreType.DEFAULT,
+            startOfWeek: WeekDay.MONDAY,
+            expected: WeekDay.MONDAY,
+        },
+    ])(
+        'uses the effective boundary for $type with start $startOfWeek',
+        async ({ type, startOfWeek, expected }) => {
+            const service = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+            );
+            const explore = weeklyExplore('weekly', type);
+            vi.spyOn(
+                service,
+                'getWarehouseSqlBuilderSettings',
+            ).mockResolvedValue({
+                type: WarehouseTypes.BIGQUERY,
+                startOfWeek,
+                columnTimezone: 'UTC',
+                dataTimezone: null,
+            });
+
+            const filters = await service.getFilterableDimensionsForExplore(
+                projectSummary.projectUuid,
+                explore,
+            );
+
+            expect(filters).toEqual([
+                {
+                    ...explore.tables.a.dimensions.week,
+                    filterStartOfWeek: expected,
+                },
+            ]);
+            expect(explore.tables.a.dimensions.week).not.toHaveProperty(
+                'filterStartOfWeek',
+            );
+        },
+    );
+
+    test('does not read warehouse settings for non-week filters', async () => {
+        const service = getMockedProjectService(
+            lightdashConfigWithGoogleOAuthMock,
+        );
+        const settings = vi.spyOn(service, 'getWarehouseSqlBuilderSettings');
+
+        const filters = await service.getFilterableDimensionsForExplore(
+            projectSummary.projectUuid,
+            validExplore,
+        );
+
+        expect(filters.length).toBeGreaterThan(0);
+        expect(
+            filters.every((field) => field.filterStartOfWeek === undefined),
+        ).toBe(true);
+        expect(settings).not.toHaveBeenCalled();
+    });
+
+    test('keeps native and DuckDB boundaries distinct and resolves repeated explores once', async () => {
+        const filterAccount = {
+            ...account,
+            user: {
+                ...account.user,
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'Project', action: 'view' },
+                    { subject: 'SavedChart', action: 'view' },
+                ]),
+            },
+        } as typeof account;
+        const explores = [
+            weeklyExplore('native'),
+            weeklyExplore('upload', ExploreType.EXTERNAL_SOURCE),
+        ];
+        const charts = ['native', 'upload', 'upload'].map(
+            (tableName, index) => ({
+                uuid: `weekly-chart-${index}`,
+                name: 'Weekly chart',
+                tableName,
+                projectUuid: projectSummary.projectUuid,
+                spaceUuid: 'space',
+                dashboardUuid: null,
+            }),
+        );
+        savedChartModel.getInfoForAvailableFilters.mockResolvedValueOnce(
+            charts,
+        );
+        const service = getMockedProjectService(
+            lightdashConfigWithGoogleOAuthMock,
+            {
+                spacePermissionService: {
+                    resolveAccessBatch: vi.fn().mockResolvedValue(
+                        charts.map((chart) => ({
+                            target: { type: 'chart', chartUuid: chart.uuid },
+                            context: {
+                                organizationUuid:
+                                    account.organization.organizationUuid,
+                                projectUuid: projectSummary.projectUuid,
+                                inheritsFromOrgOrProject: true,
+                                access: [],
+                            },
+                        })),
+                    ),
+                } as unknown as SpacePermissionService,
+            },
+        );
+        vi.spyOn(service, 'findExplores').mockResolvedValue(
+            Object.fromEntries(
+                explores.map((explore) => [explore.name, explore]),
+            ),
+        );
+        const settings = vi
+            .spyOn(service, 'getWarehouseSqlBuilderSettings')
+            .mockResolvedValue({
+                type: WarehouseTypes.BIGQUERY,
+                startOfWeek: null,
+                columnTimezone: 'UTC',
+                dataTimezone: null,
+            });
+
+        const result = await service.getAvailableFiltersForSavedQueries(
+            filterAccount,
+            charts.map((chart, index) => ({
+                savedChartUuid: chart.uuid,
+                tileUuid: `weekly-tile-${index}`,
+            })),
+        );
+
+        expect(
+            result.allFilterableFields.map((field) => field.filterStartOfWeek),
+        ).toEqual([WeekDay.SUNDAY, WeekDay.MONDAY]);
+        expect(result.savedQueryFilters).toEqual({
+            'weekly-tile-0': [0],
+            'weekly-tile-1': [1],
+            'weekly-tile-2': [1],
+        });
+        expect(settings).toHaveBeenCalledTimes(2);
+    });
+});
+
 describe('dashboard available filters', () => {
     test('keeps a field per distinct label set and shares indexes across explores that agree', async () => {
         const filterAccount = {
@@ -16860,8 +19233,11 @@ describe('Snowflake credential pins (SPK-2336)', () => {
         const callRefreshAndPersist = (
             credentials: CreateSnowflakeCredentials,
             source: { kind: 'project'; projectUuid: string },
-        ): Promise<CreateSnowflakeCredentials> =>
-            (
+        ): Promise<CreateSnowflakeCredentials> => {
+            projectModel.getOwnWarehouseCredentialsForProject.mockResolvedValueOnce(
+                credentials,
+            );
+            return (
                 pinsService as unknown as {
                     refreshCredentialsAndPersistRotation: (
                         args: CreateSnowflakeCredentials,
@@ -16874,6 +19250,7 @@ describe('Snowflake credential pins (SPK-2336)', () => {
                 'pin-user-uuid',
                 source,
             );
+        };
 
         test('returns a fresh access token and refresh token, and persists the rotation', async () => {
             const generateSpy = vi
@@ -16900,7 +19277,10 @@ describe('Snowflake credential pins (SPK-2336)', () => {
                 projectUuid: pinsProjectUuid,
             });
 
-            expect(generateSpy).toHaveBeenCalledWith('stale-refresh-token');
+            expect(generateSpy).toHaveBeenCalledWith(
+                'stale-refresh-token',
+                30_000,
+            );
             expect(result).toEqual({
                 ...credentials,
                 authenticationType: SnowflakeAuthenticationType.SSO,
@@ -16911,6 +19291,7 @@ describe('Snowflake credential pins (SPK-2336)', () => {
                 pinsProjectUuid,
                 'stale-refresh-token',
                 'fresh-refresh-token',
+                expect.anything(),
             );
 
             generateSpy.mockRestore();
@@ -16996,11 +19377,15 @@ describe('Snowflake credential pins (SPK-2336)', () => {
                 organizationUuid: 'pin-org-uuid',
             });
 
-            expect(generateSpy).toHaveBeenCalledWith('old-refresh-token');
+            expect(generateSpy).toHaveBeenCalledWith(
+                'old-refresh-token',
+                30_000,
+            );
             expect(rotateRefreshTokenMock).toHaveBeenCalledWith(
                 pinsProjectUuid,
                 'old-refresh-token',
                 'new-refresh-token',
+                expect.anything(),
             );
             expect(result.warehouseCredentials).toMatchObject({
                 token: 'new-access-token',
@@ -17047,7 +19432,6 @@ describe('Snowflake credential pins (SPK-2336)', () => {
                 (
                     projectModel.getProjectWarehouseConfig as import('vitest').Mock
                 ).mockResolvedValueOnce({
-                    organizationWarehouseCredentialsUuid: null,
                     queryTimezone: null,
                 });
 
@@ -17097,7 +19481,6 @@ describe('Snowflake credential pins (SPK-2336)', () => {
             (
                 projectModel.getProjectWarehouseConfig as import('vitest').Mock
             ).mockResolvedValueOnce({
-                organizationWarehouseCredentialsUuid: null,
                 queryTimezone: null,
             });
 
@@ -17139,6 +19522,7 @@ describe('Snowflake credential pins (SPK-2336)', () => {
 
             expect(generateSpy).toHaveBeenCalledWith(
                 'personal-stale-refresh-token',
+                30_000,
             );
             expect(result).toMatchObject({
                 authenticationType: SnowflakeAuthenticationType.SSO,
@@ -17150,6 +19534,8 @@ describe('Snowflake credential pins (SPK-2336)', () => {
                 'personal-creds-uuid',
                 'personal-stale-refresh-token',
                 'personal-fresh-refresh-token',
+                undefined,
+                expect.anything(),
             );
             expect(JSON.stringify(result)).not.toContain(
                 'project-secret-password',
@@ -17175,7 +19561,6 @@ describe('Personal-credential merge pins across warehouse types (SPK-2338)', () 
         (
             projectModel.getProjectWarehouseConfig as import('vitest').Mock
         ).mockResolvedValueOnce({
-            organizationWarehouseCredentialsUuid: null,
             queryTimezone: null,
         });
     };
@@ -17747,7 +20132,6 @@ describe('preview BigQuery SSO credentials', () => {
             ? credentials.keyfileContents.refresh_token
             : undefined;
 
-    let syncEnabled = true;
     const stored = new Map<string, CreateWarehouseCredentials>();
     const previewOwns = new Map<string, boolean>();
     const tokenStatus = new Map<string, 'valid' | 'rejected'>();
@@ -17767,9 +20151,7 @@ describe('preview BigQuery SSO credentials', () => {
     };
     const model = {
         ...singleRouteProjectModelMethods,
-        getProjectWarehouseConfig: vi.fn(async () => ({
-            organizationWarehouseCredentialsUuid: null,
-        })),
+        getProjectWarehouseConfig: vi.fn(async () => ({})),
         getWarehouseCredentialsForProject: vi.fn(async (projectUuid: string) =>
             stored.get(projectUuid),
         ),
@@ -17837,20 +20219,7 @@ describe('preview BigQuery SSO credentials', () => {
     };
     const readProjectWithSensitiveFields =
         model.getWithSensitiveFields.getMockImplementation()!;
-    const service = getMockedProjectService(
-        lightdashConfigWithGoogleOAuthMock,
-        {
-            featureFlagModel: {
-                get: vi.fn(async ({ featureFlagId }) => ({
-                    id: featureFlagId,
-                    enabled:
-                        featureFlagId ===
-                            FeatureFlags.PreviewSsoCredentialSync &&
-                        syncEnabled,
-                })),
-            } as unknown as FeatureFlagModel,
-        },
-    );
+    const service = getMockedProjectService(lightdashConfigWithGoogleOAuthMock);
     Object.assign(service, {
         projectModel: model,
         checkGoogleRefreshToken: checkRefreshToken,
@@ -17881,7 +20250,6 @@ describe('preview BigQuery SSO credentials', () => {
         model.getWithSensitiveFields.mockImplementation(
             readProjectWithSensitiveFields,
         );
-        syncEnabled = true;
         stored.clear();
         previewOwns.clear();
         tokenStatus.clear();
@@ -18056,18 +20424,6 @@ describe('preview BigQuery SSO credentials', () => {
         expect(checkRefreshToken).toHaveBeenCalledTimes(2);
         expect(model.updateWarehouseCredentialsIf).not.toHaveBeenCalled();
     });
-
-    test('the kill switch turns off both the push and the repair', async () => {
-        syncEnabled = false;
-        tokenStatus.set('token-a', 'rejected');
-
-        await reconnectUpstream('token-b');
-
-        expect(refreshTokenOf(await getPreviewCredentials())).toBe('token-a');
-        expect(model.updateAndPushToPreviews).not.toHaveBeenCalled();
-        expect(model.update).toHaveBeenCalledTimes(1);
-        expect(checkRefreshToken).not.toHaveBeenCalled();
-    });
 });
 
 describe('ProjectService expired shared sign-in', () => {
@@ -18087,15 +20443,6 @@ describe('ProjectService expired shared sign-in', () => {
         subject: { userUuid: 'subject-uuid', name: 'Sam Rivera' },
         basis: SignInSubjectBasis.RECORDED,
     };
-    const flagged = (enabled: boolean) =>
-        ({
-            get: vi.fn(
-                async ({ featureFlagId }: { featureFlagId: string }) => ({
-                    id: featureFlagId,
-                    enabled,
-                }),
-            ),
-        }) as unknown as FeatureFlagModel;
     const model = projectModel as unknown as {
         getSharedSignInSubjectForToken: ReturnType<typeof vi.fn>;
         getWarehouseClientFromCredentials: ReturnType<typeof vi.fn>;
@@ -18111,12 +20458,9 @@ describe('ProjectService expired shared sign-in', () => {
         }));
     });
 
-    const queryWith = async (enabled: boolean) => {
+    const queryWith = async () => {
         const service = getMockedProjectService(
             lightdashConfigWithGoogleOAuthMock,
-            {
-                featureFlagModel: flagged(enabled),
-            },
         );
         const { warehouseClient } =
             await service.warehouseClientFactory.acquireUnscoped(
@@ -18129,7 +20473,7 @@ describe('ProjectService expired shared sign-in', () => {
     };
 
     test('keeps attribution for a rejected token until the viewer is known', async () => {
-        await expect(queryWith(true)).rejects.toMatchObject({
+        await expect(queryWith()).rejects.toMatchObject({
             name: 'BigqueryTokenError',
             message:
                 "This project's connection uses a Google sign-in that has expired. Ask a project admin to reconnect it in Project settings → Connection settings.",
@@ -18144,17 +20488,9 @@ describe('ProjectService expired shared sign-in', () => {
         });
     });
 
-    test('leaves the original error when the kill switch is off', async () => {
-        await expect(queryWith(false)).rejects.toThrow(
-            'Google rejected the token',
-        );
-    });
-
     test('does not attribute a personal credential', async () => {
         model.getSharedSignInSubjectForToken.mockResolvedValueOnce(null);
-        await expect(queryWith(true)).rejects.toThrow(
-            'Google rejected the token',
-        );
+        await expect(queryWith()).rejects.toThrow('Google rejected the token');
     });
 
     test('attributes a rejected refresh from the project credential', async () => {
@@ -18170,9 +20506,6 @@ describe('ProjectService expired shared sign-in', () => {
         });
         const service = getMockedProjectService(
             lightdashConfigWithGoogleOAuthMock,
-            {
-                featureFlagModel: flagged(true),
-            },
         );
         vi.spyOn(
             UserService,
@@ -18229,16 +20562,9 @@ describe('ProjectService.reconnectSharedSignIn', () => {
         getSharedSignInSubjectForToken: ReturnType<typeof vi.fn>;
     };
     const grant = { getRefreshToken: vi.fn(async () => 'new-token') };
-    const flag = {
-        get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => ({
-            id: featureFlagId,
-            enabled: featureFlagId === FeatureFlags.SharedSignInReconnect,
-        })),
-    };
     const service = getMockedProjectService(
         lightdashConfigWithGoogleOAuthMock,
         {
-            featureFlagModel: flag as unknown as FeatureFlagModel,
             userOAuthGrantsModel: grant as unknown as UserOAuthGrantsModel,
         },
     );
@@ -18250,7 +20576,6 @@ describe('ProjectService.reconnectSharedSignIn', () => {
         projectModel.getWithSensitiveFields.mockResolvedValue({
             ...projectWithSensitiveFields,
             warehouseConnection: credentials,
-            organizationWarehouseCredentialsUuid: undefined,
         } as never);
         model.getSharedSignInSubjectForToken = vi.fn(async () => ({
             provider: PersonSignInProvider.GOOGLE,
@@ -18282,7 +20607,7 @@ describe('ProjectService.reconnectSharedSignIn', () => {
                 refresh_token: 'new-token',
             },
             developerAccount.user.id,
-            null,
+            expect.any(Function),
         );
         expect(projectModel.update).not.toHaveBeenCalled();
         expect(grant.getRefreshToken).toHaveBeenCalledWith(
@@ -18303,7 +20628,6 @@ describe('ProjectService.reconnectSharedSignIn', () => {
         projectModel.getWithSensitiveFields.mockResolvedValue({
             ...projectWithSensitiveFields,
             warehouseConnection: cliCredentials,
-            organizationWarehouseCredentialsUuid: undefined,
         } as never);
 
         await service.reconnectSharedSignIn(
@@ -18317,7 +20641,7 @@ describe('ProjectService.reconnectSharedSignIn', () => {
             developerAccount.user.id,
             expect.objectContaining({ refresh_token: 'new-token' }),
             developerAccount.user.id,
-            null,
+            expect.any(Function),
         );
     });
 
@@ -18401,20 +20725,10 @@ describe('ProjectService.reconnectSharedSignIn', () => {
         expect(projectModel.reconnectSharedSignIn).toHaveBeenCalledTimes(2);
     });
 
-    test('refuses a viewer and a disabled flag', async () => {
+    test('refuses a viewer', async () => {
         await expect(
             service.reconnectSharedSignIn(
                 viewerAccount,
-                projectSummary.projectUuid,
-            ),
-        ).rejects.toBeInstanceOf(ForbiddenError);
-        flag.get.mockResolvedValueOnce({
-            id: FeatureFlags.SharedSignInReconnect,
-            enabled: false,
-        });
-        await expect(
-            service.reconnectSharedSignIn(
-                developerAccount,
                 projectSummary.projectUuid,
             ),
         ).rejects.toBeInstanceOf(ForbiddenError);
@@ -18495,18 +20809,7 @@ describe('ProjectService.getSharedSignInStatus', () => {
     const model = projectModel as unknown as {
         getSharedSignInSubjectForToken: ReturnType<typeof vi.fn>;
     };
-    const flag = {
-        get: vi.fn(async () => ({
-            id: FeatureFlags.SharedSignInReconnect,
-            enabled: true,
-        })),
-    };
-    const service = getMockedProjectService(
-        lightdashConfigWithGoogleOAuthMock,
-        {
-            featureFlagModel: flag as unknown as FeatureFlagModel,
-        },
-    );
+    const service = getMockedProjectService(lightdashConfigWithGoogleOAuthMock);
     const owner = { userUuid: developerAccount.user.id, name: 'Owner' };
 
     beforeEach(() => {
@@ -18514,7 +20817,6 @@ describe('ProjectService.getSharedSignInStatus', () => {
         projectModel.getWithSensitiveFields.mockResolvedValue({
             ...projectWithSensitiveFields,
             warehouseConnection: credentials,
-            organizationWarehouseCredentialsUuid: undefined,
         } as never);
         model.getSharedSignInSubjectForToken = vi.fn(async () => ({
             provider: PersonSignInProvider.GOOGLE,
@@ -18612,7 +20914,7 @@ describe('ProjectService.getSharedSignInStatus', () => {
         ).resolves.toMatchObject({ canReconnect: false });
     });
 
-    test('returns null for a non-person credential and when disabled', async () => {
+    test('returns null for a non-person credential', async () => {
         projectModel.getWithSensitiveFields.mockResolvedValueOnce({
             ...projectWithSensitiveFields,
             warehouseConnection: {
@@ -18620,16 +20922,6 @@ describe('ProjectService.getSharedSignInStatus', () => {
                 keyfileContents: { type: 'service_account' },
             },
         } as never);
-        await expect(
-            service.getSharedSignInStatus(
-                developerAccount,
-                projectSummary.projectUuid,
-            ),
-        ).resolves.toBeNull();
-        flag.get.mockResolvedValueOnce({
-            id: FeatureFlags.SharedSignInReconnect,
-            enabled: false,
-        });
         await expect(
             service.getSharedSignInStatus(
                 developerAccount,
@@ -18707,6 +20999,7 @@ describe('ProjectService.compileQueryForResponse', () => {
                 canUpdateDashboard: false,
                 canUpdateSavedChart: false,
                 canCreateSavedChart: false,
+                writableSpaces: [],
                 canUseAiAgent: true,
             },
         });
@@ -18735,11 +21028,66 @@ describe('ProjectService.compileQueryForResponse', () => {
         });
 
     beforeEach(() => {
+        vi.spyOn(service, 'getExplore').mockResolvedValue(validExplore);
         vi.spyOn(service, 'compileQuery').mockResolvedValue({
             query: 'select 1',
             pivotQuery: 'select 2',
             parameterReferences: ['p'],
         } as never);
+    });
+
+    describe('on a live data source explore', () => {
+        const [apiExplore] = buildApiSourceExplores({
+            connectionUuid: '03386598-7a51-45b2-b1f9-5ef55bd09016',
+            name: 'Marketing site',
+            apiSource: { connector: ApiConnectorType.GA4, propertyId: '123' },
+            scan: {},
+        });
+        const liveArgs = (caller: Account) => ({
+            ...compileArgs(caller),
+            exploreName: apiExplore.name,
+            body: {
+                exploreName: apiExplore.name,
+                dimensions: [
+                    `${apiExplore.name}_session_default_channel_group`,
+                ],
+                metrics: [`${apiExplore.name}_sessions`],
+                filters: {},
+                sorts: [],
+                limit: 10,
+                tableCalculations: [],
+            },
+        });
+
+        beforeEach(() => {
+            vi.spyOn(service, 'getExplore').mockResolvedValue(apiExplore);
+            vi.spyOn(service, 'getQueryTimezoneForProject').mockResolvedValue(
+                'UTC',
+            );
+        });
+
+        it('shows the request the integration receives instead of SQL', async () => {
+            const result = await service.compileQueryForResponse(
+                liveArgs(developerAccount),
+            );
+
+            expect(service.compileQuery).not.toHaveBeenCalled();
+            expect(result.parameterReferences).toEqual([]);
+            expect(JSON.parse(result.query)).toMatchObject({
+                dimensions: [{ name: 'sessionDefaultChannelGroup' }],
+                metrics: [{ name: 'sessions' }],
+            });
+        });
+
+        it('hides the request from embeds without the SQL scope', async () => {
+            await expect(
+                service.compileQueryForResponse(
+                    liveArgs(
+                        buildAiAgentAccount({ sqlScopeProjectUuid: null }),
+                    ),
+                ),
+            ).resolves.toStrictEqual({ query: '', parameterReferences: [] });
+        });
     });
 
     it('redacts compiled SQL when the AI agent embed lacks the SQL scope', async () => {
@@ -18936,11 +21284,15 @@ describe('ProjectService.getExploreResponse', () => {
 
 describe('homepage popularity', () => {
     it('ranks apps with charts and dashboards before the shared limit, without changing recently updated', async () => {
-        const chart = { uuid: 'chart', views: 20, updatedAt: new Date() };
+        const chart = {
+            uuid: 'chart',
+            views: 20,
+            updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+        };
         const dashboard = {
             uuid: 'dashboard',
             views: 10,
-            updatedAt: new Date(),
+            updatedAt: new Date('2026-01-01T00:00:00.000Z'),
         };
         const app = { uuid: 'app', contentType: 'data_app', views: 15 };
         const getMostPopularApps = vi.fn().mockResolvedValue([app]);
@@ -19162,7 +21514,6 @@ describe('AI principal credential routing', () => {
                 })),
                 getExtraCredentialSource: vi.fn(async () => ({
                     credentials,
-                    organizationWarehouseCredentialsUuid: null,
                 })),
             });
             const legacy = await resolveCredentials(configured, querySurface);
@@ -19206,7 +21557,7 @@ describe('AI principal credential routing', () => {
         },
     );
 
-    test('the scoped original path keeps preloaded organization configuration and avoids a new summary read for an ordinary query', async () => {
+    test('the scoped original path avoids a new summary read for an ordinary query', async () => {
         const configured = getMockedProjectService(
             lightdashConfigWithGoogleOAuthMock,
         );
@@ -19222,7 +21573,6 @@ describe('AI principal credential routing', () => {
                 kind: 'binding',
                 projectUuid,
                 binding: { kind: 'original' },
-                preloadedOrgWarehouseCredentialsUuid: null,
             },
             connectionContextFromUser(
                 { userUuid: user.userUuid, isRegisteredUser: true },
@@ -19380,6 +21730,95 @@ describe('AI principal credential routing', () => {
         expect(disconnect).toHaveBeenCalledOnce();
     });
 
+    test.each([
+        { identity: 'flag off', aiPlan: null },
+        { identity: 'the person', aiPlan: markedPersonPlanMock },
+    ])(
+        'AI table listing reads the saved list for $identity without querying the warehouse',
+        async ({ aiPlan }) => {
+            const configured = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+            );
+            vi.mocked(
+                projectModel.getWarehouseCredentialsForProject,
+            ).mockResolvedValueOnce(credentials);
+            vi.spyOn(
+                configured.aiAccessService,
+                'resolvePlan',
+            ).mockResolvedValue(aiPlan);
+            const saved = { saved_db: { public: {} } };
+            const getTables = vi.fn().mockResolvedValue(saved);
+            Object.assign(configured.warehouseAvailableTablesModel, {
+                getTablesForProjectWarehouseCredentials: getTables,
+            });
+            const acquire = vi.spyOn(
+                configured.warehouseClientFactory,
+                'acquireUnscoped',
+            );
+            await expect(
+                configured.getWarehouseTables(
+                    user,
+                    projectUuid,
+                    QueryExecutionContext.AI,
+                ),
+            ).resolves.toEqual(saved);
+            expect(getTables).toHaveBeenCalledExactlyOnceWith(projectUuid);
+            expect(acquire).not.toHaveBeenCalled();
+        },
+    );
+
+    test('AI table listing fills an empty saved list once with an agent-tagged query', async () => {
+        const configured = getMockedProjectService(
+            lightdashConfigWithGoogleOAuthMock,
+        );
+        vi.mocked(
+            projectModel.getWarehouseCredentialsForProject,
+        ).mockResolvedValueOnce(credentials);
+        vi.spyOn(configured.aiAccessService, 'resolvePlan').mockResolvedValue(
+            markedPersonPlanMock,
+        );
+        const save = vi.fn();
+        Object.assign(configured.warehouseAvailableTablesModel, {
+            getTablesForProjectWarehouseCredentials: vi
+                .fn()
+                .mockResolvedValue({}),
+            createAvailableTablesForProjectWarehouseCredentials: save,
+        });
+        const tables = [
+            {
+                database: 'db',
+                schema: 'public',
+                table: 'orders',
+                tableType: WarehouseTableType.TABLE,
+            },
+        ];
+        const getAllTables = vi.fn().mockResolvedValue(tables);
+        vi.spyOn(
+            configured.warehouseClientFactory,
+            'acquireUnscoped',
+        ).mockResolvedValue({
+            warehouseClient: { getAllTables } as unknown as WarehouseClient,
+            sshTunnel: {
+                disconnect: vi.fn(),
+            } as unknown as SshTunnel<CreateWarehouseCredentials>,
+            tunnelConnectMs: null,
+        });
+        await expect(
+            configured.getWarehouseTables(
+                user,
+                projectUuid,
+                QueryExecutionContext.AI,
+            ),
+        ).resolves.toMatchObject({ db: { public: { orders: {} } } });
+        expect(getAllTables).toHaveBeenCalledExactlyOnceWith(
+            undefined,
+            expect.objectContaining({
+                query_context: QueryExecutionContext.AI,
+            }),
+        );
+        expect(save).toHaveBeenCalledExactlyOnceWith(projectUuid, tables);
+    });
+
     test('passes the AI context to table discovery and avoids the person catalog cache', async () => {
         const configured = getMockedProjectService(
             lightdashConfigWithGoogleOAuthMock,
@@ -19492,11 +21931,11 @@ describe('AI principal credential routing', () => {
                 vi.spyOn(
                     configured.projectModel,
                     'getProjectWarehouseConfig',
-                ).mockResolvedValueOnce({
-                    organizationWarehouseCredentialsUuid: 'organization-creds',
-                } as Awaited<
-                    ReturnType<ProjectModel['getProjectWarehouseConfig']>
-                >);
+                ).mockResolvedValueOnce(
+                    {} as Awaited<
+                        ReturnType<ProjectModel['getProjectWarehouseConfig']>
+                    >,
+                );
             const refresh = vi
                 .spyOn(
                     configured as unknown as {
@@ -19532,8 +21971,6 @@ describe('AI principal credential routing', () => {
                     })),
                     getExtraCredentialSource: vi.fn(async () => ({
                         credentials: baseCredentials,
-                        organizationWarehouseCredentialsUuid:
-                            'organization-creds',
                     })),
                 });
             }
@@ -19952,6 +22389,7 @@ describe('compile adapter connection credentials', () => {
         };
         const primaryAdapter = {
             ...adapter,
+            releaseDisk: vi.fn(async () => undefined),
             getDbtManifest: vi.fn(async () => ({
                 manifest,
                 timings: NO_FETCH_TIMINGS,
@@ -19971,6 +22409,7 @@ describe('compile adapter connection credentials', () => {
             async (connection) => {
                 const derive = vi.spyOn(connection, 'deriveClient');
                 await service.buildMergedManifestAdapter({
+                    userUuid: 'user-uuid',
                     projectUuid: 'project-uuid',
                     organizationUuid: 'org-uuid',
                     sources: [],
@@ -20005,15 +22444,10 @@ describe.each([
     DatabricksAuthenticationType.OAUTH_M2M,
 ])('Databricks %s rotation sinks', (authenticationType) => {
     test.each(
-        [false, true].flatMap((enabled) =>
-            (
-                [
-                    'project',
-                    'organization',
-                    'user',
-                    'warehouseConnection',
-                ] as const
-            ).map((kind) => ({ enabled, kind })),
+        [true].flatMap((enabled) =>
+            (['project', 'user', 'warehouseConnection'] as const).map(
+                (kind) => ({ enabled, kind }),
+            ),
         ),
     )(
         'writes the exact $kind row with lock $enabled',
@@ -20035,7 +22469,6 @@ describe.each([
             };
             const stored = new Map([
                 ['project-row', 'project-old'],
-                ['organization-row', 'organization-old'],
                 ['user-row', 'user-old'],
                 ['warehouseConnection-row', 'warehouseConnection-old'],
             ]);
@@ -20049,7 +22482,6 @@ describe.each([
                 return true;
             };
             const rotateProject = vi.fn(rotate);
-            const rotateOrganization = vi.fn(rotate);
             const rotateUser = vi.fn(rotate);
             const project = {
                 projectUuid: 'project-row',
@@ -20057,10 +22489,6 @@ describe.each([
                 connectionMode: 'multi' as const,
             };
             const readProject = vi.fn().mockResolvedValue(connection);
-            const readOrganization = vi.fn().mockResolvedValue({
-                organizationUuid: 'org',
-                credentials: connection,
-            });
             const readUser = vi
                 .fn()
                 .mockResolvedValue({ credentials: connection });
@@ -20070,6 +22498,7 @@ describe.each([
                     rotate(uuid, old, next),
             );
             const service = new ProjectService({
+                dbtSourceRefCatalogModel: {} as never,
                 lightdashConfig: lightdashConfigWithGoogleOAuthMock,
                 refreshTokenRotation: rotation,
                 featureFlagModel: {
@@ -20079,10 +22508,6 @@ describe.each([
                     getSummary: vi.fn().mockResolvedValue(project),
                     getOwnWarehouseCredentialsForProject: readProject,
                     rotateRefreshToken: rotateProject,
-                },
-                organizationWarehouseCredentialsModel: {
-                    getByUuidWithSensitiveData: readOrganization,
-                    rotateRefreshToken: rotateOrganization,
                 },
                 userWarehouseCredentialsModel: {
                     getByUuidWithSecrets: readUser,
@@ -20096,10 +22521,6 @@ describe.each([
             } as unknown as ProjectServiceArguments);
             const sources = {
                 project: { kind: 'project', projectUuid: 'project-row' },
-                organization: {
-                    kind: 'organization',
-                    organizationWarehouseCredentialsUuid: 'organization-row',
-                },
                 user: {
                     kind: 'user',
                     userWarehouseCredentialsUuid: 'user-row',
@@ -20154,7 +22575,6 @@ describe.each([
             );
             const sinks = {
                 project: rotateProject,
-                organization: rotateOrganization,
                 user: rotateUser,
                 warehouseConnection: rotateConnection,
             };
@@ -20182,10 +22602,6 @@ describe.each([
             expect(Object.fromEntries(stored)).toEqual({
                 'project-row':
                     kind === 'project' ? 'project-rotated' : 'project-old',
-                'organization-row':
-                    kind === 'organization'
-                        ? 'organization-rotated'
-                        : 'organization-old',
                 'user-row': kind === 'user' ? 'user-rotated' : 'user-old',
                 'warehouseConnection-row':
                     kind === 'warehouseConnection'
@@ -20195,7 +22611,6 @@ describe.each([
             if (enabled) {
                 const reader = {
                     project: readProject,
-                    organization: readOrganization,
                     user: readUser,
                     warehouseConnection: readConnection,
                 }[kind];
@@ -20305,7 +22720,6 @@ describe('strict personal overlay (agent-identity on)', () => {
             const connectionModel = new WarehouseConnectionModel({
                 database,
                 encryptionUtil,
-                organizationWarehouseCredentialsModel: {} as never,
             });
             Object.assign(f.model, {
                 findForProjectWithSecrets:
@@ -20334,7 +22748,6 @@ describe('strict personal overlay (agent-identity on)', () => {
                                   organizationUuid: 'resource-org',
                                   connectionRoute: null,
                                   warehouseConnectionUuid: 'extra',
-                                  organizationWarehouseCredentialsUuid: null,
                                   project: {
                                       projectUuid: 'project',
                                       organizationUuid: 'resource-org',
@@ -20563,7 +22976,6 @@ describe('strict personal overlay (agent-identity on)', () => {
                     organizationUuid: 'resource-org',
                     connectionRoute: null,
                     warehouseConnectionUuid: 'extra',
-                    organizationWarehouseCredentialsUuid: null,
                     project: {
                         projectUuid: 'project',
                         organizationUuid: 'resource-org',
@@ -20749,7 +23161,6 @@ describe('strict personal overlay (agent-identity on)', () => {
                         organizationUuid: 'resource-org',
                         connectionRoute: null,
                         warehouseConnectionUuid: 'extra',
-                        organizationWarehouseCredentialsUuid: null,
                         project: {
                             projectUuid: 'project',
                             organizationUuid: 'resource-org',
@@ -20767,4 +23178,64 @@ describe('strict personal overlay (agent-identity on)', () => {
             expect(f.materialize).not.toHaveBeenCalled();
         },
     );
+});
+
+describe('ProjectService.getDeployStartOfWeekByExplore', () => {
+    const explores = [
+        { name: 'orders', preAggregates: [{ name: 'daily' }] },
+        { name: 'customers' },
+    ] as never;
+
+    const serviceWith = (mixedWarehouseConnectionsEnabled: boolean) => {
+        const getDeployStartOfWeek = vi.fn(async () => ({
+            kind: 'extra' as const,
+            startOfWeek: WeekDay.MONDAY,
+        }));
+        const service = getMockedProjectService(
+            lightdashConfigWithGoogleOAuthMock,
+            {
+                projectModel: {
+                    getDeployStartOfWeek,
+                } as unknown as ProjectModel,
+                featureFlagModel: {
+                    get: vi.fn(async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled:
+                            featureFlagId ===
+                                FeatureFlags.MixedWarehouseConnections &&
+                            mixedWarehouseConnectionsEnabled,
+                    })),
+                } as unknown as FeatureFlagModel,
+            },
+        );
+        return { service, getDeployStartOfWeek };
+    };
+
+    const args = {
+        userUuid: 'user-uuid',
+        organizationUuid: 'org-uuid',
+        projectUuid: 'project-uuid',
+        explores,
+        sourceUuid: 'source-uuid',
+    };
+
+    test('keeps the project week start with the mixed flag off', async () => {
+        const { service, getDeployStartOfWeek } = serviceWith(false);
+        await expect(
+            service.getDeployStartOfWeekByExplore(args),
+        ).resolves.toEqual(new Map());
+        expect(getDeployStartOfWeek).not.toHaveBeenCalled();
+    });
+
+    test('uses the extra connection week start with the mixed flag on', async () => {
+        const { service, getDeployStartOfWeek } = serviceWith(true);
+        await expect(
+            service.getDeployStartOfWeekByExplore(args),
+        ).resolves.toEqual(new Map([['orders', WeekDay.MONDAY]]));
+        expect(getDeployStartOfWeek).toHaveBeenCalledExactlyOnceWith(
+            'project-uuid',
+            'orders',
+            'source-uuid',
+        );
+    });
 });

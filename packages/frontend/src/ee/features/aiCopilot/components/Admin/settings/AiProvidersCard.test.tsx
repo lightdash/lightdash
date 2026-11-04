@@ -18,14 +18,40 @@ const BEDROCK_MODELS = [
     },
 ];
 
+const GEMINI_MODEL = {
+    name: 'gemini-3.8-flash',
+    provider: 'google' as const,
+    displayName: 'Gemini 3.8 Flash',
+    description: 'Gemini model',
+    modelId: 'gemini-3.8-flash',
+    default: true,
+    supportsReasoning: true,
+    deprecated: false,
+    supersededBy: null,
+};
+
+const OPENAI_MODEL = {
+    name: 'gpt-6-sol',
+    provider: 'openai' as const,
+    displayName: 'GPT-6 Sol',
+    description: 'OpenAI model',
+    modelId: 'gpt-6-sol',
+    default: false,
+    supportsReasoning: true,
+    deprecated: false,
+    supersededBy: null,
+};
+
 const renderCard = (props?: {
     onUpdateKeys?: () => void;
     openaiKeySet?: boolean;
+    anthropicKeySet?: boolean;
+    configurableModelOptions?: (typeof GEMINI_MODEL | typeof OPENAI_MODEL)[];
 }) =>
     renderWithProviders(
         <AiProvidersCard
             providerApiKeysSet={{
-                anthropic: false,
+                anthropic: props?.anthropicKeySet ?? false,
                 google: false,
                 openai: props?.openaiKeySet ?? false,
                 bedrock: false,
@@ -37,19 +63,9 @@ const renderCard = (props?: {
                 bedrock: null,
             }}
             modelVisibility={null}
-            configurableModelOptions={[
-                {
-                    name: 'gemini-3.8-flash',
-                    provider: 'google',
-                    displayName: 'Gemini 3.8 Flash',
-                    description: 'Gemini model',
-                    modelId: 'gemini-3.8-flash',
-                    default: true,
-                    supportsReasoning: true,
-                    deprecated: false,
-                    supersededBy: null,
-                },
-            ]}
+            configurableModelOptions={
+                props?.configurableModelOptions ?? [GEMINI_MODEL]
+            }
             dataAppModelVisibility={null}
             showDataAppModels={false}
             bedrockModelOptions={BEDROCK_MODELS}
@@ -116,5 +132,34 @@ describe('AiProvidersCard', () => {
         expect(onUpdateKeys).toHaveBeenCalledWith({
             providerBaseUrls: { openai: 'https://litellm.example.com/v1' },
         });
+    });
+
+    it('locks the availability toggle of the only provider with a key', () => {
+        renderCard({
+            openaiKeySet: true,
+            configurableModelOptions: [GEMINI_MODEL, OPENAI_MODEL],
+        });
+
+        expect(
+            screen.getByLabelText('OpenAI available to users'),
+        ).toBeDisabled();
+        expect(
+            screen.getByText(/only provider your organization has a key for/),
+        ).toBeInTheDocument();
+    });
+
+    it('keeps the availability toggle usable once a second key is set', () => {
+        renderCard({
+            openaiKeySet: true,
+            anthropicKeySet: true,
+            configurableModelOptions: [GEMINI_MODEL, OPENAI_MODEL],
+        });
+
+        expect(
+            screen.getByLabelText('OpenAI available to users'),
+        ).toBeEnabled();
+        expect(
+            screen.queryByText(/only provider your organization has a key for/),
+        ).not.toBeInTheDocument();
     });
 });

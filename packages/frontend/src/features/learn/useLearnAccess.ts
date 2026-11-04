@@ -1,7 +1,7 @@
 import { type ApiError, type LearnAccess } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
-import { lightdashApi } from '../../api';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import { heldScopes } from './access';
 
 /**
@@ -14,9 +14,15 @@ import { heldScopes } from './access';
  * load outside vite (the scope-tours checker runs it under tsx), and the
  * API client cannot.
  */
-export const useLearnAccess = () => {
+export const useLearnAccess = ({
+    enabled = true,
+}: { enabled?: boolean } = {}) => {
+    const lightdashApi = useLightdashApi();
     const query = useQuery<LearnAccess, ApiError>({
         queryKey: ['learn_access'],
+        // Callers outside the library (the homepage block) ask only for a
+        // user who can see Learn, so nobody else pays for a refused request.
+        enabled,
         queryFn: () =>
             lightdashApi<LearnAccess>({
                 url: '/org/training-project/access',

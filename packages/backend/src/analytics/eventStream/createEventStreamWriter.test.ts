@@ -1,67 +1,66 @@
 import { FeatureFlags } from '@lightdash/common';
-import {
-    cachedUsageCaptureEligibility,
-    USAGE_CAPTURE_FLAG_TTL_MS,
-} from './createEventStreamWriter';
+import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import type PrometheusMetrics from '../../prometheus/PrometheusMetrics';
+import { BufferedEventStreamWriter } from './BufferedEventStreamWriter';
+import { createEventStreamWriter } from './createEventStreamWriter';
 
-describe('cached usage capture eligibility', () => {
-    afterEach(() => {
-        vi.useRealTimers();
-        vi.restoreAllMocks();
-    });
+vi.mock('./BufferedEventStreamWriter');
 
-    it('coalesces concurrent checks by organization and refreshes off/on changes', async () => {
-        vi.useFakeTimers();
-        const states = new Map([
-            ['org-a', true],
-            ['org-b', false],
-        ]);
-        const get = vi.fn(async ({ user }) => ({
-            id: FeatureFlags.AnalyticsProject,
-            enabled: states.get(user.organizationUuid) ?? false,
-        }));
-        const allowed = cachedUsageCaptureEligibility(() => ({ get }));
-        expect(
-            await Promise.all(
-                Array.from({ length: 1000 }, () => allowed('org-a')),
-            ),
-        ).toEqual(Array(1000).fill(true));
-        expect(await allowed('org-b')).toBe(false);
-        expect(get).toHaveBeenCalledTimes(2);
-        states.set('org-a', false);
-        states.set('org-b', true);
-        expect(await allowed('org-a')).toBe(true);
-        vi.advanceTimersByTime(USAGE_CAPTURE_FLAG_TTL_MS);
-        expect(await allowed('org-a')).toBe(false);
-        expect(await allowed('org-b')).toBe(true);
-        expect(get).toHaveBeenCalledTimes(4);
-    });
+const metrics = {} as PrometheusMetrics;
+const storage = {
+    endpoint: 'http://localhost:9000',
+    bucket: 'usage-events',
+    region: 'us-east-1',
+    accessKey: 'test',
+    secretKey: 'test',
+};
+const config = {
+    ...lightdashConfigMock,
+    enabledFeatureFlags: new Set<string>(),
+    disabledFeatureFlags: new Set([FeatureFlags.AnalyticsProject]),
+    usageEvents: {
+        ...lightdashConfigMock.usageEvents,
+        enabled: true,
+        s3: storage,
+    },
+};
 
-    it('fails closed and caches failures without throwing into the caller', async () => {
-        vi.useFakeTimers();
-        const get = vi.fn().mockRejectedValue(new Error('unavailable'));
-        const allowed = cachedUsageCaptureEligibility(() => ({ get }));
-        expect(await allowed('org')).toBe(false);
-        expect(await allowed('org')).toBe(false);
-        expect(get).toHaveBeenCalledTimes(1);
-        get.mockResolvedValue({
-            id: FeatureFlags.AnalyticsProject,
-            enabled: true,
+describe('createEventStreamWriter', () => {
+    beforeEach(() => vi.clearAllMocks());
+
+    it('creates a writer even when the analytics project flag is disabled', () => {
+        expect(createEventStreamWriter(config, metrics)).toBeInstanceOf(
+            BufferedEventStreamWriter,
+        );
+        expect(BufferedEventStreamWriter).toHaveBeenCalledWith({
+            s3Config: storage,
+            flushIntervalMs: config.usageEvents.flushIntervalMs,
+            flushBatchSize: config.usageEvents.flushBatchSize,
+            bufferMaxSize: config.usageEvents.bufferMaxSize,
+            prometheusMetrics: metrics,
         });
-        vi.advanceTimersByTime(USAGE_CAPTURE_FLAG_TTL_MS);
-        expect(await allowed('org')).toBe(true);
     });
 
-    it('bounds inactive organization entries', async () => {
-        const get = vi.fn(async () => ({
-            id: FeatureFlags.AnalyticsProject,
-            enabled: false,
-        }));
-        const allowed = cachedUsageCaptureEligibility(() => ({ get }));
-        for (let index = 0; index < 1001; index += 1)
-            // eslint-disable-next-line no-await-in-loop -- Exercise eviction in a deterministic order.
-            await allowed(`org-${index}`);
-        await allowed('org-0');
-        expect(get).toHaveBeenCalledTimes(1002);
+    it('does not create a writer when usage infrastructure is disabled', () => {
+        expect(
+            createEventStreamWriter(
+                {
+                    ...config,
+                    usageEvents: { ...config.usageEvents, enabled: false },
+                },
+                metrics,
+            ),
+        ).toBeNull();
+        expect(BufferedEventStreamWriter).not.toHaveBeenCalled();
+    });
+
+    it('does not create a writer without usage storage', () => {
+        expect(
+            createEventStreamWriter(
+                { ...config, usageEvents: { ...config.usageEvents, s3: null } },
+                metrics,
+            ),
+        ).toBeNull();
+        expect(BufferedEventStreamWriter).not.toHaveBeenCalled();
     });
 });

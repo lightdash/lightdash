@@ -1,0 +1,9 @@
+name: same_name_b
+version: '1.0.0'
+config-version: 2
+profile: cross_source_refs
+model-paths: ['models']
+models:
+  same_name_b:
+    +materialized: table
+    +schema: same_name_b

@@ -25,6 +25,7 @@ import { type UncompiledExplore } from './exploreCompiler';
 
 export const warehouseClientMock: WarehouseClient = {
     getSessionTimezone: async () => null,
+    getTablePartitioning: async () => null,
     credentials: {} as CreateWarehouseCredentials,
     getCatalog: async () => ({
         default: {

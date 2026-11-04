@@ -47,6 +47,28 @@ export const managedExecutionFixture = () => {
         systemRoles: [OrganizationMemberRole.VIEWER],
         customRoles: [] as { roleUuid: string; scopes: string[] }[],
     };
+    const userModel = {
+        findSessionUserAndOrgByUuid: vi.fn().mockResolvedValue(user),
+        getAgentRoleAssignments: vi.fn().mockResolvedValue(assignments),
+        getAgentRoleAssignmentsForProjects: vi
+            .fn()
+            .mockImplementation(
+                async (_user, _org, projects: string[]) =>
+                    new Map(projects.map((uuid) => [uuid, assignments])),
+            ),
+    };
+    const projectModel = {
+        getAllByOrganizationUuid: vi.fn(),
+        getSummary: vi
+            .fn()
+            .mockResolvedValue({ organizationUuid: grant.organizationUuid }),
+        getSummaries: vi.fn().mockImplementation(async (projects: string[]) =>
+            projects.map((uuid) => ({
+                projectUuid: uuid,
+                organizationUuid: grant.organizationUuid,
+            })),
+        ),
+    };
     const permissions = new AgentPermissionService({
         resolveResourceProjectUuid: vi.fn().mockResolvedValue(projectUuid),
         isCustomRolesLicensed: () => true,
@@ -65,14 +87,8 @@ export const managedExecutionFixture = () => {
             })),
             save: vi.fn(),
         },
-        userModel: {
-            getAgentRoleAssignments: vi.fn().mockResolvedValue(assignments),
-        },
-        projectModel: {
-            getSummary: vi.fn().mockResolvedValue({
-                organizationUuid: grant.organizationUuid,
-            }),
-        },
+        userModel,
+        projectModel,
 
         agentActionLogModel: { insert: vi.fn() },
     });
@@ -95,6 +111,8 @@ export const managedExecutionFixture = () => {
     return {
         service,
         permissions,
+        userModel,
+        projectModel,
         policy,
         assignments,
         execution,

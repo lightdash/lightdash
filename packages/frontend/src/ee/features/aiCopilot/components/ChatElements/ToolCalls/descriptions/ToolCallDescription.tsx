@@ -38,12 +38,11 @@ import {
     type ToolSearchSemanticLayerArgs,
 } from '@lightdash/common';
 import type { FC } from 'react';
+import { type ComposerQueryNodeStatus } from '../../composerNodeStatus';
 import { type SqlApprovalTarget } from '../SqlApprovalActions';
+import { isToolWithoutDescription } from '../utils/toolsWithoutDescription';
 import type { ToolCallSummary } from '../utils/types';
-import {
-    ComposerQueriesToolCallDescription,
-    type ComposerQueryNodeStatus,
-} from './ComposerQueriesToolCallDescription';
+import { ComposerQueriesToolCallDescription } from './ComposerQueriesToolCallDescription';
 import { ContentEditorToolCallDescription } from './ContentEditorToolCallDescription';
 import { ContentSearchToolCallDescription } from './ContentSearchToolCallDescription';
 import { DashboardChartsToolCallDescription } from './DashboardChartsToolCallDescription';
@@ -94,7 +93,7 @@ export const ToolCallDescription: FC<{
     toolResult?: AiAgentToolResult;
     /**
      * Live per-node execution statuses for a running composer pipeline,
-     * keyed by nodeId. Only meaningful for runComposerQueries; omitted for
+     * keyed by nodeId. Only meaningful for the composer query tool; omitted for
      * persisted views, which render the pipeline without indicators.
      */
     composerNodeStatuses?: Record<string, ComposerQueryNodeStatus>;
@@ -105,6 +104,9 @@ export const ToolCallDescription: FC<{
     // been parsed. Casting an undefined value and reading fields throws, so
     // bail until args exist.
     if (!toolCall.toolArgs || typeof toolCall.toolArgs !== 'object') {
+        return <> </>;
+    }
+    if (isToolWithoutDescription(toolName)) {
         return <> </>;
     }
     switch (toolName) {
@@ -239,6 +241,7 @@ export const ToolCallDescription: FC<{
                     approval={approval}
                 />
             );
+        case 'query':
         case 'runComposerQueries':
             const composerToolArgs =
                 toolCall.toolArgs as ToolComposerQueriesArgs;
@@ -341,6 +344,7 @@ export const ToolCallDescription: FC<{
             return (
                 <RunContentQueryToolCallDescription
                     source={runContentQueryArgs.source}
+                    approval={approval}
                 />
             );
         case 'describeWarehouseTable':
@@ -382,12 +386,6 @@ export const ToolCallDescription: FC<{
                     fieldId={analyzeFieldImpactArgs.fieldId}
                 />
             );
-        case 'listKnowledgeDocuments':
-        case 'listProjects':
-        case 'getProjectInfo':
-        case 'generateHashes':
-        case 'generateUuids':
-        case 'loadProjectContext':
         case 'exploreRepo':
             const toolArgsExploreRepo = toolCall.toolArgs as {
                 command?: string;
@@ -429,29 +427,6 @@ export const ToolCallDescription: FC<{
                 />
             );
         }
-        case 'discoverRepos':
-        case 'listWorkstreams':
-        case 'closePullRequest':
-        case 'getPullRequestDiff':
-        case 'generateDataApp':
-        case 'iterateDataApp':
-        case 'listDataAppThemes':
-        case 'editDbtProject':
-        case 'editProjectContext':
-        case 'editRepo':
-        case 'updateUserName':
-        case 'syncDbtProject':
-        case 'setupPreviewDeploy':
-        case 'runSavedChart':
-        case 'readPinnedThread':
-        case 'readAttachments':
-        case 'submitResearchReport':
-        case 'delegateResearchTask':
-        case 'submitWorkerFindings':
-        case 'loadMcpTools':
-        case 'resolveUrl':
-        case 'findCustomChartTypes':
-            return <> </>;
         default:
             return assertUnreachable(toolName, `Unknown tool name ${toolName}`);
     }

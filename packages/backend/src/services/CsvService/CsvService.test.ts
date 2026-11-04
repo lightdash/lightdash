@@ -26,7 +26,6 @@ import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
-import { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectCompileLogModel } from '../../models/ProjectCompileLogModel';
 import { ProjectDbtSourcesModel } from '../../models/ProjectDbtSourcesModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -64,6 +63,7 @@ describe('Csv service', () => {
         analytics: analyticsMock,
         userModel: {} as UserModel,
         projectService: new ProjectService({
+            dbtSourceRefCatalogModel: {} as never,
             refreshTokenRotation: { run: vi.fn() },
             aiAccessService: {
                 resolvePlan: vi.fn(async () => null),
@@ -110,8 +110,6 @@ describe('Csv service', () => {
             userOAuthGrantsModel: {} as UserOAuthGrantsModel,
             featureFlagModel: {} as FeatureFlagModel,
             projectParametersModel: {} as ProjectParametersModel,
-            organizationWarehouseCredentialsModel:
-                {} as OrganizationWarehouseCredentialsModel,
             organizationModel: {} as OrganizationModel,
             projectCompileLogModel: {} as ProjectCompileLogModel,
             adminNotificationService: {} as AdminNotificationService,

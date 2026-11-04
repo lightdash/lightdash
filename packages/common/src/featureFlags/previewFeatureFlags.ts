@@ -7,23 +7,16 @@ import { FeatureFlags } from '../types/featureFlags';
  * redeploy. Keep the reason next to each entry.
  */
 const PREVIEW_EXCLUDED_FEATURE_FLAGS: ReadonlySet<string> = new Set<string>([
-    // Documents are opt-in while the foundation and authoring workflows ship.
-    FeatureFlags.Documents,
     // Blocks or degrades every page.
     FeatureFlags.OrganizationTrialBlock,
     FeatureFlags.OrganizationTrialWarning,
     // Changes query or compile semantics, so QA results would be misleading.
     FeatureFlags.CalculateSeriesColor,
-    // Needs per-org worker queues that previews don't run.
-    FeatureFlags.ScheduledDeliveryPerOrgQueue,
     // Changes the signup flow and needs SMTP for the email OTP. The register
     // page evaluates it anonymously, so an override can't switch it back off.
     FeatureFlags.NewOnboarding,
-    // Acts outside the environment: opens pull requests on real repos.
-    FeatureFlags.AiPreviewDeploySetup,
-    // Off pending a security review, or only meaningful for eval orgs.
+    // Off pending a security review.
     FeatureFlags.SsoOrganizationSettings,
-    FeatureFlags.AiReviewReplayCapture,
     // Security hardening: previews must not accept long-lived GitHub PATs.
     FeatureFlags.AiMcpGithubPat,
     // Same reason: the dashboard E2E specs drive the navigate-away "New chart"
@@ -58,7 +51,7 @@ const KNOWN_FEATURE_FLAG_IDS: ReadonlySet<string> = new Set(
 export const isKnownFeatureFlagId = (flagId: string): boolean =>
     KNOWN_FEATURE_FLAG_IDS.has(flagId);
 
-/** Flags enabled by default in preview/Okteto environments. */
+/** Flags enabled by default in preview environments. */
 export const PREVIEW_ENABLED_FEATURE_FLAGS: ReadonlySet<string> = new Set(
     ALL_FEATURE_FLAG_IDS.filter(
         (flagId) => !PREVIEW_EXCLUDED_FEATURE_FLAGS.has(flagId),

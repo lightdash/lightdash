@@ -89,8 +89,8 @@ it.each(['owner', 'refresh_revoke', 'refresh_reuse'] as const)(
         const service = new AgentConnectionService({
             model,
             featureFlags: flags,
-            userModel,
-            projectModel: { getAllByOrganizationUuid: vi.fn() },
+            userModel: Object.assign(f.userModel, userModel),
+            projectModel: f.projectModel,
             getAgentPermissionService: () => f.permissions,
         });
         const grantService = new AgentConnectionGrantService({

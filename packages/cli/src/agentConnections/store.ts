@@ -15,6 +15,7 @@ import {
     type AgentConnectionSlot,
     type SlotKey,
 } from './schema';
+import { publicConnectionReport } from './statusResponse';
 
 export const getAgentConnectionsFilePath = (): string =>
     path.join(path.dirname(configFilePath), 'agent-connections.yaml');
@@ -104,42 +105,15 @@ export class AgentConnectionStore {
         slot: AgentConnectionSlot,
         commit: { beforeCommit?: () => void; onCommitted?: () => void } = {},
     ): Promise<void> {
-        validateSlot(slot, slot);
+        const checked = validateSlot(slot, slot);
         const root = await this.readRoot();
         const slots = slotsFor(root, slot, true);
         if (slots === null) throw invalidConnection();
-        const existing = own(slots, slot.name);
-        const previous = existing === undefined ? {} : record(existing);
-        const merged = {
-            ...previous,
-            ...slot,
-            tokens: {
-                ...(own(previous, 'tokens') === undefined
-                    ? {}
-                    : record(previous.tokens)),
-                ...slot.tokens,
-            },
-            refreshState: {
-                ...(own(previous, 'refreshState') === undefined
-                    ? {}
-                    : record(previous.refreshState)),
-                ...slot.refreshState,
-            },
-            revokeState: {
-                ...(own(previous, 'revokeState') === undefined
-                    ? {}
-                    : record(previous.revokeState)),
-                ...slot.revokeState,
-            },
-            lastReported: {
-                ...(own(previous, 'lastReported') === undefined
-                    ? {}
-                    : record(previous.lastReported)),
-                ...slot.lastReported,
-            },
-        };
         Object.defineProperty(slots, slot.name, {
-            value: merged,
+            value: {
+                ...checked,
+                lastReported: publicConnectionReport(checked),
+            },
             enumerable: true,
             configurable: true,
             writable: true,

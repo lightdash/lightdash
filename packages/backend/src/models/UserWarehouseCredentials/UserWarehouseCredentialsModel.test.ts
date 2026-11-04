@@ -1591,3 +1591,16 @@ describe('strict personal overlay (agent-identity on)', () => {
         );
     });
 });
+
+test('marks an invalid stored Snowflake sign-in for personal reauthentication', () => {
+    const error = UserWarehouseCredentialsModel.getQueryTimeValidationError({
+        type: WarehouseTypes.SNOWFLAKE,
+        authenticationType: SnowflakeAuthenticationType.SSO,
+        user: 'person',
+        refreshToken: '',
+    });
+    expect(error).toMatchObject({
+        name: 'SnowflakeTokenError',
+        data: { requiresUserReauthentication: true },
+    });
+});

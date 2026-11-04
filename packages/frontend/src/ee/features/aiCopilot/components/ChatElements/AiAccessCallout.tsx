@@ -93,14 +93,38 @@ const AiAccessSettingsLink = ({
     );
 };
 
+const AiAccessRerunButton = ({
+    refusal,
+    onRerun,
+}: {
+    refusal: AiAccessRefusal;
+    onRerun?: () => void;
+}) => {
+    const t = useUiStrings();
+    if (
+        refusal.reason !== AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED ||
+        !onRerun
+    )
+        return null;
+    return (
+        <Group>
+            <Button size="xs" onClick={onRerun}>
+                {t('aiAccess.runAsMe')}
+            </Button>
+        </Group>
+    );
+};
+
 export const AiAccessCallout = ({
     refusal,
     projectUuid,
     variant = 'card',
+    onRerun,
 }: {
     refusal: AiAccessRefusal;
     projectUuid: string;
     variant?: 'card' | 'inline';
+    onRerun?: () => void;
 }) => {
     const t = useUiStrings();
     const isEmbedded = useIsEmbedded();
@@ -136,6 +160,7 @@ export const AiAccessCallout = ({
                             })}
                         </Text>
                     )}
+                    <AiAccessRerunButton refusal={refusal} onRerun={onRerun} />
                     {!isEmbedded && refusal.explanationUrl && (
                         <Anchor
                             component={Link}

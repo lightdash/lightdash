@@ -13,6 +13,8 @@ import {
     DucklakeDataPathType,
     FeatureFlags,
     getAgentClientLabel,
+    ProjectMemberRole,
+    ProjectType,
     QueryExecutionContext,
     QuerySurface,
     RedshiftAuthenticationType,
@@ -52,6 +54,8 @@ import {
 import { Trino } from '../../../../warehouses/node_modules/trino-client';
 import { snowflakeOAuthRefreshClient } from '../../auth/snowflakeOAuthRefresh';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { profileFromTarget } from '../../dbt/profiles';
+import { bigqueryWif } from '../../dbt/targets/targets.mock';
 import Logger from '../../logging/logger';
 import {
     athenaConnection,
@@ -69,9 +73,12 @@ import {
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { ProjectModel as PersistedProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { createDatabase } from '../../models/RefreshTokenRotation/fakeKnex.mock';
+import { RefreshTokenRotation } from '../../models/RefreshTokenRotation/RefreshTokenRotation';
 import type { SshKeyPairModel } from '../../models/SshKeyPairModel';
 import { type AiUserWarehouseCredentials } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { type EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import { BigqueryWorkloadIdentityResolver } from '../../utils/googleIdentity/BigqueryWorkloadIdentityResolver';
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { getWarehouseIdentityFingerprint } from '../../utils/queryResultProducer';
 import {
@@ -103,6 +110,7 @@ import { AgentSignInResolverHarness } from './resolvers/SnowflakeAgentSignInCred
 import { SnowflakeOAuthCredentialResolver } from './resolvers/SnowflakeOAuthCredentialResolver';
 import {
     WarehouseClientFactory,
+    type ScopedWarehouseConnection,
     type WarehouseClientRef,
     type WarehouseConnectionLeaseRef,
 } from './WarehouseClientFactory';
@@ -253,6 +261,9 @@ const buildFixture = (
         getSummary: vi.fn<ProjectModel['getSummary']>(),
         getWarehouseClientIdentityOptions:
             vi.fn<ProjectModel['getWarehouseClientIdentityOptions']>(),
+        getHighestSystemProjectRole: vi
+            .fn<ProjectModel['getHighestSystemProjectRole']>()
+            .mockResolvedValue(null),
     };
     const analytics = { track: vi.fn() };
     const trackingService = new AiAccessService({
@@ -272,7 +283,6 @@ const buildFixture = (
         projectUuid: 'project-uuid',
         credentials,
         organizationUuid: 'org-uuid',
-        organizationWarehouseCredentialsUuid: null,
         warehouseConnectionUuid: null,
         connectionRoute: {
             route: 'single',
@@ -351,6 +361,141 @@ beforeEach(() => {
 });
 
 describe('WarehouseClientFactory', () => {
+    test.each([false, true])(
+        'gates WIF dbt profiles on the owning organization with explicitCredentials=%s',
+        async (explicitCredentials) => {
+            const { factory, projectModel } = buildFixture();
+            let enabled = false;
+            const isEnabledFor = vi.fn(
+                async (organizationUuid: string) =>
+                    enabled && organizationUuid === 'owning-org',
+            );
+            const getIdToken = vi.fn(async () => 'unused-token');
+            const resolver = new BigqueryWorkloadIdentityResolver({
+                isEnabledFor,
+                tokenSource: { getIdToken },
+            });
+            projectModel.getSummary.mockResolvedValue({
+                name: 'Project',
+                projectUuid: 'project-uuid',
+                slug: 'project',
+                organizationUuid: 'owning-org',
+                type: ProjectType.DEFAULT,
+                upstreamProjectUuid: undefined,
+                createdByUserUuid: null,
+            });
+            projectModel.getWarehouseClientIdentityOptions.mockImplementation(
+                async (creds, organizationUuid) => ({
+                    bigqueryExternalAccount:
+                        await resolver.getExternalAccountCredentials(
+                            creds,
+                            organizationUuid,
+                        ),
+                }),
+            );
+            const createProfile = vi.fn(
+                async (connection: ScopedWarehouseConnection) =>
+                    profileFromTarget(
+                        factory.toDbtTarget(
+                            connection.warehouseCredentials,
+                            connection.connectionCredentials,
+                            { explicitCredentials },
+                        ),
+                        '/tmp/profiles',
+                    ),
+            );
+            const compile = () =>
+                factory.withWarehouseClient(
+                    compileRef(bigqueryWif),
+                    contextFor(null, 'compile'),
+                    createProfile,
+                );
+
+            await expect(compile()).rejects.toThrow(
+                'BigQuery workload identity federation is not enabled for this organization.',
+            );
+            expect(createProfile).not.toHaveBeenCalled();
+            expect(
+                projectModel.getWarehouseClientFromCredentials,
+            ).not.toHaveBeenCalled();
+            enabled = true;
+            await expect(compile()).resolves.toMatchObject({
+                environment: {
+                    GOOGLE_APPLICATION_CREDENTIALS:
+                        '/tmp/profiles/bigquery-workload-identity.json',
+                },
+            });
+            enabled = false;
+            await expect(compile()).rejects.toThrow(
+                'BigQuery workload identity federation is not enabled for this organization.',
+            );
+            expect(createProfile).toHaveBeenCalledOnce();
+            expect(isEnabledFor).toHaveBeenCalledTimes(3);
+            expect(isEnabledFor).toHaveBeenCalledWith('owning-org');
+            expect(getIdToken).not.toHaveBeenCalled();
+        },
+    );
+
+    test('rechecks federated identity before reusing a cached client', async () => {
+        const { factory, projectModel } = buildFixture();
+        const federated: CreateWarehouseCredentials = {
+            type: WarehouseTypes.BIGQUERY,
+            project: 'project',
+            dataset: 'dataset',
+            keyfileContents: {},
+            authenticationType:
+                BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION,
+            workloadIdentityProvider:
+                'projects/123/locations/global/workloadIdentityPools/pool-id/providers/provider-id',
+            timeoutSeconds: undefined,
+            priority: undefined,
+            retries: undefined,
+            location: undefined,
+            maximumBytesBilled: undefined,
+        };
+        projectModel.getWarehouseClientIdentityOptions.mockResolvedValue({
+            bigqueryExternalAccount: {
+                type: 'external_account',
+                audience: `//iam.googleapis.com/${federated.workloadIdentityProvider}`,
+                subject_token_type: 'urn:ietf:params:oauth:token-type:jwt',
+                token_url: 'https://sts.googleapis.com/v1/token',
+                subject_token_supplier: {
+                    getSubjectToken: async () => 'token',
+                },
+            },
+        });
+        const query = () =>
+            factory.withWarehouseClient(
+                {
+                    kind: 'resolved',
+                    projectUuid: null,
+                    credentials: federated,
+                    aiPlan: null,
+                    warehouseConnectionUuid: null,
+                    connectionRoute: null,
+                },
+                contextFor(),
+                async () => undefined,
+            );
+        await query();
+        await query();
+        expect(
+            projectModel.getWarehouseClientIdentityOptions,
+        ).toHaveBeenCalledTimes(2);
+        expect(
+            projectModel.getWarehouseClientIdentityOptions,
+        ).toHaveBeenCalledWith(federated, 'org-uuid');
+        expect(
+            projectModel.getWarehouseClientFromCredentials,
+        ).toHaveBeenCalledTimes(1);
+        projectModel.getWarehouseClientIdentityOptions.mockRejectedValue(
+            new WarehouseConnectionError('Federation disabled'),
+        );
+        await expect(query()).rejects.toThrow('Federation disabled');
+        expect(
+            projectModel.getWarehouseClientFromCredentials,
+        ).toHaveBeenCalledTimes(1);
+    });
     const ducklakeCredentials: CreateDuckdbDucklakeCredentials = {
         type: WarehouseTypes.DUCKDB,
         connectionType: DuckdbConnectionType.DUCKLAKE,
@@ -1249,7 +1394,11 @@ describe('WarehouseClientFactory', () => {
     test('final analytics credentials skip the AI and personal steps', async () => {
         const { factory, credentialSource, aiAccessService, base } =
             buildFixture();
-        credentialSource.loadBase.mockResolvedValue({ ...base, kind: 'final' });
+        credentialSource.loadBase.mockResolvedValue({
+            ...base,
+            kind: 'final',
+            warehouseConnectionUuid: null,
+        });
         await factory.withWarehouseClient(
             bindingRef,
             contextFor(QueryExecutionContext.AI),
@@ -3502,7 +3651,7 @@ describe('AI service account factory scopes', () => {
             );
             const databricks = {
                 type: WarehouseTypes.DATABRICKS,
-                serverHostName: 'workspace.example.com',
+                serverHostName: 'adb-123.4.azuredatabricks.net',
                 httpPath: '/sql/warehouse',
                 database: 'schema',
                 token: 'slot-token',
@@ -3551,7 +3700,7 @@ describe('AI service account factory scopes', () => {
         );
         const databricks = {
             type: WarehouseTypes.DATABRICKS,
-            serverHostName: 'workspace.example.com',
+            serverHostName: 'adb-123.4.azuredatabricks.net',
             httpPath: '/sql/warehouse',
             database: 'schema',
             token: 'slot-token',
@@ -3608,7 +3757,7 @@ describe('AI service account factory scopes', () => {
                 clientOptions: { agentJobControls: true },
                 credentials: {
                     type: WarehouseTypes.DATABRICKS,
-                    serverHostName: 'workspace.example.com',
+                    serverHostName: 'adb-123.4.azuredatabricks.net',
                     httpPath: '/sql/warehouse',
                     database: 'schema',
                     token: 'slot-token',
@@ -3633,7 +3782,7 @@ describe('AI service account factory scopes', () => {
         const { factory, aiAccessService, projectModel } = buildFixture();
         const connection = {
             type: WarehouseTypes.DATABRICKS as const,
-            serverHostName: 'workspace.example.com',
+            serverHostName: 'adb-123.4.azuredatabricks.net',
             httpPath: '/sql/warehouse',
             database: 'schema',
             personalAccessToken: 'project-pat',
@@ -4563,7 +4712,9 @@ describe('Snowflake revocation with a warm agent client', () => {
                 featureFlagModel: {
                     get: vi.fn().mockResolvedValue({ enabled: false }),
                 },
-                refreshTokenRotation: { run: vi.fn() },
+                refreshTokenRotation: new RefreshTokenRotation({
+                    database: createDatabase().database,
+                }),
                 lightdashConfig: config,
                 userWarehouseCredentialsModel: model,
                 snowflakeAgentClientResolver: new SnowflakeAgentClientResolver({
@@ -4684,7 +4835,7 @@ describe('Snowflake revocation with a warm agent client', () => {
             ).rejects.toMatchObject({ refusal: { reason } });
             expect(query).not.toHaveBeenCalled();
             expect(model.findAiCredentialWithSecrets).toHaveBeenCalledTimes(
-                failure === 'refresh' ? 6 : 3,
+                failure === 'disconnect' ? 5 : 6,
             );
             expect(
                 projectModel.getWarehouseClientFromCredentials,
@@ -5303,7 +5454,7 @@ describe('prepared OAuth credentials', () => {
                 const connection: CreateDatabricksCredentials = {
                     type: WarehouseTypes.DATABRICKS,
                     authenticationType,
-                    serverHostName: 'workspace.example.com',
+                    serverHostName: 'adb-123.4.azuredatabricks.net',
                     database: 'schema',
                     httpPath: '/sql/warehouse',
                     token: 'already-exchanged',
@@ -5348,7 +5499,7 @@ describe('prepared OAuth credentials', () => {
                 const connection: CreateDatabricksCredentials = {
                     type: WarehouseTypes.DATABRICKS,
                     authenticationType,
-                    serverHostName: 'workspace.example.com',
+                    serverHostName: 'adb-123.4.azuredatabricks.net',
                     httpPath: '/sql/warehouse',
                     database: 'schema',
                     token: 'access-secret',
@@ -5362,7 +5513,7 @@ describe('prepared OAuth credentials', () => {
                         contextFor(),
                         'project-uuid',
                         null,
-                        { owner: { kind: 'organization', uuid } },
+                        { owner: { kind: 'project', uuid } },
                     );
                     await factory.withWarehouseClient(
                         {
@@ -5377,16 +5528,16 @@ describe('prepared OAuth credentials', () => {
                         async () => {},
                     );
                 };
-                await acquire('org-row-a');
-                await acquire('org-row-b');
-                await acquire('org-row-a');
+                await acquire('project-row-a');
+                await acquire('project-row-b');
+                await acquire('project-row-a');
                 expect(
                     projectModel.getWarehouseClientFromCredentials,
                 ).toHaveBeenCalledTimes(2);
                 const keys = Object.keys(factory.warehouseClients);
                 expect(keys).toHaveLength(2);
-                expect(keys[0]).toContain('org-row-a');
-                expect(keys[1]).toContain('org-row-b');
+                expect(keys[0]).toContain('project-row-a');
+                expect(keys[1]).toContain('project-row-b');
                 expect(keys.join()).not.toContain('secret');
             } finally {
                 resolve.mockRestore();
@@ -5971,6 +6122,119 @@ describe('trusted execution warehouse tags', () => {
             expect(tags.agent_surface).toBe('forged');
         },
     );
+});
+
+describe('BigQuery maximum bytes billed per role and agent', () => {
+    const bigqueryCredentials: CreateWarehouseCredentials = {
+        type: WarehouseTypes.BIGQUERY,
+        project: 'project',
+        dataset: 'dataset',
+        timeoutSeconds: 300,
+        priority: 'interactive',
+        authenticationType: BigqueryAuthenticationType.PRIVATE_KEY,
+        keyfileContents: { client_email: 'sa@example.com' },
+        retries: 3,
+        location: 'US',
+        maximumBytesBilled: 1000,
+        maximumBytesBilledByRole: {
+            [ProjectMemberRole.DEVELOPER]: 50000,
+            [ProjectMemberRole.ADMIN]: 0,
+        },
+        agentMaximumBytesBilled: 200,
+    };
+    const resolvedRef = (
+        creds: CreateWarehouseCredentials,
+    ): Extract<WarehouseClientRef, { kind: 'resolved' }> => ({
+        kind: 'resolved',
+        projectUuid: 'project-uuid',
+        cachePolicy: 'disabled',
+        credentials: creds,
+        aiPlan: null,
+        warehouseConnectionUuid: null,
+        connectionRoute: null,
+    });
+
+    test.each([
+        {
+            name: 'role mapping applies to app queries',
+            role: ProjectMemberRole.DEVELOPER,
+            queryContext: QueryExecutionContext.EXPLORE,
+            expected: 50000,
+        },
+        {
+            name: 'a 0 role limit removes the limit',
+            role: ProjectMemberRole.ADMIN,
+            queryContext: QueryExecutionContext.EXPLORE,
+            expected: 0,
+        },
+        {
+            name: 'unmapped roles use the connection limit',
+            role: ProjectMemberRole.VIEWER,
+            queryContext: QueryExecutionContext.EXPLORE,
+            expected: undefined,
+        },
+        {
+            name: 'agent override wins over the role mapping',
+            role: ProjectMemberRole.DEVELOPER,
+            queryContext: QueryExecutionContext.MCP_RUN_SQL,
+            expected: 200,
+        },
+    ])('$name', async ({ role, queryContext, expected }) => {
+        const { factory, projectModel } = buildFixture();
+        projectModel.getHighestSystemProjectRole.mockResolvedValue(role);
+        const run = vi.fn().mockResolvedValue(undefined);
+        const execute = vi.fn().mockResolvedValue({ totalRows: 0 });
+        projectModel.getWarehouseClientFromCredentials.mockImplementation(
+            (creds) => ({
+                ...warehouseClientMock,
+                credentials: creds,
+                streamQuery: run,
+                executeAsyncQuery: execute,
+            }),
+        );
+        await factory.withWarehouseClient(
+            resolvedRef(bigqueryCredentials),
+            contextFor(queryContext),
+            async ({ warehouseClient }) => {
+                await warehouseClient.streamQuery('SELECT 1', vi.fn(), {
+                    tags: {},
+                });
+                await warehouseClient.executeAsyncQuery({
+                    sql: 'SELECT 1',
+                    tags: {},
+                });
+            },
+        );
+        expect(run.mock.calls[0][2].maximumBytesBilled).toBe(expected);
+        expect(execute.mock.calls[0][0].maximumBytesBilled).toBe(expected);
+    });
+
+    test('skips the role lookup when no role mapping is configured', async () => {
+        const { factory, projectModel } = buildFixture();
+        const run = vi.fn().mockResolvedValue(undefined);
+        projectModel.getWarehouseClientFromCredentials.mockImplementation(
+            (creds) => ({
+                ...warehouseClientMock,
+                credentials: creds,
+                streamQuery: run,
+            }),
+        );
+        await factory.withWarehouseClient(
+            resolvedRef({
+                ...bigqueryCredentials,
+                maximumBytesBilledByRole: undefined,
+                agentMaximumBytesBilled: undefined,
+            }),
+            contextFor(QueryExecutionContext.EXPLORE),
+            async ({ warehouseClient }) => {
+                await warehouseClient.streamQuery('SELECT 1', vi.fn(), {
+                    tags: {},
+                });
+            },
+        );
+        expect(projectModel.getHighestSystemProjectRole).not.toHaveBeenCalled();
+        expect(run.mock.calls[0][2]).not.toHaveProperty('maximumBytesBilled');
+    });
 });
 
 const sessionMarkerCases = [

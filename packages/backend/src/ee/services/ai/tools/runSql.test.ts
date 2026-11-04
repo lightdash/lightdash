@@ -3,6 +3,7 @@ import {
     type AiWebAppPrompt,
     type SlackPrompt,
 } from '@lightdash/common';
+import { asSchema } from 'ai';
 import { EMPTY_QUERY_GUIDANCE } from '../decisions/queryReview';
 import type { QueryReviewer } from '../decisions/queryReview';
 import { getRunSql } from './runSql';
@@ -96,6 +97,7 @@ const makeTool = ({
             rows: [{ answer: 1 }],
             columns: ['answer'],
             rowCount: 1,
+            executionStats: null,
         }),
         getPrompt: vi.fn().mockResolvedValue(prompt),
         sendFile: vi.fn().mockResolvedValue(undefined),
@@ -115,7 +117,6 @@ const makeTool = ({
         slackLinksOnly,
         useSlackStreamCard,
         sqlScope,
-        hyphenatedIdentifiers: true,
     };
 
     return {
@@ -125,6 +126,27 @@ const makeTool = ({
 };
 
 describe('getRunSql', () => {
+    it.each([
+        { maxQueryLimit: 5000, defaultLimit: 500 },
+        { maxQueryLimit: 100, defaultLimit: 100 },
+    ])(
+        'describes the row limits it enforces: max $maxQueryLimit',
+        ({ maxQueryLimit, defaultLimit }) => {
+            const { tool } = makeTool({ maxQueryLimit });
+            const { properties } = asSchema(tool.inputSchema).jsonSchema as {
+                properties: { limit: { default: number; maximum: number } };
+            };
+
+            expect(properties.limit).toMatchObject({
+                default: defaultLimit,
+                maximum: maxQueryLimit,
+            });
+            expect(tool.description).toContain(
+                `The row limit defaults to ${defaultLimit}, max ${maxQueryLimit}.`,
+            );
+        },
+    );
+
     it('auto-approves SQL without waiting for human approval', async () => {
         const { tool, dependencies } = makeTool({
             autoApproveSql: true,
@@ -147,6 +169,34 @@ describe('getRunSql', () => {
         expect(dependencies.updateProgress).not.toHaveBeenCalledWith(
             'Awaiting approval to run SQL...',
         );
+        expect(output.metadata?.status).toBe('success');
+    });
+
+    it('skips the Slack approval card when the agent auto-approves SQL', async () => {
+        const { tool, dependencies } = makeTool({
+            prompt: makeSlackPrompt(),
+            useSlackStreamCard: true,
+            autoApproveSql: true,
+        });
+
+        const needsApproval =
+            typeof tool.needsApproval === 'function'
+                ? await tool.needsApproval(
+                      { sql: 'select 1 as answer', limit: 500 },
+                      { toolCallId: 'tool-call-1', messages: [], context: {} },
+                  )
+                : tool.needsApproval;
+        const output = await executeRunSql(tool);
+
+        expect(needsApproval).toBe(false);
+        expect(dependencies.recordSqlApproval).toHaveBeenCalledWith({
+            toolCallId: 'tool-call-1',
+            toolName: 'runSql',
+            decidedByUserUuid: null,
+            source: 'auto_approve',
+        });
+        expect(dependencies.updateSlackMessage).not.toHaveBeenCalled();
+        expect(dependencies.waitForSqlApproval).not.toHaveBeenCalled();
         expect(output.metadata?.status).toBe('success');
     });
 
@@ -324,7 +374,34 @@ describe('getRunSql', () => {
             rows: [{ answer: 1 }],
             truncated: false,
             review: null,
+            executionStats: null,
         });
+    });
+
+    it('states the warehouse execution stats in the result and structured content', async () => {
+        const { tool, dependencies } = makeTool({ autoApproveSql: true });
+        const executionStats = {
+            jobId: 'job-123',
+            bytesProcessed: 2048,
+            bytesBilled: 10485760,
+            executionTimeMs: 900,
+            cacheHit: false,
+        };
+        dependencies.runSqlJob.mockResolvedValueOnce({
+            queryUuid: 'query-uuid',
+            rows: [{ answer: 1 }],
+            columns: ['answer'],
+            rowCount: 1,
+            executionStats,
+        });
+
+        const output = await executeRunSql(tool);
+
+        expect(output.result).toContain(
+            "1 rows. Columns: answer. Warehouse execution stats: 2048 bytes (2.0 KiB) processed, 10485760 bytes (10.0 MiB) billed, ran for 900 ms, served from the warehouse's own result cache: no, warehouse job ID job-123.",
+        );
+        expect(output.structuredContent).toMatchObject({ executionStats });
+        expect(toolRunSqlOutputSchema.safeParse(output).success).toBe(true);
     });
 
     it('returns only a summary when data access is disabled', async () => {
@@ -344,6 +421,7 @@ describe('getRunSql', () => {
             rows: null,
             truncated: false,
             review: null,
+            executionStats: null,
         });
     });
 

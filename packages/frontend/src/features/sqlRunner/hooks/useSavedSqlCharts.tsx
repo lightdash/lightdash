@@ -15,10 +15,11 @@ import {
     type UseQueryOptions,
 } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { invalidateContent } from '../../../hooks/useContent';
 import useApp from '../../../providers/App/useApp';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 export type GetSavedSqlChartParams = {
     projectUuid: string;
@@ -27,11 +28,10 @@ export type GetSavedSqlChartParams = {
     onSuccess?: (data: SqlChart) => void;
 };
 
-export const fetchSavedSqlChart = async ({
-    projectUuid,
-    slug,
-    uuid,
-}: GetSavedSqlChartParams) =>
+export const fetchSavedSqlChart = async (
+    lightdashApi: LightdashApi,
+    { projectUuid, slug, uuid }: GetSavedSqlChartParams,
+) =>
     lightdashApi<SqlChart>({
         url: uuid
             ? `/projects/${projectUuid}/sqlRunner/saved/${uuid}`
@@ -40,20 +40,27 @@ export const fetchSavedSqlChart = async ({
         body: undefined,
     });
 
-export const fetchEmbedDashboardSqlChartTile = async ({
-    projectUuid,
-    tileUuid,
-}: {
-    projectUuid: string;
-    tileUuid: string;
-}) =>
+export const fetchEmbedDashboardSqlChartTile = async (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        tileUuid,
+    }: {
+        projectUuid: string;
+        tileUuid: string;
+    },
+) =>
     lightdashApi<SqlChart>({
         url: `/embed/${projectUuid}/sql-chart-tile/${tileUuid}`,
         method: 'GET',
         body: undefined,
     });
 
-const createSavedSqlChart = async (projectUuid: string, data: CreateSqlChart) =>
+const createSavedSqlChart = async (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+    data: CreateSqlChart,
+) =>
     lightdashApi<ApiCreateSqlChart['results']>({
         url: `/projects/${projectUuid}/sqlRunner/saved`,
         method: 'POST',
@@ -61,6 +68,7 @@ const createSavedSqlChart = async (projectUuid: string, data: CreateSqlChart) =>
     });
 
 const updateSavedSqlChart = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     savedSqlUuid: string,
     data: UpdateSqlChart,
@@ -75,9 +83,11 @@ export const useSavedSqlChart = (
     { projectUuid, slug, uuid }: GetSavedSqlChartParams,
     useQueryParams?: UseQueryOptions<SqlChart, ApiError & { slug?: string }>,
 ) => {
+    const lightdashApi = useLightdashApi();
     return useQuery<SqlChart, ApiError>({
         queryKey: ['sqlRunner', 'savedSqlChart', projectUuid, slug, uuid],
-        queryFn: () => fetchSavedSqlChart({ projectUuid, slug, uuid }),
+        queryFn: () =>
+            fetchSavedSqlChart(lightdashApi, { projectUuid, slug, uuid }),
         retry: false,
         enabled: !!slug || !!uuid,
         ...useQueryParams,
@@ -93,11 +103,12 @@ export const useCreateSqlChartMutation = (
         ) => void | Promise<void>;
     } = {},
 ) => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastApiError } = useToaster();
     const navigate = useNavigate();
 
     return useMutation<ApiCreateSqlChart['results'], ApiError, CreateSqlChart>(
-        (data) => createSavedSqlChart(projectUuid, data),
+        (data) => createSavedSqlChart(lightdashApi, projectUuid, data),
         {
             mutationKey: ['sqlRunner', 'createSqlChart', projectUuid],
             onSuccess: async (data) => {
@@ -128,6 +139,7 @@ export const useUpdateSqlChartMutation = (
     savedSqlUuid: string,
     slug: string,
 ) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
 
@@ -139,6 +151,7 @@ export const useUpdateSqlChartMutation = (
         (data) =>
             projectUuid
                 ? updateSavedSqlChart(
+                      lightdashApi,
                       projectUuid,
                       data.savedSqlUuid || savedSqlUuid!,
                       data,
@@ -170,7 +183,11 @@ export const useUpdateSqlChartMutation = (
     );
 };
 
-const deleteSavedSqlChart = async (projectUuid: string, savedSqlUuid: string) =>
+const deleteSavedSqlChart = async (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+    savedSqlUuid: string,
+) =>
     lightdashApi<ApiUpdateSqlChart['results']>({
         url: `/projects/${projectUuid}/sqlRunner/saved/${savedSqlUuid}`,
         method: 'DELETE',
@@ -178,6 +195,7 @@ const deleteSavedSqlChart = async (projectUuid: string, savedSqlUuid: string) =>
     });
 
 const promoteSavedSqlChart = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     savedSqlUuid: string,
 ) =>
@@ -188,6 +206,7 @@ const promoteSavedSqlChart = async (
     });
 
 const getPromoteSavedSqlChartDiff = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     savedSqlUuid: string,
 ) =>
@@ -201,6 +220,7 @@ export const useDeleteSqlChartMutation = (
     projectUuid: string,
     savedSqlUuid: string,
 ) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const navigate = useNavigate();
     const { health } = useApp();
@@ -208,7 +228,7 @@ export const useDeleteSqlChartMutation = (
     const { showToastSuccess, showToastApiError } = useToaster();
 
     return useMutation<{ savedSqlUuid: string }, ApiError>(
-        () => deleteSavedSqlChart(projectUuid, savedSqlUuid),
+        () => deleteSavedSqlChart(lightdashApi, projectUuid, savedSqlUuid),
         {
             mutationKey: ['sqlRunner', 'deleteSqlChart', savedSqlUuid],
             onSuccess: async () => {
@@ -241,10 +261,12 @@ export const useDeleteSqlChartMutation = (
 };
 
 export const usePromoteSqlChartMutation = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastApiError } = useToaster();
 
     return useMutation<SqlChart, ApiError, string>(
-        (savedSqlUuid) => promoteSavedSqlChart(projectUuid, savedSqlUuid),
+        (savedSqlUuid) =>
+            promoteSavedSqlChart(lightdashApi, projectUuid, savedSqlUuid),
         {
             mutationKey: ['sqlRunner', 'promoteSqlChart', projectUuid],
             onSuccess: (data) => {
@@ -273,11 +295,16 @@ export const usePromoteSqlChartMutation = (projectUuid: string) => {
 };
 
 export const usePromoteSqlChartDiffMutation = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
     const { showToastApiError } = useToaster();
 
     return useMutation<PromotionChanges, ApiError, string>(
         (savedSqlUuid) =>
-            getPromoteSavedSqlChartDiff(projectUuid, savedSqlUuid),
+            getPromoteSavedSqlChartDiff(
+                lightdashApi,
+                projectUuid,
+                savedSqlUuid,
+            ),
         {
             mutationKey: ['sqlRunner', 'promoteSqlChartDiff', projectUuid],
             onError: ({ error }) => {

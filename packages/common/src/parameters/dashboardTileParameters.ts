@@ -18,7 +18,8 @@ export type ParameterFallbackSources = {
 export type DashboardTileParameterInputs = {
     dashboardValues: ParametersValuesMap;
     chartSavedValues: ParametersValuesMap;
-    isTargeted: boolean;
+    // Keys this tile is excluded from: it ignores the dashboard's value and default, chart-saved value first
+    excludedKeys: string[];
 };
 
 const resolveDefinitionDefaults = (
@@ -80,13 +81,13 @@ export const canUseChartSavedParameterValue = ({
     dashboardValues[key] === undefined &&
     definitions[key]?.default === undefined;
 
-// Targeted: dashboard value, else chart-saved only when the definition has no default.
-// Untargeted: chart-saved values only.
+// Targeted key: dashboard value, else chart-saved only when the definition has no default.
+// Excluded key: chart-saved value only.
 export const getDashboardTileParameterOverrides = ({
     definitions,
     dashboardValues: rawDashboardValues,
     chartSavedValues: rawChartSavedValues,
-    isTargeted,
+    excludedKeys,
 }: DashboardTileParameterInputs & {
     definitions: ParameterDefinitions;
 }): ParametersValuesMap => {
@@ -99,18 +100,22 @@ export const getDashboardTileParameterOverrides = ({
         rawChartSavedValues,
         definitions,
     );
-    if (!isTargeted) return chartSavedValues;
-
+    const excluded = new Set(excludedKeys);
     const keys = new Set([
         ...Object.keys(chartSavedValues),
         ...Object.keys(dashboardValues),
     ]);
     return [...keys].reduce<ParametersValuesMap>((acc, key) => {
+        const chartSavedValue = chartSavedValues[key];
+        if (excluded.has(key)) {
+            return chartSavedValue === undefined
+                ? acc
+                : { ...acc, [key]: chartSavedValue };
+        }
         const dashboardValue = dashboardValues[key];
         if (dashboardValue !== undefined) {
             return { ...acc, [key]: dashboardValue };
         }
-        const chartSavedValue = chartSavedValues[key];
         if (
             chartSavedValue === undefined ||
             !canUseChartSavedParameterValue({
@@ -159,62 +164,56 @@ export const getDashboardTileParameterSource = ({
         inputs.dashboardValues,
         inputs.definitions,
     );
-    return inputs.isTargeted && dashboardValues[key] !== undefined
+    return !inputs.excludedKeys.includes(key) &&
+        dashboardValues[key] !== undefined
         ? DashboardTileParameterSource.DASHBOARD
         : DashboardTileParameterSource.CHART;
 };
 
-export type DashboardTileParameterState = {
+export type DashboardTileParameterState = DashboardTileParameterInputs & {
     parameterReferences: string[];
-    chartSavedValues: ParametersValuesMap;
+    // The tile's virtual-view saved values, the last fallback before "missing"
+    virtualViewSavedValues: ParametersValuesMap;
 };
 
 export type DashboardParameterStatusInputs = {
     tiles: DashboardTileParameterState[];
-    dashboardValues: ParametersValuesMap;
     definitions: ParameterDefinitions;
 };
 
-// Referenced keys with no dashboard value and no definition default, paired with
-// whether each referencing tile has a chart-saved value for them.
+// Referenced keys, paired with whether each referencing tile resolves a value with its own inputs
 const getKeysResolvedPerTile = ({
     tiles,
-    dashboardValues: rawDashboardValues,
     definitions,
-}: DashboardParameterStatusInputs): Map<string, boolean[]> => {
-    const dashboardValues = omitDisallowedParameterValues(
-        rawDashboardValues,
-        definitions,
+}: DashboardParameterStatusInputs): Map<string, boolean[]> =>
+    tiles.reduce(
+        (acc, { parameterReferences, virtualViewSavedValues, ...inputs }) => {
+            const overrides = getDashboardTileParameterOverrides({
+                ...inputs,
+                definitions,
+            });
+            const virtualViewValues = omitDisallowedParameterValues(
+                virtualViewSavedValues,
+                definitions,
+            );
+            new Set(parameterReferences).forEach((key) => {
+                if (isReservedParameterName(key)) return;
+                acc.set(key, [
+                    ...(acc.get(key) ?? []),
+                    overrides[key] !== undefined ||
+                        definitions[key]?.default !== undefined ||
+                        virtualViewValues[key] !== undefined,
+                ]);
+            });
+            return acc;
+        },
+        new Map<string, boolean[]>(),
     );
-    return tiles.reduce((acc, tile) => {
-        const chartSavedValues = omitDisallowedParameterValues(
-            tile.chartSavedValues,
-            definitions,
-        );
-        new Set(tile.parameterReferences).forEach((key) => {
-            if (
-                isReservedParameterName(key) ||
-                !canUseChartSavedParameterValue({
-                    key,
-                    dashboardValues,
-                    definitions,
-                })
-            ) {
-                return;
-            }
-            acc.set(key, [
-                ...(acc.get(key) ?? []),
-                chartSavedValues[key] !== undefined,
-            ]);
-        });
-        return acc;
-    }, new Map<string, boolean[]>());
-};
 
-// A key is missing when any referencing tile has no dashboard value, default or chart-saved value.
+// A key is missing when any referencing tile has no dashboard, default, chart-saved or virtual-view value.
 export const getMissingRequiredDashboardParameters = (
     inputs: DashboardParameterStatusInputs,
 ): string[] =>
     [...getKeysResolvedPerTile(inputs)]
-        .filter(([, hasChartValues]) => hasChartValues.some((has) => !has))
+        .filter(([, resolved]) => resolved.some((has) => !has))
         .map(([key]) => key);

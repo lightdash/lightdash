@@ -10,3 +10,7 @@
 .summaryInput {
     cursor: pointer;
 }
+
+.hidden {
+    visibility: hidden;
+}

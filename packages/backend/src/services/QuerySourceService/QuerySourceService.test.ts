@@ -16,6 +16,7 @@ import {
     type SourceQuery,
 } from '@lightdash/common';
 import type { Mock } from 'vitest';
+import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { fromOauth } from '../../auth/account/account';
 import {
     buildAccount,
@@ -39,6 +40,7 @@ import type { ProjectService } from '../ProjectService/ProjectService';
 import { QuerySourceRegistry } from './QuerySourceRegistry';
 import { QuerySourceService } from './QuerySourceService';
 import { DuckdbQuerySource } from './sources/DuckdbQuerySource';
+import { PythonQuerySource } from './sources/PythonQuerySource';
 import { SemanticLayerQuerySource } from './sources/SemanticLayerQuerySource';
 import { SqlQuerySource } from './sources/SqlQuerySource';
 import type {
@@ -68,6 +70,7 @@ const createFakeSource = (
 ): QuerySourceClient & { submitQuery: Mock } => ({
     definition: { sourceType, label: sourceType, description: 'fake source' },
     supportsPivot: sourceType !== QuerySourceType.EXTERNAL,
+    requiredFeatureFlags: [],
     scanSchema: vi.fn().mockResolvedValue({ sourceType, tables: [] }),
     getQueryReferences: (query: SourceQuery) => {
         if (query.sourceType !== QuerySourceType.DUCKDB) return [];
@@ -111,6 +114,7 @@ const createService = (registry: QuerySourceRegistry) => {
 
     const assertCanReadStoredResults = vi.fn().mockResolvedValue(undefined);
     const service = new QuerySourceService({
+        analytics: analyticsMock,
         getAsyncQueryService: () => ({ assertCanReadStoredResults }),
         getAgentPermissionService: () => mocks.permissions,
         projectModel: mocks.projectModel as unknown as ProjectModel,
@@ -139,7 +143,7 @@ const createRegistryWithFakes = () => {
 describe('QuerySourceRegistry', () => {
     it('lists registered sources and resolves them by type', () => {
         const { registry } = createRegistryWithFakes();
-        expect(registry.list().map((d) => d.sourceType)).toEqual([
+        expect(registry.list().map((s) => s.definition.sourceType)).toEqual([
             QuerySourceType.SQL,
             QuerySourceType.SEMANTIC_LAYER,
             QuerySourceType.DUCKDB,
@@ -295,6 +299,45 @@ describe('QuerySourceService', () => {
                     resolvedReferences: {},
                 }),
             );
+        });
+
+        it('tracks which source types a batch combined', async () => {
+            const fakes = createRegistryWithFakes();
+            const { service } = createService(fakes.registry);
+            const trackAccount = vi.spyOn(analyticsMock, 'trackAccount');
+
+            await service.executeSourceQueries({
+                ...executionContext,
+                account,
+                projectUuid,
+                queries: [
+                    {
+                        nodeId: 'orders',
+                        sourceType: QuerySourceType.SQL,
+                        sql: 'SELECT 1',
+                    },
+                    {
+                        nodeId: 'merged',
+                        sourceType: QuerySourceType.DUCKDB,
+                        sql: 'SELECT * FROM orders',
+                        references: ['orders'],
+                    },
+                ],
+                context: QueryExecutionContext.MULTI_SOURCE_QUERY,
+            });
+
+            expect(trackAccount).toHaveBeenCalledWith(account, {
+                event: 'query_sources.submitted',
+                properties: expect.objectContaining({
+                    projectId: projectUuid,
+                    context: QueryExecutionContext.MULTI_SOURCE_QUERY,
+                    nodeCount: 2,
+                    sqlNodeCount: 1,
+                    duckdbNodeCount: 1,
+                    apiNodeCount: 0,
+                }),
+            });
+            trackAccount.mockRestore();
         });
 
         it('submits in dependency order, rewriting node references to queryUuids', async () => {
@@ -714,9 +757,12 @@ describe('QuerySourceService', () => {
             await expect(result).rejects.toThrow('revoked');
         });
 
-        it('returns the standard status per query uuid', async () => {
+        it('returns the standard status, row count and result columns per query uuid', async () => {
             const fakes = createRegistryWithFakes();
             const { service, mocks } = createService(fakes.registry);
+            const columns = {
+                total: { reference: 'total', type: DimensionType.NUMBER },
+            };
             mocks.queryHistoryModel.get.mockImplementation(
                 async (queryUuid: string) => ({
                     queryUuid,
@@ -725,6 +771,10 @@ describe('QuerySourceService', () => {
                             ? QueryHistoryStatus.ERROR
                             : QueryHistoryStatus.READY,
                     error: queryUuid === 'failed-uuid' ? 'boom' : null,
+                    totalRowCount: queryUuid === 'failed-uuid' ? null : 42,
+                    warehouseExecutionTimeMs:
+                        queryUuid === 'failed-uuid' ? null : 120,
+                    columns: queryUuid === 'failed-uuid' ? null : columns,
                 }),
             );
 
@@ -739,11 +789,17 @@ describe('QuerySourceService', () => {
                     queryUuid: 'ok-uuid',
                     status: QueryHistoryStatus.READY,
                     error: null,
+                    totalRowCount: 42,
+                    warehouseExecutionTimeMs: 120,
+                    columns,
                 },
                 {
                     queryUuid: 'failed-uuid',
                     status: QueryHistoryStatus.ERROR,
                     error: 'boom',
+                    totalRowCount: null,
+                    warehouseExecutionTimeMs: null,
+                    columns: null,
                 },
             ]);
         });
@@ -766,6 +822,53 @@ describe('QuerySourceService', () => {
  * upstream results by reference and produce their own columns; no metadata
  * is carried through.
  */
+describe('python query source gating', () => {
+    const createRegistry = () => {
+        const fakes = createRegistryWithFakes();
+        const executeAsyncPythonQuery = vi
+            .fn()
+            .mockResolvedValue({ queryUuid: 'python-query-uuid' });
+        fakes.registry.register(
+            new PythonQuerySource({
+                asyncQueryService: { executeAsyncPythonQuery },
+            }),
+        );
+        return { ...fakes, executeAsyncPythonQuery };
+    };
+    const pipeline: SourceQuery[] = [
+        { nodeId: 'orders', sourceType: QuerySourceType.SQL, sql: 'SELECT 1' },
+        {
+            nodeId: 'forecast',
+            sourceType: QuerySourceType.PYTHON,
+            code: 'def run(inputs, params):\n    return inputs["orders"]',
+            references: ['orders'],
+        },
+    ];
+
+    it('submits a python node after the nodes it references', async () => {
+        const { registry, executeAsyncPythonQuery } = createRegistry();
+        const { service } = createService(registry);
+
+        const results = await service.executeSourceQueries({
+            ...executionContext,
+            account,
+            projectUuid,
+            queries: [...pipeline].reverse(),
+            context: QueryExecutionContext.AI,
+        });
+
+        expect(results.queries.map((query) => query.nodeId)).toEqual([
+            'orders',
+            'forecast',
+        ]);
+        expect(executeAsyncPythonQuery).toHaveBeenCalledWith(
+            expect.objectContaining({
+                references: { orders: 'orders-query-uuid' },
+            }),
+        );
+    });
+});
+
 describe('composer pipelines return the standard results interface', () => {
     const createRealSources = () => {
         const asyncQueryService = {
@@ -944,6 +1047,37 @@ describe('composer pipelines return the standard results interface', () => {
             asyncQueryService.executeAsyncComposeSqlQuery,
         ).not.toHaveBeenCalled();
         expect(asyncQueryService.executeAsyncSqlQuery).not.toHaveBeenCalled();
+    });
+
+    it("runs a semantic-layer node with its own parameter values over the submission's", async () => {
+        const { registry, asyncQueryService } = createRealSources();
+        const { service } = createService(registry);
+
+        await service.executeSourceQueries({
+            ...executionContext,
+            account,
+            projectUuid,
+            context: QueryExecutionContext.AI,
+            parameters: { region: 'EU', currency: 'USD' },
+            queries: [
+                {
+                    nodeId: 'metric',
+                    sourceType: QuerySourceType.SEMANTIC_LAYER,
+                    exploreName: 'orders',
+                    dimensions: [],
+                    metrics: [],
+                    parameters: { region: 'US' },
+                },
+            ],
+        });
+
+        expect(
+            asyncQueryService.executeAsyncMetricQuery,
+        ).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({
+                parameters: { region: 'US', currency: 'USD' },
+            }),
+        );
     });
 
     it('resolves a single-node semantic-layer pipeline to the metric query itself, without a DuckDB wrapper', async () => {

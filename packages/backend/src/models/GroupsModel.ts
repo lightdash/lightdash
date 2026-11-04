@@ -5,6 +5,7 @@ import {
     Group,
     GroupMember,
     GroupMembership,
+    GroupSort,
     GroupWithMembers,
     isSystemRole,
     NotFoundError,
@@ -17,10 +18,8 @@ import {
     type KnexPaginateArgs,
     type KnexPaginatedData,
 } from '@lightdash/common';
+import { difference, differenceBy, uniq } from 'es-toolkit/compat';
 import { Knex } from 'knex';
-import { uniq } from 'lodash';
-import difference from 'lodash/difference';
-import differenceBy from 'lodash/differenceBy';
 import { DatabaseError } from 'pg';
 import { DbEmail, EmailTableName } from '../database/entities/emails';
 import {
@@ -115,6 +114,7 @@ export class GroupsModel {
             organizationUuid: string;
             searchQuery?: string; // will fuzzy search on name
             name?: string; // will exact match on name
+            sort?: GroupSort;
         },
         paginateArgs?: KnexPaginateArgs,
         { trx = this.database }: { trx?: Knex } = {},
@@ -148,6 +148,15 @@ export class GroupsModel {
             query = getColumnMatchRegexQuery(query, filters.searchQuery, [
                 'name',
             ]);
+        }
+
+        if (filters.sort) {
+            const direction =
+                filters.sort.sortDirection === 'desc' ? 'desc' : 'asc';
+            query = query.orderByRaw(
+                `lower(??) ${direction}, ?? ${direction}`,
+                ['groups.name', 'groups.group_uuid'],
+            );
         }
 
         const { pagination, data } = await KnexPaginate.paginate(

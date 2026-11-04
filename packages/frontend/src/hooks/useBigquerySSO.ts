@@ -6,9 +6,10 @@ import {
     type ApiSuccessEmpty,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 
-const getIsAuthenticated = async () =>
+const getIsAuthenticated = async (lightdashApi: LightdashApi) =>
     lightdashApi<ApiSuccessEmpty['results']>({
         url: `/bigquery/sso/is-authenticated`,
         method: 'GET',
@@ -16,13 +17,14 @@ const getIsAuthenticated = async () =>
     });
 
 export const useIsBigQueryAuthenticated = () => {
+    const lightdashApi = useLightdashApi();
     return useQuery<ApiSuccessEmpty['results'], ApiError>({
         queryKey: [],
-        queryFn: getIsAuthenticated,
+        queryFn: () => getIsAuthenticated(lightdashApi),
     });
 };
 
-const getProjects = async () =>
+const getProjects = async (lightdashApi: LightdashApi) =>
     lightdashApi<ApiBigqueryProjects['results']>({
         url: `/bigquery/sso/projects`,
         method: 'GET',
@@ -30,14 +32,15 @@ const getProjects = async () =>
     });
 
 export const useBigqueryProjects = (isAuthenticated: boolean) => {
+    const lightdashApi = useLightdashApi();
     return useQuery<ApiBigqueryProjects['results'], ApiError>({
         queryKey: ['bigquery-projects'],
-        queryFn: getProjects,
+        queryFn: () => getProjects(lightdashApi),
         enabled: isAuthenticated,
     });
 };
 
-const getProjectRecommendation = async () =>
+const getProjectRecommendation = async (lightdashApi: LightdashApi) =>
     lightdashApi<ApiBigqueryProjectRecommendation['results']>({
         url: `/bigquery/sso/projects/recommendation`,
         method: 'GET',
@@ -45,14 +48,15 @@ const getProjectRecommendation = async () =>
     });
 
 export const useBigqueryProjectRecommendation = (enabled: boolean) => {
+    const lightdashApi = useLightdashApi();
     return useQuery<ApiBigqueryProjectRecommendation['results'], ApiError>({
         queryKey: ['bigquery-project-recommendation'],
-        queryFn: getProjectRecommendation,
+        queryFn: () => getProjectRecommendation(lightdashApi),
         enabled,
     });
 };
 
-const getDatasets = async (projectId: string) =>
+const getDatasets = async (lightdashApi: LightdashApi, projectId: string) =>
     lightdashApi<ApiBigqueryDatasets['results']>({
         url: `/bigquery/sso/datasets?projectId=${projectId}`,
         method: 'GET',
@@ -63,9 +67,10 @@ export const useBigqueryDatasets = (
     isAuthenticated: boolean,
     projectId: string | undefined,
 ) => {
+    const lightdashApi = useLightdashApi();
     return useQuery<ApiBigqueryDatasets['results'], ApiError>({
         queryKey: [projectId],
-        queryFn: () => getDatasets(projectId!),
+        queryFn: () => getDatasets(lightdashApi, projectId!),
         enabled:
             isAuthenticated && projectId !== undefined && projectId.length > 0,
     });

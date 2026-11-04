@@ -111,8 +111,5 @@ describe('DayOneHomepage', () => {
         expect(screen.getByTestId('recent-list')).toBeInTheDocument();
         expect(screen.getByTestId('favorites-bar')).toBeInTheDocument();
         expect(screen.getByTestId('pinned-card')).toBeInTheDocument();
-        expect(
-            screen.queryByRole('link', { name: /Set up an AI agent/ }),
-        ).toBeNull();
     });
 });

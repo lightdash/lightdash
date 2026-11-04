@@ -38,6 +38,9 @@ export type DbOrganizationSettings = {
     cors_allowed_domains: string[] | null;
     // Automatic data app thumbnail capture. NULL/absent resolves to on.
     data_app_automatic_thumbnails_enabled: boolean | null;
+    // Data app captures (screenshots, attachments, thumbnails). NULL/absent
+    // inherits the instance env (LIGHTDASH_APP_CAPTURES_ENABLED).
+    data_app_captures_enabled: boolean | null;
     created_at: Date;
     updated_at: Date;
 };

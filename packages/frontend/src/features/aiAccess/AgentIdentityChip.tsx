@@ -31,7 +31,11 @@ import { Link } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
 import { getWarehouseIcon } from '../../components/ProjectConnection/ProjectConnectFlow/utils';
 import classes from './AgentIdentityChip.module.css';
-import { identityLabels, identityWarehouseNames } from './identityLabels';
+import {
+    identityChoiceStateLabels,
+    identityLabels,
+    identityWarehouseNames,
+} from './identityLabels';
 
 const sourceIcons = {
     marked_person: IconUser,
@@ -270,6 +274,7 @@ export const AgentIdentityChip = ({
     saving,
     verificationStatus,
     setupExpanded,
+    settingUpSource,
     onToggleSetup,
     onSelect,
 }: {
@@ -279,6 +284,7 @@ export const AgentIdentityChip = ({
     saving: boolean;
     verificationStatus: 'verified' | 'attention' | null;
     setupExpanded: boolean;
+    settingUpSource: AiIdentitySource | null;
     onToggleSetup: (() => void) | null;
     onSelect: (source: AiIdentitySource) => void;
 }) => {
@@ -362,55 +368,99 @@ export const AgentIdentityChip = ({
                     </Text>
                     <Stack gap={0}>
                         {AGENT_IDENTITY_SOURCES[rule.warehouseType].person.map(
-                            (source) => (
-                                <UnstyledButton
-                                    key={source}
-                                    className={classes.choice}
-                                    aria-label={identityLabels[source].label}
-                                    aria-current={
+                            (source) => {
+                                const settingUp = source === settingUpSource;
+                                const stateLabel = settingUp
+                                    ? identityChoiceStateLabels.settingUp
+                                    : settingUpSource !== null &&
                                         source === rule.source
-                                            ? 'true'
-                                            : undefined
-                                    }
-                                    onClick={() => {
-                                        setOpened(false);
-                                        onSelect(source);
-                                    }}
-                                >
-                                    <Box
-                                        className={classes.iconTile}
-                                        flex="0 0 auto"
+                                      ? identityChoiceStateLabels.current
+                                      : null;
+                                return (
+                                    <UnstyledButton
+                                        key={source}
+                                        className={classes.choice}
+                                        aria-label={
+                                            stateLabel
+                                                ? `${identityLabels[source].label}, ${stateLabel.toLowerCase()}`
+                                                : identityLabels[source].label
+                                        }
+                                        data-setting-up={settingUp || undefined}
+                                        aria-current={
+                                            source === rule.source
+                                                ? 'true'
+                                                : undefined
+                                        }
+                                        onClick={() => {
+                                            setOpened(false);
+                                            onSelect(source);
+                                        }}
                                     >
-                                        <MantineIcon
-                                            icon={sourceIcons[source]}
-                                        />
-                                    </Box>
-                                    <Stack gap={0} flex={1}>
-                                        <Group gap="xs">
-                                            <Text size="sm" fw={500}>
-                                                {identityLabels[source].label}
-                                            </Text>
-                                            {source === 'agent_sign_in' &&
-                                                !configured && (
-                                                    <Badge size="xs">
-                                                        Setup needed
+                                        <Box
+                                            className={classes.iconTile}
+                                            flex="0 0 auto"
+                                        >
+                                            <MantineIcon
+                                                icon={sourceIcons[source]}
+                                            />
+                                        </Box>
+                                        <Stack gap={0} flex={1}>
+                                            <Group gap="xs">
+                                                <Text size="sm" fw={500}>
+                                                    {
+                                                        identityLabels[source]
+                                                            .label
+                                                    }
+                                                </Text>
+                                                {stateLabel && (
+                                                    <Badge
+                                                        size="xs"
+                                                        variant={
+                                                            settingUp
+                                                                ? 'light'
+                                                                : 'outline'
+                                                        }
+                                                        color={
+                                                            settingUp
+                                                                ? 'blue'
+                                                                : 'ldGray.4'
+                                                        }
+                                                        c={
+                                                            settingUp
+                                                                ? undefined
+                                                                : 'ldGray.7'
+                                                        }
+                                                    >
+                                                        {stateLabel}
                                                     </Badge>
                                                 )}
-                                        </Group>
-                                        <Text size="xs" c="dimmed">
-                                            {identityLabels[source].description}
-                                        </Text>
-                                    </Stack>
-                                    {source === rule.source && (
-                                        <MantineIcon
-                                            icon={IconCheck}
-                                            aria-hidden={false}
-                                            role="img"
-                                            aria-label="Saved choice"
-                                        />
-                                    )}
-                                </UnstyledButton>
-                            ),
+                                                {source === 'agent_sign_in' &&
+                                                    !configured &&
+                                                    !settingUp && (
+                                                        <Badge size="xs">
+                                                            Setup needed
+                                                        </Badge>
+                                                    )}
+                                            </Group>
+                                            <Text size="xs" c="dimmed">
+                                                {
+                                                    identityLabels[source]
+                                                        .description
+                                                }
+                                            </Text>
+                                        </Stack>
+                                        {settingUpSource === null &&
+                                            source === rule.source && (
+                                                <MantineIcon
+                                                    icon={IconCheck}
+                                                    aria-hidden={false}
+                                                    role="img"
+                                                    aria-label="Saved choice"
+                                                />
+                                            )}
+                                    </UnstyledButton>
+                                );
+                            },
                         )}
                     </Stack>
                     {onToggleSetup && (

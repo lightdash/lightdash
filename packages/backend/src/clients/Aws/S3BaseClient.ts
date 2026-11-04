@@ -148,6 +148,13 @@ export function buildS3ClientConfig(
         region: config.region,
         endpoint: config.endpoint || undefined,
         forcePathStyle: config.forcePathStyle ?? false,
+        // The SDK default (WHEN_SUPPORTED) asks S3 for a checksum on every
+        // GetObject and wraps the body in a ChecksumStream when one comes
+        // back. Destroying that wrapper leaves the HTTP response open, so
+        // each early-terminated read leaks a keep-alive socket until the
+        // pool wedges. Downloads are consumed through streams that do not
+        // need the SDK to verify them.
+        responseChecksumValidation: 'WHEN_REQUIRED',
     };
 
     if (config.authMode === 'gcp_oauth') {
@@ -170,7 +177,6 @@ export function buildS3ClientConfig(
         // Avoid optional AWS checksums. applyGcpOAuth strips x-amz headers
         // and supplies Content-MD5 for batch deletion, which requires one.
         clientConfig.requestChecksumCalculation = 'WHEN_REQUIRED';
-        clientConfig.responseChecksumValidation = 'WHEN_REQUIRED';
         return clientConfig;
     }
 

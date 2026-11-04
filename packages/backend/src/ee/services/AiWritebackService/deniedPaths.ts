@@ -11,8 +11,7 @@ import { ForbiddenError } from '@lightdash/common';
  * - SECRET paths (`.env*`, private keys, credential files) must never land in a
  *   PR (R6).
  * - CI/workflow paths (`.github/**`, `.gitlab-ci.yml`, `Jenkinsfile`,
- *   `.circleci/**`) can execute code in the customer's CI (R3). Trusted preview
- *   workflows are generated outside the coding agent by PreviewDeploySetupService.
+ *   `.circleci/**`) can execute code in the customer's CI (R3).
  */
 
 /** Secret/credential files — denied on every coding-agent commit. */
@@ -50,12 +49,6 @@ const CI_PATH_PATTERNS: RegExp[] = [
 
 const DENIED_PATH_PATTERNS = [...SECRET_PATH_PATTERNS, ...CI_PATH_PATTERNS];
 
-/**
- * Thrown when a staged commit touches a denied path; no PR is opened. Extends
- * {@link ForbiddenError} so it flows through the project's error categorisation
- * (Sentry filtering, logging) — `editRepo`'s classifier checks `DeniedPathError`
- * before `ForbiddenError`, so it still maps to the `denied_path` card code.
- */
 export class DeniedPathError extends ForbiddenError {
     /** The offending repo-relative paths. */
     readonly paths: string[];

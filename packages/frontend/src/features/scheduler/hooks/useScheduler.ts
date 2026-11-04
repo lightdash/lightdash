@@ -23,11 +23,12 @@ import {
     type UseQueryOptions,
 } from '@tanstack/react-query';
 import { useMemo } from 'react';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import { type DestinationType } from './useSchedulerFilters';
 
-const getScheduler = async (uuid: string) =>
+const getScheduler = async (lightdashApi: LightdashApi, uuid: string) =>
     lightdashApi<SchedulerAndTargets>({
         url: `/schedulers/${uuid}`,
         method: 'GET',
@@ -35,6 +36,7 @@ const getScheduler = async (uuid: string) =>
     });
 
 const getSchedulerRuns = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     paginateArgs: KnexPaginateArgs,
     searchQuery?: string,
@@ -109,6 +111,7 @@ const getRunLogs = async (runId: string) => {
 };
 
 const getPaginatedSchedulers = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     paginateArgs: KnexPaginateArgs,
     searchQuery?: string,
@@ -153,6 +156,7 @@ const getPaginatedSchedulers = async (
 };
 
 const getUserPaginatedSchedulers = async (
+    lightdashApi: LightdashApi,
     paginateArgs: KnexPaginateArgs,
     searchQuery?: string,
     sortBy?: string,
@@ -194,6 +198,7 @@ const getUserPaginatedSchedulers = async (
 export const getSchedulerJobStatus = async <
     T = ApiJobStatusResponse['results'],
 >(
+    lightdashApi: LightdashApi,
     jobId: string,
     // Embedded callers must pass this: the JWT auth middleware resolves the embed
     // secret from a project in the path or query, and this route has neither.
@@ -207,14 +212,20 @@ export const getSchedulerJobStatus = async <
         body: undefined,
     });
 
-const sendNowScheduler = async (scheduler: SendNowScheduler) =>
+const sendNowScheduler = async (
+    lightdashApi: LightdashApi,
+    scheduler: SendNowScheduler,
+) =>
     lightdashApi<ApiTestSchedulerResponse['results']>({
         url: `/schedulers/send`,
         method: 'POST',
         body: JSON.stringify(scheduler),
     });
 
-const sendNowSchedulerByUuid = async (uuid: string) =>
+const sendNowSchedulerByUuid = async (
+    lightdashApi: LightdashApi,
+    uuid: string,
+) =>
     lightdashApi<ApiTestSchedulerResponse['results']>({
         url: `/schedulers/${uuid}/send`,
         method: 'POST',
@@ -224,13 +235,15 @@ const sendNowSchedulerByUuid = async (uuid: string) =>
 export const useScheduler = (
     uuid: string | null,
     useQueryOptions?: UseQueryOptions<SchedulerAndTargets, ApiError>,
-) =>
-    useQuery<SchedulerAndTargets, ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<SchedulerAndTargets, ApiError>({
         queryKey: ['scheduler', uuid],
-        queryFn: () => getScheduler(uuid!),
+        queryFn: () => getScheduler(lightdashApi, uuid!),
         enabled: !!uuid,
         ...useQueryOptions,
     });
+};
 
 type RunsResponse = ApiSchedulerRunsResponse['results'];
 
@@ -256,6 +269,7 @@ export const useSchedulerRuns = ({
         resourceUuids?: string[];
     };
 }) => {
+    const lightdashApi = useLightdashApi();
     return useInfiniteQuery<RunsResponse>({
         queryKey: [
             'schedulerRuns',
@@ -268,6 +282,7 @@ export const useSchedulerRuns = ({
         ],
         queryFn: async ({ pageParam = 0 }) => {
             return getSchedulerRuns(
+                lightdashApi,
                 projectUuid,
                 {
                     page: (pageParam as number) + 1,
@@ -291,6 +306,7 @@ export const useSchedulerRuns = ({
 };
 
 const getResourceSchedulerRuns = async (
+    lightdashApi: LightdashApi,
     resourceType: 'dashboard' | 'chart',
     resourceUuid: string,
     schedulerUuid: string,
@@ -351,8 +367,9 @@ export const useResourceSchedulerRuns = ({
         destinations?: DestinationType[];
     };
     enabled?: boolean;
-}) =>
-    useInfiniteQuery<RunsResponse, ApiError>({
+}) => {
+    const lightdashApi = useLightdashApi();
+    return useInfiniteQuery<RunsResponse, ApiError>({
         queryKey: [
             'resource_scheduler_runs',
             resourceType,
@@ -366,6 +383,7 @@ export const useResourceSchedulerRuns = ({
         ],
         queryFn: ({ pageParam = 1 }) =>
             getResourceSchedulerRuns(
+                lightdashApi,
                 resourceType,
                 resourceUuid,
                 schedulerUuid,
@@ -384,6 +402,7 @@ export const useResourceSchedulerRuns = ({
         refetchOnWindowFocus: false,
         enabled: enabled && !!resourceUuid && !!schedulerUuid,
     });
+};
 
 export const useFetchRunLogs = () => {
     return useMutation<SchedulerRunLog[], ApiError, string>({
@@ -429,6 +448,7 @@ export const usePaginatedSchedulers = ({
     includeLatestRun?: boolean;
     isUserScope?: boolean;
 }) => {
+    const lightdashApi = useLightdashApi();
     return useInfiniteQuery<ApiSchedulersResponse['results']>({
         queryKey: [
             'paginatedSchedulers',
@@ -448,6 +468,7 @@ export const usePaginatedSchedulers = ({
 
             if (isUserScope) {
                 return getUserPaginatedSchedulers(
+                    lightdashApi,
                     paginateArgsWithPage,
                     searchQuery,
                     sortBy,
@@ -458,6 +479,7 @@ export const usePaginatedSchedulers = ({
             }
 
             return getPaginatedSchedulers(
+                lightdashApi,
                 projectUuid!,
                 paginateArgsWithPage,
                 searchQuery,
@@ -479,12 +501,13 @@ export const usePaginatedSchedulers = ({
 };
 
 const getJobStatus = async (
+    lightdashApi: LightdashApi,
     jobId: string,
     onComplete: (response: Record<string, AnyType> | null) => void,
     onError: (error: Error) => void,
     projectUuid?: string,
 ) => {
-    getSchedulerJobStatus(jobId, projectUuid)
+    getSchedulerJobStatus(lightdashApi, jobId, projectUuid)
         .then((data) => {
             if (data.status === SchedulerJobStatus.COMPLETED) {
                 return onComplete(data.details);
@@ -492,7 +515,14 @@ const getJobStatus = async (
                 onError(new Error(data.details?.error || 'Job failed'));
             } else {
                 setTimeout(
-                    () => getJobStatus(jobId, onComplete, onError, projectUuid),
+                    () =>
+                        getJobStatus(
+                            lightdashApi,
+                            jobId,
+                            onComplete,
+                            onError,
+                            projectUuid,
+                        ),
                     2000,
                 );
             }
@@ -502,12 +532,17 @@ const getJobStatus = async (
         });
 };
 
-export const pollJobStatus = async (jobId: string, projectUuid?: string) => {
+export const pollJobStatus = async (
+    lightdashApi: LightdashApi,
+    jobId: string,
+    projectUuid?: string,
+) => {
     if (!jobId) {
         throw new Error('Cannot poll job status: jobId is required');
     }
     return new Promise<Record<string, AnyType> | null>((resolve, reject) =>
         getJobStatus(
+            lightdashApi,
             jobId,
             (details) => resolve(details),
             (error) => reject(error),
@@ -517,6 +552,7 @@ export const pollJobStatus = async (jobId: string, projectUuid?: string) => {
 };
 
 const useSendNowJobStatus = (jobId: string | undefined) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const {
         showToastError,
@@ -533,7 +569,7 @@ const useSendNowJobStatus = (jobId: string | undefined) => {
                 notifications.hide('toast-info-job-status');
             }, 1000);
 
-            return getSchedulerJobStatus(jobId);
+            return getSchedulerJobStatus(lightdashApi, jobId);
         },
         {
             refetchInterval: (data) => {
@@ -614,6 +650,7 @@ const useSendNowJobStatus = (jobId: string | undefined) => {
 };
 
 export const useSendNowScheduler = () => {
+    const lightdashApi = useLightdashApi();
     const { showToastInfo, showToastError, showToastApiError } = useToaster();
 
     const sendNowMutation = useMutation<
@@ -628,7 +665,7 @@ export const useSendNowScheduler = () => {
                 loading: true,
                 autoClose: false,
             });
-            return sendNowScheduler(res);
+            return sendNowScheduler(lightdashApi, res);
         },
         {
             mutationKey: ['sendNowScheduler'],
@@ -671,6 +708,7 @@ export const useSendNowScheduler = () => {
 };
 
 export const useSendNowSchedulerByUuid = (schedulerUuid: string) => {
+    const lightdashApi = useLightdashApi();
     const { showToastInfo, showToastError, showToastApiError } = useToaster();
 
     const sendNowMutation = useMutation<
@@ -685,7 +723,7 @@ export const useSendNowSchedulerByUuid = (schedulerUuid: string) => {
                 loading: true,
                 autoClose: false,
             });
-            return sendNowSchedulerByUuid(schedulerUuid);
+            return sendNowSchedulerByUuid(lightdashApi, schedulerUuid);
         },
         {
             mutationKey: ['sendNowSchedulerByUuid', schedulerUuid],

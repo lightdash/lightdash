@@ -8,6 +8,7 @@ import {
 } from '@lightdash/common';
 import {
     Button,
+    Checkbox,
     MultiSelect,
     PasswordInput,
     Select,
@@ -25,6 +26,8 @@ import { BEDROCK_GEOGRAPHY_LABELS } from './bedrockGeographyLabels';
 const REGION_LABELS: Record<(typeof BEDROCK_REGIONS)[number], string> = {
     'ap-northeast-1': 'Asia Pacific (Tokyo)',
     'ap-northeast-3': 'Asia Pacific (Osaka)',
+    'eu-central-1': 'Europe (Frankfurt)',
+    'eu-west-1': 'Europe (Ireland)',
     'us-east-1': 'US East (N. Virginia)',
     'us-west-2': 'US West (Oregon)',
 };
@@ -46,6 +49,8 @@ export type BedrockCredentialFormValues = {
     allowedModels: string[];
     apiKey?: string;
     inferenceGeography: BedrockInferenceGeography;
+    /** Only meaningful when creating; edit and replace keep the stored status. */
+    setAsDefault?: boolean;
 };
 
 type Props = {
@@ -57,6 +62,12 @@ type Props = {
      * field must be re-entered even though the credential already exists.
      */
     isReplacement?: boolean;
+    /**
+     * Whether a default already serves the organization (a default credential
+     * or the legacy blob). Decides the initial state of the set-as-default
+     * choice when creating.
+     */
+    defaultExists: boolean;
     models: AiModelOption[];
     isSaving: boolean;
     onClose: () => void;
@@ -67,11 +78,13 @@ export const BedrockCredentialModal: FC<Props> = ({
     opened,
     credential,
     isReplacement = false,
+    defaultExists,
     models,
     isSaving,
     onClose,
     onSave,
 }) => {
+    const isCreating = !credential && !isReplacement;
     const form = useForm({
         initialValues: {
             label: credential?.label ?? '',
@@ -80,6 +93,7 @@ export const BedrockCredentialModal: FC<Props> = ({
             allowedModels: credential?.allowedModels ?? [],
             inferenceGeography: (credential?.inferenceGeography ??
                 null) as BedrockInferenceGeography | null,
+            setAsDefault: !defaultExists,
         },
         validate: zodResolver(
             z.object({
@@ -145,6 +159,7 @@ export const BedrockCredentialModal: FC<Props> = ({
                         region,
                         allowedModels,
                         inferenceGeography,
+                        setAsDefault,
                     }) => {
                         if (region === null) return;
                         onSave({
@@ -157,6 +172,7 @@ export const BedrockCredentialModal: FC<Props> = ({
                                 inferenceGeography ??
                                 getDefaultBedrockInferenceGeography(region),
                             ...(apiKey.trim() ? { apiKey: apiKey.trim() } : {}),
+                            ...(isCreating ? { setAsDefault } : {}),
                         });
                     },
                 )}
@@ -253,6 +269,20 @@ export const BedrockCredentialModal: FC<Props> = ({
                         }))}
                         {...form.getInputProps('allowedModels')}
                     />
+
+                    {isCreating && (
+                        <Checkbox
+                            label="Set as organization default"
+                            description={
+                                form.values.setAsDefault
+                                    ? 'Serves everything without a project-level selection as soon as it is saved.'
+                                    : 'Stored without serving any AI traffic until a project selects it or it is made the default.'
+                            }
+                            {...form.getInputProps('setAsDefault', {
+                                type: 'checkbox',
+                            })}
+                        />
+                    )}
                 </Stack>
             </form>
         </MantineModal>

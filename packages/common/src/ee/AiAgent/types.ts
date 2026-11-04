@@ -22,6 +22,7 @@ export type AiMetricQuery = Pick<
     | 'limit'
     | 'exploreName'
     | 'tableCalculations'
+    | 'customDimensions'
 > & {
     // Aggregation custom metrics as additional-metric definitions, used for
     // field-existence validation.

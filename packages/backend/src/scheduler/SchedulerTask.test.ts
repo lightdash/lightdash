@@ -30,6 +30,7 @@ import {
     UnexpectedGoogleSheetsError,
     VizAggregationOptions,
     VizIndexType,
+    type Account,
     type CapturedQuery,
     type CompileProjectPayload,
     type CreateSchedulerAndTargets,
@@ -46,6 +47,7 @@ import {
     type ReadyQueryResultsPage,
     type ScheduledDeliveryPayload,
     type SchedulerAndTargets,
+    type SchedulerIndexCatalogJobPayload,
     type SendNowScheduler,
     type UploadGsheetPayload,
 } from '@lightdash/common';
@@ -1005,8 +1007,16 @@ describe('uploadGsheetFromQuery', () => {
 type TaskDeps = ConstructorParameters<typeof SchedulerTask>[0];
 
 class TestSchedulerTask extends SchedulerTask {
-    public exportContentForTest(payload: ExportContentPayload) {
-        return this.exportContent('export-job', new Date(), payload);
+    public exportContentForTest(
+        payload: ExportContentPayload,
+        overrideAccount?: Account,
+    ) {
+        return this.exportContent(
+            'export-job',
+            new Date(),
+            payload,
+            overrideAccount,
+        );
     }
 
     public sendEmailNotificationForTest(
@@ -1022,6 +1032,83 @@ const makeTaskWithDeps = (overrides: Partial<TaskDeps> = {}) =>
 
 const asDep = <K extends keyof TaskDeps>(value: unknown): TaskDeps[K] =>
     value as TaskDeps[K];
+
+test.each([false, true])(
+    'restores catalog annotations using execution-time metadata when requested: %s',
+    async (refreshMetadataBeforeIndex) => {
+        const currentMetadata = {
+            prevCatalogItemsWithTags: [
+                { name: 'orders', catalogTags: [{ tagUuid: 'manual-tag' }] },
+            ],
+            prevCatalogItemsWithIcons: [{ name: 'orders', icon: 'sparkles' }],
+            prevMetricTreeEdges: [{ source: 'count', target: 'total' }],
+            prevMetricsTreeNodes: [{ name: 'count', xPosition: 100 }],
+        };
+        const catalog = {
+            getIndexCatalogMetadata: vi.fn().mockResolvedValue(currentMetadata),
+            indexCatalog: vi.fn().mockResolvedValue({ catalogFieldMap: {} }),
+            migrateCatalogItemTags: vi.fn(),
+            migrateCatalogItemIcons: vi.fn(),
+            migrateMetricsTreeEdges: vi.fn(),
+            migrateMetricsTreeNodes: vi.fn(),
+            setChartUsages: vi.fn(),
+        };
+        const payload = {
+            projectUuid: 'project-1',
+            organizationUuid: 'org-1',
+            userUuid: 'user-1',
+            prevCatalogItemsWithTags: [],
+            prevCatalogItemsWithIcons: [],
+            prevMetricTreeEdges: [],
+            prevMetricsTreeNodes: [],
+            refreshMetadataBeforeIndex,
+        };
+        const task = makeTaskWithDeps({
+            catalogService: asDep<'catalogService'>(catalog),
+            schedulerService: asDep<'schedulerService'>({
+                logSchedulerJob: vi.fn(),
+            }),
+        });
+
+        await (
+            task as unknown as {
+                indexCatalog(
+                    jobId: string,
+                    scheduledTime: Date,
+                    data: SchedulerIndexCatalogJobPayload,
+                ): Promise<void>;
+            }
+        ).indexCatalog('catalog-job', new Date(), payload);
+
+        const expected = refreshMetadataBeforeIndex ? currentMetadata : payload;
+        expect(catalog.migrateCatalogItemTags).toHaveBeenCalledWith(
+            payload.projectUuid,
+            expected.prevCatalogItemsWithTags,
+        );
+        expect(catalog.migrateCatalogItemIcons).toHaveBeenCalledWith(
+            payload.projectUuid,
+            expected.prevCatalogItemsWithIcons,
+        );
+        expect(catalog.migrateMetricsTreeEdges).toHaveBeenCalledWith(
+            payload.projectUuid,
+            expected.prevMetricTreeEdges,
+        );
+        expect(catalog.migrateMetricsTreeNodes).toHaveBeenCalledWith(
+            payload.projectUuid,
+            expected.prevMetricsTreeNodes,
+        );
+        if (refreshMetadataBeforeIndex) {
+            expect(catalog.getIndexCatalogMetadata).toHaveBeenCalledWith(
+                payload.projectUuid,
+            );
+            expect(
+                catalog.getIndexCatalogMetadata.mock.invocationCallOrder[0],
+            ).toBeLessThan(catalog.indexCatalog.mock.invocationCallOrder[0]);
+        } else {
+            expect(catalog.getIndexCatalogMetadata).not.toHaveBeenCalled();
+        }
+    },
+);
 
 describe('PDF content export', () => {
     const payload: ExportContentPayload = {
@@ -1092,12 +1179,104 @@ describe('PDF content export', () => {
         );
     });
 
+    it('renders embed exports with the embed token instead of a user session', async () => {
+        const { task, logSchedulerJob, getNotificationPageData } = setup();
+        const exportEmbedDashboardPdf = vi.fn().mockResolvedValue({
+            source: 'https://storage.example/embed.pdf',
+            fileName: 'embed.pdf',
+        });
+        Object.assign(task, { unfurlService: { exportEmbedDashboardPdf } });
+        const jwtAccount = { isJwtUser: () => true } as unknown as Account;
+
+        await task.exportContentForTest(
+            { ...payload, userUuid: 'external::viewer', encodedJwt: 'jwt' },
+            jwtAccount,
+        );
+
+        expect(getNotificationPageData).not.toHaveBeenCalled();
+        expect(exportEmbedDashboardPdf).toHaveBeenCalledWith(
+            expect.objectContaining({
+                projectUuid: 'project-1',
+                dashboardUuid: 'dashboard-1',
+                embedToken: 'jwt',
+                externalId: 'external::viewer',
+                selectedTabs: ['tab-1'],
+                parameters: payload.parameters,
+            }),
+        );
+        expect(logSchedulerJob).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                status: SchedulerJobStatus.COMPLETED,
+                details: expect.objectContaining({
+                    url: 'https://storage.example/embed.pdf',
+                }),
+            }),
+        );
+    });
+
+    it('renders embed image exports with the embed token instead of a user session', async () => {
+        const { task, logSchedulerJob, getNotificationPageData } = setup();
+        const exportEmbedDashboardImage = vi
+            .fn()
+            .mockResolvedValue('https://storage.example/embed.png');
+        Object.assign(task, { unfurlService: { exportEmbedDashboardImage } });
+        const jwtAccount = { isJwtUser: () => true } as unknown as Account;
+
+        await task.exportContentForTest(
+            {
+                ...payload,
+                format: SchedulerFormat.IMAGE,
+                userUuid: 'external::viewer',
+                encodedJwt: 'jwt',
+            },
+            jwtAccount,
+        );
+
+        expect(getNotificationPageData).not.toHaveBeenCalled();
+        expect(exportEmbedDashboardImage).toHaveBeenCalledWith(
+            expect.objectContaining({
+                dashboardUuid: 'dashboard-1',
+                embedToken: 'jwt',
+                externalId: 'external::viewer',
+                selectedTabs: ['tab-1'],
+            }),
+        );
+        expect(logSchedulerJob).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                status: SchedulerJobStatus.COMPLETED,
+                details: expect.objectContaining({
+                    url: 'https://storage.example/embed.png',
+                    fileType: SchedulerFormat.IMAGE,
+                }),
+            }),
+        );
+    });
+
     it('rejects exports without storage before rendering a local-only file', async () => {
         const { task, getNotificationPageData } = setup(false);
         await expect(task.exportContentForTest(payload)).rejects.toThrow(
             'Cloud storage is not enabled',
         );
         expect(getNotificationPageData).not.toHaveBeenCalled();
+    });
+
+    it('rejects embed image exports without storage so links can expire', async () => {
+        const { task } = setup(false);
+        const exportEmbedDashboardImage = vi.fn();
+        Object.assign(task, { unfurlService: { exportEmbedDashboardImage } });
+        const jwtAccount = { isJwtUser: () => true } as unknown as Account;
+
+        await expect(
+            task.exportContentForTest(
+                {
+                    ...payload,
+                    format: SchedulerFormat.IMAGE,
+                    encodedJwt: 'jwt',
+                },
+                jwtAccount,
+            ),
+        ).rejects.toThrow('Cloud storage is not enabled');
+        expect(exportEmbedDashboardImage).not.toHaveBeenCalled();
     });
 });
 
@@ -1708,6 +1887,7 @@ describe('handleScheduledDelivery execution identity', () => {
         enabled: true,
         includeLinks: true,
         plainTextEmail: false,
+        useCachedResults: false,
         targets: [],
     } as SchedulerAndTargets;
 
@@ -1894,6 +2074,7 @@ const appScheduler = (
         enabled: true,
         includeLinks: true,
         plainTextEmail: false,
+        useCachedResults: false,
         targets: [],
         ...overrides,
     }) as CreateSchedulerAndTargets;
@@ -2046,6 +2227,7 @@ describe('getNotificationPageData — app CSV/XLSX branch', () => {
             projectUuid: 'project-1',
             queryUuid: 'query-a',
             type: DownloadFileType.CSV,
+            accessMode: PersistentDownloadFileAccessMode.SIGNED,
             onlyRaw: false,
             expirationSecondsOverride: 604800,
         });
@@ -4605,6 +4787,48 @@ describe('app delivery target senders', () => {
         });
     });
 
+    // Adaptive Card text renders markdown, not HTML, so the footer link must be
+    // a markdown link and the sender's message must reach the card.
+    it('sends the delivery message and a markdown footer link to MS Teams', async () => {
+        const postCsvsWithWebhook = vi.fn().mockResolvedValue(undefined);
+        const task = makeTaskWithDeps({
+            ...senderBaseDeps(),
+            lightdashConfig: asDep<'lightdashConfig'>({
+                siteUrl: 'https://lightdash.example.com',
+                persistentDownloadUrls: { expirationSeconds: 604800 },
+                microsoftTeams: { enabled: true },
+            }),
+            msTeamsClient: asDep<'msTeamsClient'>({ postCsvsWithWebhook }),
+        });
+        const page = senderPage();
+
+        await (
+            task as unknown as {
+                sendMsTeamsNotification(
+                    jobId: string,
+                    notification: never,
+                ): Promise<void>;
+            }
+        ).sendMsTeamsNotification(
+            'job-1',
+            notificationOf(
+                appScheduler({ message: 'Numbers for the Monday standup' }),
+                page,
+                { webhook: 'https://webhook.example.com/teams' },
+            ),
+        );
+
+        expect(postCsvsWithWebhook.mock.calls[0][0]).toMatchObject({
+            message: 'Numbers for the Monday standup',
+            footer: expect.stringContaining(
+                `[scheduled delivery](${page.url})`,
+            ),
+        });
+        expect(postCsvsWithWebhook.mock.calls[0][0].footer).not.toContain(
+            '<a href',
+        );
+    });
+
     it('posts a dashboard xlsx delivery to the Google Chat webhook', async () => {
         const postCsvsWithWebhook = vi.fn().mockResolvedValue(undefined);
         const task = makeTaskWithDeps({
@@ -4884,6 +5108,7 @@ describe('connection compile jobs', () => {
             ...({} as TaskDeps),
             getAgentConnectionGrantService: () => ({ assertActiveExecution }),
             analytics: { track: vi.fn() },
+            lightdashConfig: { preAggregates: { enabled: true } },
             userService: {
                 getSessionByUserUuid: getSession,
                 getAccountByUserUuid: getAccount,
@@ -5344,5 +5569,288 @@ describe('connection compile jobs', () => {
         await f.run({ ...f.payload, agentConnectionEffect: 'validateProject' });
         expect(f.effect).not.toHaveBeenCalled();
         expect(f.getSession).not.toHaveBeenCalled();
+    });
+});
+
+describe('pre-aggregates gated on instance config', () => {
+    const definition = (organizationUuid: string, suffix: string) => ({
+        organizationUuid,
+        projectUuid: `project-${suffix}`,
+        createdByUserUuid: 'user-uuid',
+        preAggregateDefinitionUuid: `definition-${suffix}`,
+        refreshCron: '0 6 * * *',
+        schedulerTimezone: 'UTC',
+        preAggExploreName: `explore_${suffix}`,
+    });
+    const config = (enabled: boolean) =>
+        asDep<'lightdashConfig'>({ preAggregates: { enabled } });
+
+    it('schedules cron materializations for every organization when enabled', async () => {
+        const schedulePreAggregateCronJobs = vi.fn(async () => []);
+        const task = makeTaskWithDeps({
+            preAggregateModel: asDep<'preAggregateModel'>({
+                getProjectSchedulerDetailsForPreAggregates: vi.fn(async () => [
+                    definition('org-a', 'a'),
+                    definition('org-b', 'b'),
+                ]),
+            }),
+            schedulerClient: asDep<'schedulerClient'>({
+                schedulePreAggregateCronJobs,
+            }),
+            lightdashConfig: config(true),
+        });
+
+        await task['generateDailyPreAggregateMaterializationJobs'](new Date());
+
+        expect(schedulePreAggregateCronJobs).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not schedule cron materializations when infra is off', async () => {
+        const getProjectSchedulerDetailsForPreAggregates = vi.fn(async () => [
+            definition('org-a', 'a'),
+        ]);
+        const schedulePreAggregateCronJobs = vi.fn(async () => []);
+        const task = makeTaskWithDeps({
+            preAggregateModel: asDep<'preAggregateModel'>({
+                getProjectSchedulerDetailsForPreAggregates,
+            }),
+            schedulerClient: asDep<'schedulerClient'>({
+                schedulePreAggregateCronJobs,
+            }),
+            lightdashConfig: config(false),
+        });
+
+        await task['generateDailyPreAggregateMaterializationJobs'](new Date());
+
+        expect(
+            getProjectSchedulerDetailsForPreAggregates,
+        ).not.toHaveBeenCalled();
+        expect(schedulePreAggregateCronJobs).not.toHaveBeenCalled();
+    });
+
+    it('does not run a queued materialization when infra is off', async () => {
+        const materializePreAggregate = vi.fn();
+        const logSchedulerJob = vi.fn(async () => undefined);
+        const task = makeTaskWithDeps({
+            preAggregateMaterializationService:
+                asDep<'preAggregateMaterializationService'>({
+                    materializePreAggregate,
+                }),
+            schedulerService: asDep<'schedulerService'>({ logSchedulerJob }),
+            lightdashConfig: config(false),
+        });
+
+        await task['materializePreAggregate']('job-uuid', new Date(), {
+            organizationUuid: 'org-a',
+            projectUuid: 'project-a',
+            userUuid: 'user-uuid',
+            preAggregateDefinitionUuid: 'definition-a',
+            trigger: 'cron',
+        });
+
+        expect(materializePreAggregate).not.toHaveBeenCalled();
+        expect(logSchedulerJob).not.toHaveBeenCalled();
+    });
+});
+
+describe('scheduler useCachedResults', () => {
+    const baseScheduler = {
+        name: 'Daily report',
+        createdBy: 'user-1',
+        savedChartUuid: 'chart-1',
+        savedSqlUuid: null,
+        dashboardUuid: null,
+        appUuid: null,
+        appName: null,
+        cron: '0 7 * * *',
+        timezone: 'UTC',
+        message: '',
+        enabled: true,
+        includeLinks: true,
+        targets: [],
+    };
+
+    const runPageData = async (
+        scheduler: Record<string, unknown>,
+        deps: Partial<TaskDeps>,
+    ) => {
+        const task = makeTaskWithDeps({
+            analytics: asDep<'analytics'>({
+                track: vi.fn(),
+                trackAccount: vi.fn(),
+            }),
+            lightdashConfig: asDep<'lightdashConfig'>({
+                siteUrl: 'http://localhost:8090',
+            }),
+            fileStorageClient: asDep<'fileStorageClient'>({
+                isEnabled: vi.fn().mockReturnValue(false),
+            }),
+            ...deps,
+        });
+        Object.assign(task, {
+            getChartOrDashboard: vi.fn().mockResolvedValue({
+                url: 'http://localhost:8090/projects/project-1/saved/chart-1',
+                minimalUrl:
+                    'http://localhost:3000/minimal/projects/project-1/saved/chart-1',
+                pageType: LightdashPage.CHART,
+                details: { name: 'Chart', description: undefined },
+                organizationUuid: 'org-1',
+                projectUuid: 'project-1',
+            }),
+        });
+        await (
+            task as unknown as {
+                getNotificationPageData(
+                    scheduler: unknown,
+                    jobId: string,
+                    isFinalAttempt: boolean,
+                ): Promise<unknown>;
+            }
+        ).getNotificationPageData(scheduler, 'job-1', true);
+    };
+
+    const runImageDelivery = async (useCachedResults: boolean | undefined) => {
+        const unfurlImage = vi
+            .fn()
+            .mockResolvedValue({ imageUrl: 'http://image' });
+        await runPageData(
+            {
+                ...baseScheduler,
+                format: SchedulerFormat.IMAGE,
+                options: {},
+                useCachedResults,
+            },
+            { unfurlService: asDep<'unfurlService'>({ unfurlImage }) },
+        );
+        return new URL(unfurlImage.mock.calls[0][0].url);
+    };
+
+    const runCsvDelivery = async (useCachedResults: boolean | undefined) => {
+        const executeAsyncSavedChartQuery = vi
+            .fn()
+            .mockResolvedValue({ queryUuid: 'query-1' });
+        await runPageData(
+            {
+                ...baseScheduler,
+                format: SchedulerFormat.CSV,
+                options: { formatted: true, limit: 'table' },
+                useCachedResults,
+            },
+            {
+                userService: asDep<'userService'>({
+                    getAccountByUserUuid: vi.fn().mockResolvedValue({
+                        user: { id: 'user-1' },
+                        organization: { organizationUuid: 'org-1' },
+                    }),
+                }),
+                schedulerService: asDep<'schedulerService'>({
+                    savedChartModel: {
+                        get: vi.fn().mockResolvedValue({
+                            name: 'Chart',
+                            chartConfig: {
+                                type: ChartType.CARTESIAN,
+                                config: {},
+                            },
+                            pivotConfig: undefined,
+                            tableConfig: { columnOrder: [] },
+                        }),
+                    },
+                }),
+                asyncQueryService: asDep<'asyncQueryService'>({
+                    executeAsyncSavedChartQuery,
+                    downloadSyncQueryResults: vi.fn().mockResolvedValue({
+                        fileUrl: 'http://file',
+                        s3FileUrl: 'http://s3-file',
+                    }),
+                }),
+            },
+        );
+        return executeAsyncSavedChartQuery.mock.calls[0][0];
+    };
+
+    it('asks the headless page for cached results only when opted in', async () => {
+        const optedIn = await runImageDelivery(true);
+        const defaulted = await runImageDelivery(undefined);
+
+        expect(optedIn.searchParams.get('useCachedResults')).toBe('true');
+        expect(defaulted.searchParams.has('useCachedResults')).toBe(false);
+    });
+
+    it('reads the CSV query from cache only when opted in', async () => {
+        expect((await runCsvDelivery(true)).invalidateCache).toBe(false);
+        expect((await runCsvDelivery(false)).invalidateCache).toBe(true);
+        expect((await runCsvDelivery(undefined)).invalidateCache).toBe(true);
+    });
+
+    it('reads the Google Sheets query from cache only when opted in', async () => {
+        const runSync = async (useCachedResults: boolean) => {
+            const executeSqlChartQueryAndGetResults = vi
+                .fn()
+                .mockResolvedValue({ rows: [{ a: 1 }] });
+            const task = makeTaskWithDeps({
+                googleDriveClient: asDep<'googleDriveClient'>({
+                    isEnabled: true,
+                    uploadMetadata: vi.fn().mockResolvedValue(undefined),
+                    appendCsvToSheet: vi.fn().mockResolvedValue(undefined),
+                }),
+                schedulerService: asDep<'schedulerService'>({
+                    schedulerModel: {
+                        getSchedulerAndTargets: vi.fn().mockResolvedValue({
+                            ...baseScheduler,
+                            schedulerUuid: 'scheduler-1',
+                            format: SchedulerFormat.GSHEETS,
+                            savedChartUuid: null,
+                            savedSqlUuid: 'sql-chart-1',
+                            options: { gdriveId: 'sheet-1', tabName: 'Tab' },
+                            useCachedResults,
+                        }),
+                    },
+                    getSchedulerDefaultTimezone: vi
+                        .fn()
+                        .mockResolvedValue('UTC'),
+                    logSchedulerJob: vi.fn().mockResolvedValue(undefined),
+                }),
+                userService: asDep<'userService'>({
+                    getSessionByUserUuid: vi.fn().mockResolvedValue({}),
+                    getAccountByUserUuid: vi.fn().mockResolvedValue({
+                        user: { email: 'demo@lightdash.com' },
+                        organization: { organizationUuid: 'org-1' },
+                    }),
+                    getRefreshToken: vi.fn().mockResolvedValue('token'),
+                }),
+                asyncQueryService: asDep<'asyncQueryService'>({
+                    savedSqlModel: {
+                        getByUuid: vi.fn().mockResolvedValue({
+                            slug: 'sql-chart',
+                            project: { projectUuid: 'project-1' },
+                        }),
+                    },
+                    executeSqlChartQueryAndGetResults,
+                }),
+                analytics: asDep<'analytics'>({ track: vi.fn() }),
+                lightdashConfig: asDep<'lightdashConfig'>({
+                    siteUrl: 'http://localhost:8090',
+                }),
+            });
+            await (
+                task as unknown as {
+                    uploadGsheets(
+                        jobId: string,
+                        notification: GsheetsNotificationPayload,
+                    ): Promise<void>;
+                }
+            ).uploadGsheets('job-1', {
+                schedulerUuid: 'scheduler-1',
+                scheduledTime: new Date('2026-09-30T07:00:00Z'),
+                jobGroup: 'scheduled_delivery',
+                userUuid: 'user-1',
+                organizationUuid: 'org-1',
+                projectUuid: 'project-1',
+            });
+            return executeSqlChartQueryAndGetResults.mock.calls[0][0];
+        };
+
+        expect((await runSync(true)).invalidateCache).toBe(false);
+        expect((await runSync(false)).invalidateCache).toBe(true);
     });
 });

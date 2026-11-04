@@ -25,7 +25,7 @@ import {
     IconUsers,
     IconUsersGroup,
 } from '@tabler/icons-react';
-import chunk from 'lodash/chunk';
+import { chunk } from 'es-toolkit/compat';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useUpdateMutation } from '../../../hooks/useSpaces';
 import useApp from '../../../providers/App/useApp';
@@ -146,9 +146,7 @@ export const UserAccessList: FC<UserAccessListProps> = ({
                         {isSessionUser || !sharedUser.hasDirectAccess ? (
                             <Badge
                                 size="sm"
-                                color={getAccessColor(sharedUser.role).join(
-                                    '.',
-                                )}
+                                color={getAccessColor(sharedUser.role)}
                                 radius="xl"
                                 mr="xs"
                             >
@@ -446,6 +444,7 @@ export const AccessModelToggle: FC<AccessModelToggleProps> = ({
                         value={currentValue}
                         classNames={{
                             root: classes.segmentedControl,
+                            label: classes.segmentedLabel,
                         }}
                         onChange={(value) => {
                             const option = options.find(

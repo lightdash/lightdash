@@ -825,11 +825,19 @@ describe('content version agent identity migration', () => {
             })),
         );
         expect(
-            await ledger.cleanupBatch(new Date('2001-01-01'), 2, 0, 1),
-        ).toEqual({ totalDeleted: 2, batchCount: 1 });
+            await ledger.cleanupBatch(new Date('2001-01-01'), {
+                batchSize: 2,
+                delayMs: 0,
+                maxBatches: 1,
+            }),
+        ).toEqual({ totalDeleted: 2, batchCount: 1, completed: false });
         expect(
-            await ledger.cleanupBatch(new Date('2001-01-01'), 2, 0, undefined),
-        ).toEqual({ totalDeleted: 1, batchCount: 1 });
+            await ledger.cleanupBatch(new Date('2001-01-01'), {
+                batchSize: 2,
+                delayMs: 0,
+                maxBatches: 10,
+            }),
+        ).toEqual({ totalDeleted: 1, batchCount: 1, completed: true });
         expect(
             await database('agent_action_log').where(
                 'organization_uuid',

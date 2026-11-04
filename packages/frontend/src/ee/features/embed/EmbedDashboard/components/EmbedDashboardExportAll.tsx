@@ -8,8 +8,13 @@ import { ActionIcon, Menu, Tooltip } from '@mantine/core';
 import { IconCsv, IconFileTypeXls, IconTableExport } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import {
+    selectDateZoomGranularity,
+    selectParameterValues,
+    useDashboardAllFilters,
+    useDashboardSelector,
+} from '../../../../../features/dashboard/store';
 import { useExportDashboardContent } from '../../../../../hooks/dashboard/useDashboard';
-import useDashboardContext from '../../../../../providers/Dashboard/useDashboardContext';
 import { type EventData } from '../../../../../providers/Tracking/types';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
@@ -27,11 +32,9 @@ const EmbedDashboardExportAll: FC<Props> = ({ dashboard, projectUuid }) => {
     const getUiString = useUiStrings();
     const { track } = useTracking();
     const exportDashboardContentMutation = useExportDashboardContent();
-    const dashboardFilters = useDashboardContext((c) => c.allFilters);
-    const dateZoomGranularity = useDashboardContext(
-        (c) => c.dateZoomGranularity,
-    );
-    const parameterValues = useDashboardContext((c) => c.parameterValues);
+    const dashboardFilters = useDashboardAllFilters();
+    const dateZoomGranularity = useDashboardSelector(selectDateZoomGranularity);
+    const parameterValues = useDashboardSelector(selectParameterValues);
 
     if (!dashboard.canExportDashboardCsv) {
         return null;

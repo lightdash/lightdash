@@ -5,12 +5,21 @@ import {
     FilterOperator,
     type DashboardFilterableField,
     type DashboardFilterRule,
+    type DashboardFilters,
     type DashboardTile,
 } from '@lightdash/common';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { useQuery } from '@tanstack/react-query';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderWithProviders } from '../../../testing/testUtils';
+import {
+    createDashboardTestStore,
+    seedDashboardEditState,
+} from '../../../testing/dashboardStore';
+import { DashboardStoreTestProvider } from '../../../testing/DashboardStoreTestProvider';
+import { renderWithProviders as renderWithAppProviders } from '../../../testing/testUtils';
+import { dashboardTileStatusActions } from '../../dashboard/store';
 import FilterConfiguration from './index';
 
 vi.mock('../../../providers/Dashboard/useDashboardTileStatusContext', () => ({
@@ -19,15 +28,25 @@ vi.mock('../../../providers/Dashboard/useDashboardTileStatusContext', () => ({
 
 const mockDashboardContext = vi.hoisted(() => ({
     current: {
-        dashboardFilters: {
-            dimensions: [] as DashboardFilterRule[],
-            metrics: [] as DashboardFilterRule[],
-            tableCalculations: [],
-        },
         allFilterableFieldsMap: {},
         allFilterableMetricsMap: {},
     },
 }));
+
+let dashboardFilters: DashboardFilters = {
+    dimensions: [],
+    metrics: [],
+    tableCalculations: [],
+};
+
+const renderWithProviders = (ui: ReactElement) =>
+    renderWithAppProviders(
+        <DashboardStoreTestProvider
+            store={createDashboardTestStore({ dashboardFilters })}
+        >
+            {ui}
+        </DashboardStoreTestProvider>,
+    );
 
 vi.mock('../../../providers/Dashboard/useDashboardContext', () => ({
     default: vi.fn((selector) => selector(mockDashboardContext.current)),
@@ -97,7 +116,7 @@ const anyValueRule: DashboardFilterRule = {
 describe('FilterConfiguration', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        mockDashboardContext.current.dashboardFilters = {
+        dashboardFilters = {
             dimensions: [],
             metrics: [],
             tableCalculations: [],
@@ -206,6 +225,67 @@ describe('FilterConfiguration', () => {
             );
         },
     );
+
+    it('searches SQL columns as they arrive and shows more are loading', async () => {
+        const country = { reference: 'country', type: DimensionType.STRING };
+        const total = { reference: 'total', type: DimensionType.NUMBER };
+        const store = createDashboardTestStore({
+            dashboardFilters,
+            sqlChartTilesMetadata: { 'sql-1': { columns: [country, total] } },
+        });
+        seedDashboardEditState(store, {
+            dashboardTiles: ['sql-1', 'sql-2'].map(
+                (uuid) =>
+                    ({
+                        uuid,
+                        type: DashboardTileTypes.SQL_CHART,
+                        properties: { savedSqlUuid: `chart-${uuid}` },
+                    }) as DashboardTile,
+            ),
+        });
+        // A mounted SQL chart tile whose results query has not returned
+        const RunningTile = () => {
+            useQuery(
+                ['savedSqlChartResults', 'chart', { tileUuid: 'sql-2' }],
+                () => new Promise<null>(() => {}),
+            );
+            return null;
+        };
+        renderWithAppProviders(
+            <DashboardStoreTestProvider store={store}>
+                <RunningTile />
+                <FilterConfiguration
+                    isEditMode
+                    isCreatingNew
+                    tiles={[]}
+                    tabs={[]}
+                    fields={[]}
+                    availableTileFilters={{}}
+                    onSave={vi.fn()}
+                />
+            </DashboardStoreTestProvider>,
+        );
+
+        const input = screen.getByPlaceholderText('Search column...');
+        await waitFor(() => expect(input).toHaveAttribute('aria-busy', 'true'));
+        await userEvent.type(input, 'tot');
+        act(() => {
+            store.dispatch(
+                dashboardTileStatusActions.updateSqlChartTilesMetadata({
+                    tileUuid: 'sql-2',
+                    metadata: { columns: [country] },
+                }),
+            );
+        });
+        expect(input).toHaveValue('tot');
+        expect(
+            screen
+                .getAllByRole('option', { hidden: true })
+                .map((option) => option.textContent),
+        ).toEqual(['total']);
+        // sql-2 has its columns now, even before its query settles
+        expect(input).toHaveAttribute('aria-busy', 'false');
+    });
 
     it('applies a null-only selection and returns to Any Value when it is removed', async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
@@ -406,10 +486,7 @@ describe('FilterConfiguration', () => {
             label: 'Last name',
             requiredGroupId: 'group-1',
         };
-        mockDashboardContext.current.dashboardFilters.dimensions = [
-            memberRule,
-            otherMemberRule,
-        ];
+        dashboardFilters.dimensions = [memberRule, otherMemberRule];
 
         renderWithProviders(
             <FilterConfiguration
@@ -450,10 +527,7 @@ describe('FilterConfiguration', () => {
             label: 'Last name',
             requiredGroupId: 'group-1',
         };
-        mockDashboardContext.current.dashboardFilters.dimensions = [
-            memberRule,
-            otherMemberRule,
-        ];
+        dashboardFilters.dimensions = [memberRule, otherMemberRule];
 
         renderWithProviders(
             <FilterConfiguration
@@ -487,6 +561,35 @@ describe('FilterConfiguration', () => {
                 requiredGroupId: 'group-1',
             }),
         );
+    });
+
+    it('drops the default value when required is toggled on and off', async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+        const defaultValueRule: DashboardFilterRule = {
+            ...anyValueRule,
+            disabled: false,
+            values: ['Ada'],
+        };
+
+        renderWithProviders(
+            <FilterConfiguration
+                isEditMode
+                tiles={[]}
+                tabs={[]}
+                availableTileFilters={{}}
+                field={mockField}
+                defaultFilterRule={defaultValueRule}
+                originalFilterRule={defaultValueRule}
+                onSave={vi.fn()}
+            />,
+        );
+
+        expect(screen.getAllByText('Ada').length).toBeGreaterThan(0);
+        const requiredSwitch = screen.getByLabelText('Required');
+        await user.click(requiredSwitch);
+        await user.click(requiredSwitch);
+        expect(requiredSwitch).not.toBeChecked();
+        expect(screen.queryByText('Ada')).not.toBeInTheDocument();
     });
 
     it('allows applying when required is toggled on a filter with default value enabled but no value set', async () => {

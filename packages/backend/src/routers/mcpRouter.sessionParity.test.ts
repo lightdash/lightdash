@@ -55,6 +55,8 @@ test.each(['off', 'legacy', 'managed'] as const)(
                 })),
             },
             aiOrganizationSettingsService: {
+                getMcpProjectAccess: vi.fn().mockResolvedValue({ mode: 'all' }),
+                isMcpEnabled: vi.fn().mockResolvedValue(true),
                 isMcpContentWritesEnabled: vi.fn().mockResolvedValue(false),
                 isMcpAgentsEnabled: vi.fn().mockResolvedValue(true),
             },
@@ -68,8 +70,9 @@ test.each(['off', 'legacy', 'managed'] as const)(
         vi.spyOn(service, 'isFilterExpressionsEnabled').mockResolvedValue(
             false,
         );
-        vi.spyOn(service, 'isDocumentsEnabled').mockResolvedValue(false);
         vi.spyOn(service, 'isDataAppBuildsEnabled').mockResolvedValue(false);
+        vi.spyOn(service, 'isChartTypeBuildsEnabled').mockResolvedValue(false);
+        vi.spyOn(service, 'isCustomChartTypesEnabled').mockResolvedValue(false);
         const app = express();
         app.use(express.json());
         app.use((request, _response, next) => {
@@ -123,7 +126,7 @@ test.each(['off', 'legacy', 'managed'] as const)(
                         jsonrpc: '2.0',
                         id: 1,
                         method: 'tools/call',
-                        params: { name: 'get_current_project', arguments: {} },
+                        params: { name: 'get_context', arguments: {} },
                     }),
                 );
             });

@@ -43,18 +43,18 @@ import { MergeFiltersCard } from '../../../features/mergeQuery/components/MergeF
 import { useMergeSafe } from '../../../features/mergeQuery/context/useMerge';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
-import { useProject } from '../../../hooks/useProject';
+import { useExploreWarehouseConnection } from '../../../hooks/useExploreWarehouseConnection';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import FiltersForm from '../../common/Filters';
 import { getConditionalRuleLabelFromItem } from '../../common/Filters/FilterInputs/utils';
 import FiltersProvider from '../../common/Filters/FiltersProvider';
+import classes from './FiltersCard.module.css';
 import { useFieldsWithSuggestions } from './useFieldsWithSuggestions';
 
 const QueryAFiltersCard: FC = memo(() => {
     const projectUuid = useProjectUuid();
-    const project = useProject(projectUuid);
 
     const filterIsOpen = useExplorerSelector(selectIsFiltersExpanded);
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
@@ -68,6 +68,10 @@ const QueryAFiltersCard: FC = memo(() => {
     const tableName = useExplorerSelector(selectTableName);
     const metricQuery = useExplorerSelector(selectMetricQuery);
     const { data } = useExplore(tableName);
+    const { startOfWeek, warehouseType } = useExploreWarehouseConnection(
+        tableName,
+        projectUuid,
+    );
 
     // Cache visible fields to avoid repeated expensive flatMap operations
     const visibleFields = useMemo(
@@ -278,7 +282,7 @@ const QueryAFiltersCard: FC = memo(() => {
             depth: number,
             key: string,
         ): ReactNode => (
-            <Box key={key} style={{ paddingLeft: depth * 12 }}>
+            <Box key={key} pl={depth * 12}>
                 {renderRuleLabel(filterRule)}
             </Box>
         );
@@ -299,7 +303,7 @@ const QueryAFiltersCard: FC = memo(() => {
 
             if (showParentheses && isLeafGroup) {
                 return [
-                    <Box key={path} style={{ paddingLeft: depth * 12 }}>
+                    <Box key={path} pl={depth * 12}>
                         {expression.items.map((item, index) => {
                             if (isFilterExpression(item)) return null;
                             return (
@@ -321,10 +325,7 @@ const QueryAFiltersCard: FC = memo(() => {
 
             if (showParentheses) {
                 lines.push(
-                    <Box
-                        key={`${path}-start`}
-                        style={{ paddingLeft: depth * 12 }}
-                    >
+                    <Box key={`${path}-start`} pl={depth * 12}>
                         (
                     </Box>,
                 );
@@ -338,7 +339,7 @@ const QueryAFiltersCard: FC = memo(() => {
                             key={`${path}-${index}-operator`}
                             c="dimmed"
                             fw={600}
-                            style={{ paddingLeft: itemDepth * 12 }}
+                            pl={itemDepth * 12}
                         >
                             {expression.operator.toUpperCase()}
                         </Text>,
@@ -363,10 +364,7 @@ const QueryAFiltersCard: FC = memo(() => {
 
             if (showParentheses) {
                 lines.push(
-                    <Box
-                        key={`${path}-end`}
-                        style={{ paddingLeft: depth * 12 }}
-                    >
+                    <Box key={`${path}-end`} pl={depth * 12}>
                         )
                     </Box>,
                 );
@@ -395,16 +393,7 @@ const QueryAFiltersCard: FC = memo(() => {
                         <Tooltip
                             arrowOffset={12}
                             label={
-                                <div
-                                    style={{
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        gap: '2px',
-                                        fontSize: 'var(--mantine-font-size-xs)',
-                                        lineHeight:
-                                            'var(--mantine-line-height-xs)',
-                                    }}
-                                >
+                                <div className={classes.tooltipLabel}>
                                     {filterRuleLabels}
                                 </div>
                             }
@@ -429,10 +418,8 @@ const QueryAFiltersCard: FC = memo(() => {
                 <FiltersProvider
                     projectUuid={projectUuid}
                     itemsMap={fieldsWithSuggestions}
-                    startOfWeek={
-                        project.data?.warehouseConnection?.startOfWeek ??
-                        undefined
-                    }
+                    startOfWeek={startOfWeek ?? undefined}
+                    warehouseType={warehouseType}
                     popoverProps={{
                         withinPortal: true,
                     }}

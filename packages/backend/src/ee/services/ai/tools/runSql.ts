@@ -1,6 +1,7 @@
 import {
     buildAgentRunSqlDescription,
     createToolRunSqlArgsSchema,
+    getRunSqlDefaultLimit,
     isSlackPrompt,
     RUN_SQL_PREVIEW_ROW_LIMIT,
     runSqlToolDefinition,
@@ -25,6 +26,7 @@ import type {
     UpdateSlackMessageFn,
     WaitForSqlApprovalFn,
 } from '../types/aiAgentDependencies';
+import { getExecutionStatsNote } from '../utils/queryResultSummary';
 import { serializeData } from '../utils/serializeData';
 import {
     findSqlScopeViolations,
@@ -58,7 +60,6 @@ type Dependencies = {
     enableDataAccess: boolean;
     slackLinksOnly: boolean;
     sqlScope?: SqlScope | null;
-    hyphenatedIdentifiers: boolean;
     autoApproveSql?: boolean;
     autoApproveSqlUserUuid?: string | null;
     useSlackStreamCard?: boolean;
@@ -157,7 +158,6 @@ export const getRunSql = ({
     maxQueryLimit,
     enableDataAccess,
     sqlScope = null,
-    hyphenatedIdentifiers,
     autoApproveSql = false,
     autoApproveSqlUserUuid = null,
     useSlackStreamCard = false,
@@ -187,7 +187,10 @@ export const getRunSql = ({
     );
 
     return tool({
-        description: buildAgentRunSqlDescription(500, maxQueryLimit),
+        description: buildAgentRunSqlDescription(
+            getRunSqlDefaultLimit(maxQueryLimit),
+            maxQueryLimit,
+        ),
         inputSchema,
         outputSchema: toolDefinition.outputSchema,
         toModelOutput: toolDefinition.toModelOutput,
@@ -203,9 +206,7 @@ export const getRunSql = ({
 
             // Pre-section errors (bad SQL shape) — no Slack message exists
             // yet, just return the error to the agent.
-            const scopeViolations = findSqlScopeViolations(sql, sqlScope, {
-                hyphenatedIdentifiers,
-            });
+            const scopeViolations = findSqlScopeViolations(sql, sqlScope);
             if (scopeViolations.length > 0 && sqlScope) {
                 return persistIfResumed(
                     nonSuccessOutput(
@@ -228,6 +229,7 @@ export const getRunSql = ({
                     await approveSql({
                         sql,
                         heading: RUN_SQL_APPROVAL_HEADING,
+                        steps: null,
                     });
                 } catch (e) {
                     if (e instanceof SqlNotApprovedError) {
@@ -245,8 +247,8 @@ export const getRunSql = ({
                 }
 
                 const effectiveLimit = Math.min(limit, maxQueryLimit);
-                const [{ rows, columns, rowCount }, review] = await Promise.all(
-                    [
+                const [{ rows, columns, rowCount, executionStats }, review] =
+                    await Promise.all([
                         runSqlJob({ sql, limit: effectiveLimit }),
                         enableDataAccess
                             ? (reviewQuery?.({
@@ -255,8 +257,7 @@ export const getRunSql = ({
                                   limit: effectiveLimit,
                               }) ?? '')
                             : '',
-                    ],
-                );
+                    ]);
 
                 if (!isSlack) {
                     await createOrUpdateArtifact({
@@ -271,6 +272,9 @@ export const getRunSql = ({
                         } satisfies AiSqlChartArtifactConfig,
                     });
                 }
+
+                const executionStatsNote =
+                    getExecutionStatsNote(executionStats);
 
                 if (rowCount === 0) {
                     await renderState({
@@ -293,13 +297,16 @@ export const getRunSql = ({
                         rows: [],
                         truncated: false,
                         review: emptyReview,
+                        executionStats,
                     };
                     return await persistIfResumed({
                         result: `Query returned 0 rows.${
                             columns.length > 0
                                 ? ` Columns: ${columns.join(', ')}`
                                 : ''
-                        }${emptyReview !== null ? ` ${emptyReview}` : ''}`,
+                        }${executionStatsNote}${
+                            emptyReview !== null ? ` ${emptyReview}` : ''
+                        }`,
                         metadata: { status: 'success', rowCount: 0 },
                         structuredContent: emptyContent,
                     });
@@ -322,7 +329,7 @@ export const getRunSql = ({
 
                 const resultSummary = `${rowCount} rows. Columns: ${columns.join(
                     ', ',
-                )}.`;
+                )}.${executionStatsNote}`;
 
                 if (!enableDataAccess) {
                     const summaryContent: ToolRunSqlStructuredContent = {
@@ -331,6 +338,7 @@ export const getRunSql = ({
                         rows: null,
                         truncated: false,
                         review: null,
+                        executionStats,
                     };
                     return await persistIfResumed({
                         result: resultSummary,
@@ -349,6 +357,7 @@ export const getRunSql = ({
                     rows: previewRows,
                     truncated: rowCount > RUN_SQL_PREVIEW_ROW_LIMIT,
                     review: review || null,
+                    executionStats,
                 };
                 const previewCsv = stringify(previewRows, {
                     header: true,

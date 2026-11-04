@@ -67,7 +67,6 @@ export type SettingsContext = {
     project: Project | undefined;
     showImpersonationPanel: boolean | undefined;
     isCustomRolesEnabled: boolean | undefined;
-    isProLimitsEnabled: boolean;
     canAccessAnalyticsSettings: boolean;
     isAnalyticsProjectFlagLoading: boolean;
     isOrganizationRoadmapEnabled: boolean;
@@ -88,16 +87,17 @@ export type SettingsContext = {
     isAiOrganizationSettingsLoading: boolean;
     dataAppsFlag: FeatureFlag | undefined;
     dataAppAnalysisFlag: FeatureFlag | undefined;
-    /** Data apps > General has one flagged setting, so its sidebar entry follows it. */
-    isDataAppGeneralSettingsEnabled: boolean;
+    dashboardAnalysisFlag: FeatureFlag | undefined;
     isDataAppsFlagLoading: boolean;
+    isApiQuerySourcesEnabled: boolean;
+    // Chart Studio uses org themes, so it opens Themes without data apps.
+    isChartStudioAvailable: boolean;
     externalSourcesFlag: FeatureFlag | undefined;
     isResultsCacheEnabled: boolean;
     embeddingEnabled: FeatureFlag | undefined;
     allowPasswordAuthentication: boolean;
     hasSocialLogin: boolean | undefined;
     isGroupManagementEnabled: boolean;
-    isWarehouseCredentialsEnabled: boolean;
     isAgentIdentityEnabled: boolean;
     isAgentIdentityFlagLoading: boolean;
     isGitProject: boolean;

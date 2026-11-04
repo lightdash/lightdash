@@ -4,10 +4,15 @@ import {
     type UpdatePinnedItemOrder,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../api';
+import { type LightdashApi } from '../../api';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import useToaster from '../toaster/useToaster';
 
-const getPinnedItems = async (projectUuid: string, pinnedlistUuid: string) =>
+const getPinnedItems = async (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+    pinnedlistUuid: string,
+) =>
     lightdashApi<PinnedItems>({
         url: `/projects/${projectUuid}/pinned-lists/${pinnedlistUuid}/items`,
         method: 'GET',
@@ -15,6 +20,7 @@ const getPinnedItems = async (projectUuid: string, pinnedlistUuid: string) =>
     });
 
 const updatePinnedItemsOrder = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     pinnedListUuid: string,
     pinnedItemsOrder: UpdatePinnedItemOrder[],
@@ -29,17 +35,21 @@ const updatePinnedItemsOrder = async (
 export const usePinnedItems = (
     projectUuid: string | undefined,
     pinnedlistUuid: string | undefined,
-) =>
-    useQuery<PinnedItems, ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<PinnedItems, ApiError>({
         queryKey: ['pinned_items', projectUuid, pinnedlistUuid],
-        queryFn: () => getPinnedItems(projectUuid!, pinnedlistUuid || ''),
+        queryFn: () =>
+            getPinnedItems(lightdashApi, projectUuid!, pinnedlistUuid || ''),
         enabled: !!pinnedlistUuid && !!projectUuid,
     });
+};
 
 export const useReorder = (
     projectUuid: string | undefined,
     pinnedlistUuid: string,
 ) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
     return useMutation<PinnedItems, ApiError, PinnedItems>(
@@ -52,6 +62,7 @@ export const useReorder = (
                 return Promise.reject();
             }
             return updatePinnedItemsOrder(
+                lightdashApi,
                 projectUuid,
                 pinnedlistUuid,
                 pinnedItems.map((pinnedItem) => ({

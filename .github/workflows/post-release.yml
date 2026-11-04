@@ -293,10 +293,11 @@ jobs:
         id: node-version
         run: echo "version=$(tr -d '[:space:]' < .nvmrc)" >> "$GITHUB_OUTPUT"
 
-      - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
+      - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
           runtime: node@${{ steps.node-version.outputs.version }}
           cache: true
+          save-cache: false
           install: false
 
       - name: Read packageManager
@@ -445,10 +446,11 @@ jobs:
         id: node-version
         run: echo "version=$(tr -d '[:space:]' < .nvmrc)" >> "$GITHUB_OUTPUT"
 
-      - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
+      - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
           runtime: node@${{ steps.node-version.outputs.version }}
           cache: true
+          save-cache: false
           install: false
 
       - name: Read packageManager
@@ -742,13 +744,13 @@ jobs:
               packages/warehouses
               skills
             install_root_deps: false
-          - display_name: coding agent E2B template
-            directory: sandboxes/ai-coding-agent
-            name: lightdash-ai-coding-agent
-            name_env: E2B_CODING_AGENT_TEMPLATE_NAME
-            tag_env: E2B_CODING_AGENT_TEMPLATE_TAG
-            extra_tags_env: E2B_CODING_AGENT_TEMPLATE_EXTRA_TAGS
-            source_tag_env: E2B_CODING_AGENT_TEMPLATE_SOURCE_TAG
+          - display_name: python runner E2B template
+            directory: sandboxes/python-runner
+            name: lightdash-python-runner
+            name_env: E2B_PYTHON_TEMPLATE_NAME
+            tag_env: E2B_PYTHON_TEMPLATE_TAG
+            extra_tags_env: E2B_PYTHON_TEMPLATE_EXTRA_TAGS
+            source_tag_env: E2B_PYTHON_TEMPLATE_SOURCE_TAG
             additional_watch_paths: ''
             install_root_deps: false
           - display_name: agent onboarding E2B template
@@ -839,11 +841,12 @@ jobs:
         id: node-version
         run: echo "version=$(tr -d '[:space:]' < .nvmrc)" >> "$GITHUB_OUTPUT"
 
-      - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
+      - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         if: steps.plan.outputs.action == 'build'
         with:
           runtime: node@${{ steps.node-version.outputs.version }}
           cache: true
+          save-cache: false
           cache-dependency-path: pnpm-lock.yaml
           install: false
 
@@ -858,6 +861,89 @@ jobs:
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
           ./sandboxes/data-apps/build-cloud-run-image.sh "$IMAGE:$RELEASE_TAG" \
+            -t "$IMAGE:latest" \
+            --sbom=true \
+            --provenance=mode=max \
+            --push
+
+      - name: Re-tag latest image with release version
+        if: steps.plan.outputs.action == 'retag'
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: docker buildx imagetools create -t "$IMAGE:$RELEASE_TAG" "$IMAGE:latest"
+
+  # ============================================================================
+  # Job 7: Publish the python-runner Cloud Run sandbox gateway image
+  # ============================================================================
+  python-sandbox-cloud-run-image:
+    name: Publish python Cloud Run sandbox image
+    runs-on: depot-ubuntu-24.04-4
+    env:
+      IMAGE: lightdash/lightdash-python-sandbox-cloud-run
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4
+
+      - name: Plan build
+        id: plan
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          ACTION=retag
+          STATUS=0
+          CHANGED=$(.github/scripts/sandbox-image-changes.sh "$RELEASE_TAG" \
+            sandboxes/python-runner) || STATUS=$?
+          if ! docker buildx imagetools inspect "$IMAGE:latest" >/dev/null 2>&1; then
+            echo "No published :latest image — performing full build"
+            ACTION=build
+          elif [ "$STATUS" -eq 10 ]; then
+            echo "No previous tag found — performing full build"
+            ACTION=build
+          elif [ "$STATUS" -ne 0 ]; then
+            exit "$STATUS"
+          elif [ -n "$CHANGED" ]; then
+            echo "Sandbox changed — performing full build"
+            echo "$CHANGED"
+            ACTION=build
+          else
+            echo "No sandbox changes — re-tagging :latest"
+          fi
+          echo "action=$ACTION" >> "$GITHUB_OUTPUT"
+
+      - name: Read Node pin from checked-out revision
+        if: steps.plan.outputs.action == 'build'
+        id: node-version
+        run: echo "version=$(tr -d '[:space:]' < .nvmrc)" >> "$GITHUB_OUTPUT"
+
+      # npm is only needed to fetch the ComputeSDK gateway tarball
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        if: steps.plan.outputs.action == 'build'
+        with:
+          node-version: ${{ steps.node-version.outputs.version }}
+
+      - name: Build and push image
+        if: steps.plan.outputs.action == 'build'
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          ./sandboxes/python-runner/build-cloud-run-image.sh "$IMAGE:$RELEASE_TAG" \
             -t "$IMAGE:latest" \
             --sbom=true \
             --provenance=mode=max \

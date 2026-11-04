@@ -16,8 +16,8 @@ import {
     type ReactNode,
 } from 'react';
 import { useSessionStorage } from 'react-use';
-import { lightdashApi } from '../../../../../../api';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
+import { useLightdashApi } from '../../../../../../providers/LightdashApi/useLightdashApi';
 import { markToolCallDecided } from '../../../store/aiAgentThreadStreamSlice';
 import { useAiAgentStoreDispatch } from '../../../store/hooks';
 import { AiSqlModal } from '../AiSqlModal';
@@ -43,6 +43,8 @@ const useSqlApprovalDecision = ({
     threadUuid,
     toolCallId,
 }: SqlApprovalTarget) => {
+    const lightdashApi = useLightdashApi();
+
     const dispatch = useAiAgentStoreDispatch();
     const [autoApprove, setAutoApprove] = useSessionStorage<boolean>(
         getSqlAutoApproveKey(threadUuid),
@@ -68,7 +70,14 @@ const useSqlApprovalDecision = ({
                 setError(e instanceof Error ? e.message : 'Could not submit');
             }
         },
-        [projectUuid, agentUuid, threadUuid, toolCallId, dispatch],
+        [
+            projectUuid,
+            agentUuid,
+            threadUuid,
+            toolCallId,
+            dispatch,
+            lightdashApi,
+        ],
     );
 
     const autoApprovedFired = useRef(false);

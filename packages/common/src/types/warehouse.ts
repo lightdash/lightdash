@@ -20,6 +20,7 @@ export type RunQueryTags = Record<UserAttributeQueryTag, string> & {
     user_uuid?: string;
     ai_principal?: string;
     agent?: 'true';
+    agent_uuid?: string;
     organization_uuid?: string;
     app_uuid?: string;
     chart_uuid?: string;
@@ -103,7 +104,7 @@ export type WarehouseCatalogTimestampDomains = {
 
 /**
  * WARNING: a catalog may carry reserved `__lightdash*` sidecars (timestamp
- * domains, nested columns, missing entries) alongside the database keys (their
+ * domains, nested columns, missing entries, native types) alongside the database keys (their
  * values are NOT database entries).
  * Never enumerate `Object.keys(catalog)` as database names without excluding
  * them — look entries up by name, or use the sidecar accessors below.
@@ -259,6 +260,41 @@ export const setCatalogNestedColumnShape = (
     ensureRecord(ensureRecord(ensureRecord(sidecar, database), schema), table)[
         columnPath
     ] = shape;
+};
+
+// Native types `DimensionType` collapses; see packages/warehouses/src/warehouseClients/AGENTS.md
+export const WAREHOUSE_NATIVE_TYPES_KEY = '__lightdashNativeTypes';
+
+export const getCatalogTableNativeTypes = (
+    catalog: WarehouseCatalog,
+    database: string,
+    schema: string,
+    table: string,
+): Record<string, string> => {
+    const columns = [database, schema, table].reduce<unknown>(
+        (node, key) => (isPlainRecord(node) ? node[key] : undefined),
+        catalog[WAREHOUSE_NATIVE_TYPES_KEY],
+    );
+    if (!isPlainRecord(columns)) return {};
+    return Object.fromEntries(
+        Object.entries(columns).filter(
+            (entry): entry is [string, string] => typeof entry[1] === 'string',
+        ),
+    );
+};
+
+export const setCatalogNativeType = (
+    catalog: WarehouseCatalog,
+    database: string,
+    schema: string,
+    table: string,
+    column: string,
+    nativeType: string,
+): void => {
+    const sidecar = getSidecar(catalog, WAREHOUSE_NATIVE_TYPES_KEY);
+    ensureRecord(ensureRecord(ensureRecord(sidecar, database), schema), table)[
+        column
+    ] = nativeType;
 };
 
 /**
@@ -450,10 +486,19 @@ export type WarehouseResults = {
 
 export type WarehouseExecuteAsyncQueryArgs = {
     tags: Record<string, string>;
+    // BigQuery only: overrides the connection limit for this job; 0 means no limit.
+    maximumBytesBilled?: number;
     timezone?: string;
     values?: AnyType[]; // same as queryParams but in array form
     queryParams?: Record<string, AnyType>; // same as values but in object form
     sql: string;
+    // Redshift only: retry a read-only query that stalls before it reaches the warehouse.
+    recoverStalledQuery?: boolean;
+};
+
+export type WarehouseQueryEstimate = {
+    /** Bytes the warehouse reports the query would process (dry run). */
+    totalBytesProcessed: number;
 };
 
 // `query` is execution up to the first row; `fetch` is streaming the rest.
@@ -468,12 +513,25 @@ export type WarehousePhaseTimings = Partial<
     Record<WarehouseQueryPhase, number>
 >;
 
+/** Execution statistics reported by the warehouse for one query job. */
+export type WarehouseExecutionStats = {
+    jobId: string | null;
+    bytesProcessed: number | null;
+    bytesBilled: number | null;
+    /** Warehouse-reported job duration, from job start to job end. */
+    executionTimeMs: number | null;
+    /** Whether the warehouse served the job from its own result cache. */
+    cacheHit: boolean | null;
+};
+
 export type WarehouseExecuteAsyncQuery = {
     queryId: string | null;
     queryMetadata: WarehouseQueryMetadata | null;
     totalRows: number;
     durationMs: number;
     phaseTimings: WarehousePhaseTimings;
+    /** Omitted by warehouses that do not report execution statistics. */
+    executionStats?: WarehouseExecutionStats;
 };
 
 export enum TimeIntervalUnit {
@@ -552,6 +610,12 @@ export interface WarehouseClient extends WarehouseSqlBuilder {
             values?: AnyType[];
             tags: Record<string, string>;
             timezone?: string;
+            maximumBytesBilled?: number;
+            recoverStalledQuery?: boolean;
+            onPhaseTiming?: (
+                phase: WarehouseQueryPhase,
+                durationMs: number,
+            ) => void;
         },
     ): Promise<void>;
 
@@ -562,6 +626,20 @@ export interface WarehouseClient extends WarehouseSqlBuilder {
             fields: WarehouseResults['fields'],
         ) => void | Promise<void>,
     ): Promise<WarehouseExecuteAsyncQuery>;
+
+    /**
+     * Estimates the query cost without running it. Only implemented by
+     * warehouses with a free, fast estimate (BigQuery dry run).
+     */
+    estimateQuery?(
+        args: WarehouseExecuteAsyncQueryArgs,
+    ): Promise<WarehouseQueryEstimate>;
+
+    /** Result fields without running the query; empty when it has no result schema. */
+    getQueryFields?(
+        sql: string,
+        options: { tags: Record<string, string>; values?: AnyType[] },
+    ): Promise<WarehouseResults['fields']>;
 
     /**
      * Runs a query and returns all the results
@@ -610,6 +688,13 @@ export interface WarehouseClient extends WarehouseSqlBuilder {
         tags?: Record<string, string>,
     ): Promise<WarehouseCatalog>;
 
+    // null when the table has no partitions or the warehouse does not report them
+    getTablePartitioning(
+        tableName: string,
+        schema: string,
+        database: string,
+    ): Promise<TablePartitioning | null>;
+
     parseWarehouseCatalog(
         rows: Record<string, AnyType>[],
         mapFieldType: (type: string) => DimensionType,
@@ -644,4 +729,17 @@ export enum PartitionType {
 export type PartitionColumn = {
     partitionType: PartitionType;
     field: string;
+};
+
+export enum PartitionGranularity {
+    HOUR = 'HOUR',
+    DAY = 'DAY',
+    MONTH = 'MONTH',
+    YEAR = 'YEAR',
+}
+
+export type TablePartitioning = {
+    partitionColumn: PartitionColumn;
+    granularity: PartitionGranularity | null;
+    requiresPartitionFilter: boolean;
 };

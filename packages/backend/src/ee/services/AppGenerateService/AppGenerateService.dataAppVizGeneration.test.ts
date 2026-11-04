@@ -2,10 +2,14 @@
 // reach the real sandbox or model client.
 import {
     DATA_APP_VIZ_TEMPLATE,
+    FeatureFlags,
+    ForbiddenError,
+    ParameterError,
     type DataAppVizSchema,
 } from '@lightdash/common';
 import { buildAppThumbnailClientMock } from '../../clients/AppThumbnailClient.mock';
 import { AppGenerateService } from './AppGenerateService';
+import { featureFlagModelWith } from './AppGenerateService.mock';
 
 vi.mock('e2b', () => ({
     Sandbox: class {},
@@ -25,6 +29,8 @@ function buildService(
         schedulerClient?: Record<string, unknown>;
         codingAgent?: 'claude' | 'codex';
         sampleDataEnabled?: boolean;
+        dataAppsEnabled?: boolean;
+        chartStudioAvailable?: boolean;
     } = {},
 ) {
     const analytics = { track: vi.fn() };
@@ -68,9 +74,9 @@ function buildService(
         catalogModel: {} as never,
         userModel: {} as never,
         appModel: appModel as never,
-        featureFlagModel: {
-            get: vi.fn().mockResolvedValue({ enabled: true }),
-        } as never,
+        featureFlagModel: featureFlagModelWith({
+            [FeatureFlags.EnableDataApps]: overrides.dataAppsEnabled ?? true,
+        }) as never,
         organizationDesignModel: {
             getDefault: vi.fn().mockResolvedValue(null),
         } as never,
@@ -117,12 +123,168 @@ function buildService(
             unverify: async () => undefined,
         } as never,
     });
+    vi.spyOn(service, 'isChartStudioAvailable').mockReturnValue(
+        overrides.chartStudioAvailable ?? true,
+    );
     // Bypass real CASL — the mapping/flow is what these tests cover.
     (
         service as unknown as { createAuditedAbility: () => unknown }
     ).createAuditedAbility = () => ({ can: () => true, cannot: () => false });
     return { service, appModel, schedulerClient, analytics };
 }
+
+const generate = (
+    service: AppGenerateService,
+    template: typeof DATA_APP_VIZ_TEMPLATE | 'dashboard',
+) =>
+    service.generateApp(
+        USER,
+        'project-1',
+        'a radial gauge',
+        [],
+        undefined,
+        undefined,
+        undefined,
+        template,
+    );
+
+const iterate = (service: AppGenerateService) =>
+    service.iterateApp(USER, 'project-1', 'app-1', 'make it teal', []);
+
+const storedApp = (template: typeof DATA_APP_VIZ_TEMPLATE | 'dashboard') => ({
+    createWithVersion: vi.fn().mockResolvedValue({
+        app: { slug: 'generated-app' },
+        version: { app_version_id: 'version-1' },
+    }),
+    createVersion: vi.fn().mockResolvedValue(undefined),
+    getApp: vi.fn().mockResolvedValue({
+        app_id: 'app-1',
+        project_uuid: 'project-1',
+        organization_uuid: 'org-1',
+        created_by_user_uuid: 'user-1',
+        space_uuid: null,
+        design_uuid: null,
+        registry_slug: null,
+        template,
+    }),
+    getLatestVersion: vi.fn().mockResolvedValue({
+        version: 1,
+        status: 'ready',
+        dependencies: null,
+        created_at: new Date(),
+    }),
+});
+
+describe('Chart Studio and data app gates', () => {
+    it('builds and iterates a chart type with data apps off when Chart Studio is available', async () => {
+        const { service, schedulerClient } = buildService({
+            dataAppsEnabled: false,
+        });
+
+        await expect(
+            generate(service, DATA_APP_VIZ_TEMPLATE),
+        ).resolves.toMatchObject({ version: 1 });
+        await expect(iterate(service)).resolves.toMatchObject({ version: 2 });
+        expect(schedulerClient.appGeneratePipeline).toHaveBeenCalledTimes(2);
+    });
+
+    it('refuses chart type authoring before writing anything when Chart Studio is not available', async () => {
+        const { service, appModel, schedulerClient } = buildService({
+            chartStudioAvailable: false,
+        });
+        const unavailable = new ForbiddenError('Chart Studio is not available');
+
+        await expect(generate(service, DATA_APP_VIZ_TEMPLATE)).rejects.toThrow(
+            unavailable,
+        );
+        await expect(iterate(service)).rejects.toThrow(unavailable);
+        expect(appModel.createWithVersion).not.toHaveBeenCalled();
+        expect(appModel.createVersion).not.toHaveBeenCalled();
+        expect(schedulerClient.appGeneratePipeline).not.toHaveBeenCalled();
+    });
+
+    it('still refuses data app builds with data apps off, even when Chart Studio is available', async () => {
+        const appModel = storedApp('dashboard');
+        const { service, schedulerClient } = buildService({
+            appModel,
+            dataAppsEnabled: false,
+        });
+        const disabled = new ForbiddenError('Data apps are not enabled');
+
+        await expect(generate(service, 'dashboard')).rejects.toThrow(disabled);
+        await expect(iterate(service)).rejects.toThrow(disabled);
+        expect(appModel.createWithVersion).not.toHaveBeenCalled();
+        expect(appModel.createVersion).not.toHaveBeenCalled();
+        expect(schedulerClient.appGeneratePipeline).not.toHaveBeenCalled();
+    });
+});
+
+describe('chart type create inputs', () => {
+    const dashboard = { uuid: 'dashboard-1' } as never;
+
+    it('refuses a space for a new chart type', async () => {
+        const { service, appModel } = buildService();
+
+        await expect(
+            service.generateApp(
+                USER,
+                'project-1',
+                'a radial gauge',
+                [],
+                undefined,
+                undefined,
+                undefined,
+                DATA_APP_VIZ_TEMPLATE,
+                undefined,
+                'space-1',
+            ),
+        ).rejects.toThrow(
+            new ParameterError('Custom chart types cannot be placed in spaces'),
+        );
+        expect(appModel.createWithVersion).not.toHaveBeenCalled();
+    });
+
+    it('refuses a dashboard as the source of a new chart type', async () => {
+        const { service, appModel } = buildService();
+
+        await expect(
+            service.generateApp(
+                USER,
+                'project-1',
+                'a radial gauge',
+                [],
+                undefined,
+                undefined,
+                dashboard,
+                DATA_APP_VIZ_TEMPLATE,
+            ),
+        ).rejects.toThrow(
+            new ParameterError(
+                'Custom chart types cannot be built from a dashboard',
+            ),
+        );
+        expect(appModel.createWithVersion).not.toHaveBeenCalled();
+    });
+
+    it('refuses a dashboard when clarifying a chart type', async () => {
+        const { service } = buildService();
+
+        await expect(
+            service.clarifyApp(
+                USER,
+                'project-1',
+                'a radial gauge',
+                DATA_APP_VIZ_TEMPLATE,
+                undefined,
+                dashboard,
+            ),
+        ).rejects.toThrow(
+            new ParameterError(
+                'Custom chart types cannot be built from a dashboard',
+            ),
+        );
+    });
+});
 
 describe('AppGenerateService.generateApp with the data app viz template', () => {
     it('persists the viz template so the pipeline builds a data app viz', async () => {

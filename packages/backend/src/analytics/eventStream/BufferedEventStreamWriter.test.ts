@@ -52,7 +52,6 @@ const createWriter = (
     overrides: Partial<BufferedEventStreamWriterArgs> = {},
 ) =>
     new BufferedEventStreamWriter({
-        isOrganizationEnabled: async () => true,
         s3Config,
         flushIntervalMs: 60000,
         flushBatchSize: 1000,
@@ -79,46 +78,41 @@ describe('BufferedEventStreamWriter', () => {
         s3Mocks.putObject.mockResolvedValue({});
     });
 
-    it('does not block push on a flag lookup and skips disabled organizations', async () => {
-        let resolve!: (value: boolean) => void;
-        const isOrganizationEnabled = vi.fn(
-            () =>
-                new Promise<boolean>((done) => {
-                    resolve = done;
-                }),
-        );
-        const writer = createWriter(metrics, { isOrganizationEnabled });
-        writer.push('query_events', row());
-        expect(isOrganizationEnabled).not.toHaveBeenCalled();
-        const flush = writer.flush();
-        await vi.waitFor(() =>
-            expect(isOrganizationEnabled).toHaveBeenCalledTimes(1),
-        );
-        expect(s3Mocks.putObject).not.toHaveBeenCalled();
-        resolve(false);
-        await flush;
-        expect(s3Mocks.putObject).not.toHaveBeenCalled();
-        await writer.close();
-    });
-
-    it('bounds the complete flag/compression/upload operation to eight groups', async () => {
+    it('bounds uploads to eight groups while capturing every organization', async () => {
         let active = 0;
         let maximum = 0;
-        const isOrganizationEnabled = vi.fn(async () => {
+        s3Mocks.putObject.mockImplementation(async () => {
             active += 1;
             maximum = Math.max(maximum, active);
             await new Promise((resolve) => {
                 setTimeout(resolve, 1);
             });
             active -= 1;
-            return true;
+            return {};
         });
-        const writer = createWriter(metrics, { isOrganizationEnabled });
+        const writer = createWriter(metrics);
         for (let index = 0; index < 100; index += 1)
             writer.push('query_events', row({ org_id: `org-${index}` }));
         await writer.flush();
+        expect(maximum).toBeGreaterThan(0);
         expect(maximum).toBeLessThanOrEqual(8);
         expect(s3Mocks.putObject).toHaveBeenCalledTimes(100);
+        await writer.close();
+    });
+
+    it('bounds the buffer and contains upload failures', async () => {
+        s3Mocks.putObject.mockRejectedValue(new Error('storage unavailable'));
+        const writer = createWriter(metrics, { bufferMaxSize: 2 });
+        expect(() => {
+            writer.push('query_events', row());
+            writer.push('query_events', row());
+            writer.push('query_events', row());
+        }).not.toThrow();
+        expect(s3Mocks.putObject).not.toHaveBeenCalled();
+        expect(metrics.incrementUsageEventsDropped).toHaveBeenCalledOnce();
+        await expect(writer.flush()).resolves.toBeUndefined();
+        expect(s3Mocks.putObject).toHaveBeenCalledTimes(3);
+        expect(metrics.incrementUsageEventsPutFailure).toHaveBeenCalledOnce();
         await writer.close();
     });
 

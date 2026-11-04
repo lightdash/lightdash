@@ -6,6 +6,7 @@ import {
 import { createAnalyticsExplores } from '../../services/ProjectService/analyticsProject/createAnalyticsExplores';
 import {
     analyticsContentAsCode,
+    analyticsDefaultSpace,
     analyticsSampleDashboards,
 } from './sampleContent';
 
@@ -13,13 +14,18 @@ describe('analytics sample content', () => {
     it('exports portable content-as-code with dashboard-owned chart references', () => {
         for (const { dashboard, charts } of analyticsContentAsCode) {
             expect(dashboard.version).toBe(1);
+            expect(dashboard.spaceSlug).toBe(analyticsDefaultSpace.slug);
+            expect(dashboard.verified).toBe(true);
             expect(
-                dashboard.tiles
-                    .filter(
-                        (tile) => tile.type === DashboardTileTypes.SAVED_CHART,
-                    )
-                    .map((tile) => tile.properties),
-            ).toEqual(charts.map(({ slug }) => ({ chartSlug: slug })));
+                new Set(
+                    dashboard.tiles
+                        .filter(
+                            (tile) =>
+                                tile.type === DashboardTileTypes.SAVED_CHART,
+                        )
+                        .map((tile) => tile.properties.chartSlug),
+                ),
+            ).toEqual(new Set(charts.map(({ slug }) => slug)));
             expect(
                 charts.every((chart) => chart.dashboardSlug === dashboard.slug),
             ).toBe(true);

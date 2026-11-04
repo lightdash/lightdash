@@ -44,7 +44,33 @@ The policy API accepts group admission in either mode. A PUT with
 list. Omitting `mode` means managed. Reset keeps the group restriction.
 GET, PUT and reset omit the old people and project choices. Old browser tabs
 can still save them, but the server ignores them and clears the old columns.
-The current page uses a temporary response adapter until the page rewrite.
+The Agents page uses the capability-policy API for Same as the person,
+Read and query, and Custom.
+
+## Personal CLI admission by surface
+
+A browser login for `lightdash-cli` with no agent connection grant is a person
+using a tool, like a personal access token (PAT), on REST. Its session has a
+fixed eight-hour deadline. Refresh does not extend it. The client id is public;
+this is an admission rule, not proof of a private client.
+
+| Surface | Personal CLI browser login | PAT |
+| --- | --- | --- |
+| REST | Skips agent group admission and managed capability checks. OAuth scopes and human-only admin guards still apply. | Keeps the existing agent policy exemption and role checks. |
+| MCP, including agent tools and resource reads | Refused: browser login requests `read write`, but MCP requires `mcp:read` or `mcp:write`. | Admitted subject to MCP settings, resource access and role checks; keeps the existing agent policy exemption. |
+| `lightdash agent connect` and `agent revoke --human` | Refused. Log in with `lightdash login <url> --token <personal access token>` first. | Admitted subject to the existing person and organization checks. |
+
+The REST exemption does not change MCP policy. If a CLI OAuth token has MCP
+scopes through another flow, MCP treats it as OAuth and applies agent admission
+and managed capability checks. PATs remain exempt, including MCP tool effects
+and new queued repo-edit jobs. Old jobs without a saved caller rule keep the
+conservative policy described below. Grant-bound CLI tokens keep agent
+admission, capability and grant checks.
+
+The REST rule is in `controllers/authentication/middlewares.ts`. Browser login
+requests its scopes in `packages/cli/src/handlers/oauthLogin.ts`.
+`McpService.canAccessMcp` checks MCP scopes, and `auth/agentPermissions/caller.ts`
+sets MCP agent policy applicability for tools, effects and queued repo-edit jobs.
 
 ## The 11 capabilities
 
@@ -83,14 +109,13 @@ allowed. Missing any one refuses it.
 | Edit a saved SQL chart, any field, on every surface | Create and edit content + Raw SQL |
 | Delete a file in the Git repository, through REST or a repo-edit agent tool | Delete content + Git repository changes (dbt) |
 | Pull content from Git | Git repository changes (dbt) + Create and edit content |
-| Set up a preview deploy | Deploy and upload + Git repository changes (dbt) |
 | Create a project, upload metadata or precompiled files | Deploy and upload + Administration |
 | Embed settings and access grants | Publish and share + Administration, and often only a person |
 
 Editing a SQL chart's title or chart settings needs Raw SQL today, to match
 REST. We may narrow this later to edits that change the SQL.
 
-A repo-edit agent tool (`editRepo`, `editDbtProject`, MCP `run_ai_writeback`)
+A repo-edit agent tool (`editDbtProject`, MCP `run_ai_writeback`)
 needs Delete only when its change deletes or renames a file. Adding and
 changing files needs Git repository changes (dbt) alone. The check reads the
 sandbox's changes after the coding agent finishes and before anything is
@@ -178,6 +203,9 @@ cancel another.
 | MCP settings                                                                         | MCP tool registration and configured-agent gates         |
 | Operations only a person can do | `humanOnlyInManaged.ts`, `assertHumanManagedMutation.ts` |
 
+Agent connections enforce their stored approval and token scopes. Current
+**Permissions** and the person's ordinary permissions can narrow them further.
+
 The evaluator stops at the first refusal. The refusal names the check that
 refused:
 
@@ -198,6 +226,19 @@ used by an agent is treated as the person. Normal permissions, the MCP
 switches and warehouse rules still apply to it. Do not describe agent
 permissions as covering every AI client.
 
+### Local CLI programs
+
+An agent connection limits the projects and actions available to requests that use
+its credential. Programs the CLI starts run as your computer user and can still
+read your files, including your saved personal API key and connection tokens.
+Removing the API key from those programs' environment helps avoid accidental use
+or exposure; it does not isolate those programs from your account or files.
+
+See [Scoped CLI credentials](../../packages/cli/README.md#scoped-cli-credentials)
+for environment and file access.
+
+### OAuth scopes
+
 **OAuth scopes keep their old meaning.** `read`, `write`, `mcp:read` and
 `mcp:write` are separate from the 11 capabilities. `read` and `mcp:read`
 include the SQL runner and exports. Scope enforcement has null, log and
@@ -217,8 +258,8 @@ permission rules stay unchanged.
 
 ### Agents over MCP (`mcpAgentsEnabled`)
 
-When off, MCP refuses `list_agents`, `route_agent`, `set_agent`,
-`get_current_agent` and explicit configured-agent scope lookups. It hides
+When off, MCP refuses `list_agents`, `route_agent` and explicit
+configured-agent scope lookups. It hides
 configured agents from project/context results and ignores saved agent context.
 It does not stop in-app agents, Slack or OAuth API operations in either mode.
 Other MCP tools still need their independent permissions.

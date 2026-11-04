@@ -101,9 +101,12 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
 
     const warehouseType = selectedWarehouse ?? WarehouseTypes.BIGQUERY;
     const dbtType = health.data?.defaultProject?.type ?? dbtDefaults.dbtType;
+    // The first project is named after the organization; every later one
+    // needs its own name, otherwise its slug becomes "<org>-2", "<org>-3".
+    const asksForProjectName = !isCreatingFirstProject;
     const form = useForm({
         initialValues: {
-            name: user.data?.organizationName || '',
+            name: asksForProjectName ? '' : user.data?.organizationName || '',
             dbt: warehouseOnly
                 ? noneDefaultValues
                 : {
@@ -112,9 +115,12 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                   },
             warehouse: warehouseDefaultValues[warehouseType],
             dbtVersion: dbtDefaults.dbtVersion,
-            organizationWarehouseCredentialsUuid: undefined,
         },
         validate: {
+            name: (value) =>
+                asksForProjectName && value.trim() === ''
+                    ? 'Project name is required'
+                    : null,
             warehouse: createWarehouseValueValidators[warehouseType],
             dbt: warehouseOnly ? {} : dbtFormValidators,
         },
@@ -129,7 +135,6 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
             dbt: dbtConnection,
             warehouse: warehouseConnection,
             dbtVersion,
-            organizationWarehouseCredentialsUuid,
         } = formValues;
         track({
             name: EventName.CREATE_PROJECT_BUTTON_CLICKED,
@@ -146,11 +151,13 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         if (selectedWarehouse) {
             try {
                 const data = await mutateAsync({
-                    name: name || user.data?.organizationName || 'My project',
+                    name:
+                        name.trim() ||
+                        user.data?.organizationName ||
+                        'My project',
                     type: ProjectType.DEFAULT,
                     dbtConnection,
                     dbtVersion,
-                    organizationWarehouseCredentialsUuid,
                     warehouseConnection: {
                         ...warehouseConnection,
                         type: selectedWarehouse,
@@ -261,10 +268,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                         {!hideForm && (
                             <>
                                 <ProjectForm
-                                    showGeneralSettings={
-                                        !isCreatingFirstProject &&
-                                        !warehouseOnly
-                                    }
+                                    showGeneralSettings={asksForProjectName}
                                     disabled={isSavingProject}
                                     defaultType={
                                         health.data?.defaultProject?.type
@@ -274,7 +278,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
 
                                 <Button
                                     ref={submitButtonRef}
-                                    style={{ alignSelf: 'end' }}
+                                    className={classes.submitButton}
                                     type="submit"
                                     loading={isSavingProject}
                                     disabled={!form.isValid()}

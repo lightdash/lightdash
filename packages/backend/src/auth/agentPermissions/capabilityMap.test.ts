@@ -8,7 +8,11 @@ import {
 } from '@lightdash/common';
 import path from 'node:path';
 import ts from 'typescript-compiler-api';
-import { getAgentTools } from '../../ee/services/ai/agents/agentV2';
+import {
+    getAgentTools,
+    resolveAgentLoadout,
+    type AgentMcpToolSetup,
+} from '../../ee/services/ai/agents/agentV2';
 import { AiDecisionClient } from '../../ee/services/ai/decisions/AiDecisionClient';
 import type {
     AiAgentArgs,
@@ -132,9 +136,12 @@ it('covers the tools registered by the real MCP service across feature variants'
                     scheduledDeliveryEnabled: enabled,
                     runSqlEnabled: enabled,
                     runMetricQueryEnabled: enabled,
+                    queryEnabled: enabled,
                     filterExpressionsEnabled: enabled,
                     documentsEnabled: enabled,
                     dataAppBuildsEnabled: enabled,
+                    chartTypeBuildsEnabled: enabled,
+                    customChartTypesEnabled: enabled,
                     agentIdentityEnabled: enabled,
                 }),
             );
@@ -152,7 +159,7 @@ it('covers the tools registered by the real MCP service across feature variants'
         Object.keys(MCP_TOOL_CAPABILITIES).filter(
             (name) => !registeredMcpTools.includes(name),
         ),
-    ).toEqual(['run_composer_queries']);
+    ).toEqual([]);
 });
 
 const collectLiteralToolKeys = (node: ts.Node): string[] => {
@@ -192,7 +199,7 @@ const factoryNodes = descendants(agentToolsFactory);
 const literalRuntimeToolNames = factoryNodes.flatMap((node) => {
     if (
         ts.isVariableDeclaration(node) &&
-        node.name.getText() === 'tools' &&
+        node.name.getText() === 'toolBuilders' &&
         node.initializer
     )
         return collectLiteralToolKeys(node.initializer);
@@ -216,17 +223,18 @@ const buildAgentTools = (overrides: Partial<AiAgentArgs>) => {
             name: 'test-agent',
             projectUuid: 'project',
         },
-        availableSkills: [{ name: 'test-skill' }],
+        builtInSkills: [],
+        customSkills: [{ name: 'test-skill' }],
         canCreateDashboards: true,
+        canCreateScheduledDeliveries: true,
         canRunSql: true,
         enableAiWriteback: true,
-        enableCodingAgent: true,
+        enableContentReads: true,
         enableContentTools: true,
         enableDataAccess: true,
         enableDocuments: true,
         enableEditProjectContext: true,
         enableGenerateDataApp: true,
-        enablePreviewDeploySetup: true,
         enableRepoDiscovery: true,
         enableReadAttachments: true,
         enableFilterExpressions: true,
@@ -239,8 +247,14 @@ const buildAgentTools = (overrides: Partial<AiAgentArgs>) => {
         }),
         execution: { mode: 'standard', maxSteps: 10 },
         messageHistory: [{ role: 'user', content: 'Question' }],
+        composerApiConnections: [],
         mcpServers: [],
-        requestingUser: { name: 'User', role: null, groups: [] },
+        requestingUser: {
+            name: 'User',
+            role: null,
+            groups: [],
+            isServiceAccount: false,
+        },
         maxQueryLimit: 5000,
         runSqlMaxLimit: 5000,
         getDashboardChartsPageSize: 10,
@@ -249,19 +263,20 @@ const buildAgentTools = (overrides: Partial<AiAgentArgs>) => {
         siteUrl: 'http://localhost',
         ...overrides,
     } as unknown as AiAgentArgs;
+    const mcpToolSetup: AgentMcpToolSetup = {
+        tools: { connected_tool: {} as never },
+        mcpToolNameToServerUuid: { connected_tool: 'server' },
+        unavailableMcpServers: [],
+        closeMcpClients: async () => {},
+    };
     return getAgentTools(
         args,
+        resolveAgentLoadout(args, mcpToolSetup, { types: [], totalCount: 1 }),
         new Proxy({}, { get: () => vi.fn() }) as AiAgentDependencies,
         [],
-        {
-            tools: { connected_tool: {} as never },
-            mcpToolNameToServerUuid: { connected_tool: 'server' },
-            unavailableMcpServers: [],
-            closeMcpClients: async () => {},
-        },
+        mcpToolSetup,
         new Map(),
         {},
-        { types: [], totalCount: 1 },
         new AgentContext([]),
     );
 };
@@ -272,6 +287,7 @@ it('covers common agent definitions and all runtime variants without stale entri
         {},
         { enableComposerQueries: true },
         { enableContentTools: false },
+        { enableContentReads: false, enableContentTools: false },
         { decisions: undefined, canRunSql: false, enableDataAccess: false },
         ...(['coordinator', 'worker'] as const).flatMap((role) =>
             [false, true].map((canUseRawSql) => ({
@@ -325,17 +341,15 @@ it('covers common agent definitions and all runtime variants without stale entri
             'loadAgentTools',
             'loadMcpTools',
             'runSql',
-            'runComposerQueries',
+            'query',
             'generateDashboard',
             'createContent',
             'editDbtProject',
-            'editRepo',
-            'setupPreviewDeploy',
             'readAttachments',
         ]),
     );
     expect(Object.keys(agentToolDefinitionsByName).sort()).toEqual(
-        [...ToolNameSchema.options].sort(),
+        ToolNameSchema.options.filter((name) => name !== 'editRepo').sort(),
     );
     expect(Object.keys(AGENT_TOOL_CAPABILITIES).sort()).toEqual(
         sortedUnique([
@@ -385,6 +399,12 @@ it('requires external_tools for connected MCP tools regardless of their names', 
     expect(getConnectedMcpToolCapabilities()).toEqual([
         AgentCapability.ExternalTools,
     ]);
+});
+
+it('requires discovery for the chart type frame, as render_chart does to resolve the chart type', () => {
+    expect(
+        getRequiredAgentCapabilities('mcp', 'get_custom_chart_type_frame'),
+    ).toEqual([AgentCapability.ReadDiscover, AgentCapability.Export]);
 });
 
 it('keeps the defaults explicit', () => {
@@ -592,11 +612,6 @@ const compositeFixtures = [
         'rest',
         'ProjectCoderController.pullContentAsCodeFromGit',
         [AgentCapability.DbtWriteback, AgentCapability.ContentWrite],
-    ],
-    [
-        'agent',
-        'setupPreviewDeploy',
-        [AgentCapability.DeployUpload, AgentCapability.DbtWriteback],
     ],
 ] as const;
 

@@ -1,10 +1,11 @@
 import { type ApiError, type RoleAssignment } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../api';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import useToaster from './toaster/useToaster';
 import useQueryError from './useQueryError';
 
 export const useProjectRoleAssignments = (projectId: string) => {
+    const lightdashApi = useLightdashApi();
     const setErrorResponse = useQueryError();
 
     return useQuery<RoleAssignment[], ApiError>(
@@ -27,6 +28,7 @@ export const useProjectRoleAssignments = (projectId: string) => {
 export const useUpsertProjectUserRoleAssignmentMutation = (
     projectId: string,
 ) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
 
@@ -74,6 +76,7 @@ export const useUpsertProjectUserRoleAssignmentMutation = (
 export const useDeleteProjectUserRoleAssignmentMutation = (
     projectId: string,
 ) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
 

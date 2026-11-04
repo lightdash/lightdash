@@ -24,17 +24,13 @@ import BigNumberView from '../../../../../components/DataViz/visualizations/BigN
 import ChartView from '../../../../../components/DataViz/visualizations/ChartView';
 import { useProjectColorPalette } from '../../../../../hooks/appearance/useProjectColorPalette';
 import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
-import { AiComposerResultsExpired } from './AiComposerResultsExpired';
 import {
     buildComposerChartSpec,
     buildComposerPivotSpec,
     type ComposerChartSpec,
 } from './composerChartSpec';
 import { useArtifactResultRows } from './useArtifactResultRows';
-import {
-    ComposerPivotExpiredError,
-    useComposerPivot,
-} from './useComposerPivot';
+import { useComposerPivot } from './useComposerPivot';
 
 export type ComposerChartVizConfig = Exclude<AllVizChartConfig, VizTableConfig>;
 
@@ -114,7 +110,6 @@ const ChartBody: FC<{
             spec={option}
             isLoading={!error && option === undefined}
             error={error ? { message: error.message } : null}
-            style={{ height: '100%', width: '100%' }}
         />
     );
 };
@@ -222,9 +217,6 @@ export const AiComposerChartVisualization: FC<Props> = ({
     ]);
     const spec = useComposerChartSpec(input, buildSpecFrom);
 
-    if (pivot.error instanceof ComposerPivotExpiredError) {
-        return <AiComposerResultsExpired headerContent={headerContent} />;
-    }
     if (!layout || (!pivotLayout && !isLoading && !drawn)) {
         return (
             <Frame headerContent={headerContent}>

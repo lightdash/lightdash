@@ -1,6 +1,7 @@
 import { useCallback, type FC } from 'react';
 import ExportDataModal from '../../../../../components/DashboardTiles/ExportDataModal';
 import { type Limit } from '../../../../../components/ExportResults/types';
+import { useLightdashApi } from '../../../../../providers/LightdashApi/useLightdashApi';
 import { getAiSqlArtifactDownloadQueryUuid } from '../../utils/getAiSqlArtifactDownloadQueryUuid';
 
 type Props = {
@@ -24,16 +25,17 @@ export const AiSqlArtifactDownloadModal: FC<Props> = ({
     totalResults,
     columnOrder,
 }) => {
+    const lightdashApi = useLightdashApi();
     const getDownloadQueryUuid = useCallback(
         (limit: number | null, limitType: Limit) =>
-            getAiSqlArtifactDownloadQueryUuid({
+            getAiSqlArtifactDownloadQueryUuid(lightdashApi, {
                 projectUuid,
                 queryUuid,
                 sql,
                 limit,
                 limitType,
             }),
-        [projectUuid, queryUuid, sql],
+        [projectUuid, queryUuid, sql, lightdashApi],
     );
 
     return (

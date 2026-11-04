@@ -1,15 +1,29 @@
 import type { ToolRunContentQueryArgs } from '@lightdash/common';
 import { rem, Text } from '@mantine/core';
 import type { FC } from 'react';
+import { type SqlApprovalTarget } from '../SqlApprovalActions';
 import { ToolCallChip } from '../ToolCallChip';
+import { SqlRunToolCallDescription } from './SqlRunToolCallDescription';
 
 type RunContentQueryToolCallDescriptionProps = {
     source: ToolRunContentQueryArgs['source'];
+    /** Present while a SQL source waits on the user's approval. */
+    approval?: SqlApprovalTarget;
 };
 
 export const RunContentQueryToolCallDescription: FC<
     RunContentQueryToolCallDescriptionProps
-> = ({ source }) => {
+> = ({ source, approval }) => {
+    if (source.type === 'sql') {
+        return (
+            <SqlRunToolCallDescription
+                sql={source.sql}
+                limit={source.limit ?? undefined}
+                approval={approval}
+            />
+        );
+    }
+
     if (source.type === 'metricQuery') {
         return (
             <Text c="dimmed" size="xs">
@@ -19,10 +33,12 @@ export const RunContentQueryToolCallDescription: FC<
         );
     }
 
+    const chartLabel = source.chartType === 'sql_chart' ? 'SQL chart' : 'chart';
+
     if (source.type === 'dashboardChart') {
         return (
             <Text c="dimmed" size="xs">
-                Ran dashboard chart{' '}
+                Ran dashboard {chartLabel}{' '}
                 <ToolCallChip mx={rem(2)}>{source.chartSlug}</ToolCallChip>
                 from{' '}
                 <ToolCallChip mx={rem(2)}>{source.dashboardSlug}</ToolCallChip>
@@ -37,7 +53,7 @@ export const RunContentQueryToolCallDescription: FC<
 
     return (
         <Text c="dimmed" size="xs">
-            Ran saved chart{' '}
+            Ran saved {chartLabel}{' '}
             <ToolCallChip mx={rem(2)}>{source.chartSlug}</ToolCallChip>
             {source.limit ? (
                 <ToolCallChip mx={rem(2)}>limit {source.limit}</ToolCallChip>

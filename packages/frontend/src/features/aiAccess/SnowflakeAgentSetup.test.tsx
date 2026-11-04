@@ -8,7 +8,8 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../api';
+import { sharedLightdashApi } from '../../api';
+import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../testing/testUtils';
 import { useSnowflakeAgentVerify } from './api';
 import { SnowflakeAgentSetup } from './SnowflakeAgentSetup';
@@ -23,7 +24,7 @@ vi.mock('../../hooks/settings/useSettingsContext', () => ({
         showMyAgentConnections: mocks.showMyAgentConnections,
     }),
 }));
-vi.mock('../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../api');
 vi.mock('../../providers/App/useApp', () => ({
     default: () => ({
         health: { data: { rudder: {} } },
@@ -140,7 +141,7 @@ describe('SnowflakeAgentSetup client', () => {
                 'https://instance.example/api/v1/oauth/redirect/snowflake-ai',
             integrationSql: 'CREATE SECURITY INTEGRATION test;',
         };
-        vi.mocked(lightdashApi).mockImplementation(async ({ url, method }) => {
+        mockedLightdashApi.mockImplementation(async ({ url, method }) => {
             if (url.endsWith('/verify')) return verified;
             if (method === 'PUT') {
                 setup = { ...setup, configured: true, client: savedClient };
@@ -228,7 +229,7 @@ describe('SnowflakeAgentSetup client', () => {
         'gates the agent connection link for $status with visible=$visible',
         async ({ status, visible, linked }) => {
             mocks.showMyAgentConnections = visible;
-            vi.mocked(lightdashApi).mockImplementation(async ({ url }) =>
+            mockedLightdashApi.mockImplementation(async ({ url }) =>
                 url.endsWith('/verify')
                     ? {
                           ...verified,
@@ -269,7 +270,7 @@ describe('SnowflakeAgentSetup client', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Save' }));
         await screen.findByText('Client secret saved');
         expect(screen.getByLabelText('Step 1 done')).toBeInTheDocument();
-        expect(lightdashApi).toHaveBeenCalledWith({
+        expect(sharedLightdashApi).toHaveBeenCalledWith({
             version: 'v2',
             url: '/org/agent-identity/snowflake/client',
             method: 'PUT',
@@ -333,7 +334,7 @@ describe('SnowflakeAgentSetup client', () => {
         expect(screen.getByText('Client secret saved')).toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: 'Replace client' }));
         expect(screen.getByLabelText('Client secret')).toHaveValue('');
-        expect(lightdashApi).not.toHaveBeenCalledWith(
+        expect(sharedLightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({ method: 'PUT' }),
         );
     });
@@ -352,7 +353,7 @@ describe('SnowflakeAgentSetup client', () => {
     it('shows the server validation error and keeps the form available for correction', async () => {
         renderSetup();
         await fillForm();
-        vi.mocked(lightdashApi).mockRejectedValueOnce({
+        mockedLightdashApi.mockRejectedValueOnce({
             error: {
                 name: 'ParameterError',
                 message: 'The account URL must use HTTPS.',
@@ -370,9 +371,7 @@ describe('SnowflakeAgentSetup client', () => {
     it('disables inputs and duplicate saves while saving', async () => {
         renderSetup();
         await fillForm();
-        vi.mocked(lightdashApi).mockImplementationOnce(
-            () => new Promise(() => {}),
-        );
+        mockedLightdashApi.mockImplementationOnce(() => new Promise(() => {}));
         fireEvent.click(screen.getByRole('button', { name: 'Save' }));
         await waitFor(() =>
             expect(screen.getByLabelText('Client secret')).toBeDisabled(),

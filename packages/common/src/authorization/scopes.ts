@@ -1,6 +1,4 @@
-import camelCase from 'lodash/camelCase';
-import flow from 'lodash/flow';
-import upperFirst from 'lodash/upperFirst';
+import { camelCase, flow, upperFirst } from 'es-toolkit/compat';
 import { ProjectType } from '../types/projects';
 import type { RoleLevel } from '../types/roles';
 import {
@@ -903,6 +901,14 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
+        name: 'view:SystemAnalytics',
+        description: 'View managed analytics for the entire organization',
+        isEnterprise: false,
+        group: ScopeGroup.PROJECT_MANAGEMENT,
+        dependencies: [{ name: 'view:Project' }],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
         name: 'create:Job',
         description: 'Create background jobs',
         isEnterprise: false,
@@ -1619,6 +1625,15 @@ const scopes: Scope[] = [
         getConditions: (context) => [
             addUuidCondition(context, { userUuid: context.userUuid || false }),
         ],
+    },
+    {
+        name: 'view:AiAgentThreadContext',
+        description:
+            'View the context a conversation thread was created with, which may hold internal notes',
+        isEnterprise: true,
+        group: ScopeGroup.AI,
+        dependencies: [{ name: 'view:Project' }],
+        getConditions: addDefaultUuidCondition,
     },
     {
         name: 'create:AiAgentThread',

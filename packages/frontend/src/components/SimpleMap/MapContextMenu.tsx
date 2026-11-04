@@ -9,7 +9,7 @@ import {
 import { Box, Menu, Portal, Stack, Text, type MenuProps } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy } from '@tabler/icons-react';
-import mapValues from 'lodash/mapValues';
+import { mapValues } from 'es-toolkit/compat';
 import { useMemo, type FC } from 'react';
 import { useLocation } from 'react-router';
 import { FilterDashboardTo } from '../../features/dashboardFilters/FilterDashboardTo';
@@ -19,7 +19,7 @@ import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { Can } from '../../providers/Ability';
 import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
-import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import { useVisualizationInputs } from '../LightdashVisualization/useVisualizationContext';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
 
 const getFormattedValue = (
@@ -63,7 +63,7 @@ const MapContextMenu: FC<MapContextMenuProps> = ({
 
     const { showToastSuccess } = useToaster();
     const clipboard = useClipboard({ timeout: 200 });
-    const { itemsMap } = useVisualizationContext();
+    const { itemsMap } = useVisualizationInputs();
     const { user } = useApp();
     const projectUuid = useProjectUuid();
 
@@ -123,7 +123,6 @@ const MapContextMenu: FC<MapContextMenuProps> = ({
             onClose={onClose}
             closeOnItemClick
             closeOnEscape
-            radius={0}
             position="right-start"
             offset={{
                 mainAxis: 0,

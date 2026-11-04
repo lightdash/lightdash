@@ -12,7 +12,6 @@ import {
     Title,
 } from '@mantine/core';
 import Callout from '../../components/common/Callout';
-import { agentGroupName } from './agentPermissionLabels';
 
 interface GroupPickerProps {
     groups: OrganizationGroup[];
@@ -24,8 +23,6 @@ interface GroupPickerProps {
 interface GroupAdmissionProps extends GroupPickerProps {
     available: boolean;
     savedSelection: string[] | null;
-    expanded: boolean;
-    onExpand: () => void;
 }
 const groupOptions = (
     groups: OrganizationGroup[],
@@ -44,14 +41,6 @@ const groupOptions = (
             .filter((uuid) => !visible.has(uuid))
             .map((uuid) => ({ value: uuid, label: 'A saved group' })),
     ];
-};
-const groupSummary = (
-    selection: string[] | null,
-    groups: OrganizationGroup[],
-) => {
-    if (selection === null) return 'Everyone whose role allows AI.';
-    if (selection.length === 0) return null;
-    return `Only these groups: ${selection.map((uuid) => agentGroupName(uuid, groups)).join(', ')}.`;
 };
 const AgentGroupPicker = ({
     groups,
@@ -135,8 +124,6 @@ export const AgentGroupAdmissionSection = ({
     groups,
     selection,
     savedSelection,
-    expanded,
-    onExpand,
     onChange,
     disabled,
     invalid,
@@ -167,35 +154,15 @@ export const AgentGroupAdmissionSection = ({
         );
     return (
         <Stack gap="sm">
-            <Group justify="space-between">
-                <Stack gap={0}>
-                    <Title order={5}>Who can use agents</Title>
-                    {!expanded && (
-                        <Text size="sm" c="dimmed">
-                            {groupSummary(selection, groups)}
-                        </Text>
-                    )}
-                </Stack>
-                {!expanded && (
-                    <Button
-                        variant="default"
-                        aria-label="Change who can use agents"
-                        onClick={onExpand}
-                    >
-                        Change
-                    </Button>
-                )}
-            </Group>
+            <Title order={5}>Who can use agents</Title>
             {notice}
-            {expanded && (
-                <AgentGroupPicker
-                    groups={groups}
-                    selection={selection}
-                    onChange={onChange}
-                    disabled={disabled}
-                    invalid={invalid}
-                />
-            )}
+            <AgentGroupPicker
+                groups={groups}
+                selection={selection}
+                onChange={onChange}
+                disabled={disabled}
+                invalid={invalid}
+            />
         </Stack>
     );
 };

@@ -1,6 +1,7 @@
 import {
     type ApiKeyLocation,
     type ExternalConnectionAuthType,
+    type ExternalConnectionKind,
     type ExternalConnectionMethod,
     type OAuthClientAuthMethod,
 } from '@lightdash/common';
@@ -12,6 +13,9 @@ export const AppExternalConnectionsTableName = 'app_external_connections';
 export const ExternalConnectionRateCountersTableName =
     'external_connection_rate_counters';
 export const ExternalConnectionSamplesTableName = 'external_connection_samples';
+export const ApiSourceCallCountersTableName = 'api_source_call_counters';
+export const ApiSourceCallLeasesTableName = 'api_source_call_leases';
+export const ApiSourceCallsTableName = 'api_source_calls';
 
 export type DbExternalConnection = {
     external_connection_uuid: string;
@@ -40,6 +44,9 @@ export type DbExternalConnection = {
     oauth_client_id: string | null;
     oauth_client_auth_method: OAuthClientAuthMethod | null;
     custom_headers: Record<string, string> | null;
+    connection_kind: ExternalConnectionKind;
+    // Parsed against the connector schema on read
+    api_source: unknown;
     created_by_user_uuid: string | null;
     updated_by_user_uuid: string | null;
     created_at: Date;
@@ -57,6 +64,7 @@ export type ExternalConnectionsTable = Knex.CompositeTableType<
         | 'slug'
         | 'type'
         | 'origin'
+        | 'connection_kind'
     > & {
         // jsonb columns are written as serialized JSON strings (read back as arrays)
         allowed_path_prefixes: string;
@@ -64,6 +72,7 @@ export type ExternalConnectionsTable = Knex.CompositeTableType<
         allowed_content_types: string;
         oauth_scopes?: string | null;
         custom_headers?: string | null;
+        api_source?: string | null;
     } & Partial<
             Pick<
                 DbExternalConnection,
@@ -114,6 +123,7 @@ export type ExternalConnectionsTable = Knex.CompositeTableType<
             allowed_content_types: string;
             oauth_scopes: string | null;
             custom_headers: string | null;
+            api_source: string | null;
         }
     >
 >;
@@ -166,6 +176,66 @@ export type ExternalConnectionRateCountersTable = Knex.CompositeTableType<
     > &
         Partial<Pick<DbExternalConnectionRateCounter, 'request_count'>>,
     Partial<Pick<DbExternalConnectionRateCounter, 'request_count'>>
+>;
+
+/** Calls a live source made in one window of `window_seconds`. */
+export type DbApiSourceCallCounter = {
+    external_connection_uuid: string;
+    window_seconds: number;
+    window_started_at: Date;
+    call_count: number;
+};
+
+export type ApiSourceCallCountersTable = Knex.CompositeTableType<
+    DbApiSourceCallCounter,
+    Pick<
+        DbApiSourceCallCounter,
+        'external_connection_uuid' | 'window_seconds' | 'window_started_at'
+    > &
+        Partial<Pick<DbApiSourceCallCounter, 'call_count'>>,
+    Partial<Pick<DbApiSourceCallCounter, 'call_count'>>
+>;
+
+/** One of a live source's concurrent call slots, held until `expires_at`. */
+export type DbApiSourceCallLease = {
+    external_connection_uuid: string;
+    slot: number;
+    lease_uuid: string;
+    expires_at: Date;
+};
+
+export type ApiSourceCallLeasesTable = Knex.CompositeTableType<
+    DbApiSourceCallLease,
+    DbApiSourceCallLease,
+    Partial<Pick<DbApiSourceCallLease, 'lease_uuid' | 'expires_at'>>
+>;
+
+/** One query a live source sent to its integration, written once it finished. */
+export type DbApiSourceCall = {
+    api_source_call_uuid: string;
+    external_connection_uuid: string;
+    project_uuid: string;
+    user_uuid: string | null;
+    context: string;
+    query_uuid: string;
+    query: string;
+    row_limit: number;
+    outcome: string;
+    error_message: string | null;
+    provider_status: number | null;
+    api_calls: number;
+    duration_ms: number;
+    row_count: number | null;
+    column_count: number | null;
+    truncated: boolean | null;
+    response_bytes: number | null;
+    created_at: Date;
+};
+
+export type ApiSourceCallsTable = Knex.CompositeTableType<
+    DbApiSourceCall,
+    Omit<DbApiSourceCall, 'api_source_call_uuid' | 'created_at'>,
+    never
 >;
 
 export type DbExternalConnectionSample = {

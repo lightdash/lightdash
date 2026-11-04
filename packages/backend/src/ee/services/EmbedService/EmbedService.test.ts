@@ -9,7 +9,10 @@ import {
     FilterInteractivityValues,
     FilterOperator,
     ForbiddenError,
+    ProjectType,
     QueryExecutionContext,
+    SchedulerFormat,
+    WeekDay,
     type AnonymousAccount,
     type CreateEmbedJwt,
     type DashboardDAO,
@@ -224,7 +227,7 @@ describe('EmbedService', () => {
                 explore: validExplore,
                 dashboardValues: { status: 'Shipped', region: 'US' },
                 chartSavedValues: { status: 'Cancelled' },
-                isTargeted: true,
+                excludedKeys: [],
                 preloadedProjectParameters: null,
             });
         });
@@ -327,6 +330,11 @@ describe('EmbedService', () => {
                 projectModel: {
                     getExploreFromCache: vi.fn().mockResolvedValue(explore),
                 },
+                projectService: {
+                    getFilterableDimensionsForExplore: vi
+                        .fn()
+                        .mockResolvedValue([explore.tables.a.dimensions.dim1]),
+                },
             } as unknown as ConstructorParameters<typeof EmbedService>[0]);
 
             const result =
@@ -341,6 +349,68 @@ describe('EmbedService', () => {
             expect(getByIdOrSlug).toHaveBeenCalledWith('dashboard-uuid', {
                 projectUuid: mockProjectUuid,
             });
+        });
+
+        test('keeps per-explore week boundaries and resolves duplicate charts once', async () => {
+            const charts = ['native', 'upload', 'upload'].map(
+                (tableName, index) => ({
+                    uuid: `chart-${index}`,
+                    tableName,
+                    projectUuid: mockProjectUuid,
+                    spaceUuid: 'space-uuid',
+                }),
+            );
+            const getFilterableDimensionsForExplore = vi.fn(
+                async (_projectUuid: string, explore: Explore) => [
+                    {
+                        ...validExplore.tables.a.dimensions.dim1,
+                        filterStartOfWeek:
+                            explore.name === 'native'
+                                ? WeekDay.SUNDAY
+                                : WeekDay.MONDAY,
+                    },
+                ],
+            );
+            const scopedService = new EmbedService({
+                ...EmbedServiceArgumentsMock,
+                savedChartModel: {
+                    getInfoForAvailableFilters: vi
+                        .fn()
+                        .mockResolvedValue(charts),
+                },
+                projectModel: {
+                    getExploreFromCache: vi.fn(
+                        async (_projectUuid: string, name: string) => ({
+                            ...validExplore,
+                            name,
+                        }),
+                    ),
+                },
+                projectService: { getFilterableDimensionsForExplore },
+            } as unknown as ConstructorParameters<typeof EmbedService>[0]);
+
+            const result =
+                await scopedService.getAvailableFiltersForSavedQueries(
+                    mockProjectUuid,
+                    embedAccount(FilterInteractivityValues.all),
+                    charts.map((chart, index) => ({
+                        savedChartUuid: chart.uuid,
+                        tileUuid: `tile-${index}`,
+                    })),
+                    false,
+                );
+
+            expect(
+                result.allFilterableFields.map(
+                    (field) => field.filterStartOfWeek,
+                ),
+            ).toEqual([WeekDay.SUNDAY, WeekDay.MONDAY]);
+            expect(result.savedQueryFilters).toEqual({
+                'tile-0': [0],
+                'tile-1': [1],
+                'tile-2': [1],
+            });
+            expect(getFilterableDimensionsForExplore).toHaveBeenCalledTimes(2);
         });
 
         test('returns no hidden ids when filter interactivity is off', async () => {
@@ -481,6 +551,104 @@ describe('EmbedService', () => {
             );
         },
     );
+
+    describe('dashboard usage capture', () => {
+        it.each([
+            {
+                externalId: 'viewer-1',
+                expected: 'viewer-1',
+                preview: false,
+                projectType: ProjectType.DEFAULT,
+            },
+            {
+                externalId: undefined,
+                expected: null,
+                preview: false,
+                projectType: ProjectType.DEFAULT,
+            },
+            {
+                externalId: '   ',
+                expected: null,
+                preview: false,
+                projectType: ProjectType.DEFAULT,
+            },
+            {
+                externalId: 'viewer-1',
+                expected: 'viewer-1',
+                preview: true,
+                projectType: ProjectType.DEFAULT,
+            },
+            {
+                externalId: 'viewer-1',
+                expected: 'viewer-1',
+                preview: false,
+                projectType: ProjectType.PREVIEW,
+            },
+        ])(
+            'keeps explicit viewer attribution separate from the issuer: %o',
+            async ({ externalId, expected, preview, projectType }) => {
+                const trackAccount = vi.fn();
+                const scopedService = new EmbedService({
+                    ...EmbedServiceArgumentsMock,
+                    dashboardModel: {
+                        getByIdOrSlug: vi.fn().mockResolvedValue({
+                            uuid: 'dashboard',
+                            name: 'Revenue',
+                            projectUuid: mockProjectUuid,
+                            organizationUuid: mockOrganizationUuid,
+                            projectType,
+                            tiles: [],
+                        }),
+                    },
+                    savedChartModel: {
+                        resolveColorPalette: vi.fn().mockResolvedValue({
+                            colors: [],
+                            darkColors: null,
+                        }),
+                    },
+                    analytics: { trackAccount },
+                } as unknown as ConstructorParameters<typeof EmbedService>[0]);
+                const account = {
+                    ...mockAccountWithPermission,
+                    embed: {
+                        dashboardUuids: [],
+                        allowAllDashboards: true,
+                        user: null,
+                    },
+                    authentication: {
+                        type: 'jwt',
+                        source: 'secret-token',
+                        data: {
+                            content: {
+                                type: 'dashboard',
+                                dashboardUuid: 'dashboard',
+                                isPreview: preview,
+                            },
+                            user: { externalId },
+                        },
+                    },
+                    access: { content: { dashboardUuid: 'dashboard' } },
+                } as unknown as AnonymousAccount;
+                await scopedService.getDashboard(mockProjectUuid, account);
+                expect(trackAccount).toHaveBeenCalledWith(
+                    account,
+                    expect.objectContaining({
+                        event: 'embed_dashboard.viewed',
+                    }),
+                    expect.objectContaining({
+                        contentId: 'dashboard',
+                        contentName: 'Revenue',
+                        actorType: 'embed',
+                        context:
+                            preview || projectType === ProjectType.PREVIEW
+                                ? 'preview'
+                                : 'embed',
+                        externalUserId: expected,
+                    }),
+                );
+            },
+        );
+    });
 
     describe('updateConfig', () => {
         const validDashboardUpdate = {
@@ -700,6 +868,103 @@ describe('EmbedService', () => {
         });
     });
 
+    describe('getAccountForDashboardExport', () => {
+        const payload = {
+            projectUuid: mockProjectUuid,
+            organizationUuid: mockOrganizationUuid,
+            resourceUuid: 'dashboard-uuid',
+        };
+        const mockTokenAbility = (
+            rules: ConstructorParameters<typeof Ability<PossibleAbilities>>[0],
+        ) =>
+            vi.spyOn(service, 'getAccountFromJwt').mockResolvedValue({
+                ...mockAccountWithoutPermission,
+                user: {
+                    ...mockAccountWithoutPermission.user,
+                    ability: new Ability<PossibleAbilities>(rules),
+                },
+            } as unknown as AnonymousAccount);
+
+        test('checks the page PDF grant for PDF exports', async () => {
+            mockTokenAbility([
+                {
+                    subject: 'Dashboard',
+                    action: 'export',
+                    conditions: {
+                        type: 'pdf',
+                        'metadata.dashboardUuid': 'dashboard-uuid',
+                    },
+                },
+            ]);
+
+            await expect(
+                service.getAccountForDashboardExport(
+                    { ...payload, format: SchedulerFormat.PDF },
+                    'jwt',
+                ),
+            ).resolves.toBeDefined();
+            await expect(
+                service.getAccountForDashboardExport(
+                    { ...payload, format: SchedulerFormat.CSV },
+                    'jwt',
+                ),
+            ).rejects.toThrow(ForbiddenError);
+        });
+
+        test('rejects PDF exports for tokens with only the CSV grant', async () => {
+            mockTokenAbility([
+                {
+                    subject: 'ExportCsv',
+                    action: 'manage',
+                    conditions: { 'metadata.dashboardUuid': 'dashboard-uuid' },
+                },
+            ]);
+
+            await expect(
+                service.getAccountForDashboardExport(
+                    { ...payload, format: SchedulerFormat.PDF },
+                    'jwt',
+                ),
+            ).rejects.toThrow(ForbiddenError);
+        });
+
+        test('checks the dashboard image grant for image exports', async () => {
+            mockTokenAbility([
+                {
+                    subject: 'Dashboard',
+                    action: 'export',
+                    conditions: {
+                        type: 'images',
+                        'metadata.dashboardUuid': 'dashboard-uuid',
+                    },
+                },
+            ]);
+
+            await expect(
+                service.getAccountForDashboardExport(
+                    { ...payload, format: SchedulerFormat.IMAGE },
+                    'jwt',
+                ),
+            ).resolves.toBeDefined();
+            await expect(
+                service.getAccountForDashboardExport(
+                    { ...payload, format: SchedulerFormat.PDF },
+                    'jwt',
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            await expect(
+                service.getAccountForDashboardExport(
+                    {
+                        ...payload,
+                        resourceUuid: 'other-dashboard',
+                        format: SchedulerFormat.IMAGE,
+                    },
+                    'jwt',
+                ),
+            ).rejects.toThrow(ForbiddenError);
+        });
+    });
+
     describe('getContentUuidFromJwt', () => {
         test('resolves standalone dataApp content carrying the appUuid', async () => {
             const content = await service.getContentUuidFromJwt(
@@ -823,20 +1088,29 @@ describe('EmbedService', () => {
         const getContext = async ({
             canUpdate,
             savedChartSpaceUuid = chartSpaceUuid,
+            writeActions = token.writeActions,
+            spaceContexts = {},
+            createRules = [],
         }: {
             canUpdate: boolean;
             savedChartSpaceUuid?: string;
+            writeActions?: CreateEmbedJwt['writeActions'];
+            spaceContexts?: Record<string, Partial<typeof spaceAccessContext>>;
+            createRules?: ConstructorParameters<
+                typeof Ability<PossibleAbilities>
+            >[0];
         }) => {
             const embedWriteUser = {
                 ...mockAccountWithPermission.user,
                 organizationUuid: mockOrganizationUuid,
                 organizationName: 'Test Org',
                 organizationCreatedAt: new Date(),
-                ability: new Ability<PossibleAbilities>(
-                    canUpdate
-                        ? [{ action: 'update', subject: 'SavedChart' }]
-                        : [],
-                ),
+                ability: new Ability<PossibleAbilities>([
+                    ...(canUpdate
+                        ? [{ action: 'update', subject: 'SavedChart' } as const]
+                        : []),
+                    ...(createRules ?? []),
+                ]),
             } as unknown as SessionUser;
             const scopedService = new EmbedService({
                 ...EmbedServiceArgumentsMock,
@@ -852,9 +1126,19 @@ describe('EmbedService', () => {
                     }),
                 },
                 spacePermissionService: {
-                    resolveAccess: vi
-                        .fn()
-                        .mockResolvedValue(spaceAccessContext),
+                    resolveAccessBatch: vi.fn(
+                        async (
+                            _userUuid: string,
+                            targets: Array<{ spaceUuid: string }>,
+                        ) =>
+                            targets.map((target) => ({
+                                target,
+                                context: {
+                                    ...spaceAccessContext,
+                                    ...spaceContexts[target.spaceUuid],
+                                },
+                            })),
+                    ),
                 },
             } as unknown as ConstructorParameters<typeof EmbedService>[0]);
             const getEmbedWriteContext = (
@@ -869,12 +1153,78 @@ describe('EmbedService', () => {
             ).getEmbedWriteContext.bind(scopedService);
 
             return getEmbedWriteContext(
-                token,
+                { ...token, writeActions },
                 embedWriteUser,
                 mockProjectUuid,
                 content,
             );
         };
+
+        const multiSpaceWriteActions = {
+            userUuid: mockUserUuid,
+            writeSpaceUuids: [chartSpaceUuid, 'second-space-uuid'],
+        };
+
+        test('allows editing a chart in any write space', async () => {
+            await expect(
+                getContext({
+                    canUpdate: true,
+                    savedChartSpaceUuid: 'second-space-uuid',
+                    writeActions: multiSpaceWriteActions,
+                }),
+            ).resolves.toMatchObject({ canUpdateSavedChart: true });
+        });
+
+        test('lists only the write spaces the actor can create charts in, in token order', async () => {
+            await expect(
+                getContext({
+                    canUpdate: false,
+                    writeActions: {
+                        userUuid: mockUserUuid,
+                        writeSpaceUuids: [
+                            'second-space-uuid',
+                            'read-only-space-uuid',
+                            chartSpaceUuid,
+                        ],
+                    },
+                    spaceContexts: {
+                        'read-only-space-uuid': {
+                            inheritsFromOrgOrProject: false,
+                        },
+                    },
+                    createRules: [
+                        {
+                            action: 'create',
+                            subject: 'SavedChart',
+                            conditions: { inheritsFromOrgOrProject: true },
+                        },
+                    ],
+                }),
+            ).resolves.toMatchObject({
+                canCreateSavedChart: true,
+                writableSpaces: [
+                    { uuid: 'second-space-uuid', name: 'second-space-uuid' },
+                    { uuid: chartSpaceUuid, name: chartSpaceUuid },
+                ],
+            });
+        });
+
+        test('disables writes when any write space is in another project', async () => {
+            await expect(
+                getContext({
+                    canUpdate: true,
+                    writeActions: multiSpaceWriteActions,
+                    spaceContexts: {
+                        'second-space-uuid': { projectUuid: 'other-project' },
+                    },
+                    createRules: [{ action: 'create', subject: 'SavedChart' }],
+                }),
+            ).resolves.toMatchObject({
+                canUpdateSavedChart: false,
+                canCreateSavedChart: false,
+                writableSpaces: [],
+            });
+        });
 
         test('allows editing when the write actor can update the chart in the write space', async () => {
             await expect(
@@ -1024,13 +1374,20 @@ describe('EmbedService', () => {
                     getSummary: vi.fn().mockResolvedValue(target),
                 },
                 spacePermissionService: {
-                    resolveAccess: vi.fn().mockResolvedValue({
-                        ...target,
-                        projectUuid:
-                            scenario.spaceProjectUuid ?? mockProjectUuid,
-                        inheritsFromOrgOrProject: true,
-                        access: [],
-                    }),
+                    resolveAccessBatch: vi.fn(
+                        async (_userUuid: string, targets: unknown[]) =>
+                            targets.map((spaceTarget) => ({
+                                target: spaceTarget,
+                                context: {
+                                    ...target,
+                                    projectUuid:
+                                        scenario.spaceProjectUuid ??
+                                        mockProjectUuid,
+                                    inheritsFromOrgOrProject: true,
+                                    access: [],
+                                },
+                            })),
+                    ),
                 },
             } as unknown as ConstructorParameters<typeof EmbedService>[0]);
             const getContext = (

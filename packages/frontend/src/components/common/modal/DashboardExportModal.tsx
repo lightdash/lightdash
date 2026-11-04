@@ -25,6 +25,12 @@ import {
     IconScreenshot,
 } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
+import {
+    selectDateZoomGranularity,
+    selectParameterValues,
+    useDashboardAllFilters,
+    useDashboardSelector,
+} from '../../../features/dashboard/store';
 import { PreviewAndCustomizeScreenshot } from '../../../features/preview';
 import { CsvFormattingOptions } from '../../../features/scheduler/components/CsvFormattingOptions';
 import { Limit, Values } from '../../../features/scheduler/components/types';
@@ -33,7 +39,6 @@ import {
     useExportDashboardContent,
     useExportDashboardContentPreview,
 } from '../../../hooks/dashboard/useDashboard';
-import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import Callout from '../Callout';
 import MantineIcon from '../MantineIcon';
 import MantineModal, { type MantineModalProps } from '../MantineModal';
@@ -59,11 +64,9 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
         exportType === SchedulerFormat.CSV ||
         exportType === SchedulerFormat.XLSX;
     const exportDashboardContentMutation = useExportDashboardContent();
-    const dashboardFilters = useDashboardContext((c) => c.allFilters);
-    const dateZoomGranularity = useDashboardContext(
-        (c) => c.dateZoomGranularity,
-    );
-    const parameterValues = useDashboardContext((c) => c.parameterValues);
+    const dashboardFilters = useDashboardAllFilters();
+    const dateZoomGranularity = useDashboardSelector(selectDateZoomGranularity);
+    const parameterValues = useDashboardSelector(selectParameterValues);
 
     const [previews, setPreviews] = useState<Record<string, string>>({});
     const [previewChoice, setPreviewChoice] = useState<
@@ -374,14 +377,6 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
                                     value: tab.uuid,
                                     label: tab.name,
                                 }))}
-                                clearButtonProps={{
-                                    style: {
-                                        display:
-                                            selectedTabs.length > 1
-                                                ? 'block'
-                                                : 'none',
-                                    },
-                                }}
                                 clearable={selectedTabs.length > 1}
                                 searchable
                                 onChange={setSelectedTabs}

@@ -18,11 +18,9 @@ let mockGetResultsPage: Mock<
     ) => Promise<ApiGetAsyncQueryResults>
 >;
 
-vi.mock('../api', () => ({
-    lightdashApi: vi.fn(),
-}));
+vi.mock('../api');
 
-import { lightdashApi } from '../api';
+import { sharedLightdashApi } from '../api';
 
 vi.mock('./useQueryError', () => ({
     default: () => vi.fn(),
@@ -80,7 +78,7 @@ function makeReadyPage(
 describe('useInfiniteQueryResults', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        mockGetResultsPage = lightdashApi as unknown as Mock;
+        mockGetResultsPage = sharedLightdashApi as unknown as Mock;
     });
 
     it('does not duplicate pages when React Query re-delivers the same READY result', async () => {

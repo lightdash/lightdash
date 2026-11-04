@@ -11,18 +11,39 @@ snapshots), `users` (user summaries), and `pipeline` (the complete sequence).
 These are not per-model/per-organization timers. Existing scheduler job IDs and
 pod/release metadata provide deployment context.
 
+## Organization status in settings
+
+`usage_processing_status` stores one latest run per organization for the analytics
+settings page: start/finish times, outcome, counters and the last fully successful
+refresh time. The scheduled and initial processing jobs update it; historical
+imports and standalone People-summary maintenance runs remain separate.
+
+An organization is `success` only after compaction, inventory and People summaries
+complete without known failures or pending work. `partial` means some work
+succeeded but failures, a work cap or deferred partitions prevented completion;
+`failed` means processing stopped without successful work. Other organizations'
+results do not change this outcome. A completed run with no work is successful.
+The last successful timestamp survives subsequent partial or failed attempts.
+
+Statistics are validated before writing and reading. Invalid stored metadata
+is unavailable rather than successful. Run IDs prevent an older worker from
+overwriting a newer attempt. Interrupted processes may leave `running` behind;
+settings shows an unavailable status after four hours. Status-recording errors
+are logged without stopping data processing. This table retains no run history
+and does not establish complete historical data coverage.
+
 ## Signals
 
 All names below have the prefix `lightdash_usage_processing_`.
 
-| Metric | Labels | Meaning |
-| --- | --- | --- |
-| `enabled` | None | 1 when this scheduler is configured with usage capture, storage and the compaction task; otherwise 0. Set at worker startup, even before the first run. |
-| `running` | `stage` | 1 while a stage is executing, 0 after it returns or throws. |
-| `last_started_timestamp_seconds` | `stage` | Most recent observed stage start in this process. |
-| `last_finished_timestamp_seconds` | `stage`, `outcome` | Most recent finish **for each outcome** in this process. |
-| `duration_seconds` | `stage`, `outcome` | Histogram including successful, partial and failed runs. Its `_count` counts terminal runs and `_sum` accumulates seconds. |
-| `work` | `stage`, `state` | Last returned stage summary: `failed`, `remaining`, or `limit_reached`. Absent while the stage is running, or if it throws before returning a summary. |
+| Metric                            | Labels             | Meaning                                                                                                                                                 |
+| --------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `enabled`                         | None               | 1 when this scheduler is configured with usage capture, storage and the compaction task; otherwise 0. Set at worker startup, even before the first run. |
+| `running`                         | `stage`            | 1 while a stage is executing, 0 after it returns or throws.                                                                                             |
+| `last_started_timestamp_seconds`  | `stage`            | Most recent observed stage start in this process.                                                                                                       |
+| `last_finished_timestamp_seconds` | `stage`, `outcome` | Most recent finish **for each outcome** in this process.                                                                                                |
+| `duration_seconds`                | `stage`, `outcome` | Histogram including successful, partial and failed runs. Its `_count` counts terminal runs and `_sum` accumulates seconds.                              |
+| `work`                            | `stage`, `state`   | Last returned stage summary: `failed`, `remaining`, or `limit_reached`. Absent while the stage is running, or if it throws before returning a summary.  |
 
 Outcomes:
 

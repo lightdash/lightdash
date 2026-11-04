@@ -15,7 +15,7 @@ import {
     it,
     vi,
 } from 'vitest';
-import { lightdashApi } from '../../../../../../api';
+import { mockedLightdashApi } from '../../../../../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../../../../../testing/testUtils';
 import { store } from '../../../store';
 import { clearPreview } from '../../../store/aiArtifactSlice';
@@ -29,8 +29,7 @@ import {
     type DataAppBuildOrigin,
 } from './AiDataAppBuildCard';
 
-vi.mock('../../../../../../api', () => ({ lightdashApi: vi.fn() }));
-const mockedLightdashApi = vi.mocked(lightdashApi);
+vi.mock('../../../../../../api');
 
 // The build watcher's poller runs in a Web Worker; jsdom has none. The stub
 // keeps the last instance so a test can hand it a poll result.
@@ -120,9 +119,11 @@ const app = (
     hasMore: false,
     latestReadyVersion:
         versions.find((v) => v.status === 'ready')?.version ?? null,
+    latestReadyVersionUsesAiAnalysis: null,
+    latestReadyVersionHasAnalyzableData: null,
+    addAnalysisDismissed: false,
     icon: null,
     verification: null,
-    autoAnalysis: 'inherit',
 });
 
 const pending: ToolGenerateDataAppOutput['metadata'] = {

@@ -4,7 +4,6 @@ import {
     type Group as OrganizationGroup,
 } from '@lightdash/common';
 import { Anchor, Button, Group, Stack, Text, Title } from '@mantine/core';
-import { useState } from 'react';
 import Callout from '../../components/common/Callout';
 import { SettingsCard } from '../../components/common/Settings/SettingsCard';
 import { AgentCapabilityChoices } from './AgentCapabilityChoices';
@@ -15,7 +14,6 @@ import {
     chooseAgentPermission,
     getAgentPermissionChoice,
 } from './agentPermissionDraft';
-import { agentPermissionChoiceLabels } from './agentPermissionLabels';
 import { AgentPermissionsReviewModal } from './AgentPermissionsReviewModal';
 import classes from './AgentPermissionsSection.module.css';
 import { type useAgentCapabilityPolicy } from './api';
@@ -53,7 +51,6 @@ export const AgentPermissionsSection = ({
         reload,
         submit,
     } = useAgentPermissionsForm({ policy, refetchPolicy, loadError });
-    const [whoExpanded, setWhoExpanded] = useState(false);
     return (
         <SettingsCard>
             <Stack gap="lg">
@@ -86,58 +83,36 @@ export const AgentPermissionsSection = ({
                     </Callout>
                 )}
                 <Stack gap="sm">
-                    <Group justify="space-between">
-                        <Stack gap={0}>
-                            <Title order={5}>What agents can do</Title>
-                            {whoExpanded && (
-                                <Text size="sm" c="dimmed">
-                                    {agentPermissionChoiceLabels[choice]}.
-                                </Text>
-                            )}
-                        </Stack>
-                        {whoExpanded && (
-                            <Button
-                                variant="default"
-                                aria-label="Change what agents can do"
-                                onClick={() => setWhoExpanded(false)}
-                            >
-                                Change
-                            </Button>
-                        )}
-                    </Group>
-                    {!whoExpanded && (
-                        <AgentCapabilityChoices
-                            choice={choice}
-                            current={getAgentPermissionChoice(baseline)}
+                    <Title order={5}>What agents can do</Title>
+                    <AgentCapabilityChoices
+                        choice={choice}
+                        current={getAgentPermissionChoice(baseline)}
+                        disabled={disabled}
+                        onChange={(value) => {
+                            setChoice(value);
+                            form.setValues(
+                                choice === value
+                                    ? form.values
+                                    : chooseAgentPermission(
+                                          form.values,
+                                          value,
+                                          baseline,
+                                      ),
+                            );
+                        }}
+                    >
+                        <AgentCapabilitySwitches
+                            draft={form.values}
+                            onChange={form.setValues}
                             disabled={disabled}
-                            onChange={(value) => {
-                                setChoice(value);
-                                form.setValues(
-                                    choice === value
-                                        ? form.values
-                                        : chooseAgentPermission(
-                                              form.values,
-                                              value,
-                                              baseline,
-                                          ),
-                                );
-                            }}
-                        >
-                            <AgentCapabilitySwitches
-                                draft={form.values}
-                                onChange={form.setValues}
-                                disabled={disabled}
-                            />
-                        </AgentCapabilityChoices>
-                    )}
+                        />
+                    </AgentCapabilityChoices>
                 </Stack>
                 <AgentGroupAdmissionSection
                     available={policy.groupsAvailable}
                     groups={groups}
                     selection={form.values.allowedGroupUuids}
                     savedSelection={baseline.allowedGroupUuids}
-                    expanded={whoExpanded}
-                    onExpand={() => setWhoExpanded(true)}
                     onChange={(value) =>
                         form.setFieldValue('allowedGroupUuids', value)
                     }

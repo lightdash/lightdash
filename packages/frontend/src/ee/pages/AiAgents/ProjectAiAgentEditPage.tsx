@@ -114,6 +114,8 @@ const formSchema = z.object({
     enableContentTools: z.boolean(),
     enableUserContext: z.boolean(),
     enableSqlMode: z.boolean(),
+    enableSqlAutoApproval: z.boolean(),
+    enableComposerQueries: z.boolean(),
     adminOnly: z.boolean(),
     modelConfig: z.custom<AiAgentModelConfig>().nullable(),
     providerCredentialUuid: z.string().nullable(),
@@ -188,6 +190,8 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
             enableContentTools: true,
             enableUserContext: false,
             enableSqlMode: true,
+            enableSqlAutoApproval: false,
+            enableComposerQueries: true,
             adminOnly: false,
             modelConfig: null,
             providerCredentialUuid: null,
@@ -225,6 +229,8 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                     (agent.enableContentTools ?? false),
                 enableUserContext: agent.enableUserContext ?? false,
                 enableSqlMode: agent.enableSqlMode ?? true,
+                enableSqlAutoApproval: agent.enableSqlAutoApproval ?? false,
+                enableComposerQueries: agent.enableComposerQueries ?? true,
                 adminOnly: agent.adminOnly ?? false,
                 modelConfig: agent.modelConfig ?? null,
                 providerCredentialUuid: agent.providerCredentialUuid ?? null,
@@ -566,6 +572,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                     persistedMcpServerUuids={agentMcpServers?.map(
                                         (mcpServer) => mcpServer.uuid,
                                     )}
+                                    userAccessDetails={agent?.userAccessDetails}
                                     avatarMode={avatarMode}
                                     avatarFileName={avatarFile?.name ?? null}
                                     onAvatarFileChange={(file) => {

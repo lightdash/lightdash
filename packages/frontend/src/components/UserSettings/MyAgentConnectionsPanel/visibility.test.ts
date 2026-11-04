@@ -5,10 +5,7 @@ import {
     type OrganizationAgentIdentityRule,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import {
-    getAgentConnectionVisibility,
-    shouldShowMyAgentConnections,
-} from './visibility';
+import { getAgentConnectionVisibility } from './visibility';
 
 const rules = (
     snowflake: OrganizationAgentIdentityRule['source'],
@@ -25,25 +22,6 @@ const rules = (
         projectsMissingAiServiceAccount: null,
     },
 ];
-
-describe('shouldShowMyAgentConnections', () => {
-    it.each([
-        [false, 'agent_sign_in', 'ai_service_account', false],
-        [true, 'marked_person', 'marked_person', false],
-        [true, 'agent_sign_in', 'marked_person', true],
-        [true, 'marked_person', 'ai_service_account', true],
-    ] as const)(
-        'checks flag %s and rules %s / %s',
-        (flag, snowflake, bigquery, visible) => {
-            expect(
-                shouldShowMyAgentConnections(flag, rules(snowflake, bigquery)),
-            ).toBe(visible);
-        },
-    );
-    it('hides the page until rules load', () => {
-        expect(shouldShowMyAgentConnections(true, [])).toBe(false);
-    });
-});
 
 describe('getAgentConnectionVisibility', () => {
     const project: OrganizationProject = {

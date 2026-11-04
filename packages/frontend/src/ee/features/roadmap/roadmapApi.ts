@@ -9,7 +9,7 @@ import {
     type RoadmapProjectResults,
     type RoadmapProjectRequestsResults,
 } from '@lightdash/common';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
 function queryString(query: RoadmapProjectQuery | RoadmapQuery) {
     return new URLSearchParams(
         Object.entries(query)
@@ -18,7 +18,10 @@ function queryString(query: RoadmapProjectQuery | RoadmapQuery) {
     ).toString();
 }
 
-async function getProjects(query: RoadmapProjectQuery) {
+async function getProjects(
+    lightdashApi: LightdashApi,
+    query: RoadmapProjectQuery,
+) {
     return RoadmapProjectResultsSchema.parse(
         await lightdashApi<RoadmapProjectResults>({
             url: `/org/roadmap/projects?${queryString(query)}`,
@@ -30,10 +33,13 @@ async function getProjects(query: RoadmapProjectQuery) {
 }
 
 export const roadmapApi = {
-    followProject: async ({
-        projectId,
-        note,
-    }: RoadmapFollowProjectRequest & { projectId: string }) =>
+    followProject: async (
+        lightdashApi: LightdashApi,
+        {
+            projectId,
+            note,
+        }: RoadmapFollowProjectRequest & { projectId: string },
+    ) =>
         RoadmapFollowProjectResultsSchema.parse(
             await lightdashApi<RoadmapFollowProjectResults>({
                 url: `/org/roadmap/projects/${encodeURIComponent(projectId)}/follow`,
@@ -44,7 +50,7 @@ export const roadmapApi = {
             }),
         ),
     getProjects,
-    getRequests: async (query: RoadmapQuery) =>
+    getRequests: async (lightdashApi: LightdashApi, query: RoadmapQuery) =>
         RoadmapProjectRequestsResultsSchema.parse(
             await lightdashApi<RoadmapProjectRequestsResults>({
                 url: `/org/roadmap?${queryString(query)}`,

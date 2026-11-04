@@ -18,7 +18,7 @@ import { filterProjectContext } from './filterProjectContext';
 import type { ProjectContextSearchEntry } from './memoryProjectContext';
 
 const MEMORY_AWARE_DESCRIPTION =
-    'Load relevant project business context and memories. Project-context entries are authoritative over assumptions; memory entries are past-conversation reference material that must be verified against the current catalog. Pass `patterns` to load matching entries (recommended); omit to load all.';
+    "Load the project's curated business context and memories. Prefer `patterns`, which load only the entries relevant to the question.";
 
 type MemoryEntry = Extract<ProjectContextSearchEntry, { source: 'memory' }>;
 
@@ -115,7 +115,7 @@ const toLoadedEntry = (
           };
 
 // When patterns match nothing, list the available entries (id/kind/terms) so
-// the agent can re-grep with broader keywords or load everything — cheaper than
+// the agent can retry with broader patterns or load everything — cheaper than
 // silently dumping the whole context.
 const renderNoMatch = (all: ProjectContextSearchEntry[]) => {
     const context = all
@@ -137,7 +137,7 @@ const renderNoMatch = (all: ProjectContextSearchEntry[]) => {
     const inventory = [context, memoryBlock.block].filter(Boolean).join('\n');
 
     return {
-        result: `No context entry matched your patterns. ${all.length} entries exist — re-grep with broader keywords, or call again without patterns to load all:\n${inventory}`,
+        result: `No context entry matched your patterns. Retry with broader patterns, or call again without patterns to load all ${all.length} entries:\n${inventory}`,
         renderedMemoryCount: memoryBlock.renderedCount,
         truncationNote: memoryBlock.truncationNote,
     };

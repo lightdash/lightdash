@@ -38,6 +38,7 @@ import { optionalNumber } from '../../../utils/numberInputUtils';
 import MantineIcon from '../../common/MantineIcon';
 import { NumberInput } from '../../common/NumberInput';
 import { PolymorphicPaperButton } from '../../common/PolymorphicPaperButton';
+import { formatTextInputProps } from './formatTextInputProps';
 import { getFormatTypeLabel } from './getFormatSummary';
 
 type Props = {
@@ -304,7 +305,9 @@ export const FormatForm: FC<Props> = ({
                                 }
                                 label="Custom format"
                                 placeholder="e.g. dd/mm/yyyy or mmmm d, yyyy"
-                                {...formatInputProps('custom')}
+                                {...formatTextInputProps(
+                                    formatInputProps('custom'),
+                                )}
                             />
                             {format.custom && (
                                 <Box pb={2}>
@@ -374,7 +377,7 @@ export const FormatForm: FC<Props> = ({
                                             >
                                                 {example}
                                             </Text>
-                                            <Text size="xs" c="ldGray.5">
+                                            <Text size="xs" c="dimmed">
                                                 {fmt}
                                             </Text>
                                         </PolymorphicPaperButton>
@@ -408,7 +411,7 @@ export const FormatForm: FC<Props> = ({
                                 </Anchor>
                             </Group>
                         }
-                        {...formatInputProps('custom')}
+                        {...formatTextInputProps(formatInputProps('custom'))}
                     />
                 </Grid.Col>
             )}
@@ -504,14 +507,18 @@ export const FormatForm: FC<Props> = ({
                                 <TextInput
                                     label="Prefix"
                                     placeholder="e.g. $"
-                                    {...formatInputProps('prefix')}
+                                    {...formatTextInputProps(
+                                        formatInputProps('prefix'),
+                                    )}
                                 />
                             </Grid.Col>
                             <Grid.Col span={compact ? 12 : 4}>
                                 <TextInput
                                     label="Suffix"
                                     placeholder="e.g. km/h"
-                                    {...formatInputProps('suffix')}
+                                    {...formatTextInputProps(
+                                        formatInputProps('suffix'),
+                                    )}
                                 />
                             </Grid.Col>
                         </>
@@ -528,9 +535,9 @@ export const FormatForm: FC<Props> = ({
                 CustomFormatType.BYTES_IEC,
             ].includes(formatType) && (
                 <Grid.Col span={12}>
-                    <Text size="xs" c="ldGray.5">
+                    <Text size="xs" c="dimmed">
                         Format expression:{' '}
-                        <Text span fw={500} c="ldGray.7">
+                        <Text span fw={500} c="dimmed">
                             {usesRuntimeOnlyFormatExpression
                                 ? 'runtime only'
                                 : formatExpression || 'default'}

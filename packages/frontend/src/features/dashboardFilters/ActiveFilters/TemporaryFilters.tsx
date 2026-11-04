@@ -1,6 +1,7 @@
 import { getDashboardFilterField } from '@lightdash/common';
 import { type FC } from 'react';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import { useDashboardTemporaryFilters } from '../../dashboard/store';
 import Filter from './Filter';
 import { UnresolvedFilter } from './UnresolvedFilter';
 import {
@@ -16,6 +17,10 @@ type Props = {
     onPopoverClose: () => void;
     triggerClassName?: string;
     dropdownClassName?: string;
+    /** Passed to each `Filter` (default false). */
+    isPlain?: boolean;
+    /** Passed to each `Filter` (default none). */
+    tablesTooltipNote?: string;
 };
 
 export const TemporaryFilters: FC<Props> = ({
@@ -26,10 +31,10 @@ export const TemporaryFilters: FC<Props> = ({
     onPopoverClose,
     triggerClassName,
     dropdownClassName,
+    isPlain = false,
+    tablesTooltipNote,
 }) => {
-    const dashboardTemporaryFilters = useDashboardContext(
-        (c) => c.dashboardTemporaryFilters,
-    );
+    const dashboardTemporaryFilters = useDashboardTemporaryFilters();
     const allFilterableFieldsMap = useDashboardContext(
         (c) => c.allFilterableFieldsMap,
     );
@@ -77,6 +82,8 @@ export const TemporaryFilters: FC<Props> = ({
                         filterRule={item}
                         triggerClassName={triggerClassName}
                         dropdownClassName={dropdownClassName}
+                        isPlain={isPlain}
+                        tablesTooltipNote={tablesTooltipNote}
                         openPopoverId={openPopoverId}
                         onPopoverOpen={onPopoverOpen}
                         onPopoverClose={onPopoverClose}
@@ -126,6 +133,8 @@ export const TemporaryFilters: FC<Props> = ({
                         filterRule={item}
                         triggerClassName={triggerClassName}
                         dropdownClassName={dropdownClassName}
+                        isPlain={isPlain}
+                        tablesTooltipNote={tablesTooltipNote}
                         openPopoverId={openPopoverId}
                         onPopoverOpen={onPopoverOpen}
                         onPopoverClose={onPopoverClose}

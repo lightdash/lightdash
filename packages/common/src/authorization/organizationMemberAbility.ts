@@ -549,6 +549,9 @@ export const applyOrganizationMemberStaticAbilities: Record<
         can('view', 'Analytics', {
             organizationUuid: member.organizationUuid,
         });
+        can('view', 'SystemAnalytics', {
+            organizationUuid: member.organizationUuid,
+        });
         can('manage', 'OrganizationMemberProfile', {
             organizationUuid: member.organizationUuid,
         });
@@ -568,6 +571,9 @@ export const applyOrganizationMemberStaticAbilities: Record<
             organizationUuid: member.organizationUuid,
         });
         can('manage', 'AiAgentThread', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('view', 'AiAgentThreadContext', {
             organizationUuid: member.organizationUuid,
         });
         can('manage', 'ScheduledDeliveries', {

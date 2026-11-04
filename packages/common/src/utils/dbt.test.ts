@@ -4,6 +4,9 @@ describe('validateDbtSelector', () => {
     it('should allow valid selectors', () => {
         const validSelectors = [
             'model_name',
+            'package:analytics,tag:lightdash',
+            ' @orders+ , tag:daily other/model ',
+            'tag:daily,tag:hourly,package:analytics',
             'tag:daily',
             'my_model+', // select my_model and all descendants
             '+my_model', // select my_model and all ancestors
@@ -26,6 +29,12 @@ describe('validateDbtSelector', () => {
 
     it('should reject invalid selectors', () => {
         const invalidSelectors = [
+            '',
+            '   ',
+            ',tag:daily',
+            'tag:daily,',
+            'tag:daily,,package:analytics',
+            'tag:daily, ,package:analytics',
             'model\\name', // backslash
             'model$name', // special character
             'model@name', // @ in the middle

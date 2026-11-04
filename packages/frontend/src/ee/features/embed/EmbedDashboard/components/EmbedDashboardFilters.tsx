@@ -4,6 +4,15 @@ import { IconRotate2 } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
 import FiltersProvider from '../../../../../components/common/Filters/FiltersProvider';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import {
+    selectActiveTab,
+    selectDashboardTiles,
+    selectHaveFiltersChanged,
+    selectParameterValues,
+    useDashboardAllFilters,
+    useDashboardSelector,
+    useHasDashboardTemporaryFilters,
+} from '../../../../../features/dashboard/store';
 import ActiveFilters from '../../../../../features/dashboardFilters/ActiveFilters';
 import AddFilterButton from '../../../../../features/dashboardFilters/AddFilterButton';
 import useDashboardContext from '../../../../../providers/Dashboard/useDashboardContext';
@@ -11,6 +20,42 @@ import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
 import { embedContractClass } from '../../styles/embedClassContract';
+import classes from './EmbedDashboardFilters.module.css';
+
+// Resets every filter once they changed, for viewers who cannot add filters
+// (with "Add filter", the button carries its own reset)
+export const EmbedResetFiltersButton: FC = () => {
+    const getUiString = useUiStrings();
+    const hasTemporaryFilters = useHasDashboardTemporaryFilters();
+    const haveFiltersChanged =
+        useDashboardSelector(selectHaveFiltersChanged) || hasTemporaryFilters;
+    const setHaveFiltersChanged = useDashboardContext(
+        (c) => c.setHaveFiltersChanged,
+    );
+    const resetDashboardFilters = useDashboardContext(
+        (c) => c.resetDashboardFilters,
+    );
+    if (!haveFiltersChanged) return null;
+    return (
+        // TODO: create a common component for this
+        <Tooltip label={getUiString('filters.resetAll')}>
+            <Button
+                data-dashboard-filter-control
+                aria-label={getUiString('filters.resetAll')}
+                size="xs"
+                variant="default"
+                color="gray"
+                onClick={() => {
+                    setHaveFiltersChanged(false);
+                    resetDashboardFilters();
+                }}
+                classNames={{ root: classes.resetButton }}
+            >
+                <MantineIcon icon={IconRotate2} />
+            </Button>
+        </Tooltip>
+    );
+};
 
 type Props = {
     canAddFilters?: boolean;
@@ -27,13 +72,13 @@ const EmbedDashboardFilters: FC<Props> = ({
     const [openPopoverId, setPopoverId] = useState<string>();
 
     const projectUuid = useDashboardContext((c) => c.projectUuid);
-    const activeTab = useDashboardContext((c) => c.activeTab);
-    const allFilters = useDashboardContext((c) => c.allFilters);
+    const activeTab = useDashboardSelector(selectActiveTab);
+    const allFilters = useDashboardAllFilters();
     const allFilterableFieldsMap = useDashboardContext(
         (c) => c.allFilterableFieldsMap,
     );
-    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
-    const parameterValues = useDashboardContext((c) => c.parameterValues);
+    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
+    const parameterValues = useDashboardSelector(selectParameterValues);
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );
@@ -45,16 +90,6 @@ const EmbedDashboardFilters: FC<Props> = ({
     );
     const allFilterableMetrics = useDashboardContext(
         (c) => c.allFilterableMetrics,
-    );
-
-    const haveFiltersChanged = useDashboardContext(
-        (c) =>
-            c.haveFiltersChanged ||
-            c.dashboardTemporaryFilters.dimensions.length > 0 ||
-            c.dashboardTemporaryFilters.metrics.length > 0,
-    );
-    const setHaveFiltersChanged = useDashboardContext(
-        (c) => c.setHaveFiltersChanged,
     );
 
     const resetDashboardFilters = useDashboardContext(
@@ -97,10 +132,6 @@ const EmbedDashboardFilters: FC<Props> = ({
         ],
     );
 
-    // AddFilterButton renders its own attached reset button once filters have
-    // changed, so the standalone reset pill below would duplicate it.
-    const showResetFiltersButton = !canAddFilters && haveFiltersChanged;
-
     return (
         <FiltersProvider
             projectUuid={projectUuid}
@@ -133,30 +164,9 @@ const EmbedDashboardFilters: FC<Props> = ({
                         )}
                     />
                 )}
-                {showResetFiltersButton && (
-                    // TODO: create a common component for this
-                    <Tooltip label={getUiString('filters.resetAll')}>
-                        <Button
-                            data-dashboard-filter-control
-                            aria-label={getUiString('filters.resetAll')}
-                            size="xs"
-                            variant="default"
-                            color="gray"
-                            onClick={() => {
-                                setHaveFiltersChanged(false);
-                                resetDashboardFilters();
-                            }}
-                            styles={{
-                                root: {
-                                    borderRadius: '100px',
-                                    borderStyle: 'dashed',
-                                },
-                            }}
-                        >
-                            <MantineIcon icon={IconRotate2} />
-                        </Button>
-                    </Tooltip>
-                )}
+                {/* AddFilterButton renders its own attached reset button once
+                    filters have changed, so this one would duplicate it */}
+                {!canAddFilters && <EmbedResetFiltersButton />}
                 <ActiveFilters
                     isEditMode={isEditMode}
                     onPopoverOpen={handlePopoverOpen}

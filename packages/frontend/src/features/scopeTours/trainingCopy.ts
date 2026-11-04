@@ -1,17 +1,23 @@
 import { type CreateTrainingPreviewResults } from '@lightdash/common';
 import { NavigationType } from 'react-router';
-import { lightdashApi } from '../../api';
+import { type LightdashApi } from '../../api';
 import { hasCodeLesson } from '../learn/codeLessons';
 
-/** A learner's own fresh copy of the training project, for one walkthrough. */
-export const createTrainingPreview = (trainingProjectUuid: string) =>
+/** The learner's own copy of the training project: the one they have, or a fresh one. */
+export const createTrainingPreview = (
+    lightdashApi: LightdashApi,
+    trainingProjectUuid: string,
+) =>
     lightdashApi<CreateTrainingPreviewResults>({
         url: `/projects/${trainingProjectUuid}/training-previews`,
         method: 'POST',
         body: undefined,
     });
 
-export const deleteTrainingPreviews = (trainingProjectUuid: string) =>
+export const deleteTrainingPreviews = (
+    lightdashApi: LightdashApi,
+    trainingProjectUuid: string,
+) =>
     lightdashApi<undefined>({
         url: `/projects/${trainingProjectUuid}/training-previews`,
         method: 'DELETE',
@@ -39,9 +45,9 @@ export const tourUrlInCopy = (
     }`;
 
 /**
- * Router state on the navigations that leave a copy about to be removed.
- * An editor's unsaved-changes guard lets these through: the copy, and
- * whatever was changed in it, is gone a moment later either way.
+ * Router state on the navigations a walkthrough makes as it ends or moves
+ * on: an editor's unsaved-changes guard lets these through, since the
+ * walkthrough itself is what is leaving, not the learner's own work.
  */
 export const LEAVING_COPY_STATE = { leavingTrainingCopy: true } as const;
 

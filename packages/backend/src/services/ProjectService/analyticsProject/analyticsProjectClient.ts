@@ -35,6 +35,7 @@ export const assertAnalyticsProjectEnabled = async (
 export const createAnalyticsClient = async (
     organizationUuid: string,
     featureFlagModel: Pick<FeatureFlagModel, 'get'>,
+    options: { allowEmpty?: boolean } = {},
 ): Promise<DuckdbWarehouseClient> => {
     await assertAnalyticsProjectEnabled(featureFlagModel, organizationUuid);
     const storage = lightdashConfig.usageEvents.s3;
@@ -44,6 +45,7 @@ export const createAnalyticsClient = async (
     const resolveSource = createS3AnalyticsSourceResolver({
         storage,
         organizationUuid,
+        ...options,
     });
     return new DuckdbWarehouseClient({
         type: 'duckdb_parquet',

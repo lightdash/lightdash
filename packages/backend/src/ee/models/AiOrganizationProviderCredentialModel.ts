@@ -57,6 +57,17 @@ export const assertInferenceGeographyForRegion = (
     }
 };
 
+/**
+ * Unless the caller decides, the first credential becomes the default, so an
+ * org is never left with credentials but nothing serving its unscoped AI
+ * paths. An explicit `false` stores the credential without activating it
+ * anywhere; an explicit `true` takes over as the default.
+ */
+export const resolveIsDefaultOnCreate = (
+    setAsDefault: boolean | undefined,
+    existingCount: number,
+): boolean => setAsDefault ?? existingCount === 0;
+
 export const isMultiCredentialAiProvider = (
     provider: string,
 ): provider is MultiCredentialAiProvider =>
@@ -67,6 +78,23 @@ export const parseCredentialConfig = (
 ): AiProviderCredentialConfig | null => {
     const parsed = credentialConfigSchema.safeParse(value);
     return parsed.success ? parsed.data : null;
+};
+
+// Request-boundary validation: a schema failure is the caller's bad input,
+// never a server error.
+export const validateCredentialConfig = (
+    value: unknown,
+): AiProviderCredentialConfig => {
+    const parsed = credentialConfigSchema.safeParse(value);
+    if (!parsed.success) {
+        const messages = parsed.error.issues.map(
+            (issue) => `${issue.path.join('.')}: ${issue.message}`,
+        );
+        throw new ParameterError(
+            `Invalid credential configuration — ${messages.join('; ')}`,
+        );
+    }
+    return parsed.data;
 };
 
 /**
@@ -381,7 +409,7 @@ export class AiOrganizationProviderCredentialModel {
         if (label.length === 0) {
             throw new ParameterError('Credential label cannot be empty');
         }
-        const config = credentialConfigSchema.parse({
+        const config = validateCredentialConfig({
             apiKey: data.apiKey.trim(),
             region: data.region,
             allowedModels: data.allowedModels,
@@ -390,12 +418,28 @@ export class AiOrganizationProviderCredentialModel {
         assertInferenceGeographyForRegion(config);
 
         return this.database.transaction(async (trx) => {
-            // First credential becomes the default, so an org is never left
-            // with credentials but nothing serving its unscoped AI paths.
             const existingCount = await this.countByOrganizationUuid(
                 organizationUuid,
                 trx,
             );
+            const isDefault = resolveIsDefaultOnCreate(
+                data.setAsDefault,
+                existingCount,
+            );
+
+            if (isDefault && existingCount > 0) {
+                // Partial unique index allows one default per organization, so
+                // clear the previous default inside the same transaction.
+                await trx<AiOrganizationProviderCredentialTable>(
+                    AiOrganizationProviderCredentialTableName,
+                )
+                    .where('organization_uuid', organizationUuid)
+                    .andWhere('is_default', true)
+                    .update({
+                        is_default: false,
+                        updated_at: this.database.raw('NOW()'),
+                    });
+            }
 
             const [row] = await trx<AiOrganizationProviderCredentialTable>(
                 AiOrganizationProviderCredentialTableName,
@@ -405,7 +449,7 @@ export class AiOrganizationProviderCredentialModel {
                     provider: data.provider,
                     label,
                     encrypted_config: this.encryptConfig(config),
-                    is_default: existingCount === 0,
+                    is_default: isDefault,
                     created_by_user_uuid: createdByUserUuid,
                 })
                 .onConflict(['organization_uuid', 'label'])
@@ -446,7 +490,7 @@ export class AiOrganizationProviderCredentialModel {
         if (label.length === 0) {
             throw new ParameterError('Credential label cannot be empty');
         }
-        const config = credentialConfigSchema.parse({
+        const config = validateCredentialConfig({
             apiKey: data.apiKey?.trim() ?? existing.config.apiKey,
             region: data.region ?? existing.config.region,
             allowedModels: data.allowedModels ?? existing.config.allowedModels,
@@ -491,7 +535,7 @@ export class AiOrganizationProviderCredentialModel {
         if (label.length === 0) {
             throw new ParameterError('Credential label cannot be empty');
         }
-        const config = credentialConfigSchema.parse({
+        const config = validateCredentialConfig({
             apiKey: data.apiKey.trim(),
             region: data.region,
             allowedModels: data.allowedModels,
@@ -568,26 +612,11 @@ export class AiOrganizationProviderCredentialModel {
             if (!deleted) {
                 throw new NotFoundError('AI provider credential not found');
             }
-            if (!deleted.is_default) return;
-
-            const next = await trx(AiOrganizationProviderCredentialTableName)
-                .select('ai_organization_provider_credential_uuid')
-                .where('organization_uuid', organizationUuid)
-                .orderBy('label', 'asc')
-                .first();
-            if (!next) return;
-
-            await trx<AiOrganizationProviderCredentialTable>(
-                AiOrganizationProviderCredentialTableName,
-            )
-                .where(
-                    'ai_organization_provider_credential_uuid',
-                    next.ai_organization_provider_credential_uuid,
-                )
-                .update({
-                    is_default: true,
-                    updated_at: this.database.raw('NOW()'),
-                });
+            // Deleting the default promotes nothing: silently activating a
+            // credential the admin never activated could move AI traffic to a
+            // region they did not choose. Unscoped paths fall back to the
+            // instance provider until a credential is explicitly made the
+            // default.
         });
     }
 

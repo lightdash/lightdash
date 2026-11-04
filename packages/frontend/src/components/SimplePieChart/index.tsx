@@ -1,3 +1,4 @@
+import { Box } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconChartPieOff } from '@tabler/icons-react';
 import { type ECElementEvent } from 'echarts';
@@ -15,23 +16,27 @@ import useEchartsPieConfig, {
     type PieSeriesDataPoint,
 } from '../../hooks/echarts/useEchartsPieConfig';
 import { useLegendDoubleClickSelection } from '../../hooks/echarts/useLegendDoubleClickSelection';
+import { useLegendScrollPosition } from '../../hooks/echarts/useLegendScrollPosition';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
 import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import EChartsReact from '../EChartsReactWrapper';
-import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import {
+    useVisualizationServices,
+    useVisualizationInputs,
+} from '../LightdashVisualization/useVisualizationContext';
 import PieChartContextMenu, {
     type PieChartContextMenuProps,
 } from './PieChartContextMenu';
 
 const EmptyChart = () => (
-    <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
+    <Box h="100%" w="100%" py={50}>
         <SuboptimalState
             title="No data available"
             description="Query metrics and dimensions with results."
             icon={IconChartPieOff}
         />
-    </div>
+    </Box>
 );
 
 type SimplePieChartProps = Omit<EChartsReactProps, 'option'> & {
@@ -52,8 +57,8 @@ const SimplePieChart: FC<SimplePieChartProps> = memo(
         enableContextMenu = true,
         ...props
     }) => {
-        const { chartRef, isLoading, resultsData, minimal } =
-            useVisualizationContext();
+        const { chartRef } = useVisualizationServices();
+        const { isLoading, resultsData, minimal } = useVisualizationInputs();
         const { selectedLegends, onLegendChange } =
             useLegendDoubleClickSelection();
 
@@ -61,6 +66,8 @@ const SimplePieChart: FC<SimplePieChartProps> = memo(
             selectedLegends,
             props.isInDashboard,
         );
+        const { optionWithScrollPosition, onLegendScroll } =
+            useLegendScrollPosition(chartRef, pieChartOptions?.eChartsOption);
         const { shouldShowMenu, canViewUnderlyingData } =
             useContextMenuPermissions({
                 minimal,
@@ -94,7 +101,7 @@ const SimplePieChart: FC<SimplePieChartProps> = memo(
                 chartRef.current?.getEchartsInstance().resize();
             window.addEventListener('resize', listener);
             return () => window.removeEventListener('resize', listener);
-        });
+        }, [chartRef]);
 
         const handleOpenContextMenu = useCallback(
             (e: ECElementEvent) => {
@@ -130,8 +137,14 @@ const SimplePieChart: FC<SimplePieChartProps> = memo(
                       }
                     : {}),
                 legendselectchanged: onLegendChange,
+                legendscroll: onLegendScroll,
             }),
-            [enableContextMenu, handleOpenContextMenu, onLegendChange],
+            [
+                enableContextMenu,
+                handleOpenContextMenu,
+                onLegendChange,
+                onLegendScroll,
+            ],
         );
 
         if (isLoading) return <LoadingChart />;
@@ -142,6 +155,7 @@ const SimplePieChart: FC<SimplePieChartProps> = memo(
                 <EChartsReact
                     ref={chartRef}
                     className={props.className}
+                    // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                     style={
                         props.$shouldExpand
                             ? {
@@ -156,7 +170,10 @@ const SimplePieChart: FC<SimplePieChartProps> = memo(
                               }
                     }
                     opts={EchartOptions}
-                    option={pieChartOptions.eChartsOption}
+                    option={
+                        optionWithScrollPosition ??
+                        pieChartOptions.eChartsOption
+                    }
                     notMerge
                     {...props}
                     onEvents={onEvents}

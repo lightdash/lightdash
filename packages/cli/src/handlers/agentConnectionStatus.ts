@@ -8,6 +8,10 @@ import {
 } from '../agentConnections/lifecycle';
 import { type AgentConnectionSlot } from '../agentConnections/schema';
 import {
+    checkConnectionErrorEnvelope,
+    ConnectionServerError,
+} from '../agentConnections/serverError';
+import {
     ConnectionMismatchError,
     connectionResponse,
     publicConnectionReport,
@@ -102,6 +106,7 @@ export const agentConnectionStatusHandler = async (
                         },
                     });
                     const value: unknown = await response.json();
+                    checkConnectionErrorEnvelope(response.status, value);
                     const requestedSlot = slot;
                     const latest = await store.readSlot(slot);
                     if (!latest || latest.grantUuid !== slot.grantUuid)
@@ -136,7 +141,9 @@ export const agentConnectionStatusHandler = async (
                 state = failure.state;
             else if (failure instanceof ConnectionMismatchError)
                 state = 'mismatched';
-            if (state === 'invalid')
+            if (failure instanceof ConnectionServerError)
+                error = `Connection status is unconfirmed. ${failure.message}`;
+            else if (state === 'invalid')
                 error =
                     slot === null
                         ? 'Invalid agent connection data. Reconnect before using this slot.'

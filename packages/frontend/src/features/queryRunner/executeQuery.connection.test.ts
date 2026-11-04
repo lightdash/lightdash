@@ -6,21 +6,20 @@ import {
     VizAggregationOptions,
 } from '@lightdash/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../api';
+import { sharedLightdashApi } from '../../api';
+import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { getResultsFromStream } from '../../utils/request';
 import { executeSqlQuery } from './executeQuery';
 import { getPivotQueryFunctionForSqlQuery } from './sqlRunnerPivotQueries';
 
-vi.mock('../../api', () => ({
-    lightdashApi: vi.fn(),
-}));
+vi.mock('../../api');
 
 vi.mock('../../utils/request', () => ({
     getResultsFromStream: vi.fn(),
 }));
 
 const serveReadyQuery = () => {
-    vi.mocked(lightdashApi)
+    mockedLightdashApi
         .mockResolvedValueOnce({ queryUuid: 'query-uuid' } as never)
         .mockResolvedValueOnce({
             status: QueryHistoryStatus.READY,
@@ -32,7 +31,7 @@ const serveReadyQuery = () => {
 };
 
 const postedBody = () =>
-    JSON.parse(vi.mocked(lightdashApi).mock.calls[0][0].body as string);
+    JSON.parse(mockedLightdashApi.mock.calls[0][0].body as string);
 
 describe('SQL runner request bodies and the active connection', () => {
     beforeEach(() => {
@@ -42,9 +41,16 @@ describe('SQL runner request bodies and the active connection', () => {
     it('sends the exact main body when no connection is given', async () => {
         serveReadyQuery();
 
-        await executeSqlQuery('project-uuid', 'select 1', 10, {}, true);
+        await executeSqlQuery(
+            sharedLightdashApi,
+            'project-uuid',
+            'select 1',
+            10,
+            {},
+            true,
+        );
 
-        expect(vi.mocked(lightdashApi).mock.calls[0][0].body).toBe(
+        expect(mockedLightdashApi.mock.calls[0][0].body).toBe(
             JSON.stringify({
                 sql: 'select 1',
                 limit: 10,
@@ -61,6 +67,7 @@ describe('SQL runner request bodies and the active connection', () => {
         serveReadyQuery();
 
         await executeSqlQuery(
+            sharedLightdashApi,
             'project-uuid',
             'select 1',
             10,
@@ -79,7 +86,7 @@ describe('SQL runner request bodies and the active connection', () => {
     });
 
     const pivotQuery = (warehouseConnectionUuid?: string | null) =>
-        getPivotQueryFunctionForSqlQuery({
+        getPivotQueryFunctionForSqlQuery(sharedLightdashApi, {
             projectUuid: 'project-uuid',
             sql: 'select 1',
             limit: 10,

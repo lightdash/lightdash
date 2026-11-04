@@ -11,18 +11,22 @@ import {
     useQueryClient,
     type UseQueryOptions,
 } from '@tanstack/react-query';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import useToaster from './toaster/useToaster';
 import useQueryError from './useQueryError';
 
-const getOAuthClients = async () =>
+const getOAuthClients = async (lightdashApi: LightdashApi) =>
     lightdashApi<OAuthClientSummary[]>({
         url: `/oauth/clients`,
         method: 'GET',
         body: undefined,
     });
 
-const createOAuthClient = async (data: CreateOAuthClientRequest) =>
+const createOAuthClient = async (
+    lightdashApi: LightdashApi,
+    data: CreateOAuthClientRequest,
+) =>
     lightdashApi<CreateOAuthClientResponse>({
         url: `/oauth/clients`,
         method: 'POST',
@@ -30,6 +34,7 @@ const createOAuthClient = async (data: CreateOAuthClientRequest) =>
     });
 
 const updateOAuthClient = async (
+    lightdashApi: LightdashApi,
     clientId: string,
     data: UpdateOAuthClientRequest,
 ) =>
@@ -39,7 +44,10 @@ const updateOAuthClient = async (
         body: JSON.stringify(data),
     });
 
-const deleteOAuthClient = async (clientId: string) =>
+const deleteOAuthClient = async (
+    lightdashApi: LightdashApi,
+    clientId: string,
+) =>
     lightdashApi<undefined>({
         url: `/oauth/clients/${clientId}`,
         method: 'DELETE',
@@ -49,10 +57,11 @@ const deleteOAuthClient = async (clientId: string) =>
 export const useOAuthClients = (
     useQueryOptions?: UseQueryOptions<OAuthClientSummary[], ApiError>,
 ) => {
+    const lightdashApi = useLightdashApi();
     const setErrorResponse = useQueryError();
     return useQuery<OAuthClientSummary[], ApiError>({
         queryKey: ['oauth_clients'],
-        queryFn: () => getOAuthClients(),
+        queryFn: () => getOAuthClients(lightdashApi),
         retry: false,
         onError: (result) => setErrorResponse(result),
         ...useQueryOptions,
@@ -60,13 +69,14 @@ export const useOAuthClients = (
 };
 
 export const useCreateOAuthClient = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
     return useMutation<
         CreateOAuthClientResponse,
         ApiError,
         CreateOAuthClientRequest
-    >((data) => createOAuthClient(data), {
+    >((data) => createOAuthClient(lightdashApi, data), {
         mutationKey: ['oauth_clients'],
         onSuccess: async () => {
             await queryClient.invalidateQueries(['oauth_clients']);
@@ -81,13 +91,14 @@ export const useCreateOAuthClient = () => {
 };
 
 export const useUpdateOAuthClient = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
         OAuthClientSummary,
         ApiError,
         { clientId: string; data: UpdateOAuthClientRequest }
-    >(({ clientId, data }) => updateOAuthClient(clientId, data), {
+    >(({ clientId, data }) => updateOAuthClient(lightdashApi, clientId, data), {
         mutationKey: ['oauth_clients'],
         onSuccess: async () => {
             await queryClient.invalidateQueries(['oauth_clients']);
@@ -105,21 +116,25 @@ export const useUpdateOAuthClient = () => {
 };
 
 export const useDeleteOAuthClient = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
-    return useMutation<undefined, ApiError, string>(deleteOAuthClient, {
-        mutationKey: ['oauth_clients'],
-        onSuccess: async () => {
-            await queryClient.invalidateQueries(['oauth_clients']);
-            showToastSuccess({
-                title: `OAuth application deleted`,
-            });
+    return useMutation<undefined, ApiError, string>(
+        (clientId: string) => deleteOAuthClient(lightdashApi, clientId),
+        {
+            mutationKey: ['oauth_clients'],
+            onSuccess: async () => {
+                await queryClient.invalidateQueries(['oauth_clients']);
+                showToastSuccess({
+                    title: `OAuth application deleted`,
+                });
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: `Failed to delete OAuth application`,
+                    apiError: error,
+                });
+            },
         },
-        onError: ({ error }) => {
-            showToastApiError({
-                title: `Failed to delete OAuth application`,
-                apiError: error,
-            });
-        },
-    });
+    );
 };

@@ -4,6 +4,7 @@ import {
     getErrorMessage,
     NotFoundError,
     ParameterError,
+    supportsConnectionDatabaseListing,
     WAREHOUSE_LISTED_DATABASES_LIMIT,
     WarehouseTypes,
     type CreateWarehouseCredentials,
@@ -15,15 +16,6 @@ import {
     canConnectToPostgresDatabaseName,
     unopenablePostgresDatabaseMessage,
 } from '@lightdash/warehouses';
-
-const DATABASE_LISTING_WAREHOUSE_TYPES: WarehouseTypes[] = [
-    WarehouseTypes.POSTGRES,
-    WarehouseTypes.ATHENA,
-];
-
-export const supportsConnectionDatabaseListing = (
-    warehouseType: WarehouseTypes,
-): boolean => DATABASE_LISTING_WAREHOUSE_TYPES.includes(warehouseType);
 
 export const getDatabaseListFailureReason = (
     error: unknown,
@@ -172,10 +164,24 @@ export const findListedDatabase = (
 export const findListedCatalogDatabase = (
     listing: WarehouseDatabaseListing,
     databaseName: string,
+    warehouseType: WarehouseTypes,
 ): WarehouseListedDatabase => {
-    const listedDatabase = listing.databases.find(
-        ({ database }) => database === databaseName,
-    );
+    const listedDatabase =
+        listing.databases.find(({ database }) => database === databaseName) ??
+        (warehouseType === WarehouseTypes.SNOWFLAKE
+            ? listing.databases.find(
+                  ({ database }) =>
+                      database.toLowerCase() === databaseName.toLowerCase(),
+              )
+            : undefined);
+    if (!listedDatabase && !supportsConnectionDatabaseListing(warehouseType)) {
+        return {
+            name: databaseName,
+            database: databaseName,
+            schema: null,
+            isDefault: false,
+        };
+    }
     if (!listedDatabase) {
         throw new NotFoundError(
             `Warehouse database "${databaseName}" not found`,

@@ -183,22 +183,40 @@ resolver while its backend checked only ENV. Enabling Console made the menu
 visible but could never enable the API. An ENV workaround can restore availability;
 the proper fix is to use the standard resolver across entry points.
 
+## Pre-aggregates
+
+Pre-aggregates are not behind a feature flag. They are on for every
+organization when the instance has a licence, `PRE_AGGREGATES_ENABLED=true` and
+pre-aggregate results storage. Preview mode, `LIGHTDASH_ENABLED_FEATURE_FLAGS`
+and Console overrides have no effect on them. See
+[Enablement](pre-aggregates/CONTEXT.md#enablement).
+
 ## Agent identity
 
 `agent-identity` enables organisation identity rules for each warehouse type and
-their API, the agent connection section in My warehouse connections, and the
-connect gate in AI chat. The same flag gates Snowflake agent sign-in, BigQuery
-AI service account slots, AI access checks, warehouse capabilities and marker
-tests. Disabled routes return a typed `FeatureNotEnabledError` with HTTP 403.
+their API, My agent identity, and the connect gate in AI chat. My agent identity
+has Agent connections and Warehouse sign-ins tabs. With no connections and no
+list error, it shows warehouse sign-ins alone. The same flag gates Snowflake
+agent sign-in, BigQuery shared agent accounts, AI access checks, warehouse
+capabilities and marker tests. Disabled warehouse identity routes return a typed
+`FeatureNotEnabledError` with HTTP 403. Approval returns
+`AgentConnectionApprovalError` with code `agent_identity_disabled` and HTTP 403.
+The owner list and revoke APIs make no flag check.
 
-Snowflake rules select the same credentials as the user or a separate agent
-sign-in for each person. BigQuery rules select the same credentials as the user
-or the AI service account saved on each project connection. Both actor rows use
-the same rule. Service accounts cannot use a personal Snowflake agent sign-in.
+Agent connection approval requires the flag for both the person and organisation.
+Approval is review-only: it creates no connection, code or token.
+An agent connection limits requests using its credential; it does not isolate
+[local CLI programs](../packages/cli/README.md#scoped-cli-credentials).
+
+Snowflake rules select **The person**, **The person's agent sign-in** or
+**Shared agent account**.
+BigQuery rules select **The person** or the **Shared agent account** saved on
+each project connection. Both actor rows use the same rule. Service accounts
+cannot use a personal Snowflake agent sign-in.
 
 Required rules refuse queries when the selected identity is missing. Optional
 rules fall back to the user's credentials when it is missing. A saved BigQuery
-AI service account that cannot sign in always refuses the query. Its queries
+shared agent account that cannot sign in always refuses the query. Its queries
 bypass result caches and pre-aggregates, carry the agent label, and disable the
 BigQuery query cache. Replacing its credentials invalidates prior result
 provenance.
@@ -320,51 +338,13 @@ before saving.
 
 ### Snowflake silent agent refresh
 
-`agent-identity-silent-refresh` is a default-on defect-fix kill switch. The
-handler uses the standard database resolver with a true fallback. Console user
-and organisation overrides and instance defaults apply. The generic ENV lists
-have the precedence described above; there is no per-feature ENV setting.
-
-The flag is resolved for the requesting user and organisation only after
-`agent-identity` is enabled and a Snowflake agent sign-in provider is selected.
-Other identity sources and disabled agent identity add no flag or credential
-reads. It affects query refresh and side-effect-free connection status checks.
-
-When on, the OAuth endpoint decides whether the grant is alive. Successful
-refreshes update the token and grant deadline together through a guarded write.
+With `agent-identity` enabled and a Snowflake agent sign-in provider selected,
+the OAuth endpoint decides whether the grant is alive. Successful refreshes
+update the token and grant deadline together through a guarded write.
 Temporary failures keep credentials and return a retryable error. A confirmed
-`invalid_grant` refusal emits expiry analytics on query evaluations. When off,
-the stored-deadline checks and legacy refresh-error mapping apply.
-
-Console changes affect the next resolution without a restart. ENV changes need
-a process restart. Disabling this flag does not undo token rotations or revoke
-issued tokens. It does not change non-agent Snowflake authentication.
-
-### Warehouse OAuth refresh locking
-
-`warehouse-oauth-refresh-lock` is a default-on kill switch. When it is on, a
-Snowflake or Databricks OAuth refresh runs one at a time per credential row.
-Databricks U2M and M2M refresh-token grants use the lock. M2M client-credentials
-grants and submitted credentials without a stored owner stay unlocked. Callers
-in one process share one refresh. A PostgreSQL advisory
-transaction lock serializes refreshes of the row across processes, and the
-waiter refreshes with the rotated token that the first caller saved.
-
-Callers resolve the flag for the credential's organisation, without a user
-UUID, so personal overrides do not apply. Instance defaults, organisation
-overrides and the generic ENV precedence apply.
-
-At most a quarter of the pool, minimum one, holds a refresh lock at
-one time in each process. A caller waits up to 30 seconds for a slot and up to
-5 seconds for the advisory lock. The guarded token write can wait longer for a
-database row lock. Token requests close their sockets after 30 seconds
-of inactivity. A timeout returns a retryable refresh error.
-
-Console changes apply to the next refresh. Turning the flag off restores the
-previous refresh behavior inside the resolver: no locked reread or request
-deadline, with the legacy rotation-write policy. It does not undo rotations or
-enable a disabled preview credential-resolution path. ENV changes need a process
-restart.
+`invalid_grant` refusal emits expiry analytics on query evaluations.
+Side-effect-free connection status checks do not reject a sign-in solely because
+its stored deadline has passed. Non-agent Snowflake authentication is unchanged.
 
 ### OAuth scope enforcement
 
@@ -428,14 +408,43 @@ apply. Compile, test-and-compile, preview projects and scheduler workers use the
 same policy. Console changes apply to the next policy resolution. The generic
 ENV lists use the precedence above and need an API and worker restart.
 
-When enabled, local dbt compilation refuses authentication modes that depend on
-the server's cloud identity. Use an explicit key or a person's sign-in instead.
-The dbt child process also stops inheriting the cloud credential variables in
-`CLOUD_CREDENTIAL_ENVIRONMENT_VARIABLE_KEYS`, including those in the machine
-allowlist. Project environment variables and target-injected credentials remain
-available. The server environment does not change.
+When enabled, local dbt compilation refuses ambient authentication modes.
+Use an explicit key, a person's sign-in or BigQuery workload identity federation
+instead. The dbt child process also stops inheriting the cloud credential
+variables in `CLOUD_CREDENTIAL_ENVIRONMENT_VARIABLE_KEYS`, including those in
+the machine allowlist. Project environment variables and target-injected
+credentials remain available. The server environment does not change.
+
+BigQuery workload identity federation counts as explicit credentials because its
+provider is configured per project and its federated principal is scoped by the
+customer's workload identity pool. The dbt child receives a generated
+`external_account` file through `GOOGLE_APPLICATION_CREDENTIALS`, without a
+service account key or inherited Application Default Credentials (ADC). Its
+subject token still comes from the server's Google identity, so
+`bigquery-workload-identity-auth` must stay off on shared instances.
 
 Disabling the flag restores the existing profile and child-environment behaviour.
 It does not change credential selection, revoke credentials or stop work already
 in progress. This policy does not isolate the child from host files or metadata
 endpoints; it rejects known ambient modes and filters inherited variables.
+
+### Mixed warehouse connections
+
+`mixed-warehouse-connections` is off by default on Cloud and self-hosted. It
+allows originals and extras of every user-connectable warehouse type, in any
+mix. With it off, only Postgres, Athena and Snowflake originals can hold extras,
+and extras must use the original type. Trino is refused with the flag off.
+Backend-provisioned DuckDB variants are always refused. The multi-connection rollout flag and
+licence checks still apply.
+
+Create, credential update and switch requests resolve this flag for the requesting
+user and the project's organisation. User and organisation Console overrides
+apply. The add-connection modal uses the server-resolved flag. Console changes
+apply to the next backend request and frontend flag refetch. The generic ENV
+precedence above applies; ENV changes require an API restart.
+
+Disabling the flag restores the original allowlist for new saves and switches.
+An existing extra cannot change its type with either flag value; add a new
+connection instead. It does not remove
+saved connections or change query execution. Mixed-type extras keep their own
+user-credential requirement; same-type extras still inherit the original's.

@@ -31,6 +31,7 @@ import { useProject } from '../../../hooks/useProject';
 import { useRedshiftAwsSsoLoginPopup } from '../../../hooks/useRedshiftAwsSso';
 import { getUserWarehouseCredentials } from '../../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
 import { useSnowflakeLoginPopup } from '../../../hooks/useSnowflake';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import MantineIcon from '../../common/MantineIcon';
 import {
     getSsoLabel,
@@ -45,13 +46,15 @@ const BigQueryFormInput: FC<{
     onClose: () => void;
     onSuccess?: (data: UserWarehouseCredentials) => void;
 }> = ({ onClose, onSuccess }) => {
+    const lightdashApi = useLightdashApi();
     const { mutate: openLoginPopup } = useGoogleLoginPopup(
         'bigquery',
         async () => {
             // The credential is created server-side during the OAuth flow, so
             // fetch it to save the project preference like the form-based path
             try {
-                const credentials = await getUserWarehouseCredentials();
+                const credentials =
+                    await getUserWarehouseCredentials(lightdashApi);
                 const bigqueryCredential = credentials
                     .filter(
                         ({ credentials: c }) =>

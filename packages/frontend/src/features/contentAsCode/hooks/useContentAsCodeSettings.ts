@@ -3,13 +3,14 @@ import {
     type ApiError,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 const CONTENT_AS_CODE_SETTINGS_QUERY_KEY = 'content-as-code-settings';
 
 // The content_as_code flags last stamped on the project by an upload or pull
-export const useContentAsCodeSettings = (projectUuid: string | undefined) =>
-    useQuery<ApiContentAsCodeSettingsResponse['results'], ApiError>({
+export const useContentAsCodeSettings = (projectUuid: string | undefined) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ApiContentAsCodeSettingsResponse['results'], ApiError>({
         queryKey: [CONTENT_AS_CODE_SETTINGS_QUERY_KEY, projectUuid],
         queryFn: () =>
             lightdashApi<ApiContentAsCodeSettingsResponse['results']>({
@@ -19,3 +20,4 @@ export const useContentAsCodeSettings = (projectUuid: string | undefined) =>
             }),
         enabled: projectUuid !== undefined,
     });
+};

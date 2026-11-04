@@ -2769,3 +2769,135 @@ describe.each(agentActionTestCases)(
         );
     },
 );
+
+describe('CoderService.upsertChart new chart defaults', () => {
+    const updatedAt = new Date('2026-09-01T12:00:00.000Z');
+    const existingChart = {
+        uuid: 'chart-uuid',
+        slug: 'orders',
+        name: 'Orders',
+        description: null,
+        updatedAt,
+        spaceUuid: 'space-uuid',
+        chartConfig: {
+            type: ChartType.CARTESIAN,
+            config: { layout: {}, eChartsConfig: {} },
+        },
+    };
+    const chartAsCode = {
+        name: 'Orders',
+        description: null,
+        slug: 'orders',
+        spaceSlug: 'space',
+        updatedAt,
+        chartConfig: {
+            type: ChartType.CARTESIAN,
+            config: {
+                layout: { xField: 'orders_created_week' },
+                eChartsConfig: {},
+            },
+        },
+        metricQuery: { exploreName: 'orders', filters: {} },
+        tableName: 'orders',
+    };
+
+    const upload = async (existing: typeof existingChart | undefined) => {
+        const create = vi.fn(async () => ({ uuid: 'new-chart-uuid' }));
+        const upsertCharts = vi.fn(
+            async (_user: AnyType, changes: AnyType) => changes,
+        );
+        const service = Object.assign(Object.create(CoderService.prototype), {
+            resolveSyncEnabled: vi.fn(async () => false),
+            projectModel: {
+                get: vi.fn(async () => ({
+                    projectUuid: 'project-uuid',
+                    organizationUuid: 'organization-uuid',
+                })),
+            },
+            savedChartModel: {
+                find: vi.fn(async () => (existing ? [existing] : [])),
+                create,
+            },
+            promoteService: {
+                getPromoteCharts: vi.fn(async () => ({
+                    promotedChart: {
+                        chart: existing,
+                        space: { uuid: 'space-uuid', slug: 'space' },
+                        spaces: [],
+                    },
+                    upstreamChart: {
+                        chart: existing && {
+                            uuid: existing.uuid,
+                            name: existing.name,
+                            updatedAt: existing.updatedAt,
+                        },
+                        projectUuid: 'project-uuid',
+                    },
+                })),
+                getChartChanges: vi.fn(async (promotedChart: AnyType) => ({
+                    spaces: [],
+                    dashboards: [],
+                    charts: [
+                        {
+                            action: PromotionAction.UPDATE,
+                            data: promotedChart.chart,
+                        },
+                    ],
+                })),
+                upsertCharts,
+            },
+            createAuditedAbility: vi.fn(() => ({
+                can: () => true,
+                cannot: () => false,
+            })),
+            prepareDirectAccessReplace: vi.fn(async () => []),
+            findAccessibleSpace: vi.fn(async () => ({ uuid: 'space-uuid' })),
+            getOrCreateSpace: vi.fn(async () => ({
+                space: { uuid: 'space-uuid' },
+                created: false,
+            })),
+            assertSpaceContentAccess: vi.fn(async () => undefined),
+            assertContentAccessForMissingSpace: vi.fn(async () => undefined),
+            spacePermissionService: {
+                resolveAccessBatch: vi.fn(async () => ({})),
+            },
+            syncVerification: vi.fn(async () => undefined),
+            stampAppliedChartSnapshot: vi.fn(async () => undefined),
+            applyDirectAccessPolicy: vi.fn(async () => undefined),
+        }) as CoderService;
+
+        await service.upsertChart(
+            { userUuid: 'user-uuid' } as AnyType,
+            'project-uuid',
+            'orders',
+            chartAsCode as AnyType,
+        );
+        return { create, upsertCharts };
+    };
+
+    it('turns the incomplete period on for a chart created from code without it', async () => {
+        const { create } = await upload(undefined);
+        expect(create).toHaveBeenCalledTimes(1);
+        expect(
+            (create.mock.calls[0] as unknown as [string, string, AnyType])[2]
+                .chartConfig,
+        ).toEqual({
+            type: ChartType.CARTESIAN,
+            config: {
+                layout: {
+                    xField: 'orders_created_week',
+                    showIncompletePeriod: true,
+                },
+                eChartsConfig: {},
+            },
+        });
+    });
+
+    it('leaves an existing chart uploaded without it unchanged', async () => {
+        const { create, upsertCharts } = await upload(existingChart);
+        expect(create).not.toHaveBeenCalled();
+        expect(
+            upsertCharts.mock.calls[0][1].charts[0].data.chartConfig,
+        ).toEqual(chartAsCode.chartConfig);
+    });
+});

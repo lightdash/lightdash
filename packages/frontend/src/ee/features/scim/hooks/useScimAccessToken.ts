@@ -10,26 +10,30 @@ import {
     useQueryClient,
     type UseQueryOptions,
 } from '@tanstack/react-query';
-import { lightdashApi } from '../../../../api';
+import { type LightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import useQueryError from '../../../../hooks/useQueryError';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 
 // gets users access tokens
-const getScimToken = async () =>
+const getScimToken = async (lightdashApi: LightdashApi) =>
     lightdashApi<ServiceAccount[]>({
         url: `/scim/organization-access-tokens`,
         method: 'GET',
         body: undefined,
     });
 
-const createScimToken = async (data: ApiCreateScimServiceAccountRequest) =>
+const createScimToken = async (
+    lightdashApi: LightdashApi,
+    data: ApiCreateScimServiceAccountRequest,
+) =>
     lightdashApi<ApiCreateServiceAccountResponse>({
         url: `/scim/organization-access-tokens`,
         method: 'POST',
         body: JSON.stringify(data),
     });
 
-const deleteScimToken = async (tokenUuid: string) =>
+const deleteScimToken = async (lightdashApi: LightdashApi, tokenUuid: string) =>
     lightdashApi<null>({
         url: `/scim/organization-access-tokens/${tokenUuid}`,
         method: 'DELETE',
@@ -39,10 +43,11 @@ const deleteScimToken = async (tokenUuid: string) =>
 export const useScimTokenList = (
     useQueryOptions?: UseQueryOptions<ServiceAccount[], ApiError>,
 ) => {
+    const lightdashApi = useLightdashApi();
     const setErrorResponse = useQueryError();
     return useQuery<ServiceAccount[], ApiError>({
         queryKey: ['scim_access_tokens'],
-        queryFn: () => getScimToken(),
+        queryFn: () => getScimToken(lightdashApi),
         retry: false,
         onError: (result) => setErrorResponse(result),
         ...useQueryOptions,
@@ -50,13 +55,14 @@ export const useScimTokenList = (
 };
 
 export const useCreateScimToken = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
     return useMutation<
         ApiCreateServiceAccountResponse,
         ApiError,
         ApiCreateScimServiceAccountRequest
-    >((data) => createScimToken(data), {
+    >((data) => createScimToken(lightdashApi, data), {
         mutationKey: ['create_scim_access_token'],
         retry: 3,
         onSuccess: async () => {
@@ -72,21 +78,25 @@ export const useCreateScimToken = () => {
 };
 
 export const useDeleteScimToken = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
-    return useMutation<null, ApiError, string>(deleteScimToken, {
-        mutationKey: ['delete_scim_access_token'],
-        onSuccess: async () => {
-            await queryClient.invalidateQueries(['scim_access_tokens']);
-            showToastSuccess({
-                title: `Success! Your token was deleted.`,
-            });
+    return useMutation<null, ApiError, string>(
+        (tokenUuid: string) => deleteScimToken(lightdashApi, tokenUuid),
+        {
+            mutationKey: ['delete_scim_access_token'],
+            onSuccess: async () => {
+                await queryClient.invalidateQueries(['scim_access_tokens']);
+                showToastSuccess({
+                    title: `Success! Your token was deleted.`,
+                });
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: `Failed to delete token`,
+                    apiError: error,
+                });
+            },
         },
-        onError: ({ error }) => {
-            showToastApiError({
-                title: `Failed to delete token`,
-                apiError: error,
-            });
-        },
-    });
+    );
 };

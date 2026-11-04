@@ -112,6 +112,7 @@ const meta: Meta<typeof AppVersionHistoryPanel> = {
         viewedVersion: null,
         onView: fn(),
         onRestore: fn(),
+        onCancel: fn(),
         onClose: null,
         onBack: fn(),
         liveBuild: null,

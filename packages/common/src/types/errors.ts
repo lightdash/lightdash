@@ -10,6 +10,7 @@ import {
 import { type AnyType } from './any';
 import { type DbtLog } from './job';
 import type { SharedSignInExpiry } from './sharedSignIn';
+import type { WarehousePhaseTimings, WarehouseQueryPhase } from './warehouse';
 
 type LightdashErrorData = {
     /**
@@ -66,10 +67,12 @@ export class ForbiddenError extends LightdashError {
     }
 }
 
+export const FEATURE_NOT_ENABLED_CODE = 'feature_not_enabled';
+
 export class FeatureNotEnabledError extends ForbiddenError {
     constructor(featureFlagId: string) {
         super('This feature is not enabled for your organisation.', {
-            code: 'feature_not_enabled',
+            code: FEATURE_NOT_ENABLED_CODE,
             featureFlagId,
         });
         this.name = 'FeatureNotEnabledError';
@@ -480,6 +483,39 @@ export class WarehouseQueryError extends LightdashError {
             message,
             name: 'WarehouseQueryError',
             statusCode: 400,
+            data,
+        });
+    }
+}
+
+export type WarehouseQueryTimeoutDetails = {
+    step: WarehouseQueryPhase;
+    stepElapsedMs: number;
+    completedStepTimingsMs: WarehousePhaseTimings;
+    rowsFetched: number;
+    backendPid: number | null;
+};
+
+/**
+ * The client gave up because the warehouse never reported back, as opposed
+ * to the warehouse cancelling the query itself.
+ */
+export class WarehouseQueryTimeoutError extends WarehouseQueryError {
+    constructor(message: string, details: WarehouseQueryTimeoutDetails) {
+        super(message, details);
+        this.name = 'WarehouseQueryTimeoutError';
+    }
+}
+
+export class QueryCostEstimateExceededError extends LightdashError {
+    constructor(
+        message: string,
+        data: { estimatedBytes: number; limitBytes: number },
+    ) {
+        super({
+            message,
+            name: 'QueryCostEstimateExceededError',
+            statusCode: 422,
             data,
         });
     }
@@ -896,7 +932,10 @@ export class AiAgentValidatorError extends LightdashError {
     }
 }
 
-export type WarehouseTokenErrorData = { sharedSignIn?: SharedSignInExpiry };
+export type WarehouseTokenErrorData = {
+    sharedSignIn?: SharedSignInExpiry;
+    requiresUserReauthentication?: true;
+};
 
 /* This specific error will be used in the frontend
 to show a "reauthenticate" button in the UI

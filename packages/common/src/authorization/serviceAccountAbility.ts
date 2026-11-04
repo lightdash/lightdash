@@ -398,6 +398,9 @@ const applyServiceAccountStaticAbilities: Record<
         can('view', 'Analytics', {
             organizationUuid,
         });
+        can('view', 'SystemAnalytics', {
+            organizationUuid,
+        });
         can('manage', 'OrganizationMemberProfile', {
             organizationUuid,
         });
@@ -414,6 +417,9 @@ const applyServiceAccountStaticAbilities: Record<
             organizationUuid,
         });
         can('manage', 'AiAgentThread', {
+            organizationUuid,
+        });
+        can('view', 'AiAgentThreadContext', {
             organizationUuid,
         });
     },

@@ -17,7 +17,7 @@ import {
     type StrictPersonalWarehouseCredentials,
     type UserWarehouseCredentialsWithSecrets,
 } from '@lightdash/common';
-import { pick } from 'lodash';
+import { pick } from 'es-toolkit/compat';
 import { normalizeDatabricksHostLenient } from '../../controllers/authentication/strategies/databricksStrategy';
 import { copyWarehouseCredentialVersions } from '../../utils/warehouseCredentialVersion';
 
@@ -42,11 +42,18 @@ export const personalCredentialFieldClassification = {
         retries: 'connection',
         location: 'connection',
         maximumBytesBilled: 'connection',
+        maximumBytesBilledByRole: 'connection',
+        agentMaximumBytesBilled: 'connection',
+        estimateQueryBytes: 'connection',
+        confirmEstimatedBytesAbove: 'connection',
+        agentMaximumEstimatedBytes: 'connection',
         executionProject: 'connection',
         accessUrl: 'connection',
         startOfWeek: 'connection',
         dataTimezone: 'connection',
         keyfileContents: 'auth',
+        workloadIdentityProvider: 'auth',
+        workloadIdentityAudience: 'auth',
         allowUserCredentials: 'connection',
         authenticationType: 'auth',
         requireUserCredentials: 'connection',

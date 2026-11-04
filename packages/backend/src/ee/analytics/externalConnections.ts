@@ -1,4 +1,8 @@
-import { type ExternalConnectionMethod } from '@lightdash/common';
+import {
+    type ApiConnectorType,
+    type ExternalConnectionKind,
+    type ExternalConnectionMethod,
+} from '@lightdash/common';
 import { Track as AnalyticsTrack } from '@rudderstack/rudder-sdk-node';
 
 type BaseTrack = Omit<AnalyticsTrack, 'context'>;
@@ -9,21 +13,29 @@ type ExternalConnectionBaseProperties = {
     externalConnectionUuid: string;
 };
 
+type ExternalConnectionKindProperties = {
+    connectionKind: ExternalConnectionKind;
+    connector: ApiConnectorType | null;
+};
+
 export type ExternalConnectionEvent = BaseTrack &
     (
         | {
               event: 'external_connection.created';
-              properties: ExternalConnectionBaseProperties & {
-                  authType: string;
-              };
+              properties: ExternalConnectionBaseProperties &
+                  ExternalConnectionKindProperties & {
+                      authType: string;
+                  };
           }
         | {
               event: 'external_connection.updated';
-              properties: ExternalConnectionBaseProperties;
+              properties: ExternalConnectionBaseProperties &
+                  ExternalConnectionKindProperties;
           }
         | {
               event: 'external_connection.deleted';
-              properties: ExternalConnectionBaseProperties;
+              properties: ExternalConnectionBaseProperties &
+                  ExternalConnectionKindProperties;
           }
         | {
               event: 'external_connection.secret_rotated';

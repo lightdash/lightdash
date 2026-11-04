@@ -1,4 +1,3 @@
-import { FeatureFlags } from '@lightdash/common';
 import type { DocumentEditResolution } from '../ai/decisions/documentEdit';
 import { AiAgentService } from './AiAgentService';
 
@@ -66,7 +65,6 @@ type PrivateService = {
 const setup = ({
     pinnedDocumentSlug = 'document' as string | null,
     authorized = true,
-    documentsEnabled = true,
     interrupted = false,
     promptContext = ['document'] as string[],
 } = {}) => {
@@ -93,21 +91,16 @@ const setup = ({
         aiAgentModel,
         analytics: { track: vi.fn() },
         featureFlagService: {
-            get: vi.fn(
-                async ({ featureFlagId }: { featureFlagId: string }) => ({
-                    enabled:
-                        featureFlagId === FeatureFlags.Documents &&
-                        documentsEnabled,
-                }),
-            ),
+            get: vi.fn().mockResolvedValue({ enabled: false }),
         },
         aiAgentToolsService: {
             createRuntime: vi.fn().mockReturnValue(runtime),
+            canAuthorContent: vi.fn().mockResolvedValue(authorized),
         },
     } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
     const privateService = service as unknown as PrivateService;
     vi.spyOn(privateService, 'createAuditedAbility').mockReturnValue({
-        can: () => authorized,
+        can: () => true,
     });
     const stream = { pipeUIMessageStreamToResponse: vi.fn() };
     const respond = vi
@@ -141,8 +134,7 @@ describe('Document fast edit context', () => {
 
     test.each([
         { name: 'no pinned Document', pinnedDocumentSlug: null },
-        { name: 'no ContentAsCode access', authorized: false },
-        { name: 'Documents flag off', documentsEnabled: false },
+        { name: 'no space the user can save in', authorized: false },
         {
             name: 'other content pinned to the prompt',
             promptContext: ['document', 'chart'],

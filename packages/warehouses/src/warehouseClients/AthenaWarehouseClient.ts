@@ -617,9 +617,19 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
 
                     return { database, schema, table, columns };
                 } catch (e: unknown) {
-                    // Table not found - return undefined
+                    // Table not found, or not readable with these credentials:
+                    // compile the model without warehouse types rather than
+                    // failing the whole project.
                     const error = e as { name?: string };
                     if (error.name === 'MetadataException') {
+                        return undefined;
+                    }
+                    if (error.name === 'AccessDeniedException') {
+                        console.warn(
+                            `Skipping table metadata for '${database}.${schema}.${table}': ${getErrorMessage(
+                                e,
+                            )}`,
+                        );
                         return undefined;
                     }
                     throw translateAthenaError(e, {

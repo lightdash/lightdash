@@ -14,6 +14,7 @@ import {
 } from '@lightdash/common';
 import type * as rudderSDK from 'rudder-sdk-js';
 import { type PlaygroundSetupFailure } from '../../components/ProjectConnection/ProjectConnectFlow/playgroundSetupFailure';
+import { type AgentSuggestionsDisplayedProperties } from '../../ee/features/aiCopilot/hooks/agentSuggestionsTelemetry';
 import {
     type CategoryName,
     type EventName,
@@ -180,6 +181,27 @@ export type HomepageV2PromoDismissedEvent = {
     name: EventName.HOMEPAGE_V2_PROMO_DISMISSED;
     properties: {
         organizationUuid: string;
+    };
+};
+
+export type ChartStudioVegaNudgeViewedEvent = {
+    name: EventName.CHART_STUDIO_VEGA_NUDGE_VIEWED;
+    properties: {
+        projectUuid: string;
+    };
+};
+
+export type ChartStudioVegaNudgeDismissedEvent = {
+    name: EventName.CHART_STUDIO_VEGA_NUDGE_DISMISSED;
+    properties: {
+        projectUuid: string;
+    };
+};
+
+export type ChartStudioVegaNudgeOpenedEvent = {
+    name: EventName.CHART_STUDIO_VEGA_NUDGE_OPENED;
+    properties: {
+        projectUuid: string;
     };
 };
 
@@ -598,6 +620,28 @@ type AiAgentChatMinimizedEvent = {
     };
 };
 
+type AiAgentResponseEventProperties = {
+    organizationId: string | undefined;
+    projectId: string;
+    agentUuid: string;
+    threadUuid: string;
+    messageUuid: string;
+};
+
+type AiAgentResponseFeedbackClickedEvent = {
+    name: EventName.AI_AGENT_RESPONSE_FEEDBACK_CLICKED;
+    properties: AiAgentResponseEventProperties & { rating: 'up' | 'down' };
+};
+
+type AiAgentResponseActionEvent = {
+    name:
+        | EventName.AI_AGENT_RESPONSE_FEEDBACK_COMMENT_SUBMITTED
+        | EventName.AI_AGENT_RESPONSE_COPIED
+        | EventName.AI_AGENT_RESPONSE_ADD_TO_EVALS_CLICKED
+        | EventName.AI_AGENT_RESPONSE_DEBUG_OPENED;
+    properties: AiAgentResponseEventProperties;
+};
+
 type AiAgentBattleStartedEvent = {
     name: EventName.AI_AGENT_BATTLE_STARTED;
     properties: {
@@ -605,7 +649,7 @@ type AiAgentBattleStartedEvent = {
         aiAgentId: string;
         modelA: string | null;
         modelB: string | null;
-        battleType: 'models' | 'speed' | 'decisions';
+        battleType: 'models' | 'speed' | 'queryPath';
     };
 };
 
@@ -633,6 +677,11 @@ type AiDeepResearchReportEngagedEvent = {
         runStatus: AiDeepResearchTerminalStatus;
         timeSinceCompletedMs: number;
     };
+};
+
+type AiAgentSuggestionsDisplayedEvent = {
+    name: EventName.AI_AGENT_SUGGESTIONS_DISPLAYED;
+    properties: AgentSuggestionsDisplayedProperties;
 };
 
 type AiAgentSuggestionImpressionEvent = {
@@ -748,6 +797,80 @@ type DashboardFilterLockToggledEvent = {
     };
 };
 
+// Dashboard controls: counts, booleans and fixed values only, never names
+type DashboardControlsEventBase = {
+    dashboardUuid: string | undefined;
+    filtersCount: number;
+};
+
+export type DashboardSectionCreatedSource =
+    | 'add_section_icon'
+    | 'new_section_capsule'
+    | 'new_section_drop'
+    | 'selection_bar'
+    | 'move_to_menu';
+
+export type DashboardFiltersMovedMethod =
+    | 'drag'
+    | 'selection_bar'
+    | 'editor_section_select';
+
+export type DashboardFilterEditorCloseOutcome =
+    | 'apply'
+    | 'cancel'
+    | 'switch'
+    | 'remove'
+    | 'mode_change';
+
+type DashboardSectionCreatedEvent = {
+    name: EventName.DASHBOARD_SECTION_CREATED;
+    properties: DashboardControlsEventBase & {
+        source: DashboardSectionCreatedSource;
+        filtersMoved: number;
+    };
+};
+
+type DashboardFiltersMovedEvent = {
+    name: EventName.DASHBOARD_FILTERS_MOVED;
+    properties: DashboardControlsEventBase & {
+        method: DashboardFiltersMovedMethod;
+        count: number;
+        whileEditing: boolean;
+    };
+};
+
+type DashboardFilterEditorOpenedEvent = {
+    name: EventName.DASHBOARD_FILTER_EDITOR_OPENED;
+    properties: DashboardControlsEventBase & {
+        source: 'pill' | 'add_filter' | 'section_add';
+        isNew: boolean;
+    };
+};
+
+type DashboardFilterEditorClosedEvent = {
+    name: EventName.DASHBOARD_FILTER_EDITOR_CLOSED;
+    properties: DashboardControlsEventBase & {
+        outcome: DashboardFilterEditorCloseOutcome;
+        hadChanges: boolean;
+    };
+};
+
+type DashboardFilterEditorSwitchAnsweredEvent = {
+    name: EventName.DASHBOARD_FILTER_EDITOR_SWITCH_ANSWERED;
+    properties: DashboardControlsEventBase & {
+        choice: 'apply' | 'discard' | 'withdrawn';
+    };
+};
+
+type DashboardSectionToggledEvent = {
+    name: EventName.DASHBOARD_SECTION_TOGGLED;
+    // filtersCount: the section's members
+    properties: DashboardControlsEventBase & {
+        expanded: boolean;
+        collapsedByDefault: boolean;
+    };
+};
+
 type DashboardFilterRequirementsSavedEvent = {
     name: EventName.DASHBOARD_FILTER_REQUIREMENTS_SAVED;
     properties: {
@@ -822,6 +945,15 @@ type OnboardingWarehouseSelectedEvent = {
         warehouse: string;
         tier: 'popular' | 'all' | 'other';
         onboardingFlow: 'legacy' | 'new';
+    };
+};
+
+type LiveDataSourceRequestedEvent = {
+    name: EventName.LIVE_DATA_SOURCE_REQUESTED;
+    properties: {
+        organizationId: string | null;
+        projectId: string;
+        integration: string;
     };
 };
 
@@ -1051,7 +1183,8 @@ export type LearnStartSource =
     | 'resume'
     | 'recommended'
     | 'next_from_completion'
-    | 'deep_link';
+    | 'deep_link'
+    | 'homepage';
 
 type LearnLibraryViewedEvent = {
     name: EventName.LEARN_LIBRARY_VIEWED;
@@ -1207,6 +1340,9 @@ export type EventData =
     | DocumentChartAppliedEvent
     | HomepageV2PromoViewedEvent
     | HomepageV2PromoDismissedEvent
+    | ChartStudioVegaNudgeViewedEvent
+    | ChartStudioVegaNudgeDismissedEvent
+    | ChartStudioVegaNudgeOpenedEvent
     | HomepageV2OptedInEvent
     | HomepageBlockAddedEvent
     | HomepageBlockRemovedEvent
@@ -1253,7 +1389,10 @@ export type EventData =
     | AiAgentChatMinimizedEvent
     | AiDeepResearchReportEngagedEvent
     | AiAgentBattleStartedEvent
+    | AiAgentResponseFeedbackClickedEvent
+    | AiAgentResponseActionEvent
     | ContentReviewSimilarContentClickedEvent
+    | AiAgentSuggestionsDisplayedEvent
     | AiAgentSuggestionImpressionEvent
     | AiAgentSuggestionClickEvent
     | DataAppRecentSuggestionClickEvent
@@ -1269,6 +1408,12 @@ export type EventData =
     | TableCalculationSaveEvent
     | FormulaTableCalculationAiGenerateClickedEvent
     | DashboardFilterLockToggledEvent
+    | DashboardSectionCreatedEvent
+    | DashboardFiltersMovedEvent
+    | DashboardFilterEditorOpenedEvent
+    | DashboardFilterEditorClosedEvent
+    | DashboardFilterEditorSwitchAnsweredEvent
+    | DashboardSectionToggledEvent
     | LearnLibraryViewedEvent
     | LearnWalkthroughStartedEvent
     | LearnWalkthroughCompletedEvent
@@ -1276,7 +1421,8 @@ export type EventData =
     | SqlRunnerConnectionSwitchedEvent
     | SqlRunnerConnectionHintResolvedEvent
     | SqlRunnerShareLinkOpenedEvent
-    | OpenInSqlRunnerClickedEvent;
+    | OpenInSqlRunnerClickedEvent
+    | LiveDataSourceRequestedEvent;
 
 export type IdentifyData = {
     id: string;

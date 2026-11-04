@@ -235,7 +235,7 @@ describe.skipIf(!stubUrl)(
                 'entryPoint',
                 AgentIdentityConnectEntryPoint.MCP_CONNECT_LINK,
             );
-            const callTool = await openMcpSession(client, projectUuid!);
+            const callTool = await openMcpSession(client);
             const refused = await callTool('run_sql', {
                 projectUuid,
                 sql,
@@ -376,7 +376,7 @@ describe.skipIf(!stubUrl)(
             );
             expect(callback.status).toBe(302);
             await setTimeout(1500);
-            const callTool = await openMcpSession(client, projectUuid!);
+            const callTool = await openMcpSession(client);
             const result = await callTool('run_sql', {
                 projectUuid,
                 sql,
@@ -406,7 +406,7 @@ describe.skipIf(!stubUrl)(
                     )
                 ).status,
             ).toBe(302);
-            const callTool = await openMcpSession(client, projectUuid!);
+            const callTool = await openMcpSession(client);
             const result = await callTool('run_sql', {
                 projectUuid,
                 sql,
@@ -416,7 +416,9 @@ describe.skipIf(!stubUrl)(
             expect(mcpText(result)).toContain(
                 getAiAccessRefusalMessage(
                     AiAccessRefusalReason.SIGN_IN_EXPIRED,
-                    { projectName: null },
+                    {
+                        projectName: null,
+                    },
                 ),
             );
             expect(mcpText(result)).toContain('/agent/connect');
@@ -438,7 +440,7 @@ describe.skipIf(!stubUrl)(
                     await client.get<Body<UserWarehouseCredentials[]>>(
                         credentialsUrl,
                     );
-                const callTool = await openMcpSession(client, projectUuid!);
+                const callTool = await openMcpSession(client);
                 const failed = await callTool('run_sql', {
                     projectUuid,
                     sql,
@@ -473,7 +475,7 @@ describe.skipIf(!stubUrl)(
                     )
                 ).status,
             ).toBe(302);
-            const callTool = await openMcpSession(client, projectUuid!);
+            const callTool = await openMcpSession(client);
             for (let index = 0; index < 3; index += 1) {
                 expect(
                     (await callTool('run_sql', { projectUuid, sql, limit: 1 }))

@@ -279,7 +279,7 @@ const RedshiftForm: FC<{
                     required
                     {...form.getInputProps('warehouse.host')}
                     disabled={disabled}
-                    labelProps={{ style: { marginTop: '8px' } }}
+                    labelProps={{ mt: 'xs' }}
                 />
                 <Select
                     name="warehouse.authenticationType"

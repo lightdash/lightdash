@@ -7,17 +7,21 @@ import {
     type UpdateColorPalette,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../api';
+import { type LightdashApi } from '../../api';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import useToaster from '../toaster/useToaster';
 
-const createColorPaletteApi = async (data: CreateColorPalette) =>
+const createColorPaletteApi = async (
+    lightdashApi: LightdashApi,
+    data: CreateColorPalette,
+) =>
     lightdashApi<ApiCreatedColorPaletteResponse['results']>({
         url: `/org/color-palettes`,
         method: 'POST',
         body: JSON.stringify(data),
     });
 
-const getColorPalettesApi = async () =>
+const getColorPalettesApi = async (lightdashApi: LightdashApi) =>
     lightdashApi<ApiColorPalettesResponse['results']>({
         url: `/org/color-palettes`,
         method: 'GET',
@@ -25,6 +29,7 @@ const getColorPalettesApi = async () =>
     });
 
 const updateColorPaletteApi = async (
+    lightdashApi: LightdashApi,
     colorPaletteUuid: string,
     data: UpdateColorPalette,
 ) =>
@@ -34,14 +39,20 @@ const updateColorPaletteApi = async (
         body: JSON.stringify(data),
     });
 
-const deleteColorPaletteApi = async (colorPaletteUuid: string) =>
+const deleteColorPaletteApi = async (
+    lightdashApi: LightdashApi,
+    colorPaletteUuid: string,
+) =>
     lightdashApi<null>({
         url: `/org/color-palettes/${colorPaletteUuid}`,
         method: 'DELETE',
         body: undefined,
     });
 
-const setActiveColorPaletteApi = async (colorPaletteUuid: string) =>
+const setActiveColorPaletteApi = async (
+    lightdashApi: LightdashApi,
+    colorPaletteUuid: string,
+) =>
     lightdashApi<ApiColorPaletteResponse['results']>({
         url: `/org/color-palettes/${colorPaletteUuid}/active`,
         method: 'POST',
@@ -49,6 +60,7 @@ const setActiveColorPaletteApi = async (colorPaletteUuid: string) =>
     });
 
 export const useCreateColorPalette = () => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
 
@@ -56,7 +68,7 @@ export const useCreateColorPalette = () => {
         ApiCreatedColorPaletteResponse['results'],
         ApiError,
         CreateColorPalette
-    >((data) => createColorPaletteApi(data), {
+    >((data) => createColorPaletteApi(lightdashApi, data), {
         mutationKey: ['create_color_palette'],
         onSuccess: async () => {
             await queryClient.invalidateQueries(['color_palettes']);
@@ -76,6 +88,7 @@ export const useCreateColorPalette = () => {
 export const useColorPalettes = ({
     enabled = true,
 }: { enabled?: boolean } = {}) => {
+    const lightdashApi = useLightdashApi();
     return useQuery<
         ApiColorPalettesResponse['results'],
         ApiError,
@@ -83,13 +96,14 @@ export const useColorPalettes = ({
     >({
         enabled,
         queryKey: ['color_palettes'],
-        queryFn: getColorPalettesApi,
+        queryFn: () => getColorPalettesApi(lightdashApi),
         select: (data) =>
             data.sort((a, b) => Number(b.isActive) - Number(a.isActive)),
     });
 };
 
 export const useUpdateColorPalette = () => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
 
@@ -97,7 +111,7 @@ export const useUpdateColorPalette = () => {
         ApiColorPaletteResponse['results'],
         ApiError,
         UpdateColorPalette
-    >((data) => updateColorPaletteApi(data.uuid, data), {
+    >((data) => updateColorPaletteApi(lightdashApi, data.uuid, data), {
         mutationKey: ['update_color_palette'],
         onSuccess: async () => {
             await queryClient.invalidateQueries(['color_palettes']);
@@ -115,11 +129,13 @@ export const useUpdateColorPalette = () => {
 };
 
 export const useDeleteColorPalette = () => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
 
     return useMutation<null, ApiError, string>(
-        (colorPaletteUuid) => deleteColorPaletteApi(colorPaletteUuid),
+        (colorPaletteUuid) =>
+            deleteColorPaletteApi(lightdashApi, colorPaletteUuid),
         {
             mutationKey: ['delete_color_palette'],
             onSuccess: async () => {
@@ -139,11 +155,13 @@ export const useDeleteColorPalette = () => {
 };
 
 export const useSetActiveColorPalette = () => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
 
     return useMutation<ApiColorPaletteResponse['results'], ApiError, string>(
-        (colorPaletteUuid) => setActiveColorPaletteApi(colorPaletteUuid),
+        (colorPaletteUuid) =>
+            setActiveColorPaletteApi(lightdashApi, colorPaletteUuid),
         {
             mutationKey: ['set_active_color_palette'],
             onSuccess: async () => {

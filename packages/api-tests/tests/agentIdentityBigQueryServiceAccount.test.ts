@@ -268,7 +268,7 @@ describe.skipIf(!hasBigqueryCredentials())(
                 identity: 'marked_person',
                 refusal: null,
             });
-            callTool = await openMcpSession(admin, projectUuid);
+            callTool = await openMcpSession(admin);
             const result = await runAgentSql();
             expect(result.isError).toBeFalsy();
             expect(result).toMatchObject({

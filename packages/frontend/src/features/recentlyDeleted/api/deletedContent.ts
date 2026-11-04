@@ -5,7 +5,7 @@ import {
     type DeletedContentWithDescendants,
     type KnexPaginatedData,
 } from '@lightdash/common';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
 
 export type DeletedContentApiParams = {
     projectUuids: string[];
@@ -22,6 +22,7 @@ type DeletedContentApiResponse = KnexPaginatedData<
 >;
 
 export async function getDeletedContent(
+    lightdashApi: LightdashApi,
     params: DeletedContentApiParams,
 ): Promise<DeletedContentApiResponse> {
     const searchParams = new URLSearchParams();
@@ -68,6 +69,7 @@ export async function getDeletedContent(
 }
 
 export function restoreDeletedContent(
+    lightdashApi: LightdashApi,
     projectUuid: string,
     item: DeletedContentItem,
 ): Promise<undefined> {
@@ -80,6 +82,7 @@ export function restoreDeletedContent(
 }
 
 export function permanentlyDeleteContent(
+    lightdashApi: LightdashApi,
     projectUuid: string,
     item: DeletedContentItem,
 ): Promise<undefined> {

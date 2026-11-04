@@ -158,6 +158,29 @@ describe('AiProviderCredentialsCard', () => {
         });
     });
 
+    // EU residency needs an EU endpoint region; picking one must land on the
+    // EU inference profile without the admin having to choose it.
+    it('offers EU regions that default to EU inference', async () => {
+        renderCard();
+
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Add credential' }),
+        );
+        await userEvent.click(
+            screen.getByRole('combobox', { name: 'AWS region' }),
+        );
+        expect(
+            screen.getByText('Europe (Ireland) — eu-west-1'),
+        ).toBeInTheDocument();
+        await userEvent.click(
+            screen.getByText('Europe (Frankfurt) — eu-central-1'),
+        );
+
+        expect(
+            screen.getByText(/served by any European region/),
+        ).toBeInTheDocument();
+    });
+
     // A key hint is safe to render; the key itself must never reach the client.
     it('shows only a key hint, never a key', () => {
         renderCard({ credentials: [TOKYO] });
@@ -202,7 +225,48 @@ describe('AiProviderCredentialsCard', () => {
                     apiKey: 'ABSKsecret',
                     // Narrowest geography for the region, set by default.
                     inferenceGeography: 'jp',
+                    // First credential: pre-checked as the org default.
+                    setAsDefault: true,
                 },
+                expect.anything(),
+            );
+        });
+    });
+
+    it('stores a credential without activating it when set-as-default is unticked', async () => {
+        renderCard();
+
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Add credential' }),
+        );
+        await userEvent.type(
+            screen.getByRole('textbox', { name: 'Name' }),
+            'Japan (Tokyo)',
+        );
+        await userEvent.click(
+            screen.getByRole('combobox', { name: 'AWS region' }),
+        );
+        await userEvent.click(
+            screen.getByText('Asia Pacific (Tokyo) — ap-northeast-1'),
+        );
+        await userEvent.type(
+            screen.getByLabelText('Bedrock API key', { selector: 'input' }),
+            'ABSKsecret',
+        );
+        await userEvent.click(screen.getByLabelText('Bedrock allowed models'));
+        await userEvent.click(screen.getByText('Claude Sonnet 4.5'));
+        await userEvent.click(
+            screen.getByRole('checkbox', {
+                name: 'Set as organization default',
+            }),
+        );
+        await userEvent.click(
+            screen.getAllByRole('button', { name: 'Add credential' })[1],
+        );
+
+        await waitFor(() => {
+            expect(createMutation).toHaveBeenCalledWith(
+                expect.objectContaining({ setAsDefault: false }),
                 expect.anything(),
             );
         });

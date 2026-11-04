@@ -150,6 +150,7 @@ it('keeps the own slot as results and returns an explicit parent field', async (
         results: null,
         credentialsReadable: false,
         parent: null,
+        parentUnavailableReason: null,
     });
 });
 
@@ -175,6 +176,7 @@ it.each([true, false])(
             status: 'ok',
             results: null,
             credentialsReadable: false,
+            parentUnavailableReason: null,
             parent: {
                 credentialsReadable: false,
                 projectUuid: 'parent',
@@ -200,7 +202,7 @@ test.each(['get', 'upsert', 'delete', 'test'] as const)(
         f.load.mockResolvedValue({
             ...databricksInput,
             database: 'schema',
-            serverHostName: 'workspace.example.com',
+            serverHostName: 'adb-123.4.azuredatabricks.net',
             httpPath: '/sql/warehouse',
         });
         let result;
@@ -223,7 +225,7 @@ test('returns Databricks save verification beside metadata without credentials',
     f.load.mockResolvedValue({
         ...databricksInput,
         database: 'schema',
-        serverHostName: 'workspace.example.com',
+        serverHostName: 'adb-123.4.azuredatabricks.net',
         httpPath: '/sql/warehouse',
     });
     vi.mocked(exchangeDatabricksOAuthCredentials).mockResolvedValue({
@@ -260,6 +262,7 @@ it.each([undefined, 'extra-connection'])(
         const getStatus = vi.fn().mockResolvedValue({
             results: { uuid: 'slot' },
             parent: null,
+            parentUnavailableReason: null,
             verification: snowflakeVerification,
         });
         const controller = new AiServiceAccountController({
@@ -288,6 +291,7 @@ it.each([undefined, 'extra-connection'])(
             status: 'ok',
             results: { uuid: 'slot' },
             parent: null,
+            parentUnavailableReason: null,
             verification: snowflakeVerification,
         });
         expect(getStatus).toHaveBeenCalledExactlyOnceWith(
@@ -308,6 +312,7 @@ it.each([undefined, 'extra-connection'])(
         const getStatus = vi.fn().mockResolvedValue({
             results: { uuid: 'slot' },
             parent: null,
+            parentUnavailableReason: null,
             verification: athenaVerification,
         });
         const controller = new AiServiceAccountController({
@@ -331,6 +336,7 @@ it.each([undefined, 'extra-connection'])(
             status: 'ok',
             results: { uuid: 'slot' },
             parent: null,
+            parentUnavailableReason: null,
             verification: athenaVerification,
         });
         expect(getStatus).toHaveBeenCalledExactlyOnceWith(
@@ -350,6 +356,7 @@ it.each([undefined, 'extra-connection'])(
         const getStatus = vi.fn().mockResolvedValue({
             results: { uuid: 'slot' },
             parent: null,
+            parentUnavailableReason: null,
             verification: postgresVerification,
         });
         const controller = new AiServiceAccountController({
@@ -378,6 +385,7 @@ it.each([undefined, 'extra-connection'])(
             status: 'ok',
             results: { uuid: 'slot' },
             parent: null,
+            parentUnavailableReason: null,
             verification: postgresVerification,
         });
         expect(getStatus).toHaveBeenCalledExactlyOnceWith(
@@ -398,6 +406,7 @@ it.each([undefined, 'extra-connection'])(
         const getStatus = vi.fn().mockResolvedValue({
             results: { uuid: 'slot' },
             parent: null,
+            parentUnavailableReason: null,
             verification: redshiftVerification,
         });
         const controller = new AiServiceAccountController({
@@ -426,6 +435,7 @@ it.each([undefined, 'extra-connection'])(
             status: 'ok',
             results: { uuid: 'slot' },
             parent: null,
+            parentUnavailableReason: null,
             verification: redshiftVerification,
         });
         expect(getStatus).toHaveBeenCalledExactlyOnceWith(
@@ -446,6 +456,7 @@ it.each([undefined, 'extra-connection'])(
         const getStatus = vi.fn().mockResolvedValue({
             results: { uuid: 'slot' },
             parent: null,
+            parentUnavailableReason: null,
             verification: trinoVerification,
         });
         const controller = new AiServiceAccountController({
@@ -469,6 +480,7 @@ it.each([undefined, 'extra-connection'])(
             status: 'ok',
             results: { uuid: 'slot' },
             parent: null,
+            parentUnavailableReason: null,
             verification: trinoVerification,
         });
         expect(getStatus).toHaveBeenCalledExactlyOnceWith(
@@ -489,6 +501,7 @@ it.each([undefined, 'extra-connection'])(
         const getStatus = vi.fn().mockResolvedValue({
             results: { uuid: 'slot' },
             parent: null,
+            parentUnavailableReason: null,
             verification: clickhouseVerification,
         });
         const controller = new AiServiceAccountController({
@@ -517,6 +530,7 @@ it.each([undefined, 'extra-connection'])(
             status: 'ok',
             results: { uuid: 'slot' },
             parent: null,
+            parentUnavailableReason: null,
             verification: clickhouseVerification,
         });
         expect(getStatus).toHaveBeenCalledExactlyOnceWith(

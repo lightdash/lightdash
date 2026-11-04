@@ -11,9 +11,11 @@ import { useLearnAccess } from './useLearnAccess';
 type Props = {
     /** The module just finished. */
     scope: string;
-    /** Return to the library (the copy is put away behind the learner). */
+    /** Return to the library; the copy stays for the next walkthrough. */
     onBack: () => void;
-    /** Go straight into the next module, in a fresh copy made from here. */
+    /** Close the dialog and stay in the copy, to look around what was built. */
+    onExplore: () => void;
+    /** Go straight into the next module, in this same copy. */
     onNext: (scope: string) => void;
     /** The next copy is being made; the choice has been taken. */
     opening?: boolean;
@@ -22,12 +24,14 @@ type Props = {
 /**
  * Shown over the page where Got it was pressed, in the learner's copy: the
  * module is named complete, the library's progress line is repeated, and
- * the choice is the module the library would recommend next or the library
- * itself. Nothing changes on the page behind it until one is picked.
+ * the choice is the module the library would recommend next, the library
+ * itself, or staying put in the copy. Nothing changes on the page behind it
+ * until one is picked.
  */
 export const LearnDoneModal: FC<Props> = ({
     scope,
     onBack,
+    onExplore,
     onNext,
     opening = false,
 }) => {
@@ -72,15 +76,26 @@ export const LearnDoneModal: FC<Props> = ({
             withCloseButton={false}
             footer={
                 <Group justify="space-between" w="100%">
-                    <Button
-                        variant="subtle"
-                        color="gray"
-                        onClick={onBack}
-                        disabled={opening}
-                        data-learn-back
-                    >
-                        Back to library
-                    </Button>
+                    <Group gap="xs">
+                        <Button
+                            variant="subtle"
+                            color="gray"
+                            onClick={onBack}
+                            disabled={opening}
+                            data-learn-back
+                        >
+                            Back to library
+                        </Button>
+                        <Button
+                            variant="subtle"
+                            color="gray"
+                            onClick={onExplore}
+                            disabled={opening}
+                            data-learn-explore
+                        >
+                            Continue exploring
+                        </Button>
+                    </Group>
                     {next && (
                         <Button
                             variant="filled"

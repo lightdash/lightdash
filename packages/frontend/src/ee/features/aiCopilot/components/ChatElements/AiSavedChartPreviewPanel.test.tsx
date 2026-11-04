@@ -82,6 +82,8 @@ const renderPanel = ({
                     theme: 'light',
                     backgroundColor: null,
                     timezone: null,
+                    aiAgentThreadSetup: null,
+                    aiAgentNavigationDisabled: false,
                 }}
             >
                 <AiSavedChartPreviewPanel savedChartPreview={preview} />

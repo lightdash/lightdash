@@ -3,11 +3,11 @@ import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../api';
+import { sharedLightdashApi } from '../../api';
 import { ProjectAgentIdentityPage } from './ProjectAgentIdentityPage';
 
 const mocks = vi.hoisted(() => ({ enabled: true, canManage: true }));
-vi.mock('../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../api');
 vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: () => ({ data: { enabled: mocks.enabled } }),
 }));
@@ -61,7 +61,7 @@ describe('ProjectAgentIdentityPage', () => {
         expect(
             screen.queryByText('Raw SQL for agents'),
         ).not.toBeInTheDocument();
-        expect(lightdashApi).not.toHaveBeenCalledWith(
+        expect(sharedLightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({
                 url: expect.stringContaining('warehouse-confirmation'),
             }),
@@ -72,6 +72,6 @@ describe('ProjectAgentIdentityPage', () => {
         mocks.canManage = gate !== 'permission';
         const { container } = renderPage();
         expect(container.querySelector(':scope > :not(style)')).toBeNull();
-        expect(lightdashApi).not.toHaveBeenCalled();
+        expect(sharedLightdashApi).not.toHaveBeenCalled();
     });
 });

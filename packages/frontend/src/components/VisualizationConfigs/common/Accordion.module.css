@@ -2,15 +2,11 @@
     --accordion-radius: var(--mantine-radius-md);
 }
 
-.containedList :global(.mantine-Accordion-control) {
+.containedControl {
     padding: var(--mantine-spacing-xs);
 }
 
-.containedList :global(.mantine-Accordion-label) {
-    padding: 0;
-}
-
-.containedList :global(.mantine-Accordion-panel) {
+.containedLabel {
     padding: 0;
 }
 

@@ -19,6 +19,7 @@ import {
     useAppThumbnailUpload,
     useAppThumbnailUrl,
 } from '../hooks/useAppThumbnail';
+import { useDataAppCapturesEnabled } from '../hooks/useDataAppCapturesEnabled';
 import { usePreviewOrigin } from '../previewOrigin';
 import classes from './MoveAppToSpaceModal.module.css';
 
@@ -102,11 +103,14 @@ export const MoveAppToSpaceModal: FC<Props> = ({
     // not depend on the async hasThumbnail check — a derived default would
     // flip the checkbox under the user when the query resolves.
     const [includeChoice, setIncludeChoice] = useState<boolean | null>(null);
-    const includeThumbnail = includeChoice ?? true;
+    // With captures off for the org the checkbox is not offered and nothing
+    // is captured; the move itself is unaffected.
+    const capturesEnabled = useDataAppCapturesEnabled();
+    const includeThumbnail = capturesEnabled && (includeChoice ?? true);
 
     // Invisible fallback preview of the latest ready version — only mounted
     // when the surface has no live iframe to capture from.
-    const useFallbackPreview = !capturePreviewScreenshot;
+    const useFallbackPreview = capturesEnabled && !capturePreviewScreenshot;
     const previewOrigin = usePreviewOrigin();
     const { data: previewToken, error: previewTokenError } = useAppPreviewToken(
         opened && hasReadyVersion && useFallbackPreview
@@ -242,22 +246,28 @@ export const MoveAppToSpaceModal: FC<Props> = ({
                 ]}
                 isLoading={isMovingToSpace || isCapturing}
                 footer={
-                    <Tooltip label={checkboxTooltip} position="top">
-                        <Box>
-                            <Checkbox
-                                checked={hasReadyVersion && includeThumbnail}
-                                disabled={!hasReadyVersion}
-                                onChange={(e) =>
-                                    setIncludeChoice(e.currentTarget.checked)
-                                }
-                                label={
-                                    hasThumbnail
-                                        ? 'Replace app thumbnail'
-                                        : 'Include app thumbnail'
-                                }
-                            />
-                        </Box>
-                    </Tooltip>
+                    capturesEnabled ? (
+                        <Tooltip label={checkboxTooltip} position="top">
+                            <Box>
+                                <Checkbox
+                                    checked={
+                                        hasReadyVersion && includeThumbnail
+                                    }
+                                    disabled={!hasReadyVersion}
+                                    onChange={(e) =>
+                                        setIncludeChoice(
+                                            e.currentTarget.checked,
+                                        )
+                                    }
+                                    label={
+                                        hasThumbnail
+                                            ? 'Replace app thumbnail'
+                                            : 'Include app thumbnail'
+                                    }
+                                />
+                            </Box>
+                        </Tooltip>
+                    ) : null
                 }
                 onConfirm={async (targetSpaceUuid) => {
                     if (!targetSpaceUuid) return;

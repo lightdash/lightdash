@@ -58,11 +58,13 @@ export type LocationChangedPayload = {
     href: string;
 };
 
+export type ContentSavedAction = 'created' | 'updated';
+
 /**
  * Payload for ChartSaved events.
  * Contains the saved chart identifier and whether it was created or updated.
  */
-export type ChartSavedAction = 'created' | 'updated';
+export type ChartSavedAction = ContentSavedAction;
 
 export type ChartSavedPayload = {
     chartUuid: string;
@@ -71,10 +73,11 @@ export type ChartSavedPayload = {
 
 /**
  * Payload for DashboardSaved events.
- * Sent after the user saves changes to an embedded dashboard.
+ * Sent after an embedded dashboard is saved, or an AI agent creates or edits one.
  */
 export type DashboardSavedPayload = {
     dashboardUuid: string;
+    action: ContentSavedAction;
 };
 
 /**

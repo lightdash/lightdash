@@ -73,8 +73,8 @@ import {
     type UuidOrSlug,
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
+import { uniq } from 'es-toolkit/compat';
 import { type Knex } from 'knex';
-import { uniq } from 'lodash';
 import pLimit from 'p-limit';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -285,11 +285,35 @@ export class DashboardService
 
         const auditedAbility = this.createAuditedAbility(account);
         if (
+            isJwtUser(account) &&
+            (data.format === SchedulerFormat.PDF ||
+                data.format === SchedulerFormat.IMAGE)
+        ) {
+            // Embed PDFs and images render the embed page with the viewer's token.
+            if (
+                auditedAbility.cannot(
+                    'export',
+                    subject('Dashboard', {
+                        organizationUuid: dashboard.organizationUuid,
+                        projectUuid: dashboard.projectUuid,
+                        type:
+                            data.format === SchedulerFormat.PDF
+                                ? 'pdf'
+                                : 'images',
+                        metadata: {
+                            dashboardUuid: dashboard.uuid,
+                            dashboardName: dashboard.name,
+                        },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
+        } else if (
             data.format === SchedulerFormat.IMAGE ||
             data.format === SchedulerFormat.PDF
         ) {
-            // Image/PDF export renders the dashboard in a headless browser using a
-            // real session, so it is not available to embed/JWT callers.
+            // Non-embed image/PDF exports render with the requester's session.
             assertRegisteredAccount(account);
             const { inheritsFromOrgOrProject, access } =
                 await this.spacePermissionService.resolveAccess(
@@ -561,6 +585,29 @@ export class DashboardService
             dateZoomTileTargetsCount: Object.keys(
                 dashboard.config?.dateZoomConfig?.tileTargets ?? {},
             ).length,
+            ...DashboardService.getSectionEventProperties(dashboard),
+        };
+    }
+
+    // Counts only: section names never leave the dashboard
+    static getSectionEventProperties(
+        dashboard: Pick<DashboardDAO, 'config' | 'filters'>,
+    ) {
+        const controlSections = dashboard.config?.controlSections ?? [];
+        const sectionIds = new Set(controlSections.map(({ id }) => id));
+        return {
+            sectionsCount: controlSections.length,
+            // A sectionId with no matching section reads as unsectioned
+            sectionedFiltersCount: [
+                ...(dashboard.filters?.dimensions ?? []),
+                ...(dashboard.filters?.metrics ?? []),
+            ].filter(
+                ({ sectionId }) =>
+                    sectionId !== undefined && sectionIds.has(sectionId),
+            ).length,
+            collapsedByDefaultSectionsCount: controlSections.filter(
+                ({ collapsed }) => collapsed === true,
+            ).length,
         };
     }
 
@@ -831,7 +878,7 @@ export class DashboardService
             ),
         );
 
-        return dashboardsWithContext
+        const visibleDashboards = dashboardsWithContext
             .filter(({ spaceContext }, index) =>
                 includePrivate
                     ? accessResults[index]
@@ -839,6 +886,18 @@ export class DashboardService
                       hasDirectAccessToSpace(user, spaceContext),
             )
             .map(({ dashboard }) => dashboard);
+
+        if (visibleDashboards.length === 0) return [];
+
+        const verifications =
+            await this.contentVerificationModel.getByContentUuids(
+                ContentType.DASHBOARD,
+                visibleDashboards.map(({ uuid }) => uuid),
+            );
+        return visibleDashboards.map((dashboard) => ({
+            ...dashboard,
+            verification: verifications.get(dashboard.uuid) ?? null,
+        }));
     }
 
     async getByIdOrSlug(
@@ -1196,19 +1255,21 @@ export class DashboardService
         );
     }
 
-    private async assertWriteSpaceBelongsToProject(
+    private async assertWriteSpacesBelongToProject(
         projectUuid: UUID,
-        spaceUuid: UUID,
+        spaceUuids: string[],
     ) {
-        const space = await this.spaceModel.get(spaceUuid);
+        const uniqueSpaceUuids = new Set(spaceUuids);
+        const spaces = await this.spaceModel.find({
+            projectUuid,
+            spaceUuids: [...uniqueSpaceUuids],
+        });
 
-        if (space.projectUuid !== projectUuid) {
+        if (spaces.length !== uniqueSpaceUuids.size) {
             throw new ForbiddenError(
                 'Embed token does not allow writing to this project space',
             );
         }
-
-        return space;
     }
 
     private static getTileChartReferences(
@@ -1237,19 +1298,19 @@ export class DashboardService
 
     /**
      * Charts already referenced by the stored dashboard are skipped; any newly
-     * referenced chart must come from the write space or a source space.
+     * referenced chart must come from a write space or a source space.
      */
     private async assertDashboardTilesUseAllowedCharts(
         user: SessionUser,
         tiles: CreateDashboard['tiles'],
         {
             projectUuid,
-            writeSpaceUuid,
+            writeSpaceUuids,
             actorChartSpaceUuids,
             existingTiles,
         }: {
             projectUuid: UUID;
-            writeSpaceUuid: UUID;
+            writeSpaceUuids: string[];
             actorChartSpaceUuids: string[];
             existingTiles: DashboardTile[];
         },
@@ -1260,7 +1321,7 @@ export class DashboardService
             spaceUuid: string,
             owningDashboardUuid: string | null,
         ) =>
-            spaceUuid === writeSpaceUuid ||
+            writeSpaceUuids.includes(spaceUuid) ||
             (actorChartSpaceUuids.includes(spaceUuid) &&
                 owningDashboardUuid === null);
 
@@ -1322,10 +1383,10 @@ export class DashboardService
                         { projectUuid },
                     );
 
-                    // Embedded SQL chart fetches only allow the write space.
-                    if (savedSqlChart.space.uuid !== writeSpaceUuid) {
+                    // Embedded SQL chart fetches only allow the write spaces.
+                    if (!writeSpaceUuids.includes(savedSqlChart.space.uuid)) {
                         throw new ForbiddenError(
-                            'Embed token does not allow saving SQL charts from outside the write space',
+                            'Embed token does not allow saving SQL charts from outside the write spaces',
                         );
                     }
 
@@ -1368,13 +1429,16 @@ export class DashboardService
             return { user, dashboard };
         }
 
-        await this.assertWriteSpaceBelongsToProject(
-            projectUuid,
-            embedWriteActions.spaceUuid,
-        );
+        const { writeSpaceUuids } = embedWriteActions;
+        const spaceUuid =
+            dashboard.spaceUuid !== undefined &&
+            writeSpaceUuids.includes(dashboard.spaceUuid)
+                ? dashboard.spaceUuid
+                : writeSpaceUuids[0];
+        await this.assertWriteSpacesBelongToProject(projectUuid, [spaceUuid]);
         await this.assertDashboardTilesUseAllowedCharts(user, dashboard.tiles, {
             projectUuid,
-            writeSpaceUuid: embedWriteActions.spaceUuid,
+            writeSpaceUuids,
             actorChartSpaceUuids: getEmbedActorChartSpaceUuids(account),
             existingTiles: [],
         });
@@ -1383,7 +1447,7 @@ export class DashboardService
             user,
             dashboard: {
                 ...dashboard,
-                spaceUuid: embedWriteActions.spaceUuid,
+                spaceUuid,
             },
         };
     }
@@ -1393,7 +1457,7 @@ export class DashboardService
         projectUuid: UUID | undefined,
     ): Promise<{
         user: SessionUser;
-        embedWriteActions?: { spaceUuid: UUID };
+        embedWriteActions?: { writeSpaceUuids: string[] };
     }> {
         const context = getAccountWriteContext(account);
 
@@ -1404,9 +1468,9 @@ export class DashboardService
                 );
             }
 
-            await this.assertWriteSpaceBelongsToProject(
+            await this.assertWriteSpacesBelongToProject(
                 projectUuid,
-                context.embedWriteActions.spaceUuid,
+                context.embedWriteActions.writeSpaceUuids,
             );
         }
 
@@ -1617,8 +1681,7 @@ export class DashboardService
             projectUuid,
         );
         return this.duplicate(user, projectUuid, dashboardUuidOrSlug, data, {
-            targetSpaceUuid: embedWriteActions?.spaceUuid,
-            sourceSpaceUuid: embedWriteActions?.spaceUuid,
+            embedWriteSpaceUuids: embedWriteActions?.writeSpaceUuids,
         });
     }
 
@@ -1627,18 +1690,19 @@ export class DashboardService
         projectUuid: UUID,
         dashboardUuidOrSlug: UuidOrSlug,
         data: DuplicateDashboardParams,
-        options?: { targetSpaceUuid?: string; sourceSpaceUuid?: string },
+        options?: { embedWriteSpaceUuids?: string[] },
     ): Promise<Dashboard> {
         const dashboardDao = await this.dashboardModel.getByIdOrSlug(
             dashboardUuidOrSlug,
             { projectUuid },
         );
+        const embedWriteSpaceUuids = options?.embedWriteSpaceUuids;
         if (
-            options?.sourceSpaceUuid &&
-            dashboardDao.spaceUuid !== options.sourceSpaceUuid
+            embedWriteSpaceUuids &&
+            !embedWriteSpaceUuids.includes(dashboardDao.spaceUuid)
         ) {
             throw new ForbiddenError(
-                'Embed token does not allow duplicating dashboards from outside the write space',
+                'Embed token does not allow duplicating dashboards from outside the write spaces',
             );
         }
         const { inheritsFromOrgOrProject, access } =
@@ -1651,7 +1715,7 @@ export class DashboardService
             inheritsFromOrgOrProject,
             access,
         };
-        const targetSpaceUuid = options?.targetSpaceUuid ?? dashboard.spaceUuid;
+        const targetSpaceUuid = dashboard.spaceUuid;
         const targetSpaceAccess =
             await this.spacePermissionService.resolveAccess(user.userUuid, {
                 type: 'space',
@@ -1665,7 +1729,7 @@ export class DashboardService
 
         const auditedAbility = this.createAuditedAbility(user);
         if (
-            options?.sourceSpaceUuid &&
+            embedWriteSpaceUuids &&
             auditedAbility.cannot(
                 'view',
                 subject('Dashboard', {
@@ -1806,6 +1870,24 @@ export class DashboardService
                     tiles: [...updatedTiles],
                     filters: remappedFilters,
                     tabs: newTabs,
+                    parameters: newDashboard.parameters,
+                    config: newDashboard.config?.dateZoomConfig
+                        ? {
+                              ...newDashboard.config,
+                              dateZoomConfig: {
+                                  ...newDashboard.config.dateZoomConfig,
+                                  tileTargets: Object.fromEntries(
+                                      Object.entries(
+                                          newDashboard.config.dateZoomConfig
+                                              .tileTargets,
+                                      ).map(([key, value]) => [
+                                          tileUuidMap.get(key) ?? key,
+                                          value,
+                                      ]),
+                                  ),
+                              },
+                          }
+                        : newDashboard.config,
                 },
                 user,
                 projectUuid,
@@ -1860,7 +1942,9 @@ export class DashboardService
         );
         if (
             embedWriteActions &&
-            existingDashboardDao.spaceUuid !== embedWriteActions.spaceUuid
+            !embedWriteActions.writeSpaceUuids.includes(
+                existingDashboardDao.spaceUuid,
+            )
         ) {
             throw new ForbiddenError(
                 'Embed token does not allow writing to this dashboard space',
@@ -1871,10 +1955,10 @@ export class DashboardService
             if (
                 isDashboardUnversionedFields(dashboard) &&
                 dashboard.spaceUuid &&
-                dashboard.spaceUuid !== embedWriteActions.spaceUuid
+                !embedWriteActions.writeSpaceUuids.includes(dashboard.spaceUuid)
             ) {
                 throw new ForbiddenError(
-                    'Embed token does not allow moving dashboards outside the write space',
+                    'Embed token does not allow moving dashboards outside the write spaces',
                 );
             }
 
@@ -1886,7 +1970,7 @@ export class DashboardService
                         projectUuid:
                             options?.projectUuid ??
                             existingDashboardDao.projectUuid,
-                        writeSpaceUuid: embedWriteActions.spaceUuid,
+                        writeSpaceUuids: embedWriteActions.writeSpaceUuids,
                         actorChartSpaceUuids:
                             getEmbedActorChartSpaceUuids(account),
                         existingTiles: existingDashboardDao.tiles,
@@ -2054,13 +2138,27 @@ export class DashboardService
 
     private async applyOpenDraftOverlay(
         user: SessionUser,
-        dashboard: Dashboard,
+        publishedDashboard: Dashboard,
     ): Promise<Dashboard> {
         try {
             const settings = await this.contentAsCodeProjectSettingsModel.get(
-                dashboard.projectUuid,
+                publishedDashboard.projectUuid,
             );
-            if (!settings?.syncEnabled) return dashboard;
+            if (!settings?.syncEnabled) return publishedDashboard;
+            const repositorySnapshot =
+                await this.contentAsCodeSnapshotModel.get(
+                    publishedDashboard.projectUuid,
+                    ContentAsCodeType.DASHBOARD,
+                    publishedDashboard.slug,
+                );
+            const dashboard: Dashboard = repositorySnapshot
+                ? {
+                      ...publishedDashboard,
+                      managedFromRepository: {
+                          filePath: repositorySnapshot.filePath,
+                      },
+                  }
+                : publishedDashboard;
             const draft = await this.contentDraftModel.findOpenDraft(
                 dashboard.projectUuid,
                 'dashboard',
@@ -2135,7 +2233,7 @@ export class DashboardService
             return dashboardForViewer;
         } catch (error) {
             this.logger.warn('Draft overlay failed', error);
-            return dashboard;
+            return publishedDashboard;
         }
     }
 
@@ -2322,6 +2420,9 @@ export class DashboardService
                     ].filter(
                         (filter) => (filter.lockedTabUuids?.length ?? 0) > 0,
                     ).length,
+                    ...DashboardService.getSectionEventProperties(
+                        updatedDashboard,
+                    ),
                 },
             });
         }
@@ -2422,9 +2523,15 @@ export class DashboardService
                 {
                     tiles: tilesToSave,
                     filters: dashboardFields.filters,
-                    parameters: dashboardFields.parameters,
+                    parameters:
+                        dashboardFields.parameters === undefined
+                            ? existingDashboardDao.parameters
+                            : dashboardFields.parameters,
                     tabs: dashboardFields.tabs || [],
-                    config: dashboardFields.config,
+                    config:
+                        dashboardFields.config === undefined
+                            ? existingDashboardDao.config
+                            : dashboardFields.config,
                 },
                 user,
                 existingDashboardDao.projectUuid,

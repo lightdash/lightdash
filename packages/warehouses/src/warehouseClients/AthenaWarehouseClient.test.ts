@@ -479,7 +479,10 @@ describe('AthenaWarehouseClient', () => {
                     }
                     return {
                         TableMetadataList: (tablesByDatabase[name] ?? []).map(
-                            (Name) => ({ Name, TableType: 'EXTERNAL_TABLE' }),
+                            (Name) => ({
+                                Name,
+                                TableType: 'EXTERNAL_TABLE',
+                            }),
                         ),
                     };
                 }
@@ -717,6 +720,65 @@ describe('AthenaWarehouseClient', () => {
             await expect(client.listDatabases()).rejects.toMatchObject({
                 message: expect.stringContaining(
                     "Failed to list databases in catalog 'AwsDataCatalog'.",
+                ),
+            });
+        });
+    });
+
+    describe('getCatalog', () => {
+        const request = {
+            database: 'AwsDataCatalog',
+            schema: 'analytics',
+            table: 'orders',
+        };
+
+        test('skips tables the credentials cannot read', async () => {
+            const send = vi.fn().mockRejectedValue(
+                Object.assign(new Error('not authorized'), {
+                    name: 'AccessDeniedException',
+                    $metadata: { httpStatusCode: 403 },
+                }),
+            );
+            mockAthenaClient.mockImplementation(function () {
+                return { send };
+            });
+            const client = new AthenaWarehouseClient(baseCredentials);
+            const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+            expect(await client.getCatalog([request])).toEqual({});
+            expect(warn).toHaveBeenCalledOnce();
+            warn.mockRestore();
+        });
+
+        test('skips tables that do not exist', async () => {
+            const send = vi.fn().mockRejectedValue(
+                Object.assign(new Error('missing'), {
+                    name: 'MetadataException',
+                }),
+            );
+            mockAthenaClient.mockImplementation(function () {
+                return { send };
+            });
+            const client = new AthenaWarehouseClient(baseCredentials);
+
+            expect(await client.getCatalog([request])).toEqual({});
+        });
+
+        test('translates other metadata failures', async () => {
+            const send = vi.fn().mockRejectedValue(
+                Object.assign(new Error('boom'), {
+                    name: 'InternalServerException',
+                    $metadata: { httpStatusCode: 500 },
+                }),
+            );
+            mockAthenaClient.mockImplementation(function () {
+                return { send };
+            });
+            const client = new AthenaWarehouseClient(baseCredentials);
+
+            await expect(client.getCatalog([request])).rejects.toMatchObject({
+                message: expect.stringContaining(
+                    "Failed to fetch table metadata for 'AwsDataCatalog.analytics.orders'.",
                 ),
             });
         });

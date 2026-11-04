@@ -1,50 +1,41 @@
 import { ChartType } from '@lightdash/common';
-import { getSankeyFields } from '@lightdash/visualization/editor';
-import { useEffect, useMemo, type FC } from 'react';
+import { memo, useMemo, type FC } from 'react';
+import { selectSankeyFieldPools } from '../../features/visualization/store';
 import useSankeyChartConfig from '../../hooks/useSankeyChartConfig';
-import { type VisualizationConfigSankeyProps } from './types';
+import {
+    type VisualizationConfigSankeyProps,
+    type VisualizationConfigSankeyType,
+} from './types';
+import { useEmitChartConfig } from './useEmitChartConfig';
+import { useVisualizationInputSelector } from './useVisualizationContext';
 
 const VisualizationConfigSankey: FC<VisualizationConfigSankeyProps> = ({
-    resultsData,
-    initialChartConfig,
     onChartConfigChange,
-    itemsMap,
-    colorPalette,
     children,
-    tableCalculationsMetadata,
 }) => {
-    const { dimensions, numericFields } = useMemo(
-        () => getSankeyFields(itemsMap),
-        [itemsMap],
+    const { dimensions, numericFields } = useVisualizationInputSelector(
+        selectSankeyFieldPools,
+    );
+    const sankeyChartConfig = useSankeyChartConfig();
+
+    useEmitChartConfig(
+        ChartType.SANKEY,
+        sankeyChartConfig.validConfig,
+        onChartConfigChange,
     );
 
-    const sankeyChartConfig = useSankeyChartConfig(
-        resultsData,
-        initialChartConfig,
-        itemsMap,
-        dimensions,
-        numericFields,
-        colorPalette,
-        tableCalculationsMetadata,
-    );
-
-    useEffect(() => {
-        if (!onChartConfigChange || !sankeyChartConfig.validConfig) return;
-
-        onChartConfigChange({
-            type: ChartType.SANKEY,
-            config: sankeyChartConfig.validConfig,
-        });
-    }, [sankeyChartConfig, onChartConfigChange]);
-
-    return children({
-        visualizationConfig: {
+    const visualizationConfig: VisualizationConfigSankeyType = useMemo(
+        () => ({
             chartType: ChartType.SANKEY,
             chartConfig: sankeyChartConfig,
             dimensions,
             numericFields,
-        },
-    });
+        }),
+        [sankeyChartConfig, dimensions, numericFields],
+    );
+
+    return children({ visualizationConfig });
 };
 
-export default VisualizationConfigSankey;
+// Memoised so a resize skips it; an echoed config re-renders it, the memoised aggregate spares consumers
+export default memo(VisualizationConfigSankey);

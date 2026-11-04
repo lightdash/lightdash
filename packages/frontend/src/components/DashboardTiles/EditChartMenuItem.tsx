@@ -3,6 +3,15 @@ import { Menu } from '@mantine/core';
 import { IconFilePencil } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useNavigate, useParams } from 'react-router';
+import {
+    selectActiveTab,
+    selectDashboardFilters,
+    selectDashboardTabs,
+    selectDashboardTiles,
+    selectHaveFiltersChanged,
+    selectHaveTilesChanged,
+    useDashboardSelector,
+} from '../../features/dashboard/store';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { useChartPermissions } from '../../hooks/useChartPermissions';
 import { useContentAuthoringEnabled } from '../../hooks/useContentAuthoringEnabled';
@@ -28,13 +37,13 @@ const EditChartMenuItem: FC<Props> = ({ tile, chartSlug, chart, ...props }) => {
     const navigate = useNavigate();
     const authoringEnabled = useContentAuthoringEnabled();
     const { user } = useApp();
-    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
-    const filtersFromContext = useDashboardContext((c) => c.dashboardFilters);
-    const haveTilesChanged = useDashboardContext((c) => c.haveTilesChanged);
-    const haveFiltersChanged = useDashboardContext((c) => c.haveFiltersChanged);
+    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
+    const filtersFromContext = useDashboardSelector(selectDashboardFilters);
+    const haveTilesChanged = useDashboardSelector(selectHaveTilesChanged);
+    const haveFiltersChanged = useDashboardSelector(selectHaveFiltersChanged);
     const dashboard = useDashboardContext((c) => c.dashboard);
-    const activeTab = useDashboardContext((c) => c.activeTab);
-    const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
+    const activeTab = useDashboardSelector(selectActiveTab);
+    const dashboardTabs = useDashboardSelector(selectDashboardTabs);
 
     const { storeDashboard } = useDashboardStorage();
     const onEditChart = useDashboardChartEdit();

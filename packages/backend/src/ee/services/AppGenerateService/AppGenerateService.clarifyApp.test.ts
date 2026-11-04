@@ -1,9 +1,15 @@
 // Stub the e2b/ai SDKs before importing AppGenerateService so the tests never
 // reach the real sandbox or model client.
-import { DATA_APP_VIZ_TEMPLATE, type DataAppTemplate } from '@lightdash/common';
+import {
+    DATA_APP_VIZ_TEMPLATE,
+    FeatureFlags,
+    ForbiddenError,
+    type DataAppTemplate,
+} from '@lightdash/common';
 import { generateText, NoOutputGeneratedError } from 'ai';
 import { buildAppThumbnailClientMock } from '../../clients/AppThumbnailClient.mock';
 import { AppGenerateService } from './AppGenerateService';
+import { featureFlagModelWith } from './AppGenerateService.mock';
 import {
     CLARIFY_APP_SYSTEM_PROMPT,
     CLARIFY_VIZ_SYSTEM_PROMPT,
@@ -64,7 +70,12 @@ const FAST_MODEL_OPTIONS = {
     keyManagement: 'lightdash-managed',
 };
 
-function buildService() {
+function buildService(
+    gates: { dataAppsEnabled: boolean; chartStudioAvailable: boolean } = {
+        dataAppsEnabled: true,
+        chartStudioAvailable: true,
+    },
+) {
     const getCatalogItemsSummary = vi.fn().mockResolvedValue(CATALOG_ITEMS);
     const resolveFastModel = vi.fn().mockResolvedValue(FAST_MODEL_OPTIONS);
     const service = new AppGenerateService({
@@ -78,9 +89,9 @@ function buildService() {
         catalogModel: { getCatalogItemsSummary } as never,
         userModel: {} as never,
         appModel: {} as never,
-        featureFlagModel: {
-            get: vi.fn().mockResolvedValue({ enabled: true }),
-        } as never,
+        featureFlagModel: featureFlagModelWith({
+            [FeatureFlags.EnableDataApps]: gates.dataAppsEnabled,
+        }) as never,
         organizationDesignModel: {} as never,
         pinnedListModel: {} as never,
         projectModel: {
@@ -122,6 +133,9 @@ function buildService() {
             unverify: async () => undefined,
         } as never,
     });
+    vi.spyOn(service, 'isChartStudioAvailable').mockReturnValue(
+        gates.chartStudioAvailable,
+    );
     // Bypass real CASL — the prompt/context selection is what these tests cover.
     (
         service as unknown as { createAuditedAbility: () => unknown }
@@ -162,6 +176,53 @@ async function clarify(template: DataAppTemplate | undefined) {
 beforeEach(() => {
     generateTextMock.mockReset();
     mockQuestions([]);
+});
+
+describe('AppGenerateService.clarifyApp app gate with data apps off', () => {
+    it('clarifies a chart type while Chart Studio is available', async () => {
+        const { service } = buildService({
+            dataAppsEnabled: false,
+            chartStudioAvailable: true,
+        });
+
+        await expect(
+            service.clarifyApp(
+                USER,
+                'project-1',
+                'a radial gauge',
+                DATA_APP_VIZ_TEMPLATE,
+            ),
+        ).resolves.toEqual({ questions: [] });
+    });
+
+    it('refuses a chart type when Chart Studio is not available', async () => {
+        const { service } = buildService({
+            dataAppsEnabled: false,
+            chartStudioAvailable: false,
+        });
+
+        await expect(
+            service.clarifyApp(
+                USER,
+                'project-1',
+                'a radial gauge',
+                DATA_APP_VIZ_TEMPLATE,
+            ),
+        ).rejects.toThrow(new ForbiddenError('Chart Studio is not available'));
+        expect(generateTextMock).not.toHaveBeenCalled();
+    });
+
+    it('refuses a data app', async () => {
+        const { service } = buildService({
+            dataAppsEnabled: false,
+            chartStudioAvailable: true,
+        });
+
+        await expect(
+            service.clarifyApp(USER, 'project-1', 'a sales dashboard'),
+        ).rejects.toThrow(new ForbiddenError('Data apps are not enabled'));
+        expect(generateTextMock).not.toHaveBeenCalled();
+    });
 });
 
 describe('AppGenerateService.clarifyApp empty model response', () => {

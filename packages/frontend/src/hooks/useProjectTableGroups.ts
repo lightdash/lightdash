@@ -1,17 +1,23 @@
 import { type ApiError, type ApiTableGroupsResults } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 
-const getProjectTableGroups = (projectUuid: string) =>
+const getProjectTableGroups = (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+) =>
     lightdashApi<ApiTableGroupsResults>({
         url: `/projects/${projectUuid}/table-groups`,
         method: 'GET',
         body: undefined,
     });
 
-export const useProjectTableGroups = (projectUuid: string | undefined) =>
-    useQuery<ApiTableGroupsResults, ApiError>({
+export const useProjectTableGroups = (projectUuid: string | undefined) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ApiTableGroupsResults, ApiError>({
         queryKey: ['project', projectUuid, 'table-groups'],
-        queryFn: () => getProjectTableGroups(projectUuid!),
+        queryFn: () => getProjectTableGroups(lightdashApi, projectUuid!),
         enabled: Boolean(projectUuid),
     });
+};

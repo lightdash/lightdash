@@ -5,11 +5,13 @@ import {
     type ApiGetAppResponse,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 // The app read pages versions newest first, so the page ending at `version`
 // holds that version first when it exists, and 404s when nothing is that old.
 const fetchAppVersion = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     appUuid: string,
     version: number,
@@ -36,9 +38,12 @@ export const useAppVersion = (
     projectUuid: string | undefined,
     appUuid: string | undefined,
     version: number | undefined,
-) =>
-    useQuery<ApiAppVersionSummary | null, ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ApiAppVersionSummary | null, ApiError>({
         queryKey: ['app-version', projectUuid, appUuid, version],
-        queryFn: () => fetchAppVersion(projectUuid!, appUuid!, version!),
+        queryFn: () =>
+            fetchAppVersion(lightdashApi, projectUuid!, appUuid!, version!),
         enabled: !!projectUuid && !!appUuid && version !== undefined,
     });
+};

@@ -9,9 +9,14 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../api';
+import { sharedLightdashApi } from '../api';
 import { DashboardChartEditorActionsPortalId } from '../components/DashboardTiles/constants';
 import { AbilityContext } from '../providers/Ability/context';
+import {
+    createDashboardTestStore,
+    seedDashboardEditState,
+} from '../testing/dashboardStore';
+import { DashboardStoreTestProvider } from '../testing/DashboardStoreTestProvider';
 import {
     manageChartRule,
     mockSavedChartResponse,
@@ -40,7 +45,7 @@ const state = vi.hoisted(() => ({
     verified: false,
 }));
 
-vi.mock('../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../api');
 vi.mock('../hooks/useContentAuthoringEnabled', () => ({
     useContentAuthoringEnabled: () => true,
 }));
@@ -74,28 +79,11 @@ vi.mock('../providers/Dashboard/useDashboardContext', async () => {
             },
         },
         dashboardError: undefined,
-        dashboardFilters: {
-            dimensions: [],
-            metrics: [],
-            tableCalculations: [],
-        },
-        dashboardTemporaryFilters: {
-            dimensions: [],
-            metrics: [],
-            tableCalculations: [],
-        },
         get dashboardTiles() {
             return [copiedTile];
         },
         dashboardTabs: [],
         dashboardCustomMetrics: [],
-        dashboardParameters: {},
-        dashboardParameterReferences: new Set<string>(),
-        parameterDefinitions: {},
-        parameterValues: {},
-        parameterOrder: [],
-        pinnedParameters: [],
-        missingRequiredParameters: [],
         dateZoomGranularities: [],
         defaultDateZoomGranularity: undefined,
         dateZoomConfig: { controls: [], tileTargets: {} },
@@ -103,15 +91,11 @@ vi.mock('../providers/Dashboard/useDashboardContext', async () => {
         get haveTilesChanged() {
             return state.haveTilesChanged;
         },
-        haveFiltersChanged: false,
         haveTabsChanged: false,
         haveCustomMetricsChanged: false,
-        havePinnedParametersChanged: false,
         haveDateZoomGranularitiesChanged: false,
-        hasParameterOrderChanged: false,
         hasDefaultDateZoomGranularityChanged: false,
         hasDateZoomConfigChanged: false,
-        parametersHaveChanged: false,
         hasTilesThatSupportFilters: false,
         isDateZoomDisabled: false,
         isAddFilterDisabled: false,
@@ -269,6 +253,7 @@ vi.mock('../components/Explorer/ExploreSideBar', () => ({
 vi.mock('../hooks/useExplore', () => ({
     useExplore: () => ({ data: undefined, error: null }),
     useExploreByProjectUuid: () => ({ data: undefined, error: null }),
+    useExploreQueries: (names: unknown[]) => names.map(() => undefined),
 }));
 
 vi.mock('../hooks/useExplorerQueryEffects', () => ({
@@ -308,6 +293,7 @@ vi.mock(
     () => ({ AskAiAgentMenuItem: () => null }),
 );
 
+import { mockedLightdashApi } from '../testing/mockedLightdashApi';
 // eslint-disable-next-line import/first
 import DashboardPage from './Dashboard';
 
@@ -349,9 +335,16 @@ const renderDashboard = (search: string) => {
         },
     );
     renderWithProviders(
-        <AbilityContext.Provider value={manageChartAbility}>
-            <RouterProvider router={router} />
-        </AbilityContext.Provider>,
+        <DashboardStoreTestProvider
+            store={seedDashboardEditState(createDashboardTestStore(), {
+                dashboardTiles: [copiedTile],
+                haveTilesChanged: state.haveTilesChanged,
+            })}
+        >
+            <AbilityContext.Provider value={manageChartAbility}>
+                <RouterProvider router={router} />
+            </AbilityContext.Provider>
+        </DashboardStoreTestProvider>,
         { user: { abilityRules: manageChartAbility.rules } },
     );
 };
@@ -377,8 +370,8 @@ describe('Dashboard in-dashboard chart editor url', () => {
         state.haveTilesChanged = false;
         state.verified = false;
         sessionStorage.clear();
-        vi.mocked(lightdashApi).mockClear();
-        vi.mocked(lightdashApi).mockImplementation((async ({ url, method }) => {
+        mockedLightdashApi.mockClear();
+        mockedLightdashApi.mockImplementation((async ({ url, method }) => {
             if (
                 method === 'GET' &&
                 url.startsWith(`/projects/${PROJECT_UUID}/saved/chart-uuid`)
@@ -386,7 +379,7 @@ describe('Dashboard in-dashboard chart editor url', () => {
                 return editChart;
             }
             return new Promise(() => {});
-        }) as typeof lightdashApi);
+        }) as typeof sharedLightdashApi);
     });
 
     it('offers to save dashboard edits before navigating to the chart editor and can cancel', async () => {
@@ -410,7 +403,7 @@ describe('Dashboard in-dashboard chart editor url', () => {
         );
         expect(
             vi
-                .mocked(lightdashApi)
+                .mocked(sharedLightdashApi)
                 .mock.calls.some(([request]) => request.method === 'PATCH'),
         ).toBe(false);
         expect(
@@ -429,7 +422,7 @@ describe('Dashboard in-dashboard chart editor url', () => {
             tiles: [],
             tabs: [],
         };
-        vi.mocked(lightdashApi).mockImplementation((({ method }) => {
+        mockedLightdashApi.mockImplementation((({ method }) => {
             if (method === 'PATCH') {
                 return new Promise<unknown>((resolve, reject) => {
                     finishSave = resolve;
@@ -437,7 +430,7 @@ describe('Dashboard in-dashboard chart editor url', () => {
                 });
             }
             return new Promise(() => {});
-        }) as typeof lightdashApi);
+        }) as typeof sharedLightdashApi);
         renderDashboard('/edit');
         await userEvent.click(
             screen.getByRole('button', { name: 'Tile actions' }),
@@ -466,7 +459,7 @@ describe('Dashboard in-dashboard chart editor url', () => {
         await userEvent.click(
             screen.getByRole('button', { name: 'Save and edit chart' }),
         );
-        expect(lightdashApi).toHaveBeenCalledWith(
+        expect(sharedLightdashApi).toHaveBeenCalledWith(
             expect.objectContaining({
                 method: 'PATCH',
                 body: expect.stringContaining('"tiles":[{"uuid":"copy-tile"'),
@@ -501,14 +494,14 @@ describe('Dashboard in-dashboard chart editor url', () => {
         ).toBeVisible();
         expect(
             vi
-                .mocked(lightdashApi)
+                .mocked(sharedLightdashApi)
                 .mock.calls.some(([request]) => request.method === 'PATCH'),
         ).toBe(false);
         await userEvent.click(
             screen.getByRole('button', { name: 'Save anyway' }),
         );
         await waitFor(() =>
-            expect(lightdashApi).toHaveBeenCalledWith(
+            expect(sharedLightdashApi).toHaveBeenCalledWith(
                 expect.objectContaining({
                     method: 'PATCH',
                     body: expect.stringContaining(
@@ -533,7 +526,7 @@ describe('Dashboard in-dashboard chart editor url', () => {
         expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
         expect(
             vi
-                .mocked(lightdashApi)
+                .mocked(sharedLightdashApi)
                 .mock.calls.some(([request]) => request.method === 'PATCH'),
         ).toBe(false);
     });
@@ -556,7 +549,7 @@ describe('Dashboard in-dashboard chart editor url', () => {
         expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
         expect(
             vi
-                .mocked(lightdashApi)
+                .mocked(sharedLightdashApi)
                 .mock.calls.some(([request]) => request.method === 'PATCH'),
         ).toBe(false);
     });

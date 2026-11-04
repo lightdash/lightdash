@@ -59,12 +59,18 @@ export const summarizeRequiredFilters = (explore: Explore): string | null => {
         const kind = filter.required === false ? 'suggested' : 'required';
         return `${kind} ${fieldId} ${filter.operator}${values}`;
     });
-    const requiredFilterGuidance = filters.some(
-        (filter) => filter.required !== false,
-    )
-        ? '. Required filter values are replaceable defaults, not fixed data limits; use a compatible query filter on the same field or a derived time dimension of that field when the requested scope differs.'
-        : '';
-    return `⚠ table filters: ${parts.join('; ')}${requiredFilterGuidance}`;
+    const sentences = [`⚠ table filters: ${parts.join('; ')}`];
+    if (filters.some((filter) => filter.required !== false)) {
+        sentences.push(
+            'Required filters apply to every query on this explore, but their values are replaceable defaults, not fixed data limits: when the requested scope differs, filter the same field or a derived time dimension of it with that scope (e.g. ten months instead of a required 4 weeks)',
+        );
+    }
+    if (filters.some((filter) => filter.required === false)) {
+        sentences.push(
+            'Suggested filters are soft defaults: apply them unless the user asks for a different scope',
+        );
+    }
+    return sentences.length > 1 ? `${sentences.join('. ')}.` : sentences[0];
 };
 
 /** One greppable "file": a field flattened with its searchable annotations. */
@@ -458,13 +464,13 @@ export const renderCandidateBlock = (
         return `${exploreName} (${fields[0]?.exploreLabel ?? exploreName})\n${lines}`;
     });
     let guidance =
-        'Candidate fields pre-grepped from the catalog for this question (deterministic keyword match — VERIFY these fit before using, and call grepFields yourself if you need different angles or none of these match):';
+        'Candidate fields pre-grepped from the catalog for this question (deterministic keyword match: verify these fit before using them, and call grepFields yourself if you need different angles or none of these match):';
     if (metadataPreloaded) {
         guidance =
             'Catalog candidates ranked for field meaning and explore grain. Verify against the preloaded metadata below; use getMetadata for missing details and grepFields for other candidates:';
     } else if (ranked) {
         guidance =
-            'Catalog candidates ranked for field meaning and explore grain. VERIFY definitions, joins and filters with getMetadata before querying; use grepFields for other candidates:';
+            'Catalog candidates ranked for field meaning and explore grain. Verify definitions, joins and filters with getMetadata before querying; use grepFields for other candidates:';
     }
     return [guidance, '', ...blocks].join('\n');
 };

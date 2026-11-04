@@ -10,6 +10,7 @@ import {
     type FieldId,
     type Filters,
     type MetricQuery,
+    type ParametersValuesMap,
     type PivotReference,
     type ResultValue,
     type UUID,
@@ -19,6 +20,9 @@ import { IconArrowBarToDown, IconExternalLink } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import useEmbedDrillDownExplore from '../../ee/providers/Embed/useEmbedDrillDownExplore';
 import useIsEmbedded from '../../ee/providers/Embed/useIsEmbedded';
+import { MERGE_URL_PARAM } from '../../features/mergeQuery/context/mergeUrlState';
+import { useMergeSafe } from '../../features/mergeQuery/context/useMerge';
+import { useMergeDrillDownConfig } from '../../features/mergeQuery/hooks/useMergeUnderlyingDataConfig';
 import { useExplore } from '../../hooks/useExplore';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
@@ -26,6 +30,7 @@ import FieldSelect from '../common/FieldSelect';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
 import { combineFilters } from './combineFilters';
+import { type DrillDownConfig } from './types';
 import { useMetricQueryDataContext } from './useMetricQueryDataContext';
 
 type DrillDownExploreArgs = {
@@ -39,6 +44,7 @@ type DrillDownExploreArgs = {
     pivotReference?: PivotReference;
     explore?: Explore;
     timezone?: string;
+    parameters: ParametersValuesMap | undefined;
 };
 
 const getDrillDownExplore = ({
@@ -52,6 +58,7 @@ const getDrillDownExplore = ({
     pivotReference,
     explore,
     timezone,
+    parameters,
 }: DrillDownExploreArgs) => {
     const createSavedChartVersion: CreateSavedChartVersion = {
         tableName,
@@ -86,14 +93,18 @@ const getDrillDownExplore = ({
             type: ChartType.CARTESIAN,
             config: { layout: {}, eChartsConfig: {} },
         },
+        parameters,
     };
     const { pathname, search } = getExplorerUrlFromCreateSavedChartVersion(
         projectUuid,
         createSavedChartVersion,
     );
+    // The drill is a new single-source chart, not the merge open on this page
+    const params = new URLSearchParams(search);
+    params.delete(MERGE_URL_PARAM);
     return {
         chart: createSavedChartVersion,
-        url: `${pathname}?${search}`,
+        url: `${pathname}?${params}`,
     };
 };
 
@@ -104,9 +115,12 @@ type DrillDownModalProps = {
     customSqlProvenanceChartUuid?: UUID;
 };
 
-export const DrillDownModal: FC<DrillDownModalProps> = ({
+const DrillDownModalContent: FC<
+    DrillDownModalProps & { drillDownConfig: DrillDownConfig | undefined }
+> = ({
     onExplore: onExploreOverride,
     customSqlProvenanceChartUuid,
+    drillDownConfig,
 }) => {
     const projectUuid = useProjectUuid();
     const isEmbedded = useIsEmbedded();
@@ -124,8 +138,8 @@ export const DrillDownModal: FC<DrillDownModalProps> = ({
         explore: contextExplore,
         metricQuery: contextMetricQuery,
         tableName,
-        drillDownConfig,
         resolvedTimezone,
+        parameters,
     } = useMetricQueryDataContext();
     const source = drillDownConfig?.source;
     const metricQuery = source?.metricQuery ?? contextMetricQuery;
@@ -171,6 +185,7 @@ export const DrillDownModal: FC<DrillDownModalProps> = ({
                 pivotReference: drillDownConfig.pivotReference,
                 explore,
                 timezone: resolvedTimezone,
+                parameters,
             });
         }
     }, [
@@ -180,6 +195,7 @@ export const DrillDownModal: FC<DrillDownModalProps> = ({
         drillDownConfig,
         projectUuid,
         resolvedTimezone,
+        parameters,
     ]);
 
     const onClose = useCallback(() => {
@@ -231,5 +247,24 @@ export const DrillDownModal: FC<DrillDownModalProps> = ({
                 hasGrouping
             />
         </MantineModal>
+    );
+};
+
+const MergedDrillDownModal: FC<DrillDownModalProps> = (props) => {
+    const { drillDownConfig } = useMetricQueryDataContext();
+    const sourceConfig = useMergeDrillDownConfig(drillDownConfig);
+    // Drill menus are hidden for columns no source owns, so this stays closed
+    if (drillDownConfig && !sourceConfig) return null;
+    return <DrillDownModalContent {...props} drillDownConfig={sourceConfig} />;
+};
+
+export const DrillDownModal: FC<DrillDownModalProps> = (props) => {
+    const { drillDownConfig } = useMetricQueryDataContext();
+    const isMerged = !!useMergeSafe()?.mergeResults;
+
+    return isMerged ? (
+        <MergedDrillDownModal {...props} />
+    ) : (
+        <DrillDownModalContent {...props} drillDownConfig={drillDownConfig} />
     );
 };

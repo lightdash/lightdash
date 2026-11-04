@@ -263,7 +263,9 @@ const fixture = async () => {
                 ] as const
             ).map(
                 async (name) =>
-                    (await database(name).count('* as count').first())!.count,
+                    (await database(name)
+                        .count<{ count: string }[]>('* as count')
+                        .first())!.count,
             ),
         );
     const before = await counts();

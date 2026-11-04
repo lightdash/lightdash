@@ -2,13 +2,12 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../../../../../api';
+import { mockedLightdashApi } from '../../../../../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../../../../../testing/testUtils';
 import { store } from '../../../store';
 import { SqlRunToolCallDescription } from './descriptions/SqlRunToolCallDescription';
 
-vi.mock('../../../../../../api', () => ({ lightdashApi: vi.fn() }));
-const mockedLightdashApi = vi.mocked(lightdashApi);
+vi.mock('../../../../../../api');
 
 const approval = {
     projectUuid: 'project-1',

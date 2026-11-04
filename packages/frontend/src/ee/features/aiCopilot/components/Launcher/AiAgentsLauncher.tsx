@@ -1,6 +1,6 @@
 import { Box, Transition } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
-import { useEffect, useRef, type FC } from 'react';
+import { useEffect, useMemo, useRef, type FC } from 'react';
 import { useActiveProjectUuid } from '../../../../../hooks/useActiveProject';
 import { useAiAgentButtonVisibility } from '../../hooks/useAiAgentsButtonVisibility';
 import {
@@ -26,6 +26,8 @@ import {
     getLauncherPanelAgent,
     isLauncherAgentAvailable,
 } from './launcherAgentSelection';
+import { useLauncherAnalysisAdapter } from './launcherAnalysisAdapter';
+import { LauncherAnalysisPanel } from './LauncherAnalysisPanel';
 import { LauncherDock } from './LauncherDock';
 import { LauncherPanel } from './LauncherPanel';
 import { LauncherPanelSizeContext } from './LauncherPanelSizeContext';
@@ -64,11 +66,25 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
 
     const isAiAgentEnabled = useAiAgentButtonVisibility();
 
-    const { agents, agentsUpdatedAt, selectedAgent, isResolving } =
-        useDefaultAiAgent(activeProjectUuid);
+    const {
+        agents: cachedAgents,
+        agentsUpdatedAt: cachedAgentsUpdatedAt,
+        selectedAgent: cachedSelectedAgent,
+        isResolving,
+    } = useDefaultAiAgent(activeProjectUuid);
+    // The analysis controller fills the shared agents cache even when the org
+    // hides the chat surface, so chat gates on the setting, never the cache.
+    const agents = useMemo(
+        () => (isAiAgentEnabled ? cachedAgents : []),
+        [cachedAgents, isAiAgentEnabled],
+    );
+    const agentsUpdatedAt = isAiAgentEnabled ? cachedAgentsUpdatedAt : 0;
+    const selectedAgent = isAiAgentEnabled ? cachedSelectedAgent : null;
 
     const dispatch = useAiAgentStoreDispatch();
     const mode = useAiAgentStoreSelector((state) => state.aiAgentLauncher.mode);
+    const view = useAiAgentStoreSelector((state) => state.aiAgentLauncher.view);
+    const analysisAdapter = useLauncherAnalysisAdapter(activeProjectUuid);
     const activeThreadId = useAiAgentStoreSelector(
         (state) => state.aiAgentLauncher.activeThreadId,
     );
@@ -139,8 +155,11 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
         dispatch,
     ]);
 
+    // A registered analysis adapter grants access on its own: detection is
+    // agentless, so viewers without any accessible agent still get analysis.
     const isAllowed =
-        Boolean(activeProjectUuid) && isAiAgentEnabled && agents.length > 0;
+        Boolean(activeProjectUuid) &&
+        ((isAiAgentEnabled && agents.length > 0) || analysisAdapter !== null);
 
     // Only mount the panel when the active agent/thread belongs to this project;
     // mounting an existing-thread panel starts the thread query.
@@ -161,9 +180,15 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
             : activeThreadBelongsToProject && activeAgentBelongsToProject
               ? activeThreadId
               : null;
-    const isPanelOpenSafe =
+    const isChatPanelOpen =
         mode === 'panel-open' &&
+        view === 'chat' &&
         (safeActiveThreadId !== null || safeActiveAgentUuid !== null);
+    const isAnalysisPanelOpen =
+        mode === 'panel-open' &&
+        view === 'analysis' &&
+        analysisAdapter !== null;
+    const isPanelOpenSafe = isChatPanelOpen || isAnalysisPanelOpen;
     // A preview renders only where its thread is on screen.
     const activeSavedChartPreview =
         savedChartPreview !== null &&
@@ -201,6 +226,13 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
     }
     const transitionDocumentPreview =
         activeDocumentPreview ?? lastDocumentPreviewRef.current;
+    // Keep the exiting analysis panel rendered while it slides away.
+    const lastAnalysisAdapterRef = useRef(analysisAdapter);
+    if (analysisAdapter) {
+        lastAnalysisAdapterRef.current = analysisAdapter;
+    }
+    const transitionAnalysisAdapter =
+        analysisAdapter ?? lastAnalysisAdapterRef.current;
     const isContentPage =
         currentDashboard?.projectUuid === activeProjectUuid ||
         currentDataApp?.projectUuid === activeProjectUuid ||
@@ -210,6 +242,7 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
         !activeProjectUuid ||
         !shouldRenderAiAgentsLauncherContent({
             dockItemCount: dock.length,
+            hasAnalysisTab: analysisAdapter !== null,
             hasSelectedAgent: !!selectedAgent,
             isAllowed,
             isContentPage,
@@ -237,7 +270,7 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
             {transitionSavedChartPreview && (
                 <Transition
                     mounted={
-                        isPanelOpenSafe && activeSavedChartPreview !== null
+                        isChatPanelOpen && activeSavedChartPreview !== null
                     }
                     transition="slide-up"
                     duration={180}
@@ -246,6 +279,7 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
                     {(transitionStyle) => (
                         <Box
                             className={styles.previewPanel}
+                            // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                             style={transitionStyle}
                         >
                             <AiSavedChartPreviewPanel
@@ -257,7 +291,7 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
             )}
             {transitionDataAppPreview && (
                 <Transition
-                    mounted={isPanelOpenSafe && activeDataAppPreview !== null}
+                    mounted={isChatPanelOpen && activeDataAppPreview !== null}
                     transition="slide-up"
                     duration={180}
                     timingFunction="ease"
@@ -265,6 +299,7 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
                     {(transitionStyle) => (
                         <Box
                             className={styles.previewPanel}
+                            // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                             style={transitionStyle}
                         >
                             <AiDataAppPreviewPanel
@@ -277,7 +312,7 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
             )}
             {transitionDocumentPreview && (
                 <Transition
-                    mounted={isPanelOpenSafe && activeDocumentPreview !== null}
+                    mounted={isChatPanelOpen && activeDocumentPreview !== null}
                     transition="slide-up"
                     duration={180}
                     timingFunction="ease"
@@ -285,6 +320,7 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
                     {(transitionStyle) => (
                         <Box
                             className={styles.previewPanel}
+                            // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                             style={transitionStyle}
                         >
                             <AiDocumentPreviewPanel
@@ -295,7 +331,7 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
                 </Transition>
             )}
             <Transition
-                mounted={isPanelOpenSafe}
+                mounted={isChatPanelOpen}
                 transition="slide-up"
                 duration={180}
                 timingFunction="ease"
@@ -309,11 +345,30 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
                             agent={panelAgent}
                             agents={agents}
                             activeThreadId={safeActiveThreadId}
-                            style={transitionStyle}
+                            transitionStyle={transitionStyle}
                         />
                     </LauncherPanelSizeContext.Provider>
                 )}
             </Transition>
+            {transitionAnalysisAdapter && (
+                <Transition
+                    mounted={isAnalysisPanelOpen}
+                    transition="slide-up"
+                    duration={180}
+                    timingFunction="ease"
+                >
+                    {(transitionStyle) => (
+                        <LauncherPanelSizeContext.Provider
+                            value={panelSize.context}
+                        >
+                            <LauncherAnalysisPanel
+                                adapter={transitionAnalysisAdapter}
+                                transitionStyle={transitionStyle}
+                            />
+                        </LauncherPanelSizeContext.Provider>
+                    )}
+                </Transition>
+            )}
         </Box>
     );
 };

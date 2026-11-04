@@ -1,15 +1,57 @@
 # Analytics sample content
 
 The backend-owned bundle in `packages/backend/src/analytics/systemExplores/sampleContent.ts`
-defines two focused managed dashboards using the existing system explores: AI usage
-(eight charts) and Query activity (nine charts). It is compiled with the backend: no CLI upload, migration,
-installation table, or version tracking is required.
+defines managed dashboards using system explores, including AI usage, Query activity
+and AI tokens and billing coverage. It is compiled with the backend. A background
+job on the existing scheduler installs new model and dashboard definitions after nightly
+processing; see [automatic content updates](content-sync.md).
+
+New built-in dashboards are created together in the **Default dashboards** space.
+Create and Sync content automatically apply the existing **Verified** badge after
+each dashboard's charts and layout are installed. Verification is attributed to
+the applying administrator for manual and automatic installation; it identifies the supplied content, not the health
+or completeness of that organization's captured data. Normal sync preserves an
+existing verification; restoration re-verifies after the layout is installed.
+Custom dashboards and copies are not automatically verified.
+Existing projects show **Sync content** when a built-in dashboard is unverified.
+
+Sync keeps existing dashboards in their current spaces, including any restricted
+spaces, so adopting this layout does not change inherited access. Their charts
+follow the same space. Restored dashboards retain their previous active space;
+an unavailable or ambiguous space fails the sync rather than changing access.
+Old spaces and custom content are not removed or moved.
 
 AI usage includes calls, total tokens, distinct users and output-token KPIs,
 daily calls/token trends, and top models by tokens and calls. Query activity includes
 a cache-hit share donut, average/P90 warehouse execution trends,
 and top query contexts. Token volume is not cost; warehouse execution time is not
 end-to-end latency. Missing cache flags are not treated as misses.
+
+The five Ask AI charts on **Adoption** use the **Agent request starts** Explore.
+It keeps one row per captured prompt using the same event and earliest-creation
+deduplication as **Agent requests**, including pending and failed requests. The
+starts-only queries prepare request events and only the selected user/agent
+lookups; they do not prepare AI usage or calculate outcome, retry, feedback or
+token measures.
+Weekly people counts remain distinct across the entire week.
+
+Existing projects receive the new Explore and chart definitions through **Sync
+content**. Chart UUIDs, slugs, field IDs, filters, result keys, user email fallbacks
+and visualization settings remain unchanged. The full **Agent requests** Explore
+and custom charts remain available for outcome, latency, feedback and token
+analysis. This changes read-time queries only; capture, compaction and retained
+history are unchanged.
+
+Queries → **Monthly comparison** shows querying users and query runs for the last
+12 completed UTC calendar months, with absolute and percentage changes against
+the preceding calendar month. Monthly users are counted distinctly across the
+whole month, not summed from daily users. Query runs include recorded cache hits
+and errors; recorded users include service accounts. Missing months are omitted
+and do not become zeroes or comparisons with an older non-adjacent month.
+Percentage change is blank for a zero baseline. Capture and retention can leave
+even closed calendar months incomplete; these comparisons describe recorded usage.
+Existing projects get these charts through **Sync content**; no event backfill,
+compaction changes or automatic edits to saved customer content are required.
 
 Query activity focuses on query totals, distinct users, average/P90 warehouse
 execution time, daily query and active-user trends, cache-hit share and query
@@ -19,8 +61,18 @@ keeps its existing content and slugs. Space slugs are explicit and stable so a
 dashboard title change does not create a new space. Sync removes the former
 overview's query tiles without deleting their saved history or custom copies.
 
-Project creation and **Sync content** in organization analytics settings both install
-the current definitions: system explores first, then managed charts and dashboards.
+Content creation by month and Content ownership · current snapshot use the
+**Content inventory** Explore, reading the latest inventory without preparing
+unrelated usage history. Their counts still include soft-deleted items and items
+without activity; ownership and creation dates reflect the current snapshot.
+**Sync content** refreshes the models and updates these two managed charts in
+place, retaining their UUIDs, slugs, field IDs and existing filter targets. Existing Content health fields and custom
+charts remain available. Sync does not refresh inventory data or alter capture,
+history or compaction.
+
+Project creation, automatic content updates and **Sync content** in organization
+analytics settings all install the current definitions: system explores first,
+then managed charts and dashboards.
 This makes newly shipped explores, dimensions and metrics available in existing
 analytics projects without recreating the project. After creation, settings stays open and shows dashboard
 shortcuts and the **Explore** button; it does not redirect automatically. Sync calls
@@ -60,8 +112,10 @@ moving or overwriting those charts. Resolve that conflict before retrying.
 
 Sync overwrites the managed dashboard's name, description, layout, filters,
 and sample chart definitions using the existing versioned models. Existing UUIDs
-and slugs remain unchanged. Customizations to the managed sample can be lost: duplicate it first
-to keep them. Other dashboards and their charts are untouched. Removed chart
+and slugs remain unchanged. Built-in dashboards are managed and automatically
+receive shipped updates.
+Customizations to them are replaced on update: duplicate a dashboard first to
+keep your own version. Other dashboards and their charts are untouched. Removed chart
 definitions are no longer included in the dashboard layout; their saved rows and
 historical versions are retained rather than hard-deleted.
 
@@ -96,12 +150,67 @@ Earlier local prototypes used deterministic UUIDs. Existing rows at canonical
 slugs are updated without changing those UUIDs; noncanonical/suffixed prototype
 dashboards are not adopted or deleted automatically.
 
-## Future work
+## AI tokens and billing coverage
 
-There is no out-of-date detection or installed version in this PR. Every Sync
-applies the definitions shipped with the current backend. Version detection and
-broader content synchronization are tracked in PROD-11152. Creation timestamps
-alone would not indicate the version after an in-place sync.
+The managed `lightdash-analytics-ai-tokens` dashboard is installed during Analytics
+project creation and **Sync content**, in the existing AI usage space. Its 24
+charts provide Feature, Channel, User, Project and Agent tabs plus an all-usage
+coverage tab. The existing Agents & AI dashboard is preserved.
+
+The five breakdown tabs use the same feature, completed-outcome and
+Lightdash-managed-key criteria as credit accounting, but report **tokens**,
+including unpriced models. They do not reproduce priced billable credits,
+contract periods, allowances or holds. The default window is the current calendar
+month through yesterday in UTC, rather than the organization's contract window.
+All-usage charts additionally include self-managed and excluded/background usage.
+Cache and reasoning metrics overlap input/output; they must not all be added to
+the provider-reported token total. Record counts are not questions or an exact
+provider-call count.
+
+Colored daily stacks and token-share rows show the five largest groups plus
+Other. Identities remain separate even when names match. Token-share rows have
+reserved vertical space so labels and progress bars do not overlap. At the
+5,000-grouped-row query limit, a breakdown shows a warning instead of incomplete
+shares; add a dashboard filter to narrow the result. Detail tables show up to
+1,000 grouped rows.
+
+AI Usage exposes **Project name** from the current organization-scoped
+`projects.parquet` dimension, including projects with no saved content. Names
+refresh with the existing usage-dimension job; Sync updates the model and content
+without refreshing the data snapshot. Missing/deleted projects retain their
+events and render as unknown, with the project ID available for attribution.
+No tenant IDs, project names, credentials or internal issue links are embedded in
+the managed content.
+
+## Embed
+
+The managed `lightdash-analytics-embed` dashboard is installed by project creation
+and **Sync content**. Its **Audience** tab shows observed dashboard loads,
+distinct supplied external viewer IDs, active dashboards, daily and weekly trends,
+popular dashboards and viewer-ID coverage. **Query health** shows query volume,
+errors, outcomes, caching and median/P95 successful request-start response time.
+Number, line, bar and donut charts summarize usage; a custom ranking chart keeps
+long dashboard IDs in tooltips while leaving room for the bars. The Date filter maps
+to both models and defaults to the last 30 completed UTC days.
+
+Loads represent observed authorized embedded-dashboard fetches, not successful
+browser rendering or billed visits. Repeat fetches count, browser-cached views can
+be absent, and dashboard tiles can generate multiple queries. External IDs are
+supplied by the embedding application; missing IDs and token issuers do not become
+viewers. Unidentified loads remain in the totals and have a separate coverage
+segment. Latest captured dashboard names retain their IDs so equal names do not merge.
+
+Load capture starts with this version and has no historical backfill. Existing
+query history can cover a different period. Missing query timing is excluded from
+latency; missing cache flags remain unknown. This dashboard does not infer tenants
+from user attributes, reconcile invoices or provide a complete embed dependency
+inventory. Absence of observed usage is not evidence that content is safe to delete.
+
+## Version tracking
+
+The installed definition hash includes models, chart definitions and dashboard
+layouts, so formula and label changes are detected even when field and chart
+counts are unchanged. The installed hash is recorded only after a complete successful sync. Existing UUIDs and saved versions remain stable.
 
 Keep bundle/chart keys stable when changing metrics or dimensions. The system
 explores now expose a joined Users table with **User name**; Query Events also

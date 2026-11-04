@@ -55,7 +55,7 @@ it('times out and kills a real CLI child when its HTTP response never arrives', 
         const child = spawn.mock.results[0].value as childProcess.ChildProcess;
         const closed = once(child, 'close');
         expect((await result)?.message).toBe(
-            'Ordinary CLI child timed out after 20s',
+            'CLI child timed out after 20000ms: warehouse-catalog --json',
         );
         expect(await closed).toEqual([null, 'SIGKILL']);
         expect(child.signalCode).toBe('SIGKILL');

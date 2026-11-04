@@ -11,6 +11,12 @@ import { useProjectUuid } from '../../hooks/useProjectUuid';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
+import {
+    selectDashboardTiles,
+    selectParameterValues,
+    useDashboardAllFilters,
+    useDashboardSelector,
+} from '../dashboard/store';
 import ActiveFilters from './ActiveFilters';
 import AddFilterButton from './AddFilterButton';
 
@@ -26,7 +32,7 @@ const DashboardFilters: FC<Props> = ({ isEditMode, activeTabUuid }) => {
 
     const project = useProject(projectUuid);
 
-    const allFilters = useDashboardContext((c) => c.allFilters);
+    const allFilters = useDashboardAllFilters();
     const resetDashboardFilters = useDashboardContext(
         (c) => c.resetDashboardFilters,
     );
@@ -42,8 +48,8 @@ const DashboardFilters: FC<Props> = ({ isEditMode, activeTabUuid }) => {
     const allFilterableMetrics = useDashboardContext(
         (c) => c.allFilterableMetrics,
     );
-    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
-    const parameterValues = useDashboardContext((c) => c.parameterValues);
+    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
+    const parameterValues = useDashboardSelector(selectParameterValues);
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );
@@ -97,6 +103,7 @@ const DashboardFilters: FC<Props> = ({ isEditMode, activeTabUuid }) => {
             startOfWeek={
                 project.data?.warehouseConnection?.startOfWeek ?? undefined
             }
+            warehouseType={project.data?.warehouseConnection?.type}
             dashboardFilters={allFilters}
             dashboardTiles={dashboardTiles}
             filterableFieldsByTileUuid={filterableFieldsByTileUuid}

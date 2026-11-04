@@ -25,6 +25,13 @@ export interface RunOptions {
     timeoutMs?: number;
     onStdout?: (chunk: string) => void;
     onStderr?: (chunk: string) => void;
+    /** Combined stdout/stderr byte ceiling; supported by Docker, E2B, Cloud Run and Azure. */
+    maxOutputBytes?: number;
+}
+
+export interface FileReadOptions {
+    /** Abort the transfer before collecting more bytes; Docker, E2B, Cloud Run and Azure. */
+    maxBytes: number;
 }
 
 /** Data plane: run a command inside the sandbox. */
@@ -40,11 +47,15 @@ export interface SandboxCommands {
 /** Data plane: read/write files inside the sandbox. */
 export interface SandboxFiles {
     /** Read a UTF-8 text file. */
-    read(path: string): Promise<string>;
+    read(path: string, options?: FileReadOptions): Promise<string>;
     /** Read a binary file as raw bytes. */
-    readBytes(path: string): Promise<Buffer>;
+    readBytes(path: string, options?: FileReadOptions): Promise<Buffer>;
     /** Write a text or binary file, creating parent directories as needed. */
     write(path: string, contents: string | Uint8Array): Promise<void>;
+    /** Optional provider-native multi-file upload. Creates parent directories. */
+    writeMany?(
+        files: { path: string; contents: string | Uint8Array }[],
+    ): Promise<void>;
     /** Remove a file (no error if it does not exist). */
     remove(path: string): Promise<void>;
 }
@@ -149,6 +160,8 @@ export interface SandboxSpec {
     /** Outbound host allowlist. `denyOut: ALL_TRAFFIC` is implicit. */
     egress: { allow: string[] };
     envs?: Record<string, string>;
+    /** E2B timeout policy; persistent callers default to pause. */
+    onTimeout?: 'kill' | 'pause';
 }
 
 /**

@@ -23,10 +23,11 @@ const tools = () => ({
     generateDataApp: tool({ inputSchema: z.object({}) }),
     iterateDataApp: tool({ inputSchema: z.object({}) }),
     listDataAppThemes: tool({ inputSchema: z.object({}) }),
+    listDataAppConnections: tool({ inputSchema: z.object({}) }),
     createContent: tool({ inputSchema: z.object({}) }),
     runContentQuery: tool({ inputSchema: z.object({}) }),
     runSql: tool({ inputSchema: z.object({}) }),
-    editRepo: tool({ inputSchema: z.object({}) }),
+    editDbtProject: tool({ inputSchema: z.object({}) }),
     loadSkill: tool({ inputSchema: z.object({}) }),
 });
 
@@ -40,7 +41,7 @@ describe('intent toolbox', () => {
                     calls += 1;
                     const names = options.tools?.map(({ name }) => name);
                     if (calls === 1) {
-                        expect(names).not.toContain('editRepo');
+                        expect(names).not.toContain('editDbtProject');
                         expect(names).toEqual([
                             'loadAgentTools',
                             'getKnowledgeDocumentContent',
@@ -65,7 +66,7 @@ describe('intent toolbox', () => {
                         };
                     }
                     expect(names).toContain('generateVisualization');
-                    expect(names).toContain('editRepo');
+                    expect(names).toContain('editDbtProject');
                     return {
                         content: [
                             { type: 'text', text: 'Full toolbox restored.' },
@@ -133,6 +134,7 @@ describe('intent toolbox', () => {
                 'findContent',
                 'generateDataApp',
                 'listDataAppThemes',
+                'listDataAppConnections',
             ]),
         );
         expect(
@@ -145,6 +147,7 @@ describe('intent toolbox', () => {
                 'findContent',
                 'iterateDataApp',
                 'listDataAppThemes',
+                'listDataAppConnections',
             ]),
         );
         expect(
@@ -171,7 +174,7 @@ describe('intent toolbox', () => {
         ).not.toContain('generateDataApp');
         expect(
             createIntentToolGate(tools(), 'repository_change').activeTools(),
-        ).toEqual(expect.arrayContaining(['editRepo']));
+        ).toEqual(expect.arrayContaining(['editDbtProject', 'loadSkill']));
         expect(
             createIntentToolGate(tools(), 'repository_change').activeTools(),
         ).not.toContain('generateVisualization');
@@ -188,7 +191,7 @@ describe('deferred prompt sections', () => {
             expect.arrayContaining(['runQuery', 'generateVisualization']),
         );
         expect(active).not.toContain('createContent');
-        expect(active).not.toContain('editRepo');
+        expect(active).not.toContain('editDbtProject');
     });
 
     it('keeps the full toolbox when a likely turn type does not narrow it', () => {
@@ -198,6 +201,20 @@ describe('deferred prompt sections', () => {
                 'other',
             ]).activeTools(),
         ).toBeUndefined();
+    });
+
+    it('keeps visualize beside query in composer answer and chart toolboxes', () => {
+        const composerTools = {
+            ...tools(),
+            query: tool({ inputSchema: z.object({}) }),
+            visualize: tool({ inputSchema: z.object({}) }),
+        };
+        expect(
+            createIntentToolGate(composerTools, 'data_answer').activeTools(),
+        ).toEqual(expect.arrayContaining(['query', 'visualize']));
+        expect(
+            createIntentToolGate(composerTools, 'chart').activeTools(),
+        ).toEqual(expect.arrayContaining(['query', 'visualize']));
     });
 
     it('keeps runContentQuery out of the data answer toolbox', () => {

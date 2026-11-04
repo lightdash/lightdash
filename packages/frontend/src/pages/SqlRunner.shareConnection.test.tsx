@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { useContext } from 'react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
-import { lightdashApi } from '../api';
+import { sharedLightdashApi } from '../api';
 import { executeSqlQuery } from '../features/queryRunner/executeQuery';
 import { useRunQueryOnLoad } from '../features/sqlRunner/hooks/useRunQueryOnLoad';
 import { ActiveConnectionContext } from '../features/sqlRunner/multiConnection/hooks/activeConnectionContext';
@@ -20,7 +20,7 @@ import SqlRunnerNewPage from './SqlRunner';
 
 const { track } = vi.hoisted(() => ({ track: vi.fn() }));
 
-vi.mock('../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../api');
 vi.mock('../providers/Tracking/useTracking', () => ({
     default: () => ({ track }),
 }));
@@ -100,7 +100,7 @@ vi.mock('../features/sqlRunner', () => ({
     },
 }));
 
-const mockApi = lightdashApi as unknown as Mock;
+const mockApi = sharedLightdashApi as unknown as Mock;
 const projectUuid = 'project-uuid';
 const connectionsUrl = `/projects/${projectUuid}/sqlRunner/connections`;
 const connections = [
@@ -255,6 +255,7 @@ describe('review PR12b: real SqlRunner page with a shared link', () => {
         });
         await waitFor(() =>
             expect(executeSqlQuery).toHaveBeenCalledWith(
+                expect.anything(),
                 projectUuid,
                 'select 1',
                 10,
@@ -280,6 +281,7 @@ describe('review PR12b: real SqlRunner page with a shared link', () => {
         });
         await waitFor(() =>
             expect(executeSqlQuery).toHaveBeenCalledWith(
+                expect.anything(),
                 projectUuid,
                 'select 1',
                 10,
@@ -397,6 +399,7 @@ describe('review PR12b: real SqlRunner page with a shared link', () => {
         });
         await waitFor(() =>
             expect(executeSqlQuery).toHaveBeenCalledWith(
+                expect.anything(),
                 projectUuid,
                 'select 1',
                 10,
@@ -421,6 +424,7 @@ describe('review PR12b: real SqlRunner page with a shared link', () => {
         });
         await waitFor(() =>
             expect(executeSqlQuery).toHaveBeenCalledWith(
+                expect.anything(),
                 projectUuid,
                 'select 1',
                 10,
@@ -453,6 +457,7 @@ describe('review PR12b: real SqlRunner page with a shared link', () => {
         });
         await waitFor(() =>
             expect(executeSqlQuery).toHaveBeenCalledWith(
+                expect.anything(),
                 projectUuid,
                 'select 1',
                 10,
@@ -481,6 +486,7 @@ describe('review PR12b: real SqlRunner page with a shared link', () => {
         });
         await waitFor(() =>
             expect(executeSqlQuery).toHaveBeenCalledWith(
+                expect.anything(),
                 projectUuid,
                 'select 1',
                 10,
@@ -510,6 +516,7 @@ describe('review PR12b: real SqlRunner page with a shared link', () => {
         });
         await waitFor(() =>
             expect(executeSqlQuery).toHaveBeenCalledWith(
+                expect.anything(),
                 projectUuid,
                 'select 1',
                 10,

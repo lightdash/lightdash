@@ -398,12 +398,6 @@ export const getFileContent = async ({
 };
 
 /**
- * Read every `.github/workflows/*.{yml,yaml}` file from a repo via the GitHub
- * API — no clone/sandbox. Used to detect a Lightdash preview-deploy workflow on
- * demand. Reads the repo's default branch when `ref` is omitted. Returns an
- * empty list when the workflows directory does not exist.
- */
-/**
  * List every file path in a repo via the GitHub Git Trees API (recursive) — no
  * clone/sandbox. Backs the read-only repo virtual filesystem (`repoShell` tool).
  * `branch` may be a branch name, tag, or commit SHA (resolved to its tree).
@@ -529,69 +523,6 @@ export const searchRepoCode = async ({
             return [];
         }
         logGithubRateLimit(error, `search.code ${owner}/${repo}`);
-        throw new UnexpectedGitError(getErrorMessage(error));
-    }
-};
-
-export const getRepoWorkflowFiles = async ({
-    owner,
-    repo,
-    ref,
-    installationId,
-    token,
-}: {
-    owner: string;
-    repo: string;
-    ref?: string;
-    installationId?: string;
-    token?: string;
-}): Promise<{ path: string; content: string }[]> => {
-    const { octokit, headers } = getOctokit(installationId, token);
-    try {
-        const dirResponse = await octokit.rest.repos.getContent({
-            owner,
-            repo,
-            path: '.github/workflows',
-            ...(ref ? { ref } : {}),
-            headers,
-        });
-        // A directory listing is an array; a single file (unexpected here) is not.
-        if (!Array.isArray(dirResponse.data)) {
-            return [];
-        }
-        const workflowEntries = dirResponse.data.filter(
-            (entry) =>
-                entry.type === 'file' &&
-                (entry.name.endsWith('.yml') || entry.name.endsWith('.yaml')),
-        );
-        return await Promise.all(
-            workflowEntries.map(async (entry) => {
-                const fileResponse = await octokit.rest.repos.getContent({
-                    owner,
-                    repo,
-                    path: entry.path,
-                    ...(ref ? { ref } : {}),
-                    headers,
-                });
-                const content =
-                    'content' in fileResponse.data
-                        ? Buffer.from(
-                              fileResponse.data.content,
-                              'base64',
-                          ).toString('utf-8')
-                        : '';
-                return { path: entry.path, content };
-            }),
-        );
-    } catch (error) {
-        if (
-            error instanceof Error &&
-            `status` in error &&
-            error.status === 404
-        ) {
-            // No `.github/workflows` directory — the repo has no workflows.
-            return [];
-        }
         throw new UnexpectedGitError(getErrorMessage(error));
     }
 };
@@ -907,75 +838,12 @@ export const getInstallationToken = async (
     }
 };
 
-/**
- * Mint a per-repository, **contents:read-only** installation access token for a
- * just-in-time clone. Far narrower than {@link getInstallationToken} (org-wide,
- * read+write): scoped to the single repo and the single permission needed to
- * clone, so a leaked token can't be used to write or to reach other repos.
- * Pair with {@link revokeInstallationToken} immediately after the clone — the
- * host commits via the API with the full installation token, so the sandbox
- * never needs a usable token to outlive the clone. `repo` is the bare repo name
- * (the endpoint scopes within the installation).
- */
-export const getScopedRepoCloneToken = async ({
-    installationId,
-    repo,
-}: {
-    installationId: string;
-    repo: string;
-}): Promise<string> => {
-    try {
-        const octokit = getOctokitRestForApp(installationId);
-        const response = await octokit.rest.apps.createInstallationAccessToken({
-            installation_id: parseInt(installationId, 10),
-            repositories: [repo],
-            permissions: { contents: 'read' },
-        });
-        return response.data.token;
-    } catch (error) {
-        throw new UnexpectedGitError(getErrorMessage(error));
-    }
-};
-
-/**
- * Revoke an installation access token (`DELETE /installation/token`),
- * authenticated with the token itself. Throws on failure; the caller treats it
- * as best-effort (the token is GitHub-capped at 1h and the clone is done).
- */
-export const revokeInstallationToken = async (token: string): Promise<void> => {
-    const octokit = withRateLimitObserver(new OctokitRest({ auth: token }));
-    await octokit.rest.apps.revokeInstallationAccessToken();
-};
-
-/**
- * Repo metadata for the coding agent's pre-clone checks: the default branch and
- * the repository size (in KB, as GitHub reports it). One `repos.get` call.
- */
-export const getRepoMetadata = async ({
-    owner,
-    repo,
-    installationId,
-    token,
-}: {
-    owner: string;
-    repo: string;
-    installationId?: string;
-    token?: string;
-}): Promise<{ defaultBranch: string; sizeKb: number }> => {
-    const { octokit, headers } = getOctokit(installationId, token);
-    try {
-        const { data } = await octokit.rest.repos.get({ owner, repo, headers });
-        return { defaultBranch: data.default_branch, sizeKb: data.size };
-    } catch (e) {
-        throw new UnexpectedGitError(getErrorMessage(e));
-    }
-};
-
 export const updateFile = async ({
     owner,
     repo,
     fileName,
     content,
+    encoding,
     fileSha,
     branch,
     message,
@@ -986,6 +854,8 @@ export const updateFile = async ({
     repo: string;
     fileName: string;
     content: string;
+    /** `base64` when `content` is the file's bytes encoded, for a binary file; text otherwise. */
+    encoding?: 'base64';
     fileSha: string;
     branch: string;
     message: string;
@@ -1008,7 +878,10 @@ export const updateFile = async ({
             repo,
             path: fileName,
             message,
-            content: Buffer.from(content, 'utf-8').toString('base64'),
+            content:
+                encoding === 'base64'
+                    ? content
+                    : Buffer.from(content, 'utf-8').toString('base64'),
             sha: fileSha,
             branch,
             headers,
@@ -1024,6 +897,7 @@ export const createFile = async ({
     repo,
     fileName,
     content,
+    encoding,
     branch,
     message,
     installationId,
@@ -1033,6 +907,7 @@ export const createFile = async ({
     repo: string;
     fileName: string;
     content: string;
+    encoding?: 'base64';
     branch: string;
     message: string;
     installationId?: string;
@@ -1052,7 +927,10 @@ export const createFile = async ({
             repo,
             path: fileName,
             message,
-            content: Buffer.from(content, 'utf-8').toString('base64'),
+            content:
+                encoding === 'base64'
+                    ? content
+                    : Buffer.from(content, 'utf-8').toString('base64'),
             branch,
             headers,
         });

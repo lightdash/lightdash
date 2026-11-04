@@ -14,7 +14,9 @@ import {
     friendlyName,
     getCompiledModels,
     getDbtManifestVersion,
+    getDeferredExploreName,
     getMissingCatalogEntries,
+    getModelInventoryFromManifest,
     getModelsFromManifest,
     getSchemaStructureFromDbtModels,
     haveMissingCatalogEntriesChanged,
@@ -49,7 +51,9 @@ import { traceSpan } from '../tracing/tracing';
 import {
     CachedWarehouse,
     DbtClient,
+    DbtManifestFetchOptions,
     DbtManifestFetchResult,
+    DbtSourcePreparation,
     ProjectAdapter,
     type TrackingParams,
 } from '../types';
@@ -69,6 +73,14 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
 
     dbtProjectDir?: string;
 
+    private preparation: Promise<DbtSourcePreparation> | null = null;
+
+    private readonly manifestFetches = new Set<
+        Promise<DbtManifestFetchResult>
+    >();
+
+    private preparationTimingsReported = false;
+
     constructor(
         dbtClient: DbtClient,
         warehouseClient: WarehouseClient,
@@ -87,12 +99,30 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
 
     async destroy(): Promise<void> {
         Logger.debug(`Destroy base project adapter`);
-        await this.dbtClient.cleanup?.();
+        await this.releaseDisk();
     }
 
-    public async test(): Promise<void> {
+    async releaseDisk(_options?: { keepProject?: boolean }): Promise<void> {
+        await Promise.allSettled([
+            ...this.manifestFetches,
+            ...(this.preparation ? [this.preparation] : []),
+        ]);
+        await this.dbtClient.cleanup?.();
+        this.preparation = null;
+        this.preparationTimingsReported = false;
+    }
+
+    public async test(options?: { signal?: AbortSignal }): Promise<void> {
         Logger.debug('Test dbt client');
-        await this.dbtClient.test();
+        if (options?.signal) {
+            await this.dbtClient.test(async () => {
+                await this.prepareDbtSource(options);
+            }, options.signal);
+        } else {
+            await this.dbtClient.test(async () => {
+                await this.prepareDbtSource();
+            });
+        }
         Logger.debug('Test warehouse client');
         await this.warehouseClient.test();
     }
@@ -105,24 +135,63 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         return undefined;
     }
 
-    public async getDbtManifest(): Promise<DbtManifestFetchResult> {
-        // Install dependencies first (same as compileAllExplores) — a git source's
-        // `dbt ls` fails without its packages installed.
-        let depsMs: number | null = null;
-        if (this.dbtClient.installDeps !== undefined) {
-            Logger.debug('Install dependencies');
-            const depsStartedAt = Date.now();
-            await this.dbtClient.installDeps();
-            depsMs = Date.now() - depsStartedAt;
+    public async prepareDbtSource(options?: {
+        signal?: AbortSignal;
+    }): Promise<DbtSourcePreparation> {
+        options?.signal?.throwIfAborted();
+        this.preparation ??= (async () => {
+            let depsMs: number | null = null;
+            if (this.dbtClient.installDeps !== undefined) {
+                const startedAt = Date.now();
+                if (options?.signal)
+                    await this.dbtClient.installDeps(options.signal);
+                else await this.dbtClient.installDeps();
+                depsMs = Date.now() - startedAt;
+            }
+            return {
+                projectDir: this.dbtClient.installDeps
+                    ? (this.dbtProjectDir ?? null)
+                    : null,
+                timings: { gitRefreshMs: null, depsMs },
+            };
+        })();
+        try {
+            return await this.preparation;
+        } catch (error) {
+            if (options?.signal?.aborted) this.preparation = null;
+            throw error;
         }
+    }
+
+    public async getDbtManifest(
+        options?: DbtManifestFetchOptions,
+    ): Promise<DbtManifestFetchResult> {
+        const fetch = this.fetchDbtManifest(options);
+        this.manifestFetches.add(fetch);
+        try {
+            return await fetch;
+        } finally {
+            this.manifestFetches.delete(fetch);
+        }
+    }
+
+    private async fetchDbtManifest(
+        options?: DbtManifestFetchOptions,
+    ): Promise<DbtManifestFetchResult> {
+        const preparation = await this.prepareDbtSource(
+            options?.signal ? { signal: options.signal } : undefined,
+        );
+        const timings = this.preparationTimingsReported
+            ? { gitRefreshMs: null, depsMs: null }
+            : preparation.timings;
+        this.preparationTimingsReported = true;
         Logger.debug(`Get dbt manifest`);
         const manifestStartedAt = Date.now();
-        const result = await this.dbtClient.getDbtManifest();
+        const result = await this.dbtClient.getDbtManifest(options);
         return {
             ...result,
             timings: {
-                gitRefreshMs: null,
-                depsMs,
+                ...timings,
                 manifestMs: Date.now() - manifestStartedAt,
             },
         };
@@ -212,11 +281,13 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         trackingParams?: TrackingParams,
         loadSources: boolean = false,
         allowPartialCompilation: boolean = true,
+        deferExploreNaming: boolean = false,
     ): Promise<(Explore | ExploreError)[]> {
         const stream = await this.prepareExploreStream(
             trackingParams,
             loadSources,
             allowPartialCompilation,
+            deferExploreNaming,
         );
         const explores: (Explore | ExploreError)[] = [];
         for await (const explore of stream) explores.push(explore);
@@ -227,12 +298,9 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         trackingParams?: TrackingParams,
         loadSources: boolean = false,
         allowPartialCompilation: boolean = true,
+        deferExploreNaming: boolean = false,
     ): Promise<AsyncIterable<Explore | ExploreError>> {
-        Logger.debug('Install dependencies');
-        // Install dependencies for dbt and fetch the manifest - may raise error meaning no explores compile
-        if (this.dbtClient.installDeps !== undefined) {
-            await this.dbtClient.installDeps();
-        }
+        await this.prepareDbtSource();
         Logger.debug('Get dbt manifest');
         const { manifest, selectedModelIds } =
             await this.dbtClient.getDbtManifest();
@@ -290,6 +358,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 adapterType,
                 models,
                 manifestVersion,
+                deferExploreNaming,
             );
 
         // Translate MetricFlow definitions (semantic_models + metrics) into
@@ -298,6 +367,14 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         const metricFlowTranslation = applyMetricFlowMetricsToModels(
             validatedModels,
             manifest,
+            deferExploreNaming
+                ? new Map(
+                      validatedModels.map((model) => [
+                          model.unique_id,
+                          getDeferredExploreName(model),
+                      ]),
+                  )
+                : undefined,
         );
         if (metricFlowTranslation.error !== null) {
             Logger.warn(
@@ -341,11 +418,25 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 disableTimestampConversion,
                 allowPartialCompilation,
                 postProcessors,
+                deferExploreNaming,
+                modelInventory: getModelInventoryFromManifest(manifest),
+                allowCrossSourceJoinFallback:
+                    manifest.lightdash_model_inventory_complete !== false,
             },
+        );
+        const modelsByUniqueId = new Map(
+            models.map((model) => [model.unique_id, model]),
         );
         return (async function* compiledExplores() {
             yield* explores;
-            yield* failedExplores;
+            yield* failedExplores.map((explore) => {
+                const model = explore.dbtModelIdentity
+                    ? modelsByUniqueId.get(explore.dbtModelIdentity.uniqueId)
+                    : undefined;
+                return deferExploreNaming && model
+                    ? { ...explore, name: getDeferredExploreName(model) }
+                    : explore;
+            });
             Logger.info('Finished compiling explores');
         })();
     }
@@ -563,6 +654,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         adapterType: SupportedDbtAdapter,
         models: DbtRawModelNode[],
         manifestVersion: DbtManifestVersion,
+        includeModelIdentity: boolean = false,
     ): [DbtModelNode[], ExploreError[]] {
         const validator = new ManifestValidator(manifestVersion);
         return models.reduce(
@@ -592,6 +684,19 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                     }
                     const metaGroups: string[] | undefined = model.meta.groups;
                     const exploreError: ExploreError = {
+                        ...(includeModelIdentity
+                            ? {
+                                  dbtModelIdentity: {
+                                      sourceUuid:
+                                          model.lightdash_source_uuid ?? null,
+                                      sourceName:
+                                          model.lightdash_source_name ?? null,
+                                      packageName: model.package_name,
+                                      uniqueId: model.unique_id,
+                                      modelName: model.name,
+                                  },
+                              }
+                            : {}),
                         name: model.name,
                         label: model.meta.label || friendlyName(model.name),
                         groupLabel: model.meta.group_label,

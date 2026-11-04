@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     GenerateDailySchedulerJobError,
     getErrorMessage,
     getSchedulerUuid,
@@ -25,15 +26,23 @@ import { EventEmitter } from 'node:events';
 import pLimit from 'p-limit';
 import type { PoolClient } from 'pg';
 import { UsageEventsCompactor } from '../analytics/eventStream/UsageEventsCompactor';
+import { UsageHistoryBackfill } from '../analytics/eventStream/UsageHistoryBackfill';
 import { DEFAULT_DB_MAX_CONNECTIONS } from '../knexfile';
 import Logger from '../logging/logger';
 import { type AgentActionLogModel } from '../models/AgentActionLogModel';
-import type { FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
+import { type RetentionCleanupOptions } from '../models/retentionCleanup';
 import type { UsageDimensionsModel } from '../models/UsageDimensionsModel';
+import type { UsageHistoryModel } from '../models/UsageHistoryModel';
+import type { UsageProcessingModel } from '../models/UsageProcessingModel';
 import type PrometheusMetrics from '../prometheus/PrometheusMetrics';
 import { type OrganizationNameResolver } from '../sentry/organizationNameResolver';
 import { LEARN_SANDBOX_COMMAND_TIMEOUT_MS } from '../services/LearnSandboxService/runtime';
 import type { SchedulerProjectContext } from '../services/SchedulerService/SchedulerService';
+import {
+    CompileInterruptedError,
+    compileShutdown,
+    type CompileShutdownContext,
+} from './compileShutdown';
 import { MigrationLeaseProbe } from './MigrationLeaseProbe';
 import { SchedulerClient } from './SchedulerClient';
 import {
@@ -54,7 +63,8 @@ import { TypedTaskList } from './types';
 export type SchedulerWorkerArguments = SchedulerTaskArguments & {
     agentActionLogModel: AgentActionLogModel;
     usageDimensionsModel: UsageDimensionsModel;
-    featureFlagModel: FeatureFlagModel;
+    usageHistoryModel: UsageHistoryModel;
+    usageProcessingModel?: UsageProcessingModel;
     // When omitted, no pg-ping interval runs and the health probe falls back to
     // job-activity events alone.
     workerHealth?: SchedulerWorkerHealth;
@@ -62,6 +72,7 @@ export type SchedulerWorkerArguments = SchedulerTaskArguments & {
     // When omitted, worker tasks that report metrics simply skip reporting.
     prometheusMetrics?: PrometheusMetrics;
     dailyJobRetryBackoffMs?: readonly [number, number];
+    approvalRequestCleanupMaxBatches?: number;
 };
 
 const DEFAULT_DAILY_JOB_RETRY_BACKOFF_MS = [2_000, 5_000] as const;
@@ -176,9 +187,17 @@ export class SchedulerWorker extends SchedulerTask {
 
     private readonly prometheusMetrics: PrometheusMetrics | null;
 
-    private readonly featureFlagModel: FeatureFlagModel;
-
     private readonly usageDimensionsModel: UsageDimensionsModel;
+    private readonly usageHistoryModel: UsageHistoryModel;
+
+    private readonly usageProcessingModel: UsageProcessingModel | undefined;
+
+    private readonly activeCompiles = new Set<CompileShutdownContext>();
+
+    private readonly interruptedCompileFailures = new WeakMap<
+        CompileShutdownContext,
+        Promise<void>
+    >();
 
     private readonly managedRunners = new Set<ManagedRunner>();
 
@@ -194,16 +213,30 @@ export class SchedulerWorker extends SchedulerTask {
 
     private readonly agentActionLogModel: AgentActionLogModel;
 
+    private readonly approvalRequestCleanupMaxBatches: number;
+
     constructor(schedulerWorkerArgs: SchedulerWorkerArguments) {
         super(schedulerWorkerArgs);
         this.agentActionLogModel = schedulerWorkerArgs.agentActionLogModel;
+        this.approvalRequestCleanupMaxBatches =
+            schedulerWorkerArgs.approvalRequestCleanupMaxBatches ?? 50;
+        if (
+            !Number.isSafeInteger(this.approvalRequestCleanupMaxBatches) ||
+            this.approvalRequestCleanupMaxBatches < 1 ||
+            this.approvalRequestCleanupMaxBatches > 50
+        ) {
+            throw new Error(
+                'Approval request cleanup batch cap must be between 1 and 50',
+            );
+        }
         this.enabledTasks = this.lightdashConfig.scheduler.tasks;
         this.workerHealth = schedulerWorkerArgs.workerHealth;
         this.resolveOrganizationName =
             schedulerWorkerArgs.resolveOrganizationName;
         this.prometheusMetrics = schedulerWorkerArgs.prometheusMetrics ?? null;
         this.usageDimensionsModel = schedulerWorkerArgs.usageDimensionsModel;
-        this.featureFlagModel = schedulerWorkerArgs.featureFlagModel;
+        this.usageHistoryModel = schedulerWorkerArgs.usageHistoryModel;
+        this.usageProcessingModel = schedulerWorkerArgs.usageProcessingModel;
         this.dailyJobRetryBackoffMs =
             schedulerWorkerArgs.dailyJobRetryBackoffMs ??
             DEFAULT_DAILY_JOB_RETRY_BACKOFF_MS;
@@ -395,10 +428,127 @@ export class SchedulerWorker extends SchedulerTask {
         }
     }
 
+    private async runCompileTask(
+        jobUuid: string | null,
+        task: () => Promise<void>,
+    ): Promise<void> {
+        const context: CompileShutdownContext = {
+            controller: new AbortController(),
+            jobUuid,
+            armed: false,
+            state: 'running',
+            isStopping: () => this.isStopping,
+            interrupt: () => {
+                if (
+                    context.state !== 'running' ||
+                    context.controller.signal.aborted
+                )
+                    return;
+                Logger.warn('dbt.compile.crossSourceInterrupted', {
+                    event: 'dbt.compile.crossSourceInterrupted',
+                    jobUuid: context.jobUuid,
+                });
+                context.controller.abort(new CompileInterruptedError());
+                void this.boundCompileFailureWrites(
+                    this.failInterruptedCompile(context),
+                ).catch((error) => {
+                    Logger.error('Failed to record interrupted compile', error);
+                });
+            },
+        };
+        this.activeCompiles.add(context);
+        try {
+            await compileShutdown.run(context, task);
+        } catch (error) {
+            if (context.armed && context.controller.signal.aborted) {
+                await this.boundCompileFailureWrites(
+                    this.failInterruptedCompile(context),
+                ).catch((writeError) => {
+                    Logger.error(
+                        'Failed to record interrupted compile',
+                        writeError,
+                    );
+                });
+            }
+            throw error;
+        } finally {
+            context.state = 'terminal';
+            context.armed = false;
+            this.activeCompiles.delete(context);
+        }
+    }
+
+    private async failInterruptedCompile(
+        context: CompileShutdownContext,
+        deadline = false,
+    ): Promise<void> {
+        if (
+            !context.armed ||
+            (!deadline && !context.controller.signal.aborted) ||
+            context.state === 'terminal' ||
+            context.jobUuid === null
+        )
+            return;
+        let failure = this.interruptedCompileFailures.get(context);
+        if (!failure) {
+            failure = this.projectService._markInterruptedCompileAsFailed(
+                context.jobUuid,
+                new CompileInterruptedError().message,
+            );
+            this.interruptedCompileFailures.set(context, failure);
+        }
+        await failure;
+    }
+
+    private async boundCompileFailureWrites(
+        work: Promise<unknown>,
+    ): Promise<void> {
+        let timer: NodeJS.Timeout | undefined;
+        try {
+            await Promise.race([
+                work,
+                new Promise<void>((resolve) => {
+                    timer = setTimeout(
+                        resolve,
+                        Math.min(
+                            5000,
+                            this.lightdashConfig.scheduler.shutdownTimeout ??
+                                5000,
+                        ),
+                    );
+                }),
+            ]);
+        } finally {
+            clearTimeout(timer);
+        }
+    }
+
+    private async failInterruptedCompiles(deadline = false): Promise<void> {
+        const outcomes = Promise.allSettled(
+            [...this.activeCompiles].map((context) =>
+                this.failInterruptedCompile(context, deadline),
+            ),
+        );
+        await this.boundCompileFailureWrites(
+            outcomes.then((results) => {
+                for (const outcome of results) {
+                    if (outcome.status === 'rejected')
+                        Logger.error(
+                            'Failed to record interrupted compile',
+                            outcome.reason,
+                        );
+                }
+            }),
+        );
+    }
+
     async stop() {
         this.isStopping = true;
         this.migrationQuiesce?.stop();
         this.stopPgPing();
+        for (const context of this.activeCompiles) {
+            if (context.armed) context.interrupt();
+        }
         await this.drainManagedRunners();
         this.isRunning = false;
         this.isQuiesced = false;
@@ -412,6 +562,8 @@ export class SchedulerWorker extends SchedulerTask {
     private async drainManagedRunners(): Promise<void> {
         const managedRunners = [...this.managedRunners];
         if (managedRunners.length === 0) {
+            if (!this.workerHealth?.isPoolDead())
+                await this.failInterruptedCompiles();
             return;
         }
         if (this.workerHealth?.isPoolDead()) {
@@ -441,6 +593,7 @@ export class SchedulerWorker extends SchedulerTask {
 
         const outcome = await Promise.race([drained, deadline]);
         if (outcome === 'timeout') {
+            await this.failInterruptedCompiles(true);
             Logger.warn(
                 `Scheduler shutdown drain exceeded ${shutdownTimeout}ms; releasing in-flight jobs for retry`,
             );
@@ -497,7 +650,7 @@ export class SchedulerWorker extends SchedulerTask {
             pollInterval: this.lightdashConfig.scheduler.pollInterval,
             maxPoolSize,
             parsedCronItems: includeCron
-                ? parseCronItems(this.getCronItems())
+                ? parseCronItems(this.getEnabledCronItems())
                 : [],
             taskList: traceTasks(this.getTaskList(), {
                 resolveOrganizationName: this.resolveOrganizationName,
@@ -785,6 +938,14 @@ export class SchedulerWorker extends SchedulerTask {
                 },
             },
             {
+                task: SCHEDULER_TASKS.CLEAR_DUE_RESULTS_CACHES,
+                pattern: '0 * * * *', // Every hour
+                options: {
+                    backfillPeriod: 2 * 3600 * 1000, // 2 hours in ms
+                    maxAttempts: 1,
+                },
+            },
+            {
                 task: SCHEDULER_TASKS.CLEAN_WAREHOUSE_CONNECT_CODES,
                 pattern: '41 * * * *', // Hourly, off the top of the hour
                 options: {
@@ -792,6 +953,21 @@ export class SchedulerWorker extends SchedulerTask {
                     maxAttempts: 3,
                 },
             },
+            // Scheduled only where a worker can run it, so jobs never queue unclaimed.
+            ...(this.enabledTasks.includes(
+                SCHEDULER_TASKS.CLEAN_AGENT_CONNECTION_APPROVAL_REQUESTS,
+            )
+                ? [
+                      {
+                          task: SCHEDULER_TASKS.CLEAN_AGENT_CONNECTION_APPROVAL_REQUESTS,
+                          pattern: '53 * * * *',
+                          options: {
+                              backfillPeriod: 2 * 3600 * 1000,
+                              maxAttempts: 3,
+                          },
+                      },
+                  ]
+                : []),
             {
                 task: SCHEDULER_TASKS.RECONCILE_PLAYGROUND_BUNDLES,
                 pattern: '*/10 * * * *',
@@ -803,6 +979,12 @@ export class SchedulerWorker extends SchedulerTask {
             // worker-process pg liveness is driven by a setInterval (see startPgPing);
             // managed-agent heartbeat is self-scheduling (see SchedulerClient.scheduleManagedAgentHeartbeat).
         ];
+    }
+
+    protected getEnabledCronItems(): CronItem[] {
+        return this.getCronItems().filter(({ task }) =>
+            this.enabledTasks.some((enabledTask) => enabledTask === task),
+        );
     }
 
     protected getTaskList(): Partial<TypedTaskList> {
@@ -1416,18 +1598,20 @@ export class SchedulerWorker extends SchedulerTask {
                 );
             },
             [SCHEDULER_TASKS.COMPILE_PROJECT]: async (payload, helpers) => {
-                await SchedulerClient.processJob(
-                    SCHEDULER_TASKS.COMPILE_PROJECT,
-                    helpers.job.id,
-                    helpers.job.run_at,
-                    payload,
-                    async () => {
-                        await this.compileProject(
-                            helpers.job.id,
-                            helpers.job.run_at,
-                            payload,
-                        );
-                    },
+                await this.runCompileTask(payload.jobUuid ?? null, () =>
+                    SchedulerClient.processJob(
+                        SCHEDULER_TASKS.COMPILE_PROJECT,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.compileProject(
+                                helpers.job.id,
+                                helpers.job.run_at,
+                                payload,
+                            );
+                        },
+                    ),
                 );
             },
             [SCHEDULER_TASKS.MATERIALIZE_PRE_AGGREGATE]: async (
@@ -1473,18 +1657,20 @@ export class SchedulerWorker extends SchedulerTask {
                 payload,
                 helpers,
             ) => {
-                await SchedulerClient.processJob(
-                    SCHEDULER_TASKS.TEST_AND_COMPILE_PROJECT,
-                    helpers.job.id,
-                    helpers.job.run_at,
-                    payload,
-                    async () => {
-                        await this.testAndCompileProject(
-                            helpers.job.id,
-                            helpers.job.run_at,
-                            payload,
-                        );
-                    },
+                await this.runCompileTask(payload.jobUuid ?? null, () =>
+                    SchedulerClient.processJob(
+                        SCHEDULER_TASKS.TEST_AND_COMPILE_PROJECT,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.testAndCompileProject(
+                                helpers.job.id,
+                                helpers.job.run_at,
+                                payload,
+                            );
+                        },
+                    ),
                 );
             },
             [SCHEDULER_TASKS.VALIDATE_PROJECT]: async (payload, helpers) => {
@@ -1873,18 +2059,29 @@ export class SchedulerWorker extends SchedulerTask {
                     `Cleaning query history records older than ${cutoffDate.toISOString()}`,
                 );
 
+                const cleanupOptions: RetentionCleanupOptions = {
+                    batchSize: cleanupConfig.batchSize,
+                    delayMs: cleanupConfig.delayMs,
+                    maxBatches: cleanupConfig.maxBatches,
+                };
+                const { queryHistoryModel } = this.asyncQueryService;
+
                 try {
-                    const { totalDeleted, batchCount } =
-                        await this.asyncQueryService.queryHistoryModel.cleanupBatch(
-                            cutoffDate,
-                            cleanupConfig.batchSize,
-                            cleanupConfig.delayMs,
-                            cleanupConfig.maxBatches,
-                        );
+                    const queryCleanup = await queryHistoryModel.cleanupBatch(
+                        cutoffDate,
+                        cleanupOptions,
+                    );
 
                     Logger.info(
-                        `Query history cleanup completed. Total records deleted: ${totalDeleted} in ${batchCount} batches`,
+                        `Query history cleanup completed. Total records deleted: ${queryCleanup.totalDeleted} in ${queryCleanup.batchCount} batches`,
                     );
+                    if (!queryCleanup.completed) {
+                        const remaining =
+                            await queryHistoryModel.countOlderThan(cutoffDate);
+                        Logger.warn(
+                            `Query history cleanup stopped before clearing the retention backlog: ${remaining} records older than ${cutoffDate.toISOString()} remain`,
+                        );
+                    }
                 } catch (error) {
                     Logger.error('Error during query history cleanup:', error);
                     throw error;
@@ -1893,9 +2090,7 @@ export class SchedulerWorker extends SchedulerTask {
                 const actionCleanup =
                     await this.agentActionLogModel.cleanupBatch(
                         cutoffDate,
-                        cleanupConfig.batchSize,
-                        cleanupConfig.delayMs,
-                        cleanupConfig.maxBatches,
+                        cleanupOptions,
                     );
                 Logger.info(
                     `Agent action log cleanup completed. Total records deleted: ${actionCleanup.totalDeleted} in ${actionCleanup.batchCount} batches`,
@@ -1946,6 +2141,9 @@ export class SchedulerWorker extends SchedulerTask {
                     `AI usage ledger cleanup completed. Records deleted: ${deletedCount}. Organizations kept in full: ${retainedOrganizationUuids.length}`,
                 );
             },
+            [SCHEDULER_TASKS.CLEAR_DUE_RESULTS_CACHES]: async () => {
+                await this.projectService.clearDueResultsCaches();
+            },
             [SCHEDULER_TASKS.CLEAN_WAREHOUSE_CONNECT_CODES]: async () => {
                 Logger.info('Starting warehouse connect codes cleanup job');
 
@@ -1964,6 +2162,36 @@ export class SchedulerWorker extends SchedulerTask {
                     throw error;
                 }
             },
+            [SCHEDULER_TASKS.CLEAN_AGENT_CONNECTION_APPROVAL_REQUESTS]:
+                async () => {
+                    let deletedCount = 0;
+                    let batchCount = 0;
+                    let batchCapHit = false;
+                    try {
+                        const deleteNextBatch = async (): Promise<void> => {
+                            const deleted =
+                                await this.agentConnectionApprovalRequestModel.deleteExpiredBatch(
+                                    1000,
+                                );
+                            deletedCount += deleted;
+                            batchCount += 1;
+                            if (deleted < 1000) return;
+                            batchCapHit =
+                                batchCount ===
+                                this.approvalRequestCleanupMaxBatches;
+                            if (!batchCapHit) await deleteNextBatch();
+                        };
+                        await deleteNextBatch();
+                        Logger.info(
+                            `Agent connection approval requests cleanup completed. Deleted: ${deletedCount}. Batches: ${batchCount}. Batch cap hit: ${batchCapHit}`,
+                        );
+                    } catch (error) {
+                        Logger.error(
+                            `Agent connection approval requests cleanup failed. Deleted: ${deletedCount}. Batches: ${batchCount}. Batch cap hit: ${batchCapHit}`,
+                        );
+                        throw error;
+                    }
+                },
             [SCHEDULER_TASKS.RECONCILE_PLAYGROUND_BUNDLES]: async () => {
                 const result =
                     await this.projectService.reconcilePlaygroundBundles();
@@ -2127,7 +2355,7 @@ export class SchedulerWorker extends SchedulerTask {
             [SCHEDULER_TASKS.CHECK_FOR_STUCK_JOBS]: async () => {
                 await this.schedulerService.checkForStuckJobs();
             },
-            [SCHEDULER_TASKS.COMPACT_USAGE_EVENTS]: async () => {
+            [SCHEDULER_TASKS.COMPACT_USAGE_EVENTS]: async (payload) => {
                 const { usageEvents } = this.lightdashConfig;
                 if (!usageEvents.enabled || usageEvents.s3 === null) {
                     Logger.debug(
@@ -2135,25 +2363,84 @@ export class SchedulerWorker extends SchedulerTask {
                     );
                     return;
                 }
+                if (!payload.includeHistory && !payload.organizationUuid)
+                    await this.schedulerClient.retryFailedUsageEventHistory();
                 const compactor = new UsageEventsCompactor({
                     s3Config: usageEvents.s3,
                     prometheusMetrics: this.prometheusMetrics,
                     usageDimensionsModel: this.usageDimensionsModel,
+                    usageProcessingModel: this.usageProcessingModel,
                     featureFlagModel: this.featureFlagModel,
                 });
-                const summary = await compactor.run();
-                Sentry.getActiveSpan()?.setAttributes({
-                    'lightdash.usage_events.partitions_discovered':
-                        summary.partitionsDiscovered,
-                    'lightdash.usage_events.partitions_compacted':
-                        summary.partitionsCompacted,
-                    'lightdash.usage_events.partitions_failed':
-                        summary.partitionsFailed,
-                    'lightdash.usage_events.partitions_skipped_unknown_stream':
-                        summary.partitionsSkippedUnknownStream,
-                    'lightdash.usage_events.raw_objects_deleted':
-                        summary.rawObjectsDeleted,
+                try {
+                    const summary = await compactor.run(
+                        new Date(),
+                        payload.organizationUuid || undefined,
+                        payload.includeHistory ?? false,
+                    );
+                    const hasDeferredPartitions =
+                        summary.partitionsDeferred > 0 ||
+                        summary.users.limitReached;
+                    if (
+                        payload.includeHistory
+                            ? hasDeferredPartitions &&
+                              (summary.partitionsCompacted > 0 ||
+                                  summary.users.published > 0)
+                            : !!payload.organizationUuid ||
+                              hasDeferredPartitions
+                    ) {
+                        await this.schedulerClient.scheduleUsageEventHistory(
+                            payload,
+                        );
+                    }
+                    Sentry.getActiveSpan()?.setAttributes({
+                        'lightdash.usage_events.partitions_discovered':
+                            summary.partitionsDiscovered,
+                        'lightdash.usage_events.partitions_compacted':
+                            summary.partitionsCompacted,
+                        'lightdash.usage_events.partitions_failed':
+                            summary.partitionsFailed,
+                        'lightdash.usage_events.partitions_skipped_unknown_stream':
+                            summary.partitionsSkippedUnknownStream,
+                        'lightdash.usage_events.raw_objects_deleted':
+                            summary.rawObjectsDeleted,
+                    });
+                } finally {
+                    try {
+                        await this.schedulerClient.scheduleAnalyticsContentReconciliation(
+                            payload.organizationUuid || null,
+                        );
+                    } catch {
+                        Logger.error(
+                            'Failed to enqueue analytics content reconciliation',
+                            {
+                                organizationUuid:
+                                    payload.organizationUuid || null,
+                            },
+                        );
+                    }
+                }
+            },
+            [SCHEDULER_TASKS.BACKFILL_USAGE_QUERY_HISTORY]: async (payload) => {
+                const { usageEvents } = this.lightdashConfig;
+                if (
+                    !usageEvents.enabled ||
+                    !usageEvents.s3 ||
+                    !payload.organizationUuid
+                ) {
+                    throw new Error('Usage history backfill is not configured');
+                }
+                const flag = await this.featureFlagModel.get({
+                    featureFlagId: FeatureFlags.AnalyticsProject,
+                    user: {
+                        organizationUuid: payload.organizationUuid,
+                    },
                 });
+                if (!flag.enabled) throw new Error('Analytics is not enabled');
+                await new UsageHistoryBackfill(usageEvents.s3).run(
+                    payload.organizationUuid,
+                    this.usageHistoryModel,
+                );
             },
             [SCHEDULER_TASKS.MANAGED_AGENT_HEARTBEAT]: async () => {
                 // EE-only: implemented in CommercialSchedulerWorker

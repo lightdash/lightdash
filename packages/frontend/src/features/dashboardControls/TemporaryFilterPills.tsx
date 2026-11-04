@@ -1,8 +1,16 @@
 import { useCallback, useState, type FC } from 'react';
 import FiltersProvider from '../../components/common/Filters/FiltersProvider';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { useProject } from '../../hooks/useProject';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import {
+    selectDashboardTiles,
+    selectParameterValues,
+    useDashboardAllFilters,
+    useDashboardSelector,
+    useHasDashboardTemporaryFilters,
+} from '../dashboard/store';
 import { TemporaryFilters } from '../dashboardFilters/ActiveFilters/TemporaryFilters';
 
 type Props = {
@@ -12,17 +20,18 @@ type Props = {
 // Rules added from a tile or the URL are never saved. The shipped pills show
 // and edit them in their own popover, which needs the shipped provider
 const TemporaryPills: FC<Props> = ({ activeTabUuid }) => {
+    const getUiString = useUiStrings();
     const projectUuid = useProjectUuid();
     const project = useProject(projectUuid);
     const [openPopoverId, setOpenPopoverId] = useState<string>();
     const closePopover = useCallback(() => setOpenPopoverId(undefined), []);
 
-    const allFilters = useDashboardContext((c) => c.allFilters);
+    const allFilters = useDashboardAllFilters();
     const allFilterableFieldsMap = useDashboardContext(
         (c) => c.allFilterableFieldsMap,
     );
-    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
-    const parameterValues = useDashboardContext((c) => c.parameterValues);
+    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
+    const parameterValues = useDashboardSelector(selectParameterValues);
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );
@@ -34,6 +43,7 @@ const TemporaryPills: FC<Props> = ({ activeTabUuid }) => {
             startOfWeek={
                 project.data?.warehouseConnection?.startOfWeek ?? undefined
             }
+            warehouseType={project.data?.warehouseConnection?.type}
             dashboardFilters={allFilters}
             dashboardTiles={dashboardTiles}
             filterableFieldsByTileUuid={filterableFieldsByTileUuid}
@@ -42,6 +52,8 @@ const TemporaryPills: FC<Props> = ({ activeTabUuid }) => {
         >
             <TemporaryFilters
                 isEditMode
+                isPlain
+                tablesTooltipNote={getUiString('filters.rail.onlyYouSeeFilter')}
                 activeTabUuid={activeTabUuid}
                 openPopoverId={openPopoverId}
                 onPopoverOpen={setOpenPopoverId}
@@ -52,10 +64,6 @@ const TemporaryPills: FC<Props> = ({ activeTabUuid }) => {
 };
 
 export const TemporaryFilterPills: FC<Props> = (props) => {
-    const hasTemporaryFilters = useDashboardContext(
-        (c) =>
-            c.dashboardTemporaryFilters.dimensions.length > 0 ||
-            c.dashboardTemporaryFilters.metrics.length > 0,
-    );
+    const hasTemporaryFilters = useHasDashboardTemporaryFilters();
     return hasTemporaryFilters ? <TemporaryPills {...props} /> : null;
 };

@@ -520,7 +520,12 @@ describe('BuilderPromptBar', () => {
             }),
             {
                 health: {
-                    dataApps: { previewOrigin: null, sampleDataEnabled: false },
+                    dataApps: {
+                        previewOrigin: null,
+                        sampleDataEnabled: false,
+                        capturesEnabled: true,
+                        runtimeAvailable: false,
+                    },
                 },
             },
         );

@@ -1,6 +1,7 @@
 import {
     AgentActorSurface,
     ApiKeyAccount,
+    assertUnreachable,
     ForbiddenError,
     getErrorMessage,
     LightdashError,
@@ -47,6 +48,7 @@ function getMcpService(req: express.Request): McpService {
 }
 
 const MCP_USER_ATTRIBUTE_HEADER = 'X-Lightdash-User-Attributes';
+const MCP_AGENT_HEADER = 'X-Lightdash-Agent';
 const MCP_PROJECT_HEADER = 'X-Lightdash-Project';
 
 /**
@@ -56,6 +58,7 @@ const MCP_PROJECT_HEADER = 'X-Lightdash-Project';
  */
 export function extractMcpProjectUuid(
     req: Pick<express.Request, 'headers' | 'params'>,
+    invalidHeader: 'ignore' | 'reject',
 ): string | undefined {
     const routeProjectUuid = req.params.projectUuid;
     if (routeProjectUuid !== undefined) {
@@ -69,9 +72,36 @@ export function extractMcpProjectUuid(
     if (!headerValue || typeof headerValue !== 'string') {
         return undefined;
     }
-    if (!isValidUuid(headerValue)) {
-        Logger.warn(`Invalid ${MCP_PROJECT_HEADER} header: not a UUID`);
+    if (isValidUuid(headerValue)) {
+        return headerValue;
+    }
+    switch (invalidHeader) {
+        case 'ignore':
+            Logger.warn(`Invalid ${MCP_PROJECT_HEADER} header: not a UUID`);
+            return undefined;
+        case 'reject':
+            throw new ParameterError(
+                'Invalid X-Lightdash-Project header: expected a project UUID',
+            );
+        default:
+            return assertUnreachable(
+                invalidHeader,
+                'Unknown invalid header policy',
+            );
+    }
+}
+
+export function extractMcpAgentUuid(
+    req: Pick<express.Request, 'headers'>,
+): string | undefined {
+    const headerValue = req.headers[MCP_AGENT_HEADER.toLowerCase()];
+    if (typeof headerValue !== 'string') {
         return undefined;
+    }
+    if (!isValidUuid(headerValue)) {
+        throw new ParameterError(
+            'Invalid X-Lightdash-Agent header: expected an AI agent UUID',
+        );
     }
     return headerValue;
 }
@@ -302,6 +332,14 @@ mcpRouter.all(
                 throw new ForbiddenError('MCP is not enabled');
             }
 
+            const requestedProject = extractMcpProjectUuid(req, 'ignore');
+            if (requestedProject) {
+                await mcpService.assertMcpProjectAllowed(
+                    req.user!,
+                    requestedProject,
+                );
+            }
+
             if (req.method === 'GET') {
                 // Handle SSE transport for MCP
                 res.writeHead(200, {
@@ -328,10 +366,32 @@ mcpRouter.all(
             }
 
             if (req.method === 'POST') {
+                const { user } = req;
+                if (!user) {
+                    throw new ForbiddenError('MCP request is missing a user');
+                }
                 // SDK 1.26.0 requires a new server+transport per request in stateless mode
                 // to prevent cross-client response data leaks (CVE-2026-25536)
                 // See: https://github.com/advisories/GHSA-345p-7cg4-v4c7
-                const pinnedProjectUuid = extractMcpProjectUuid(req);
+                const requestedAgentUuid = extractMcpAgentUuid(req);
+                const requestedProjectUuid = extractMcpProjectUuid(
+                    req,
+                    requestedAgentUuid ? 'reject' : 'ignore',
+                );
+                const pinnedAgent = requestedAgentUuid
+                    ? await mcpService.getPinnedAgent(user, {
+                          agentUuid: requestedAgentUuid,
+                          projectUuid: requestedProjectUuid,
+                      })
+                    : null;
+                const pinnedProjectUuid =
+                    pinnedAgent?.projectUuid ?? requestedProjectUuid;
+                if (pinnedProjectUuid) {
+                    await mcpService.assertMcpProjectAllowed(
+                        user,
+                        pinnedProjectUuid,
+                    );
+                }
                 const parsedToolCall = legacyToolCallSchema.safeParse(req.body);
                 if (parsedToolCall.success) {
                     assertOAuthMcpToolAllowed(
@@ -349,6 +409,7 @@ mcpRouter.all(
                     const legacyScope = await mcpService.getLegacyToolScope(
                         req.user!,
                         pinnedProjectUuid,
+                        pinnedAgent?.uuid,
                     );
                     if (legacyScope) {
                         const injectedRequest = injectLegacyToolScope(
@@ -399,21 +460,38 @@ mcpRouter.all(
                     scheduledDeliveryEnabled,
                     runSqlEnabled,
                     runMetricQueryEnabled,
+                    queryEnabled,
                     filterExpressionsEnabled,
-                    documentsEnabled,
                     dataAppBuildsEnabled,
+                    chartTypeBuildsEnabled,
+                    customChartTypesEnabled,
                     agentIdentityEnabled,
                 ] = await Promise.all([
-                    mcpService.isContentToolsEnabled(req.user!),
+                    mcpService.isContentToolsEnabled(
+                        req.user!,
+                        pinnedProjectUuid,
+                    ),
                     mcpService.isCreateScheduledDeliveryEnabled(req.user!),
                     mcpService.isRunSqlEnabled(req.user!, pinnedProjectUuid),
                     mcpService.isRunMetricQueryEnabled(
                         req.user!,
                         pinnedProjectUuid,
                     ),
+                    mcpService.isQueryEnabled(
+                        req.user!,
+                        pinnedProjectUuid,
+                        pinnedAgent,
+                    ),
                     mcpService.isFilterExpressionsEnabled(req.user!),
-                    mcpService.isDocumentsEnabled(req.user!),
                     mcpService.isDataAppBuildsEnabled(
+                        req.user!,
+                        pinnedProjectUuid,
+                    ),
+                    mcpService.isChartTypeBuildsEnabled(
+                        req.user!,
+                        pinnedProjectUuid,
+                    ),
+                    mcpService.isCustomChartTypesEnabled(
                         req.user!,
                         pinnedProjectUuid,
                     ),
@@ -421,6 +499,7 @@ mcpRouter.all(
                 ]);
                 const toolOptions: McpServerToolOptions = {
                     req: {
+                        pinnedAgent,
                         pinnedProjectUuid,
                         user: req.user,
                         account: req.account,
@@ -430,9 +509,12 @@ mcpRouter.all(
                         scheduledDeliveryEnabled,
                         runSqlEnabled,
                         runMetricQueryEnabled,
+                        queryEnabled,
                         filterExpressionsEnabled,
-                        documentsEnabled,
+                        documentsEnabled: true,
                         dataAppBuildsEnabled,
+                        chartTypeBuildsEnabled,
+                        customChartTypesEnabled,
                         agentIdentityEnabled,
                     },
                 };
@@ -462,6 +544,7 @@ mcpRouter.all(
                             req.services.getAgentPermissionService(),
                         headerUserAttributes,
                         headerProjectUuid: pinnedProjectUuid,
+                        headerAgentUuid: pinnedAgent?.uuid,
                         legacyContextInjected,
                         userAgent,
                         protocolVersion,
@@ -482,6 +565,7 @@ mcpRouter.all(
                         account: apiKeyAuth,
                         headerUserAttributes,
                         headerProjectUuid: pinnedProjectUuid,
+                        headerAgentUuid: pinnedAgent?.uuid,
                         legacyContextInjected,
                         userAgent,
                         protocolVersion,
@@ -503,6 +587,7 @@ mcpRouter.all(
                         account: serviceAccountAuth,
                         headerUserAttributes,
                         headerProjectUuid: pinnedProjectUuid,
+                        headerAgentUuid: pinnedAgent?.uuid,
                         legacyContextInjected,
                         userAgent,
                         protocolVersion,

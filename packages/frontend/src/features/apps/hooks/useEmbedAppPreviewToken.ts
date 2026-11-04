@@ -1,6 +1,7 @@
 import { type ApiError } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import {
     getPreviewTokenRefetchInterval,
     previewTokenQueryOptions,
@@ -12,6 +13,7 @@ export type EmbedAppPreviewToken = {
 };
 
 const fetchEmbedAppPreviewToken = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     appUuid: string,
 ): Promise<EmbedAppPreviewToken> => {
@@ -33,12 +35,15 @@ const fetchEmbedAppPreviewToken = async (
 export const useEmbedAppPreviewToken = (
     projectUuid: string | undefined,
     appUuid: string | undefined,
-) =>
-    useQuery<EmbedAppPreviewToken, ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<EmbedAppPreviewToken, ApiError>({
         queryKey: ['embed-app-preview-token', projectUuid, appUuid],
-        queryFn: () => fetchEmbedAppPreviewToken(projectUuid!, appUuid!),
+        queryFn: () =>
+            fetchEmbedAppPreviewToken(lightdashApi, projectUuid!, appUuid!),
         enabled: !!projectUuid && !!appUuid,
         refetchInterval: (_data, query) =>
             getPreviewTokenRefetchInterval(query.state.error),
         ...previewTokenQueryOptions,
     });
+};

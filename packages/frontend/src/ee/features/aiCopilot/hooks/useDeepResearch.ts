@@ -16,10 +16,11 @@ import {
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useRef } from 'react';
-import { lightdashApi } from '../../../../api';
+import { type LightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import useUser from '../../../../hooks/user/useUser';
 import useApp from '../../../../providers/App/useApp';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 import useTracking from '../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../types/Events';
 import useIsEmbedded from '../../../providers/Embed/useIsEmbedded';
@@ -61,6 +62,7 @@ const getBaseUrl = (projectUuid: string) =>
     `/ee/projects/${projectUuid}/ai-deep-research`;
 
 const startDeepResearch = (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     data: AiDeepResearchRequestBody,
 ) =>
@@ -71,7 +73,11 @@ const startDeepResearch = (
         body: JSON.stringify(data),
     }) as Promise<ApiAiDeepResearchRunResponse['results']>;
 
-const getDeepResearchRun = (projectUuid: string, runUuid: string) =>
+const getDeepResearchRun = (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+    runUuid: string,
+) =>
     lightdashApi<AnyType>({
         version: 'v1',
         url: `${getBaseUrl(projectUuid)}/${runUuid}`,
@@ -79,7 +85,11 @@ const getDeepResearchRun = (projectUuid: string, runUuid: string) =>
         body: undefined,
     }) as Promise<ApiAiDeepResearchRunResponse['results']>;
 
-const listDeepResearchRuns = (projectUuid: string, threadUuid: string) =>
+const listDeepResearchRuns = (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+    threadUuid: string,
+) =>
     lightdashApi<AnyType>({
         version: 'v1',
         url: `${getBaseUrl(projectUuid)}?threadUuid=${threadUuid}`,
@@ -88,6 +98,7 @@ const listDeepResearchRuns = (projectUuid: string, threadUuid: string) =>
     }) as Promise<ApiAiDeepResearchRunListResponse['results']>;
 
 const getDeepResearchEventsPage = (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     runUuid: string,
     cursor?: string,
@@ -100,6 +111,7 @@ const getDeepResearchEventsPage = (
     }) as Promise<ApiAiDeepResearchEventsResponse['results']>;
 
 const getDeepResearchEvents = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     runUuid: string,
 ): Promise<AiDeepResearchEventsPage> => {
@@ -107,6 +119,7 @@ const getDeepResearchEvents = async (
     let cursor: string | undefined;
     while (true) {
         const page = await getDeepResearchEventsPage(
+            lightdashApi,
             projectUuid,
             runUuid,
             cursor,
@@ -125,7 +138,11 @@ const getDeepResearchEvents = async (
     return { events, nextCursor: null };
 };
 
-const cancelDeepResearch = (projectUuid: string, runUuid: string) =>
+const cancelDeepResearch = (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+    runUuid: string,
+) =>
     lightdashApi<AnyType>({
         version: 'v1',
         url: `${getBaseUrl(projectUuid)}/${runUuid}/cancel`,
@@ -134,6 +151,7 @@ const cancelDeepResearch = (projectUuid: string, runUuid: string) =>
     }) as Promise<ApiAiDeepResearchRunResponse['results']>;
 
 const refreshDeepResearchChart = (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     runUuid: string,
     chartKey: string,
@@ -146,6 +164,7 @@ const refreshDeepResearchChart = (
     }) as Promise<ApiAiAgentThreadMessageVizQueryResponse['results']>;
 
 const getDeepResearchChart = (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     runUuid: string,
     queryUuid: string,
@@ -173,6 +192,8 @@ const useStartDeepResearchMutationBase = <
     getIds: (variables: Variables) => StartMutationIds,
     entryPoint: AiDeepResearchEntryPoint,
 ) => {
+    const lightdashApi = useLightdashApi();
+
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
     const user = useUser(true);
@@ -201,7 +222,7 @@ const useStartDeepResearchMutationBase = <
         },
         mutationFn: (variables) => {
             const { agentUuid, threadUuid } = getIds(variables);
-            return startDeepResearch(projectUuid, {
+            return startDeepResearch(lightdashApi, projectUuid, {
                 prompt: variables.question,
                 agentUuid,
                 threadUuid,
@@ -283,10 +304,13 @@ const useDeepResearchThreadRuns = (
     projectUuid: string | undefined,
     threadUuid: string,
 ) => {
+    const lightdashApi = useLightdashApi();
+
     const isEmbed = useIsEmbedded();
     return useQuery<AiDeepResearchRun[], ApiError>({
         queryKey: [DEEP_RESEARCH_QUERY_KEY, projectUuid, 'thread', threadUuid],
-        queryFn: () => listDeepResearchRuns(projectUuid ?? '', threadUuid),
+        queryFn: () =>
+            listDeepResearchRuns(lightdashApi, projectUuid ?? '', threadUuid),
         enabled: !isEmbed && !!projectUuid && !!threadUuid,
         refetchInterval: (runs) =>
             runs?.some((run) => !isAiDeepResearchRunTerminal(run.status))
@@ -475,6 +499,8 @@ export const useHasActiveDeepResearchRun = ({
 export const useDeepResearchRun = (
     registration: DeepResearchRunRegistration,
 ) => {
+    const lightdashApi = useLightdashApi();
+
     const queryIdentity = `${registration.projectUuid}:${registration.runUuid}`;
     const pollFailure = useRef<PollFailureState | undefined>(undefined);
     const runQuery = useQuery<AiDeepResearchRun, ApiError>({
@@ -484,7 +510,11 @@ export const useDeepResearchRun = (
             registration.runUuid,
         ],
         queryFn: () =>
-            getDeepResearchRun(registration.projectUuid, registration.runUuid),
+            getDeepResearchRun(
+                lightdashApi,
+                registration.projectUuid,
+                registration.runUuid,
+            ),
         enabled: registration.state === 'started',
         refetchInterval: (run) =>
             getDeepResearchRunRefetchInterval(
@@ -522,6 +552,7 @@ export const useDeepResearchRun = (
         ],
         queryFn: () =>
             getDeepResearchEvents(
+                lightdashApi,
                 registration.projectUuid,
                 registration.runUuid,
             ),
@@ -571,11 +602,14 @@ export const useDeepResearchReport = (
     projectUuid: string | undefined,
     runUuid: string | undefined,
 ) => {
+    const lightdashApi = useLightdashApi();
+
     const queryIdentity = `${projectUuid}:${runUuid}`;
     const pollFailure = useRef<PollFailureState | undefined>(undefined);
     const runQuery = useQuery<AiDeepResearchRun, ApiError>({
         queryKey: [DEEP_RESEARCH_QUERY_KEY, projectUuid, runUuid],
-        queryFn: () => getDeepResearchRun(projectUuid ?? '', runUuid ?? ''),
+        queryFn: () =>
+            getDeepResearchRun(lightdashApi, projectUuid ?? '', runUuid ?? ''),
         enabled: !!projectUuid && !!runUuid,
         refetchInterval: (run) =>
             getDeepResearchRunRefetchInterval(
@@ -623,10 +657,13 @@ export const useCancelDeepResearchMutation = (
     projectUuid: string,
     runUuid: string,
 ) => {
+    const lightdashApi = useLightdashApi();
+
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
     return useMutation<AiDeepResearchRun, ApiError>({
-        mutationFn: () => cancelDeepResearch(projectUuid, runUuid),
+        mutationFn: () =>
+            cancelDeepResearch(lightdashApi, projectUuid, runUuid),
         onSuccess: (run) => {
             queryClient.setQueryData(
                 [DEEP_RESEARCH_QUERY_KEY, projectUuid, runUuid],
@@ -654,8 +691,9 @@ export const useDeepResearchChartLiveQuery = ({
     projectUuid: string;
     runUuid: string;
     chartKey: string;
-}) =>
-    useQuery<ApiAiAgentThreadMessageVizQuery, ApiError>({
+}) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ApiAiAgentThreadMessageVizQuery, ApiError>({
         queryKey: [
             DEEP_RESEARCH_QUERY_KEY,
             projectUuid,
@@ -664,10 +702,17 @@ export const useDeepResearchChartLiveQuery = ({
             chartKey,
             'live',
         ],
-        queryFn: () => refreshDeepResearchChart(projectUuid, runUuid, chartKey),
+        queryFn: () =>
+            refreshDeepResearchChart(
+                lightdashApi,
+                projectUuid,
+                runUuid,
+                chartKey,
+            ),
         refetchOnMount: 'always',
         refetchOnWindowFocus: false,
     });
+};
 
 export const useDeepResearchChartQuery = ({
     projectUuid,
@@ -677,8 +722,9 @@ export const useDeepResearchChartQuery = ({
     projectUuid: string;
     runUuid: string;
     queryUuid: string;
-}) =>
-    useQuery<AiDeepResearchChartData, ApiError>({
+}) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<AiDeepResearchChartData, ApiError>({
         queryKey: [
             DEEP_RESEARCH_QUERY_KEY,
             projectUuid,
@@ -686,10 +732,12 @@ export const useDeepResearchChartQuery = ({
             'charts',
             queryUuid,
         ],
-        queryFn: () => getDeepResearchChart(projectUuid, runUuid, queryUuid),
+        queryFn: () =>
+            getDeepResearchChart(lightdashApi, projectUuid, runUuid, queryUuid),
         staleTime: Infinity,
         refetchOnWindowFocus: false,
     });
+};
 
 export const useContinueDeepResearchMutation = ({
     projectUuid,

@@ -1,4 +1,9 @@
+.root {
+    margin-inline: calc(-1 * var(--sidebar-padding, 0px));
+}
+
 .pane {
     display: flex;
     flex-direction: column;
+    padding-inline: var(--sidebar-padding, 0px);
 }

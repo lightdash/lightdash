@@ -1,0 +1,31 @@
+.drawerInner {
+    padding-top: var(--navbar-height);
+}
+
+.stepError {
+    position: relative;
+    width: 100%;
+    flex-shrink: 0;
+    padding: var(--mantine-spacing-xs);
+    border: 1px solid var(--mantine-color-red-2);
+    border-radius: var(--mantine-radius-sm);
+}
+
+.stepErrorLogs {
+    max-height: 200px;
+    min-width: 100%;
+    flex-grow: 1;
+    overflow: auto;
+    white-space: pre-wrap;
+}
+
+.stepErrorMessage {
+    width: 100%;
+    word-break: normal;
+    overflow-wrap: break-word;
+}
+
+.stepErrorLog {
+    border-top: 1px solid var(--mantine-color-red-2);
+    overflow-wrap: break-word;
+}

@@ -2,24 +2,29 @@ import type { ApiSuccess } from '../../types/api/success';
 import type { UUID } from '../../types/api/uuid';
 import type { TraceTaskBase } from '../../types/scheduler';
 
-/** Whether an app analyses on load: its own choice, or the org default. */
-export type DataAppAutoAnalysis = 'inherit' | 'on' | 'off';
+/**
+ * What an analysis runs over. Data apps and classic dashboards share the
+ * analysis pipeline (content building, hashing, reuse, budgets) but have
+ * their own rollout gates, access checks and storage keys.
+ */
+export type AnalysisTarget = 'app' | 'dashboard';
 
-const DATA_APP_AUTO_ANALYSIS: ReadonlySet<string> = new Set([
-    'inherit',
-    'on',
-    'off',
-]);
+/**
+ * The concrete thing one stored analysis ran over. Apps carry their version
+ * because results are cached per build; dashboards have no version — the
+ * content hash alone decides reuse.
+ */
+export type AnalysisTargetRef =
+    | { kind: 'app'; appUuid: string; appVersion: number }
+    | { kind: 'dashboard'; dashboardUuid: string };
 
-export const isDataAppAutoAnalysis = (
-    value: unknown,
-): value is DataAppAutoAnalysis =>
-    typeof value === 'string' && DATA_APP_AUTO_ANALYSIS.has(value);
-
-/** A stored value outside the set reads back as the org default. */
-export const normalizeDataAppAutoAnalysis = (
-    value: unknown,
-): DataAppAutoAnalysis => (isDataAppAutoAnalysis(value) ? value : 'inherit');
+/**
+ * What a request names. The viewer check resolves it to a full
+ * `AnalysisTargetRef` (apps gain their latest ready version).
+ */
+export type AnalysisTargetLocator =
+    | { kind: 'app'; appUuid: string }
+    | { kind: 'dashboard'; dashboardUuid: string };
 
 /** One query the host captured for the viewer's current view of a data app. */
 /**
@@ -79,6 +84,9 @@ export type DataAppDetectResult = {
     dataAsOf: string | null;
 };
 
+/** App-author guidance is untrusted input to the model; keep it short. */
+export const DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS = 2000;
+
 export type DataAppDetectRequest = {
     sources: DataAppAnalysisSource[];
     instructions?: string;
@@ -93,13 +101,10 @@ export type DataAppLookupRequest = {
 
 export type DataAppAnalysis = DataAppDetectResult & {
     analysisId: string;
-    appUuid: string;
-    appVersion: number;
+    target: AnalysisTargetRef;
     sources: DataAppAnalysisSource[];
     generatedAt: Date;
 };
-
-export type ApiDataAppDetectResponse = ApiSuccess<DataAppAnalysis>;
 
 export type DataAppInvestigateRequest = {
     anomalyId: string;
@@ -122,20 +127,75 @@ export type DataAppInvestigateResult = {
 export type DataAppInvestigation = DataAppInvestigateResult & {
     investigationId: string;
     analysisId: string;
-    appUuid: string;
-    appVersion: number;
+    target: AnalysisTargetRef;
     generatedAt: Date;
 };
 
+/**
+ * What detect returns: the analysis plus the viewer's own stored
+ * investigations of it — populated on a cache hit, empty on a fresh run.
+ */
+export type DataAppDetection = DataAppAnalysis & {
+    investigations: DataAppInvestigation[];
+};
+
+export type ApiDataAppDetectResponse = ApiSuccess<DataAppDetection>;
+
 /** Job that runs an investigation off the request path; poll by jobId. */
 export type DataAppInvestigateJobPayload = TraceTaskBase & {
-    appUuid: string;
+    target?: AnalysisTargetLocator;
+    /** Pre-target jobs enqueued before an upgrade; implies an app target. */
+    appUuid?: string;
     analysisId: string;
     anomalyId: string;
     agentUuid: string;
 };
 
 export type ApiDataAppInvestigateResponse = ApiSuccess<{ jobId: string }>;
+
+/** Author instructions are untrusted input to the agent; keep them short. */
+export const DATA_APP_INSTRUCTION_INVESTIGATE_MAX_CHARS = 2000;
+
+/**
+ * An app-authored investigation: a written instruction (e.g. a recommendation
+ * pill) the agent follows using the named sources as its starting data. Unlike
+ * anomaly investigations nothing anchors it to a stored detection; the viewer
+ * gates, budgets and read-only tool set are the same.
+ */
+export type DataAppInstructionInvestigateRequest = {
+    instruction: string;
+    sources: DataAppAnalysisSource[];
+    agentUuid: string;
+};
+
+export type DataAppInstructionInvestigateResult = {
+    explanation: string;
+    instruction: string;
+    agentUuid: string;
+    threadUuid: string;
+    queriesRun: number;
+    partial: boolean;
+};
+
+export type DataAppInstructionInvestigation =
+    DataAppInstructionInvestigateResult & {
+        investigationId: string;
+        target: AnalysisTargetRef;
+        sources: DataAppAnalysisSource[];
+        generatedAt: Date;
+    };
+
+/** Job that runs an instruction investigation off the request path; poll by jobId. */
+export type DataAppInstructionInvestigateJobPayload = TraceTaskBase & {
+    target: AnalysisTargetLocator;
+    instruction: string;
+    sources: DataAppAnalysisSource[];
+    agentUuid: string;
+};
+
+export type ApiDataAppInstructionInvestigateResponse = ApiSuccess<{
+    jobId: string;
+}>;
 
 /**
  * A free-form question an app asks about the viewer's own query results.
@@ -155,8 +215,7 @@ export type DataAppPromptResult = {
 
 export type DataAppPromptAnswer = DataAppPromptResult & {
     promptId: string;
-    appUuid: string;
-    appVersion: number;
+    target: AnalysisTargetRef;
     sources: DataAppAnalysisSource[];
     generatedAt: Date;
 };
@@ -175,6 +234,9 @@ export type ApiDataAppAnalysisLookupResponse =
 export type DataAppAnalysisRecord =
     | ({ operation: 'detect' } & DataAppAnalysis)
     | ({ operation: 'investigate' } & DataAppInvestigation)
+    | ({
+          operation: 'investigate_instruction';
+      } & DataAppInstructionInvestigation)
     | ({ operation: 'prompt' } & DataAppPromptAnswer);
 
 export type ApiDataAppAnalysisResponse = ApiSuccess<DataAppAnalysisRecord>;
@@ -208,4 +270,9 @@ export type DataAppInsightsPayload = {
     anomalies: (DataAppAnomaly & {
         investigation: DataAppInsightInvestigation;
     })[];
+    /**
+     * App-authored instruction investigations, keyed by the requestId the app
+     * sent with the action. Absent on hosts that predate the capability.
+     */
+    instructionInvestigations?: Record<string, DataAppInsightInvestigation>;
 };

@@ -11,6 +11,7 @@ describe('withAgentMarkerTag', () => {
         QueryExecutionContext.MCP_RUN_METRIC_QUERY,
         QueryExecutionContext.MCP_RUN_SQL,
         QueryExecutionContext.MCP_SEARCH_FIELD_VALUES,
+        QueryExecutionContext.MCP_QUERY,
         QueryExecutionContext.DATA_APP_SAMPLE,
     ])('marks %s without changing existing tags', (context) => {
         const tags = { query_context: context, user_uuid: 'person' };
@@ -26,6 +27,7 @@ describe('withAgentMarkerTag', () => {
                     QueryExecutionContext.MCP_RUN_METRIC_QUERY,
                     QueryExecutionContext.MCP_RUN_SQL,
                     QueryExecutionContext.MCP_SEARCH_FIELD_VALUES,
+                    QueryExecutionContext.MCP_QUERY,
                     QueryExecutionContext.DATA_APP_SAMPLE,
                 ].includes(context),
         ),
@@ -58,6 +60,26 @@ describe('agent identity query tags', () => {
             });
         },
     );
+    test('adds the agent uuid when the claim names an agent', () => {
+        const identity = buildAgentIdentityClaim({
+            subject: { type: 'user', uuid: 'private-user' },
+            surface: AgentActorSurface.MCP,
+            clientId: 'oauth-client',
+            agentUuid: 'agent-uuid',
+        });
+        expect(
+            withAgentMarkerTag(
+                { query_context: QueryExecutionContext.MCP_RUN_SQL },
+                identity,
+            ),
+        ).toEqual({
+            query_context: QueryExecutionContext.MCP_RUN_SQL,
+            agent: 'true',
+            agent_surface: 'mcp',
+            agent_client: getAgentClientLabel('oauth-client'),
+            agent_uuid: 'agent-uuid',
+        });
+    });
     test.each(Object.values(QueryExecutionContext))(
         'keeps flag-off tags byte-identical for %s',
         (context) => {

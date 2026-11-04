@@ -27,7 +27,6 @@ import {
 import {
     IconArrowUp,
     IconAlertTriangle,
-    IconBolt,
     IconCheck,
     IconFileText,
     IconFolderSearch,
@@ -63,6 +62,7 @@ import { useOrganizationDesigns } from '../../../../../features/organizationDesi
 import useUser from '../../../../../hooks/user/useUser';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../../providers/App/useApp';
+import { useLightdashApi } from '../../../../../providers/LightdashApi/useLightdashApi';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
@@ -77,7 +77,6 @@ import {
 import { type StartDeepResearchArgs } from '../../deepResearch/types';
 import { useAgentMaxWidth } from '../../hooks/useAgentMaxWidth';
 import { useAgentSuggestions } from '../../hooks/useAgentSuggestions';
-import { useAiAgentFastMode } from '../../hooks/useAiAgentFastMode';
 import { useAgentSkills } from '../../hooks/useAiAgentSkills';
 import { useCsvSourceAttachment } from '../../hooks/useCsvSourceAttachment';
 import { useHasActiveDeepResearchRun } from '../../hooks/useDeepResearch';
@@ -93,13 +92,22 @@ import {
     type ThreadFileAttachment,
 } from '../../hooks/useThreadFileAttachment';
 import {
+    clearThreadComposerNodes,
+    removeThreadComposerNode,
+    selectThreadComposerNodes,
+    type ThreadComposerNode,
+} from '../../store/aiAgentThreadComposerNodesSlice';
+import {
     clearThreadElementReferences,
     removeThreadElementReference,
     selectThreadElementReferences,
     type ThreadElementReference,
 } from '../../store/aiAgentThreadElementRefsSlice';
 import { isAiAgentThreadStreamActive } from '../../store/aiAgentThreadStreamSlice';
-import { setElementPickerEnabled } from '../../store/aiArtifactSlice';
+import {
+    selectPreviewForThreads,
+    setElementPickerEnabled,
+} from '../../store/aiArtifactSlice';
 import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
@@ -154,12 +162,14 @@ const buildSubmitContext = ({
     externalSources,
     threadFiles,
     elementReferences,
+    composerNodes,
     theme,
 }: {
     mentionContext: SubmitContext;
     externalSources: ExternalSourceAttachment[];
     threadFiles: ThreadFileAttachment[];
     elementReferences: ThreadElementReference[];
+    composerNodes: ThreadComposerNode[];
     theme: ComposerTheme | null;
 }): SubmitContext => {
     const context: AiPromptContextItemInput[] = [
@@ -179,6 +189,12 @@ const buildSubmitContext = ({
             tag,
             text,
             loc,
+        })),
+        ...composerNodes.map(({ artifactUuid, versionUuid, nodeId }) => ({
+            type: 'composer_node' as const,
+            artifactUuid,
+            versionUuid,
+            nodeId,
         })),
         ...(theme
             ? [{ type: 'design' as const, designUuid: theme.designUuid }]
@@ -208,6 +224,10 @@ const buildSubmitContext = ({
                 displayName: appDisplayName,
             }),
         ),
+        ...composerNodes.map((node) => ({
+            type: 'composer_node' as const,
+            ...node,
+        })),
         ...(theme
             ? [
                   {
@@ -290,8 +310,6 @@ interface AgentChatInputProps {
     dense?: boolean;
     // Rendered below the input, right-aligned like the disabled-reason banner.
     footerNotice?: ReactNode;
-    // Battle threads fix fast decisions per side, so the toggle would do nothing there.
-    showFastMode?: boolean;
     // Thread model shown in the status row under the inline composer.
     threadModelName?: string | null;
     threadModelWarning?: string | null;
@@ -362,10 +380,10 @@ export const AgentChatInput = ({
     revealControlsOnFocus = false,
     dense = false,
     footerNotice,
-    showFastMode = true,
     threadModelName,
     threadModelWarning = null,
 }: AgentChatInputProps) => {
+    const lightdashApi = useLightdashApi();
     const accessGate = useAiAccessGate(projectUuid);
     const accessRefused = accessGate.disabled;
     const disabled = disabledProp || accessRefused;
@@ -387,6 +405,10 @@ export const AgentChatInput = ({
     const elementReferences = useAiAgentStoreSelector(
         selectThreadElementReferences(threadUuid),
     );
+    // Picked in the thread's composer pipeline panel.
+    const composerNodes = useAiAgentStoreSelector(
+        selectThreadComposerNodes(threadUuid),
+    );
     const disableElementPicker = useCallback(() => {
         if (threadUuid) {
             storeDispatch(
@@ -397,14 +419,12 @@ export const AgentChatInput = ({
     const clearElementReferences = useCallback(() => {
         if (threadUuid) {
             storeDispatch(clearThreadElementReferences({ threadUuid }));
+            storeDispatch(clearThreadComposerNodes({ threadUuid }));
         }
     }, [storeDispatch, threadUuid]);
     const resetCsvFileInputRef = useRef<() => void>(null);
     const { data: externalSourcesFlag } = useServerFeatureFlag(
         FeatureFlags.ExternalSources,
-    );
-    const { data: multiSourceQueryFlag } = useServerFeatureFlag(
-        FeatureFlags.MultiSourceQuery,
     );
     const { data: composeSqlRunnerFlag } = useServerFeatureFlag(
         FeatureFlags.ComposeSqlRunner,
@@ -610,8 +630,16 @@ export const AgentChatInput = ({
     );
     const isMinimalMode = !showModelSelector && !showAgentSelector;
 
+    const selectThreadPreview = useMemo(
+        () => selectPreviewForThreads(threadUuid ? [threadUuid] : []),
+        [threadUuid],
+    );
+    const isArtifactPanelOpen =
+        useAiAgentStoreSelector(selectThreadPreview) !== null;
+
     const { emptyStateMode, postResponseMode } = getAgentSuggestionModes({
         disabled: disabledProp,
+        isArtifactPanelOpen,
         isMinimalMode,
         loading,
         messageCount,
@@ -621,6 +649,7 @@ export const AgentChatInput = ({
     });
 
     const suggestionsQuery = useAgentSuggestions({
+        surface: postResponseMode ? 'followup' : 'ask',
         projectUuid,
         agentUuid,
         enableSqlMode: sqlMode,
@@ -649,7 +678,7 @@ export const AgentChatInput = ({
                         : '',
                 ],
             }),
-            createContentMentionExtension({
+            createContentMentionExtension(lightdashApi, {
                 getProjectUuid: () => projectUuidRef.current,
                 getPriorityItems: () => contentMentionPriorityItemsRef.current,
                 getHidePersonalDataApps: () => hidePersonalDataAppsRef.current,
@@ -666,7 +695,7 @@ export const AgentChatInput = ({
                 },
             }),
         ],
-        [],
+        [lightdashApi],
     );
 
     // An @-mention dropdown with something to select owns Enter — it selects
@@ -697,6 +726,16 @@ export const AgentChatInput = ({
             editor.commands.focus('end');
         });
     }, [editor, threadUuid]);
+
+    // A step added from the Queries panel puts the cursor here to ask about it.
+    const composerNodeCount = composerNodes.length;
+    const prevComposerNodeCount = useRef(composerNodeCount);
+    useEffect(() => {
+        if (editor && composerNodeCount > prevComposerNodeCount.current) {
+            editor.commands.focus('end');
+        }
+        prevComposerNodeCount.current = composerNodeCount;
+    }, [editor, composerNodeCount]);
 
     const isAgentActive = threadStream
         ? isAiAgentThreadStreamActive(threadStream.connection)
@@ -777,6 +816,7 @@ export const AgentChatInput = ({
                     externalSources: externalSourceAttachments,
                     threadFiles: threadFileAttachments,
                     elementReferences,
+                    composerNodes,
                     theme: selectedTheme,
                 }),
             });
@@ -804,6 +844,7 @@ export const AgentChatInput = ({
             externalSourceAttachments,
             threadFileAttachments,
             elementReferences,
+            composerNodes,
             clearElementReferences,
             disableElementPicker,
             isPreparingAttachments,
@@ -847,14 +888,7 @@ export const AgentChatInput = ({
             onStart: onStartDeepResearch,
         });
     const showSqlModeControl = Boolean(onSqlModeChange && !disabled);
-    const fastMode = useAiAgentFastMode();
-    const showFastModeControl =
-        showFastMode && fastMode.available && !disabled && !isEmbedded;
-    const showFastModeInModelSelector =
-        showFastModeControl && !isMinimalMode && showModelSelectorControl;
     const showStatusRow = threadModelName !== undefined && !disabled;
-    const showFastModeInComposerMenu =
-        showFastModeControl && !showFastModeInModelSelector;
     const activeMessageUuid = isAgentActive
         ? threadStream?.messageUuid
         : undefined;
@@ -869,8 +903,10 @@ export const AgentChatInput = ({
     const canAttachExternalSource = Boolean(
         projectUuid &&
         externalSourcesFlag?.enabled &&
-        multiSourceQueryFlag?.enabled &&
+        app.health.data?.externalSources.engineAvailable &&
         composeSqlRunnerFlag?.enabled &&
+        // Hidden only when the agent is known to have composer queries off.
+        agent?.enableComposerQueries !== false &&
         !isEmbedded &&
         app.user.data?.ability.can(
             'manage',
@@ -934,7 +970,6 @@ export const AgentChatInput = ({
         showSqlModeControl ||
         showAttachControl ||
         showDeepResearchInComposerMenu ||
-        showFastModeInComposerMenu ||
         showThemeControl,
     );
 
@@ -997,6 +1032,7 @@ export const AgentChatInput = ({
                 externalSources: externalSourceAttachments,
                 threadFiles: threadFileAttachments,
                 elementReferences,
+                composerNodes,
                 theme: selectedTheme,
             }),
         });
@@ -1310,7 +1346,6 @@ export const AgentChatInput = ({
                             )}
                             {(showSqlModeControl ||
                                 showDeepResearchInComposerMenu ||
-                                showFastModeInComposerMenu ||
                                 showThemeControl) && (
                                 <Menu.Divider role="separator" mx="sm" />
                             )}
@@ -1346,44 +1381,10 @@ export const AgentChatInput = ({
                         </Menu.Item>
                     )}
                     {showDeepResearchInComposerMenu && deepResearchMenuItem}
-                    {showFastModeInComposerMenu && (
-                        <Menu.Item
-                            aria-label={
-                                fastMode.enabled
-                                    ? 'Disable Fast mode'
-                                    : 'Enable Fast mode'
-                            }
-                            closeMenuOnClick={false}
-                            onClick={() =>
-                                fastMode.setEnabled(!fastMode.enabled)
-                            }
-                            leftSection={
-                                <MantineIcon
-                                    icon={IconBolt}
-                                    size={14}
-                                    color={
-                                        fastMode.enabled ? 'blue.6' : 'ldGray.6'
-                                    }
-                                />
-                            }
-                            rightSection={
-                                fastMode.enabled ? (
-                                    <MantineIcon
-                                        icon={IconCheck}
-                                        size={14}
-                                        color="blue.6"
-                                    />
-                                ) : null
-                            }
-                        >
-                            Fast
-                        </Menu.Item>
-                    )}
                     {showThemeControl && (
                         <>
                             {(showSqlModeControl ||
-                                showDeepResearchInComposerMenu ||
-                                showFastModeInComposerMenu) && (
+                                showDeepResearchInComposerMenu) && (
                                 <Menu.Divider role="separator" mx="sm" />
                             )}
                             <ComposerThemeMenuEntry
@@ -1399,7 +1400,7 @@ export const AgentChatInput = ({
         );
     };
 
-    // Status bar under the thread composer: attach, Fast and SQL Runner stay
+    // Status bar under the thread composer: attach and SQL Runner stay
     // switchable mid-thread; the model is fixed so it is only a label.
     const renderStatusRow = () => {
         if (!showStatusRow) return null;
@@ -1482,46 +1483,8 @@ export const AgentChatInput = ({
                     )}
                     {footerNotice}
                 </Group>
-                {(threadModelName || showFastModeControl) && (
+                {threadModelName && (
                     <Group gap={4} wrap="nowrap">
-                        {showFastModeControl && (
-                            <Tooltip
-                                label="Jev picks the quickest way to answer, so simple questions come back faster"
-                                multiline
-                                w={240}
-                                position="top"
-                                openDelay={300}
-                            >
-                                <ActionIcon
-                                    size="xs"
-                                    variant="transparent"
-                                    aria-label={
-                                        fastMode.enabled
-                                            ? 'Disable Fast mode'
-                                            : 'Enable Fast mode'
-                                    }
-                                    aria-pressed={fastMode.enabled}
-                                    onClick={() =>
-                                        fastMode.setEnabled(!fastMode.enabled)
-                                    }
-                                >
-                                    <MantineIcon
-                                        icon={IconBolt}
-                                        size={14}
-                                        color={
-                                            fastMode.enabled
-                                                ? 'blue.6'
-                                                : 'dimmed'
-                                        }
-                                        fill={
-                                            fastMode.enabled
-                                                ? 'blue.6'
-                                                : undefined
-                                        }
-                                    />
-                                </ActionIcon>
-                            </Tooltip>
-                        )}
                         {threadModelName && threadModelWarning && (
                             <Tooltip
                                 label={threadModelWarning}
@@ -1568,13 +1531,15 @@ export const AgentChatInput = ({
         pendingCsvFiles.length > 0 ||
         threadFileAttachments.length > 0 ||
         pendingThreadFiles.length > 0 ||
-        elementReferences.length > 0 ? (
+        elementReferences.length > 0 ||
+        composerNodes.length > 0 ? (
             <PromptAttachments
                 externalSources={externalSourceAttachments}
                 pendingCsvFiles={pendingCsvFiles}
                 threadFiles={threadFileAttachments}
                 pendingThreadFiles={pendingThreadFiles}
                 elementRefs={elementReferences}
+                composerNodes={composerNodes}
                 onRemoveExternalSource={(sourceUuid) => {
                     setExternalSourceAttachments((attachments) =>
                         attachments.filter(
@@ -1599,6 +1564,12 @@ export const AgentChatInput = ({
                             threadUuid,
                             reference,
                         }),
+                    );
+                }}
+                onRemoveComposerNode={(node) => {
+                    if (!threadUuid) return;
+                    storeDispatch(
+                        removeThreadComposerNode({ threadUuid, node }),
                     );
                 }}
             />
@@ -1825,16 +1796,6 @@ export const AgentChatInput = ({
                                                     }
                                                     onReasoningChange={
                                                         onExtendedThinkingChange
-                                                    }
-                                                    fastModeEnabled={
-                                                        showFastModeInModelSelector
-                                                            ? fastMode.enabled
-                                                            : undefined
-                                                    }
-                                                    onFastModeChange={
-                                                        showFastModeInModelSelector
-                                                            ? fastMode.setEnabled
-                                                            : undefined
                                                     }
                                                     agentDefault={agentDefault}
                                                 />

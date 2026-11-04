@@ -12,6 +12,7 @@ import { EventStreamSink } from './EventStreamSink';
 import { eventStreamRegistry, getCompactedStreamColumns } from './registry';
 import { type EventStreamRow } from './types';
 import { buildCompactionSql } from './UsageEventsCompactor';
+import { buildUserActivitySql } from './UsageUserActivityBuilder';
 
 const createWriter = () => ({
     push: vi.fn<(stream: string, row: EventStreamRow) => void>(),
@@ -90,6 +91,8 @@ describe('data app usage events', () => {
             app_id: 'app-1',
             version,
             view_context: null,
+            navigation_id: null,
+            outcome: null,
         });
     });
 
@@ -109,6 +112,37 @@ describe('data app usage events', () => {
         expect(writer.push).not.toHaveBeenCalled();
     });
 
+    it('captures outcome metadata without copying browser error contents', () => {
+        const writer = createWriter();
+        const sink = new EventStreamSink(eventStreamRegistry, writer);
+        sink.handle({
+            event: 'data_app.view_outcome',
+            userId: 'issuer',
+            properties: {
+                ...properties,
+                version: 4,
+                viewContext: 'embed',
+                navigationId: 'navigation',
+                outcome: 'runtime_error',
+                errorMessage: 'private runtime error',
+                stack: 'private stack',
+            },
+        });
+        expect(writer.push).toHaveBeenCalledExactlyOnceWith('data_app_events', {
+            event_name: 'data_app.view_outcome',
+            org_id: 'org-1',
+            user_id: 'issuer',
+            event_ts: expect.any(String),
+            schema_version: 1,
+            project_id: 'project-1',
+            app_id: 'app-1',
+            version: 4,
+            view_context: 'embed',
+            navigation_id: 'navigation',
+            outcome: 'runtime_error',
+        });
+    });
+
     it('round-trips events through typed Parquet and counts views separately from builds', async () => {
         const writer = createWriter();
         const sink = new EventStreamSink(eventStreamRegistry, writer);
@@ -122,6 +156,20 @@ describe('data app usage events', () => {
                 event,
                 userId,
                 properties: { ...properties, appUuid, version: 3, viewContext },
+            });
+        }
+        for (const outcome of ['html_loaded', 'sdk_started', 'runtime_error']) {
+            sink.handle({
+                event: 'data_app.view_outcome',
+                userId: 'viewer-3',
+                properties: {
+                    ...properties,
+                    appUuid: 'outcome-only-app',
+                    version: 3,
+                    viewContext: 'standalone',
+                    navigationId: 'navigation-1',
+                    outcome,
+                },
             });
         }
         const directory = await mkdtemp(
@@ -185,11 +233,29 @@ describe('data app usage events', () => {
                 'SELECT event_name, version FROM data_app_events',
             );
             expect(rows.getRowObjects()).toEqual([
-                { event_name: 'data_app.view', version: null },
-                { event_name: 'data_app.view', version: null },
-                { event_name: 'data_app.view', version: null },
+                { event_name: 'data_app.view', version: 3 },
+                { event_name: 'data_app.view', version: 3 },
+                { event_name: 'data_app.view', version: 3 },
                 { event_name: 'data_app.iterated', version: 3 },
+                { event_name: 'data_app.view_outcome', version: 3 },
+                { event_name: 'data_app.view_outcome', version: 3 },
+                { event_name: 'data_app.view_outcome', version: 3 },
             ]);
+            const activityFile = path.join(directory, 'activity.parquet');
+            const eventDate = new Date().toISOString().slice(0, 10);
+            await connection.run(
+                buildUserActivitySql(
+                    'org-1',
+                    'data_app_events',
+                    eventDate,
+                    [parquetFile],
+                    activityFile,
+                ),
+            );
+            const activity = await connection.runAndReadAll(
+                `SELECT SUM(event_count) AS events FROM read_parquet('${activityFile}')`,
+            );
+            expect(activity.getRowObjects()).toEqual([{ events: 4n }]);
         } finally {
             connection.closeSync();
             instance.closeSync();

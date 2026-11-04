@@ -94,6 +94,7 @@ beforeEach(async () => {
                     refresh_token: 'rotated-refresh',
                     token_type: 'Bearer',
                     expires_in: 3600,
+                    refresh_expires_in: 3600,
                     scope: 'read write',
                 }),
             );
@@ -761,4 +762,40 @@ it('uses legacy text without reading the store after named JSON status on the sa
             auth: 'ApiKey stored-human-secret',
         },
     ]);
+});
+
+it('uses a locally constructed link and strips terminal controls in project names', async () => {
+    payload.approvedProjects = [
+        {
+            ...slot.lastReported.approvedProjects[0],
+            name: 'Project\u001b[31m red\nnext\u0085line',
+        },
+    ];
+    warehouse = {
+        ...connectedAgentAccess,
+        refusal: {
+            reason: 'needs_sign_in',
+            connectUrl: `${slot.instanceUrl}/?token=unseen marker!`,
+            settingsUrl: '/?token=unseen marker!',
+        },
+    };
+    await agentStatusHandler({ name: slot.name, json: true, verbose: true });
+    const report = output();
+    expect(JSON.stringify(report)).not.toContain('unseen marker!');
+    expect(report.warehouse.projects[0].settingsUrl).toBe(
+        `${slot.instanceUrl}/generalSettings/myAgentConnections`,
+    );
+    expect(report.approvedProjects[0].name).toBe('Project rednextline');
+});
+it('retains operation guidance for a server error envelope', async () => {
+    server.removeAllListeners('request');
+    server.on('request', (_req, res) => {
+        res.setHeader('content-type', 'application/json');
+        res.end(
+            JSON.stringify({ status: 'error', error: { code: 'test_code' } }),
+        );
+    });
+    await agentStatusHandler({ name: slot.name, json: true, verbose: true });
+    expect(output().error).toContain('Connection status is unconfirmed.');
+    expect(output().error).toContain('status 200');
 });

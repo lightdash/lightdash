@@ -1,3 +1,7 @@
 .webhookPill {
     max-width: 280px;
 }
+
+.destinationIcon {
+    margin: 5px 2px;
+}

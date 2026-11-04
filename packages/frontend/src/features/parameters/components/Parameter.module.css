@@ -9,3 +9,8 @@
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
+.valueSummary {
+    max-width: 100%;
+    overflow: hidden;
+}

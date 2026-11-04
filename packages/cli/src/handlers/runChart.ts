@@ -5,11 +5,16 @@ import {
 } from '@lightdash/common';
 import { promises as fs } from 'fs';
 import * as yaml from 'js-yaml';
+import { assertConnectionResponse } from '../agentConnections/responseValidation';
 import { getConfig } from '../config';
 import { getAgentConnectionSelection } from '../credentials';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
-import { pollForResults, resultsToCsv } from './asyncQuery';
+import {
+    pollForResults,
+    resultsToCsv,
+    validateConnectionQueryUuid,
+} from './asyncQuery';
 import { lightdashApi } from './dbt/apiClient';
 
 type RunChartOptions = {
@@ -108,11 +113,12 @@ export const runChartHandler = async (
         }),
     });
 
-    GlobalState.debug(`> Query UUID: ${submitResult.queryUuid}`);
+    const queryUuid = validateConnectionQueryUuid(submitResult.queryUuid);
+    GlobalState.debug(`> Query UUID: ${queryUuid}`);
     spinner.text = 'Waiting for query results...';
 
     // Poll for completion
-    const result = await pollForResults(projectUuid, submitResult.queryUuid, {
+    const result = await pollForResults(projectUuid, queryUuid, {
         pageSize: options.output
             ? (options.pageSize ?? DEFAULT_PAGE_SIZE)
             : undefined,
@@ -135,6 +141,13 @@ export const runChartHandler = async (
         throw new Error(`Unexpected query status: ${result.status}`);
     }
 
+    const reportedDurationMs =
+        result.metadata?.performance?.initialQueryExecutionMs;
+    assertConnectionResponse(
+        reportedDurationMs === null ||
+            (typeof reportedDurationMs === 'number' &&
+                Number.isFinite(reportedDurationMs)),
+    );
     const durationMs = result.metadata.performance.initialQueryExecutionMs;
     const durationStr = durationMs ? ` (${durationMs}ms)` : '';
 

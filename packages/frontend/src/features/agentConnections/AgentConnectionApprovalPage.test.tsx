@@ -1,0 +1,1189 @@
+import {
+    AgentCapability,
+    type AgentConnectionApprovalReview,
+    type HealthState,
+} from '@lightdash/common';
+import { useQueryClient, type QueryClient } from '@tanstack/react-query';
+import {
+    act,
+    fireEvent,
+    screen,
+    waitFor,
+    within,
+} from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { StrictMode } from 'react';
+import {
+    MemoryRouter,
+    Route,
+    Routes,
+    useLocation,
+    useNavigate,
+} from 'react-router';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import PrivateRoute from '../../components/PrivateRoute';
+import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
+import { renderWithProviders } from '../../testing/testUtils';
+import LoginLanding from '../users/components/LoginLanding';
+import AgentConnectionApprovalPage from './AgentConnectionApprovalPage';
+
+let enabled: boolean | undefined = true;
+vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: () => ({
+        data: enabled === undefined ? undefined : { enabled },
+    }),
+}));
+vi.mock('../../api');
+vi.mock('./AgentConnectionApprovalWarehouseStep', () => ({
+    AgentConnectionApprovalWarehouseStep: () => null,
+}));
+
+let authenticated = true;
+vi.mock(
+    '../../testing/__mocks__/api/healthResponse.mock',
+    async (importOriginal) => {
+        const original = await importOriginal<{
+            default: (overrides: Partial<HealthState>) => HealthState;
+        }>();
+        return {
+            default: () => original.default({ isAuthenticated: authenticated }),
+        };
+    },
+);
+vi.mock('../../hooks/user/useAccount', () => ({
+    useAccount: () => ({ data: { isRegisteredUser: () => true } }),
+}));
+vi.mock('../../hooks/useEmailVerification', () => ({
+    useEmailStatus: () => ({
+        data: { isVerified: true },
+        isInitialLoading: false,
+    }),
+}));
+vi.mock('../../providers/Ability/useAbilityContext', () => {
+    const ability = { rules: [{}], update: vi.fn() };
+    return { useAbilityContext: () => ability };
+});
+vi.mock('../../hooks/useFlashMessages', () => ({
+    useFlashMessages: () => ({ data: {} }),
+}));
+vi.mock('../users/hooks/useLogin', () => ({
+    useFetchLoginOptions: () => ({
+        data: { showOptions: [], forceRedirect: false },
+        isSuccess: true,
+        isInitialLoading: false,
+    }),
+    useLoginWithEmailMutation: () => ({ mutate: vi.fn(), isIdle: true }),
+}));
+
+const requestUuid = '11111111-1111-4111-8111-111111111111';
+const firstProject = '22222222-2222-4222-8222-222222222222';
+const secondProject = '33333333-3333-4333-8333-333333333333';
+const completionUrl = `http://localhost/api/v2/user/agent-connections/requests/${requestUuid}/completion`;
+const offered = (capability: AgentCapability) => ({
+    capability,
+    visibility: 'offered' as const,
+    reason: null,
+    reasonCode: null,
+});
+const review = (): AgentConnectionApprovalReview => ({
+    request: {
+        name: 'work',
+        clientLabel: 'CLI',
+        expiresInSeconds: 86400,
+        expiresAt: '2099-10-12T12:00:00Z',
+    },
+    notice: 'Review only. No connection will be created.',
+    nonce: 'private-decision-nonce',
+    revision: 1,
+    projects: [
+        {
+            projectUuid: firstProject,
+            name: 'Development',
+            selectable: true,
+            reason: null,
+            capabilities: [
+                offered(AgentCapability.ReadDiscover),
+                offered(AgentCapability.Query),
+                offered(AgentCapability.Delete),
+                offered(AgentCapability.Publish),
+                {
+                    capability: AgentCapability.RawSql,
+                    visibility: 'blocked',
+                    reason: 'Your permissions in this project do not allow this action.',
+                    reasonCode: 'person_permission',
+                },
+                {
+                    capability: AgentCapability.Export,
+                    visibility: 'hidden',
+                    reason: null,
+                    reasonCode: null,
+                },
+            ],
+        },
+        {
+            projectUuid: secondProject,
+            name: 'Production',
+            selectable: true,
+            reason: null,
+            capabilities: [
+                offered(AgentCapability.ReadDiscover),
+                {
+                    capability: AgentCapability.Query,
+                    visibility: 'blocked',
+                    reason: 'This action is turned off for agents.',
+                    reasonCode: 'action_disabled',
+                },
+            ],
+        },
+        {
+            projectUuid: '44444444-4444-4444-8444-444444444444',
+            name: 'Restricted',
+            selectable: false,
+            reason: 'This person is not allowed to use agents.',
+            capabilities: [],
+        },
+    ],
+});
+const renderPage = () =>
+    renderWithProviders(
+        <MemoryRouter
+            initialEntries={[
+                `/agent/connection-approval?request=${requestUuid}`,
+            ]}
+        >
+            <section data-testid="approval-surface">
+                <AgentConnectionApprovalPage />
+            </section>
+        </MemoryRouter>,
+    );
+const loadPage = async () => {
+    const result = renderPage();
+    await screen.findByRole('button', { name: 'Approve' });
+    return result;
+};
+const api = mockedLightdashApi;
+const error = (
+    statusCode: number,
+    code: string,
+    renewed?: AgentConnectionApprovalReview,
+) => ({
+    status: 'error',
+    error: {
+        statusCode,
+        code,
+        name: 'AgentConnectionApprovalError',
+        message: 'Server explanation.',
+        ...(renewed ? { review: renewed } : {}),
+    },
+});
+
+beforeEach(() => {
+    vi.clearAllMocks();
+    api.mockReset();
+    enabled = true;
+    authenticated = true;
+    api.mockImplementation(async ({ method }) =>
+        method === 'GET' ? review() : { completionUrl },
+    );
+    vi.spyOn(window, 'open').mockReturnValue(null);
+});
+
+describe('approval review', () => {
+    it.each([false, undefined])(
+        'renders nothing and makes no request when enabled is %s',
+        (value) => {
+            enabled = value;
+            renderPage();
+            expect(
+                screen.getByTestId('approval-surface'),
+            ).toBeEmptyDOMElement();
+            expect(api).not.toHaveBeenCalled();
+        },
+    );
+    it('defaults to opt-out with one action list, hidden and blocked rows and server reasons', async () => {
+        await loadPage();
+        for (const name of [
+            'Development',
+            'Production',
+            'Read and discover',
+            'Query data',
+            'Delete content',
+            'Publish and share',
+        ])
+            expect(screen.getByRole('checkbox', { name })).toBeChecked();
+        expect(
+            screen.getAllByRole('checkbox', { name: 'Read and discover' }),
+        ).toHaveLength(1);
+        expect(screen.queryByText('Export results')).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('checkbox', { name: 'Raw SQL' }),
+        ).toBeDisabled();
+        expect(
+            screen.getByRole('checkbox', { name: 'Raw SQL' }),
+        ).not.toBeChecked();
+        expect(
+            screen.getByRole('checkbox', { name: 'Raw SQL' }),
+        ).toHaveAccessibleDescription(
+            'Your permissions in this project do not allow this action.',
+        );
+        expect(
+            screen.getByRole('checkbox', { name: 'Restricted' }),
+        ).toBeDisabled();
+        expect(
+            screen.getByRole('checkbox', { name: 'Restricted' }),
+        ).toHaveAccessibleDescription(
+            'This person is not allowed to use agents.',
+        );
+        for (const [name, warning] of [
+            [
+                'Delete content',
+                'Deleted content cannot be restored by the agent.',
+            ],
+            [
+                'Publish and share',
+                'Other people will see what the agent publishes.',
+            ],
+        ]) {
+            const checkbox = screen.getByRole('checkbox', { name });
+            expect(checkbox).toHaveAccessibleDescription(
+                `${warning} Available in 1 of 2 selected projects`,
+            );
+            const row = checkbox.closest('section')!;
+            expect(within(row).getByText(warning)).toBeVisible();
+            expect(within(row).getByText(warning)).toHaveAttribute(
+                'aria-hidden',
+                'true',
+            );
+        }
+        const user = userEvent.setup();
+        for (const [name, lines] of [
+            [
+                'Query data',
+                [
+                    'Available in 1 of 2 selected projects',
+                    'Production: This action is turned off for agents.',
+                ],
+            ],
+            [
+                'Raw SQL',
+                ['Your permissions in this project do not allow this action.'],
+            ],
+        ] as const) {
+            const checkbox = screen.getByRole('checkbox', { name });
+            expect(checkbox).toHaveAccessibleDescription(lines.join(' '));
+            const trigger = within(checkbox.closest('section')!).getByRole(
+                'button',
+                {
+                    name: 'Why this is limited',
+                },
+            );
+            expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+            await user.hover(trigger);
+            const tooltip = await screen.findByRole('tooltip');
+            for (const line of lines)
+                expect(within(tooltip).getByText(line)).toBeVisible();
+            expect(checkbox).toHaveAccessibleDescription(lines.join(' '));
+            await user.unhover(trigger);
+            await waitFor(() =>
+                expect(screen.queryByRole('tooltip')).not.toBeInTheDocument(),
+            );
+        }
+        expect(
+            screen.queryByRole('button', { name: /restrictions/i }),
+        ).not.toBeInTheDocument();
+        expect(screen.getByText(review().notice)).toBeVisible();
+        expect(
+            screen.getByText('Expires 24 hours after approval'),
+        ).toBeVisible();
+        expect(
+            screen.queryByText('Longer than the usual 24 hours'),
+        ).not.toBeInTheDocument();
+    });
+    it('opens restriction tooltips by keyboard for partly available and fully blocked actions', async () => {
+        const user = userEvent.setup();
+        await loadPage();
+        for (const [name, lines] of [
+            [
+                'Query data',
+                [
+                    'Available in 1 of 2 selected projects',
+                    'Production: This action is turned off for agents.',
+                ],
+            ],
+            [
+                'Raw SQL',
+                ['Your permissions in this project do not allow this action.'],
+            ],
+        ] as const) {
+            const checkbox = screen.getByRole('checkbox', { name });
+            const trigger = within(checkbox.closest('section')!).getByRole(
+                'button',
+                {
+                    name: 'Why this is limited',
+                },
+            );
+            for (
+                let tabs = 0;
+                tabs < 20 && document.activeElement !== trigger;
+                tabs += 1
+            )
+                await user.tab();
+            expect(trigger).toHaveFocus();
+            const tooltip = await screen.findByRole('tooltip');
+            for (const line of lines)
+                expect(within(tooltip).getByText(line)).toBeVisible();
+            expect(checkbox).toHaveAccessibleDescription(lines.join(' '));
+            await user.tab();
+            expect(trigger).not.toHaveFocus();
+            await waitFor(() => expect(tooltip).not.toBeInTheDocument());
+        }
+    });
+    it('deduplicates shared blocked reasons and omits warnings when destructive actions are blocked everywhere', async () => {
+        const data = review();
+        for (const project of data.projects.filter(
+            (entry) => entry.selectable,
+        )) {
+            project.capabilities = [
+                AgentCapability.Delete,
+                AgentCapability.Publish,
+            ].map((capability) => ({
+                capability,
+                visibility: 'blocked',
+                reason: 'This action is turned off for agents.',
+                reasonCode: 'action_disabled',
+            }));
+        }
+        api.mockResolvedValue(data);
+        await loadPage();
+        const user = userEvent.setup();
+        for (const name of ['Delete content', 'Publish and share']) {
+            const checkbox = screen.getByRole('checkbox', { name });
+            expect(checkbox).toBeDisabled();
+            expect(checkbox).not.toBeChecked();
+            expect(checkbox).toHaveAccessibleDescription(
+                'This action is turned off for agents.',
+            );
+            const trigger = within(checkbox.closest('section')!).getByRole(
+                'button',
+                { name: 'Why this is limited' },
+            );
+            await user.hover(trigger);
+            const tooltip = await screen.findByRole('tooltip');
+            expect(tooltip).toHaveTextContent(
+                /^This action is turned off for agents\.$/,
+            );
+            await user.unhover(trigger);
+            await waitFor(() =>
+                expect(screen.queryByRole('tooltip')).not.toBeInTheDocument(),
+            );
+        }
+        expect(
+            screen.queryByText(/Deleted content cannot be restored/),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByText(/Other people will see/),
+        ).not.toBeInTheDocument();
+    });
+    it('keeps distinct project reasons when an action is blocked everywhere', async () => {
+        const data = review();
+        data.projects[1].capabilities.push({
+            capability: AgentCapability.RawSql,
+            visibility: 'blocked',
+            reason: 'This action is turned off for agents.',
+            reasonCode: 'action_disabled',
+        });
+        api.mockResolvedValue(data);
+        await loadPage();
+        const checkbox = screen.getByRole('checkbox', { name: 'Raw SQL' });
+        const lines = [
+            'Development: Your permissions in this project do not allow this action.',
+            'Production: This action is turned off for agents.',
+        ];
+        expect(checkbox).toBeDisabled();
+        expect(checkbox).not.toBeChecked();
+        expect(checkbox).toHaveAccessibleDescription(lines.join(' '));
+        await userEvent.setup().hover(
+            within(checkbox.closest('section')!).getByRole('button', {
+                name: 'Why this is limited',
+            }),
+        );
+        const tooltip = await screen.findByRole('tooltip');
+        for (const line of lines)
+            expect(within(tooltip).getByText(line)).toBeVisible();
+    });
+    it('renders server reason text even when no reason code is supplied', async () => {
+        const data = review();
+        const capability = data.projects[0].capabilities.find(
+            (entry) => entry.capability === AgentCapability.RawSql,
+        )!;
+        capability.reasonCode = null;
+        capability.reason = 'The available permissions could not be checked.';
+        api.mockResolvedValue(data);
+        await loadPage();
+        expect(
+            screen.getByRole('checkbox', { name: 'Raw SQL' }),
+        ).toHaveAccessibleDescription(capability.reason);
+        expect(screen.getByText('work · CLI')).toBeVisible();
+    });
+    it('renders the response notice and actual expiry without an input', async () => {
+        const data = review();
+        data.request.expiresInSeconds = 172801;
+        Object.assign(data, { notice: 'A notice from the server.' });
+        api.mockResolvedValue(data);
+        await loadPage();
+        expect(screen.getByText('A notice from the server.')).toBeVisible();
+        expect(
+            screen.getByText('Expires 2 days, 1 second after approval'),
+        ).toBeVisible();
+        expect(
+            screen.getByText('Longer than the usual 24 hours'),
+        ).toBeVisible();
+        expect(screen.queryByRole('spinbutton')).not.toBeInTheDocument();
+        expect(
+            screen.queryByText(/This page stops working at/),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByText('Choose what this agent may do.'),
+        ).not.toBeInTheDocument();
+    });
+    it('preserves unticks during project changes without fetching and disables approval for zero projects', async () => {
+        await loadPage();
+        fireEvent.click(screen.getByRole('checkbox', { name: 'Query data' }));
+        fireEvent.click(screen.getByRole('checkbox', { name: 'Development' }));
+        expect(
+            screen.getByRole('checkbox', { name: 'Query data' }),
+        ).toBeDisabled();
+        fireEvent.click(screen.getByRole('checkbox', { name: 'Development' }));
+        expect(
+            screen.getByRole('checkbox', { name: 'Query data' }),
+        ).not.toBeChecked();
+        fireEvent.click(screen.getByRole('checkbox', { name: 'Development' }));
+        fireEvent.click(screen.getByRole('checkbox', { name: 'Production' }));
+        expect(screen.getByRole('button', { name: 'Approve' })).toBeDisabled();
+        expect(api).toHaveBeenCalledTimes(1);
+    });
+    it('posts the exact approval body and never puts the nonce in a URL', async () => {
+        await loadPage();
+        fireEvent.click(screen.getByRole('checkbox', { name: 'Query data' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
+        await waitFor(() => expect(api).toHaveBeenCalledTimes(2));
+        expect(api).toHaveBeenLastCalledWith({
+            version: 'v2',
+            url: `/user/agent-connections/requests/${requestUuid}/decision`,
+            method: 'POST',
+            sensitive: true,
+            body: JSON.stringify({
+                decision: 'approve',
+                revision: 1,
+                nonce: review().nonce,
+                projectUuids: [firstProject, secondProject],
+                capabilities: [
+                    AgentCapability.ReadDiscover,
+                    AgentCapability.Delete,
+                    AgentCapability.Publish,
+                ],
+            }),
+        });
+        expect(
+            api.mock.calls.every(
+                ([args]) => !args.url.includes(review().nonce),
+            ),
+        ).toBe(true);
+        expect(window.location.href).not.toContain(review().nonce);
+    });
+    // Each review load gives a new nonce, and a cancelled load still reaches the server.
+    it('loads the review once under strict mode and never cancels the load', async () => {
+        api.mockResolvedValue(review());
+        const { unmount } = renderWithProviders(
+            <StrictMode>
+                <MemoryRouter
+                    initialEntries={[
+                        `/agent/connection-approval?request=${requestUuid}`,
+                    ]}
+                >
+                    <AgentConnectionApprovalPage />
+                </MemoryRouter>
+            </StrictMode>,
+        );
+        await screen.findByRole('button', { name: 'Approve' });
+        expect(api).toHaveBeenCalledOnce();
+        expect(api.mock.calls[0][0].signal).toBeUndefined();
+        unmount();
+    });
+    it.each([false, true])(
+        'bounds the 401 health wait, resolves early=%s',
+        async (early) => {
+            let client!: QueryClient;
+            let location!: ReturnType<typeof useLocation>;
+            const Observe = () => {
+                client = useQueryClient();
+                location = useLocation();
+                return null;
+            };
+            api.mockResolvedValueOnce(review()).mockRejectedValueOnce(
+                error(401, 'authentication_required'),
+            );
+            renderWithProviders(
+                <MemoryRouter
+                    initialEntries={[
+                        `/agent/connection-approval?request=${requestUuid}`,
+                    ]}
+                >
+                    <Observe />
+                    <AgentConnectionApprovalPage />
+                </MemoryRouter>,
+            );
+            const approve = await screen.findByRole('button', {
+                name: 'Approve',
+            });
+            const from = location;
+            let finish!: () => void;
+            vi.spyOn(client, 'invalidateQueries').mockImplementationOnce(
+                () =>
+                    new Promise<void>((resolve) => {
+                        finish = resolve;
+                    }),
+            );
+            vi.useFakeTimers();
+            const schedule = vi.spyOn(globalThis, 'setTimeout');
+            const clear = vi.spyOn(globalThis, 'clearTimeout');
+            try {
+                await act(async () => fireEvent.click(approve));
+                expect(approve).toBeDisabled();
+                await act(async () => vi.advanceTimersByTimeAsync(4999));
+                expect(location.pathname).toBe(from.pathname);
+                if (early) await act(async () => finish());
+                else await act(async () => vi.advanceTimersByTimeAsync(1));
+                expect(location.pathname).toBe('/login');
+                expect(location.state.from).toEqual(from);
+                expect(approve).not.toBeInTheDocument();
+                const timeoutIndex = schedule.mock.calls.findIndex(
+                    ([, delay]) => delay === 5000,
+                );
+                expect(timeoutIndex).toBeGreaterThanOrEqual(0);
+                expect(clear).toHaveBeenCalledWith(
+                    schedule.mock.results[timeoutIndex].value,
+                );
+                const navigationKey = location.key;
+                await act(async () => vi.advanceTimersByTimeAsync(10000));
+                expect(location.key).toBe(navigationKey);
+            } finally {
+                vi.useRealTimers();
+            }
+        },
+    );
+    it.each([
+        'health settles first',
+        'timeout elapses first',
+        'decision pending',
+    ])(
+        'does not navigate after leaving approval with a 401: %s',
+        async (phase) => {
+            let client!: QueryClient;
+            let location!: ReturnType<typeof useLocation>;
+            let navigate!: ReturnType<typeof useNavigate>;
+            const visited: string[] = [];
+            const Observe = () => {
+                client = useQueryClient();
+                location = useLocation();
+                navigate = useNavigate();
+                visited.push(location.pathname);
+                return null;
+            };
+            let rejectDecision!: (reason: unknown) => void;
+            api.mockResolvedValueOnce(review()).mockImplementationOnce(
+                () =>
+                    new Promise((_, reject) => {
+                        rejectDecision = reject;
+                    }),
+            );
+            const rendered = renderWithProviders(
+                <MemoryRouter
+                    initialEntries={[
+                        `/agent/connection-approval?request=${requestUuid}`,
+                    ]}
+                >
+                    <Observe />
+                    <Routes>
+                        <Route
+                            path="/agent/connection-approval"
+                            element={<AgentConnectionApprovalPage />}
+                        />
+                        <Route path="*" element={null} />
+                    </Routes>
+                </MemoryRouter>,
+            );
+            const approve = await screen.findByRole('button', {
+                name: 'Approve',
+            });
+            let finishHealth!: () => void;
+            const invalidate = vi
+                .spyOn(client, 'invalidateQueries')
+                .mockImplementationOnce(
+                    () =>
+                        new Promise<void>((resolve) => {
+                            finishHealth = resolve;
+                        }),
+                );
+            vi.useFakeTimers();
+            const schedule = vi.spyOn(globalThis, 'setTimeout');
+            const clear = vi.spyOn(globalThis, 'clearTimeout');
+            try {
+                await act(async () => fireEvent.click(approve));
+                expect(
+                    api.mock.calls.filter(([args]) => args.method === 'POST'),
+                ).toHaveLength(1);
+                if (phase !== 'decision pending') {
+                    await act(async () =>
+                        rejectDecision(error(401, 'authentication_required')),
+                    );
+                    expect(invalidate).toHaveBeenCalledExactlyOnceWith([
+                        'health',
+                    ]);
+                    expect(
+                        schedule.mock.calls.some(([, delay]) => delay === 5000),
+                    ).toBe(true);
+                }
+                await act(async () => navigate('/elsewhere'));
+                expect(approve).not.toBeInTheDocument();
+                const departed = location;
+                const timeoutIndex = schedule.mock.calls.findIndex(
+                    ([, delay]) => delay === 5000,
+                );
+                const clearedOnUnmount =
+                    timeoutIndex >= 0 &&
+                    clear.mock.calls.some(
+                        ([timer]) =>
+                            timer === schedule.mock.results[timeoutIndex].value,
+                    );
+                if (phase === 'decision pending')
+                    await act(async () =>
+                        rejectDecision(error(401, 'authentication_required')),
+                    );
+                if (phase === 'health settles first')
+                    await act(async () => finishHealth());
+                await act(async () => vi.advanceTimersByTimeAsync(6000));
+                expect(location).toEqual(departed);
+                if (phase === 'timeout elapses first')
+                    await act(async () => finishHealth());
+                expect(location).toEqual(departed);
+                expect(visited).not.toContain('/login');
+                if (phase === 'decision pending')
+                    expect(
+                        schedule.mock.calls.some(([, delay]) => delay === 5000),
+                    ).toBe(false);
+                else expect(clearedOnUnmount).toBe(true);
+            } finally {
+                rendered.unmount();
+                invalidate.mockRestore();
+                schedule.mockRestore();
+                clear.mockRestore();
+                vi.useRealTimers();
+            }
+        },
+    );
+    it('loads a fresh review when the session is already restored after a 401', async () => {
+        const close = vi.fn();
+        vi.mocked(window.open).mockReturnValue({
+            close,
+            opener: window,
+        } as unknown as Window);
+        api.mockResolvedValueOnce(review())
+            .mockRejectedValueOnce(error(401, 'authentication_required'))
+            .mockResolvedValueOnce({
+                ...review(),
+                revision: 2,
+                nonce: 'fresh-nonce',
+            });
+        renderWithProviders(
+            <MemoryRouter
+                initialEntries={[
+                    `/agent/connection-approval?request=${requestUuid}`,
+                ]}
+            >
+                <Routes>
+                    <Route
+                        path="/agent/connection-approval"
+                        element={
+                            <PrivateRoute>
+                                <AgentConnectionApprovalPage />
+                            </PrivateRoute>
+                        }
+                    />
+                    <Route path="/login" element={<LoginLanding />} />
+                </Routes>
+            </MemoryRouter>,
+        );
+        fireEvent.click(await screen.findByRole('button', { name: 'Approve' }));
+        await waitFor(() =>
+            expect(
+                api.mock.calls.filter(([args]) => args.method === 'GET'),
+            ).toHaveLength(2),
+        );
+        expect(close).toHaveBeenCalledOnce();
+        fireEvent.click(await screen.findByRole('button', { name: 'Approve' }));
+        await waitFor(() =>
+            expect(
+                api.mock.calls.filter(([args]) => args.method === 'POST'),
+            ).toHaveLength(2),
+        );
+        expect(JSON.parse(String(api.mock.lastCall![0].body))).toMatchObject({
+            revision: 2,
+            nonce: 'fresh-nonce',
+        });
+    });
+    it.each(['Approve', 'Cancel'])(
+        'returns through login with a fresh review after %s gets a 401',
+        async (button) => {
+            let client!: QueryClient;
+            let location!: ReturnType<typeof useLocation>;
+            const ObserveSession = () => {
+                client = useQueryClient();
+                location = useLocation();
+                return null;
+            };
+            const close = vi.fn();
+            vi.mocked(window.open).mockReturnValue({
+                close,
+                opener: window,
+            } as unknown as Window);
+            api.mockResolvedValueOnce(review())
+                .mockImplementationOnce(async () => {
+                    authenticated = false;
+                    throw error(401, 'authentication_required');
+                })
+                .mockResolvedValueOnce({
+                    ...review(),
+                    revision: 2,
+                    nonce: 'fresh-nonce',
+                });
+            renderWithProviders(
+                <MemoryRouter
+                    initialEntries={[
+                        `/agent/connection-approval?request=${requestUuid}`,
+                    ]}
+                >
+                    <ObserveSession />
+                    <Routes>
+                        <Route
+                            path="/agent/connection-approval"
+                            element={
+                                <PrivateRoute>
+                                    <AgentConnectionApprovalPage />
+                                </PrivateRoute>
+                            }
+                        />
+                        <Route path="/login" element={<LoginLanding />} />
+                    </Routes>
+                </MemoryRouter>,
+            );
+            fireEvent.click(
+                await screen.findByRole('button', { name: button }),
+            );
+            await waitFor(() => expect(location.pathname).toBe('/login'));
+            expect(
+                location.state.from.pathname + location.state.from.search,
+            ).toBe(`/agent/connection-approval?request=${requestUuid}`);
+            expect(close).toHaveBeenCalledOnce();
+            authenticated = true;
+            await act(async () => {
+                await client.invalidateQueries(['health']);
+            });
+            await screen.findByRole('button', { name: 'Approve' });
+            expect(location.pathname + location.search).toBe(
+                `/agent/connection-approval?request=${requestUuid}`,
+            );
+            expect(
+                api.mock.calls.filter(([args]) => args.method === 'GET'),
+            ).toHaveLength(2);
+            fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
+            await waitFor(() =>
+                expect(
+                    api.mock.calls.filter(([args]) => args.method === 'POST'),
+                ).toHaveLength(2),
+            );
+            expect(
+                JSON.parse(String(api.mock.lastCall![0].body)),
+            ).toMatchObject({ revision: 2, nonce: 'fresh-nonce' });
+        },
+    );
+    it('hides unknown visibility and never submits it', async () => {
+        const data = review();
+        data.projects[0].capabilities.push({
+            ...offered(AgentCapability.Administration),
+            visibility: 'future_visibility' as 'offered',
+        });
+        api.mockResolvedValueOnce(data);
+        await loadPage();
+        expect(screen.queryByText('Administration')).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
+        await waitFor(() => expect(api).toHaveBeenCalledTimes(2));
+        expect(
+            JSON.parse(String(api.mock.calls[1][0].body)).capabilities,
+        ).toEqual([
+            AgentCapability.ReadDiscover,
+            AgentCapability.Query,
+            AgentCapability.Delete,
+            AgentCapability.Publish,
+        ]);
+    });
+    it('allows an empty action list', async () => {
+        const data = review();
+        data.projects.forEach((p) => {
+            p.capabilities = [];
+        });
+        api.mockResolvedValueOnce(data);
+        await loadPage();
+        expect(screen.getByRole('button', { name: 'Approve' })).toBeEnabled();
+        fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
+        await waitFor(() => expect(api).toHaveBeenCalledTimes(2));
+        expect(
+            JSON.parse(String(api.mock.calls[1][0].body)).capabilities,
+        ).toEqual([]);
+    });
+    it('posts deny with empty arrays', async () => {
+        await loadPage();
+        fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+        await waitFor(() => expect(api).toHaveBeenCalledTimes(2));
+        expect(JSON.parse(String(api.mock.calls[1][0].body))).toEqual({
+            decision: 'deny',
+            revision: 1,
+            nonce: review().nonce,
+            projectUuids: [],
+            capabilities: [],
+        });
+    });
+    it.each([true, false])(
+        'renews a 409 with embedded review %s and preserves project and action unticks',
+        async (embedded) => {
+            const renewed = {
+                ...review(),
+                nonce: 'renewed-private-nonce',
+                revision: 2,
+            };
+            if (embedded)
+                renewed.projects[0].capabilities =
+                    renewed.projects[0].capabilities.filter(
+                        ({ capability }) =>
+                            capability !== AgentCapability.Delete,
+                    );
+            api.mockResolvedValueOnce(review())
+                .mockRejectedValueOnce(
+                    error(
+                        409,
+                        'approval_selection_changed',
+                        embedded ? renewed : undefined,
+                    ),
+                )
+                .mockResolvedValueOnce(embedded ? { completionUrl } : renewed);
+            await loadPage();
+            fireEvent.click(
+                screen.getByRole('checkbox', { name: 'Production' }),
+            );
+            fireEvent.click(
+                screen.getByRole('checkbox', { name: 'Query data' }),
+            );
+            fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
+            await screen.findByText(
+                embedded
+                    ? 'Your permissions changed. Check the selection and approve again.'
+                    : 'This review is out of date. Check it again.',
+            );
+            await waitFor(() =>
+                expect(
+                    screen.getByRole('button', { name: 'Approve' }),
+                ).toBeEnabled(),
+            );
+            expect(
+                screen.getByRole('checkbox', { name: 'Production' }),
+            ).not.toBeChecked();
+            expect(
+                screen.getByRole('checkbox', { name: 'Query data' }),
+            ).not.toBeChecked();
+            fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
+            await waitFor(() =>
+                expect(
+                    api.mock.calls.filter(([args]) => args.method === 'POST'),
+                ).toHaveLength(2),
+            );
+            const calls = api.mock.calls.filter(
+                ([args]) => args.method === 'POST',
+            );
+            expect(JSON.parse(String(calls[1][0].body))).toEqual({
+                decision: 'approve',
+                revision: 2,
+                nonce: renewed.nonce,
+                projectUuids: [firstProject],
+                capabilities: [
+                    AgentCapability.ReadDiscover,
+                    ...(embedded ? [] : [AgentCapability.Delete]),
+                    AgentCapability.Publish,
+                ],
+            });
+        },
+    );
+    it.each([
+        [410, 'approval_request_expired'],
+        [409, 'approval_request_consumed'],
+    ])(
+        'shows terminal %s state without decision buttons',
+        async (status, code) => {
+            api.mockRejectedValue(error(Number(status), String(code)));
+            renderPage();
+            await screen.findByText('Server explanation.');
+            expect(
+                screen.queryByRole('button', { name: 'Approve' }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', { name: 'Cancel' }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', { name: 'Retry' }),
+            ).not.toBeInTheDocument();
+        },
+    );
+    it('shows a neutral message and reloads a stale nonce without restoring unticks', async () => {
+        api.mockResolvedValueOnce(review())
+            .mockRejectedValueOnce(error(403, 'csrf_failed'))
+            .mockResolvedValueOnce({
+                ...review(),
+                nonce: 'new-nonce',
+                revision: 2,
+            });
+        await loadPage();
+        fireEvent.click(screen.getByRole('checkbox', { name: 'Production' }));
+        fireEvent.click(screen.getByRole('checkbox', { name: 'Query data' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
+        await waitFor(() => expect(api).toHaveBeenCalledTimes(3));
+        expect(
+            await screen.findByText(
+                'This review is out of date. Check it again.',
+            ),
+        ).toBeVisible();
+        expect(
+            screen.getByRole('checkbox', { name: 'Production' }),
+        ).not.toBeChecked();
+        expect(
+            screen.getByRole('checkbox', { name: 'Query data' }),
+        ).not.toBeChecked();
+    });
+    it('shows an ordinary server error without losing the form', async () => {
+        api.mockResolvedValueOnce(review()).mockRejectedValueOnce(
+            error(500, 'internal_error'),
+        );
+        await loadPage();
+        fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
+        expect(await screen.findByText('Server explanation.')).toBeVisible();
+        expect(screen.getByRole('button', { name: 'Approve' })).toBeEnabled();
+    });
+});
+
+describe('completion delivery', () => {
+    const expectNoCompletionLink = () => {
+        expect(document.querySelector(`[href="${completionUrl}"]`)).toBeNull();
+        expect(
+            screen.queryByRole('link', { name: 'Return to the CLI' }),
+        ).not.toBeInTheDocument();
+    };
+    const popup = () => ({
+        location: { replace: vi.fn() },
+        close: vi.fn(),
+        closed: false,
+        opener: window,
+    });
+    it.each(['Approve', 'Cancel'])(
+        'opens synchronously, attempts %s once, and focuses the retained page',
+        async (button) => {
+            const handle = popup();
+            vi.mocked(window.open).mockReturnValue(handle as unknown as Window);
+            let resolveDecision!: (value: { completionUrl: string }) => void;
+            api.mockResolvedValueOnce(review()).mockImplementationOnce(
+                () =>
+                    new Promise((resolve) => {
+                        resolveDecision = resolve;
+                    }),
+            );
+            await loadPage();
+            expectNoCompletionLink();
+            const control = screen.getByRole('button', { name: button });
+            fireEvent.click(control);
+            fireEvent.click(control);
+            expect(window.open).toHaveBeenCalledExactlyOnceWith('', '_blank');
+            expect(handle.location.replace).not.toHaveBeenCalled();
+            expectNoCompletionLink();
+            await waitFor(() => expect(resolveDecision).toBeDefined());
+            await act(async () => resolveDecision({ completionUrl }));
+            expect(
+                await screen.findByText('Return to your terminal.'),
+            ).toBeVisible();
+            expect(handle.location.replace).toHaveBeenCalledExactlyOnceWith(
+                completionUrl,
+            );
+            expect(handle.opener).toBeNull();
+            const heading = screen.getByRole('heading', {
+                name:
+                    button === 'Approve'
+                        ? 'Connect your warehouses'
+                        : 'Approval cancelled',
+            });
+            expect(heading).toBeVisible();
+            expect(heading).toHaveFocus();
+            expect(heading).toHaveAttribute('tabindex', '-1');
+            expectNoCompletionLink();
+            expect(
+                screen.queryByRole('button', { name: 'Return to the CLI' }),
+            ).not.toBeInTheDocument();
+            expect(
+                api.mock.calls.filter(([args]) => args.method === 'POST'),
+            ).toHaveLength(1);
+            expect(window.location.href).not.toContain('/completion');
+        },
+    );
+    it.each(['Approve', 'Cancel'])(
+        'offers a one-shot button when %s popup is blocked',
+        async (button) => {
+            await loadPage();
+            expectNoCompletionLink();
+            fireEvent.click(screen.getByRole('button', { name: button }));
+            const fallback = await screen.findByRole('button', {
+                name: 'Return to the CLI',
+            });
+            expectNoCompletionLink();
+            const handle = popup();
+            vi.mocked(window.open).mockReturnValue(handle as unknown as Window);
+            fireEvent.click(fallback);
+            fireEvent.click(fallback);
+            expect(handle.location.replace).toHaveBeenCalledExactlyOnceWith(
+                completionUrl,
+            );
+            expect(handle.opener).toBeNull();
+            expect(window.open).toHaveBeenCalledTimes(2);
+            expect(
+                await screen.findByText('Return to your terminal.'),
+            ).toBeVisible();
+            expectNoCompletionLink();
+            expect(
+                screen.queryByRole('button', { name: 'Return to the CLI' }),
+            ).not.toBeInTheDocument();
+            expect(screen.queryByText('Do this later')).not.toBeInTheDocument();
+            expect(
+                screen.queryByText(/Your connection is saved/),
+            ).not.toBeInTheDocument();
+        },
+    );
+    it.each(['blocked', 'throws'])(
+        'keeps the button when the fallback tab is %s, because no navigation was attempted',
+        async (failure) => {
+            await loadPage();
+            fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
+            const fallback = await screen.findByRole('button', {
+                name: 'Return to the CLI',
+            });
+            if (failure === 'throws')
+                vi.mocked(window.open).mockImplementation(() => {
+                    throw new Error('Popup unavailable');
+                });
+            fireEvent.click(fallback);
+            expect(window.open).toHaveBeenCalledTimes(2);
+            expect(screen.queryByText('Return to your terminal.')).toBeNull();
+            expectNoCompletionLink();
+            const handle = popup();
+            vi.mocked(window.open).mockReset();
+            vi.mocked(window.open).mockReturnValue(handle as unknown as Window);
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Return to the CLI' }),
+            );
+            fireEvent.click(fallback);
+            expect(handle.location.replace).toHaveBeenCalledExactlyOnceWith(
+                completionUrl,
+            );
+            expect(
+                await screen.findByText('Return to your terminal.'),
+            ).toBeVisible();
+            expect(
+                screen.queryByRole('button', { name: 'Return to the CLI' }),
+            ).not.toBeInTheDocument();
+        },
+    );
+    it('continues a decision if opening the blank tab throws', async () => {
+        vi.mocked(window.open).mockImplementation(() => {
+            throw new Error('Popup unavailable');
+        });
+        await loadPage();
+        fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
+        expect(
+            await screen.findByRole('button', { name: 'Return to the CLI' }),
+        ).toBeVisible();
+        expect(
+            screen.getByRole('heading', { name: 'Connect your warehouses' }),
+        ).toHaveFocus();
+        expect(
+            api.mock.calls.filter(([args]) => args.method === 'POST'),
+        ).toHaveLength(1);
+        expectNoCompletionLink();
+    });
+    it('does not offer a retry after an opened popup throws on navigation', async () => {
+        const handle = popup();
+        handle.location.replace.mockImplementation(() => {
+            throw new Error('Navigation failed');
+        });
+        vi.mocked(window.open).mockReturnValue(handle as unknown as Window);
+        await loadPage();
+        fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
+        expect(
+            await screen.findByText('Return to your terminal.'),
+        ).toBeVisible();
+        expectNoCompletionLink();
+        expect(
+            screen.queryByRole('button', { name: 'Return to the CLI' }),
+        ).not.toBeInTheDocument();
+        expect(handle.location.replace).toHaveBeenCalledTimes(1);
+    });
+    it('keeps the button when the pre-opened tab was closed, because no navigation was attempted', async () => {
+        const closed = popup();
+        closed.closed = true;
+        vi.mocked(window.open).mockReturnValue(closed as unknown as Window);
+        await loadPage();
+        fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
+        const fallback = await screen.findByRole('button', {
+            name: 'Return to the CLI',
+        });
+        expect(screen.queryByText('Return to your terminal.')).toBeNull();
+        expect(closed.location.replace).not.toHaveBeenCalled();
+        fireEvent.click(fallback);
+        expect(screen.queryByText('Return to your terminal.')).toBeNull();
+        const handle = popup();
+        vi.mocked(window.open).mockReturnValue(handle as unknown as Window);
+        fallback.focus();
+        expect(fallback).toHaveFocus();
+        fireEvent.click(fallback);
+        expect(handle.location.replace).toHaveBeenCalledExactlyOnceWith(
+            completionUrl,
+        );
+        expect(
+            await screen.findByText('Return to your terminal.'),
+        ).toBeVisible();
+        expect(
+            screen.getByRole('heading', { name: 'Connect your warehouses' }),
+        ).toHaveFocus();
+        expectNoCompletionLink();
+    });
+    it.each(['Approve', 'Cancel'])(
+        'closes the pre-opened tab if %s fails',
+        async (button) => {
+            const handle = popup();
+            vi.mocked(window.open).mockReturnValue(handle as unknown as Window);
+            api.mockResolvedValueOnce(review()).mockRejectedValueOnce(
+                error(500, 'internal_error'),
+            );
+            await loadPage();
+            fireEvent.click(screen.getByRole('button', { name: button }));
+            expect(
+                await screen.findByText('Server explanation.'),
+            ).toBeVisible();
+            expect(handle.close).toHaveBeenCalledOnce();
+            expect(handle.location.replace).not.toHaveBeenCalled();
+            expectNoCompletionLink();
+        },
+    );
+});

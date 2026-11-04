@@ -1,5 +1,5 @@
 import { SupportedDbtAdapter } from './dbt';
-import { DimensionType } from './field';
+import { CustomFormatType, DimensionType } from './field';
 import {
     buildMergeQueryFromMergeDefinition,
     buildMergeQueryFromSaved,
@@ -25,6 +25,7 @@ import {
     type SavedMergeQuery,
 } from './mergeQuery';
 import { type MetricQuery } from './metricQuery';
+import { WarehouseTypes } from './projects';
 import { TimeFrames } from './timeFrames';
 
 const metricQuery = (
@@ -226,7 +227,7 @@ describe('validateMergeQuery', () => {
             );
         });
 
-        it('rejects a merge with more than two sources', () => {
+        it('accepts a merge with more than two sources', () => {
             const queryC: MergeQuerySource = {
                 id: 'c',
                 metricQuery: metricQuery(
@@ -251,9 +252,7 @@ describe('validateMergeQuery', () => {
                 }),
             );
 
-            expect(errors.map((error) => error.kind)).toEqual(
-                expect.arrayContaining([MergeQueryErrorKind.TOO_MANY_SOURCES]),
-            );
+            expect(errors).toEqual([]);
         });
 
         it('rejects duplicate source ids', () => {
@@ -659,7 +658,12 @@ describe('saved merge schemas', () => {
             ],
             joinType: MergeJoinType.FULL,
             tableCalculations: [
-                { name: 'ratio', displayName: 'Ratio', sql: '1' },
+                {
+                    name: 'ratio',
+                    displayName: 'Ratio',
+                    sql: '1',
+                    format: { type: CustomFormatType.PERCENT, round: 1 },
+                },
             ],
             sorts: [
                 { fieldId: 'payments_payments_unique', descending: true },
@@ -695,7 +699,12 @@ describe('saved merge schemas', () => {
             ],
             limit: 250,
             tableCalculations: [
-                { name: 'ratio', displayName: 'Ratio', sql: '1' },
+                {
+                    name: 'ratio',
+                    displayName: 'Ratio',
+                    sql: '1',
+                    format: { type: CustomFormatType.PERCENT, round: 1 },
+                },
             ],
         });
         expect(
@@ -715,6 +724,80 @@ describe('saved merge schemas', () => {
                 },
             ],
         });
+    });
+
+    it('round-trips a merge over more than two sources, including a repeated explore', () => {
+        const source = (id: string, explore: string) => ({
+            id,
+            metricQuery: metricQuery(
+                explore,
+                [`${explore}_week`],
+                [`${explore}_score`],
+            ),
+        });
+        const chartSource = source('orders', 'orders');
+        const runnable: MergeQuery = {
+            sources: [
+                chartSource,
+                source('calls', 'calls'),
+                { ...source('complaints', 'complaints'), repeatValues: true },
+                source('calls_2', 'calls'),
+            ],
+            joinKey: [
+                {
+                    name: 'orders_week',
+                    fieldIdBySourceId: {
+                        orders: 'orders_week',
+                        calls: 'calls_week',
+                        complaints: 'complaints_week',
+                        calls_2: 'calls_week',
+                    },
+                },
+            ],
+            joinType: MergeJoinType.LEFT,
+            tableCalculations: [
+                {
+                    name: 'score',
+                    displayName: 'Score',
+                    sql: '${calls.calls_score} + ${calls_2.calls_score}',
+                },
+            ],
+            sorts: [],
+            limit: 500,
+        };
+        const merge = buildSavedMergeDefinition({
+            mergeQuery: runnable,
+            chartSourceId: 'orders',
+        });
+
+        expect(Object.keys(merge.queries)).toEqual([
+            'calls',
+            'complaints',
+            'calls_2',
+        ]);
+        expect(merge.keys).toEqual({
+            orders_week: [
+                'calls.calls_week',
+                'complaints.complaints_week',
+                'calls_2.calls_week',
+            ],
+        });
+        expect(
+            parseSavedMergeDefinition(JSON.parse(JSON.stringify(merge))),
+        ).toEqual(merge);
+        expect(
+            buildMergeQueryFromMergeDefinition(chartSource.metricQuery, merge),
+        ).toEqual(runnable);
+        expect(validateMergeQuery(runnable)).toEqual([]);
+
+        const { calls, complaints, calls_2: calls2 } = merge.queries;
+        const jsonbOrdered = {
+            ...merge,
+            queries: { calls, calls_2: calls2, complaints },
+        };
+        expect(
+            Object.keys(parseSavedMergeDefinition(jsonbOrdered)?.queries ?? {}),
+        ).toEqual(['calls', 'complaints', 'calls_2']);
     });
 
     it('refuses to save a merge over an existing result or without the chart query', () => {
@@ -837,34 +920,106 @@ describe('saved merge schemas', () => {
 });
 
 describe('getMergeCompiledSqlText', () => {
-    it('lists each leg under its source, then the join', () => {
-        const text = getMergeCompiledSqlText({
-            legs: [
-                {
-                    sourceId: 'orders',
-                    sql: 'SELECT 1 AS orders_month',
-                    metricQuery: null,
-                },
-                { sourceId: 'payments', sql: null, metricQuery: null },
-            ],
-            sql: 'SELECT * FROM "merge_source_0" FULL OUTER JOIN "merge_source_1" USING (month)',
-        });
+    const mergeComment =
+        '-- Merge: runs on the compose engine over the results above, read as merge_source_0, merge_source_1, ...';
+
+    it('lists each leg under its source, then the join, each formatted', () => {
+        const text = getMergeCompiledSqlText(
+            {
+                legs: [
+                    {
+                        sourceId: 'orders',
+                        sql: 'SELECT 1 AS orders_month',
+                        metricQuery: null,
+                    },
+                    { sourceId: 'payments', sql: null, metricQuery: null },
+                ],
+                sql: 'SELECT * FROM "merge_source_0" FULL OUTER JOIN "merge_source_1" USING (month)',
+            },
+            WarehouseTypes.POSTGRES,
+        );
 
         expect(text).toBe(
             [
                 '-- Query A ("orders"): runs on the warehouse',
-                'SELECT 1 AS orders_month',
+                'SELECT',
+                '  1 AS orders_month',
                 '',
                 '-- Query B ("payments"): existing results, nothing runs',
                 '',
-                '-- Merge: runs on the compose engine over the results above, read as merge_source_0, merge_source_1, ...',
-                'SELECT * FROM "merge_source_0" FULL OUTER JOIN "merge_source_1" USING (month)',
+                mergeComment,
+                'SELECT',
+                '  *',
+                'FROM',
+                '  "merge_source_0"',
+                '  FULL OUTER JOIN "merge_source_1" USING (month)',
+            ].join('\n'),
+        );
+    });
+
+    it.each([WarehouseTypes.BIGQUERY, WarehouseTypes.DATABRICKS])(
+        'formats the DuckDB join on %s, whose dialect cannot parse it',
+        (warehouseType) => {
+            const text = getMergeCompiledSqlText(
+                {
+                    legs: [
+                        {
+                            sourceId: 'orders',
+                            sql: 'SELECT `orders`.`month` AS `orders_month` FROM `orders`',
+                            metricQuery: null,
+                        },
+                    ],
+                    sql: 'SELECT merge_0_a."orders_month" AS "month" FROM "merge_source_0" AS merge_0_a',
+                },
+                warehouseType,
+            );
+
+            expect(text).toBe(
+                [
+                    '-- Query A ("orders"): runs on the warehouse',
+                    'SELECT',
+                    '  `orders`.`month` AS `orders_month`',
+                    'FROM',
+                    '  `orders`',
+                    '',
+                    mergeComment,
+                    'SELECT',
+                    '  merge_0_a."orders_month" AS "month"',
+                    'FROM',
+                    '  "merge_source_0" AS merge_0_a',
+                ].join('\n'),
+            );
+        },
+    );
+
+    it('keeps legs as compiled when the warehouse is unknown', () => {
+        const legSql = "SELECT payload->>'status' AS orders_status FROM orders";
+        const text = getMergeCompiledSqlText(
+            {
+                legs: [{ sourceId: 'orders', sql: legSql, metricQuery: null }],
+                sql: 'SELECT * FROM "merge_source_0"',
+            },
+            undefined,
+        );
+
+        expect(text).toBe(
+            [
+                '-- Query A ("orders"): runs on the warehouse',
+                legSql,
+                '',
+                mergeComment,
+                'SELECT',
+                '  *',
+                'FROM',
+                '  "merge_source_0"',
             ].join('\n'),
         );
     });
 
     it('is null when the merge did not compile', () => {
-        expect(getMergeCompiledSqlText({ legs: [], sql: null })).toBeNull();
+        expect(
+            getMergeCompiledSqlText({ legs: [], sql: null }, undefined),
+        ).toBeNull();
     });
 });
 

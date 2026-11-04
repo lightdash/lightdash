@@ -27,9 +27,17 @@ vi.mock('../LightdashVisualization/types', () => ({
     isCustomVisualizationConfig: () => true,
 }));
 
-vi.mock('../LightdashVisualization/useVisualizationContext', () => ({
-    useVisualizationContext: () => mockContext.current,
-}));
+vi.mock('../LightdashVisualization/useVisualizationContext', () => {
+    const useVisualizationContext = () => mockContext.current;
+    return {
+        useVisualizationContext,
+        useVisualizationServices: useVisualizationContext,
+        useVisualizationLayout: useVisualizationContext,
+        useVisualizationInputs: useVisualizationContext,
+        useVisualizationConfig: () =>
+            useVisualizationContext().visualizationConfig,
+    };
+});
 
 // eslint-disable-next-line import/first
 import CustomVisualization from './index';

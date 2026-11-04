@@ -35,6 +35,7 @@ import { Knex } from 'knex';
 import { customAlphabet } from 'nanoid';
 import { setTimeout as abortableSleep } from 'node:timers/promises';
 import { DashboardsTableName } from '../../database/entities/dashboards';
+import { ProjectTableName } from '../../database/entities/projects';
 import {
     DbQueryHistory,
     DbQueryHistoryUpdate,
@@ -43,6 +44,11 @@ import {
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import { SavedSqlTableName } from '../../database/entities/savedSql';
 import KnexPaginate from '../../database/pagination';
+import {
+    pauseBetweenBatchesMs,
+    type RetentionCleanupOptions,
+    type RetentionCleanupResult,
+} from '../retentionCleanup';
 
 export type QueryHistoryWithLineage = QueryHistory & {
     duckdbExecutionReferences?: Record<string, string> | null;
@@ -74,6 +80,7 @@ function convertDbQueryHistoryToQueryHistory(
         usedParameters: queryHistory.used_parameters,
         warehouseQueryId: queryHistory.warehouse_query_id,
         warehouseQueryMetadata: queryHistory.warehouse_query_metadata,
+        warehouseExecutionStats: queryHistory.warehouse_execution_stats ?? null,
         status: queryHistory.status,
         totalRowCount: queryHistory.total_row_count,
         warehouseExecutionTimeMs: queryHistory.warehouse_execution_time_ms,
@@ -108,6 +115,12 @@ function getQueryTriggerSafe(context: QueryExecutionContext): QueryTrigger {
         ] ?? QueryTrigger.INTERACTIVE
     );
 }
+
+export type CachedResultsContent = {
+    type: 'chart' | 'dashboard';
+    /** Every value the content may be recorded under (uuid and slug) */
+    identifiers: string[];
+};
 
 export class QueryHistoryModel {
     readonly database: Knex;
@@ -198,6 +211,7 @@ export class QueryHistoryModel {
             | 'totalRowCount'
             | 'warehouseQueryId'
             | 'warehouseQueryMetadata'
+            | 'warehouseExecutionStats'
             | 'warehouseExecutionTimeMs'
             | 'error'
             | 'erroredAt'
@@ -245,9 +259,15 @@ export class QueryHistoryModel {
                 warehouse_query_id: null,
                 warehouse_execution_time_ms: null,
                 warehouse_query_metadata: null,
+                warehouse_execution_stats: null,
                 error: null,
                 errored_at: null,
                 cache_key: queryHistory.cacheKey,
+                cache_generation: this.database.raw(
+                    `COALESCE((SELECT results_cache_generation FROM ${ProjectTableName} WHERE project_uuid = ?), 0)`,
+                    [queryHistory.projectUuid],
+                ) as unknown as number,
+                cache_invalidated_at: null,
                 pivot_configuration: queryHistory.pivotConfiguration,
                 pivot_values_columns: null,
                 pivot_total_column_count: null,
@@ -330,6 +350,31 @@ export class QueryHistoryModel {
             );
     }
 
+    async recordResultMessageQuery(
+        queryUuid: string,
+        projectUuid: string,
+        accountId: string,
+        messageQuery: NonNullable<
+            QueryHistory['requestParameters']['resultMessageQuery']
+        >,
+    ): Promise<void> {
+        await this.database(QueryHistoryTableName)
+            .where('query_uuid', queryUuid)
+            .andWhere('project_uuid', projectUuid)
+            .andWhere((query) => {
+                void query
+                    .whereRaw('created_by_user_uuid::text = ?', [accountId])
+                    .orWhere('created_by_account', accountId);
+            })
+            .update(
+                'request_parameters',
+                this.database.raw(
+                    "jsonb_set(request_parameters, '{resultMessageQuery}', ?::jsonb, true)",
+                    [JSON.stringify(messageQuery)],
+                ),
+            );
+    }
+
     async recordResultResearchRun(
         queryUuid: string,
         projectUuid: string,
@@ -396,6 +441,17 @@ export class QueryHistoryModel {
                 QueryHistoryStatus.PENDING,
                 QueryHistoryStatus.EXECUTING,
             ]);
+        }
+        // Only cancel a running query, so a finished one keeps its results.
+        if (update.status === QueryHistoryStatus.CANCELLED) {
+            void query.whereIn('status', [
+                QueryHistoryStatus.PENDING,
+                QueryHistoryStatus.QUEUED,
+                QueryHistoryStatus.EXECUTING,
+            ]);
+        }
+        if (update.status === QueryHistoryStatus.ERROR) {
+            void query.whereNot('status', QueryHistoryStatus.CANCELLED);
         }
         return query;
     }
@@ -526,16 +582,29 @@ export class QueryHistoryModel {
         {
             excludeAgentProduced,
             excludeAgentClaims = false,
+            excludeCacheHits = false,
         }: {
             excludeAgentProduced: boolean;
             excludeAgentClaims?: boolean;
+            excludeCacheHits?: boolean;
         },
     ) {
         const result = await this.database(QueryHistoryTableName)
             .where('cache_key', cacheKey)
             .andWhere('project_uuid', projectUuid)
+            // Results from before the last project cache invalidation never match
+            .andWhereRaw(
+                `cache_generation = COALESCE((SELECT results_cache_generation FROM ${ProjectTableName} WHERE project_uuid = ?), 0)`,
+                [projectUuid],
+            )
+            .whereNull('cache_invalidated_at')
             .modify((query) => {
                 if (excludeAgentClaims) void query.whereNull('agent_identity');
+                if (excludeCacheHits) {
+                    void query.whereRaw(
+                        "request_parameters->>'cacheSourceQueryUuid' is null",
+                    );
+                }
                 if (excludeAgentProduced) {
                     void query.whereRaw(
                         "request_parameters->>'aiSignInCredentialUuid' is null",
@@ -556,6 +625,7 @@ export class QueryHistoryModel {
             resultProducer: result.request_parameters?.resultProducer ?? null,
             totalRowCount: result.total_row_count,
             cacheKey: result.cache_key,
+            cacheGeneration: result.cache_generation,
             pivotValuesColumns: result.pivot_values_columns,
             pivotTotalColumnCount: result.pivot_total_column_count,
             resultsFileName: result.results_file_name,
@@ -565,6 +635,84 @@ export class QueryHistoryModel {
             columns: result.columns,
             originalColumns: result.original_columns,
         };
+    }
+
+    /**
+     * Stops results produced for a chart or dashboard from being served as
+     * cache hits, including any other query that shares their cache key.
+     */
+    async invalidateCachedResultsForContent(
+        projectUuid: string,
+        content: CachedResultsContent,
+        createdSince: Date,
+    ): Promise<number> {
+        const requestParameterKey =
+            content.type === 'chart' ? 'chartUuid' : 'dashboardUuid';
+        const contentCacheKeys = this.database(QueryHistoryTableName)
+            .distinct('cache_key')
+            .where('project_uuid', projectUuid)
+            .andWhere('created_at', '>', createdSince)
+            .whereRaw('request_parameters->>? = ANY(?)', [
+                requestParameterKey,
+                content.identifiers,
+            ]);
+        return this.invalidateCachedResultsByCacheKeys(
+            projectUuid,
+            contentCacheKeys,
+        );
+    }
+
+    /**
+     * Stops results produced for these explores from being served as cache
+     * hits, including any other query that shares their cache key.
+     */
+    async invalidateCachedResultsForExplores(
+        projectUuid: string,
+        exploreNames: string[],
+        createdSince: Date,
+    ): Promise<number> {
+        // The key is a literal so this matches the expression index
+        const exploreCacheKeys = this.database(QueryHistoryTableName)
+            .distinct('cache_key')
+            .where('project_uuid', projectUuid)
+            .andWhere('created_at', '>', createdSince)
+            .whereRaw(`metric_query->>'exploreName' = ANY(?)`, [exploreNames]);
+        return this.invalidateCachedResultsByCacheKeys(
+            projectUuid,
+            exploreCacheKeys,
+        );
+    }
+
+    private async invalidateCachedResultsByCacheKeys(
+        projectUuid: string,
+        cacheKeys: Knex.QueryBuilder,
+    ): Promise<number> {
+        return this.database(QueryHistoryTableName)
+            .where('project_uuid', projectUuid)
+            .whereNull('cache_invalidated_at')
+            .whereIn('cache_key', cacheKeys)
+            .update({ cache_invalidated_at: new Date() });
+    }
+
+    /**
+     * A cache hit found before a clear can insert its row after it, so the row
+     * takes the source's invalidation to avoid reviving the cleared results.
+     */
+    async inheritCacheInvalidation(
+        queryUuid: string,
+        sourceQueryUuid: string,
+        projectUuid: string,
+    ): Promise<void> {
+        await this.database(QueryHistoryTableName)
+            .where('query_uuid', queryUuid)
+            .andWhere('project_uuid', projectUuid)
+            .whereNull('cache_invalidated_at')
+            .update({
+                cache_invalidated_at: this.database(QueryHistoryTableName)
+                    .select('cache_invalidated_at')
+                    .where('query_uuid', sourceQueryUuid)
+                    .andWhere('project_uuid', projectUuid) as unknown as Date,
+            });
     }
 
     async getByQueryUuid(queryUuid: string): Promise<QueryHistory | undefined> {
@@ -652,6 +800,80 @@ export class QueryHistoryModel {
         return row?.duckdb_execution ?? null;
     }
 
+    /** Cancels those of the given queries still running that no running query but the consumer reads. */
+    async cancelRunningQueriesReadOnlyBy(
+        queryUuids: string[],
+        projectUuid: string,
+        consumerQueryUuid: string,
+        account: Pick<Account, 'isRegisteredUser'> & {
+            user: Pick<Account['user'], 'id'>;
+        },
+    ): Promise<
+        {
+            queryUuid: string;
+            previousStatus: QueryHistoryStatus;
+            context: QueryExecutionContext;
+            createdAt: Date;
+        }[]
+    > {
+        if (queryUuids.length === 0) return [];
+        const running = [
+            QueryHistoryStatus.PENDING,
+            QueryHistoryStatus.QUEUED,
+            QueryHistoryStatus.EXECUTING,
+        ];
+        // DuckDB queries keep their references on the spec, python queries on the request
+        const readers = this.database(`${QueryHistoryTableName} as reader`)
+            .select(this.database.raw('1'))
+            .whereRaw('reader.project_uuid = query.project_uuid')
+            .whereRaw('reader.created_at >= query.created_at')
+            .whereNot('reader.query_uuid', consumerQueryUuid)
+            .whereIn('reader.status', running)
+            .where((builder) => {
+                void builder
+                    .whereRaw(
+                        `jsonb_path_exists(reader.duckdb_execution, '$.references.* \\? (@ == $uuid)', jsonb_build_object('uuid', query.query_uuid::text))`,
+                    )
+                    .orWhereRaw(
+                        `jsonb_path_exists(reader.request_parameters, '$.references.* \\? (@ == $uuid)', jsonb_build_object('uuid', query.query_uuid::text))`,
+                    );
+            });
+        const createdByColumn = account.isRegisteredUser()
+            ? 'created_by_user_uuid'
+            : 'created_by_account';
+        // A reader committed after this statement's snapshot is not seen; it then fails on the cancelled leg
+        const legs = this.database(`${QueryHistoryTableName} as query`)
+            .select('query.query_uuid', 'query.status')
+            .whereIn('query.query_uuid', queryUuids)
+            .andWhere('query.project_uuid', projectUuid)
+            .andWhere(`query.${createdByColumn}`, account.user.id)
+            .whereIn('query.status', running)
+            .whereNotExists(readers)
+            .forUpdate();
+        const rows: {
+            query_uuid: string;
+            previous_status: QueryHistoryStatus;
+            context: QueryExecutionContext;
+            created_at: Date;
+        }[] = await this.database(QueryHistoryTableName)
+            .with('legs', legs)
+            .updateFrom('legs')
+            .whereRaw(`${QueryHistoryTableName}.query_uuid = legs.query_uuid`)
+            .update({ status: QueryHistoryStatus.CANCELLED })
+            .returning([
+                `${QueryHistoryTableName}.query_uuid`,
+                this.database.raw('legs.status as previous_status'),
+                `${QueryHistoryTableName}.context`,
+                `${QueryHistoryTableName}.created_at`,
+            ]);
+        return rows.map((row) => ({
+            queryUuid: row.query_uuid,
+            previousStatus: row.previous_status,
+            context: row.context,
+            createdAt: row.created_at,
+        }));
+    }
+
     /** Records that a DuckDB source query was served from another run's results. */
     async markDuckdbCacheHit(queryUuid: string): Promise<void> {
         await this.database.raw(
@@ -683,7 +905,7 @@ export class QueryHistoryModel {
             `UPDATE ${QueryHistoryTableName}
              SET status = ?, error = ?, errored_at = NOW(),
                  duckdb_execution = jsonb_set(COALESCE(duckdb_execution, '{}'::jsonb), '{refusal}', ?::jsonb)
-             WHERE query_uuid = ? AND project_uuid = ? AND ${createdByColumn} = ?`,
+             WHERE query_uuid = ? AND project_uuid = ? AND ${createdByColumn} = ? AND status <> ?`,
             [
                 QueryHistoryStatus.ERROR,
                 error,
@@ -691,6 +913,7 @@ export class QueryHistoryModel {
                 queryUuid,
                 projectUuid,
                 account.user.id,
+                QueryHistoryStatus.CANCELLED,
             ],
         );
     }
@@ -777,24 +1000,37 @@ export class QueryHistoryModel {
 
     async cleanupBatch(
         cutoffDate: Date,
-        batchSize: number,
-        delayMs: number,
-        maxBatches?: number,
-        totalDeleted: number = 0,
-        batchCount: number = 0,
-    ): Promise<{ totalDeleted: number; batchCount: number }> {
-        // Get IDs to delete
+        options: RetentionCleanupOptions,
+    ): Promise<RetentionCleanupResult> {
+        return this.deleteExpiredBatches(cutoffDate, options, {
+            totalDeleted: 0,
+            batchCount: 0,
+        });
+    }
+
+    async countOlderThan(cutoffDate: Date): Promise<number> {
+        const [row] = await this.database(QueryHistoryTableName)
+            .where('created_at', '<', cutoffDate)
+            .count<{ count: string }[]>('query_uuid as count');
+        return Number(row?.count ?? 0);
+    }
+
+    private async deleteExpiredBatches(
+        cutoffDate: Date,
+        options: RetentionCleanupOptions,
+        progress: { totalDeleted: number; batchCount: number },
+    ): Promise<RetentionCleanupResult> {
+        const batchStartedAt = Date.now();
         const idsToDelete = await this.database(QueryHistoryTableName)
             .select('query_uuid')
             .where('created_at', '<', cutoffDate)
             .orderBy('created_at', 'asc')
-            .limit(batchSize);
+            .limit(options.batchSize);
 
         if (idsToDelete.length === 0) {
-            return { totalDeleted, batchCount };
+            return { ...progress, completed: true };
         }
 
-        // Delete by IDs
         const deletedCount = await this.database(QueryHistoryTableName)
             .whereIn(
                 'query_uuid',
@@ -802,38 +1038,22 @@ export class QueryHistoryModel {
             )
             .del();
 
-        if (deletedCount === 0) {
-            return { totalDeleted, batchCount };
+        const next = {
+            totalDeleted: progress.totalDeleted + deletedCount,
+            batchCount: progress.batchCount + 1,
+        };
+
+        if (deletedCount < options.batchSize) {
+            return { ...next, completed: true };
+        }
+        if (next.batchCount >= options.maxBatches) {
+            return { ...next, completed: false };
         }
 
-        const newTotalDeleted = totalDeleted + deletedCount;
-        const newBatchCount = batchCount + 1;
-
-        // Check if we've reached the maximum number of batches
-        if (maxBatches !== undefined && newBatchCount >= maxBatches) {
-            return { totalDeleted: newTotalDeleted, batchCount: newBatchCount };
-        }
-
-        // Add delay between batches to prevent database overload
-        if (deletedCount === batchSize) {
-            await new Promise<void>((resolve) => {
-                setTimeout(() => resolve(), delayMs);
-            });
-        }
-
-        // Continue with next batch if we deleted a full batch
-        if (deletedCount === batchSize) {
-            return this.cleanupBatch(
-                cutoffDate,
-                batchSize,
-                delayMs,
-                maxBatches,
-                newTotalDeleted,
-                newBatchCount,
-            );
-        }
-
-        return { totalDeleted: newTotalDeleted, batchCount: newBatchCount };
+        await sleep(
+            pauseBetweenBatchesMs(options, Date.now() - batchStartedAt),
+        );
+        return this.deleteExpiredBatches(cutoffDate, options, next);
     }
 
     /**
@@ -1100,6 +1320,22 @@ export type DbQueryHistoryListRow = DbQueryHistory & {
 };
 
 /**
+ * A run served from cache reuses a results file created by an earlier
+ * execution, so the file predates the run itself.
+ */
+export function isQueryHistoryCacheHit({
+    createdAt,
+    resultsCreatedAt,
+}: {
+    createdAt: Date;
+    resultsCreatedAt: Date | null;
+}): boolean {
+    return Boolean(
+        resultsCreatedAt && new Date(resultsCreatedAt) < new Date(createdAt),
+    );
+}
+
+/**
  * Derives the list-row anatomy from the persisted query, per the design spec:
  * semantic rows are titled by explore with a metric/dimension subline; SQL
  * rows by saved chart or first CTE/table with the first line of SQL; failed
@@ -1134,12 +1370,10 @@ export function mapQueryHistoryRowToListItem(
         subline = row.error;
     }
 
-    // A run served from cache reuses a results file created by an earlier
-    // execution, so the file predates the run itself.
-    const cacheHit = Boolean(
-        row.results_created_at &&
-        new Date(row.results_created_at) < new Date(row.created_at),
-    );
+    const cacheHit = isQueryHistoryCacheHit({
+        createdAt: row.created_at,
+        resultsCreatedAt: row.results_created_at,
+    });
 
     return {
         queryUuid: row.query_uuid,

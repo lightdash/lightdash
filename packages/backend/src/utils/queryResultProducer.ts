@@ -9,6 +9,7 @@ import {
     DucklakeCatalogType,
     DucklakeDataPathType,
     getAgentConnectionGrantRef,
+    getBigqueryWorkloadIdentityTokenAudience,
     getIntrinsicUserAttributeRegex,
     getParsedReference,
     getReferencedDimension,
@@ -16,6 +17,7 @@ import {
     getUserAttributeRegex,
     lightdashVariablePattern,
     parameterRegex,
+    usesBigqueryWorkloadIdentity,
     WarehouseTypes,
     type AgentConnectionExecution,
     type AgentIdentityClaim,
@@ -200,12 +202,22 @@ const getResultUserAttributeNames = (
     }
 };
 
-export const getResultEntitlementFingerprint = (
+export type ResultEntitlementFingerprintForms = {
+    current: string;
+    valueOrderDependent: string;
+};
+
+export const matchesResultEntitlementFingerprint = (
+    stored: string | null,
+    forms: ResultEntitlementFingerprintForms,
+): boolean => stored === forms.current || stored === forms.valueOrderDependent;
+
+export const getResultEntitlementFingerprintForms = (
     controls: UserAccessControls,
     explore: Explore | null = null,
     query: MetricQuery | null = null,
     scope: ResultEntitlementScope | null | undefined = undefined,
-): string => {
+): ResultEntitlementFingerprintForms => {
     const resolvedScope =
         scope === undefined &&
         explore &&
@@ -221,13 +233,13 @@ export const getResultEntitlementFingerprint = (
         explore && resolvedScope
             ? getResultUserAttributeNames(resolvedScope, query)
             : null;
-    return fingerprint([
-        Object.entries(controls.userAttributes)
-            .filter(
-                ([name, values]) =>
-                    values.length > 0 && (names === null || names.has(name)),
-            )
-            .sort(([a], [b]) => a.localeCompare(b)),
+    const attributes = Object.entries(controls.userAttributes)
+        .filter(
+            ([name, values]) =>
+                values.length > 0 && (names === null || names.has(name)),
+        )
+        .sort(([a], [b]) => a.localeCompare(b));
+    const access = [
         Object.entries(controls.intrinsicUserAttributes).sort(([a], [b]) =>
             a.localeCompare(b),
         ),
@@ -241,13 +253,24 @@ export const getResultEntitlementFingerprint = (
                       .sort(([a], [b]) => a.localeCompare(b)),
               ]
             : []),
-    ]);
+    ];
+    return {
+        current: fingerprint([
+            attributes.map(([name, values]) => [name, [...values].sort()]),
+            ...access,
+        ]),
+        valueOrderDependent: fingerprint([attributes, ...access]),
+    };
 };
 
-export const getSqlResultEntitlementFingerprint = (
+export const getResultEntitlementFingerprint = (
+    ...args: Parameters<typeof getResultEntitlementFingerprintForms>
+): string => getResultEntitlementFingerprintForms(...args).current;
+
+export const getSqlResultEntitlementFingerprintForms = (
     controls: UserAccessControls,
     parameters: QueryHistory['requestParameters'] | undefined,
-): string => {
+): ResultEntitlementFingerprintForms => {
     const names = new Set<string>();
     const resolvingParameters = new Set<string>();
     const scan = (value: unknown): boolean => {
@@ -296,6 +319,7 @@ export const getSqlResultEntitlementFingerprint = (
                                 'resultEntitlementFingerprint',
                                 'resultSource',
                                 'resultArtifact',
+                                'resultMessageQuery',
                                 'resultResearchRunUuid',
                                 'queryUsage',
                                 'aiSignInCredentialUuid',
@@ -308,7 +332,7 @@ export const getSqlResultEntitlementFingerprint = (
     } catch {
         resolved = false;
     }
-    return getResultEntitlementFingerprint({
+    return getResultEntitlementFingerprintForms({
         ...controls,
         userAttributes: resolved
             ? Object.fromEntries(
@@ -319,6 +343,10 @@ export const getSqlResultEntitlementFingerprint = (
             : controls.userAttributes,
     });
 };
+
+export const getSqlResultEntitlementFingerprint = (
+    ...args: Parameters<typeof getSqlResultEntitlementFingerprintForms>
+): string => getSqlResultEntitlementFingerprintForms(...args).current;
 
 export const getWarehouseIdentityFingerprint = (
     credentials: CreateWarehouseCredentials,
@@ -363,6 +391,17 @@ export const getWarehouseIdentityFingerprint = (
                     credentials.authenticationType ?? 'password',
                 ];
             case WarehouseTypes.BIGQUERY:
+                if (usesBigqueryWorkloadIdentity(credentials)) {
+                    return [
+                        credentials.project,
+                        credentials.executionProject ?? null,
+                        credentials.dataset,
+                        credentials.location ?? null,
+                        credentials.authenticationType,
+                        credentials.workloadIdentityProvider ?? null,
+                        getBigqueryWorkloadIdentityTokenAudience(credentials),
+                    ];
+                }
                 if (
                     !credentials.keyfileContents?.client_email &&
                     (!credentials.keyfileContents?.client_id ||

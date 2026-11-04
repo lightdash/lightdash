@@ -1,6 +1,7 @@
 import { type ApiError } from '@lightdash/common';
 import { useMutation } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 type CancelAppVersionParams = {
     projectUuid: string;
@@ -8,11 +9,10 @@ type CancelAppVersionParams = {
     version: number;
 };
 
-const cancelAppVersion = async ({
-    projectUuid,
-    appUuid,
-    version,
-}: CancelAppVersionParams): Promise<undefined> => {
+const cancelAppVersion = async (
+    lightdashApi: LightdashApi,
+    { projectUuid, appUuid, version }: CancelAppVersionParams,
+): Promise<undefined> => {
     await lightdashApi<undefined>({
         method: 'POST',
         url: `/ee/projects/${projectUuid}/apps/${appUuid}/versions/${version}/cancel`,
@@ -21,7 +21,10 @@ const cancelAppVersion = async ({
     return undefined;
 };
 
-export const useCancelAppVersion = () =>
-    useMutation<undefined, ApiError, CancelAppVersionParams>({
-        mutationFn: cancelAppVersion,
+export const useCancelAppVersion = () => {
+    const lightdashApi = useLightdashApi();
+    return useMutation<undefined, ApiError, CancelAppVersionParams>({
+        mutationFn: (args: CancelAppVersionParams) =>
+            cancelAppVersion(lightdashApi, args),
     });
+};

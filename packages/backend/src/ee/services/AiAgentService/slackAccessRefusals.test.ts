@@ -12,7 +12,20 @@ import Logger from '../../../logging/logger';
 import { AiAgentModel } from '../../models/AiAgentModel';
 import { getAiAccessRefusalBlocks } from '../ai/utils/getSlackBlocks';
 import { getSlackArtifactCardBlockId } from '../ai/utils/slackArtifactImages';
+import { getSlackTableBlocks } from '../ai/utils/slackTableBlocks';
 import { AiAgentService } from './AiAgentService';
+
+const retryBlock = {
+    type: 'actions',
+    elements: [
+        {
+            type: 'button',
+            action_id: 'ai_prompt_retry',
+            text: { type: 'plain_text', text: 'Retry' },
+            value: 'prompt-1',
+        },
+    ],
+};
 
 const siteUrl = 'https://lightdash.example.com';
 const signIn = new AiAccessRefusedError(AiAccessRefusalReason.NEEDS_SIGN_IN, {
@@ -64,15 +77,16 @@ describe.each([false, true])(
             const updateSlackResponseTs = vi.fn().mockResolvedValue(undefined);
             const postDeliveryStore = vi.fn().mockResolvedValue(undefined);
             const refusalStore = vi.fn().mockResolvedValue(undefined);
-            const updateModelResponse = vi
-                .fn()
-                .mockImplementation((data) =>
-                    data.errorMessage &&
+            const errorStore = vi.fn().mockResolvedValue(undefined);
+            const updateModelResponse = vi.fn().mockImplementation((data) => {
+                if (data.errorMessage && !('response' in data))
+                    return errorStore(data);
+                return data.errorMessage &&
                     'response' in data &&
                     data.response === undefined
-                        ? refusalStore(data)
-                        : postDeliveryStore(data),
-                );
+                    ? refusalStore(data)
+                    : postDeliveryStore(data);
+            });
             const getPendingSqlApprovalForPrompt = vi
                 .fn()
                 .mockResolvedValue(null);
@@ -142,7 +156,7 @@ describe.each([false, true])(
                         .mockResolvedValue(null),
                 },
                 orgAiCopilotConfigResolver: {
-                    isOrgBedrockRouted: async () => false,
+                    getDecisionClient: async () => undefined,
                 },
             } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
             vi.spyOn(
@@ -417,6 +431,7 @@ describe.each([false, true])(
                         type: 'section',
                         text: { type: 'mrkdwn', text: '🔴 Generation failed' },
                     },
+                    retryBlock,
                     {
                         type: 'context',
                         elements: [
@@ -426,6 +441,7 @@ describe.each([false, true])(
                 ]);
                 expect(h.getPromptErrorMessage).toHaveBeenCalledWith(
                     expect.anything(),
+                    'project-1',
                     error,
                     expect.anything(),
                     null,
@@ -622,6 +638,7 @@ describe.each([false, true])(
                     ).rejects.toThrow('Failed to generate response');
                     expect(h.getPromptErrorMessage).toHaveBeenCalledWith(
                         expect.anything(),
+                        'project-1',
                         first,
                         expect.anything(),
                         null,
@@ -659,6 +676,7 @@ describe.each([false, true])(
                 );
                 expect(h.getPromptErrorMessage).toHaveBeenCalledWith(
                     expect.anything(),
+                    'project-1',
                     error,
                     expect.anything(),
                     null,
@@ -1022,6 +1040,7 @@ describe.each([false, true])(
                             },
                         },
                         ...expectedGroup,
+                        retryBlock,
                         ...(card
                             ? []
                             : [
@@ -1275,5 +1294,52 @@ describe.each([false, true])(
                 },
             );
         });
+
+        it.each([false, true])(
+            'posts native tables apart from the markdown answer (card: %s)',
+            async (card) => {
+                const h = setup({ card, refusals: [] });
+                const citation = { type: 'rich_text', elements: [] };
+                const table = getSlackTableBlocks([
+                    {
+                        blockId: 'table-1',
+                        title: 'Usage',
+                        url: siteUrl,
+                        status: 'ready',
+                        queryResults: { rows: [{ users: 'x' }], fields: {} },
+                        truncated: false,
+                    },
+                ]);
+                const chartCard = { type: 'card', block_id: 'chart-1' };
+                h.finalBlocks.mockResolvedValue([
+                    citation,
+                    ...table,
+                    chartCard,
+                ]);
+
+                await h.service.replyToSlackPrompt('prompt-1');
+
+                const answer = card
+                    ? h.stopAgentStream.mock.calls[0][0].chunks
+                    : h.postMessage.mock.calls[0][0].blocks;
+                expect(answer).toEqual(
+                    card
+                        ? [
+                              {
+                                  type: 'blocks',
+                                  blocks: [
+                                      { type: 'markdown', text: 'Answer' },
+                                      citation,
+                                  ],
+                              },
+                          ]
+                        : [{ type: 'markdown', text: 'Answer' }, citation],
+                );
+                expect(h.postMessage.mock.calls.at(-1)?.[0].blocks).toEqual([
+                    ...table,
+                    chartCard,
+                ]);
+            },
+        );
     },
 );

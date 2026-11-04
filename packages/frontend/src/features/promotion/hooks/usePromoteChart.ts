@@ -5,10 +5,14 @@ import {
 } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
-const promoteChart = async (chartUuid: string): Promise<SavedChart> => {
+const promoteChart = async (
+    lightdashApi: LightdashApi,
+    chartUuid: string,
+): Promise<SavedChart> => {
     return lightdashApi<SavedChart>({
         url: `/saved/${chartUuid}/promote`,
         method: 'POST',
@@ -17,9 +21,10 @@ const promoteChart = async (chartUuid: string): Promise<SavedChart> => {
 };
 
 export const usePromoteMutation = () => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastError } = useToaster();
     return useMutation<SavedChart, ApiError, string>(
-        (data) => promoteChart(data),
+        (data) => promoteChart(lightdashApi, data),
         {
             mutationKey: ['promote_chart'],
             onSuccess: (data) => {
@@ -48,6 +53,7 @@ export const usePromoteMutation = () => {
 };
 
 const getPromoteChartDiff = async (
+    lightdashApi: LightdashApi,
     chartUuid: string,
 ): Promise<PromotionChanges> => {
     return lightdashApi<PromotionChanges>({
@@ -58,9 +64,10 @@ const getPromoteChartDiff = async (
 };
 
 export const usePromoteChartDiffMutation = () => {
+    const lightdashApi = useLightdashApi();
     const { showToastError } = useToaster();
     return useMutation<PromotionChanges, ApiError, string>(
-        (data) => getPromoteChartDiff(data),
+        (data) => getPromoteChartDiff(lightdashApi, data),
         {
             mutationKey: ['promote_chart_diff'],
             onSuccess: (data) => {

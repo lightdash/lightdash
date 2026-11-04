@@ -20,6 +20,7 @@ import {
     IconEye,
     IconHistory,
     IconLayoutSidebarRightCollapse,
+    IconPlayerStop,
 } from '@tabler/icons-react';
 import { format } from 'date-fns';
 import { Fragment, type FC, type ReactNode } from 'react';
@@ -49,6 +50,11 @@ export type AppVersionHistoryPanelProps = {
     onView: (version: number | null) => void;
     /** The host confirms and performs the restore. */
     onRestore: (version: number) => void;
+    /**
+     * Cancel a building version; the host performs it. Omit in hosts that
+     * expose cancel elsewhere (the chart-type builder's prompt bar).
+     */
+    onCancel?: (version: number) => void;
     /** Collapse control in the header; null hides it. */
     onClose: (() => void) | null;
     /** "Back to chat" in the header for a drawer host; null hides it. */
@@ -185,6 +191,7 @@ const AppVersionHistoryPanel: FC<AppVersionHistoryPanelProps> = ({
     viewedVersion,
     onView,
     onRestore,
+    onCancel,
     onClose,
     onBack,
     liveBuild,
@@ -247,9 +254,28 @@ const AppVersionHistoryPanel: FC<AppVersionHistoryPanelProps> = ({
                         <AbsoluteTime at={new Date(version.createdAt)} />
                     )}
                     {isBuilding && (
-                        <Text fz="xs" c="dimmed">
-                            Building…
-                        </Text>
+                        <Group gap={4} wrap="nowrap">
+                            <Text fz="xs" c="dimmed">
+                                Building…
+                            </Text>
+                            {onCancel && (
+                                <Button
+                                    size="compact-xs"
+                                    variant="subtle"
+                                    color="gray"
+                                    className={classes.action}
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={IconPlayerStop}
+                                            size={12}
+                                        />
+                                    }
+                                    onClick={() => onCancel(version.version)}
+                                >
+                                    Cancel
+                                </Button>
+                            )}
+                        </Group>
                     )}
                     {isReady && (!isCurrent || isPinnedElsewhere) && (
                         <Group

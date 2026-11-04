@@ -1,48 +1,34 @@
 import { ChartType } from '@lightdash/common';
-import { useEffect, type FC } from 'react';
+import { memo, useMemo, type FC } from 'react';
 import useTableConfig from '../../hooks/tableVisualization/useTableConfig';
-import { type VisualizationTableConfigProps } from './types';
+import {
+    type VisualizationConfigTable,
+    type VisualizationTableConfigProps,
+} from './types';
+import { useEmitChartConfig } from './useEmitChartConfig';
 
 const VisualizationTableConfig: FC<VisualizationTableConfigProps> = ({
-    itemsMap,
-    resultsData,
-    columnOrder,
-    validPivotDimensions,
-    initialPivotRows,
-    onPivotRowsChange,
-    initialChartConfig,
     onChartConfigChange,
     children,
-    invalidateCache,
-    parameters,
 }) => {
-    const tableConfig = useTableConfig(
-        initialChartConfig,
-        resultsData,
-        itemsMap,
-        columnOrder,
-        validPivotDimensions,
-        initialPivotRows,
-        onPivotRowsChange,
-        invalidateCache,
-        parameters,
+    const tableConfig = useTableConfig();
+
+    useEmitChartConfig(
+        ChartType.TABLE,
+        tableConfig.validConfig,
+        onChartConfigChange,
     );
 
-    useEffect(() => {
-        if (!onChartConfigChange || !tableConfig.validConfig) return;
-
-        onChartConfigChange({
-            type: ChartType.TABLE,
-            config: tableConfig.validConfig,
-        });
-    }, [tableConfig, onChartConfigChange]);
-
-    return children({
-        visualizationConfig: {
+    const visualizationConfig: VisualizationConfigTable = useMemo(
+        () => ({
             chartType: ChartType.TABLE,
             chartConfig: tableConfig,
-        },
-    });
+        }),
+        [tableConfig],
+    );
+
+    return children({ visualizationConfig });
 };
 
-export default VisualizationTableConfig;
+// Memoised so a resize skips it; an echoed config re-renders it, the memoised aggregate spares consumers
+export default memo(VisualizationTableConfig);

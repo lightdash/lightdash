@@ -1,3 +1,7 @@
 .form {
     width: 100%;
 }
+
+.submitButton {
+    align-self: end;
+}

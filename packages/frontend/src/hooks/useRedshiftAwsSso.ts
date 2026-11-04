@@ -8,7 +8,8 @@ import {
 } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import useToaster from './toaster/useToaster';
 
 type RedshiftAwsSsoLoginRequest = RedshiftAwsSsoStartRequest &
@@ -19,7 +20,10 @@ const sleep = (ms: number) =>
         setTimeout(resolve, ms);
     });
 
-const startRedshiftAwsSsoLogin = async (data: RedshiftAwsSsoStartRequest) =>
+const startRedshiftAwsSsoLogin = async (
+    lightdashApi: LightdashApi,
+    data: RedshiftAwsSsoStartRequest,
+) =>
     lightdashApi<RedshiftAwsSsoStartResults>({
         url: `/user/warehouseCredentials/redshift/aws-sso/start`,
         method: 'POST',
@@ -27,6 +31,7 @@ const startRedshiftAwsSsoLogin = async (data: RedshiftAwsSsoStartRequest) =>
     });
 
 const completeRedshiftAwsSsoLogin = async (
+    lightdashApi: LightdashApi,
     data: RedshiftAwsSsoCompleteRequest,
 ) =>
     lightdashApi<RedshiftAwsSsoCompleteResults>({
@@ -36,9 +41,10 @@ const completeRedshiftAwsSsoLogin = async (
     });
 
 const triggerRedshiftAwsSsoLogin = async (
+    lightdashApi: LightdashApi,
     data: RedshiftAwsSsoLoginRequest,
 ): Promise<UserWarehouseCredentials> => {
-    const start = await startRedshiftAwsSsoLogin({
+    const start = await startRedshiftAwsSsoLogin(lightdashApi, {
         projectUuid: data.projectUuid,
         startUrl: data.startUrl,
         region: data.region,
@@ -59,7 +65,7 @@ const triggerRedshiftAwsSsoLogin = async (
 
     while (Date.now() < expiresAt) {
         await sleep(intervalMs);
-        const result = await completeRedshiftAwsSsoLogin({
+        const result = await completeRedshiftAwsSsoLogin(lightdashApi, {
             accountId: data.accountId,
             roleName: data.roleName,
             projectUuid: data.projectUuid,
@@ -83,6 +89,7 @@ export function useRedshiftAwsSsoLoginPopup({
 }: {
     onLogin: (credentials: UserWarehouseCredentials) => Promise<void>;
 }) {
+    const lightdashApi = useLightdashApi();
     const { showToastError } = useToaster();
     const queryClient = useQueryClient();
     const ssoMutation = useMutation<
@@ -90,7 +97,8 @@ export function useRedshiftAwsSsoLoginPopup({
         ApiError | Error,
         RedshiftAwsSsoLoginRequest
     >({
-        mutationFn: triggerRedshiftAwsSsoLogin,
+        mutationFn: (data: RedshiftAwsSsoLoginRequest) =>
+            triggerRedshiftAwsSsoLogin(lightdashApi, data),
         onSuccess: async (credentials) => {
             await queryClient.invalidateQueries(['user_warehouse_credentials']);
             await queryClient.invalidateQueries([

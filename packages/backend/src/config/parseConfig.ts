@@ -1057,6 +1057,17 @@ export const parseStaticAssetsS3Config = ():
     };
 };
 
+// Null means no dedicated bucket: uploads then stay in S3_BUCKET and are
+// recorded as exports, so enabling this later never orphans earlier uploads.
+export const parseUploadsS3Config = (): LightdashConfig['uploads']['s3'] => {
+    const bucket = process.env.UPLOADS_S3_BUCKET;
+    const base = parseBaseS3Config();
+    if (!bucket || !base) {
+        return null;
+    }
+    return { ...base, bucket };
+};
+
 export const parseResultsS3Config = (): LightdashConfig['results']['s3'] => {
     const baseS3Config = parseBaseS3Config();
 
@@ -1231,7 +1242,6 @@ const parseAndSanitizeSchedulerTasks = (): Array<SchedulerTaskName> => {
         'SCHEDULER_EXCLUDE_TASKS',
     );
 
-    // If neither is set, return undefined (run all tasks)
     if (includeTasks.length === 0 && excludeTasks.length === 0) {
         return ALL_TASK_NAMES;
     }
@@ -1281,6 +1291,14 @@ const isDisabledBoolean = (value: string | undefined): boolean =>
     value !== undefined && ['0', 'false'].includes(value.trim().toLowerCase());
 
 const getBedrockConfig = (customHeaders: Record<string, string>) => {
+    const maxOutputTokens = getIntegerFromEnvironmentVariable(
+        'BEDROCK_MAX_OUTPUT_TOKENS',
+    );
+    if (maxOutputTokens !== undefined && maxOutputTokens < 1) {
+        throw new ParseError(
+            `Cannot parse environment variable "BEDROCK_MAX_OUTPUT_TOKENS". Value must be a positive integer but BEDROCK_MAX_OUTPUT_TOKENS=${maxOutputTokens}`,
+        );
+    }
     const baseUrl = process.env.BEDROCK_BASE_URL
         ? normalizeLlmGatewayBaseUrl(
               process.env.BEDROCK_BASE_URL,
@@ -1301,6 +1319,7 @@ const getBedrockConfig = (customHeaders: Record<string, string>) => {
             ...gateway,
             inferenceProfilePrefix:
                 process.env.BEDROCK_INFERENCE_PROFILE_PREFIX,
+            maxOutputTokens,
             modelName:
                 process.env.BEDROCK_MODEL_NAME || DEFAULT_BEDROCK_MODEL_NAME,
             embeddingModelName: process.env.BEDROCK_EMBEDDING_MODEL,
@@ -1322,6 +1341,7 @@ const getBedrockConfig = (customHeaders: Record<string, string>) => {
             ...gateway,
             inferenceProfilePrefix:
                 process.env.BEDROCK_INFERENCE_PROFILE_PREFIX,
+            maxOutputTokens,
             modelName:
                 process.env.BEDROCK_MODEL_NAME || DEFAULT_BEDROCK_MODEL_NAME,
             embeddingModelName: process.env.BEDROCK_EMBEDDING_MODEL,
@@ -1341,6 +1361,7 @@ const getBedrockConfig = (customHeaders: Record<string, string>) => {
             ...gateway,
             inferenceProfilePrefix:
                 process.env.BEDROCK_INFERENCE_PROFILE_PREFIX,
+            maxOutputTokens,
             modelName:
                 process.env.BEDROCK_MODEL_NAME || DEFAULT_BEDROCK_MODEL_NAME,
             embeddingModelName: process.env.BEDROCK_EMBEDDING_MODEL,
@@ -1408,10 +1429,14 @@ export const getAiConfig = () => ({
                   deploymentSupportsReasoning:
                       process.env.AZURE_AI_DEPLOYMENT_SUPPORTS_REASONING ===
                       'true',
+                  reasoningEffort:
+                      process.env.AZURE_AI_REASONING_EFFORT || null,
                   embeddingDeploymentName:
                       process.env.AZURE_EMBEDDING_DEPLOYMENT_NAME,
                   useDeploymentBasedUrls:
                       process.env.AZURE_USE_DEPLOYMENT_BASED_URLS !== 'false',
+                  useChatCompletions:
+                      process.env.AZURE_AI_USE_CHAT_COMPLETIONS === 'true',
                   customHeaders: getProviderCustomHeaders(
                       'AZURE_AI_CUSTOM_HEADERS',
                   ),
@@ -1435,6 +1460,8 @@ export const getAiConfig = () => ({
                   ),
                   zeroDataRetention:
                       process.env.OPENAI_ZERO_DATA_RETENTION === 'true',
+                  useChatCompletions:
+                      process.env.OPENAI_USE_CHAT_COMPLETIONS === 'true',
                   customHeaders: getProviderCustomHeaders(
                       'OPENAI_CUSTOM_HEADERS',
                   ),
@@ -1628,8 +1655,6 @@ export type MobileAppAssociationConfig = {
 };
 
 export type AiDecisionProviderConfig = {
-    /** Defaults to JEV when omitted. */
-    provider?: 'jev' | 'luna';
     apiKey: string | null;
     model: string;
     timeoutMs: number;
@@ -1647,6 +1672,15 @@ export type LightdashConfig = {
     lightdashSecrets: LightdashSecrets;
     secureCookies: boolean;
     cookieSameSite?: 'lax' | 'none';
+    /**
+     * The API server polls Docker Hub for the newest published tag so the UI
+     * can show an "update available" badge. `LIGHTDASH_DISABLE_UPDATE_CHECK=true`
+     * stops every call to hub.docker.com, for deployments with an egress
+     * allowlist.
+     */
+    updateCheck: {
+        enabled: boolean;
+    };
     security: {
         contentSecurityPolicy: {
             reportOnly: boolean;
@@ -1715,6 +1749,12 @@ export type LightdashConfig = {
     dbt: {
         environmentVariableAllowlist: string[];
         sourceFetchConcurrency: number | undefined;
+        sourceFetchDiskBudgetBytes: number | undefined;
+        sourceFetchDiskPerSourceBytes: number;
+        crossSourcePrepareTimeoutMs: number;
+        crossSourceLsTimeoutMs: number;
+        crossSourceResolutionTimeoutMs: number;
+        crossSourceMaxPasses: number;
     };
     database: {
         connectionUri: string | undefined;
@@ -1723,6 +1763,8 @@ export type LightdashConfig = {
         acquireConnectionTimeout: number | undefined;
         readinessProbeTtlMs: number;
         allowMissingMigrations: boolean;
+        logTransactionRollbacks: boolean;
+        slowTransactionThresholdMs: number | null;
     };
     allowMultiOrgs: boolean;
     maxPayloadSize: string;
@@ -1748,6 +1790,7 @@ export type LightdashConfig = {
     dashboard: {
         maxTilesPerTab: number;
         maxTabsPerDashboard: number;
+        maxConcurrentTileQueries: number | null;
         disableSentryTracking: boolean;
     };
     // This is the override color palette for the organization
@@ -1765,6 +1808,7 @@ export type LightdashConfig = {
         s3?: Omit<S3Config, 'expirationTime'>;
     };
     staticAssets: { s3?: Omit<S3Config, 'expirationTime'> };
+    uploads: { s3: S3Config | null };
     natsWorker: {
         enabled: boolean;
         url: string | undefined;
@@ -1797,7 +1841,7 @@ export type LightdashConfig = {
                 retentionDays: number;
                 batchSize: number;
                 delayMs: number;
-                maxBatches?: number;
+                maxBatches: number;
                 schedule: string;
             };
         };
@@ -1805,6 +1849,16 @@ export type LightdashConfig = {
             cleanup: {
                 enabled: boolean;
                 retentionDays: number;
+                batchSize: number;
+                delayMs: number;
+                maxBatches: number;
+            };
+        };
+        appStateHistory: {
+            cleanup: {
+                enabled: boolean;
+                retentionDays: number;
+                keepVersions: number;
                 batchSize: number;
                 delayMs: number;
                 maxBatches: number;
@@ -1829,10 +1883,6 @@ export type LightdashConfig = {
         agentResultIdentityCheckEnabled: boolean;
         copilot: AiCopilotConfigSchemaType;
         decisions: AiDecisionProviderConfig;
-        /** OpenAI's Decisions API, the alternative fast-decision provider for battles. */
-        lunaDecisions: AiDecisionProviderConfig;
-        /** Also ask Luna every question JEV answers and record both; nothing acts on Luna's answers. */
-        lunaShadowEnabled: boolean;
         analyticsProjectUuid?: string;
         analyticsDashboardUuid?: string;
         agentMemory: {
@@ -1860,12 +1910,6 @@ export type LightdashConfig = {
             enablePostMessage: boolean;
         };
     };
-    serviceAccount: {
-        enabled: boolean;
-    };
-    organizationWarehouseCredentials: {
-        enabled: boolean;
-    };
     athenaWarehouseIamRoleAuth: {
         enabled: boolean;
     };
@@ -1880,6 +1924,13 @@ export type LightdashConfig = {
         clientId: string | undefined;
         clientSecret: string | undefined;
         redirectDomain: string;
+    };
+    liveSources: {
+        posthog: {
+            /** A registered client ID, or the URL of a client metadata document. */
+            oauthClientId: string | undefined;
+            oauthClientSecret: string | undefined;
+        };
     };
     contentAsCode: {
         maxDownloads: number;
@@ -1903,14 +1954,6 @@ export type LightdashConfig = {
          * instances still setting the writeback-specific key keep working.
          */
         legacyAnthropicApiKey: string | null;
-        /**
-         * Pre-clone size ceiling (MB) for the general coding agent. A repo whose
-         * GitHub-reported size exceeds this is rejected with an actionable error
-         * before any sandbox/clone (fail closed, never deadline_exceeded). With
-         * --depth 1 --filter=blob:none the API size over-counts the real fetch,
-         * so the guard is conservative by design.
-         */
-        codingAgentMaxRepoSizeMb: number;
     };
 
     initialSetup?: {
@@ -1976,9 +2019,6 @@ export type LightdashConfig = {
     };
     analyticsEmbedSecret?: string;
 
-    editYamlInUi: {
-        enabled: boolean;
-    };
     funnelBuilder: {
         enabled: boolean;
     };
@@ -2056,7 +2096,7 @@ export type LightdashConfig = {
     disabledFeatureFlags: Set<string>;
     previewFeatureFlags: {
         /**
-         * Preview/Okteto environments only: enables `PREVIEW_ENABLED_FEATURE_FLAGS`
+         * Preview environments only: enables `PREVIEW_ENABLED_FEATURE_FLAGS`
          * by default and exposes the feature-flag management API so QA can toggle
          * flags at runtime. Defaults on in PR mode.
          */
@@ -2125,7 +2165,6 @@ export type S3Config = {
     useCredentialsFrom?: string[];
 };
 export type AppRuntimeConfig = {
-    enabled: boolean;
     /** Coding agent invoked by the data-app generation pipeline. */
     dataAppCodingAgent: 'claude' | 'codex';
     dataAppGatewayBaseUrls: {
@@ -2197,6 +2236,15 @@ export type AppRuntimeConfig = {
      * `lightdash-ai-writeback:local`).
      */
     sandboxAiWritebackDockerImage: string;
+    /**
+     * OCI image the `docker` sandbox provider launches python query runners
+     * from. Built locally from sandboxes/python-runner (e.g.
+     * `lightdash-python-runner:local`).
+     */
+    sandboxPythonDockerImage: string;
+    /** E2B template name+tag for the python query runner sandbox. */
+    e2bPythonTemplateName: string;
+    e2bPythonTemplateTag: string;
     /** OCI image used by managed project onboarding with the Docker provider. */
     sandboxAgentOnboardingDockerImage: string;
     /**
@@ -2275,6 +2323,14 @@ export type AppRuntimeConfig = {
      * image). Required only when `azure-sandboxes`. */
     azureSandboxesAiWritebackDiskImage: string | null;
     /**
+     * Sandbox group python query nodes run one-shot sandboxes in (decoupled from
+     * the data-app/writeback groups). Required only when `sandboxProvider === 'azure-sandboxes'`.
+     */
+    azureSandboxesPythonGroup: string | null;
+    /** Disk image the python runner launches (built from `sandboxes/python-runner`).
+     * Required only when `azure-sandboxes`. */
+    azureSandboxesPythonDiskImage: string | null;
+    /**
      * Config for the `gcp-cloud-run` provider: URL + shared secret of the
      * sandbox gateway Cloud Run service (deployed with `--sandbox-launcher`,
      * data-app toolchain image baked in). Required only when
@@ -2284,19 +2340,18 @@ export type AppRuntimeConfig = {
         sandboxUrl: string | null;
         sandboxSecret: string | null;
     };
+    /**
+     * Config for python query nodes on `gcp-cloud-run`: URL + shared secret of
+     * a separate gateway service (python-runner image baked in). Required only
+     * when `sandboxProvider === 'gcp-cloud-run'` and python nodes run.
+     */
+    gcpCloudRunPython: {
+        sandboxUrl: string | null;
+        sandboxSecret: string | null;
+    };
     /** E2B template used by managed project onboarding. */
     e2bAgentOnboardingTemplateName: string;
     e2bAgentOnboardingTemplateTag: string;
-    /**
-     * Lean template name+tag for the general-purpose coding agent (`editRepo`):
-     * git + Claude CLI + the generic skill only — no dbt venvs, no compile
-     * wrapper, no profiles. Defaults to the `lightdash-ai-coding-agent` image at
-     * the running version's tag, published per release by the post-release
-     * workflow; override the name/tag to pin, roll back, or point at another
-     * image for local dev.
-     */
-    e2bCodingAgentTemplateName: string;
-    e2bCodingAgentTemplateTag: string;
     /**
      * Claude Code OpenTelemetry tracing for data-app builds. When enabled, the
      * `claude` CLI in the sandbox exports OTLP traces (a span per LLM request /
@@ -2354,13 +2409,34 @@ export type AppRuntimeConfig = {
      * the UI. Env var `LIGHTDASH_APP_SAMPLE_DATA_ENABLED`; defaults to `true`.
      */
     sampleDataEnabled: boolean;
+    /**
+     * When false, nothing may capture an image of a running data app or attach
+     * a file to a build anywhere on the instance: the prompt-bar screenshot
+     * button, file attachments sent to the coding agent, manual and automatic
+     * thumbnails, and the Slack build-outcome image are all disabled and
+     * hidden. This is the ceiling for the per-org "allow screenshots and
+     * attachments" setting — an org can turn captures off, never back on past
+     * it. Env var `LIGHTDASH_APP_CAPTURES_ENABLED`; defaults to `true`.
+     */
+    capturesEnabled: boolean;
     /** Instance-wide hostname@CIDR exceptions for external connections only. */
     externalConnectionAllowedPrivateHostCidrs: AllowedPrivateHostCidrs;
     chartRegistry: {
         /** null disables the chart type library entirely */
         url: string | null;
-        /** dev-only: allow http/private addresses for a local fixture registry */
+        /**
+         * Dev-only: allow http and private addresses and skip connection
+         * pinning, for a local fixture registry. Implies allowPrivateHosts.
+         */
         allowInsecure: boolean;
+        /** Full Authorization header value (e.g. "Basic ..." or "Bearer ...") sent with every registry request; null sends none */
+        authorizationHeader: string | null;
+        /**
+         * Allow a registry on a private/internal address (a self-hosted
+         * mirror behind the customer's firewall). Transport stays https-only
+         * and the connection stays pinned to the resolved address.
+         */
+        allowPrivateHosts: boolean;
         /** which index the client reads: stable (index.json) or next (index-next.json, includes beta charts) */
         channel: 'stable' | 'next';
     };
@@ -2599,6 +2675,9 @@ export type PostmarkConfig = {
 };
 
 const DEFAULT_JOB_TIMEOUT = 1000 * 60 * 10; // 10 minutes
+// 300k rows a night: twice the insert rate of the busiest known instance, so
+// retention catches up without one night ever deleting an unbounded amount
+const DEFAULT_QUERY_HISTORY_CLEANUP_MAX_BATCHES = 300;
 // Must stay below the orchestrator's termination grace period (helm: 90s)
 // so the fail_job fallback runs before SIGKILL.
 const DEFAULT_SCHEDULER_SHUTDOWN_TIMEOUT = 1000 * 60; // 1 minute
@@ -2655,15 +2734,15 @@ const parseChartRegistryAllowInsecure = (): boolean => {
             'SECURITY WARNING: LIGHTDASH_CHART_REGISTRY_ALLOW_INSECURE is enabled. ' +
                 'SSRF defenses for chart registry fetches are OFF (http:// and ' +
                 'private addresses allowed, IP pinning skipped). Only use this ' +
-                'with a local dev fixture or a fully trusted internal registry ' +
-                'mirror — never with a registry you do not control.',
+                'with a local dev fixture. For an internal registry mirror on a ' +
+                'private network use LIGHTDASH_CHART_REGISTRY_ALLOW_PRIVATE_HOSTS ' +
+                'instead, which keeps https and connection pinning.',
         );
     }
     return enabled;
 };
 
 const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
-    const enabled = process.env.APPS_RUNTIME_ENABLED === 'true';
     const dataAppCodingAgent = (() => {
         const value = process.env.APPS_CODING_AGENT?.trim().toLowerCase();
         if (!value || value === 'claude') return 'claude' as const;
@@ -2720,7 +2799,6 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
         process.env.LAMBDA_MICROVM_REGION || 'eu-west-1';
 
     return {
-        enabled,
         dataAppCodingAgent,
         dataAppGatewayBaseUrls: {
             anthropic: process.env.DATA_APPS_ANTHROPIC_BASE_URL
@@ -2769,6 +2847,13 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
         sandboxAiWritebackDockerImage:
             process.env.SANDBOX_AI_WRITEBACK_DOCKER_IMAGE ||
             'lightdash-ai-writeback:local',
+        sandboxPythonDockerImage:
+            process.env.SANDBOX_PYTHON_DOCKER_IMAGE ||
+            'lightdash-python-runner:local',
+        e2bPythonTemplateName:
+            process.env.E2B_PYTHON_TEMPLATE_NAME || 'lightdash-python-runner',
+        e2bPythonTemplateTag:
+            process.env.E2B_PYTHON_TEMPLATE_TAG ?? (VERSION as string),
         sandboxAgentOnboardingDockerImage:
             process.env.SANDBOX_AGENT_ONBOARDING_DOCKER_IMAGE ||
             'lightdash-agent-onboarding:local',
@@ -2816,26 +2901,25 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
             sandboxUrl: process.env.GCP_CLOUD_RUN_SANDBOX_URL || null,
             sandboxSecret: process.env.GCP_CLOUD_RUN_SANDBOX_SECRET || null,
         },
+        gcpCloudRunPython: {
+            sandboxUrl: process.env.GCP_CLOUD_RUN_PYTHON_SANDBOX_URL || null,
+            sandboxSecret:
+                process.env.GCP_CLOUD_RUN_PYTHON_SANDBOX_SECRET || null,
+        },
         azureSandboxesAiWritebackGroup:
             process.env.AZURE_SANDBOXES_AI_WRITEBACK_GROUP || null,
         azureSandboxesAiWritebackDiskImage:
             process.env.AZURE_SANDBOXES_AI_WRITEBACK_DISK_IMAGE || null,
+        azureSandboxesPythonGroup:
+            process.env.AZURE_SANDBOXES_PYTHON_GROUP || null,
+        azureSandboxesPythonDiskImage:
+            process.env.AZURE_SANDBOXES_PYTHON_DISK_IMAGE || null,
         e2bAgentOnboardingTemplateName:
             process.env.E2B_AGENT_ONBOARDING_TEMPLATE_NAME ||
             'lightdash-agent-onboarding',
         e2bAgentOnboardingTemplateTag:
             process.env.E2B_AGENT_ONBOARDING_TEMPLATE_TAG ??
             (VERSION as string),
-        // The lean coding-agent image (sandboxes/ai-coding-agent), published per
-        // release by the post-release workflow at the running version's tag —
-        // same pattern as the other templates. Operators can override the
-        // name/tag (e.g. to pin, roll back, or point at the writeback image for
-        // local dev before the lean image is built).
-        e2bCodingAgentTemplateName:
-            process.env.E2B_CODING_AGENT_TEMPLATE_NAME ||
-            'lightdash-ai-coding-agent',
-        e2bCodingAgentTemplateTag:
-            process.env.E2B_CODING_AGENT_TEMPLATE_TAG ?? (VERSION as string),
         otel: parseDataAppOtelConfig(),
         dependencyRegistryHosts: (
             process.env.LIGHTDASH_APP_DEPENDENCY_REGISTRY_HOSTS ||
@@ -2867,6 +2951,7 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
             'false',
         sampleDataEnabled:
             process.env.LIGHTDASH_APP_SAMPLE_DATA_ENABLED !== 'false',
+        capturesEnabled: process.env.LIGHTDASH_APP_CAPTURES_ENABLED !== 'false',
         externalConnectionAllowedPrivateHostCidrs: (() => {
             const name =
                 'APP_RUNTIME_EXTERNAL_CONNECTION_ALLOWED_PRIVATE_HOST_CIDRS';
@@ -2907,9 +2992,17 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
             })(process.env.LIGHTDASH_CHART_REGISTRY_URL),
             // Disables the registry client's SSRF defenses (allows http://
             // and private/loopback addresses, skips IP pinning). Only for
-            // local dev fixtures and trusted internal registry mirrors —
-            // never with a registry URL you do not fully control.
+            // local dev fixtures — never with a registry URL you do not
+            // fully control.
             allowInsecure: parseChartRegistryAllowInsecure(),
+            authorizationHeader:
+                process.env.LIGHTDASH_CHART_REGISTRY_AUTHORIZATION_HEADER?.trim() ||
+                null,
+            // Admits a registry on a private/internal address (self-hosted
+            // mirror) while keeping https-only transport and IP pinning.
+            allowPrivateHosts:
+                process.env.LIGHTDASH_CHART_REGISTRY_ALLOW_PRIVATE_HOSTS ===
+                'true',
             channel: ((raw) => {
                 const normalized = raw?.trim().toLowerCase();
                 if (!normalized || normalized === 'stable')
@@ -2936,7 +3029,6 @@ const LEGACY_ENABLE_ENV_VARS: ReadonlyArray<
     readonly [envVar: string, flagId: string]
 > = [
     // Add per migration; truthy env value enables the flag.
-    ['CHANGE_CHART_EXPLORE_ENABLED', 'change-chart-explore'],
     ['USER_IMPERSONATION_ENABLED', 'user-impersonation'],
     // GROUPS_ENABLED is also read by UserService for group-sync logic (separate
     // from the feature flag) — keep the config field, but translate the env
@@ -2947,19 +3039,9 @@ const LEGACY_ENABLE_ENV_VARS: ReadonlyArray<
     // endpoint) and EmbedService (allowAll config). Keep the config field, but
     // translate the env var to the unified allowlist for the flag system.
     ['EMBEDDING_ENABLED', 'embedding'],
-    // SERVICE_ACCOUNT_ENABLED is also read by HealthService (exposed via the
-    // health endpoint). Keep the config field, but translate the env var to
-    // the unified allowlist for the flag system.
-    ['SERVICE_ACCOUNT_ENABLED', 'service-accounts'],
     ['SCIM_ENABLED', 'scim-token-management'],
-    // ORGANIZATION_WAREHOUSE_CREDENTIALS_ENABLED is also read by HealthService
-    // (exposed via the health endpoint). Keep the config field, but translate
-    // the env var to the unified allowlist for the flag system.
-    [
-        'ORGANIZATION_WAREHOUSE_CREDENTIALS_ENABLED',
-        'organization-warehouse-credentials',
-    ],
-    ['METRIC_DASHBOARD_FILTERS_ENABLED', 'metric-dashboard-filters'],
+    // Self-hosted switch for data apps; forces the flag on.
+    ['APPS_RUNTIME_ENABLED', 'enable-data-apps'],
 ];
 
 const LEGACY_DISABLE_ENV_VARS: ReadonlyArray<
@@ -3401,6 +3483,9 @@ export const parseConfig = (): LightdashConfig => {
         lightdashSecret,
         lightdashSecrets,
         secureCookies,
+        updateCheck: {
+            enabled: process.env.LIGHTDASH_DISABLE_UPDATE_CHECK !== 'true',
+        },
         cookiesMaxAgeHours: getIntegerFromEnvironmentVariable(
             'COOKIES_MAX_AGE_HOURS',
         ),
@@ -3419,6 +3504,12 @@ export const parseConfig = (): LightdashConfig => {
                 10_000,
             allowMissingMigrations:
                 process.env.ALLOW_MISSING_MIGRATIONS === 'true',
+            logTransactionRollbacks:
+                process.env.PG_LOG_TRANSACTION_ROLLBACKS === 'true',
+            slowTransactionThresholdMs:
+                getIntegerFromEnvironmentVariable(
+                    'PG_SLOW_TRANSACTION_THRESHOLD_MS',
+                ) || null,
         },
         auth: {
             mobileLogin: {
@@ -3631,6 +3722,29 @@ export const parseConfig = (): LightdashConfig => {
             environmentVariableAllowlist: getArrayFromCommaSeparatedList(
                 'ALLOW_DBT_COMMANDS_ACCESS_TO_ENV_VARS',
             ),
+            crossSourceMaxPasses:
+                getIntegerFromEnvironmentVariable(
+                    'DBT_CROSS_SOURCE_MAX_PASSES',
+                ) ?? 3,
+            crossSourcePrepareTimeoutMs:
+                getIntegerFromEnvironmentVariable(
+                    'DBT_SOURCE_PREPARE_TIMEOUT_MS',
+                ) ?? 180000,
+            crossSourceLsTimeoutMs:
+                getIntegerFromEnvironmentVariable('DBT_SOURCE_LS_TIMEOUT_MS') ??
+                300000,
+            crossSourceResolutionTimeoutMs:
+                getIntegerFromEnvironmentVariable(
+                    'DBT_CROSS_SOURCE_RESOLUTION_TIMEOUT_MS',
+                ) ?? 1200000,
+            sourceFetchDiskBudgetBytes: getIntegerFromEnvironmentVariable(
+                'DBT_SOURCE_FETCH_DISK_BUDGET_BYTES',
+            ),
+            sourceFetchDiskPerSourceBytes:
+                getPositiveIntegerFromEnvironmentVariable(
+                    'DBT_SOURCE_FETCH_DISK_PER_SOURCE_BYTES',
+                    256 * 1024 ** 2,
+                ),
             sourceFetchConcurrency: getIntegerFromEnvironmentVariable(
                 'DBT_SOURCE_FETCH_CONCURRENCY',
             ),
@@ -3695,6 +3809,13 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'LIGHTDASH_DASHBOARD_MAX_TABS_PER_DASHBOARD',
                 ) || 20,
+            maxConcurrentTileQueries: process.env
+                .LIGHTDASH_DASHBOARD_MAX_CONCURRENT_TILE_QUERIES
+                ? getPositiveIntegerFromEnvironmentVariable(
+                      'LIGHTDASH_DASHBOARD_MAX_CONCURRENT_TILE_QUERIES',
+                      1,
+                  )
+                : null,
             disableSentryTracking:
                 process.env.LIGHTDASH_DASHBOARD_DISABLE_SENTRY_TRACKING ===
                 'true',
@@ -3741,6 +3862,7 @@ export const parseConfig = (): LightdashConfig => {
             s3: parseResultsS3Config(),
         },
         staticAssets: { s3: parseStaticAssetsS3Config() },
+        uploads: { s3: parseUploadsS3Config() },
         natsWorker: {
             enabled: natsWorkerEnabled,
             url: natsWorkerUrl,
@@ -3823,7 +3945,7 @@ export const parseConfig = (): LightdashConfig => {
                     maxBatches:
                         getIntegerFromEnvironmentVariable(
                             'QUERY_HISTORY_CLEANUP_MAX_BATCHES',
-                        ) || 100,
+                        ) || DEFAULT_QUERY_HISTORY_CLEANUP_MAX_BATCHES,
                     schedule:
                         process.env.QUERY_HISTORY_CLEANUP_SCHEDULE ||
                         '0 2 * * *',
@@ -3849,6 +3971,33 @@ export const parseConfig = (): LightdashConfig => {
                     maxBatches:
                         getIntegerFromEnvironmentVariable(
                             'SCIM_REQUEST_LOG_CLEANUP_MAX_BATCHES',
+                        ) ?? 100,
+                },
+            },
+            appStateHistory: {
+                cleanup: {
+                    enabled:
+                        process.env.APP_STATE_HISTORY_CLEANUP_ENABLED !==
+                        'false', // true by default
+                    retentionDays:
+                        getIntegerFromEnvironmentVariable(
+                            'APP_STATE_HISTORY_RETENTION_DAYS',
+                        ) ?? 90,
+                    keepVersions:
+                        getIntegerFromEnvironmentVariable(
+                            'APP_STATE_HISTORY_KEEP_VERSIONS',
+                        ) ?? 50,
+                    batchSize:
+                        getIntegerFromEnvironmentVariable(
+                            'APP_STATE_HISTORY_CLEANUP_BATCH_SIZE',
+                        ) ?? 1000,
+                    delayMs:
+                        getIntegerFromEnvironmentVariable(
+                            'APP_STATE_HISTORY_CLEANUP_DELAY_MS',
+                        ) ?? 100,
+                    maxBatches:
+                        getIntegerFromEnvironmentVariable(
+                            'APP_STATE_HISTORY_CLEANUP_MAX_BATCHES',
                         ) ?? 100,
                 },
             },
@@ -3922,21 +4071,10 @@ export const parseConfig = (): LightdashConfig => {
                 process.env.AGENT_RESULT_IDENTITY_CHECK_ENABLED !== 'false',
             copilot: copilotConfig,
             decisions: {
-                provider: 'jev',
                 apiKey: process.env.JEV_API_KEY?.trim() || null,
                 model: process.env.JEV_MODEL || 'jev-1.13.0',
                 timeoutMs: parseDecisionTimeoutMs('JEV_TIMEOUT_MS'),
             },
-            lunaDecisions: {
-                provider: 'luna',
-                apiKey:
-                    process.env.LUNA_API_KEY?.trim() ||
-                    process.env.OPENAI_API_KEY?.trim() ||
-                    null,
-                model: process.env.LUNA_MODEL || 'gpt-6-luna',
-                timeoutMs: parseDecisionTimeoutMs('LUNA_TIMEOUT_MS'),
-            },
-            lunaShadowEnabled: process.env.LUNA_SHADOW_ENABLED === 'true',
             analyticsProjectUuid: process.env.AI_ANALYTICS_PROJECT_UUID,
             analyticsDashboardUuid: process.env.AI_ANALYTICS_DASHBOARD_UUID,
             agentMemory: {
@@ -3979,14 +4117,6 @@ export const parseConfig = (): LightdashConfig => {
                     'true',
             },
         },
-        serviceAccount: {
-            enabled: process.env.SERVICE_ACCOUNT_ENABLED === 'true',
-        },
-        organizationWarehouseCredentials: {
-            enabled:
-                process.env.ORGANIZATION_WAREHOUSE_CREDENTIALS_ENABLED ===
-                'true',
-        },
         athenaWarehouseIamRoleAuth: {
             enabled: process.env.ATHENA_WAREHOUSE_IAM_ROLE_AUTH === 'true',
         },
@@ -4005,6 +4135,13 @@ export const parseConfig = (): LightdashConfig => {
             redirectDomain:
                 process.env.GITLAB_REDIRECT_DOMAIN ||
                 siteUrl.split('.')[0].split('//')[1],
+        },
+        liveSources: {
+            posthog: {
+                oauthClientId: process.env.POSTHOG_OAUTH_CLIENT_ID || undefined,
+                oauthClientSecret:
+                    process.env.POSTHOG_OAUTH_CLIENT_SECRET || undefined,
+            },
         },
         contentAsCode: {
             maxDownloads:
@@ -4042,10 +4179,6 @@ export const parseConfig = (): LightdashConfig => {
         aiWriteback: {
             legacyAnthropicApiKey:
                 process.env.AI_WRITEBACK_ANTHROPIC_API_KEY || null,
-            codingAgentMaxRepoSizeMb: parseInt(
-                process.env.AI_CODING_AGENT_MAX_REPO_SIZE_MB || '500',
-                10,
-            ),
         },
         initialSetup: getInitialSetupConfig(),
         updateSetup: getUpdateSetupConfig(),
@@ -4059,9 +4192,6 @@ export const parseConfig = (): LightdashConfig => {
             enabled: process.env.CUSTOM_ROLES_ENABLED === 'true',
         },
         analyticsEmbedSecret: process.env.ANALYTICS_EMBED_SECRET,
-        editYamlInUi: {
-            enabled: process.env.EDIT_YAML_IN_UI_ENABLED === 'true',
-        },
         funnelBuilder: {
             enabled:
                 process.env.FUNNEL_BUILDER_ENABLED === 'true' ||

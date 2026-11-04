@@ -7,10 +7,11 @@ import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { load } from 'js-yaml';
+import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import DocumentAsCodeModal from './DocumentAsCodeModal';
 
-const api = vi.hoisted(() => vi.fn());
-vi.mock('../../api', () => ({ lightdashApi: api }));
+const api = mockedLightdashApi;
+vi.mock('../../api');
 
 const exportedDocument: DocumentAsCode = {
     name: 'Weekly report',

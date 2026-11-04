@@ -5,10 +5,12 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
+    Button,
     Group,
     Select,
     Stack,
     Switch,
+    Text,
     Textarea,
     TextInput,
     Tooltip,
@@ -36,6 +38,7 @@ import {
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useAppThumbnailUrl } from '../../../../features/apps/hooks/useAppThumbnail';
 import { dataAppHref } from '../../../../features/apps/utils/appUrls';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 import { BlockHeader, IconSquare, MiniPill } from './BlockShell';
 import classes from './blockStyles.module.css';
 import { ContentLayoutControl } from './ContentLayoutControl';
@@ -524,6 +527,7 @@ export const ResourcesBlockBuild: FC<BuildComponentProps> = ({
     itemSpan,
     standalone = false,
 }) => {
+    const lightdashApi = useLightdashApi();
     const [pasteValue, setPasteValue] = useState('');
     const [batch, setBatch] = useState<BatchEntry[]>([]);
     const [isAppPickerOpen, setIsAppPickerOpen] = useState(false);
@@ -592,10 +596,13 @@ export const ResourcesBlockBuild: FC<BuildComponentProps> = ({
         });
         setBatch((prev) => [...prev, ...entries]);
         entries.forEach((entry) => {
-            void resolveResourceUrl(projectUuid, entry.url).then((item) =>
-                setBatch((prev) =>
-                    prev.map((e) => (e.key === entry.key ? { ...e, item } : e)),
-                ),
+            void resolveResourceUrl(lightdashApi, projectUuid, entry.url).then(
+                (item) =>
+                    setBatch((prev) =>
+                        prev.map((e) =>
+                            e.key === entry.key ? { ...e, item } : e,
+                        ),
+                    ),
             );
         });
     };
@@ -623,37 +630,17 @@ export const ResourcesBlockBuild: FC<BuildComponentProps> = ({
 
     return (
         <Stack gap="xs">
-            <Group
-                justify="space-between"
-                wrap="nowrap"
-                gap="xs"
-                align="flex-end"
-            >
-                <TextInput
-                    label="Title"
-                    size="xs"
-                    fw={600}
-                    flex={1}
-                    value={block.config.title}
-                    onChange={(e) =>
-                        patchConfig({ title: e.currentTarget.value })
-                    }
-                />
-                <ContentLayoutControl
-                    value={layout}
-                    onChange={(nextLayout) =>
-                        patchConfig({ layout: nextLayout })
-                    }
-                />
-            </Group>
-            <Switch
-                size="xs"
-                label="Show descriptions"
-                checked={block.config.showDescriptions ?? true}
-                onChange={(e) =>
-                    patchConfig({
-                        showDescriptions: e.currentTarget.checked,
-                    })
+            <BlockHeader
+                icon={IconBook}
+                title={block.config.title}
+                onTitleChange={(title) => patchConfig({ title })}
+                actions={
+                    <ContentLayoutControl
+                        value={layout}
+                        onChange={(nextLayout) =>
+                            patchConfig({ layout: nextLayout })
+                        }
+                    />
                 }
             />
 
@@ -712,25 +699,16 @@ export const ResourcesBlockBuild: FC<BuildComponentProps> = ({
                 </div>
             )}
 
-            <TextInput
-                size="sm"
-                placeholder="Paste a Claude artifact, YouTube, or any link…"
-                value={pasteValue}
-                onChange={(e) => setPasteValue(e.currentTarget.value)}
-                onPaste={handlePaste}
-                onKeyDown={handleKeyDown}
-                rightSectionWidth={64}
-                rightSection={
-                    <Group gap={2} wrap="nowrap">
-                        <Tooltip label="Add data app" openDelay={200}>
-                            <ActionIcon
-                                size="sm"
-                                aria-label="Add data app"
-                                onClick={() => setIsAppPickerOpen(true)}
-                            >
-                                <MantineIcon icon={IconAppWindow} />
-                            </ActionIcon>
-                        </Tooltip>
+            <Group gap="xs" wrap="nowrap">
+                <TextInput
+                    size="sm"
+                    flex={1}
+                    placeholder="Paste a Claude artifact, YouTube, or any link…"
+                    value={pasteValue}
+                    onChange={(e) => setPasteValue(e.currentTarget.value)}
+                    onPaste={handlePaste}
+                    onKeyDown={handleKeyDown}
+                    rightSection={
                         <Tooltip label="Add link" openDelay={200}>
                             <ActionIcon
                                 size="sm"
@@ -740,12 +718,33 @@ export const ResourcesBlockBuild: FC<BuildComponentProps> = ({
                                 <MantineIcon icon={IconPlus} />
                             </ActionIcon>
                         </Tooltip>
-                    </Group>
-                }
-            />
-            <div className={classes.buildHint}>
-                Paste multiple links (one per line) to add them all at once, or
-                add a data app with the app button.
+                    }
+                />
+                <Button
+                    variant="default"
+                    size="sm"
+                    leftSection={<MantineIcon icon={IconAppWindow} />}
+                    onClick={() => setIsAppPickerOpen(true)}
+                >
+                    Add app
+                </Button>
+            </Group>
+            <div className={classes.settingsRow} data-block-settings>
+                {items.length > 0 && (
+                    <Switch
+                        size="xs"
+                        label="Show descriptions"
+                        checked={block.config.showDescriptions ?? true}
+                        onChange={(e) =>
+                            patchConfig({
+                                showDescriptions: e.currentTarget.checked,
+                            })
+                        }
+                    />
+                )}
+                <Text size="xs" c="dimmed" ml="auto" truncate>
+                    Paste several links, one per line, to add them all.
+                </Text>
             </div>
             <DataAppPickerModal
                 opened={isAppPickerOpen}

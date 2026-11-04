@@ -424,7 +424,6 @@ it('matches both operation paths cell by cell with real roles and policies', asy
     expect(cells).toBe(
         9 * 3 * (scenarios.length * capabilities.length + operations.length),
     );
-    expect(cells).toBe(4779);
 });
 
 it('keeps role, policy, group and project query counts constant for 3 and 50 differentiated projects', async () => {
@@ -839,7 +838,9 @@ it('reads scheduled refresh from both real schema sources and narrows only the a
             pre_aggregate_definition: definition,
             materialization_metric_query: null,
             materialization_query_error: null,
+            definition_fingerprint: null,
             refresh_cron: index === 0 ? '0 * * * *' : null,
+            materialize_on_change: false,
         })),
     );
     const answer = await approval.service.getReviewAnswer(

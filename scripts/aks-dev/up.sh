@@ -69,7 +69,7 @@ ok "uami $UAMI_NAME (client $UAMI_CLIENT_ID)"
 
 # ---------------------------------------------------------------------------
 step "sandbox images on ACR"
-for feat in data-app; do
+for feat in data-app ${PYTHON_SANDBOX_GROUP:+python}; do
   repo="lightdash-sandbox"; tag="$feat"
   if az acr repository show-tags -n "$ACR_NAME" --repository "$repo" 2>/dev/null | grep -q "\"$tag\""; then
     skip "sandbox image $repo:$tag exists"
@@ -121,6 +121,14 @@ DATA_APP_DISK_IMAGE_ID="$(create_group_disk "$DATA_APP_SANDBOX_GROUP" "$SANDBOX_
 [ -n "$DATA_APP_DISK_IMAGE_ID" ] || fail "disk -- no Ready data-app disk image id"
 WRITEBACK_DISK_IMAGE_ID="${WRITEBACK_DISK_IMAGE_ID:-}"
 ok "data-app sandbox group: $DATA_APP_SANDBOX_GROUP (disk id: $DATA_APP_DISK_IMAGE_ID)"
+# Python query nodes are optional: only provisioned when a python group is configured.
+PYTHON_DISK_IMAGE_ID=""
+if [ -n "${PYTHON_SANDBOX_GROUP:-}" ]; then
+  : "${SANDBOX_IMAGE_PYTHON:?SANDBOX_IMAGE_PYTHON not set (required with PYTHON_SANDBOX_GROUP)}"
+  PYTHON_DISK_IMAGE_ID="$(create_group_disk "$PYTHON_SANDBOX_GROUP" "$SANDBOX_IMAGE_PYTHON")"
+  [ -n "$PYTHON_DISK_IMAGE_ID" ] || fail "disk -- no Ready python disk image id"
+  ok "python sandbox group: $PYTHON_SANDBOX_GROUP (disk id: $PYTHON_DISK_IMAGE_ID)"
+fi
 
 # ---------------------------------------------------------------------------
 step "in-cluster MinIO (S3 for app file storage)"
@@ -207,6 +215,7 @@ UAMI_CLIENT_ID="$UAMI_CLIENT_ID" \
 SUBSCRIPTION_ID="$SUBSCRIPTION_ID" RESOURCE_GROUP="$RESOURCE_GROUP" ACA_LOCATION="$ACA_LOCATION" \
 DATA_APP_SANDBOX_GROUP="$DATA_APP_SANDBOX_GROUP" WRITEBACK_SANDBOX_GROUP="${WRITEBACK_SANDBOX_GROUP:-}" \
 DATA_APP_DISK_IMAGE_ID="$DATA_APP_DISK_IMAGE_ID" WRITEBACK_DISK_IMAGE_ID="${WRITEBACK_DISK_IMAGE_ID:-}" \
+PYTHON_SANDBOX_GROUP="${PYTHON_SANDBOX_GROUP:-}" PYTHON_DISK_IMAGE_ID="$PYTHON_DISK_IMAGE_ID" \
 SANDBOX_RESOURCE_TIER="${SANDBOX_RESOURCE_TIER:-M}" SANDBOX_API_VERSION="${SANDBOX_API_VERSION:-2026-02-01-preview}" \
   envsubst < "$AKS_DEV_DIR/values.azure.yaml.tpl" > "$RENDERED"
 helm dependency build "$HELM_CHART_PATH" >/dev/null 2>&1 || true

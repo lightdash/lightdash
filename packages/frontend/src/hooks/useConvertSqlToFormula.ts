@@ -7,12 +7,14 @@ import {
 } from '@lightdash/common';
 import { useMutation } from '@tanstack/react-query';
 import { useCallback, useRef } from 'react';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import { useFormulaAiContext } from './useFormulaAiContext';
 
 const GENERATION_TIMEOUT_MS = 15000;
 
 const convertSqlToFormulaApi = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     payload: GenerateFormulaTableCalculationRequest,
     signal?: AbortSignal,
@@ -37,6 +39,7 @@ export const useConvertSqlToFormula = ({
     metricQuery,
     onSuccess,
 }: UseConvertSqlToFormulaOptions) => {
+    const lightdashApi = useLightdashApi();
     const abortControllerRef = useRef<AbortController | null>(null);
     const { buildContext, isReady } = useFormulaAiContext(explore, metricQuery);
 
@@ -66,6 +69,7 @@ export const useConvertSqlToFormula = ({
             }, GENERATION_TIMEOUT_MS);
 
             return convertSqlToFormulaApi(
+                lightdashApi,
                 projectUuid,
                 {
                     mode: 'convert-sql',

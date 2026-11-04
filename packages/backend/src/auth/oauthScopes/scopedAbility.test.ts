@@ -204,3 +204,30 @@ it.each(['log', 'enforce'] as const)(
         );
     },
 );
+
+it('retains only the underlying managed analytics grant for read-scoped OAuth', () => {
+    const base = new Ability<PossibleAbilities>([
+        {
+            action: 'view',
+            subject: 'SystemAnalytics',
+            conditions: { projectUuid: 'analytics' },
+        },
+    ]);
+    const target = subject('SystemAnalytics', { projectUuid: 'analytics' });
+    const scoped = create(base, 'enforce', ['mcp:read']);
+    expect(scoped.can('view', target)).toBe(true);
+    expect(
+        scoped.can(
+            'view',
+            subject('SystemAnalytics', { projectUuid: 'other' }),
+        ),
+    ).toBe(false);
+    expect(create(base, 'enforce', []).can('view', target)).toBe(false);
+    expect(
+        create(new Ability<PossibleAbilities>([]), 'enforce', ['mcp:read']).can(
+            'view',
+            target,
+        ),
+    ).toBe(false);
+    expect(scoped.can('manage', 'Organization')).toBe(false);
+});

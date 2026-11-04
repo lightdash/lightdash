@@ -15,6 +15,7 @@ import {
 import { useNavigate } from 'react-router';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { invalidateContent } from '../../../hooks/useContent';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import {
     getDeletedContent,
     permanentlyDeleteContent,
@@ -35,6 +36,7 @@ type UseInfiniteDeletedContentParams = {
 export function useInfiniteDeletedContent(
     params: UseInfiniteDeletedContentParams,
 ) {
+    const lightdashApi = useLightdashApi();
     return useInfiniteQuery<
         KnexPaginatedData<DeletedContentWithDescendants[]>,
         ApiError
@@ -49,7 +51,7 @@ export function useInfiniteDeletedContent(
             params.dataAppVizsFilter,
         ],
         queryFn: async ({ pageParam = 1 }) => {
-            return getDeletedContent({
+            return getDeletedContent(lightdashApi, {
                 projectUuids: params.projectUuids,
                 page: pageParam as number,
                 pageSize: params.pageSize ?? DEFAULT_PAGE_SIZE,
@@ -78,13 +80,14 @@ export type RestoreDeletedContentItem = DeletedContentItem & {
 };
 
 export function useRestoreDeletedContent(projectUuid: string) {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const navigate = useNavigate();
     const { showToastSuccess, showToastApiError } = useToaster();
 
     return useMutation<undefined, ApiError, RestoreDeletedContentItem>({
         mutationFn: ({ isChartType, ...item }) =>
-            restoreDeletedContent(projectUuid, item),
+            restoreDeletedContent(lightdashApi, projectUuid, item),
         onSuccess: async (_data, item) => {
             showToastSuccess({
                 title: 'Content restored',
@@ -154,11 +157,13 @@ export function useRestoreDeletedContent(projectUuid: string) {
 }
 
 export function usePermanentlyDeleteContent(projectUuid: string) {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
 
     return useMutation<undefined, ApiError, DeletedContentItem>({
-        mutationFn: (item) => permanentlyDeleteContent(projectUuid, item),
+        mutationFn: (item) =>
+            permanentlyDeleteContent(lightdashApi, projectUuid, item),
         onSuccess: async () => {
             showToastSuccess({
                 title: 'Content permanently deleted',

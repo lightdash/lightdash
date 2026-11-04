@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
     getContextTruncationNote,
+    getExecutionStatsNote,
     getQueryResultSummary,
 } from './queryResultSummary';
 
@@ -85,5 +86,48 @@ describe('getContextTruncationNote', () => {
         expect(note).toContain('the query returned all of them');
         expect(note).toContain('retained server-side');
         expect(note).toContain('query an aggregate');
+    });
+});
+
+describe('getExecutionStatsNote', () => {
+    it('states every reported statistic with exact bytes', () => {
+        expect(
+            getExecutionStatsNote({
+                jobId: 'job-123',
+                bytesProcessed: 1048576,
+                bytesBilled: 10485760,
+                executionTimeMs: 1250,
+                cacheHit: false,
+            }),
+        ).toBe(
+            " Warehouse execution stats: 1048576 bytes (1.0 MiB) processed, 10485760 bytes (10.0 MiB) billed, ran for 1250 ms, served from the warehouse's own result cache: no, warehouse job ID job-123.",
+        );
+    });
+
+    it('omits statistics the warehouse did not report', () => {
+        expect(
+            getExecutionStatsNote({
+                jobId: null,
+                bytesProcessed: 512,
+                bytesBilled: null,
+                executionTimeMs: null,
+                cacheHit: true,
+            }),
+        ).toBe(
+            " Warehouse execution stats: 512 bytes processed, served from the warehouse's own result cache: yes.",
+        );
+    });
+
+    it('is empty without stats', () => {
+        expect(getExecutionStatsNote(null)).toBe('');
+        expect(
+            getExecutionStatsNote({
+                jobId: null,
+                bytesProcessed: null,
+                bytesBilled: null,
+                executionTimeMs: null,
+                cacheHit: null,
+            }),
+        ).toBe('');
     });
 });

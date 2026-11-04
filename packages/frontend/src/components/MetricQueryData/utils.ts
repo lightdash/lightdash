@@ -76,13 +76,14 @@ const getPivotColumnNames = (pivotReference: {
     // New SQL pivot format, named by the same rule the backend pivot uses —
     // including its '<null>' placeholder (PROD-7896 — without it the column
     // lookup fails for null pivot segments and the click falls back to the
-    // wrong selectedField).
+    // wrong selectedField). The name carries every group-by value, so a chart
+    // grouped by more than one dimension needs all of them to match.
     if (pivotReference.pivotValues && pivotReference.pivotValues.length > 0) {
         names.push(
             getPivotValueColumnName(
                 pivotReference.field,
                 VizAggregationOptions.ANY,
-                [pivotReference.pivotValues[0].value],
+                pivotReference.pivotValues.map((pivot) => pivot.value),
             ),
         );
     }

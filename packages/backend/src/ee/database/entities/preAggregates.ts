@@ -20,6 +20,8 @@ export type DbPreAggregateDefinition = {
     materialization_metric_query: MaterializationMetricQueryPayload | null;
     materialization_query_error: string | null;
     refresh_cron: string | null;
+    materialize_on_change: boolean;
+    definition_fingerprint: string | null;
     created_at: Date;
     updated_at: Date;
 };
@@ -38,6 +40,8 @@ export type DbPreAggregateDefinitionUpdate = Partial<
         | 'materialization_metric_query'
         | 'materialization_query_error'
         | 'refresh_cron'
+        | 'materialize_on_change'
+        | 'definition_fingerprint'
         | 'updated_at'
     >
 >;
@@ -61,6 +65,7 @@ export type DbPreAggregateMaterialization = {
     columns: ResultColumns | null;
     error_message: string | null;
     total_bytes: number | null;
+    materialized_fingerprint: string | null;
     created_at: Date;
     updated_at: Date;
 };

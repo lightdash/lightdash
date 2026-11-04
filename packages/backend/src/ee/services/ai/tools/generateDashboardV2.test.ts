@@ -143,6 +143,64 @@ describe('dashboard artifact layout', () => {
         );
     });
 
+    it('excludes a visualization the agent authors as a merge', async () => {
+        const { tool, createOrUpdateArtifact } = setup(false);
+        const output = await tool.execute!(
+            {
+                ...args,
+                visualizations: [
+                    args.visualizations[0],
+                    {
+                        ...args.visualizations[1],
+                        mergeConfig: {
+                            primarySourceId: 'primary',
+                            additionalSources: [
+                                {
+                                    id: 'comparison',
+                                    queryConfig: {
+                                        exploreName: validExplore.name,
+                                        dimensions: metricQueryMock.dimensions,
+                                        metrics: metricQueryMock.metrics,
+                                        sorts: [],
+                                        customMetrics: null,
+                                        filters: null,
+                                    },
+                                },
+                            ],
+                            joinKey: [
+                                {
+                                    name: 'key',
+                                    fields: [
+                                        {
+                                            sourceId: 'primary',
+                                            fieldId:
+                                                metricQueryMock.dimensions[0],
+                                        },
+                                        {
+                                            sourceId: 'comparison',
+                                            fieldId:
+                                                metricQueryMock.dimensions[0],
+                                        },
+                                    ],
+                                },
+                            ],
+                            joinType: 'full',
+                        },
+                    },
+                ],
+            } as typeof args,
+            options,
+        );
+        expect(output).toMatchObject({
+            result: expect.stringContaining(
+                'Merge queries are not supported by the agent.',
+            ),
+        });
+        expect(
+            createOrUpdateArtifact.mock.calls[0][0].vizConfig.visualizations,
+        ).toEqual([args.visualizations[0]]);
+    });
+
     it('does not classify or publish when all source validation fails', async () => {
         const { tool, request, createOrUpdateArtifact } = setup(true, []);
         await tool.execute!(args, options);

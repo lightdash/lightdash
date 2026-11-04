@@ -7,6 +7,7 @@ import {
     ContentReviewRequestStatus,
     ContentReviewRequestView,
     ContentType,
+    DEFAULT_USER_SPACES_PARENT_NAME,
     DirectAccessPrincipalType,
     DirectAccessResourceType,
     ForbiddenError,
@@ -61,6 +62,7 @@ import { type SavedSqlService } from '../../../services/SavedSqlService/SavedSql
 import { type SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import { type AiService } from '../AiService/AiService';
 import { type ContentReviewNotificationService } from '../ContentReviewNotificationService/ContentReviewNotificationService';
+import { resolveSpaceReviewerUserUuids } from './resolveSpaceReviewerUserUuids';
 
 type ContentReviewRequestServiceArguments = {
     analytics: LightdashAnalytics;
@@ -84,6 +86,11 @@ type ContentReviewRequestServiceArguments = {
 };
 
 type ProjectContext = { organizationUuid: string; projectUuid: string };
+
+type MoveSet = {
+    items: ContentReviewMovedItem[];
+    sourceSpaceUuids: string[];
+};
 
 const SIMILAR_CANDIDATE_LIMIT = 20;
 const SIMILAR_RESULT_LIMIT = 5;
@@ -257,6 +264,31 @@ export class ContentReviewRequestService extends BaseService {
         return space;
     }
 
+    private async getSpaceTreeUuids(
+        rootSpaceUuid: string,
+    ): Promise<Set<string>> {
+        const descendantSpaceUuids =
+            await this.spaceModel.getDescendantSpaceUuids(rootSpaceUuid);
+        return new Set([rootSpaceUuid, ...descendantSpaceUuids]);
+    }
+
+    private async isWithinPersonalSpace(
+        spaceUuid: string,
+        projectUuid: string,
+    ): Promise<boolean> {
+        const breadcrumbs = await this.spaceModel.getSpaceBreadcrumbs(
+            spaceUuid,
+            projectUuid,
+        );
+        const spaceInfo = await this.contentReviewRequestModel.findSpaceInfo(
+            breadcrumbs.map((breadcrumb) => breadcrumb.uuid),
+        );
+        return breadcrumbs.some(
+            (breadcrumb) =>
+                spaceInfo.get(breadcrumb.uuid)?.isDefaultUserSpace === true,
+        );
+    }
+
     private async getPendingRequest(
         projectUuid: string,
         requestUuid: string,
@@ -272,30 +304,38 @@ export class ContentReviewRequestService extends BaseService {
         return request;
     }
 
-    // A dashboard brings the personal-space charts its tiles use; charts
-    // saved inside the dashboard follow it automatically
+    // A dashboard brings the personal-space charts its tiles use, including
+    // those in nested spaces; charts saved inside the dashboard follow it
+    // automatically
     private async computeMoveSet(request: {
         contentType: ContentReviewContentType;
         contentUuid: string;
         sourceSpaceUuid: string;
-    }): Promise<ContentReviewMovedItem[]> {
+    }): Promise<MoveSet> {
         const primary = await this.getContentLocation(
             request.contentType,
             request.contentUuid,
         );
-        const items: ContentReviewMovedItem[] = [
-            {
-                contentType: request.contentType,
-                contentUuid: primary.uuid,
-                name: primary.name,
-            },
-        ];
+        const primaryItem: ContentReviewMovedItem = {
+            contentType: request.contentType,
+            contentUuid: primary.uuid,
+            name: primary.name,
+        };
         if (request.contentType !== ContentReviewContentType.DASHBOARD) {
-            return items;
+            return {
+                items: [primaryItem],
+                sourceSpaceUuids:
+                    primary.spaceUuid === null ? [] : [primary.spaceUuid],
+            };
         }
-        const dashboard = await this.dashboardModel.getByIdOrSlug(
-            request.contentUuid,
-        );
+        const [dashboard, sourceTreeUuids] = await Promise.all([
+            this.dashboardModel.getByIdOrSlug(request.contentUuid),
+            this.getSpaceTreeUuids(request.sourceSpaceUuid),
+        ]);
+        const isInSourceSpaceTree = (chart: ContentReviewContentLocation) =>
+            !chart.deleted &&
+            chart.spaceUuid !== null &&
+            sourceTreeUuids.has(chart.spaceUuid);
         const tileChartUuids = [
             ...new Set(
                 dashboard.tiles
@@ -307,23 +347,11 @@ export class ContentReviewRequestService extends BaseService {
                     ),
             ),
         ];
-        const charts =
+        const charts = (
             await this.contentReviewRequestModel.findChartLocations(
                 tileChartUuids,
-            );
-        charts
-            .filter(
-                (chart) =>
-                    !chart.deleted &&
-                    chart.spaceUuid === request.sourceSpaceUuid,
             )
-            .forEach((chart) => {
-                items.push({
-                    contentType: ContentReviewContentType.CHART,
-                    contentUuid: chart.uuid,
-                    name: chart.name,
-                });
-            });
+        ).filter(isInSourceSpaceTree);
         // SQL runner tiles travel with the dashboard the same way
         const tileSqlChartUuids = [
             ...new Set(
@@ -336,24 +364,31 @@ export class ContentReviewRequestService extends BaseService {
                     ),
             ),
         ];
-        const sqlCharts =
+        const sqlCharts = (
             await this.contentReviewRequestModel.findSqlChartLocations(
                 tileSqlChartUuids,
-            );
-        sqlCharts
-            .filter(
-                (chart) =>
-                    !chart.deleted &&
-                    chart.spaceUuid === request.sourceSpaceUuid,
             )
-            .forEach((chart) => {
-                items.push({
-                    contentType: ContentReviewContentType.SQL_CHART,
-                    contentUuid: chart.uuid,
-                    name: chart.name,
-                });
+        ).filter(isInSourceSpaceTree);
+        const toMovedItem =
+            (contentType: ContentReviewContentType) =>
+            (chart: ContentReviewContentLocation): ContentReviewMovedItem => ({
+                contentType,
+                contentUuid: chart.uuid,
+                name: chart.name,
             });
-        return items;
+        return {
+            items: [
+                primaryItem,
+                ...charts.map(toMovedItem(ContentReviewContentType.CHART)),
+                ...sqlCharts.map(
+                    toMovedItem(ContentReviewContentType.SQL_CHART),
+                ),
+            ],
+            sourceSpaceUuids: [primary, ...charts, ...sqlCharts].flatMap(
+                (location) =>
+                    location.spaceUuid === null ? [] : [location.spaceUuid],
+            ),
+        };
     }
 
     private async isReviewerGroupMember(
@@ -483,11 +518,19 @@ export class ContentReviewRequestService extends BaseService {
         );
     }
 
-    private async resolveReviewerPrincipals(
-        settings: ContentReviewSettings,
-        targetSpaceUuid: string,
-        requesterUuid: string,
-    ): Promise<DirectAccessPrincipalRef[]> {
+    private async resolveReviewerPrincipals({
+        settings,
+        organizationUuid,
+        projectUuid,
+        targetSpaceUuid,
+        requesterUuid,
+    }: {
+        settings: ContentReviewSettings;
+        organizationUuid: string;
+        projectUuid: string;
+        targetSpaceUuid: string;
+        requesterUuid: string;
+    }): Promise<DirectAccessPrincipalRef[]> {
         if (settings.reviewerGroupUuid !== null) {
             return [
                 {
@@ -496,22 +539,18 @@ export class ContentReviewRequestService extends BaseService {
                 },
             ];
         }
-        const { data: access } =
-            await this.spacePermissionService.getPaginatedSpaceAccess(
-                targetSpaceUuid,
-                {},
-            );
-        return access
-            .filter(
-                (share) =>
-                    share.userUuid !== requesterUuid &&
-                    (share.role === SpaceMemberRole.EDITOR ||
-                        share.role === SpaceMemberRole.ADMIN),
-            )
-            .map((share) => ({
-                type: DirectAccessPrincipalType.USER,
-                uuid: share.userUuid,
-            }));
+        const reviewerUserUuids = await resolveSpaceReviewerUserUuids({
+            spacePermissionService: this.spacePermissionService,
+            directAccessModel: this.directAccessModel,
+            organizationUuid,
+            projectUuid,
+            targetSpaceUuid,
+            requesterUuid,
+        });
+        return reviewerUserUuids.map((uuid) => ({
+            type: DirectAccessPrincipalType.USER,
+            uuid,
+        }));
     }
 
     private async grantReviewerAccess(
@@ -655,7 +694,7 @@ export class ContentReviewRequestService extends BaseService {
         const moveSet =
             request.status === ContentReviewRequestStatus.PENDING &&
             item.content !== null
-                ? await this.computeMoveSet(request)
+                ? (await this.computeMoveSet(request)).items
                 : request.movedContent;
         return {
             ...item,
@@ -687,7 +726,13 @@ export class ContentReviewRequestService extends BaseService {
             body.contentType,
             body.contentUuid,
         );
-        if (content.spaceUuid !== personalSpace.uuid) {
+        const personalSpaceUuids = await this.getSpaceTreeUuids(
+            personalSpace.uuid,
+        );
+        if (
+            content.spaceUuid === null ||
+            !personalSpaceUuids.has(content.spaceUuid)
+        ) {
             throw new ParameterError(
                 'Only content in your personal space can be submitted for review',
             );
@@ -704,7 +749,17 @@ export class ContentReviewRequestService extends BaseService {
         const targetSpace = await this.getSpaceInfo(body.targetSpaceUuid);
         if (
             targetSpace.projectUuid !== projectUuid ||
-            targetSpace.isDefaultUserSpace
+            (await this.isWithinPersonalSpace(targetSpace.uuid, projectUuid)) ||
+            (targetSpace.name === DEFAULT_USER_SPACES_PARENT_NAME &&
+                (
+                    await this.projectModel.getProjectsWithDefaultUserSpaces(
+                        context.organizationUuid,
+                    )
+                ).some(
+                    (project) =>
+                        project.projectUuid === projectUuid &&
+                        project.parentSpaceUuid === targetSpace.uuid,
+                ))
         ) {
             throw new ParameterError(
                 'Choose a shared space in this project as the target',
@@ -722,11 +777,25 @@ export class ContentReviewRequestService extends BaseService {
             );
         }
 
-        const moveSet = await this.computeMoveSet({
+        const { items: moveSet, sourceSpaceUuids } = await this.computeMoveSet({
             contentType: body.contentType,
             contentUuid: body.contentUuid,
             sourceSpaceUuid: personalSpace.uuid,
         });
+        // Approval moves without re-checking source access, so only content
+        // the requester could move themselves may be submitted. Nested spaces
+        // can stop inheriting from the personal space, so owning it isn't enough.
+        if (
+            !(await this.spacePermissionService.can(
+                'update',
+                user,
+                sourceSpaceUuids,
+            ))
+        ) {
+            throw new ForbiddenError(
+                'You can only request a review for content you can edit',
+            );
+        }
         const pendingByType = await Promise.all(
             Object.values(ContentReviewContentType).map((contentType) =>
                 this.contentReviewRequestModel.findPendingByContentUuids(
@@ -754,11 +823,13 @@ export class ContentReviewRequestService extends BaseService {
             true,
         );
         const settings = await this.contentReviewSettingsModel.get(projectUuid);
-        const principals = await this.resolveReviewerPrincipals(
+        const principals = await this.resolveReviewerPrincipals({
             settings,
-            targetSpace.uuid,
-            user.userUuid,
-        );
+            organizationUuid: context.organizationUuid,
+            projectUuid,
+            targetSpaceUuid: targetSpace.uuid,
+            requesterUuid: user.userUuid,
+        });
         const grantedPrincipals = await this.grantReviewerAccess(
             moveSet,
             principals,
@@ -1015,7 +1086,7 @@ export class ContentReviewRequestService extends BaseService {
             throw new ConflictError('The target space no longer exists');
         }
 
-        const moveSet = await this.computeMoveSet(request);
+        const { items: moveSet } = await this.computeMoveSet(request);
         // Access was checked above against the target; the per-type move
         // would otherwise fail on the personal source space
         const approved = await this.contentReviewRequestModel.transaction(

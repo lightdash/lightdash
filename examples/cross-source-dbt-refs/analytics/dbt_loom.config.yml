@@ -1,0 +1,5 @@
+manifests:
+  - name: shared_dimensions
+    type: file
+    config:
+      path: ../shared_dimensions/target/manifest.json

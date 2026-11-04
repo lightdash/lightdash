@@ -62,6 +62,32 @@ describe('detectDataAppAnomalies', () => {
         });
     });
 
+    it('passes author instructions in the user message, and omits the block without them', async () => {
+        vi.mocked(generateText).mockClear();
+        await detectDataAppAnomalies(modelOptions, {
+            content: '## Orders\nQuery: q1\n',
+            instructions: 'Write in British English.',
+            today: '2026-09-16',
+        });
+        const { messages } = vi.mocked(generateText).mock.calls[0][0] as {
+            messages: { role: string; content: string }[];
+        };
+        expect(messages[1].content).toContain(
+            'Author instructions:\nWrite in British English.',
+        );
+
+        vi.mocked(generateText).mockClear();
+        await detectDataAppAnomalies(modelOptions, {
+            content: '## Orders\nQuery: q1\n',
+            instructions: null,
+            today: '2026-09-16',
+        });
+        const { messages: bare } = vi.mocked(generateText).mock.calls[0][0] as {
+            messages: { role: string; content: string }[];
+        };
+        expect(bare[1].content).not.toContain('Author instructions');
+    });
+
     it('tells the model that recurring seasonality is baseline, not an anomaly', async () => {
         await detectDataAppAnomalies(modelOptions, {
             content: '## Orders\nQuery: q1\n',

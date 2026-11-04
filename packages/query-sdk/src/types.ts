@@ -146,10 +146,30 @@ export type QueryDefinition = {
 
 export type ColumnType = 'string' | 'number' | 'date' | 'timestamp' | 'boolean';
 
+/**
+ * A link pattern declared on the field in the semantic layer (`urls:` in the
+ * model YAML). `url` is a template: `${value.raw}` / `${value.formatted}` is
+ * the cell's own value, `${row.<table>.<field>.raw}` (or `.formatted`)
+ * references another field in the same result row, and a `| url_encode`
+ * filter URL-encodes the substituted value. Resolve with `resolveColumnUrls`.
+ */
+export type ColumnUrl = {
+    label: string;
+    url: string;
+};
+
 export type Column = {
     name: string;
     label: string;
     type: ColumnType;
+    /**
+     * The API field id (`<table>_<field>`), preserved across result paths so
+     * `${row.<table>.<field>}` url references resolve to the right column
+     * even where names are qualified differently (underlying data, joins).
+     */
+    fieldId?: string;
+    /** Link patterns for this field's values; render cells as links when set. */
+    urls?: ColumnUrl[];
 };
 
 export type Row = Record<string, string | number | boolean | null>;
@@ -190,6 +210,23 @@ export type QueryResult = {
     downloadResults?: (
         options?: DownloadResultsOptions,
     ) => Promise<DownloadResultsResult>;
+    /**
+     * How the saved chart is drawn, as stored in Lightdash. Only set on
+     * `savedChart(...)` results, and absent on hosts that predate it.
+     */
+    chartVisualization?: SavedChartVisualization;
+};
+
+/**
+ * A saved chart's stored visualization settings, passed through raw.
+ * Structural copy of `@lightdash/common`'s `SavedChartVisualization`; the
+ * shape of `chartConfig.config` depends on `chartConfig.type` (e.g. `cartesian`
+ * carries `layout.xField` / `layout.yField` and `eChartsConfig.series`).
+ */
+export type SavedChartVisualization = {
+    chartConfig: { type: string; config?: Record<string, unknown> };
+    pivotConfig?: { columns: string[]; rows?: string[] };
+    tableConfig: { columnOrder: string[] };
 };
 
 export type DownloadResultsFileType = 'csv' | 'xlsx';
@@ -341,6 +378,46 @@ export type VizPointMenuIntent = {
 /** `shown: false` means the host had no applicable action for this point. */
 export type VizPointMenuResult = { shown: boolean };
 
+/**
+ * Host-answered virtual route returning an explore's base table. Duplicated
+ * from `@lightdash/common` (`APP_SDK_EXPLORE_BASE_TABLE_PATH`) — this package
+ * must not depend on common. The bridge and the CLI preview proxy answer it;
+ * the backend has no such route.
+ */
+export const EXPLORE_BASE_TABLE_PATH = '/__sdk/explore-base-table';
+
+export type ExploreBaseTableRequest = { exploreName: string };
+
+export type ExploreBaseTableResult = { baseTable: string | null };
+
+/**
+ * Host-answered virtual route returning the saved charts in a space.
+ * Duplicated from `@lightdash/common` (`APP_SDK_SPACE_CHARTS_PATH`) — this
+ * package must not depend on common. The bridge and the CLI preview proxy
+ * answer it with the viewer's own credentials; the backend has no such route.
+ */
+export const SPACE_CHARTS_PATH = '/__sdk/space-charts';
+
+export type SpaceChartsRequest = { space: string };
+
+/** One saved chart in a space, as listed by `useSpaceCharts`. */
+export type SpaceChartSummary = {
+    uuid: string;
+    name: string;
+    description: string | null;
+    /** e.g. `line`, `vertical_bar`, `table` — null on older charts. */
+    chartKind: string | null;
+    slug: string | null;
+    /** ISO timestamp of the chart's last save. */
+    updatedAt: string | null;
+};
+
+export type SpaceChartsResult = {
+    /** Null when the space doesn't exist or the viewer can't access it. */
+    space: { uuid: string; name: string; slug: string } | null;
+    charts: SpaceChartSummary[];
+};
+
 // --- Client config ---
 
 export type LightdashClientConfig = {
@@ -352,6 +429,12 @@ export type LightdashClientConfig = {
     apiKey: string;
     /** Use relative /api paths instead of baseUrl (for dev proxy setups) */
     useProxy?: boolean;
+    /**
+     * The data app this client runs as. Needed by `useAppState` /
+     * `useSharedAppState` outside the Lightdash iframe (local dev); set via
+     * VITE_LIGHTDASH_APP_UUID. Without it, saved state stays in memory.
+     */
+    appUuid?: string;
 };
 
 // --- User ---
@@ -404,6 +487,74 @@ export type ExternalFetchOptions = {
     body?: unknown;
 };
 
+// --- App state (durable, Lightdash-hosted) ---
+// Structural copies of `@lightdash/common`'s app state types. The SDK is
+// published standalone with no `@lightdash/common` dependency; keep in sync.
+
+export type AppStateAuthor = { userUuid: string; name: string | null };
+
+export type AppStateUserEntry = { value: unknown; updatedAt: string };
+
+export type AppStateSharedEntry = {
+    value: unknown;
+    version: number;
+    updatedAt: string;
+    updatedBy: AppStateAuthor | null;
+};
+
+export type AppStateHistoryAuthor =
+    | { kind: 'user'; userUuid: string | null; name: string | null }
+    | { kind: 'agent' };
+
+export type AppStateHistoryEntry = {
+    version: number;
+    value: unknown;
+    createdAt: string;
+    author: AppStateHistoryAuthor;
+};
+
+export type AppStateSnapshot = {
+    user: Record<string, AppStateUserEntry>;
+    shared: Record<string, AppStateSharedEntry>;
+};
+
+export type AppStateHistoryOptions = {
+    limit?: number;
+    beforeVersion?: number;
+};
+
+export type AppStateErrorCode =
+    | 'conflict'
+    | 'feature_disabled'
+    | 'forbidden'
+    | 'invalid'
+    | 'unavailable'
+    | 'unknown';
+
+/** Wire shape of a failed app state call, before it becomes an AppStateError. */
+export type AppStateErrorPayload = {
+    code: AppStateErrorCode;
+    message: string;
+    /** On `conflict`: what the shared key holds now (null when deleted). */
+    current?: AppStateSharedEntry | null;
+};
+
+export type AppStateTransport = {
+    getSnapshot: () => Promise<AppStateSnapshot>;
+    setUser: (key: string, value: unknown) => Promise<AppStateUserEntry>;
+    deleteUser: (key: string) => Promise<void>;
+    setShared: (
+        key: string,
+        value: unknown,
+        expectedVersion: number | null,
+    ) => Promise<AppStateSharedEntry>;
+    deleteShared: (key: string) => Promise<void>;
+    getSharedHistory: (
+        key: string,
+        options: AppStateHistoryOptions,
+    ) => Promise<AppStateHistoryEntry[]>;
+};
+
 // --- Transport ---
 
 /** Wire shape of a `useAiPrompt` request, proxied by the host. */
@@ -414,7 +565,11 @@ export type AiPromptRequest = {
     focus: Record<string, string> | null;
 };
 
-export type AiPromptResult = { text: string };
+export type AiPromptResult = {
+    text: string;
+    /** Server id of the stored prompt run, when the host returns one. */
+    promptId?: string | null;
+};
 
 export type Transport = {
     executeQuery: (query: QueryDefinition) => Promise<QueryResult>;
@@ -430,6 +585,12 @@ export type Transport = {
         alias: string,
         opts: ExternalFetchOptions,
     ) => Promise<ExternalFetchResult>;
+    /**
+     * Durable app state (`useAppState` / `useSharedAppState`). Absent when
+     * the transport has no app to attribute state to; the hooks then keep
+     * values in memory for the session.
+     */
+    appState?: AppStateTransport;
     /**
      * Fetch the raw rows behind a viz data point via the host bridge.
      * Optional so custom transports predating the capability stay valid —
@@ -477,4 +638,10 @@ export type Transport = {
      * `useAiPrompt().available` is false when absent.
      */
     aiPrompt?: (request: AiPromptRequest) => Promise<AiPromptResult>;
+    /**
+     * List the saved charts the viewer can see in a space (by slug or uuid).
+     * Optional so custom transports predating the capability stay valid —
+     * `useSpaceCharts().available` is false when absent.
+     */
+    listSpaceCharts?: (space: string) => Promise<SpaceChartsResult>;
 };

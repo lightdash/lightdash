@@ -6,6 +6,7 @@
  */
 
 import { createApiTransport } from './apiTransport';
+import { getAppStateStore, type AppStateStore } from './appState';
 import { applyColorSchemeSeed, mountColorScheme } from './colorScheme';
 import { mountInspector } from './inspector';
 import { mountInsights } from './insights';
@@ -58,6 +59,20 @@ export class LightdashClient {
     ): Promise<ExternalFetchResult> {
         return this.transport.externalFetch(alias, opts);
     }
+
+    /**
+     * Imperative access to durable app state, for what the hooks don't
+     * cover: a shared key's change history, deleting keys, forcing a
+     * re-fetch of other people's edits, or flushing pending writes.
+     *
+     *   const versions = await lightdash.appState.history('targets');
+     */
+    get appState(): Pick<
+        AppStateStore,
+        'history' | 'deleteUser' | 'deleteShared' | 'refresh' | 'flush'
+    > {
+        return getAppStateStore(this.transport);
+    }
 }
 
 /**
@@ -87,6 +102,11 @@ function configFromEnv(): LightdashClientConfig | null {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (globalThis as any).process?.env?.LIGHTDASH_PROJECT_UUID;
 
+    const appUuid =
+        import.meta.env?.VITE_LIGHTDASH_APP_UUID ??
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (globalThis as any).process?.env?.LIGHTDASH_APP_UUID;
+
     if (!apiKey || !baseUrl || !projectUuid) return null;
 
     // Auto-enable proxy when running on a different origin (dev server)
@@ -94,7 +114,13 @@ function configFromEnv(): LightdashClientConfig | null {
         typeof window !== 'undefined' &&
         window.location.origin !== new URL(baseUrl).origin;
 
-    return { apiKey, baseUrl, projectUuid, useProxy };
+    return {
+        apiKey,
+        baseUrl,
+        projectUuid,
+        useProxy,
+        ...(appUuid ? { appUuid } : {}),
+    };
 }
 
 /**

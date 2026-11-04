@@ -2864,6 +2864,10 @@
                 "displayName": {
                     "type": "string"
                 },
+                "format": {
+                    "$ref": "#/$defs/CustomFormat",
+                    "description": "How the calculation's values are displayed."
+                },
                 "formula": {
                     "description": "Spreadsheet-like formula over merged field ids.",
                     "type": "string"
@@ -3167,6 +3171,10 @@
                 },
                 "showGridY": {
                     "description": "Show horizontal grid lines",
+                    "type": "boolean"
+                },
+                "showIncompletePeriod": {
+                    "description": "If true, marks the unfinished current period (for example, this week) with a dashed line segment and hatched bars.",
                     "type": "boolean"
                 },
                 "showLeftYAxis": {

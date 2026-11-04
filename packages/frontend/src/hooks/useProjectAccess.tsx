@@ -1,9 +1,13 @@
 import { type ApiError, type ProjectMemberProfile } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import useQueryError from './useQueryError';
 
-const getProjectAccessQuery = async (projectUuid: string) =>
+const getProjectAccessQuery = async (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+) =>
     lightdashApi<ProjectMemberProfile[]>({
         url: `/projects/${projectUuid}/access`,
         method: 'GET',
@@ -11,10 +15,11 @@ const getProjectAccessQuery = async (projectUuid: string) =>
     });
 
 export const useProjectAccess = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
     const setErrorResponse = useQueryError();
     return useQuery<ProjectMemberProfile[], ApiError>({
         queryKey: ['project_access_users', projectUuid],
-        queryFn: () => getProjectAccessQuery(projectUuid),
+        queryFn: () => getProjectAccessQuery(lightdashApi, projectUuid),
         onError: (result) => setErrorResponse(result),
         enabled: !!projectUuid,
     });

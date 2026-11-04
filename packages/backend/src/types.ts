@@ -1,4 +1,5 @@
 import {
+    DbtExternalModelNode,
     DbtPackages,
     DbtRpcGetManifestResults,
     Explore,
@@ -15,6 +16,11 @@ export type TrackingParams = {
     jobUuid?: string;
 };
 
+export type DbtManifestFetchOptions = {
+    externalNodes: DbtExternalModelNode[];
+    signal?: AbortSignal;
+};
+
 export type DbtManifestFetchTimings = {
     gitRefreshMs: number | null;
     depsMs: number | null;
@@ -25,7 +31,15 @@ export type DbtManifestFetchResult = DbtRpcGetManifestResults & {
     timings: DbtManifestFetchTimings;
 };
 
+export type DbtSourcePreparation = {
+    projectDir: string | null;
+    timings: { gitRefreshMs: number | null; depsMs: number | null };
+};
+
 export interface ProjectAdapter {
+    prepareDbtSource(options?: {
+        signal?: AbortSignal;
+    }): Promise<DbtSourcePreparation>;
     /**
      * Compile all explores
      * @param trackingParams - Optional tracking parameters to track the compilation and lightdash project config (lightdash.config.yml) overrides
@@ -43,6 +57,7 @@ export interface ProjectAdapter {
         trackingParams: TrackingParams | undefined,
         loadSources?: boolean,
         allowPartialCompilation?: boolean,
+        deferExploreNaming?: boolean,
     ): Promise<AsyncIterable<Explore | ExploreError>>;
 
     getDbtPackages(): Promise<DbtPackages | undefined>;
@@ -52,9 +67,13 @@ export interface ProjectAdapter {
      * by the multiple-dbt-sources merge to combine each source's manifest before
      * a single compile.
      */
-    getDbtManifest(): Promise<DbtManifestFetchResult>;
+    getDbtManifest(
+        options?: DbtManifestFetchOptions,
+    ): Promise<DbtManifestFetchResult>;
 
-    test(): Promise<void>;
+    test(options?: { signal?: AbortSignal }): Promise<void>;
+
+    releaseDisk(options?: { keepProject?: boolean }): Promise<void>;
 
     destroy(): Promise<void>;
 
@@ -75,15 +94,20 @@ export interface ProjectAdapter {
 }
 
 export interface DbtClient {
-    installDeps?(): Promise<void>;
+    installDeps?(signal?: AbortSignal): Promise<void>;
 
-    getDbtManifest(): Promise<DbtRpcGetManifestResults>;
+    getDbtManifest(
+        options?: DbtManifestFetchOptions,
+    ): Promise<DbtRpcGetManifestResults>;
 
     getDbtPackages?(): Promise<DbtPackages | undefined>;
 
     getSelector(): string | undefined;
 
-    test(): Promise<void>;
+    test(
+        prepareDependencies?: () => Promise<void>,
+        signal?: AbortSignal,
+    ): Promise<void>;
 
     cleanup?(): Promise<void>;
 }

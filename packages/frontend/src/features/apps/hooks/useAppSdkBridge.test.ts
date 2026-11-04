@@ -28,6 +28,8 @@ import {
 } from 'vitest';
 import { createDeliveryCaptureAccumulator } from '../deliveryCapture/deliveryCaptureAccumulator';
 import {
+    mapAppStateApiError,
+    resolveAppStateRequest,
     useAppSdkBridge,
     type ExternalRequestEvent,
     type QueryEvent,
@@ -152,6 +154,59 @@ describe('useAppSdkBridge', () => {
     afterEach(() => {
         vi.unstubAllGlobals();
         vi.clearAllMocks();
+    });
+
+    it('accepts generic runtime observations only from this frame with a valid navigation ID', () => {
+        const onRuntimeError = vi.fn();
+        const onSdkManifest = vi.fn();
+        const navigationId = '11111111-1111-4111-8111-111111111111';
+        renderHook(() =>
+            useAppSdkBridge({
+                colorScheme: 'light',
+                iframeRef: {
+                    current: {
+                        contentWindow: window,
+                    } as unknown as HTMLIFrameElement,
+                },
+                expectedPreviewOrigin: window.location.origin,
+                projectUuid: PROJECT_UUID,
+                appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
+                onRuntimeError,
+                onSdkManifest,
+            }),
+        );
+        const data = {
+            type: 'lightdash:sdk:runtime-error',
+            navigationId,
+            error: 'private',
+        };
+        window.dispatchEvent(
+            new MessageEvent('message', { data, source: null, origin: 'null' }),
+        );
+        window.dispatchEvent(
+            new MessageEvent('message', {
+                data,
+                source: window,
+                origin: 'https://foreign.example',
+            }),
+        );
+        dispatchFetchMessage({ ...data, navigationId: 'invalid' });
+        expect(onRuntimeError).not.toHaveBeenCalled();
+        dispatchFetchMessage(data);
+        expect(onRuntimeError).toHaveBeenCalledExactlyOnceWith(navigationId);
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:manifest',
+            sdkVersion: '1',
+            features: [],
+            navigationId,
+        });
+        expect(onSdkManifest).toHaveBeenCalledWith({
+            sdkVersion: '1',
+            features: [],
+            fixes: [],
+            navigationId,
+        });
     });
 
     it('preserves valid fixes and normalizes missing or malformed fix reports', () => {
@@ -713,6 +768,133 @@ describe('useAppSdkBridge', () => {
                 expect.objectContaining({ method: 'POST' }),
             ),
         );
+    });
+
+    describe('space-charts virtual route', () => {
+        const SPACE_CHARTS_PATH = '/__sdk/space-charts';
+        const postSpaceCharts = (body: unknown) =>
+            dispatchFetchMessage({
+                type: 'lightdash:sdk:fetch',
+                id: POST_ID,
+                method: 'POST',
+                path: SPACE_CHARTS_PATH,
+                body,
+            });
+        // The space-charts handler checks `res.ok` (unlike the SDK fetch
+        // pipeline, which reads the envelope's `status`).
+        const mockSpacesFetchOk = (json: Record<string, unknown>) =>
+            (fetch as Mock).mockResolvedValueOnce({
+                ok: true,
+                json: async () => json,
+                status: 200,
+            } as Response);
+
+        it('resolves a slug and answers only the trimmed chart list', async () => {
+            renderBridge(() => undefined);
+            const postMessageSpy = vi.spyOn(window, 'postMessage');
+
+            mockSpacesFetchOk({
+                status: 'ok',
+                results: [{ uuid: 'space-1', slug: 'sales', access: ['x'] }],
+            });
+            mockSpacesFetchOk({
+                status: 'ok',
+                results: {
+                    uuid: 'space-1',
+                    name: 'Sales',
+                    slug: 'sales',
+                    access: [{ userUuid: 'secret' }],
+                    queries: [
+                        {
+                            uuid: 'chart-1',
+                            name: 'Revenue',
+                            description: null,
+                            chartKind: 'line',
+                            slug: 'revenue',
+                            updatedAt: '2026-10-29T00:00:00.000Z',
+                            updatedByUser: { userUuid: 'secret' },
+                        },
+                    ],
+                },
+            });
+
+            postSpaceCharts({ space: 'sales' });
+
+            await vi.waitFor(() =>
+                expect(postMessageSpy).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        type: 'lightdash:sdk:fetch-response',
+                        id: POST_ID,
+                        result: {
+                            space: {
+                                uuid: 'space-1',
+                                name: 'Sales',
+                                slug: 'sales',
+                            },
+                            charts: [
+                                {
+                                    uuid: 'chart-1',
+                                    name: 'Revenue',
+                                    description: null,
+                                    chartKind: 'line',
+                                    slug: 'revenue',
+                                    updatedAt: '2026-10-29T00:00:00.000Z',
+                                },
+                            ],
+                        },
+                    }),
+                    '*',
+                ),
+            );
+            expect(fetch).toHaveBeenCalledWith(
+                `/api/v1/projects/${PROJECT_UUID}/spaces`,
+                expect.objectContaining({ method: 'GET' }),
+            );
+            expect(fetch).toHaveBeenCalledWith(
+                `/api/v1/projects/${PROJECT_UUID}/spaces/space-1`,
+                expect.objectContaining({ method: 'GET' }),
+            );
+        });
+
+        it('answers uniformly empty for an unknown or inaccessible space', async () => {
+            renderBridge(() => undefined);
+            const postMessageSpy = vi.spyOn(window, 'postMessage');
+
+            mockSpacesFetchOk({ status: 'ok', results: [] });
+            postSpaceCharts({ space: 'not-mine' });
+
+            await vi.waitFor(() =>
+                expect(postMessageSpy).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        type: 'lightdash:sdk:fetch-response',
+                        id: POST_ID,
+                        result: { space: null, charts: [] },
+                    }),
+                    '*',
+                ),
+            );
+            // Only the (viewer-scoped) list was consulted; no probe fetch.
+            expect(fetch).toHaveBeenCalledTimes(1);
+        });
+
+        it('rejects a malformed request without fetching', async () => {
+            renderBridge(() => undefined);
+            const postMessageSpy = vi.spyOn(window, 'postMessage');
+
+            postSpaceCharts({ space: '  ' });
+
+            await vi.waitFor(() =>
+                expect(postMessageSpy).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        type: 'lightdash:sdk:fetch-response',
+                        id: POST_ID,
+                        error: 'Invalid space-charts request.',
+                    }),
+                    '*',
+                ),
+            );
+            expect(fetch).not.toHaveBeenCalled();
+        });
     });
 
     it.each([false, true])(
@@ -1898,7 +2080,11 @@ describe('color scheme push', () => {
         postSpy.mockClear();
         result.current.handleIframeLoad();
         expect(postSpy.mock.calls.map(([message]) => message)).toEqual([
-            { type: 'lightdash:sdk:ready', appUuid: APP_UUID },
+            {
+                type: 'lightdash:sdk:ready',
+                appUuid: APP_UUID,
+                spaceCharts: true,
+            },
             { type: APP_SDK_COLOR_SCHEME_MESSAGE, colorScheme: 'dark' },
             // No insights supplied: the host says so instead of staying silent.
             {
@@ -2013,6 +2199,7 @@ describe('delivery-render flag on the ready handshake', () => {
             type: 'lightdash:sdk:ready',
             deliveryRender: true,
             appUuid: APP_UUID,
+            spaceCharts: true,
         });
     });
 
@@ -2026,6 +2213,7 @@ describe('delivery-render flag on the ready handshake', () => {
         expect(postSpy.mock.calls[0][0]).toEqual({
             type: 'lightdash:sdk:ready',
             appUuid: APP_UUID,
+            spaceCharts: true,
         });
     });
 });
@@ -2639,5 +2827,388 @@ describe('viz underlying-data host dialog virtual route', () => {
             ),
         );
         expect(fetch).not.toHaveBeenCalled();
+    });
+});
+
+describe('explore base-table virtual route', () => {
+    beforeEach(() => {
+        vi.stubGlobal('fetch', vi.fn());
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+        vi.clearAllMocks();
+        mockUseEmbed.mockReturnValue({
+            embedToken: undefined,
+            projectUuid: undefined,
+        });
+    });
+
+    const BASE_TABLE_PATH = '/__sdk/explore-base-table';
+    const EXPLORE_PATH = `/api/v1/projects/${PROJECT_UUID}/explores/orders_with_custom_dims`;
+
+    function requestBaseTable(
+        path = BASE_TABLE_PATH,
+        body: unknown = { exploreName: 'orders_with_custom_dims' },
+    ) {
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:fetch',
+            id: POST_ID,
+            method: 'POST',
+            path,
+            body,
+        });
+    }
+
+    function mockExploreResponse() {
+        (fetch as Mock).mockResolvedValueOnce({
+            ok: true,
+            status: 200,
+            json: async () => ({
+                status: 'ok',
+                results: {
+                    name: 'orders_with_custom_dims',
+                    baseTable: 'orders',
+                    tables: { orders: { sqlTable: 'secret_schema.orders' } },
+                },
+            }),
+        } as unknown as Response);
+    }
+
+    const expectResponse = async (
+        postMessageSpy: ReturnType<typeof vi.spyOn>,
+        response: Record<string, unknown>,
+    ) =>
+        vi.waitFor(() =>
+            expect(postMessageSpy).toHaveBeenCalledWith(
+                {
+                    type: 'lightdash:sdk:fetch-response',
+                    id: POST_ID,
+                    ...response,
+                },
+                '*',
+            ),
+        );
+
+    it('answers locally with only the base table, though the route is not allowlisted', async () => {
+        mockExploreResponse();
+        renderBridge(() => {});
+        const postMessageSpy = vi.spyOn(window, 'postMessage');
+
+        requestBaseTable();
+
+        await expectResponse(postMessageSpy, {
+            result: { baseTable: 'orders' },
+        });
+        expect(fetch).toHaveBeenCalledTimes(1);
+        const [url, init] = (fetch as Mock).mock.calls[0];
+        expect(url).toBe(EXPLORE_PATH);
+        expect(init.method).toBe('GET');
+        expect(init.headers).toMatchObject({
+            [LightdashAppUuidHeader]: APP_UUID,
+        });
+        expect(init.headers).not.toHaveProperty(JWT_HEADER_NAME);
+    });
+
+    it('authenticates the explore fetch with the embed token', async () => {
+        mockUseEmbed.mockReturnValue({
+            embedToken: 'embed-jwt',
+            projectUuid: PROJECT_UUID,
+        });
+        mockExploreResponse();
+        renderBridge(() => {});
+        const postMessageSpy = vi.spyOn(window, 'postMessage');
+
+        requestBaseTable();
+
+        await expectResponse(postMessageSpy, {
+            result: { baseTable: 'orders' },
+        });
+        expect((fetch as Mock).mock.calls[0][1].headers).toMatchObject({
+            [JWT_HEADER_NAME]: 'embed-jwt',
+        });
+    });
+
+    it('answers null when the explore fetch fails', async () => {
+        (fetch as Mock).mockResolvedValueOnce({
+            ok: false,
+            status: 403,
+            json: async () => ({
+                status: 'error',
+                error: { message: 'Forbidden: secret detail' },
+            }),
+        } as unknown as Response);
+        renderBridge(() => {});
+        const postMessageSpy = vi.spyOn(window, 'postMessage');
+
+        requestBaseTable();
+
+        await expectResponse(postMessageSpy, { result: { baseTable: null } });
+    });
+
+    it('answers null when the explore fetch rejects or the body is not JSON', async () => {
+        mockFetchReject(new Error('network down'));
+        renderBridge(() => {});
+        const postMessageSpy = vi.spyOn(window, 'postMessage');
+
+        requestBaseTable();
+        await expectResponse(postMessageSpy, { result: { baseTable: null } });
+
+        postMessageSpy.mockClear();
+        (fetch as Mock).mockResolvedValueOnce({
+            ok: true,
+            status: 200,
+            json: async () => {
+                throw new SyntaxError('Unexpected token <');
+            },
+        } as unknown as Response);
+        requestBaseTable();
+        await expectResponse(postMessageSpy, { result: { baseTable: null } });
+    });
+
+    it('rejects a request without an explore name without fetching', async () => {
+        renderBridge(() => {});
+        const postMessageSpy = vi.spyOn(window, 'postMessage');
+
+        requestBaseTable(BASE_TABLE_PATH, { exploreName: '' });
+
+        await expectResponse(postMessageSpy, {
+            error: 'Invalid explore base-table request.',
+        });
+        expect(fetch).not.toHaveBeenCalled();
+    });
+});
+
+describe('app-state branch', () => {
+    const STATE_BASE = `/api/v1/ee/projects/${PROJECT_UUID}/apps/${APP_UUID}/state`;
+
+    beforeEach(() => {
+        vi.stubGlobal('fetch', vi.fn());
+        mockUseEmbed.mockReturnValue({
+            embedToken: undefined,
+            projectUuid: undefined,
+        });
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+        vi.clearAllMocks();
+    });
+
+    function captureResponses() {
+        const responses: Array<Record<string, unknown>> = [];
+        vi.spyOn(window, 'postMessage').mockImplementation((msg: unknown) =>
+            responses.push(msg as Record<string, unknown>),
+        );
+        return responses;
+    }
+
+    function postAppState(payload: Record<string, unknown>) {
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:app-state',
+            id: POST_ID,
+            ...payload,
+        });
+    }
+
+    it('resolves each op to the viewer-scoped REST call', () => {
+        expect(
+            resolveAppStateRequest(STATE_BASE, { id: '1', op: 'get' }),
+        ).toEqual({
+            method: 'GET',
+            path: STATE_BASE,
+        });
+        expect(
+            resolveAppStateRequest(STATE_BASE, {
+                id: '1',
+                op: 'set-shared',
+                key: 'a/b',
+                value: [1],
+                expectedVersion: 3,
+            }),
+        ).toEqual({
+            method: 'PUT',
+            path: `${STATE_BASE}/shared/a%2Fb`,
+            body: { value: [1], expectedVersion: 3 },
+        });
+        expect(
+            resolveAppStateRequest(STATE_BASE, {
+                id: '1',
+                op: 'history',
+                key: 'k',
+                limit: 5,
+                beforeVersion: 9,
+            }),
+        ).toEqual({
+            method: 'GET',
+            path: `${STATE_BASE}/shared/k/history?limit=5&beforeVersion=9`,
+        });
+        expect(
+            resolveAppStateRequest(STATE_BASE, { id: '1', op: 'set-user' }),
+        ).toBeNull();
+        expect(
+            resolveAppStateRequest(STATE_BASE, { id: '1', op: 'nope' }),
+        ).toBeNull();
+    });
+
+    it('maps API failures to SDK error codes, carrying the current value on 409', () => {
+        expect(
+            mapAppStateApiError(409, {
+                message: 'stale',
+                data: { current: { version: 2 } },
+            }),
+        ).toEqual({
+            code: 'conflict',
+            message: 'stale',
+            current: { version: 2 },
+        });
+        expect(
+            mapAppStateApiError(403, {
+                message: 'off',
+                data: { code: 'feature_not_enabled' },
+            }).code,
+        ).toBe('feature_disabled');
+        expect(mapAppStateApiError(403, { message: 'no' }).code).toBe(
+            'forbidden',
+        );
+        expect(mapAppStateApiError(422, { message: 'bad' }).code).toBe(
+            'invalid',
+        );
+        expect(mapAppStateApiError(500, undefined)).toEqual({
+            code: 'unknown',
+            message: 'App state request failed (500)',
+        });
+    });
+
+    it('PUTs shared state as the viewer and relays the result', async () => {
+        renderBridge(() => undefined);
+        const responses = captureResponses();
+        const entry = {
+            value: { q1: 1 },
+            version: 1,
+            updatedAt: 't',
+            updatedBy: null,
+        };
+        mockFetchOk({ status: 'ok', results: entry });
+
+        postAppState({
+            op: 'set-shared',
+            key: 'targets',
+            value: { q1: 1 },
+            expectedVersion: null,
+        });
+
+        await vi.waitFor(() =>
+            expect(fetch).toHaveBeenCalledWith(
+                `${STATE_BASE}/shared/targets`,
+                expect.objectContaining({ method: 'PUT' }),
+            ),
+        );
+        const [, init] = (fetch as Mock).mock.calls[0];
+        expect(JSON.parse(init.body)).toEqual({
+            value: { q1: 1 },
+            expectedVersion: null,
+        });
+        expect(Object.keys(init.headers)).toEqual(['Content-Type']);
+        await vi.waitFor(() =>
+            expect(responses).toContainEqual({
+                type: 'lightdash:sdk:app-state-response',
+                id: POST_ID,
+                result: entry,
+            }),
+        );
+    });
+
+    it('relays a conflict with the current value', async () => {
+        renderBridge(() => undefined);
+        const responses = captureResponses();
+        mockFetchNonOk(
+            {
+                status: 'error',
+                error: {
+                    name: 'ConflictError',
+                    message: 'stale',
+                    data: { current: { version: 4 } },
+                },
+            },
+            409,
+        );
+        postAppState({
+            op: 'set-shared',
+            key: 'targets',
+            value: 1,
+            expectedVersion: 3,
+        });
+        await vi.waitFor(() =>
+            expect(responses).toContainEqual({
+                type: 'lightdash:sdk:app-state-response',
+                id: POST_ID,
+                error: {
+                    code: 'conflict',
+                    message: 'stale',
+                    current: { version: 4 },
+                },
+            }),
+        );
+    });
+
+    it('unwraps history versions and attaches the embed token when embedded', async () => {
+        mockUseEmbed.mockReturnValue({
+            embedToken: 'jwt-token',
+            projectUuid: PROJECT_UUID,
+        });
+        renderBridge(() => undefined);
+        const responses = captureResponses();
+        mockFetchOk({ status: 'ok', results: { versions: [{ version: 1 }] } });
+        postAppState({ op: 'history', key: 'targets', limit: 10 });
+        await vi.waitFor(() =>
+            expect(fetch).toHaveBeenCalledWith(
+                `${STATE_BASE}/shared/targets/history?limit=10`,
+                expect.objectContaining({
+                    method: 'GET',
+                    headers: expect.objectContaining({
+                        [JWT_HEADER_NAME]: 'jwt-token',
+                    }),
+                }),
+            ),
+        );
+        await vi.waitFor(() =>
+            expect(responses).toContainEqual({
+                type: 'lightdash:sdk:app-state-response',
+                id: POST_ID,
+                result: [{ version: 1 }],
+            }),
+        );
+    });
+
+    it('answers an unknown op without calling the API', async () => {
+        renderBridge(() => undefined);
+        const responses = captureResponses();
+        postAppState({ op: 'explode' });
+        await vi.waitFor(() =>
+            expect(responses).toContainEqual({
+                type: 'lightdash:sdk:app-state-response',
+                id: POST_ID,
+                error: {
+                    code: 'invalid',
+                    message: 'Unknown app state request',
+                },
+            }),
+        );
+        expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('reports a network failure as unavailable', async () => {
+        renderBridge(() => undefined);
+        const responses = captureResponses();
+        mockFetchReject(new Error('offline'));
+        postAppState({ op: 'get' });
+        await vi.waitFor(() =>
+            expect(responses).toContainEqual({
+                type: 'lightdash:sdk:app-state-response',
+                id: POST_ID,
+                error: { code: 'unavailable', message: 'offline' },
+            }),
+        );
     });
 });

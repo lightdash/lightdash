@@ -1,5 +1,5 @@
 import { isAiAppThreadCreatedFrom, type AiAgent } from '@lightdash/common';
-import { Box, Group, Loader, Stack, Text, TextInput } from '@mantine/core';
+import { Center, Group, Loader, Stack, Text, TextInput } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
 import { useCallback, useState } from 'react';
 import {
@@ -32,6 +32,7 @@ import { getAiAgentPageBase } from '../../features/aiCopilot/hooks/aiAgentRoutin
 import { useMyAiAgentMemories } from '../../features/aiCopilot/hooks/useAiAgentMemory';
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
 import { useAiAgentMemoryEnabled } from '../../features/aiCopilot/hooks/useAiOrganizationSettings';
+import { useEmitEmbedAgentContentEvents } from '../../features/aiCopilot/hooks/useEmitEmbedAgentContentEvents';
 import {
     useProjectAiAgent as useAiAgent,
     useAiAgentThread,
@@ -54,6 +55,7 @@ const AgentPage = () => {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const isEmbed = useIsEmbedded();
+    useEmitEmbedAgentContentEvents({ projectUuid, agentUuid });
     const canManageAgents = useAiAgentPermission({
         action: 'manage',
         projectUuid,
@@ -211,16 +213,9 @@ const AgentPage = () => {
 
     if (isLoadingAgent) {
         return (
-            <Box
-                h="100vh"
-                style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                }}
-            >
+            <Center h="100vh">
                 <Loader color="gray" />
-            </Box>
+            </Center>
         );
     }
 

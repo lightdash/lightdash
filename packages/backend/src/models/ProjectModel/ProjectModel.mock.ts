@@ -467,6 +467,25 @@ export const singleRouteProjectModelMethods = {
             originalWarehouseConnectionUuid: null,
         };
     },
+    async getWarehouseConnectionForBinding(
+        this: {
+            getWarehouseCredentialsForProject: (
+                requestedProjectUuid: string,
+            ) => unknown;
+        },
+        requestedProjectUuid: string,
+    ) {
+        return this.getWarehouseCredentialsForProject(requestedProjectUuid);
+    },
+    async getDeployStartOfWeek() {
+        return { kind: 'original' as const };
+    },
+    async getDbtSourceWarehouseType() {
+        return WarehouseTypes.POSTGRES;
+    },
+    async getWarehouseConnectionsMetadata() {
+        return [];
+    },
     async getWarehouseCredentialsForBinding(
         this: {
             getWarehouseCredentialsForProject: (

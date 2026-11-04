@@ -1,5 +1,6 @@
 import { Ability, AbilityBuilder } from '@casl/ability';
 import {
+    FeatureFlags,
     ForbiddenError,
     projectMemberAbilities,
     ProjectMemberRole,
@@ -9,6 +10,7 @@ import {
 } from '@lightdash/common';
 import { buildAppThumbnailClientMock } from '../../clients/AppThumbnailClient.mock';
 import { AppGenerateService } from './AppGenerateService';
+import { featureFlagModelWith } from './AppGenerateService.mock';
 
 vi.mock('e2b', () => ({
     Sandbox: class {},
@@ -71,7 +73,12 @@ const accessContextFor = (spaceUuid: string | null) => ({
     directOnly: false,
 });
 
-const buildService = () => {
+const buildService = (
+    gates: { dataAppsEnabled: boolean; chartStudioAvailable: boolean } = {
+        dataAppsEnabled: true,
+        chartStudioAvailable: true,
+    },
+) => {
     const spacePermissionService = {
         resolveAccessBatch: vi
             .fn()
@@ -98,9 +105,9 @@ const buildService = () => {
                 .fn()
                 .mockResolvedValue([sharedApp, privateApp]),
         } as never,
-        featureFlagModel: {
-            get: vi.fn().mockResolvedValue({ enabled: true }),
-        } as never,
+        featureFlagModel: featureFlagModelWith({
+            [FeatureFlags.EnableDataApps]: gates.dataAppsEnabled,
+        }) as never,
         organizationDesignModel: {} as never,
         pinnedListModel: {} as never,
         projectModel: {
@@ -136,6 +143,9 @@ const buildService = () => {
             unverify: async () => undefined,
         } as never,
     });
+    vi.spyOn(service, 'isChartStudioAvailable').mockReturnValue(
+        gates.chartStudioAvailable,
+    );
     return { service, spacePermissionService };
 };
 
@@ -184,5 +194,44 @@ describe('AppGenerateService.listAppsForProject', () => {
                 PROJECT_UUID,
             ),
         ).rejects.toThrow(ForbiddenError);
+    });
+
+    describe('with data apps off', () => {
+        const admin = () => buildUser(ProjectMemberRole.ADMIN);
+
+        it('lists only chart types while Chart Studio is available', async () => {
+            const { service } = buildService({
+                dataAppsEnabled: false,
+                chartStudioAvailable: true,
+            });
+
+            await expect(
+                service.listAppsForProject(admin(), PROJECT_UUID, 'only'),
+            ).resolves.toHaveLength(2);
+        });
+
+        it('refuses chart types when Chart Studio is not available', async () => {
+            const { service } = buildService({
+                dataAppsEnabled: false,
+                chartStudioAvailable: false,
+            });
+
+            await expect(
+                service.listAppsForProject(admin(), PROJECT_UUID, 'only'),
+            ).rejects.toThrow(
+                new ForbiddenError('Chart Studio is not available'),
+            );
+        });
+
+        it('refuses data apps', async () => {
+            const { service } = buildService({
+                dataAppsEnabled: false,
+                chartStudioAvailable: true,
+            });
+
+            await expect(
+                service.listAppsForProject(admin(), PROJECT_UUID),
+            ).rejects.toThrow(new ForbiddenError('Data apps are not enabled'));
+        });
     });
 });

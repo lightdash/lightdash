@@ -8,14 +8,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { generateKeyPairSync } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi, lightdashApiResponse } from '../../api';
+import { sharedLightdashApi } from '../../api';
+import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../testing/testUtils';
 import { SnowflakeAiServiceAccountForm } from './SnowflakeAiServiceAccountForm';
 
-vi.mock('../../api', () => ({
-    lightdashApi: vi.fn(),
-    lightdashApiResponse: vi.fn(),
-}));
+vi.mock('../../api');
 vi.mock('../../hooks/toaster/useToaster', () => ({
     default: () => ({ showToastSuccess: vi.fn(), showToastApiError: vi.fn() }),
 }));
@@ -80,8 +78,8 @@ beforeEach(() => {
     vi.clearAllMocks();
     readers = [];
     vi.stubGlobal('FileReader', StubFileReader);
-    vi.mocked(lightdashApi).mockResolvedValue(observation);
-    vi.mocked(lightdashApiResponse).mockResolvedValue({
+    mockedLightdashApi.mockResolvedValue(observation);
+    mockedLightdashApi.response.mockResolvedValue({
         status: 'ok',
         results: slot,
         verification: observation,
@@ -130,7 +128,7 @@ describe('Snowflake AI service account form', () => {
             '-----BEGIN PUBLIC KEY-----\nYWJj\n-----END PUBLIC KEY-----',
         );
         expect(save()).toBeDisabled();
-        expect(lightdashApi).not.toHaveBeenCalled();
+        expect(sharedLightdashApi).not.toHaveBeenCalled();
     });
     it('accepts an encrypted PKCS#1 PEM with traditional headers and sends the key unchanged', async () => {
         const { privateKey } = generateKeyPairSync('rsa', {
@@ -155,7 +153,7 @@ describe('Snowflake AI service account form', () => {
         expect(screen.getByRole('button', { name: 'Test' })).toBeEnabled();
         fireEvent.click(save());
         await waitFor(() =>
-            expect(lightdashApiResponse).toHaveBeenCalledWith(
+            expect(sharedLightdashApi.response).toHaveBeenCalledWith(
                 expect.objectContaining({
                     body: JSON.stringify({
                         type: WarehouseTypes.SNOWFLAKE,
@@ -191,7 +189,7 @@ describe('Snowflake AI service account form', () => {
                 observation,
             ),
         );
-        expect(lightdashApiResponse).toHaveBeenCalledWith({
+        expect(sharedLightdashApi.response).toHaveBeenCalledWith({
             version: 'v2',
             url: '/projects/project/ai-access/service-account',
             method: 'PUT',
@@ -206,7 +204,7 @@ describe('Snowflake AI service account form', () => {
                 warehouse: 'warehouse',
             }),
         });
-        expect(lightdashApi).not.toHaveBeenCalled();
+        expect(sharedLightdashApi).not.toHaveBeenCalled();
         expect(onClose).toHaveBeenCalledOnce();
     });
     it.each([
@@ -234,7 +232,7 @@ describe('Snowflake AI service account form', () => {
         change('Passphrase (optional)', ' spaces stay ');
         fireEvent.click(screen.getByRole('button', { name: 'Test' }));
         await screen.findByRole('status');
-        expect(lightdashApi).toHaveBeenLastCalledWith(
+        expect(sharedLightdashApi).toHaveBeenLastCalledWith(
             expect.objectContaining({
                 sensitive: true,
                 body: JSON.stringify({
@@ -253,16 +251,18 @@ describe('Snowflake AI service account form', () => {
         );
         change('Passphrase (optional)', '');
         fireEvent.click(save());
-        await waitFor(() => expect(lightdashApiResponse).toHaveBeenCalled());
+        await waitFor(() =>
+            expect(sharedLightdashApi.response).toHaveBeenCalled(),
+        );
         expect(
             JSON.parse(
-                vi.mocked(lightdashApiResponse).mock.calls[0][0].body as string,
+                mockedLightdashApi.response.mock.calls[0][0].body as string,
             ).privateKeyPass,
         ).toBeNull();
     });
     it('retains all values on failure and disables modal actions while saving', async () => {
         let reject: (reason: unknown) => void = () => {};
-        vi.mocked(lightdashApiResponse).mockImplementation(
+        mockedLightdashApi.response.mockImplementation(
             () =>
                 new Promise((_, rejectRequest) => {
                     reject = rejectRequest;
@@ -306,7 +306,7 @@ describe('Snowflake AI service account form', () => {
         expect(save()).toBeEnabled();
     });
     it('reports a failed Test as an alert', async () => {
-        vi.mocked(lightdashApi).mockResolvedValue({
+        mockedLightdashApi.mockResolvedValue({
             ...observation,
             ok: false,
             principal: null,

@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
 import {
     DirectAccessResourceType,
-    FeatureFlags,
     type ResourceViewDocumentItem,
 } from '@lightdash/common';
 import { ActionIcon, Menu, Tooltip } from '@mantine/core';
@@ -26,7 +25,6 @@ import DocumentDuplicateModal from '../../../features/documents/DocumentDuplicat
 import { getListedDocumentAccess } from '../../../features/documents/listedDocumentAccess';
 import { useCanDeleteDocument } from '../../../features/documents/useCanDeleteDocument';
 import { useDocumentCreationSpaces } from '../../../features/documents/useDocumentCreationSpaces';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import useApp from '../../../providers/App/useApp';
 import useFavoritesContext from '../../../providers/Favorites/useFavoritesContext';
@@ -52,7 +50,6 @@ const DocumentResourceActionMenu = ({
     const { user } = useApp();
     const favoritesContext = useFavoritesContext();
     const isFavorite = favoritesContext?.isFavorited(item.data.uuid) ?? false;
-    const flag = useServerFeatureFlag(FeatureFlags.Documents);
     const availability = useDirectAccessAvailability();
     const { data: spaces = [] } = useSpaceSummaries(projectUuid, true, {});
     const [isShareOpen, setIsShareOpen] = useState(false);
@@ -99,14 +96,12 @@ const DocumentResourceActionMenu = ({
     });
     const canDelete = allowDelete && hasDeleteAccess;
     if (
-        flag.isError ||
-        !flag.data?.enabled ||
-        (!canPin &&
-            !canMove &&
-            !canShare &&
-            !canDelete &&
-            !canDuplicate &&
-            !favorites)
+        !canPin &&
+        !canMove &&
+        !canShare &&
+        !canDelete &&
+        !canDuplicate &&
+        !favorites
     ) {
         return null;
     }

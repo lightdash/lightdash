@@ -11,7 +11,6 @@ import {
     CalculateTotalFromQuery,
     ChartType,
     CommercialFeatureFlags,
-    CompiledDimension,
     CreateEmbedJwt,
     CreateEmbedRequestBody,
     DashboardAvailableFilters,
@@ -38,13 +37,15 @@ import {
     formatRawRows,
     formatRows,
     getColumnTimezone,
+    getDashboardFilterableFieldKey,
     getDashboardFiltersForTileAndTables,
     getDimensionMapFromTables,
-    getDimensions,
+    getEmbedWriteSpaceUuids,
     getExecutableFilterFieldIds,
     getFilterInteractivityValue,
     getHiddenFilterableFieldIds,
     getItemId,
+    hasAiAgentAccessToSpace,
     InteractivityOptions,
     IntrinsicUserAttributes,
     isAiAgentContent,
@@ -55,7 +56,6 @@ import {
     isDashboardSqlChartTile,
     isExploreError,
     isExternalFetchDocumentContext,
-    isFilterableDimension,
     isFilterInteractivityEnabled,
     isFilterLockedOnTab,
     isParameterInteractivityEnabled,
@@ -63,10 +63,12 @@ import {
     NotFoundError,
     NotSupportedError,
     ParameterError,
+    ProjectType,
     QueryExecutionContext,
     resolveQueryTimezone,
     RunQueryTags,
     SavedChartsInfoForDashboardAvailableFilters,
+    SchedulerFormat,
     SessionAccount,
     SortField,
     stripOverridesForLockedFiltersOnTab,
@@ -84,7 +86,7 @@ import {
     type SavedChartDAO,
     type SessionUser,
 } from '@lightdash/common';
-import { isArray } from 'lodash';
+import { isArray } from 'es-toolkit/compat';
 import { nanoid as nanoidGenerator } from 'nanoid';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { fromJwt, getEmbedActorChartSpaceUuids } from '../../../auth/account';
@@ -92,14 +94,19 @@ import {
     decodeLightdashJwt,
     encodeLightdashJwt,
 } from '../../../auth/lightdashJwt';
+import { isAppRuntimeConfigured } from '../../../config/appRuntimeAvailability';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { AppModel } from '../../../models/AppModel';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
-import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
+import {
+    FeatureFlagModel,
+    type FeatureFlagLogicArgs,
+} from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { OrganizationModel } from '../../../models/OrganizationModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../../models/SavedChartModel';
 import { SavedSqlModel } from '../../../models/SavedSqlModel';
+import { SpaceModel } from '../../../models/SpaceModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
 import { UserModel } from '../../../models/UserModel';
 import { mintPreviewToken } from '../../../routers/appPreviewToken';
@@ -112,7 +119,10 @@ import {
 } from '../../../services/ProjectService/parameters';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
-import { getFilteredExplore } from '../../../services/UserAttributesService/UserAttributeUtils';
+import {
+    auditAndFilterExplore,
+    auditMetricQueryAttributeAccess,
+} from '../../../services/UserAttributesService/userAttributeAudit';
 import { withVersionAgentIdentity } from '../../../services/VersionAgentIdentity';
 import { connectionContextFromUser } from '../../../services/WarehouseClientFactory/ConnectionContext';
 import { WarehouseClientFactory } from '../../../services/WarehouseClientFactory/WarehouseClientFactory';
@@ -127,6 +137,7 @@ import { QueryComposer } from '../../../utils/QueryBuilder/QueryComposer';
 import { getResultEntitlementFingerprint } from '../../../utils/queryResultProducer';
 import { SubtotalsCalculator } from '../../../utils/SubtotalsCalculator';
 import { EmbedDashboardViewed, EmbedQueryViewed } from '../../analytics';
+import { AiAgentModel } from '../../models/AiAgentModel';
 import { EmbedModel } from '../../models/EmbedModel';
 import { ExternalConnectionModel } from '../../models/ExternalConnectionModel';
 import { getBundleServableChecker } from '../AppGenerateService/appBundleStorage';
@@ -152,6 +163,7 @@ type Dependencies = {
     dashboardModel: DashboardModel;
     savedChartModel: SavedChartModel;
     savedSqlModel: SavedSqlModel;
+    spaceModel: SpaceModel;
     projectModel: ProjectModel;
     userAttributesModel: UserAttributesModel;
     userModel: UserModel;
@@ -162,6 +174,7 @@ type Dependencies = {
     featureFlagModel: FeatureFlagModel;
     organizationModel: OrganizationModel;
     externalConnectionModel: ExternalConnectionModel;
+    aiAgentModel: AiAgentModel;
 };
 
 export class EmbedService extends BaseService {
@@ -181,6 +194,8 @@ export class EmbedService extends BaseService {
 
     private readonly savedSqlModel: SavedSqlModel;
 
+    private readonly spaceModel: SpaceModel;
+
     private readonly projectModel: ProjectModel;
 
     private readonly userAttributesModel: UserAttributesModel;
@@ -197,6 +212,8 @@ export class EmbedService extends BaseService {
 
     private readonly externalConnectionModel: ExternalConnectionModel;
 
+    private readonly aiAgentModel: AiAgentModel;
+
     private readonly asyncQueryService: AsyncQueryService;
 
     private readonly permissionsService: PermissionsService;
@@ -211,6 +228,7 @@ export class EmbedService extends BaseService {
         this.dashboardModel = dependencies.dashboardModel;
         this.savedChartModel = dependencies.savedChartModel;
         this.savedSqlModel = dependencies.savedSqlModel;
+        this.spaceModel = dependencies.spaceModel;
         this.projectModel = dependencies.projectModel;
         this.lightdashConfig = dependencies.lightdashConfig;
         this.encryptionUtil = dependencies.encryptionUtil;
@@ -221,6 +239,18 @@ export class EmbedService extends BaseService {
         this.featureFlagModel = dependencies.featureFlagModel;
         this.organizationModel = dependencies.organizationModel;
         this.externalConnectionModel = dependencies.externalConnectionModel;
+        this.aiAgentModel = dependencies.aiAgentModel;
+    }
+
+    /** Embedded chart types follow the same usage gate as the app, with Chart Studio from this instance's runtime. */
+    private async assertChartTypesUsable(
+        user: FeatureFlagLogicArgs['user'],
+    ): Promise<void> {
+        await assertChartTypesEnabled(
+            this.featureFlagModel,
+            isAppRuntimeConfigured(this.lightdashConfig),
+            user,
+        );
     }
 
     async getEmbedUrl(
@@ -716,37 +746,61 @@ export class EmbedService extends BaseService {
             };
         }
 
-        this.analytics.trackAccount<EmbedDashboardViewed>(account, {
-            event: 'embed_dashboard.viewed',
-            properties: {
-                projectId: dashboard.projectUuid,
-                dashboardId: dashboard.uuid,
-                context: isPreview ? 'preview' : 'production',
-                tilesCount: dashboard.tiles.length,
-                chartTilesCount: dashboard.tiles.filter(
-                    isDashboardChartTileType,
-                ).length,
-                sqlChartTilesCount: dashboard.tiles.filter(
-                    isDashboardSqlChartTile,
-                ).length,
-                canExportCsv,
-                canExportImages,
-                canExportPagePdf: canExportPagePdf ?? true,
-                canDateZoom,
-                stickyHeader,
-                ...(account.access.filtering
-                    ? {
-                          dashboardFiltersInteractivity: {
-                              ...account.access.filtering,
-                              // when value is boolean, convert it to FilterInteractivityValues so that we can track it consistently
-                              enabled: getFilterInteractivityValue(
-                                  account.access.filtering.enabled,
-                              ),
-                          },
-                      }
-                    : {}),
+        const explicitExternalId = decodedToken.user?.externalId;
+        this.analytics.trackAccount<EmbedDashboardViewed>(
+            account,
+            {
+                event: 'embed_dashboard.viewed',
+                properties: {
+                    projectId: dashboard.projectUuid,
+                    dashboardId: dashboard.uuid,
+                    context: isPreview ? 'preview' : 'production',
+                    tilesCount: dashboard.tiles.length,
+                    chartTilesCount: dashboard.tiles.filter(
+                        isDashboardChartTileType,
+                    ).length,
+                    sqlChartTilesCount: dashboard.tiles.filter(
+                        isDashboardSqlChartTile,
+                    ).length,
+                    canExportCsv,
+                    canExportImages,
+                    canExportPagePdf: canExportPagePdf ?? true,
+                    canDateZoom,
+                    stickyHeader,
+                    ...(account.access.filtering
+                        ? {
+                              dashboardFiltersInteractivity: {
+                                  ...account.access.filtering,
+                                  // when value is boolean, convert it to FilterInteractivityValues so that we can track it consistently
+                                  enabled: getFilterInteractivityValue(
+                                      account.access.filtering.enabled,
+                                  ),
+                              },
+                          }
+                        : {}),
+                },
             },
-        });
+            {
+                contentId: dashboard.uuid,
+                contentType: 'dashboard',
+                contentName: dashboard.name,
+                projectName: dashboard.projectName ?? null,
+                spaceId: dashboard.spaceUuid,
+                spaceName: dashboard.spaceName,
+                createdAt: dashboard.createdAt?.toISOString() ?? null,
+                isVerified: !!dashboard.verification,
+                context:
+                    isPreview || dashboard.projectType === ProjectType.PREVIEW
+                        ? 'preview'
+                        : 'embed',
+                actorType: 'embed',
+                externalUserId:
+                    typeof explicitExternalId === 'string' &&
+                    explicitExternalId.trim()
+                        ? explicitExternalId
+                        : null,
+            },
+        );
         return {
             ...dashboard,
             inheritsFromOrgOrProject: true,
@@ -796,7 +850,7 @@ export class EmbedService extends BaseService {
 
         let allFilters: {
             uuid: string;
-            filters: CompiledDimension[];
+            filters: FilterableDimension[];
         }[] = [];
 
         const savedQueryUuids = savedChartUuidsAndTileUuids.map(
@@ -898,13 +952,23 @@ export class EmbedService extends BaseService {
             exploreCache[key] = explore;
         });
 
+        const filtersByExplore = new Map<
+            string,
+            Promise<FilterableDimension[]>
+        >();
         const filterPromises = savedCharts.map(async (savedChart) => {
             const explore = exploreCache[savedChart.tableName];
-            if (!explore || isExploreError(explore))
+            if (!explore || isExploreError(explore)) {
                 return { uuid: savedChart.uuid, filters: [] };
-            const filters = getDimensions(explore).filter(
-                (field) => isFilterableDimension(field) && !field.hidden,
-            );
+            }
+            const filtersPromise =
+                filtersByExplore.get(savedChart.tableName) ??
+                this.projectService.getFilterableDimensionsForExplore(
+                    projectUuid,
+                    explore,
+                );
+            filtersByExplore.set(savedChart.tableName, filtersPromise);
+            const filters = await filtersPromise;
 
             return { uuid: savedChart.uuid, filters };
         });
@@ -916,7 +980,7 @@ export class EmbedService extends BaseService {
 
         allFilters.forEach((filterSet) => {
             filterSet.filters.forEach((filter) => {
-                const fieldId = getItemId(filter);
+                const fieldId = getDashboardFilterableFieldKey(filter);
                 if (!(fieldId in filterIndexMap)) {
                     filterIndexMap[fieldId] = allFilterableFields.length;
                     allFilterableFields.push(filter);
@@ -934,7 +998,8 @@ export class EmbedService extends BaseService {
             if (!filterResult || !filterResult.filters.length) return acc;
 
             const filterIndexes = filterResult.filters.map(
-                (filter) => filterIndexMap[getItemId(filter)],
+                (filter) =>
+                    filterIndexMap[getDashboardFilterableFieldKey(filter)],
             );
             return {
                 ...acc,
@@ -1119,6 +1184,7 @@ export class EmbedService extends BaseService {
             Required<RunQueryTags>,
             | 'ai_principal'
             | 'agent'
+            | 'agent_uuid'
             | 'user_uuid'
             | 'app_uuid'
             | 'chart_uuid'
@@ -1177,10 +1243,18 @@ export class EmbedService extends BaseService {
                     this.getAccessControls(account);
 
                 // Filter the explore access and fields based on the user attributes
-                const filteredExplore = getFilteredExplore(
+                const filteredExplore = auditAndFilterExplore({
+                    account,
+                    projectUuid,
                     explore,
                     userAttributes,
-                );
+                });
+                auditMetricQueryAttributeAccess({
+                    account,
+                    projectUuid,
+                    explore: filteredExplore,
+                    metricQuery,
+                });
 
                 const availableParameterDefinitions =
                     await this.getAvailableParameters(
@@ -1287,7 +1361,7 @@ export class EmbedService extends BaseService {
                 ...acceptedUserParameters,
             },
             chartSavedValues: chart.parameters ?? {},
-            isTargeted: true,
+            excludedKeys: [],
             preloadedProjectParameters: null,
         });
     }
@@ -1795,7 +1869,7 @@ export class EmbedService extends BaseService {
                     ...acceptedUserParameters,
                 },
                 chartSavedValues: chart.parameters ?? {},
-                isTargeted: true,
+                excludedKeys: [],
                 preloadedProjectParameters: null,
             });
 
@@ -1996,7 +2070,7 @@ export class EmbedService extends BaseService {
             throw new ForbiddenError('Insufficient permissions');
         }
 
-        await assertChartTypesEnabled(this.featureFlagModel, {
+        await this.assertChartTypesUsable({
             userUuid: account.user.id,
             organizationUuid,
         });
@@ -2124,7 +2198,7 @@ export class EmbedService extends BaseService {
             );
         }
 
-        await assertChartTypesEnabled(this.featureFlagModel, {
+        await this.assertChartTypesUsable({
             userUuid: account.user.id,
             organizationUuid: dataAppViz.organization_uuid,
         });
@@ -2321,7 +2395,12 @@ export class EmbedService extends BaseService {
 
         const { userAttributes, intrinsicUserAttributes } =
             this.getAccessControls(account);
-        const filteredExplore = getFilteredExplore(explore, userAttributes);
+        const filteredExplore = auditAndFilterExplore({
+            account,
+            projectUuid,
+            explore,
+            userAttributes,
+        });
 
         const acceptedUserParameters =
             isParameterInteractivityEnabled(account.access.parameters) &&
@@ -2479,7 +2558,12 @@ export class EmbedService extends BaseService {
             projectUuid,
             organizationUuid: organizationUuid || '',
             metricQuery,
-            explore: getFilteredExplore(explore, userAttributes),
+            explore: auditAndFilterExplore({
+                account,
+                projectUuid,
+                explore,
+                userAttributes,
+            }),
             context: QueryExecutionContext.CALCULATE_SUBTOTAL,
             queryTags: {
                 embed: 'true',
@@ -2565,7 +2649,12 @@ export class EmbedService extends BaseService {
 
         const { userAttributes, intrinsicUserAttributes } =
             this.getAccessControls(account);
-        const filteredExplore = getFilteredExplore(explore, userAttributes);
+        const filteredExplore = auditAndFilterExplore({
+            account,
+            projectUuid,
+            explore,
+            userAttributes,
+        });
 
         // Handle parameter interactivity - only accept user parameters if enabled
         const acceptedUserParameters =
@@ -2799,6 +2888,7 @@ export class EmbedService extends BaseService {
         const { userAttributes } = this.getAccessControls(account);
         const { metricQuery, explore, field, staticResults } =
             await this.projectService._getFieldValuesMetricQuery({
+                account,
                 projectUuid,
                 table: resolvedTableName,
                 initialFieldId: resolvedFieldId,
@@ -2904,9 +2994,9 @@ export class EmbedService extends BaseService {
             { project_uuid: projectUuid },
             async () => {
                 const embed = await this.getEmbeddingByProjectId(projectUuid);
-                const decodedToken = decodeLightdashJwt(
-                    encodedJwt,
-                    embed.encodedSecret,
+                const decodedToken = await this.narrowAiAgentSourceSpaces(
+                    decodeLightdashJwt(encodedJwt, embed.encodedSecret),
+                    projectUuid,
                 );
                 if (
                     isAiAgentContent(decodedToken.content) &&
@@ -3000,9 +3090,41 @@ export class EmbedService extends BaseService {
         );
     }
 
+    /** An AI agent token may only read the source spaces its agent can use. */
+    private async narrowAiAgentSourceSpaces(
+        decodedToken: CreateEmbedJwt,
+        projectUuid: string,
+    ): Promise<CreateEmbedJwt> {
+        const { content, writeActions } = decodedToken;
+        if (
+            !isAiAgentContent(content) ||
+            !writeActions?.sourceSpaceUuids?.length
+        ) {
+            return decodedToken;
+        }
+        const agentSpaceAccess = await this.aiAgentModel.findSpaceAccess(
+            content.agentUuid,
+            projectUuid,
+        );
+        return {
+            ...decodedToken,
+            writeActions: {
+                ...writeActions,
+                sourceSpaceUuids: writeActions.sourceSpaceUuids.filter(
+                    (spaceUuid) =>
+                        agentSpaceAccess !== undefined &&
+                        hasAiAgentAccessToSpace(
+                            { spaceAccess: agentSpaceAccess },
+                            spaceUuid,
+                        ),
+                ),
+            },
+        };
+    }
+
     /**
-     * An embedded AI agent opens a saved dashboard from its write space as a
-     * read-only dashboard viewer: the request is authorized as the write actor
+     * An embedded AI agent opens a saved dashboard from its write or source
+     * spaces as a read-only dashboard viewer: the request is authorized as the write actor
      * (space + view access) and then served exactly like a dashboard embed
      * limited to that one dashboard, with the token's user attributes applied.
      */
@@ -3046,7 +3168,12 @@ export class EmbedService extends BaseService {
             dashboardUuid,
             { projectUuid },
         );
-        if (dashboard.spaceUuid !== writeActions.spaceUuid) {
+        if (
+            ![
+                ...getEmbedWriteSpaceUuids(writeActions),
+                ...(writeActions.sourceSpaceUuids ?? []),
+            ].includes(dashboard.spaceUuid)
+        ) {
             throw new ForbiddenError('Dashboard is outside the embedded space');
         }
         const spaceAccess = await this.spacePermissionService.resolveAccess(
@@ -3111,7 +3238,7 @@ export class EmbedService extends BaseService {
     async getAccountForDashboardExport(
         payload: Pick<
             ExportContentPayload,
-            'projectUuid' | 'organizationUuid' | 'resourceUuid'
+            'projectUuid' | 'organizationUuid' | 'resourceUuid' | 'format'
         >,
         encodedJwt: string,
     ): Promise<AnonymousAccount> {
@@ -3120,16 +3247,31 @@ export class EmbedService extends BaseService {
             encodedJwt,
         );
 
-        if (
-            this.createAuditedAbility(account).cannot(
-                'manage',
-                subject('ExportCsv', {
-                    organizationUuid: payload.organizationUuid,
-                    projectUuid: payload.projectUuid,
-                    metadata: { dashboardUuid: payload.resourceUuid },
-                }),
-            )
-        ) {
+        const auditedAbility = this.createAuditedAbility(account);
+        const cannotExport =
+            payload.format === SchedulerFormat.PDF ||
+            payload.format === SchedulerFormat.IMAGE
+                ? auditedAbility.cannot(
+                      'export',
+                      subject('Dashboard', {
+                          organizationUuid: payload.organizationUuid,
+                          projectUuid: payload.projectUuid,
+                          type:
+                              payload.format === SchedulerFormat.PDF
+                                  ? 'pdf'
+                                  : 'images',
+                          metadata: { dashboardUuid: payload.resourceUuid },
+                      }),
+                  )
+                : auditedAbility.cannot(
+                      'manage',
+                      subject('ExportCsv', {
+                          organizationUuid: payload.organizationUuid,
+                          projectUuid: payload.projectUuid,
+                          metadata: { dashboardUuid: payload.resourceUuid },
+                      }),
+                  );
+        if (cannotExport) {
             throw new ForbiddenError(
                 'Embed token is not authorized to export this dashboard',
             );
@@ -3152,35 +3294,81 @@ export class EmbedService extends BaseService {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
-        try {
-            const spaceAccessContext =
-                await this.spacePermissionService.resolveAccess(
-                    embedWriteUser.userUuid,
-                    { type: 'space', spaceUuid: writeActions.spaceUuid },
-                );
+        const writeSpaceUuids = getEmbedWriteSpaceUuids(writeActions);
 
-            if (spaceAccessContext.projectUuid !== projectUuid) {
+        try {
+            const spaceAccessResults =
+                await this.spacePermissionService.resolveAccessBatch(
+                    embedWriteUser.userUuid,
+                    writeSpaceUuids.map((spaceUuid) => ({
+                        type: 'space' as const,
+                        spaceUuid,
+                    })),
+                );
+            const spaceAccessContexts = new Map(
+                spaceAccessResults.flatMap(({ target, context }) =>
+                    context ? [[target.spaceUuid, context] as const] : [],
+                ),
+            );
+            const defaultSpaceContext = spaceAccessContexts.get(
+                writeSpaceUuids[0],
+            );
+            if (
+                defaultSpaceContext === undefined ||
+                spaceAccessContexts.size !== writeSpaceUuids.length
+            ) {
+                throw new NotFoundError(
+                    "Couldn't find access context for embed write spaces",
+                );
+            }
+
+            if (
+                [...spaceAccessContexts.values()].some(
+                    (context) => context.projectUuid !== projectUuid,
+                )
+            ) {
                 return {
                     canUpdateDashboard: false,
                     canUpdateSavedChart: false,
                     canCreateSavedChart: false,
+                    writableSpaces: [],
                     canUseAiAgent: false,
                     aiAgentErrorMessage:
                         'Embed token write actions must use a space in the embedded project',
                 };
             }
 
+            // Content outside the write spaces keeps the default space's context; the write paths reject it.
+            const getContentSpaceAccessContext = (
+                contentSpaceUuid: string | undefined,
+            ) =>
+                (contentSpaceUuid !== undefined &&
+                    spaceAccessContexts.get(contentSpaceUuid)) ||
+                defaultSpaceContext;
+
             const auditedAbility = this.createAuditedAbility(embedWriteUser);
+            const dashboardUuid =
+                content.type === 'dashboard'
+                    ? content.dashboardUuid
+                    : undefined;
+            const dashboardSpaceUuid =
+                dashboardUuid !== undefined && writeSpaceUuids.length > 1
+                    ? await this.dashboardModel
+                          .getSummaryByUuid(dashboardUuid)
+                          .then(({ spaceUuid }) => spaceUuid)
+                          .catch((error) => {
+                              if (error instanceof NotFoundError)
+                                  return undefined;
+                              throw error;
+                          })
+                    : undefined;
             const canUpdateDashboard =
-                content.type === 'dashboard' &&
-                content.dashboardUuid !== undefined &&
+                dashboardUuid !== undefined &&
                 auditedAbility.can(
                     'update',
                     subject('Dashboard', {
-                        ...spaceAccessContext,
-                        metadata: {
-                            dashboardUuid: content.dashboardUuid,
-                        },
+                        ...getContentSpaceAccessContext(dashboardSpaceUuid),
+                        metadata: { dashboardUuid },
                     }),
                 );
             const savedChartUuid =
@@ -3188,34 +3376,51 @@ export class EmbedService extends BaseService {
             const savedChart = savedChartUuid
                 ? await this.savedChartModel.get(savedChartUuid)
                 : undefined;
+            const savedChartSpaceContext =
+                savedChart !== undefined
+                    ? spaceAccessContexts.get(savedChart.spaceUuid)
+                    : undefined;
             const canUpdateSavedChart =
-                savedChart !== undefined &&
-                savedChart.spaceUuid === writeActions.spaceUuid &&
+                savedChartSpaceContext !== undefined &&
                 auditedAbility.can(
                     'update',
                     subject('SavedChart', {
                         organizationUuid,
                         projectUuid,
                         inheritsFromOrgOrProject:
-                            spaceAccessContext.inheritsFromOrgOrProject,
-                        access: spaceAccessContext.access,
+                            savedChartSpaceContext.inheritsFromOrgOrProject,
+                        access: savedChartSpaceContext.access,
                         metadata: { savedChartUuid },
                     }),
                 );
-            const canCreateSavedChart = auditedAbility.can(
-                'create',
-                subject('SavedChart', {
-                    organizationUuid,
-                    projectUuid,
-                    inheritsFromOrgOrProject:
-                        spaceAccessContext.inheritsFromOrgOrProject,
-                    access: spaceAccessContext.access,
-                    metadata: {
-                        resolvedSpaceUuid: writeActions.spaceUuid,
-                        dashboardUuid: undefined,
-                    },
-                }),
+            const writableSpaceUuids = [...spaceAccessContexts]
+                .filter(([spaceUuid, context]) =>
+                    auditedAbility.can(
+                        'create',
+                        subject('SavedChart', {
+                            organizationUuid,
+                            projectUuid,
+                            inheritsFromOrgOrProject:
+                                context.inheritsFromOrgOrProject,
+                            access: context.access,
+                            metadata: {
+                                resolvedSpaceUuid: spaceUuid,
+                                dashboardUuid: undefined,
+                            },
+                        }),
+                    ),
+                )
+                .map(([spaceUuid]) => spaceUuid);
+            const spaceNames = new Map(
+                (await this.spaceModel.getSpaceNames(writableSpaceUuids)).map(
+                    ({ uuid, name }) => [uuid, name],
+                ),
             );
+            const writableSpaces = writableSpaceUuids.flatMap((uuid) => {
+                const name = spaceNames.get(uuid);
+                return name === undefined ? [] : [{ uuid, name }];
+            });
+            const canCreateSavedChart = writableSpaces.length > 0;
             const canViewProject = auditedAbility.can(
                 'view',
                 subject('Project', {
@@ -3240,6 +3445,7 @@ export class EmbedService extends BaseService {
                 canUpdateDashboard,
                 canUpdateSavedChart,
                 canCreateSavedChart,
+                writableSpaces,
                 canUseAiAgent,
                 aiAgentErrorMessage: canUseAiAgent
                     ? undefined
@@ -3259,6 +3465,7 @@ export class EmbedService extends BaseService {
                     canUpdateDashboard: false,
                     canUpdateSavedChart: false,
                     canCreateSavedChart: false,
+                    writableSpaces: [],
                     canUseAiAgent: false,
                     aiAgentErrorMessage:
                         'Embed token write actions must use a space the write actor can access',
@@ -3312,7 +3519,9 @@ export class EmbedService extends BaseService {
         }
 
         if (
-            (!isApiAccess && writeActions && !writeActions.spaceUuid) ||
+            (!isApiAccess &&
+                writeActions &&
+                getEmbedWriteSpaceUuids(writeActions).length === 0) ||
             actorUserUuid === undefined
         ) {
             throw new ForbiddenError(

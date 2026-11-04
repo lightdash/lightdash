@@ -23,13 +23,19 @@ type Props = {
     footer?: ReactNode;
     /** `inline` puts the copy icon inside the code block, as chat code blocks do. */
     copyPlacement?: 'header' | 'inline';
+    /** Skips the display formatting pass, e.g. for merged SQL formatted per section. */
+    isFormatted?: boolean;
 };
 
-const AiSqlCode: FC<{ sql: string; withCopyButton: boolean }> = ({
-    sql,
-    withCopyButton,
-}) => {
-    const formattedSql = useMemo(() => formatSql(sql).trim(), [sql]);
+const AiSqlCode: FC<{
+    sql: string;
+    withCopyButton: boolean;
+    isFormatted: boolean;
+}> = ({ sql, withCopyButton, isFormatted }) => {
+    const formattedSql = useMemo(
+        () => (isFormatted ? sql : formatSql(sql)).trim(),
+        [sql, isFormatted],
+    );
     const lineNumbers = Array.from(
         { length: formattedSql.split('\n').length },
         (_, index) => index + 1,
@@ -59,6 +65,7 @@ export const AiSqlModal: FC<Props> = ({
     subtitle,
     footer,
     copyPlacement = 'header',
+    isFormatted = false,
 }) => {
     return (
         <MantineModal
@@ -90,7 +97,11 @@ export const AiSqlModal: FC<Props> = ({
                 ) : null
             }
         >
-            <AiSqlCode sql={sql} withCopyButton={copyPlacement === 'inline'} />
+            <AiSqlCode
+                sql={sql}
+                withCopyButton={copyPlacement === 'inline'}
+                isFormatted={isFormatted}
+            />
         </MantineModal>
     );
 };

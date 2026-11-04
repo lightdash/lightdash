@@ -1,8 +1,4 @@
-import {
-    MergeJoinType,
-    QuerySourceType,
-    type SourceQuery,
-} from '@lightdash/common';
+import { QuerySourceType, type SourceQuery } from '@lightdash/common';
 import { describe, expect, it, vi } from 'vitest';
 import {
     metricQueryMock,
@@ -110,31 +106,6 @@ describe('reviewing an executed query plan', () => {
             }),
         ).toBe('');
         expect(evaluate).not.toHaveBeenCalled();
-    });
-    it('reviews a merge as a whole in one call and retains prior-result references', async () => {
-        const { evaluate, review } = makeReviewer();
-        const plan: QueryReviewPlan = {
-            kind: 'merge',
-            query: {
-                sources: [
-                    { id: 'current', metricQuery },
-                    { id: 'prior', queryUuid: 'authorized-query' },
-                ],
-                joinKey: [],
-                joinType: MergeJoinType.FULL,
-                tableCalculations: [],
-                limit: 100,
-            },
-            parameters: { region: 'EMEA' },
-        };
-        const before = structuredClone(plan);
-        expect(await review(plan)).toContain('Query/question review');
-        expect(evaluate).toHaveBeenCalledOnce();
-        expect(evaluate.mock.calls[0][0].state).toMatchObject({
-            plan,
-            semanticSources: [{ id: 'current', query: metricQuery }],
-        });
-        expect(plan).toEqual(before);
     });
     it('keeps downstream SQL and terminal identity with semantic source metadata', async () => {
         const { evaluate, review } = makeReviewer();

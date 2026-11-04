@@ -1,0 +1,20 @@
+version: 2
+models:
+  - name: ath_fixture_types
+    description: Small Athena fixture table (three rows). Lightdash reads the existing table.
+    columns:
+      - name: id
+        meta:
+          dimension: { type: number }
+          metrics:
+            row_count: { type: count_distinct }
+      - name: label
+        meta: { dimension: { type: string } }
+      - name: day
+        meta:
+          dimension: { type: date, time_intervals: ['DAY', 'MONTH'] }
+      - name: amount
+        meta:
+          dimension: { type: number }
+          metrics:
+            total_amount: { type: sum }

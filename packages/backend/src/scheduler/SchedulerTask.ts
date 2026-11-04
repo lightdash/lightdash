@@ -183,10 +183,13 @@ import {
 } from '../clients/Slack/SlackMessageBlocks';
 import { LightdashConfig } from '../config/parseConfig';
 import type { PreAggregateModel } from '../ee/models/PreAggregateModel';
+import { isPreAggregatesEnabled } from '../ee/preAggregates/isPreAggregatesEnabled';
 import type { PreAggregateMaterializationService } from '../ee/services/PreAggregateMaterializationService/PreAggregateMaterializationService';
 import Logger from '../logging/logger';
 import type { ExecutionContextInfo } from '../logging/winston';
+import { AgentConnectionApprovalRequestModel } from '../models/AgentConnectionApprovalRequestModel';
 import { AiUsageLedgerModel } from '../models/AiUsageLedgerModel';
+import type { FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
 import { OrganizationSettingsModel } from '../models/OrganizationSettingsModel';
 import { WarehouseConnectCodeModel } from '../models/WarehouseConnectCodeModel';
 import {
@@ -290,9 +293,11 @@ export type SchedulerTaskArguments = {
     persistentDownloadFileService: PersistentDownloadFileService;
     preAggregateModel: PreAggregateModel;
     preAggregateMaterializationService: PreAggregateMaterializationService;
+    featureFlagModel: FeatureFlagModel;
     organizationSettingsModel: OrganizationSettingsModel;
     emailWhitelabelService: EmailWhitelabelService;
     warehouseConnectCodeModel: WarehouseConnectCodeModel;
+    agentConnectionApprovalRequestModel: AgentConnectionApprovalRequestModel;
     aiUsageLedgerModel: AiUsageLedgerModel;
     learnSandboxService: LearnSandboxService;
 };
@@ -584,11 +589,15 @@ export default class SchedulerTask {
 
     protected readonly preAggregateModel: PreAggregateModel;
 
+    protected readonly featureFlagModel: FeatureFlagModel;
+
     protected readonly organizationSettingsModel: OrganizationSettingsModel;
 
     protected readonly emailWhitelabelService: EmailWhitelabelService;
 
     protected readonly warehouseConnectCodeModel: WarehouseConnectCodeModel;
+
+    protected readonly agentConnectionApprovalRequestModel: AgentConnectionApprovalRequestModel;
 
     protected readonly aiUsageLedgerModel: AiUsageLedgerModel;
 
@@ -626,9 +635,12 @@ export default class SchedulerTask {
         this.preAggregateModel = args.preAggregateModel;
         this.preAggregateMaterializationService =
             args.preAggregateMaterializationService;
+        this.featureFlagModel = args.featureFlagModel;
         this.organizationSettingsModel = args.organizationSettingsModel;
         this.emailWhitelabelService = args.emailWhitelabelService;
         this.warehouseConnectCodeModel = args.warehouseConnectCodeModel;
+        this.agentConnectionApprovalRequestModel =
+            args.agentConnectionApprovalRequestModel;
         this.aiUsageLedgerModel = args.aiUsageLedgerModel;
         this.learnSandboxService = args.learnSandboxService;
     }
@@ -882,6 +894,7 @@ export default class SchedulerTask {
             format,
             options,
         } = scheduler;
+        const useCachedResults = scheduler.useCachedResults === true;
 
         let imageUrl;
         let imageS3Key;
@@ -966,6 +979,9 @@ export default class SchedulerTask {
                 'dateZoom',
                 exportOptions.dateZoomGranularity.toLowerCase(),
             );
+        }
+        if (useCachedResults) {
+            minimalRenderUrl.searchParams.set('useCachedResults', 'true');
         }
 
         // App schedulers can snapshot the app's shareable URL state: seed the
@@ -1567,7 +1583,7 @@ export default class SchedulerTask {
                                     account,
                                     projectUuid,
                                     chartUuid: savedChartUuid,
-                                    invalidateCache: true,
+                                    invalidateCache: !useCachedResults,
                                     context:
                                         QueryExecutionContext.SCHEDULED_DELIVERY,
                                     limit: getSchedulerCsvLimit(csvOptions),
@@ -1758,7 +1774,7 @@ export default class SchedulerTask {
                                         projectUuid,
                                         tileUuid,
                                         chartUuid,
-                                        invalidateCache: true,
+                                        invalidateCache: !useCachedResults,
                                         context:
                                             QueryExecutionContext.SCHEDULED_DELIVERY,
                                         dashboardUuid,
@@ -1829,7 +1845,7 @@ export default class SchedulerTask {
                                         account,
                                         projectUuid,
                                         savedSqlUuid: chartUuid,
-                                        invalidateCache: true,
+                                        invalidateCache: !useCachedResults,
                                         context:
                                             QueryExecutionContext.SCHEDULED_DELIVERY,
                                         dashboardUuid,
@@ -2653,7 +2669,7 @@ export default class SchedulerTask {
                     ? 'data alert'
                     : 'scheduled delivery';
             const schedulerFooter = includeLinks
-                ? `<a href="${url}">${schedulerType}</a>`
+                ? `[${schedulerType}](${url})`
                 : schedulerType;
 
             const defaultSchedulerTimezone =
@@ -3188,6 +3204,12 @@ export default class SchedulerTask {
                 };
 
                 try {
+                    if (!isPreAggregatesEnabled(this.lightdashConfig)) {
+                        Logger.info(
+                            `Skipping pre-aggregate materialization ${payload.preAggregateDefinitionUuid}: pre-aggregates are not enabled on this instance`,
+                        );
+                        return;
+                    }
                     const materializationAccount =
                         account ??
                         (await this.userService.getAccountByUserUuid(
@@ -3270,6 +3292,9 @@ export default class SchedulerTask {
     protected async generateDailyPreAggregateMaterializationJobs(
         currentDateStartOfDay: Date,
     ): Promise<void> {
+        if (!isPreAggregatesEnabled(this.lightdashConfig)) {
+            return;
+        }
         const preAggregateSchedulerDetails =
             await this.preAggregateModel.getProjectSchedulerDetailsForPreAggregates();
 
@@ -4394,6 +4419,7 @@ export default class SchedulerTask {
                 await this.schedulerService.schedulerModel.getSchedulerAndTargets(
                     schedulerUuid,
                 );
+            const invalidateCache = scheduler.useCachedResults !== true;
 
             const {
                 format,
@@ -4476,7 +4502,7 @@ export default class SchedulerTask {
                         account,
                         projectUuid: chart.projectUuid,
                         chartUuid: savedChartUuid,
-                        invalidateCache: true,
+                        invalidateCache,
                         context:
                             QueryExecutionContext.SCHEDULED_GSHEETS_DASHBOARD,
                         pivotResults: shouldPivot,
@@ -4676,7 +4702,7 @@ export default class SchedulerTask {
                                 dashboardUuid,
                                 dashboardFilters,
                                 dashboardSorts: [],
-                                invalidateCache: true,
+                                invalidateCache,
                                 context:
                                     QueryExecutionContext.SCHEDULED_GSHEETS_DASHBOARD,
                                 pivotResults: shouldPivotChart,
@@ -4778,7 +4804,7 @@ export default class SchedulerTask {
                             account,
                             projectUuid: sqlChart.project.projectUuid,
                             savedSqlUuid: scheduler.savedSqlUuid,
-                            invalidateCache: true,
+                            invalidateCache,
                             context:
                                 QueryExecutionContext.SCHEDULED_GSHEETS_SQL_CHART,
                         },
@@ -6079,6 +6105,11 @@ export default class SchedulerTask {
                 },
             },
             async () => {
+                const metadata = payload.refreshMetadataBeforeIndex
+                    ? await this.catalogService.getIndexCatalogMetadata(
+                          payload.projectUuid,
+                      )
+                    : payload;
                 const { catalogFieldMap } =
                     await this.catalogService.indexCatalog(
                         payload.projectUuid,
@@ -6087,22 +6118,22 @@ export default class SchedulerTask {
 
                 await this.catalogService.migrateCatalogItemTags(
                     payload.projectUuid,
-                    payload.prevCatalogItemsWithTags,
+                    metadata.prevCatalogItemsWithTags,
                 );
 
                 await this.catalogService.migrateCatalogItemIcons(
                     payload.projectUuid,
-                    payload.prevCatalogItemsWithIcons,
+                    metadata.prevCatalogItemsWithIcons,
                 );
 
                 await this.catalogService.migrateMetricsTreeEdges(
                     payload.projectUuid,
-                    payload.prevMetricTreeEdges,
+                    metadata.prevMetricTreeEdges,
                 );
 
                 await this.catalogService.migrateMetricsTreeNodes(
                     payload.projectUuid,
-                    payload.prevMetricsTreeNodes,
+                    metadata.prevMetricsTreeNodes,
                 );
 
                 await this.catalogService.setChartUsages(
@@ -6434,13 +6465,50 @@ export default class SchedulerTask {
                     );
                 }
 
+                const isEmbedRender =
+                    (payload.format === SchedulerFormat.PDF ||
+                        payload.format === SchedulerFormat.IMAGE) &&
+                    !!overrideAccount?.isJwtUser() &&
+                    !!payload.encodedJwt;
+
                 if (
-                    payload.format === SchedulerFormat.PDF &&
+                    (payload.format === SchedulerFormat.PDF || isEmbedRender) &&
                     !this.fileStorageClient.isEnabled()
                 ) {
                     throw new MissingConfigError(
                         'Cloud storage is not enabled',
                     );
+                }
+
+                if (isEmbedRender && payload.encodedJwt) {
+                    const embedExportArgs = {
+                        projectUuid: payload.projectUuid,
+                        dashboardUuid: payload.resourceUuid,
+                        embedToken: payload.encodedJwt,
+                        externalId: payload.userUuid,
+                        selectedTabs: payload.selectedTabs ?? null,
+                        dashboardFilters: payload.dashboardFilters ?? null,
+                        parameters: payload.parameters ?? null,
+                        dateZoomGranularity:
+                            payload.dateZoomGranularity ?? null,
+                        gridWidth: payload.customViewportWidth ?? null,
+                        contextId: jobId,
+                    };
+                    const url =
+                        payload.format === SchedulerFormat.PDF
+                            ? (
+                                  await this.unfurlService.exportEmbedDashboardPdf(
+                                      embedExportArgs,
+                                  )
+                              ).source
+                            : await this.unfurlService.exportEmbedDashboardImage(
+                                  embedExportArgs,
+                              );
+                    return {
+                        url,
+                        fileType: payload.format,
+                        numFailures: 0,
+                    };
                 }
 
                 const scheduler = {

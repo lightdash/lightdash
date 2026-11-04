@@ -222,6 +222,7 @@ const makeMcpService = ({
                             appCount: space.appCount,
                             directAccess:
                                 space.userAccess?.hasDirectAccess === true,
+                            canEdit: space.userAccess?.hasDirectAccess === true,
                         })),
                         pagination: {
                             page,
@@ -247,6 +248,8 @@ const makeMcpService = ({
                                   appCount: item.appCount,
                                   directAccess:
                                       item.access?.includes(userUuid) === true,
+                                  canEdit:
+                                      item.access?.includes(userUuid) === true,
                               }
                             : {
                                   ...item,
@@ -269,6 +272,7 @@ const makeMcpService = ({
         aiAgentService,
         aiAgentToolsService,
         aiOrganizationSettingsService: {
+            getMcpProjectAccess: vi.fn().mockResolvedValue({ mode: 'all' }),
             isMcpAgentsEnabled: vi.fn().mockResolvedValue(true),
         },
         aiRouterService: {},

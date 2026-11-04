@@ -1,6 +1,7 @@
 import {
     ContentType,
     generateSlug,
+    MAX_CONTENT_SLUG_LENGTH,
     type ApiError,
     type ApiSuccessEmpty,
     type ContentSlugRenameRequest,
@@ -12,9 +13,9 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { type FC } from 'react';
 import { z } from 'zod';
-import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { invalidateContent } from '../../../hooks/useContent';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import MantineModal from '../MantineModal';
 import classes from './ContentSlugRenameModal.module.css';
 
@@ -37,6 +38,7 @@ const ContentSlugRenameModal: FC<Props> = ({
     currentSlug,
     resourceType,
 }) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const resourceLabel =
         resourceType === ContentType.CHART ? 'Chart' : 'Dashboard';
@@ -50,7 +52,10 @@ const ContentSlugRenameModal: FC<Props> = ({
                     .string()
                     .trim()
                     .min(1, 'Enter a slug')
-                    .max(255, 'Slugs must be 255 characters or fewer')
+                    .max(
+                        MAX_CONTENT_SLUG_LENGTH,
+                        `Slugs must be ${MAX_CONTENT_SLUG_LENGTH} characters or fewer`,
+                    )
                     .refine(
                         (value) => generateSlug(value) === value,
                         'Use lowercase letters, numbers, and hyphens only',
@@ -139,7 +144,7 @@ const ContentSlugRenameModal: FC<Props> = ({
                         label="New slug"
                         description="Lowercase letters, numbers, and hyphens"
                         data-autofocus
-                        maxLength={255}
+                        maxLength={MAX_CONTENT_SLUG_LENGTH}
                         disabled={renameMutation.isLoading}
                         onFocus={(event) => event.currentTarget.select()}
                         {...form.getInputProps('slug')}

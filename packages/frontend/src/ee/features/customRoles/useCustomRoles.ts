@@ -7,14 +7,15 @@ import {
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
-import { lightdashApi } from '../../../api';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 const CACHE_KEY = 'custom-roles';
 const ALL_ROLES_CACHE_KEY = 'all-roles';
 
 export const useCustomRoles = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
     const { data: organization } = useOrganization();
@@ -133,6 +134,7 @@ export const useCustomRoles = () => {
 };
 
 export const useRoleAssignees = (roleUuid: string | undefined) => {
+    const lightdashApi = useLightdashApi();
     const { data: organization } = useOrganization();
 
     return useQuery<RoleAssignee[], ApiError>({

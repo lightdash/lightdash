@@ -2,6 +2,7 @@
 import {
     AuthorizationError,
     AuthTokenPrefix,
+    CLI_PERSONAL_SESSION_LIFETIME_SECONDS,
     TOKEN_EXCHANGE_GRANT_TYPE,
     UserWithOrganizationUuid,
     type AgentConnectionGrant,
@@ -35,6 +36,11 @@ import {
 } from '../auth/oauthScopes/security';
 import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
+import {
+    ClientIdMetadataDocumentResolver,
+    isClientIdMetadataDocumentUrl,
+} from '../services/OAuthService/clientIdMetadataDocument';
+import { getStoredTokenCandidates } from '../utils/oauthTokenDigest';
 import { AgentConnectionGrantModel } from './AgentConnectionGrantModel';
 import { FeatureFlagModel } from './FeatureFlagModel/FeatureFlagModel';
 import { matchesRegisteredRedirectUri } from './oauthRedirectUri';
@@ -59,6 +65,10 @@ export class OAuth2Model implements AuthorizationCodeModel {
         private database: Knex,
         private lightdashConfig: LightdashConfig,
         private featureFlagModel: Pick<FeatureFlagModel, 'get'>,
+        private clientIdMetadataDocumentResolver: Pick<
+            ClientIdMetadataDocumentResolver,
+            'resolve'
+        > = new ClientIdMetadataDocumentResolver(),
     ) {}
 
     private getRefreshTokenLifetime(
@@ -94,6 +104,11 @@ export class OAuth2Model implements AuthorizationCodeModel {
         clientId: string,
         clientSecret?: string | null,
     ): Promise<Client | false> {
+        if (isClientIdMetadataDocumentUrl(clientId)) {
+            return clientSecret
+                ? false
+                : this.getClientIdMetadataDocumentClient(clientId);
+        }
         const query = this.database('oauth2_clients')
             .select('*')
             .where('client_id', clientId);
@@ -123,6 +138,42 @@ export class OAuth2Model implements AuthorizationCodeModel {
         };
     }
 
+    // CIMD clients are public clients described by the document at their client_id URL.
+    // The document is materialised as an oauth2_clients row so token foreign keys resolve.
+    private async getClientIdMetadataDocumentClient(
+        clientId: string,
+    ): Promise<Client | false> {
+        const document =
+            await this.clientIdMetadataDocumentResolver.resolve(clientId);
+        if (document === null) return false;
+        await this.database('oauth2_clients')
+            .insert({
+                client_id: document.clientId,
+                client_secret: null,
+                redirect_uris: document.redirectUris,
+                grants: document.grantTypes,
+                scopes: [],
+                client_name: document.clientName,
+                organization_uuid: null,
+                created_by_user_uuid: null,
+            })
+            .onConflict('client_id')
+            .merge({
+                redirect_uris: document.redirectUris,
+                grants: document.grantTypes,
+                client_name: document.clientName,
+                updated_at: this.database.fn.now(),
+            });
+        return {
+            clientId: document.clientId,
+            scopes: [],
+            id: document.clientId,
+            redirectUris: document.redirectUris,
+            grants: document.grantTypes,
+            refreshTokenLifetime: undefined,
+        };
+    }
+
     async findClientName(clientId: string): Promise<string | undefined> {
         const client = await this.database('oauth2_clients')
             .select('client_name')
@@ -145,13 +196,18 @@ export class OAuth2Model implements AuthorizationCodeModel {
         client: Client,
         user: UserWithOrganizationUuid,
     ): Promise<AuthorizationCode> {
+        const sessionExpiresAt =
+            client.id === DEFAULT_OAUTH_CLIENT_ID &&
+            code.agentConnectionGrantUuid == null
+                ? new Date(
+                      Date.now() + CLI_PERSONAL_SESSION_LIFETIME_SECONDS * 1000,
+                  )
+                : null;
         await this.database('oauth2_authorization_codes').insert({
             authorization_code: code.authorizationCode,
             expires_at: code.expiresAt,
             redirect_uri: code.redirectUri,
-            scope: Array.isArray(code.scope)
-                ? code.scope
-                : [code.scope].filter(Boolean),
+            scope: code.scope ?? [],
             client_id: client.id,
             user_id: user.userId,
             organization_uuid: user.organizationUuid,
@@ -159,6 +215,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
             code_challenge_method: code.codeChallengeMethod,
             resource: code.resource ?? null,
             agent_connection_grant_uuid: code.agentConnectionGrantUuid ?? null,
+            session_expires_at: sessionExpiresAt,
         });
 
         return {
@@ -172,12 +229,18 @@ export class OAuth2Model implements AuthorizationCodeModel {
             codeChallengeMethod: code.codeChallengeMethod,
             resource: code.resource ?? null,
             agentConnectionGrantUuid: code.agentConnectionGrantUuid ?? null,
+            sessionExpiresAt,
         };
     }
 
     async getAuthorizationCode(
         authorizationCode: string,
-    ): Promise<AuthorizationCode | false> {
+    ): Promise<
+        | (AuthorizationCode & Pick<OAuthTokenBinding, 'sessionExpiresAt'>)
+        | false
+    > {
+        const candidates = getStoredTokenCandidates(authorizationCode);
+        if (candidates.length === 0) return false;
         const result = await this.database('oauth2_authorization_codes')
             .select(
                 'oauth2_authorization_codes.*',
@@ -195,9 +258,9 @@ export class OAuth2Model implements AuthorizationCodeModel {
                 'oauth2_authorization_codes.client_id',
                 'oauth2_clients.client_id',
             )
-            .where(
+            .whereIn(
                 'oauth2_authorization_codes.authorization_code',
-                authorizationCode,
+                candidates,
             )
             .first();
 
@@ -227,12 +290,16 @@ export class OAuth2Model implements AuthorizationCodeModel {
             agentConnectionGrantUuid:
                 result.agent_connection_grant_uuid ?? null,
             familyUuid: grant?.refreshFamilyUuid ?? null,
-            authorizationCode: result.authorization_code,
+            authorizationCode,
+            sessionExpiresAt:
+                result.session_expires_at == null
+                    ? null
+                    : new Date(result.session_expires_at),
             expiresAt: new Date(result.expires_at),
             redirectUri: result.redirect_uri,
-            scope: result.scope,
-            codeChallenge: result.code_challenge,
-            codeChallengeMethod: result.code_challenge_method,
+            scope: result.scope ?? undefined,
+            codeChallenge: result.code_challenge ?? undefined,
+            codeChallengeMethod: result.code_challenge_method ?? undefined,
             resource: result.resource ?? null,
             client: {
                 id: result.client_id,
@@ -248,8 +315,10 @@ export class OAuth2Model implements AuthorizationCodeModel {
     }
 
     async revokeAuthorizationCode(code: AuthorizationCode): Promise<boolean> {
+        const candidates = getStoredTokenCandidates(code.authorizationCode);
+        if (candidates.length === 0) return false;
         const result = await this.database('oauth2_authorization_codes')
-            .where('authorization_code', code.authorizationCode)
+            .whereIn('authorization_code', candidates)
             .del();
 
         return result > 0;
@@ -371,9 +440,12 @@ export class OAuth2Model implements AuthorizationCodeModel {
         token: Token,
         familyUuid: string | null,
     ): Promise<boolean> {
+        if (!token.refreshToken) return false;
+        const candidates = getStoredTokenCandidates(token.refreshToken);
+        if (candidates.length === 0) return false;
         const consumed = await database('oauth2_refresh_tokens')
             .whereNull('revoked_at')
-            .where('refresh_token', token.refreshToken)
+            .whereIn('refresh_token', candidates)
             .update({
                 revoked_at: database.fn.now(),
                 ...(familyUuid === null
@@ -392,7 +464,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
                 'agent_connection_grant_uuid',
                 'organization_uuid',
             )
-            .where('refresh_token', token.refreshToken)
+            .whereIn('refresh_token', candidates)
             .first();
         await this.revokeRefreshFamily(
             database,
@@ -426,11 +498,18 @@ export class OAuth2Model implements AuthorizationCodeModel {
                 );
             return this.persistToken(this.database, issued, client, user);
         }
+        const candidates = getStoredTokenCandidates(parentRefreshToken);
+        if (candidates.length === 0)
+            throw new OAuth2Server.InvalidGrantError(
+                issued.agentConnectionGrantUuid != null
+                    ? 'Agent connection refresh binding is invalid'
+                    : 'Refresh token is already used',
+            );
         const saved = await this.database.transaction(async (database) => {
             await this.lockRefreshRotation(database, user.userId);
             if (issued.agentConnectionGrantUuid != null) {
                 const stored = await database('oauth2_refresh_tokens')
-                    .where('refresh_token', parentRefreshToken)
+                    .whereIn('refresh_token', candidates)
                     .forUpdate()
                     .first();
                 if (
@@ -447,9 +526,10 @@ export class OAuth2Model implements AuthorizationCodeModel {
                         'Agent connection refresh binding is invalid',
                     );
                 const scopes = issued.scope ?? [];
+                const storedScopes = stored.scope ?? [];
                 if (
-                    scopes.length !== stored.scope.length ||
-                    scopes.some((scope) => !stored.scope.includes(scope))
+                    scopes.length !== storedScopes.length ||
+                    scopes.some((scope) => !storedScopes.includes(scope))
                 )
                     throw new OAuth2Server.InvalidScopeError(
                         'Agent connection scopes cannot change',
@@ -521,6 +601,33 @@ export class OAuth2Model implements AuthorizationCodeModel {
                 refreshTokenExpiresAt: clip(token.refreshTokenExpiresAt),
             };
         }
+        const sessionExpiresAt: Date | null =
+            token.sessionExpiresAt ??
+            (client.id === DEFAULT_OAUTH_CLIENT_ID &&
+            token.agentConnectionGrantUuid == null
+                ? new Date(
+                      Date.now() + CLI_PERSONAL_SESSION_LIFETIME_SECONDS * 1000,
+                  )
+                : null);
+        if (sessionExpiresAt !== null) {
+            if (sessionExpiresAt.getTime() <= Date.now())
+                throw new OAuth2Server.InvalidGrantError(
+                    'Session expired. Log in again.',
+                );
+            const clip = (expiry: Date | undefined) =>
+                new Date(
+                    Math.min(
+                        expiry?.getTime() ?? Infinity,
+                        sessionExpiresAt.getTime(),
+                    ),
+                );
+            issued = {
+                ...issued,
+                accessTokenExpiresAt: clip(issued.accessTokenExpiresAt),
+                refreshTokenExpiresAt: clip(issued.refreshTokenExpiresAt),
+            };
+        }
+        issued = { ...issued, sessionExpiresAt };
         await database('oauth2_access_tokens').insert({
             access_token: issued.accessToken,
             resource: issued.resource ?? null,
@@ -528,9 +635,8 @@ export class OAuth2Model implements AuthorizationCodeModel {
             agent_connection_grant_uuid:
                 issued.agentConnectionGrantUuid ?? null,
             expires_at: issued.accessTokenExpiresAt,
-            scope: Array.isArray(issued.scope)
-                ? issued.scope
-                : [issued.scope].filter(Boolean),
+            session_expires_at: sessionExpiresAt,
+            scope: issued.scope ?? [],
             client_id: client.id,
             user_id: user.userId,
             organization_uuid: user.organizationUuid,
@@ -544,9 +650,8 @@ export class OAuth2Model implements AuthorizationCodeModel {
                 agent_connection_grant_uuid:
                     issued.agentConnectionGrantUuid ?? null,
                 expires_at: issued.refreshTokenExpiresAt,
-                scope: Array.isArray(issued.scope)
-                    ? issued.scope
-                    : [issued.scope].filter(Boolean),
+                session_expires_at: sessionExpiresAt,
+                scope: issued.scope ?? [],
                 client_id: client.id,
                 user_id: user.userId,
                 organization_uuid: user.organizationUuid,
@@ -617,14 +722,18 @@ export class OAuth2Model implements AuthorizationCodeModel {
     }
 
     async isAccessTokenBoundToGrant(accessToken: string): Promise<boolean> {
+        const candidates = getStoredTokenCandidates(accessToken);
+        if (candidates.length === 0) return false;
         const row = await this.database('oauth2_access_tokens')
             .select('agent_connection_grant_uuid')
-            .where('access_token', accessToken)
+            .whereIn('access_token', candidates)
             .first();
         return row?.agent_connection_grant_uuid != null;
     }
 
     async getAccessToken(accessToken: string): Promise<Token | false> {
+        const candidates = getStoredTokenCandidates(accessToken);
+        if (candidates.length === 0) return false;
         const result = await this.database('oauth2_access_tokens')
             .select(
                 'oauth2_access_tokens.*',
@@ -642,12 +751,22 @@ export class OAuth2Model implements AuthorizationCodeModel {
                 'oauth2_clients.client_id',
             )
             .leftJoin('users', 'oauth2_access_tokens.user_id', 'users.user_id')
-            .where('oauth2_access_tokens.access_token', accessToken)
+            .whereIn('oauth2_access_tokens.access_token', candidates)
             .first();
 
         if (!result) {
             return false;
         }
+
+        const sessionExpiresAt =
+            result.session_expires_at == null
+                ? null
+                : new Date(result.session_expires_at);
+        if (
+            sessionExpiresAt !== null &&
+            sessionExpiresAt.getTime() <= Date.now()
+        )
+            return false;
 
         if (result.agent_connection_grant_uuid != null) {
             try {
@@ -671,13 +790,14 @@ export class OAuth2Model implements AuthorizationCodeModel {
         }
 
         return {
-            accessToken: result.access_token,
+            accessToken,
+            sessionExpiresAt,
             familyUuid: result.family_uuid ?? null,
             agentConnectionGrantUuid:
                 result.agent_connection_grant_uuid ?? null,
             resource: result.resource ?? null,
             accessTokenExpiresAt: new Date(result.expires_at),
-            scope: result.scope,
+            scope: result.scope ?? undefined,
             client: {
                 id: result.client_id,
                 scopes: result.scopes ?? [],
@@ -696,6 +816,8 @@ export class OAuth2Model implements AuthorizationCodeModel {
         if (!token.refreshToken) {
             return false;
         }
+        const candidates = getStoredTokenCandidates(token.refreshToken);
+        if (candidates.length === 0) return false;
 
         if (
             await this.isSecurityStrictForOAuthUser(
@@ -709,7 +831,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
         }
 
         const result = await this.database('oauth2_refresh_tokens')
-            .where('refresh_token', token.refreshToken)
+            .whereIn('refresh_token', candidates)
             .update({
                 revoked_at: this.database.raw('coalesce(revoked_at, now())'),
             });
@@ -736,8 +858,10 @@ export class OAuth2Model implements AuthorizationCodeModel {
     }
 
     async deleteRefreshToken(refreshToken: string): Promise<boolean> {
+        const candidates = getStoredTokenCandidates(refreshToken);
+        if (candidates.length === 0) return false;
         const boundToken = await this.database('oauth2_refresh_tokens')
-            .where('refresh_token', refreshToken)
+            .whereIn('refresh_token', candidates)
             .whereNotNull('agent_connection_grant_uuid')
             .first();
         if (boundToken?.agent_connection_grant_uuid != null) {
@@ -752,7 +876,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
             return true;
         }
         const result = await this.database('oauth2_refresh_tokens')
-            .where('refresh_token', refreshToken)
+            .whereIn('refresh_token', candidates)
             .whereNull('agent_connection_grant_uuid')
             .del();
 
@@ -760,8 +884,10 @@ export class OAuth2Model implements AuthorizationCodeModel {
     }
 
     async deleteAccessToken(accessToken: string): Promise<boolean> {
+        const candidates = getStoredTokenCandidates(accessToken);
+        if (candidates.length === 0) return false;
         const expired = await this.database('oauth2_access_tokens')
-            .where('access_token', accessToken)
+            .whereIn('access_token', candidates)
             .whereNotNull('agent_connection_grant_uuid')
             .update({
                 expires_at: this.database.raw(
@@ -769,7 +895,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
                 ),
             });
         const result = await this.database('oauth2_access_tokens')
-            .where('access_token', accessToken)
+            .whereIn('access_token', candidates)
             .whereNull('agent_connection_grant_uuid')
             .del();
 
@@ -777,6 +903,8 @@ export class OAuth2Model implements AuthorizationCodeModel {
     }
 
     async getRefreshToken(refreshToken: string): Promise<Token | false> {
+        const candidates = getStoredTokenCandidates(refreshToken);
+        if (candidates.length === 0) return false;
         const result = await this.database('oauth2_refresh_tokens')
             .select(
                 'oauth2_refresh_tokens.*',
@@ -792,22 +920,43 @@ export class OAuth2Model implements AuthorizationCodeModel {
                 'oauth2_refresh_tokens.client_id',
                 'oauth2_clients.client_id',
             )
-            .where('oauth2_refresh_tokens.refresh_token', refreshToken)
+            .whereIn('oauth2_refresh_tokens.refresh_token', candidates)
             .first();
 
         if (!result) {
             return false;
         }
 
+        const sessionExpiresAt =
+            result.session_expires_at == null
+                ? null
+                : new Date(result.session_expires_at);
+        if (
+            (sessionExpiresAt === null &&
+                result.client_id === DEFAULT_OAUTH_CLIENT_ID &&
+                result.agent_connection_grant_uuid == null) ||
+            (sessionExpiresAt !== null &&
+                sessionExpiresAt.getTime() <= Date.now())
+        )
+            throw new OAuth2Server.InvalidGrantError(
+                'Session expired. Log in again.',
+            );
+
         const token: Token = {
             accessToken: '',
-            refreshToken: result.refresh_token,
+            sessionExpiresAt,
+            refreshToken,
             resource: result.resource ?? null,
             familyUuid: result.family_uuid ?? null,
             agentConnectionGrantUuid:
                 result.agent_connection_grant_uuid ?? null,
-            refreshTokenExpiresAt: new Date(result.expires_at),
-            scope: result.scope,
+            refreshTokenExpiresAt: new Date(
+                Math.min(
+                    new Date(result.expires_at).getTime(),
+                    sessionExpiresAt?.getTime() ?? Infinity,
+                ),
+            ),
+            scope: result.scope ?? undefined,
             client: {
                 id: result.client_id,
                 scopes: result.scopes ?? [],

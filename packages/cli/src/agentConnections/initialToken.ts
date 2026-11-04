@@ -1,5 +1,7 @@
 import { validate as isUuid } from 'uuid';
+import { CLI_VERSION } from '../env';
 import { createAgentConnectionFetch } from './apiUrl';
+import { parseApprovedProjectProof } from './approvedProjectProof';
 import { responseRecord } from './statusResponse';
 
 export const unboundConnection =
@@ -32,6 +34,7 @@ export const exchangeInitialConnectionToken = async ({
         method: 'POST',
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
+            'User-Agent': `lightdash-cli/${CLI_VERSION}`,
             ...(proxyAuthorization === null
                 ? {}
                 : { 'Proxy-Authorization': proxyAuthorization }),
@@ -61,7 +64,7 @@ export const exchangeInitialConnectionToken = async ({
         );
     const revision = metadata?.grant_revision ?? null;
     const lifetime = token.expires_in;
-    const refreshLifetime = token.refresh_expires_in ?? null;
+    const refreshLifetime = token.refresh_expires_in;
     if (
         typeof hint !== 'string' ||
         !isUuid(hint) ||
@@ -81,11 +84,10 @@ export const exchangeInitialConnectionToken = async ({
         !Number.isSafeInteger(lifetime) ||
         lifetime < 1 ||
         lifetime > 2147483647 ||
-        (refreshLifetime !== null &&
-            (typeof refreshLifetime !== 'number' ||
-                !Number.isSafeInteger(refreshLifetime) ||
-                refreshLifetime < 1 ||
-                refreshLifetime > 2147483647)) ||
+        typeof refreshLifetime !== 'number' ||
+        !Number.isSafeInteger(refreshLifetime) ||
+        refreshLifetime < 1 ||
+        refreshLifetime > 2147483647 ||
         typeof token.scope !== 'string' ||
         !/^[\x21\x23-\x5b\x5d-\x7e]+(?: [\x21\x23-\x5b\x5d-\x7e]+)*$/.test(
             token.scope,
@@ -97,18 +99,18 @@ export const exchangeInitialConnectionToken = async ({
     return {
         grantUuid: hint,
         grantRevision: revision,
+        approvedProjectProof: parseApprovedProjectProof(
+            metadata?.approved_projects,
+        ),
         tokens: {
             accessToken: token.access_token,
             refreshToken: token.refresh_token,
             accessTokenExpiresAt: new Date(
                 startedAt + lifetime * 1000,
             ).toISOString(),
-            refreshTokenExpiresAt:
-                refreshLifetime === null
-                    ? null
-                    : new Date(
-                          startedAt + refreshLifetime * 1000,
-                      ).toISOString(),
+            refreshTokenExpiresAt: new Date(
+                startedAt + refreshLifetime * 1000,
+            ).toISOString(),
             scopes: [...new Set(token.scope.split(' '))],
             generation: 1,
             lastRefreshAttemptUuid: null,

@@ -1,8 +1,8 @@
 import {
-    Anchor,
+    Badge,
     Button,
-    Divider,
     Group,
+    SimpleGrid,
     Stack,
     Text,
     Title,
@@ -25,6 +25,9 @@ import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
 import { SettingsCard } from '../common/Settings/SettingsCard';
 import { SettingsPage } from '../common/Settings/SettingsPage';
+import AnalyticsDashboardCard from './AnalyticsDashboardCard';
+import AnalyticsHistoryBackfill from './AnalyticsHistoryBackfill';
+import AnalyticsProcessingSummary from './AnalyticsProcessingSummary';
 
 const LightdashAnalyticsPanel = ({
     activeProjectUuid,
@@ -83,15 +86,15 @@ const LightdashAnalyticsPanel = ({
                                     ? 'Open your dedicated project to explore AI usage and query events.'
                                     : 'Create a dedicated project with built-in AI usage and query event models. No connection setup is needed.'}
                             </Text>
-                        </Stack>
-                        {analyticsProject && (
-                            <Text fz="xs" c="dimmed">
-                                Created{' '}
-                                {new Date(
-                                    analyticsProject.createdAt,
-                                ).toLocaleString()}
+                            <Text fz="sm" c="dimmed">
+                                We prepare dashboard data for the last seven
+                                complete days first, then add all older events
+                                still stored in the background. This can take a
+                                few minutes, or longer for larger histories.
+                                Once created, you can explore available data or
+                                leave this page while history continues loading.
                             </Text>
-                        )}
+                        </Stack>
                         {createProject.isError && (
                             <Callout
                                 variant="danger"
@@ -165,6 +168,11 @@ const LightdashAnalyticsPanel = ({
                                 </Button>
                             )}
                         </Group>
+                        {analyticsProject && (
+                            <AnalyticsProcessingSummary
+                                processing={analyticsProject.processing}
+                            />
+                        )}
                         {installSampleContent.isError && (
                             <Callout
                                 variant="danger"
@@ -177,9 +185,17 @@ const LightdashAnalyticsPanel = ({
                 )}
             </SettingsCard>
             {status.isSuccess && analyticsProject && (
+                <AnalyticsHistoryBackfill />
+            )}
+            {status.isSuccess && analyticsProject && (
                 <SettingsCard>
                     <Stack gap="md">
-                        <Title order={5}>Dashboards</Title>
+                        <Group gap="xs">
+                            <Title order={5}>Dashboards</Title>
+                            {dashboards.isSuccess && (
+                                <Badge>{dashboards.data.length}</Badge>
+                            )}
+                        </Group>
                         {dashboards.isLoading ? (
                             <EmptyStateLoader title="Loading dashboards" />
                         ) : dashboards.isError ? (
@@ -190,28 +206,18 @@ const LightdashAnalyticsPanel = ({
                                 {dashboards.error.error.message}
                             </Callout>
                         ) : dashboards.data?.length ? (
-                            dashboards.data.map((dashboard, index) => (
-                                <Stack key={dashboard.uuid} gap="xs">
-                                    {index > 0 && <Divider />}
-                                    <Anchor
-                                        component={Link}
-                                        to={`/projects/${analyticsProject.slug ?? analyticsProject.projectUuid}/dashboards/${dashboard.slug}/view`}
-                                    >
-                                        {dashboard.name}
-                                    </Anchor>
-                                    {dashboard.description && (
-                                        <Text fz="sm" c="dimmed">
-                                            {dashboard.description}
-                                        </Text>
-                                    )}
-                                    <Text fz="xs" c="dimmed">
-                                        Updated{' '}
-                                        {new Date(
-                                            dashboard.updatedAt,
-                                        ).toLocaleString()}
-                                    </Text>
-                                </Stack>
-                            ))
+                            <SimpleGrid cols={{ base: 1, sm: 2, xl: 3 }}>
+                                {dashboards.data.map((dashboard) => (
+                                    <AnalyticsDashboardCard
+                                        key={dashboard.uuid}
+                                        dashboard={dashboard}
+                                        projectUrlIdentifier={
+                                            analyticsProject.slug ??
+                                            analyticsProject.projectUuid
+                                        }
+                                    />
+                                ))}
+                            </SimpleGrid>
                         ) : (
                             <Text fz="sm" c="dimmed">
                                 No dashboards yet. Save a dashboard in your

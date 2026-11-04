@@ -180,9 +180,7 @@ export const performDatabricksOAuthFlow = async (
             throw e;
         }
 
-        GlobalState.debug(
-            `> Got authorization code ${code.substring(0, 10)}...`,
-        );
+        GlobalState.debug('> Got authorization code [redacted]');
 
         // Exchange the authorization code for tokens
         const tokenUrl = new URL('/oidc/v1/token', `https://${host}`);
@@ -231,12 +229,8 @@ export const performDatabricksOAuthFlow = async (
             );
         }
 
-        GlobalState.debug(
-            `> OAuth access token: ${accessToken.substring(0, 10)}...`,
-        );
-        GlobalState.debug(
-            `> OAuth refresh token: ${refreshToken.substring(0, 10)}...`,
-        );
+        GlobalState.debug('> OAuth access token: [redacted]');
+        GlobalState.debug('> OAuth refresh token: [redacted]');
 
         // Calculate expiration timestamp (current time + expires_in)
         const expiresAt = Math.floor(Date.now() / 1000) + expiresIn;

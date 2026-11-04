@@ -59,10 +59,54 @@ import {
     useRebaseDraftMutation,
     useReopenDraftMutation,
 } from '../features/contentAsCode/hooks/useContentDrafts';
+import {
+    getSafeTemporaryFilters,
+    selectActiveTab,
+    selectDashboardCustomMetrics,
+    selectDashboardFilters,
+    selectDashboardParameterDefinitions,
+    selectDashboardParameterReferences,
+    selectDashboardParameters,
+    selectDashboardTabs,
+    selectDashboardTiles,
+    selectControlSections,
+    selectHasDefaultDateZoomGranularityChanged,
+    selectHasParameterOrderChanged,
+    selectHaveControlSectionsChanged,
+    selectHaveCustomMetricsChanged,
+    selectHaveDateZoomGranularitiesChanged,
+    selectHaveFiltersChanged,
+    selectHavePinnedParametersChanged,
+    selectHaveTabsChanged,
+    selectHaveTilesChanged,
+    selectIsAddFilterDisabled,
+    selectIsDateZoomDisabled,
+    selectMissingRequiredParameters,
+    selectOldestCacheTime,
+    selectParameterOrder,
+    selectParametersHaveChanged,
+    selectParameterValues,
+    selectPinnedParameters,
+    selectRawTemporaryFilters,
+    dashboardEditActions,
+    useAreAllChartsLoaded,
+    useDashboardDateZoomConfig,
+    useDashboardDateZoomGranularities,
+    useDashboardDispatch,
+    useDashboardSelector,
+    useDashboardStore,
+    useDefaultDateZoomGranularity,
+    useHasDashboardTemporaryFilters,
+    useHasDateZoomConfigChanged,
+    useRequiredFiltersNote,
+} from '../features/dashboard/store';
+import TileQueryQueueProvider from '../features/dashboard/tileQueryQueue/TileQueryQueueProvider';
 import { ControlsSidebarPage } from '../features/dashboardControls/ControlsSidebarPage';
 import { DashboardHeaderGuard } from '../features/dashboardControls/DashboardHeaderGuard';
+import { getDimensionFiltersToSave } from '../features/dashboardFilters/FilterConfiguration/utils';
 import { FilterBarPopoversProvider } from '../features/dashboardFilters/FilterRequirements/FilterBarPopoversProvider';
 import DashboardTabs from '../features/dashboardTabs';
+import { useFitToScreen } from '../features/dashboardTabs/useFitToScreen';
 import { isLeavingTrainingCopy } from '../features/scopeTours/trainingCopy';
 import {
     appendNewTilesToBottom,
@@ -79,8 +123,10 @@ import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useRecordContentView } from '../hooks/useRecordContentView';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
+import { useStableCallback } from '../hooks/useStableCallback';
 import useApp from '../providers/App/useApp';
 import DashboardAiAgentContextBridge from '../providers/Dashboard/DashboardAiAgentContextBridge';
+import DashboardAnalysisAdapterBridge from '../providers/Dashboard/DashboardAnalysisAdapterBridge';
 import DashboardProvider from '../providers/Dashboard/DashboardProvider';
 import { DashboardChartEditContext } from '../providers/Dashboard/useDashboardChartEdit';
 import useDashboardContext from '../providers/Dashboard/useDashboardContext';
@@ -94,6 +140,7 @@ import '../styles/react-grid.css';
 
 /** Dashboard URL param naming the chart open in the in-dashboard editor. */
 const EDIT_CHART_SEARCH_PARAM = 'editChart';
+const FIT_TO_SCREEN_SEARCH_PARAM = 'fit';
 
 const Dashboard: FC = () => {
     const authoringEnabled = useContentAuthoringEnabled();
@@ -130,43 +177,45 @@ const Dashboard: FC = () => {
         'dashboard',
         !isDashboardLoading && !dashboardError ? dashboardUuid : undefined,
     );
-    const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
-    const dashboardTemporaryFilters = useDashboardContext(
-        (c) => c.dashboardTemporaryFilters,
+    // Filter and parameter objects are read at call time so editing them
+    // doesn't re-render the whole page
+    const dashboardStore = useDashboardStore();
+    const temporaryFilterLocks = useDashboardContext(
+        (c) => c.temporaryFilterLocks,
     );
-    const haveFiltersChanged = useDashboardContext((c) => c.haveFiltersChanged);
+    const haveFiltersChanged = useDashboardSelector(selectHaveFiltersChanged);
     const setHaveFiltersChanged = useDashboardContext(
         (c) => c.setHaveFiltersChanged,
     );
-    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
+    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
-    const haveTilesChanged = useDashboardContext((c) => c.haveTilesChanged);
+    const haveTilesChanged = useDashboardSelector(selectHaveTilesChanged);
     const setHaveTilesChanged = useDashboardContext(
         (c) => c.setHaveTilesChanged,
     );
-    const dashboardCustomMetrics = useDashboardContext(
-        (c) => c.dashboardCustomMetrics,
+    const dashboardCustomMetrics = useDashboardSelector(
+        selectDashboardCustomMetrics,
     );
     const setDashboardCustomMetrics = useDashboardContext(
         (c) => c.setDashboardCustomMetrics,
     );
-    const haveCustomMetricsChanged = useDashboardContext(
-        (c) => c.haveCustomMetricsChanged,
+    const haveCustomMetricsChanged = useDashboardSelector(
+        selectHaveCustomMetricsChanged,
     );
     const setHaveCustomMetricsChanged = useDashboardContext(
         (c) => c.setHaveCustomMetricsChanged,
     );
 
-    const haveTabsChanged = useDashboardContext((c) => c.haveTabsChanged);
+    const haveTabsChanged = useDashboardSelector(selectHaveTabsChanged);
     const setHaveTabsChanged = useDashboardContext((c) => c.setHaveTabsChanged);
-    const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
+    const dashboardTabs = useDashboardSelector(selectDashboardTabs);
     const setDashboardTabs = useDashboardContext((c) => c.setDashboardTabs);
-    const activeTab = useDashboardContext((c) => c.activeTab);
+    const activeTab = useDashboardSelector(selectActiveTab);
     const setActiveTab = useDashboardContext((c) => c.setActiveTab);
     const setDashboardFilters = useDashboardContext(
         (c) => c.setDashboardFilters,
     );
-    const dateZoomConfig = useDashboardContext((c) => c.dateZoomConfig);
+    const dateZoomConfig = useDashboardDateZoomConfig();
     const setDateZoomConfig = useDashboardContext((c) => c.setDateZoomConfig);
     const resetDashboardFilters = useDashboardContext(
         (c) => c.resetDashboardFilters,
@@ -174,21 +223,15 @@ const Dashboard: FC = () => {
     const setDashboardTemporaryFilters = useDashboardContext(
         (c) => c.setDashboardTemporaryFilters,
     );
-    const isDateZoomDisabled = useDashboardContext((c) => c.isDateZoomDisabled);
-    const isAddFilterDisabled = useDashboardContext(
-        (c) => c.isAddFilterDisabled,
-    );
-    const requiredFiltersNote = useDashboardContext(
-        (c) => c.requiredFiltersNote,
-    );
+    const isDateZoomDisabled = useDashboardSelector(selectIsDateZoomDisabled);
+    const isAddFilterDisabled = useDashboardSelector(selectIsAddFilterDisabled);
+    const requiredFiltersNote = useRequiredFiltersNote();
     const setRequiredFiltersNote = useDashboardContext(
         (c) => c.setRequiredFiltersNote,
     );
-    const areAllChartsLoaded = useDashboardTileStatusContext(
-        (c) => c.areAllChartsLoaded,
-    );
-    const missingRequiredParameters = useDashboardContext(
-        (c) => c.missingRequiredParameters,
+    const areAllChartsLoaded = useAreAllChartsLoaded();
+    const missingRequiredParameters = useDashboardSelector(
+        selectMissingRequiredParameters,
     );
     const refreshDashboardVersion = useDashboardContext(
         (c) => c.refreshDashboardVersion,
@@ -197,10 +240,10 @@ const Dashboard: FC = () => {
     const isEditMode = useMemo(() => mode === 'edit', [mode]);
 
     const setSavedParameters = useDashboardContext((c) => c.setSavedParameters);
-    const parametersHaveChanged = useDashboardContext(
-        (c) => c.parametersHaveChanged,
+    const parametersHaveChanged = useDashboardSelector(
+        selectParametersHaveChanged,
     );
-    const parameterValues = useDashboardContext((c) => c.parameterValues);
+    const parameterValues = useDashboardSelector(selectParameterValues);
     const clearAllParameters = useDashboardContext((c) => c.clearAllParameters);
     const hasDateZoomDisabledChanged = useMemo(() => {
         return (
@@ -220,19 +263,14 @@ const Dashboard: FC = () => {
             (requiredFiltersNote || undefined)
         );
     }, [dashboard, requiredFiltersNote]);
-    const oldestCacheTime = useDashboardTileStatusContext(
-        (c) => c.oldestCacheTime,
-    );
+    const oldestCacheTime = useDashboardSelector(selectOldestCacheTime);
     const preAggregateStatuses = useDashboardTileStatusContext(
         (c) => c.preAggregateStatuses,
     );
-    const dashboardParameters = useDashboardContext(
-        (c) => c.dashboardParameters,
-    );
-    const pinnedParameters = useDashboardContext((c) => c.pinnedParameters);
+    const pinnedParameters = useDashboardSelector(selectPinnedParameters);
     const toggleParameterPin = useDashboardContext((c) => c.toggleParameterPin);
-    const havePinnedParametersChanged = useDashboardContext(
-        (c) => c.havePinnedParametersChanged,
+    const havePinnedParametersChanged = useDashboardSelector(
+        selectHavePinnedParametersChanged,
     );
     const setHavePinnedParametersChanged = useDashboardContext(
         (c) => c.setHavePinnedParametersChanged,
@@ -240,19 +278,22 @@ const Dashboard: FC = () => {
     const setPinnedParameters = useDashboardContext(
         (c) => c.setPinnedParameters,
     );
-    const parameterOrder = useDashboardContext((c) => c.parameterOrder);
+    const parameterOrder = useDashboardSelector(selectParameterOrder);
     const setParameterOrder = useDashboardContext((c) => c.setParameterOrder);
-    const hasParameterOrderChanged = useDashboardContext(
-        (c) => c.hasParameterOrderChanged,
+    const hasParameterOrderChanged = useDashboardSelector(
+        selectHasParameterOrderChanged,
     );
     const setHasParameterOrderChanged = useDashboardContext(
         (c) => c.setHasParameterOrderChanged,
     );
-    const dateZoomGranularities = useDashboardContext(
-        (c) => c.dateZoomGranularities,
+    const dashboardDispatch = useDashboardDispatch();
+    const controlSections = useDashboardSelector(selectControlSections);
+    const haveControlSectionsChanged = useDashboardSelector(
+        selectHaveControlSectionsChanged,
     );
-    const haveDateZoomGranularitiesChanged = useDashboardContext(
-        (c) => c.haveDateZoomGranularitiesChanged,
+    const dateZoomGranularities = useDashboardDateZoomGranularities();
+    const haveDateZoomGranularitiesChanged = useDashboardSelector(
+        selectHaveDateZoomGranularitiesChanged,
     );
     const setDateZoomGranularities = useDashboardContext(
         (c) => c.setDateZoomGranularities,
@@ -260,11 +301,9 @@ const Dashboard: FC = () => {
     const setHaveDateZoomGranularitiesChanged = useDashboardContext(
         (c) => c.setHaveDateZoomGranularitiesChanged,
     );
-    const defaultDateZoomGranularity = useDashboardContext(
-        (c) => c.defaultDateZoomGranularity,
-    );
-    const hasDefaultDateZoomGranularityChanged = useDashboardContext(
-        (c) => c.hasDefaultDateZoomGranularityChanged,
+    const defaultDateZoomGranularity = useDefaultDateZoomGranularity();
+    const hasDefaultDateZoomGranularityChanged = useDashboardSelector(
+        selectHasDefaultDateZoomGranularityChanged,
     );
     const setDefaultDateZoomGranularity = useDashboardContext(
         (c) => c.setDefaultDateZoomGranularity,
@@ -272,19 +311,17 @@ const Dashboard: FC = () => {
     const setHasDefaultDateZoomGranularityChanged = useDashboardContext(
         (c) => c.setHasDefaultDateZoomGranularityChanged,
     );
-    const hasDateZoomConfigChanged = useDashboardContext(
-        (c) => c.hasDateZoomConfigChanged,
-    );
+    const hasDateZoomConfigChanged = useHasDateZoomConfigChanged();
     const setHasDateZoomConfigChanged = useDashboardContext(
         (c) => c.setHasDateZoomConfigChanged,
     );
 
-    const parameterDefinitions = useDashboardContext(
-        (c) => c.parameterDefinitions,
+    const parameterDefinitions = useDashboardSelector(
+        selectDashboardParameterDefinitions,
     );
 
-    const parameterReferences = useDashboardContext(
-        (c) => c.dashboardParameterReferences,
+    const parameterReferences = useDashboardSelector(
+        selectDashboardParameterReferences,
     );
 
     const referencedParameters = useMemo(() => {
@@ -309,12 +346,7 @@ const Dashboard: FC = () => {
     const { showToastError } = useToaster();
 
     const { data: organization } = useOrganization();
-    const hasTemporaryFilters = useMemo(
-        () =>
-            dashboardTemporaryFilters.dimensions.length > 0 ||
-            dashboardTemporaryFilters.metrics.length > 0,
-        [dashboardTemporaryFilters],
-    );
+    const hasTemporaryFilters = useHasDashboardTemporaryFilters();
     // Callback to sync local state with server response after save
     // This is needed when the backend modifies tiles (e.g., duplicating charts during tab duplication)
     const handleDashboardUpdateSuccess = useCallback(
@@ -559,6 +591,9 @@ const Dashboard: FC = () => {
                 // Tab-aware auto-apply: a filter that already excludes every
                 // chart tile on the target tab is scoped away from that tab,
                 // so exclude the newly added tiles from it too.
+                const dashboardFilters = selectDashboardFilters(
+                    dashboardStore.getState(),
+                );
                 const scopedFilters = excludeTilesFromTabScopedFilters(
                     dashboardFilters,
                     newTiles,
@@ -577,7 +612,7 @@ const Dashboard: FC = () => {
             setDashboardTiles,
             setHaveTilesChanged,
             setHaveTabsChanged,
-            dashboardFilters,
+            dashboardStore,
             dashboardTiles,
             setDashboardFilters,
             setHaveFiltersChanged,
@@ -687,6 +722,12 @@ const Dashboard: FC = () => {
         ],
     );
 
+    // Tiles are memoised; stable handlers keep a dashboard re-render from
+    // re-rendering every tile
+    const stableAddTiles = useStableCallback(handleAddTiles);
+    const stableDeleteTile = useStableCallback(handleDeleteTile);
+    const stableEditTile = useStableCallback(handleEditTiles);
+
     const handleCancel = useCallback(() => {
         if (!dashboard) return;
 
@@ -704,6 +745,14 @@ const Dashboard: FC = () => {
         setPinnedParameters(dashboard.config?.pinnedParameters ?? []);
         setHavePinnedParametersChanged(false);
         setHasParameterOrderChanged(false);
+        dashboardDispatch(
+            dashboardEditActions.setHaveControlSectionsChanged(false),
+        );
+        dashboardDispatch(
+            dashboardEditActions.syncControlSections(
+                dashboard.config?.controlSections ?? [],
+            ),
+        );
         setDateZoomGranularities(
             dashboard.config?.dateZoomGranularities ??
                 Object.values(DateGranularity),
@@ -754,6 +803,7 @@ const Dashboard: FC = () => {
         setHasDateZoomConfigChanged,
         setHasParameterOrderChanged,
         setRequiredFiltersNote,
+        dashboardDispatch,
     ]);
 
     const handleMoveDashboardToSpace = useCallback(
@@ -809,6 +859,7 @@ const Dashboard: FC = () => {
         parametersHaveChanged ||
         havePinnedParametersChanged ||
         hasParameterOrderChanged ||
+        haveControlSectionsChanged ||
         haveDateZoomGranularitiesChanged ||
         hasDefaultDateZoomGranularityChanged ||
         hasDateZoomConfigChanged;
@@ -855,6 +906,9 @@ const Dashboard: FC = () => {
             setHaveDateZoomGranularitiesChanged(false);
             setHasDefaultDateZoomGranularityChanged(false);
             setHasDateZoomConfigChanged(false);
+            dashboardDispatch(
+                dashboardEditActions.setHaveControlSectionsChanged(false),
+            );
             // The saved config is the source of truth again
             setRequiredFiltersNote(undefined);
             setDashboardTemporaryFilters({
@@ -895,6 +949,7 @@ const Dashboard: FC = () => {
         setHasDefaultDateZoomGranularityChanged,
         setHasDateZoomConfigChanged,
         setRequiredFiltersNote,
+        dashboardDispatch,
         dashboardTabs,
         activeTab,
     ]);
@@ -1003,6 +1058,32 @@ const Dashboard: FC = () => {
     const chartVersionParam = searchParams.get(
         CREATE_SAVED_CHART_VERSION_SEARCH_PARAM,
     );
+
+    // A viewer-side layout option, kept in the url so a fitted link can be shared
+    const isFitToScreen =
+        searchParams.get(FIT_TO_SCREEN_SEARCH_PARAM) === 'true';
+    const handleToggleFitToScreen = useCallback(() => {
+        setSearchParams(
+            (params) => {
+                if (isFitToScreen) {
+                    params.delete(FIT_TO_SCREEN_SEARCH_PARAM);
+                } else {
+                    params.set(FIT_TO_SCREEN_SEARCH_PARAM, 'true');
+                }
+                return params;
+            },
+            { replace: true },
+        );
+    }, [isFitToScreen, setSearchParams]);
+    const [gridElement, setGridElement] = useState<HTMLDivElement | null>(null);
+    const fitToScreen = useFitToScreen({
+        isFitToScreen,
+        isEditMode,
+        gridElement,
+        tiles: dashboardTiles,
+        tabs: dashboardTabs,
+        activeTabUuid: activeTab?.uuid,
+    });
     const chartFromUrl = useSavedQuery({
         uuidOrSlug:
             isChartEditorEnabled &&
@@ -1200,7 +1281,7 @@ const Dashboard: FC = () => {
     const handleBeforeOpenChartPage = useCallback(() => {
         storeDashboard(
             dashboardTiles,
-            dashboardFilters,
+            selectDashboardFilters(dashboardStore.getState()),
             haveTilesChanged,
             haveFiltersChanged,
             dashboardUuid,
@@ -1212,7 +1293,7 @@ const Dashboard: FC = () => {
     }, [
         storeDashboard,
         dashboardTiles,
-        dashboardFilters,
+        dashboardStore,
         haveTilesChanged,
         haveFiltersChanged,
         dashboardUuid,
@@ -1222,7 +1303,10 @@ const Dashboard: FC = () => {
         dashboardTabs,
     ]);
 
-    if (isDashboardLoading) {
+    // Until the controls flag answers the page could not pick its bar and
+    // would swap it, remounting the grid; the request runs alongside the
+    // dashboard's, so it only waits when the flag is slower
+    if (isDashboardLoading || dashboardControlsFlag.isInitialLoading) {
         return <PageSpinner />;
     }
 
@@ -1261,26 +1345,27 @@ const Dashboard: FC = () => {
     const shouldShowVerificationSaveOptions = !!dashboard?.verification;
 
     const handleSaveDashboard = (preserveVerification?: boolean) => {
+        const dashboardState = dashboardStore.getState();
+        const dashboardFilters = selectDashboardFilters(dashboardState);
+        const dashboardTemporaryFilters = getSafeTemporaryFilters(
+            selectRawTemporaryFilters(dashboardState),
+            temporaryFilterLocks,
+            activeTab?.uuid,
+        ).filters;
         const dimensionFilters = [
             ...dashboardFilters.dimensions,
             ...dashboardTemporaryFilters.dimensions,
         ];
-        // Reset value for required filter on save dashboard
-        const requiredFiltersWithoutValues = dimensionFilters.map((filter) => {
-            if (filter.required || filter.requiredGroupId) {
-                return {
-                    ...filter,
-                    disabled: true,
-                    values: [],
-                };
-            }
-            return filter;
-        });
+        // Flag on, a required filter keeps its value as its default
+        const dimensionFiltersToSave = getDimensionFiltersToSave(
+            dimensionFilters,
+            isDashboardControlsEnabled,
+        );
 
         const dashboardUpdate: UpdateDashboard = {
             tiles: dashboardTiles,
             filters: {
-                dimensions: requiredFiltersWithoutValues,
+                dimensions: dimensionFiltersToSave,
                 metrics: [
                     ...dashboardFilters.metrics,
                     ...dashboardTemporaryFilters.metrics,
@@ -1309,8 +1394,10 @@ const Dashboard: FC = () => {
                 stagedCustomMetrics: haveCustomMetricsChanged
                     ? dashboardCustomMetrics
                     : undefined,
+                controlSections,
+                haveControlSectionsChanged,
             }),
-            parameters: dashboardParameters,
+            parameters: selectDashboardParameters(dashboardState),
             ...(preserveVerification !== undefined
                 ? { preserveVerification }
                 : {}),
@@ -1348,6 +1435,9 @@ const Dashboard: FC = () => {
         dashboardTiles,
         isFullScreenFeatureEnabled,
         onToggleFullscreen: handleToggleFullscreen,
+        isFitToScreen,
+        isFitToScreenAvailable: fitToScreen.isAvailable,
+        onToggleFitToScreen: handleToggleFitToScreen,
         hasDashboardChanged,
         onAddTiles: handleAddTiles,
         onNewChart:
@@ -1490,9 +1580,7 @@ const Dashboard: FC = () => {
             >
                 <div>
                     {isDashboardControlsEnabled ? (
-                        <DashboardHeaderGuard>
-                            <DashboardHeader {...dashboardHeaderProps} />
-                        </DashboardHeaderGuard>
+                        <DashboardHeaderGuard {...dashboardHeaderProps} />
                     ) : (
                         <DashboardHeader {...dashboardHeaderProps} />
                     )}
@@ -1582,13 +1670,15 @@ const Dashboard: FC = () => {
                                 activeTab={activeTab}
                                 addingTab={addingTab}
                                 dashboardTiles={dashboardTiles}
-                                handleAddTiles={handleAddTiles}
+                                handleAddTiles={stableAddTiles}
                                 handleUpdateTiles={handleUpdateTiles}
-                                handleDeleteTile={handleDeleteTile}
+                                handleDeleteTile={stableDeleteTile}
                                 handleBatchDeleteTiles={handleBatchDeleteTiles}
-                                handleEditTile={handleEditTiles}
+                                handleEditTile={stableEditTile}
                                 setGridWidth={setGridWidth}
                                 setAddingTab={setAddingTab}
+                                fitToScreenRowHeight={fitToScreen.rowHeight}
+                                gridContainerRef={setGridElement}
                                 onNewChart={
                                     isChartEditorEnabled && isEditMode
                                         ? handleOpenNewChart
@@ -1652,7 +1742,12 @@ const DashboardPage: FC = () => {
             <SentryErrorBoundary fallback={() => <></>}>
                 <DashboardAiAgentContextBridge />
             </SentryErrorBoundary>
-            <Dashboard />
+            <SentryErrorBoundary fallback={() => <></>}>
+                <DashboardAnalysisAdapterBridge />
+            </SentryErrorBoundary>
+            <TileQueryQueueProvider>
+                <Dashboard />
+            </TileQueryQueueProvider>
         </DashboardProvider>
     );
 };

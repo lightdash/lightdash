@@ -12,7 +12,8 @@
 }
 
 button.chip:hover:not(:disabled),
-.choice:hover {
+.choice:hover,
+.choice[data-setting-up] {
     background: var(--mantine-color-default-hover);
 }
 

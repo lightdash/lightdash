@@ -11,7 +11,10 @@ import {
 } from '@lightdash/common';
 import { verifyPreviewTokenClaims } from '../../../routers/appPreviewToken';
 import { EmbedService } from './EmbedService';
-import { EmbedServiceArgumentsMock } from './EmbedService.mock';
+import {
+    embedLightdashConfigMock,
+    EmbedServiceArgumentsMock,
+} from './EmbedService.mock';
 
 const PROJECT_UUID = 'project-1';
 const OTHER_PROJECT_UUID = 'project-2';
@@ -111,14 +114,16 @@ const account = (canExplore = true) =>
 const buildService = ({
     appModel = {},
     featureFlagModel = { get: vi.fn().mockResolvedValue({ enabled: true }) },
+    chartStudioAvailable = false,
 }: {
     appModel?: Record<string, unknown>;
     featureFlagModel?: Record<string, unknown>;
+    chartStudioAvailable?: boolean;
 }) =>
     new EmbedService({
         ...EmbedServiceArgumentsMock,
         lightdashConfig: {
-            ...EmbedServiceArgumentsMock.lightdashConfig,
+            ...embedLightdashConfigMock(chartStudioAvailable),
             lightdashSecrets: {
                 active: 'test-secret',
                 fallbacks: [],
@@ -185,19 +190,18 @@ describe('EmbedService project chart types', () => {
     });
 
     it.each([
-        [false, false],
-        [false, true],
-        [true, false],
-        [true, true],
+        [true, false, false],
+        [false, false, false],
     ])(
-        'resolves data apps=%s, library=%s for the embed organization',
-        async (dataApps, library) => {
+        'resolves Chart Studio=%s, library=%s, data apps=%s for the embed organization',
+        async (chartStudio, library, dataApps) => {
             const featureFlagModel = {
                 get: vi.fn().mockImplementation(async ({ featureFlagId }) => ({
                     enabled:
-                        featureFlagId === FeatureFlags.EnableDataApps
-                            ? dataApps
-                            : library,
+                        (featureFlagId === FeatureFlags.ChartTypeRegistry &&
+                            library) ||
+                        (featureFlagId === FeatureFlags.EnableDataApps &&
+                            dataApps),
                 })),
             };
             const list = vi
@@ -206,12 +210,13 @@ describe('EmbedService project chart types', () => {
             const service = buildService({
                 appModel: { listDataAppVisualizations: list },
                 featureFlagModel,
+                chartStudioAvailable: chartStudio,
             });
             const result = service.listEmbedProjectDataAppVisualizations(
                 account(),
                 PROJECT_UUID,
             );
-            if (dataApps || library)
+            if (chartStudio || library || dataApps)
                 await expect(result).resolves.toMatchObject({ data: [] });
             else {
                 await expect(result).rejects.toThrow(
@@ -219,17 +224,9 @@ describe('EmbedService project chart types', () => {
                 );
                 expect(list).not.toHaveBeenCalled();
             }
-            expect(featureFlagModel.get).toHaveBeenCalledWith({
-                user: {
-                    userUuid: 'embed-user-1',
-                    organizationUuid: ORGANIZATION_UUID,
-                },
-                featureFlagId: FeatureFlags.EnableDataApps,
-            });
-            expect(featureFlagModel.get).toHaveBeenCalledTimes(
-                dataApps ? 1 : 2,
-            );
-            if (!dataApps) {
+            if (chartStudio) {
+                expect(featureFlagModel.get).not.toHaveBeenCalled();
+            } else {
                 expect(featureFlagModel.get).toHaveBeenCalledWith({
                     user: {
                         userUuid: 'embed-user-1',

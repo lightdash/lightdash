@@ -43,14 +43,14 @@ afterEach(() => {
     vi.unstubAllEnvs();
     GlobalState.setVerbose(false);
 });
-it('pins ordinary verbose config output without credential resolution', async () => {
+it('omits credentials from ordinary verbose config output without credential resolution', async () => {
     await getProjectHandler({ verbose: true });
     expect(GlobalState.debug).toHaveBeenCalledExactlyOnceWith(
-        `> Config: ${JSON.stringify(config)}`,
+        `> Config: ${JSON.stringify({ ...config, context: { ...config.context, apiKey: '[redacted]', proxyAuthorization: '[redacted]' } })}`,
     );
     expect(mocks.token).not.toHaveBeenCalled();
 });
-it('redacts human and proxy credentials only for the selected output without mutating config', async () => {
+it('omits human and proxy credentials from the selected output without mutating config', async () => {
     await runWithAgentConnectionSelection(slot.name, () =>
         getProjectHandler({ verbose: true }),
     );

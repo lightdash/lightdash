@@ -23,6 +23,7 @@ export const buildManifest = (args: {
     externalConnections?: DataAppManifest['externalConnections'];
     spaceSlug?: DataAppManifest['spaceSlug'];
     access?: DataAppManifest['access'];
+    registry?: DataAppManifest['registry'];
     downloadedAt: string;
 }): DataAppManifest => ({ codeVersion: 1, ...args });
 

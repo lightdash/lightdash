@@ -1,6 +1,6 @@
 import { type ApiAgentAsCodeListResponse } from '@lightdash/common';
-import { lightdashApi } from '../../../../api';
 import { useContentAsCode } from '../../../../features/contentAsCode/hooks/useContentAsCode';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 
 const AI_AGENT_FIELDS_TO_OMIT = ['updatedAt', 'downloadedAt'];
 
@@ -15,8 +15,9 @@ export const useAiAgentAsCode = ({
     projectUuid: string;
     agentUuid: string;
     enabled: boolean;
-}) =>
-    useContentAsCode<ApiAgentAsCodeListResponse['results']>({
+}) => {
+    const lightdashApi = useLightdashApi();
+    return useContentAsCode<ApiAgentAsCodeListResponse['results']>({
         queryKey: ['ai-agent-as-code', projectUuid, agentUuid],
         queryFn: () =>
             lightdashApi<ApiAgentAsCodeListResponse['results']>({
@@ -30,3 +31,4 @@ export const useAiAgentAsCode = ({
         enabled,
         fieldsToOmit: AI_AGENT_FIELDS_TO_OMIT,
     });
+};

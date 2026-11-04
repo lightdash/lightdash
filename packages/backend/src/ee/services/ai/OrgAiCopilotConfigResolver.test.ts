@@ -43,6 +43,7 @@ const baseConfig: CopilotConfig = aiCopilotConfigSchema.parse({
             modelName: 'gpt-5.4',
             embeddingModelName: 'text-embedding-3-small',
             zeroDataRetention: false,
+            useChatCompletions: false,
         },
     },
 });
@@ -65,6 +66,7 @@ const bothProvidersConfig: CopilotConfig = aiCopilotConfigSchema.parse({
             modelName: 'gpt-5.4',
             embeddingModelName: 'text-embedding-3-small',
             zeroDataRetention: false,
+            useChatCompletions: false,
         },
         anthropic: { apiKey: 'instance-anthropic-key' },
     },
@@ -392,6 +394,7 @@ const resolutionFor = (
 describe('OrgAiCopilotConfigResolver', () => {
     type ResolverOptions = {
         customProvidersEnabled?: boolean;
+        decisionKey?: string | null;
         orgKeys?: AiOrgProviderApiKeys | null;
         defaultCredential?: DecryptedAiProviderCredential | null;
         projectCredential?: DecryptedAiProviderCredential | null;
@@ -420,15 +423,24 @@ describe('OrgAiCopilotConfigResolver', () => {
         accessibleModelIds = null,
         instanceConfig = baseConfig,
         customProvidersEnabled = true,
+        decisionKey = null,
     }: ResolverOptions = {}) =>
         new OrgAiCopilotConfigResolver({
             lightdashConfig: {
-                ai: { copilot: instanceConfig },
+                ai: {
+                    copilot: instanceConfig,
+                    decisions: {
+                        apiKey: decisionKey,
+                        model: 'test',
+                        timeoutMs: 100,
+                    },
+                },
             } as LightdashConfig,
             featureFlagModel: {
-                get: vi
-                    .fn()
-                    .mockResolvedValue({ enabled: customProvidersEnabled }),
+                get: vi.fn(async ({ featureFlagId }) => ({
+                    id: featureFlagId,
+                    enabled: customProvidersEnabled,
+                })),
             } as Pick<FeatureFlagModel, 'get'> as FeatureFlagModel,
             aiOrganizationSettingsModel: {
                 findDecryptedProviderApiKeys: vi
@@ -985,6 +997,115 @@ describe('OrgAiCopilotConfigResolver', () => {
                 availableModels: ['claude-sonnet-4-6'],
             }),
         ).toEqual(['claude-sonnet-4-6']);
+    });
+
+    describe('getDecisionClient', () => {
+        it('is undefined without an instance key', async () => {
+            expect(
+                await makeResolver({ orgKeys: null }).getDecisionClient(
+                    'org-uuid',
+                    null,
+                ),
+            ).toBeUndefined();
+        });
+
+        it('is undefined for an org on its own provider keys', async () => {
+            expect(
+                await makeResolver({ decisionKey: 'test' }).getDecisionClient(
+                    'org-uuid',
+                    null,
+                ),
+            ).toBeUndefined();
+        });
+
+        it('returns the client on instance keys', async () => {
+            expect(
+                await makeResolver({
+                    orgKeys: null,
+                    decisionKey: 'test',
+                }).getDecisionClient('org-uuid', null),
+            ).toBeDefined();
+        });
+    });
+
+    describe('isOrgOnOwnProviderKeys', () => {
+        const bedrockCredential: DecryptedAiProviderCredential = {
+            uuid: 'cred-tokyo',
+            organizationUuid: 'org-uuid',
+            provider: 'bedrock',
+            label: 'Japan (Tokyo)',
+            isDefault: false,
+            config: {
+                apiKey: 'cred-bedrock-key',
+                region: 'ap-northeast-1',
+                allowedModels: ['claude-sonnet-4-5'],
+            },
+        };
+
+        it('is false on instance keys only', async () => {
+            expect(
+                await makeResolver({ orgKeys: null }).isOrgOnOwnProviderKeys(
+                    'org-uuid',
+                    null,
+                ),
+            ).toBe(false);
+        });
+
+        it('is false without an organization', async () => {
+            expect(
+                await makeResolver().isOrgOnOwnProviderKeys(undefined, null),
+            ).toBe(false);
+        });
+
+        it('is true for a Bedrock org', async () => {
+            expect(
+                await makeResolver({
+                    orgKeys: null,
+                    defaultCredential: {
+                        ...bedrockCredential,
+                        isDefault: true,
+                    },
+                }).isOrgOnOwnProviderKeys('org-uuid', null),
+            ).toBe(true);
+        });
+
+        it('is true for an OpenAI key with custom providers on', async () => {
+            expect(
+                await makeResolver({
+                    orgKeys: { openai: 'org-openai-key' },
+                }).isOrgOnOwnProviderKeys('org-uuid', null),
+            ).toBe(true);
+        });
+
+        it('is false for an OpenAI key with custom providers off', async () => {
+            expect(
+                await makeResolver({
+                    orgKeys: { openai: 'org-openai-key' },
+                    customProvidersEnabled: false,
+                }).isOrgOnOwnProviderKeys('org-uuid', null),
+            ).toBe(false);
+        });
+
+        it('honours a project credential pin', async () => {
+            const resolver = makeResolver({
+                orgKeys: null,
+                projectCredential: bedrockCredential,
+            });
+            expect(
+                await resolver.isOrgOnOwnProviderKeys('org-uuid', 'project-jp'),
+            ).toBe(true);
+        });
+
+        // Agent pins are enforced by the caller, so the org check never reads them.
+        it('ignores agent credential pins', async () => {
+            const resolver = makeResolver({
+                orgKeys: null,
+                explicitCredential: bedrockCredential,
+            });
+            expect(
+                await resolver.isOrgOnOwnProviderKeys('org-uuid', null),
+            ).toBe(false);
+        });
     });
 
     describe('getClaudeCodeConfig', () => {

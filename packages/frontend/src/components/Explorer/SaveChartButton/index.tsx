@@ -5,7 +5,7 @@ import {
     getItemLabelWithoutTableName,
     getMetrics,
 } from '@lightdash/common';
-import { Button, Group, rgba, Text, Tooltip } from '@mantine/core';
+import { Button, Group, Text, Tooltip } from '@mantine/core';
 import {
     IconCircleCheckFilled,
     IconDeviceFloppy,
@@ -45,6 +45,7 @@ import {
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
 import ChartCreateModal from '../../common/modal/ChartCreateModal';
+import classes from './SaveChartButton.module.css';
 
 export type VerificationSavePrompt = 'confirm-keep' | 'warn-removal';
 
@@ -287,19 +288,9 @@ const SaveChartButton: FC<{
                             if (!isAmbientAiEnabled) return;
                             triggerMetadataGeneration();
                         }}
-                        style={(theme) => ({
-                            '&[data-disabled="true"]': {
-                                pointerEvents: 'all',
-                            },
-                            ...(showSaveAsMenu && {
-                                borderRight: `1px solid ${rgba(
-                                    theme.colors.dark[3],
-                                    0.4,
-                                )}`,
-                                borderTopRightRadius: 0,
-                                borderBottomRightRadius: 0,
-                            }),
-                        })}
+                        className={
+                            showSaveAsMenu ? classes.saveWithSaveAs : undefined
+                        }
                         onClick={handleSaveChart}
                         // Scope-tour marker: the control manage:SavedChart
                         // unlocks. Path and follow-up declared here; see
@@ -332,10 +323,6 @@ const SaveChartButton: FC<{
                             p="xs"
                             disabled={isSaveAsDisabled}
                             aria-label="Save as new chart"
-                            style={{
-                                borderTopLeftRadius: 0,
-                                borderBottomLeftRadius: 0,
-                            }}
                             data-testid="SaveChartButton/SaveAsButton"
                             onClick={openSaveAsModal}
                         >
@@ -366,9 +353,12 @@ const SaveChartButton: FC<{
                     isSaveAs={isSaveAsModal}
                     redirectOnSuccess={!suppressNavigation}
                     showViewChartAction={!suppressNavigation}
-                    forcedSpaceUuid={
-                        isEmbedded ? embed.writeActions?.spaceUuid : undefined
+                    restrictedSpaces={
+                        isEmbedded
+                            ? embed.embedWriteContext?.writableSpaces
+                            : undefined
                     }
+                    embedDashboard={embed.chartSaveDashboard}
                 />
             )}
 
@@ -430,9 +420,13 @@ const SaveChartButton: FC<{
                                 data-tour-route="/projects/:projectUuid/saved/:savedQueryUuid"
                                 data-tour-title="Edit a verified chart"
                                 data-tour-label="Save and verify the changed chart"
+                                // Top customers, not Orders over time: the
+                                // Verify a chart walkthrough verifies that one,
+                                // and in a copy kept across walkthroughs the
+                                // Verify item would already be gone from it.
                                 data-tour-docs="explore/verified-content.mdx#what-you-see-when-saving-verified-content:1"
                                 data-tour-interactive="true"
-                                data-tour-via='[data-tour-nav="browse"] >> [data-tour-nav="all-charts"] >> [data-tour-anchor="chart-row"][data-tour-value="Orders over time"] >> [data-tour-anchor="chart-actions"] >> [data-tour-anchor="verify-chart"] >> [data-tour-anchor="edit-chart"] >> [data-tour-anchor="explore-dimension"] >> [data-tour-anchor="run-query"] >> [data-tour-anchor="save-chart-changes"]'
+                                data-tour-via='[data-tour-nav="browse"] >> [data-tour-nav="all-charts"] >> [data-tour-anchor="chart-row"][data-tour-value="Top customers"] >> [data-tour-anchor="chart-actions"] >> [data-tour-anchor="verify-chart"] >> [data-tour-anchor="edit-chart"] >> [data-tour-anchor="explore-dimension"] >> [data-tour-anchor="run-query"] >> [data-tour-anchor="save-chart-changes"]'
                                 leftSection={
                                     <MantineIcon
                                         icon={IconCircleCheckFilled}

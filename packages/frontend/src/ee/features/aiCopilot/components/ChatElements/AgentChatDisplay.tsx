@@ -1,13 +1,5 @@
 import { type AiAgentThread } from '@lightdash/common';
-import {
-    Box,
-    Divider,
-    Flex,
-    getDefaultZIndex,
-    Stack,
-    Text,
-    Tooltip,
-} from '@mantine/core';
+import { Box, Divider, Flex, Stack, Text, Tooltip } from '@mantine/core';
 import { IconCrop, IconInfoCircle } from '@tabler/icons-react';
 import {
     Fragment,
@@ -30,6 +22,7 @@ import styles from './AgentChatDisplay.module.css';
 import { UserBubble } from './AgentChatUserBubble';
 import { JevChoiceChips } from './JevChoiceChips';
 import ThreadScrollToBottom from './ScrollToBottom';
+import { ThreadSetupHeader } from './ThreadSetupHeader';
 import { ChatElementsUtils } from './utils';
 
 type Props = {
@@ -64,11 +57,7 @@ const CompactionDivider = () => (
             pos="absolute"
             top="50%"
             left="50%"
-            style={{
-                transform: 'translate(-50%, -50%)',
-                backgroundColor: 'var(--mantine-color-body)',
-                whiteSpace: 'nowrap',
-            }}
+            className={styles.compactionLabel}
         >
             <IconCrop
                 size={14}
@@ -190,10 +179,10 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
             ref={viewport}
             direction="column"
             h={height}
-            style={{ flexGrow: 1, overflowY: 'auto' }}
+            className={styles.viewport}
             pt="md"
         >
-            <Flex direction="column" style={{ flexGrow: 1, minHeight: '100%' }}>
+            <Flex direction="column" className={styles.content}>
                 <Stack
                     w={ChatElementsUtils.centeredElementProps.w}
                     maw={ChatElementsUtils.centeredElementProps.maw}
@@ -204,6 +193,13 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                     flex={1}
                 >
                     <Stack flex={1}>
+                        {projectUuid && (
+                            <ThreadSetupHeader
+                                thread={thread}
+                                projectUuid={projectUuid}
+                            />
+                        )}
+
                         {visibleMessages.map((message, i, xs) => (
                             <Fragment key={`${message.role}-${message.uuid}`}>
                                 {message.role === 'user' &&
@@ -320,7 +316,6 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                         pos="sticky"
                         bottom={0}
                         w="100%"
-                        style={{ zIndex: getDefaultZIndex('app') - 1 }}
                     >
                         {children}
                     </Box>

@@ -93,6 +93,16 @@ function typeLabel(schema: JsonSchemaProperty | undefined): string {
     return schemaTypes(schema)?.join('|') ?? 'unknown';
 }
 
+/** True when every type the old schema accepted is still accepted. */
+function isTypeWidening(
+    oldSchema: JsonSchemaProperty | undefined,
+    newSchema: JsonSchemaProperty | undefined,
+): boolean {
+    const oldTypes = schemaTypes(oldSchema);
+    const newTypes = schemaTypes(newSchema);
+    return oldTypes !== null && newTypes !== null && oldTypes.every((t) => newTypes.includes(t));
+}
+
 /**
  * PURE. Conservative 4-rule breaking-change classifier over two tool snapshots.
  * Returns `breaking`, an uncapped count, and a capped human-readable list. The
@@ -100,7 +110,7 @@ function typeLabel(schema: JsonSchemaProperty | undefined): string {
  *   R1 tool removed
  *   R2 input field became required (added to `required`)
  *   R3 input field removed (a top-level property disappeared)
- *   R4 input field type changed
+ *   R4 input field type changed, unless it only gained types (e.g. string → null|string)
  * Additive changes (new tool, new optional field) and output/description/
  * annotation changes are intentionally NOT breaking.
  */
@@ -143,11 +153,11 @@ export function diffSnapshots(
             if (inNew && newIn.required.has(prop) && !oldIn.required.has(prop)) {
                 changes.push(`MCP tool \`${name}\`: input \`${prop}\` became required`);
             }
-            // R4: input field type changed.
+            // R4: input field type changed in a way that rejects old input.
             if (inOld && inNew) {
                 const ot = typeLabel(oldIn.properties[prop]);
                 const nt = typeLabel(newIn.properties[prop]);
-                if (ot !== nt) {
+                if (ot !== nt && !isTypeWidening(oldIn.properties[prop], newIn.properties[prop])) {
                     changes.push(`MCP tool \`${name}\`: input \`${prop}\` type changed ${ot} → ${nt}`);
                 }
             }

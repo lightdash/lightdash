@@ -1,4 +1,4 @@
-import { ContentType, FeatureFlags } from '@lightdash/common';
+import { ContentType } from '@lightdash/common';
 import {
     Center,
     SegmentedControl,
@@ -7,7 +7,6 @@ import {
     useMatches,
 } from '@mantine/core';
 import { type FC } from 'react';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 
 interface OptionProps {
     label: string;
@@ -16,7 +15,7 @@ interface OptionProps {
 
 const ContentTypeSelectOption = ({ label }: OptionProps) => (
     <Center px={'xxs'}>
-        <Text fz="sm" c="ldGray.7">
+        <Text fz="sm" c="dimmed">
             {label}
         </Text>
     </Center>
@@ -51,19 +50,14 @@ const ContentTypeFilter: FC<ContentTypeFilterProps> = ({
     onChange,
     options,
 }) => {
-    const documentsFlag = useServerFeatureFlag(FeatureFlags.Documents);
     const compact = useMatches(
         { base: true, sm: false },
         { getInitialValueInEffect: false },
     );
     const data = [
         { value: 'all', label: 'All' },
-        ...ContentTypeOptions.filter(
-            (option) =>
-                options.includes(option.value) &&
-                (option.value !== ContentType.DOCUMENT ||
-                    (documentsFlag.data?.enabled === true &&
-                        !documentsFlag.isError)),
+        ...ContentTypeOptions.filter((option) =>
+            options.includes(option.value),
         ),
     ];
     const handleChange = (next: string) =>

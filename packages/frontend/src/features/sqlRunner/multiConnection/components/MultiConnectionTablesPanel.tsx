@@ -16,7 +16,7 @@ export const MultiConnectionTablesPanel: FC<{
     const { activeTable } = useActiveConnection();
 
     return (
-        <Box pos="relative" flex={1} mih={0}>
+        <Box pos="relative" flex={1} mih={0} className={styles.root}>
             <LoadingOverlay visible={isRefreshing} />
             {refreshError && (
                 <Text c="red" ta="center">

@@ -2,8 +2,10 @@ import { assertUnreachable } from '@lightdash/common';
 import Ajv from 'ajv';
 import { randomUUID } from 'crypto';
 import { type Response } from 'node-fetch';
+import { CLI_VERSION } from '../env';
 import { createAgentConnectionFetch } from './apiUrl';
 import { validateSlot, type AgentConnectionSlot, type SlotKey } from './schema';
+import { publicConnectionReport } from './statusResponse';
 import { AgentConnectionStore, type LockedStore } from './store';
 
 type TokenResponse = {
@@ -12,6 +14,7 @@ type TokenResponse = {
     token_type: string;
     expires_in: number;
     scope: string;
+    refresh_expires_in?: number;
 };
 const createResponseValidator = () =>
     new Ajv().compile<TokenResponse>({
@@ -24,14 +27,14 @@ const createResponseValidator = () =>
             'scope',
         ],
         properties: {
-            access_token: { type: 'string', minLength: 1 },
-            refresh_token: { type: 'string', minLength: 1 },
+            access_token: { type: 'string', minLength: 1, maxLength: 16384 },
+            refresh_token: { type: 'string', minLength: 1, maxLength: 16384 },
             token_type: {
                 type: 'string',
                 pattern: '^[Bb][Ee][Aa][Rr][Ee][Rr]$',
             },
             expires_in: { type: 'integer', minimum: 1, maximum: 2_147_483_647 },
-            scope: { type: 'string', minLength: 1 },
+            scope: { type: 'string', minLength: 1, maxLength: 16384 },
         },
     });
 let responseValidator: ReturnType<typeof createResponseValidator> | null = null;
@@ -170,7 +173,7 @@ export class AgentTokenProvider {
             slot,
         );
         assertUsableSlot(checked, Date.now());
-        return checked;
+        return { ...checked, lastReported: publicConnectionReport(checked) };
     }
 
     private async reconnect(
@@ -272,13 +275,15 @@ export class AgentTokenProvider {
                             body,
                             redirect: 'error',
                             signal: AbortSignal.timeout(15_000),
-                            headers:
-                                proxyAuthorization === null
+                            headers: {
+                                'User-Agent': `lightdash-cli/${CLI_VERSION}`,
+                                ...(proxyAuthorization === null
                                     ? {}
                                     : {
                                           'Proxy-Authorization':
                                               proxyAuthorization,
-                                      },
+                                      }),
+                            },
                         },
                     );
                     if (!response.ok) throw reconnectError();
@@ -286,6 +291,14 @@ export class AgentTokenProvider {
                     if (
                         !validateResponse(value) ||
                         value.refresh_token === slot.tokens.refreshToken
+                    )
+                        throw reconnectError();
+                    const refreshLifetime = value.refresh_expires_in;
+                    if (
+                        typeof refreshLifetime !== 'number' ||
+                        !Number.isSafeInteger(refreshLifetime) ||
+                        refreshLifetime < 1 ||
+                        refreshLifetime > 2147483647
                     )
                         throw reconnectError();
                     const scopes = value.scope.split(' ');
@@ -322,6 +335,20 @@ export class AgentTokenProvider {
                                 refreshToken: value.refresh_token,
                                 accessTokenExpiresAt: new Date(
                                     expiresAt,
+                                ).toISOString(),
+                                refreshTokenExpiresAt: new Date(
+                                    Math.min(
+                                        slot.tokens.refreshTokenExpiresAt ===
+                                            null
+                                            ? Infinity
+                                            : Date.parse(
+                                                  slot.tokens
+                                                      .refreshTokenExpiresAt,
+                                              ),
+                                        startedAt + refreshLifetime * 1000,
+                                        serverTime + refreshLifetime * 1000,
+                                        Date.parse(slot.grantExpiresAt),
+                                    ),
                                 ).toISOString(),
                                 generation: slot.tokens.generation + 1,
                                 lastRefreshAttemptUuid: attemptUuid,

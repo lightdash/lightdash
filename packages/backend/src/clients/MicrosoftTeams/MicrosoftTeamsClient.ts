@@ -41,6 +41,19 @@ export const redactWebhookIdentity = (webhookUrl: string) => {
     }
 };
 
+// The delivery message is authored as markdown in the scheduler form, which
+// Adaptive Card TextBlocks render natively.
+const getMessageBlocks = (message: string | undefined) =>
+    message?.trim()
+        ? [
+              {
+                  type: 'TextBlock',
+                  text: message,
+                  wrap: true,
+              },
+          ]
+        : [];
+
 export const classifyHttpStatus = (status: number) => {
     if (status >= 200 && status < 300) return 'ok';
     if (status >= 400 && status < 500) return 'client_error';
@@ -109,6 +122,7 @@ export class MicrosoftTeamsClient {
         title,
         name,
         description,
+        message,
         ctaUrl,
         image,
         footer,
@@ -119,6 +133,7 @@ export class MicrosoftTeamsClient {
         title: string;
         name: string;
         description: string | undefined;
+        message?: string;
         ctaUrl: string;
         image: string;
         footer: string;
@@ -165,6 +180,7 @@ export class MicrosoftTeamsClient {
                                       },
                                   ]
                                 : []),
+                            ...getMessageBlocks(message),
                             ...(thresholds.length > 0
                                 ? [
                                       {
@@ -237,6 +253,7 @@ export class MicrosoftTeamsClient {
         title,
         name,
         description,
+        message,
         ctaUrl,
         csvUrl,
         footer,
@@ -245,6 +262,7 @@ export class MicrosoftTeamsClient {
         title: string;
         name: string;
         description: string | undefined;
+        message?: string;
         ctaUrl: string;
         csvUrl: AttachmentUrl;
         footer: string;
@@ -288,6 +306,7 @@ export class MicrosoftTeamsClient {
                                       },
                                   ]
                                 : []),
+                            ...getMessageBlocks(message),
 
                             {
                                 type: 'TextBlock',
@@ -321,6 +340,7 @@ export class MicrosoftTeamsClient {
         title,
         name,
         description,
+        message,
         ctaUrl,
         csvUrls,
         footer,
@@ -331,6 +351,7 @@ export class MicrosoftTeamsClient {
         title: string;
         name: string;
         description: string | undefined;
+        message?: string;
         ctaUrl: string;
         csvUrls: AttachmentUrl[];
         footer: string;
@@ -563,6 +584,7 @@ export class MicrosoftTeamsClient {
                                       },
                                   ]
                                 : []),
+                            ...getMessageBlocks(message),
 
                             ...(csvUrls.length > 0
                                 ? [

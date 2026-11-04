@@ -11,8 +11,9 @@ import {
     useMutation,
     useQueryClient,
 } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 // Apps use a flat (non-paginated) list endpoint — schedule counts per app
 // are expected to be small. We wrap the response in the same paginated
@@ -21,6 +22,7 @@ import useToaster from '../../../hooks/toaster/useToaster';
 type AppSchedulersPage = KnexPaginatedData<SchedulerAndTargets[]>;
 
 const getAppSchedulers = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     appUuid: string,
     includeLatestRun?: boolean,
@@ -60,17 +62,26 @@ export const useAppSchedulers = ({
     projectUuid,
     appUuid,
     includeLatestRun,
-}: UseAppSchedulersParams) =>
-    useInfiniteQuery<AppSchedulersPage, ApiError>({
+}: UseAppSchedulersParams) => {
+    const lightdashApi = useLightdashApi();
+    return useInfiniteQuery<AppSchedulersPage, ApiError>({
         queryKey: ['app_schedulers', appUuid, includeLatestRun],
-        queryFn: () => getAppSchedulers(projectUuid, appUuid, includeLatestRun),
+        queryFn: () =>
+            getAppSchedulers(
+                lightdashApi,
+                projectUuid,
+                appUuid,
+                includeLatestRun,
+            ),
         getNextPageParam: () => undefined, // single-page wrapper
         keepPreviousData: true,
         refetchOnWindowFocus: false,
         enabled: !!appUuid && !!projectUuid,
     });
+};
 
 const createAppScheduler = (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     appUuid: string,
     data: CreateSchedulerAndTargetsWithoutIds,
@@ -82,6 +93,7 @@ const createAppScheduler = (
     });
 
 export const useAppSchedulerCreateMutation = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
@@ -90,7 +102,7 @@ export const useAppSchedulerCreateMutation = (projectUuid: string) => {
         { resourceUuid: string; data: CreateSchedulerAndTargetsWithoutIds }
     >(
         ({ resourceUuid, data }) =>
-            createAppScheduler(projectUuid, resourceUuid, data),
+            createAppScheduler(lightdashApi, projectUuid, resourceUuid, data),
         {
             mutationKey: ['create_app_scheduler'],
             onSuccess: async (_, variables) => {

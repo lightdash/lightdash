@@ -126,17 +126,14 @@ it.each(['success', 'health-failure', 'exposure-failure'])(
                 ? 'sentinel'
                 : "version: 2\nexposures:\n  - name: orders\n    type: dashboard\n    depends_on:\n      - ref('orders')\n    tags:\n      - pin\n",
         );
-        expect(vi.mocked(console.info).mock.calls).toEqual([
-            [
-                'This is an experimental feature and may change in future versions',
-            ],
-            ...(mode === 'exposure-failure' ? [] : [['Found 1 exposures']]),
-        ]);
+        expect(vi.mocked(console.info).mock.calls).toEqual(
+            mode === 'exposure-failure' ? [] : [['Found 1 exposures']],
+        );
         expect(vi.mocked(console.error).mock.calls).toEqual([
             [`\nUsing project: ${config.context!.project}\n`],
         ]);
         expect(stderr).toBe(
-            `-   Generating Lightdash exposures .yml for project Main\n${mode === 'exposure-failure' ? "✖   Failed to generate exposures file'\n" : `✔   Generated exposures file in '${output}'\n`}`,
+            `-   Generating Lightdash exposures .yml for project Main\n${mode === 'exposure-failure' ? '✖   Failed to generate exposures file\n' : `✔   Generated exposures file in '${output}'\n`}`,
         );
         expect(console.log).not.toHaveBeenCalled();
         expect(process.exit).not.toHaveBeenCalled();

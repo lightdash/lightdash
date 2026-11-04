@@ -10,20 +10,24 @@ import {
     type UpdateOrganizationDesignRequest,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 const ORG_DESIGNS_QUERY_KEY = 'org_designs';
 const ORG_DESIGN_QUERY_KEY = 'org_design';
 
-const listOrganizationDesignsApi = async () =>
+const listOrganizationDesignsApi = async (lightdashApi: LightdashApi) =>
     lightdashApi<ApiOrganizationDesignsResponse['results']>({
         url: '/org/designs',
         method: 'GET',
         body: undefined,
     });
 
-const getOrganizationDesignApi = async (designUuid: string) =>
+const getOrganizationDesignApi = async (
+    lightdashApi: LightdashApi,
+    designUuid: string,
+) =>
     lightdashApi<ApiOrganizationDesignResponse['results']>({
         url: `/org/designs/${designUuid}`,
         method: 'GET',
@@ -31,6 +35,7 @@ const getOrganizationDesignApi = async (designUuid: string) =>
     });
 
 const createOrganizationDesignApi = async (
+    lightdashApi: LightdashApi,
     data: CreateOrganizationDesignRequest,
 ) =>
     lightdashApi<ApiOrganizationDesignResponse['results']>({
@@ -40,6 +45,7 @@ const createOrganizationDesignApi = async (
     });
 
 const updateOrganizationDesignApi = async (
+    lightdashApi: LightdashApi,
     designUuid: string,
     data: UpdateOrganizationDesignRequest,
 ) =>
@@ -49,14 +55,20 @@ const updateOrganizationDesignApi = async (
         body: JSON.stringify(data),
     });
 
-const deleteOrganizationDesignApi = async (designUuid: string) =>
+const deleteOrganizationDesignApi = async (
+    lightdashApi: LightdashApi,
+    designUuid: string,
+) =>
     lightdashApi<null>({
         url: `/org/designs/${designUuid}`,
         method: 'DELETE',
         body: undefined,
     });
 
-const setDefaultOrganizationDesignApi = async (designUuid: string) =>
+const setDefaultOrganizationDesignApi = async (
+    lightdashApi: LightdashApi,
+    designUuid: string,
+) =>
     lightdashApi<ApiOrganizationDesignResponse['results']>({
         url: `/org/designs/${designUuid}/default`,
         method: 'POST',
@@ -68,7 +80,7 @@ const setDefaultOrganizationDesignApi = async (designUuid: string) =>
 // this call so the UX is bidirectional; until the backend lands the
 // `DELETE /api/v1/org/designs/default` route this will 404 and the user
 // will see an error toast. Tracked as a Stage 1 follow-up.
-const clearDefaultOrganizationDesignApi = async () =>
+const clearDefaultOrganizationDesignApi = async (lightdashApi: LightdashApi) =>
     lightdashApi<null>({
         url: '/org/designs/default',
         method: 'DELETE',
@@ -79,12 +91,15 @@ const clearDefaultOrganizationDesignApi = async () =>
 // mirrors the appGenerate image-upload precedent, NOT multipart/form-data).
 // Browsers auto-populate Content-Length from the Blob — don't set it
 // manually (it's a forbidden header in fetch).
-const uploadDesignFileApi = async (args: {
-    designUuid: string;
-    file: File;
-    kind: OrganizationDesignFileKind;
-    filename: string;
-}) => {
+const uploadDesignFileApi = async (
+    lightdashApi: LightdashApi,
+    args: {
+        designUuid: string;
+        file: File;
+        kind: OrganizationDesignFileKind;
+        filename: string;
+    },
+) => {
     const search = new URLSearchParams({
         kind: args.kind,
         filename: args.filename,
@@ -99,17 +114,23 @@ const uploadDesignFileApi = async (args: {
     });
 };
 
-const deleteDesignFileApi = async (args: {
-    designUuid: string;
-    fileUuid: string;
-}) =>
+const deleteDesignFileApi = async (
+    lightdashApi: LightdashApi,
+    args: {
+        designUuid: string;
+        fileUuid: string;
+    },
+) =>
     lightdashApi<null>({
         url: `/org/designs/${args.designUuid}/files/${args.fileUuid}`,
         method: 'DELETE',
         body: undefined,
     });
 
-const deleteAllDesignFilesApi = async (designUuid: string) =>
+const deleteAllDesignFilesApi = async (
+    lightdashApi: LightdashApi,
+    designUuid: string,
+) =>
     lightdashApi<null>({
         url: `/org/designs/${designUuid}/files`,
         method: 'DELETE',
@@ -118,28 +139,34 @@ const deleteAllDesignFilesApi = async (designUuid: string) =>
 
 export const useOrganizationDesigns = ({
     enabled = true,
-}: { enabled?: boolean } = {}) =>
-    useQuery<ApiOrganizationDesignsResponse['results'], ApiError>({
+}: { enabled?: boolean } = {}) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ApiOrganizationDesignsResponse['results'], ApiError>({
         enabled,
         queryKey: [ORG_DESIGNS_QUERY_KEY],
-        queryFn: listOrganizationDesignsApi,
+        queryFn: () => listOrganizationDesignsApi(lightdashApi),
     });
+};
 
-export const useOrganizationDesign = (designUuid: string | undefined) =>
-    useQuery<ApiOrganizationDesignResponse['results'], ApiError>({
+export const useOrganizationDesign = (designUuid: string | undefined) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ApiOrganizationDesignResponse['results'], ApiError>({
         enabled: Boolean(designUuid),
         queryKey: [ORG_DESIGN_QUERY_KEY, designUuid],
-        queryFn: () => getOrganizationDesignApi(designUuid as string),
+        queryFn: () =>
+            getOrganizationDesignApi(lightdashApi, designUuid as string),
     });
+};
 
 export const useCreateOrganizationDesign = () => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     return useMutation<
         ApiOrganizationDesign,
         ApiError,
         CreateOrganizationDesignRequest
-    >((data) => createOrganizationDesignApi(data), {
+    >((data) => createOrganizationDesignApi(lightdashApi, data), {
         mutationKey: ['create_org_design'],
         onSuccess: async () => {
             await queryClient.invalidateQueries([ORG_DESIGNS_QUERY_KEY]);
@@ -155,35 +182,41 @@ export const useCreateOrganizationDesign = () => {
 };
 
 export const useUpdateOrganizationDesign = () => {
+    const lightdashApi = useLightdashApi();
     const { showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     return useMutation<
         ApiOrganizationDesign,
         ApiError,
         { designUuid: string; data: UpdateOrganizationDesignRequest }
-    >(({ designUuid, data }) => updateOrganizationDesignApi(designUuid, data), {
-        mutationKey: ['update_org_design'],
-        onSuccess: async (_result, { designUuid }) => {
-            await queryClient.invalidateQueries([ORG_DESIGNS_QUERY_KEY]);
-            await queryClient.invalidateQueries([
-                ORG_DESIGN_QUERY_KEY,
-                designUuid,
-            ]);
+    >(
+        ({ designUuid, data }) =>
+            updateOrganizationDesignApi(lightdashApi, designUuid, data),
+        {
+            mutationKey: ['update_org_design'],
+            onSuccess: async (_result, { designUuid }) => {
+                await queryClient.invalidateQueries([ORG_DESIGNS_QUERY_KEY]);
+                await queryClient.invalidateQueries([
+                    ORG_DESIGN_QUERY_KEY,
+                    designUuid,
+                ]);
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: 'Failed to update theme',
+                    apiError: error,
+                });
+            },
         },
-        onError: ({ error }) => {
-            showToastApiError({
-                title: 'Failed to update theme',
-                apiError: error,
-            });
-        },
-    });
+    );
 };
 
 export const useDeleteOrganizationDesign = () => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     return useMutation<null, ApiError, string>(
-        (designUuid) => deleteOrganizationDesignApi(designUuid),
+        (designUuid) => deleteOrganizationDesignApi(lightdashApi, designUuid),
         {
             mutationKey: ['delete_org_design'],
             onSuccess: async () => {
@@ -201,10 +234,12 @@ export const useDeleteOrganizationDesign = () => {
 };
 
 export const useSetDefaultOrganizationDesign = () => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     return useMutation<ApiOrganizationDesign, ApiError, string>(
-        (designUuid) => setDefaultOrganizationDesignApi(designUuid),
+        (designUuid) =>
+            setDefaultOrganizationDesignApi(lightdashApi, designUuid),
         {
             mutationKey: ['set_default_org_design'],
             onSuccess: async () => {
@@ -227,10 +262,11 @@ export const useSetDefaultOrganizationDesign = () => {
 };
 
 export const useClearDefaultOrganizationDesign = () => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     return useMutation<null, ApiError, void>(
-        () => clearDefaultOrganizationDesignApi(),
+        () => clearDefaultOrganizationDesignApi(lightdashApi),
         {
             mutationKey: ['clear_default_org_design'],
             onSuccess: async () => {
@@ -252,6 +288,7 @@ export const useClearDefaultOrganizationDesign = () => {
 };
 
 export const useUploadDesignFile = () => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     return useMutation<
@@ -263,7 +300,7 @@ export const useUploadDesignFile = () => {
             kind: OrganizationDesignFileKind;
             filename: string;
         }
-    >((args) => uploadDesignFileApi(args), {
+    >((args) => uploadDesignFileApi(lightdashApi, args), {
         mutationKey: ['upload_org_design_file'],
         onSuccess: async (_result, { designUuid, filename }) => {
             await queryClient.invalidateQueries([ORG_DESIGNS_QUERY_KEY]);
@@ -283,13 +320,14 @@ export const useUploadDesignFile = () => {
 };
 
 export const useDeleteDesignFile = () => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     return useMutation<
         null,
         ApiError,
         { designUuid: string; fileUuid: string }
-    >((args) => deleteDesignFileApi(args), {
+    >((args) => deleteDesignFileApi(lightdashApi, args), {
         mutationKey: ['delete_org_design_file'],
         onSuccess: async (_result, { designUuid }) => {
             await queryClient.invalidateQueries([ORG_DESIGNS_QUERY_KEY]);
@@ -309,10 +347,11 @@ export const useDeleteDesignFile = () => {
 };
 
 export const useDeleteAllDesignFiles = () => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     return useMutation<null, ApiError, string>(
-        (designUuid) => deleteAllDesignFilesApi(designUuid),
+        (designUuid) => deleteAllDesignFilesApi(lightdashApi, designUuid),
         {
             mutationKey: ['delete_all_org_design_files'],
             onSuccess: async (_result, designUuid) => {

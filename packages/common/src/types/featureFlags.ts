@@ -5,6 +5,8 @@
  * If the feature flag is no longer in use, remove it from this enum.
  */
 export enum FeatureFlags {
+    /** Organization-scoped, off by default. Retry missing cross-project refs with sibling models injected through a generated dbt plugin. */
+    CrossSourceDbtRefs = 'cross-source-dbt-refs',
     DbtExplicitCredentials = 'dbt-explicit-credentials',
     /**
      * Agent identity gates agent query identity, organisation settings and
@@ -12,12 +14,10 @@ export enum FeatureFlags {
      */
     AgentIdentity = 'agent-identity',
     OAuthScopeEnforcement = 'oauth-scope-enforcement',
-    AgentIdentitySilentRefresh = 'agent-identity-silent-refresh',
-    WarehouseOAuthRefreshLock = 'warehouse-oauth-refresh-lock',
 
     MultiConnectionProjects = 'multi-connection-projects',
-    /** Independent Documents containing narrative and saved chart definitions. */
-    Documents = 'documents',
+    /** Extra warehouse connections of a different type to the project's original connection. */
+    MixedWarehouseConnections = 'mixed-warehouse-connections',
     /** Backend-provisioned usage analytics projects. */
     AnalyticsProject = 'analytics-project',
     /* Show user groups */
@@ -46,34 +46,10 @@ export enum FeatureFlags {
     AiCustomViz = 'ai-custom-viz',
 
     /**
-     * Enable viewing and editing YAML source files in the Explore UI
-     */
-    EditYamlInUi = 'edit-yaml-in-ui',
-
-    /**
-     * On multi-org (shared-tenant) instances, route an organization's recurring
-     * scheduled deliveries into a per-org graphile-worker named queue
-     * (`delivery:<organizationUuid>`) so they run serially and a single org can't
-     * occupy every worker / crash the headless browser pool. Default off; enable
-     * per-org for gradual rollout.
-     */
-    ScheduledDeliveryPerOrgQueue = 'scheduled-delivery-per-org-queue',
-
-    /**
      * Enable admin user impersonation. When disabled, impersonation
      * actions are blocked and active sessions are cleared.
      */
     UserImpersonation = 'user-impersonation',
-
-    /**
-     * Enable custom group bins for string dimensions
-     */
-    CustomGroupBins = 'custom-group-bins',
-
-    /**
-     * Enable changing the explore a chart points to from the chart UI
-     */
-    ChangeChartExplore = 'change-chart-explore',
 
     /**
      * Keep visited dashboard tabs mounted in the DOM (hidden) for instant
@@ -92,39 +68,13 @@ export enum FeatureFlags {
     DashboardControls = 'dashboard-controls',
 
     /**
-     * Enable creating and editing metric filters on dashboards.
-     * When enabled, the "Add filter" UI includes metrics alongside dimensions.
-     * Existing metric filters are always displayed regardless of this flag.
-     */
-    MetricDashboardFilters = 'metric-dashboard-filters',
-
-    /**
-     * Enable data apps feature. Works alongside the APPS_RUNTIME_ENABLED
-     * env var — data apps are enabled if either this flag or the env var
-     * is true. Disabled by default.
+     * Enable data apps feature. Disabled by default. Self-hosted
+     * deployments can force it on with APPS_RUNTIME_ENABLED=true, which
+     * the config parser translates into the enable allowlist. Does not gate
+     * Chart Studio, which is available with a valid licence and a configured
+     * sandbox provider, but still keeps installed chart types usable.
      */
     EnableDataApps = 'enable-data-apps',
-    // Enable the Learn library, walkthroughs and training project per org.
-    // On by default on Lightdash Cloud, off by default for self-hosted.
-    EnableLearn = 'enable-learn',
-
-    /**
-     * Keeps a preview's copied BigQuery SSO credential in step with its
-     * upstream project. On by default; the flag is a kill switch only.
-     */
-    PreviewSsoCredentialSync = 'preview-sso-credential-sync',
-
-    /**
-     * Read hyphenated warehouse identifiers in agent SQL scope checks.
-     * On by default; the flag is a kill switch only.
-     */
-    AgentSqlScopeHyphenatedIdentifiers = 'agent-sql-scope-hyphenated-identifiers',
-
-    /**
-     * Lists every Lightdash IP address with copy buttons on warehouse
-     * connection forms. On by default; the flag is a kill switch only.
-     */
-    EgressIpNotice = 'egress-ip-notice',
 
     /**
      * AI access (in-app agent, Slack agent, MCP) skips the results cache,
@@ -148,21 +98,31 @@ export enum FeatureFlags {
     EnableDataAppAnalysis = 'enable-data-app-analysis',
 
     /**
+     * Per-organization rollout of AI analysis on classic dashboards. Gates the
+     * dashboard analysis endpoints and entry points; shares the org's
+     * `dataAppRuntimeAiEnabled` consent setting and daily analysis budgets
+     * with data-app analysis. Disabled by default.
+     */
+    EnableDashboardAnalysis = 'enable-dashboard-analysis',
+
+    /**
      * Per-organization gate for automatic (obscured) data app thumbnail
      * capture and its settings card. Disabled by default.
      */
     EnableDataAppAutomaticThumbnails = 'enable-data-app-automatic-thumbnails',
 
     /**
+     * Per-user / per-organization gate for the data app state store
+     * (`useAppState` / `useSharedAppState` in the SDK and its endpoints).
+     * Resolves user override, then organization, then instance default.
+     * Disabled by default on Cloud and self-hosted.
+     */
+    EnableDataAppState = 'enable-data-app-state',
+
+    /**
      * Enable Autopilot project health agent.
      */
     AiAutopilot = 'ai-autopilot',
-
-    /**
-     * Legacy no-op retained so existing self-hosted feature flag configuration
-     * remains valid. Deep Research now follows AI Copilot availability.
-     */
-    AiDeepResearch = 'ai-deep-research',
 
     /**
      * Enable the Hexbin (H3 hexagonal binning) layer type for Map charts.
@@ -201,62 +161,6 @@ export enum FeatureFlags {
     OrganizationTrialBlock = 'organization-trial-block',
 
     /**
-     * Enable the admin API endpoint that captures AI review judge replay
-     * inputs (candidate + evidence packet) for the offline eval scoreboard.
-     * Off by default — intended only for orgs running classifier evals.
-     */
-    AiReviewReplayCapture = 'ai-review-replay-capture',
-
-    /**
-     * Enable the AI writeback sandbox agent's preview-deploy secondary task:
-     * detecting whether a repo deploys Lightdash preview projects via GitHub
-     * Actions, offering to set it up during a writeback, and the
-     * setupPreviewDeploy tool (direct or on consent). Off by default and
-     * independent of AiWriteback, so this outward-facing behaviour (it opens
-     * extra PRs) can be dark-launched and killed without touching writeback.
-     */
-    AiPreviewDeploySetup = 'ai-preview-deploy-setup',
-
-    /**
-     * Enable the built-in system agent fallback in Slack. When enabled, if a
-     * Slack channel has no configured agent, the system will use the built-in
-     * system agent instead of showing an error. Independent of AiWriteback so
-     * the features can be toggled separately.
-     */
-    AiSlackSystemAgentFallback = 'ai-slack-system-agent-fallback',
-
-    /**
-     * Gate the org-level export Limits settings panel (per-org query max rows
-     * and CSV cells limit). Backend enforcement of any stored overrides is
-     * always on; this flag only controls who can see/configure the panel.
-     */
-    ProLimits = 'pro-limits',
-
-    /**
-     * Allow a single Lightdash project to connect to multiple dbt sources
-     * (repos/CLI deploys). Each source stores its latest compiled manifest in
-     * S3; on every deploy or preview the backend merges all sources' manifests
-     * into one, compiles once, and writes a single combined explore set. Off by
-     * default; the N=0 short-circuit (a project with zero registered sources
-     * runs today's single-source code path byte-for-byte) is the regression
-     * firewall. Enable per-org for gradual rollout.
-     */
-    MultiDbtSources = 'multi-dbt-sources',
-
-    /**
-     * Enable the general-purpose coding agent: the WRITE counterpart to repo
-     * discovery (`repo-fs`). Lets the AI agent make a code change to any repo
-     * the org's GitHub/GitLab App installation can write (intersected with the
-     * triggering user's own access) and open a pull request — not just the
-     * project's dbt repo. Reuses the AI-writeback E2B → signed-commit → PR
-     * pipeline via a lean, no-Bash sandbox template and the `editRepo` tool.
-     * Off by default and EE/license-gated; the per-repo write authz lives in
-     * the service (`manage:SourceCode` + user∩installation), since this flag
-     * is presence-of-feature, not permission.
-     */
-    CodingAgent = 'ai-coding-agent',
-
-    /**
      * Show the coding-agent project onboarding flow. This gates only the UI;
      * the CLI, APIs, and installed skills remain available independently.
      */
@@ -285,11 +189,6 @@ export enum FeatureFlags {
      */
     NewOnboarding = 'new-onboarding',
 
-    /** Kill switch for expired shared sign-in messages. On by default. */
-    SharedSignInExpiryMessage = 'shared-sign-in-expiry-message',
-    /** Kill switch for shared sign-in reconnection. On by default. */
-    SharedSignInReconnect = 'shared-sign-in-reconnect',
-
     /**
      * Cloud-only: let an organization send report/notification emails from
      * their own verified domain (email whitelabelling) instead of the
@@ -307,11 +206,6 @@ export enum FeatureFlags {
      */
     AiFilterExpressions = 'ai-filter-expressions',
 
-    /* Merge two or more queries into one warehouse statement from the
-       explorer. Gated because it compiles novel SQL shapes (multi-CTE joins,
-       conditional-aggregation widening) that no other path exercises. */
-    MergeQueries = 'merge-queries',
-
     /**
      * Enable the async compose SQL endpoint
      * (POST /api/v2/projects/{projectUuid}/query/compose-sql), which runs
@@ -323,13 +217,11 @@ export enum FeatureFlags {
     ComposeSqlRunner = 'compose-sql-runner',
 
     /**
-     * Enable the multi-source query endpoints
-     * (/api/v2/projects/{projectUuid}/query-sources/*): source discovery,
-     * schema scans, source-query submission and batch status. Off by
-     * default; on in preview/dev environments via
-     * PREVIEW_ENABLED_FEATURE_FLAGS.
+     * Enable api query sources: queries sent live to an external API (HogQL
+     * to PostHog) through a project connection, and the Live data sources
+     * project settings page. Off by default; enable per org.
      */
-    MultiSourceQuery = 'multi-source-query',
+    ApiQuerySources = 'api-query-sources',
 
     /**
      * Enable the "My query history" page
@@ -367,10 +259,12 @@ export enum FeatureFlags {
 
     /**
      * Enables the chart type library — browsing and installing official
-     * chart types from the configured chart registry — and, together with
-     * `EnableDataApps` as an either/or gate, usage of installed chart types
-     * (picking, configuring, rendering). Authoring, editing, and forking
-     * chart types stay behind `EnableDataApps`. Default: off.
+     * chart types from the configured chart registry — and, as an either/or
+     * gate with Chart Studio availability and `EnableDataApps`, usage of
+     * installed chart types (picking, configuring, rendering). Authoring,
+     * editing, and forking chart types follow Chart Studio availability
+     * (a valid licence and a configured sandbox provider), not this flag.
+     * Default: off.
      */
     ChartTypeRegistry = 'chart-type-registry',
 
@@ -393,11 +287,6 @@ export enum FeatureFlags {
      */
     AiAgentBattleMode = 'ai-agent-battle-mode',
     /**
-     * Organization-scoped master rollout switch for bounded semantic
-     * decisions, scoped tools, fast tool calls, reuse and direct chart paths.
-     */
-    AiAgentFastDecisions = 'ai-agent-fast-decisions',
-    /**
      * Organization-scoped: keep dbt's partial_parse.msgpack from a compile on
      * the worker and seed the next compile of the same project and dbt source
      * with it, so `dbt ls` re-parses only changed files. dbt checks file
@@ -412,6 +301,11 @@ export enum FeatureFlags {
      */
     AthenaWebIdentityAuth = 'athena-web-identity-auth',
     /**
+     * Organization-scoped, off by default: BigQuery workload identity federation.
+     * Only enable on instances whose pods run as their own Google service account.
+     */
+    BigqueryWorkloadIdentityAuth = 'bigquery-workload-identity-auth',
+    /**
      * Organization-scoped: org admins can bring their own AI provider keys,
      * restrict model visibility, and route those keys through a custom base
      * URL (an OpenAI/Anthropic/Gemini-compatible gateway). Off by default;
@@ -419,6 +313,12 @@ export enum FeatureFlags {
      * providers are used. Enable it for an org BEFORE it stores a key.
      */
     OrgAiCustomProviders = 'org-ai-custom-providers',
+    /**
+     * Organization-scoped, off by default: when a Redshift dashboard or chart
+     * query has no first row after 30s and Redshift has no record of it,
+     * cancel it and retry on a new connection.
+     */
+    RedshiftStalledQueryRecovery = 'redshift-stalled-query-recovery',
 }
 
 export type FeatureFlag = {

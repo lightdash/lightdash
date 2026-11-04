@@ -1,16 +1,22 @@
 import {
     AnyType,
     AuthorizationError,
+    CLI_PERSONAL_SESSION_LIFETIME_SECONDS,
     FeatureFlags,
     TOKEN_EXCHANGE_GRANT_TYPE,
 } from '@lightdash/common';
+import OAuth2Server from '@node-oauth/oauth2-server';
 import knex, { type Knex } from 'knex';
 import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
+import { grantFixture } from '../auth/agentConnectionGrants/grant.mock';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
 import { type LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
+import { OAuthService } from '../services/OAuthService/OAuthService';
+import { AgentConnectionGrantModel } from './AgentConnectionGrantModel';
 import { FeatureFlagModel } from './FeatureFlagModel/FeatureFlagModel';
 import { isMobileOAuthClient, OAuth2Model } from './OAuth2Model';
+import { type UserModel } from './UserModel';
 
 const lightdashConfig = {
     auth: {
@@ -1232,5 +1238,377 @@ describe('OAuth2Model explicit security methods', () => {
         await expect(
             model.validateRedirectUri('https://example.com/callback', client),
         ).resolves.toBe(true);
+    });
+});
+
+describe('OAuth2Model.getClient client id metadata documents', () => {
+    const database = knex({ client: MockClient, dialect: 'pg' });
+    const clientId = 'https://claude.ai/oauth/claude-code-client-metadata';
+    const document = {
+        clientId,
+        clientName: 'Claude Code',
+        redirectUris: ['http://localhost/callback'],
+        grantTypes: ['authorization_code', 'refresh_token'],
+    };
+    const resolver = { resolve: vi.fn() };
+    const model = new OAuth2Model(
+        database as unknown as Knex,
+        lightdashConfig,
+        featureFlagModel,
+        resolver,
+    );
+    let tracker: Tracker;
+
+    beforeAll(() => {
+        tracker = getTracker();
+    });
+
+    beforeEach(() => {
+        resolver.resolve.mockResolvedValue(document);
+        featureFlagModel.get.mockClear();
+    });
+
+    afterEach(() => {
+        tracker.reset();
+        resolver.resolve.mockReset();
+    });
+
+    it('materialises the document as a public client', async () => {
+        tracker.on.insert('oauth2_clients').responseOnce([]);
+
+        const client = await model.getClient(clientId);
+
+        expect(client).toEqual({
+            clientId,
+            id: clientId,
+            scopes: [],
+            redirectUris: ['http://localhost/callback'],
+            grants: ['authorization_code', 'refresh_token'],
+            refreshTokenLifetime: undefined,
+        });
+        expect(resolver.resolve).toHaveBeenCalledExactlyOnceWith(clientId);
+        expect(tracker.history.select).toHaveLength(0);
+        const [upsert] = tracker.history.insert;
+        expect(upsert.sql).toContain('on conflict ("client_id") do update');
+        expect(upsert.bindings).toContain(clientId);
+        expect(upsert.bindings).toContain('Claude Code');
+    });
+
+    it('refuses a client secret for a document client', async () => {
+        await expect(model.getClient(clientId, 'secret')).resolves.toBe(false);
+        expect(resolver.resolve).not.toHaveBeenCalled();
+        expect(tracker.history.insert).toHaveLength(0);
+    });
+
+    it('resolves document clients without the strict security flag', async () => {
+        featureFlagModel.get.mockResolvedValue({ enabled: false } as Awaited<
+            ReturnType<FeatureFlagModel['get']>
+        >);
+        tracker.on.insert('oauth2_clients').responseOnce([]);
+        const client = await model.getClient(clientId);
+        expect(client && client.id).toBe(clientId);
+        expect(featureFlagModel.get).not.toHaveBeenCalled();
+    });
+
+    it('refuses unresolvable documents without touching the database', async () => {
+        resolver.resolve.mockResolvedValue(null);
+        await expect(model.getClient(clientId)).resolves.toBe(false);
+        expect(tracker.history.insert).toHaveLength(0);
+    });
+
+    it('keeps looking up stored clients by id', async () => {
+        tracker.on.select('oauth2_clients').responseOnce({
+            client_id: 'mcp-stored',
+            client_secret: null,
+            redirect_uris: [cliRedirectUri],
+            grants: ['authorization_code'],
+            scopes: [],
+            client_name: 'Stored',
+        });
+        const client = await model.getClient('mcp-stored');
+        expect(client && client.id).toBe('mcp-stored');
+        expect(resolver.resolve).not.toHaveBeenCalled();
+    });
+});
+
+describe('OAuth2Model personal CLI sessions', () => {
+    const database = knex({ client: MockClient, dialect: 'pg' });
+    const model = new OAuth2Model(database, lightdashConfig, featureFlagModel);
+    const client = {
+        id: 'lightdash-cli',
+        grants: ['authorization_code', 'refresh_token'],
+    };
+    const user = { userId: 42, organizationUuid: 'org' };
+    const row = {
+        client_id: client.id,
+        user_id: user.userId,
+        organization_uuid: user.organizationUuid,
+        expires_at: new Date(Date.now() + 86400000),
+        revoked_at: null,
+        scope: ['read', 'write'],
+    };
+    afterEach(() => {
+        getTracker().reset();
+        vi.restoreAllMocks();
+    });
+
+    it.each([
+        ['lightdash-cli', null, true],
+        ['other-client', null, false],
+        ['lightdash-cli', 'grant', false],
+    ] as const)(
+        'sets a deadline only for a personal CLI code: %s grant=%s',
+        async (clientId, grantUuid, personal) => {
+            const tracker = getTracker();
+            tracker.on.insert('oauth2_authorization_codes').response([]);
+            const now = Date.now();
+            vi.spyOn(Date, 'now').mockReturnValue(now);
+            const deadline = personal
+                ? new Date(now + CLI_PERSONAL_SESSION_LIFETIME_SECONDS * 1000)
+                : null;
+            const code = await model.saveAuthorizationCode(
+                {
+                    authorizationCode: 'code',
+                    codeChallenge: 'challenge',
+                    codeChallengeMethod: 'S256',
+                    expiresAt: new Date(now + 60000),
+                    redirectUri: 'http://localhost:8100/callback',
+                    resource: null,
+                    agentConnectionGrantUuid: grantUuid,
+                },
+                { ...client, id: clientId },
+                user,
+            );
+            expect(code.sessionExpiresAt).toEqual(deadline);
+            const query = tracker.history.insert[0];
+            const columns = query.sql
+                .slice(query.sql.indexOf('(') + 1, query.sql.indexOf(')'))
+                .replaceAll('"', '')
+                .split(', ');
+            expect(
+                query.bindings[columns.indexOf('session_expires_at')],
+            ).toEqual(deadline);
+        },
+    );
+
+    it.each([null, new Date(Date.now() + 30000)])(
+        'loads the stored session deadline %s from all credentials',
+        async (deadline) => {
+            const tracker = getTracker();
+            const stored = {
+                ...row,
+                session_expires_at: deadline,
+                redirect_uri: 'http://localhost:8100/callback',
+            };
+            tracker.on.select('oauth2_authorization_codes').response(stored);
+            tracker.on.select('oauth2_access_tokens').response(stored);
+            tracker.on.select('oauth2_refresh_tokens').response(stored);
+            expect(await model.getAuthorizationCode('code')).toMatchObject({
+                sessionExpiresAt: deadline,
+            });
+            expect(await model.getAccessToken('access')).toMatchObject({
+                sessionExpiresAt: deadline,
+            });
+            if (deadline === null)
+                await expect(model.getRefreshToken('refresh')).rejects.toThrow(
+                    'Session expired. Log in again.',
+                );
+            else
+                expect(await model.getRefreshToken('refresh')).toMatchObject({
+                    sessionExpiresAt: deadline,
+                    refreshTokenExpiresAt: deadline,
+                });
+        },
+    );
+
+    it.each([null, 30000, 7200000])(
+        'clips both token expiries to the persisted deadline %s',
+        async (remaining) => {
+            const tracker = getTracker();
+            tracker.on.insert('oauth2_access_tokens').response([]);
+            tracker.on.insert('oauth2_refresh_tokens').response([]);
+            tracker.on.delete('oauth2_refresh_tokens').response(0);
+            const now = Date.now();
+            vi.spyOn(Date, 'now').mockReturnValue(now);
+            const deadline = new Date(
+                now +
+                    (remaining ?? CLI_PERSONAL_SESSION_LIFETIME_SECONDS * 1000),
+            );
+            const accessExpiry = new Date(now + 3600000);
+            const refreshExpiry = new Date(now + 86400000);
+            const issued = await model.saveToken(
+                {
+                    accessToken: 'access',
+                    refreshToken: 'refresh',
+                    accessTokenExpiresAt: accessExpiry,
+                    refreshTokenExpiresAt: refreshExpiry,
+                    sessionExpiresAt: remaining === null ? null : deadline,
+                    client,
+                    user,
+                },
+                client,
+                user,
+            );
+            expect(issued).toMatchObject({
+                sessionExpiresAt: deadline,
+                accessTokenExpiresAt: new Date(
+                    Math.min(
+                        accessExpiry.getTime(),
+                        deadline?.getTime() ?? Infinity,
+                    ),
+                ),
+                refreshTokenExpiresAt: new Date(
+                    Math.min(
+                        refreshExpiry.getTime(),
+                        deadline?.getTime() ?? Infinity,
+                    ),
+                ),
+            });
+            expect(tracker.history.insert).toHaveLength(2);
+            tracker.history.insert.forEach((query) => {
+                const columns = query.sql
+                    .slice(query.sql.indexOf('(') + 1, query.sql.indexOf(')'))
+                    .replaceAll('"', '')
+                    .split(', ');
+                expect(
+                    query.bindings[columns.indexOf('session_expires_at')],
+                ).toEqual(deadline);
+                expect(query.bindings[columns.indexOf('expires_at')]).toEqual(
+                    query.sql.includes('oauth2_access_tokens')
+                        ? issued.accessTokenExpiresAt
+                        : issued.refreshTokenExpiresAt,
+                );
+            });
+        },
+    );
+
+    it.each([0, -1])(
+        'refuses an expired session before refresh rotation at offset %s',
+        async (offset) => {
+            const tracker = getTracker();
+            tracker.on.select('oauth2_refresh_tokens').response({
+                ...row,
+                session_expires_at: new Date(Date.now() + offset),
+            });
+            await expect(
+                model.getRefreshToken('refresh'),
+            ).rejects.toMatchObject({
+                name: 'invalid_grant',
+                message: 'Session expired. Log in again.',
+            });
+            expect(tracker.history.update).toHaveLength(0);
+            expect(tracker.history.delete).toHaveLength(0);
+            expect(tracker.history.insert).toHaveLength(0);
+        },
+    );
+
+    it('refuses access after the session deadline even when the row expiry is later', async () => {
+        getTracker()
+            .on.select('oauth2_access_tokens')
+            .response({ ...row, session_expires_at: new Date(Date.now() - 1) });
+        expect(await model.getAccessToken('access')).toBe(false);
+    });
+    it.each([true, false])(
+        'refuses legacy refresh before rotation in strict mode %s',
+        async (strict) => {
+            const tracker = getTracker();
+            vi.spyOn(model, 'isSecurityStrictForOAuthUser').mockResolvedValue(
+                strict,
+            );
+            tracker.on.select('oauth2_refresh_tokens').response({
+                ...row,
+                agent_connection_grant_uuid: null,
+                session_expires_at: null,
+                family_uuid: strict
+                    ? '11111111-1111-4111-8111-111111111111'
+                    : null,
+            });
+            const service = new OAuthService({
+                oauthModel: model,
+                lightdashConfig,
+                userModel: {} as UserModel,
+            });
+            vi.spyOn(model, 'getClient').mockResolvedValue(client);
+            const revoke = vi.spyOn(model, 'revokeToken');
+            const save = vi.spyOn(model, 'saveToken');
+            await expect(
+                service.token(
+                    new OAuth2Server.Request({
+                        method: 'POST',
+                        headers: {
+                            'content-type': 'application/x-www-form-urlencoded',
+                            'transfer-encoding': 'chunked',
+                        },
+                        query: {},
+                        body: {
+                            grant_type: 'refresh_token',
+                            client_id: client.id,
+                            refresh_token: 'legacy-refresh',
+                        },
+                    }),
+                    new OAuth2Server.Response({}),
+                ),
+            ).rejects.toMatchObject({
+                name: 'invalid_grant',
+                message: 'Session expired. Log in again.',
+            });
+            expect(revoke).not.toHaveBeenCalled();
+            expect(save).not.toHaveBeenCalled();
+            expect(tracker.history.insert).toHaveLength(0);
+            expect(tracker.history.update).toHaveLength(0);
+            expect(tracker.history.delete).toHaveLength(0);
+        },
+    );
+
+    it('persists grant-bound CLI tokens without a personal session deadline', async () => {
+        const tracker = getTracker();
+        const grant = { ...grantFixture(), clientId: client.id };
+        tracker.reset();
+        tracker.on.select('users').response({
+            user_uuid: grant.subjectUserUuid,
+            is_active: true,
+            organization_uuid: grant.organizationUuid,
+        });
+        featureFlagModel.get.mockResolvedValue({ enabled: true } as Awaited<
+            ReturnType<FeatureFlagModel['get']>
+        >);
+        vi.spyOn(
+            AgentConnectionGrantModel.prototype,
+            'findActive',
+        ).mockResolvedValue(grant);
+        vi.spyOn(
+            AgentConnectionGrantModel.prototype,
+            'bindRefreshFamily',
+        ).mockResolvedValue(undefined);
+        tracker.on.insert('oauth2_access_tokens').response([]);
+        tracker.on.insert('oauth2_refresh_tokens').response([]);
+        tracker.on.delete('oauth2_refresh_tokens').response(0);
+        const issued = await model.saveToken(
+            {
+                accessToken: 'bound-access',
+                refreshToken: 'bound-refresh',
+                accessTokenExpiresAt: new Date(Date.now() + 3600000),
+                refreshTokenExpiresAt: new Date(Date.now() + 86400000),
+                agentConnectionGrantUuid: grant.grantUuid,
+                resource: grant.resource,
+                familyUuid: grant.refreshFamilyUuid,
+                sessionExpiresAt: null,
+                client,
+                user,
+            },
+            client,
+            user,
+        );
+        expect(issued.sessionExpiresAt).toBeNull();
+        expect(tracker.history.insert).toHaveLength(2);
+        for (const query of tracker.history.insert) {
+            const columns = query.sql
+                .match(/\(([^)]+)\) values/)![1]
+                .replaceAll('"', '')
+                .split(', ');
+            expect(
+                query.bindings[columns.indexOf('session_expires_at')],
+            ).toBeNull();
+        }
     });
 });

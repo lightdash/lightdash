@@ -1,8 +1,4 @@
-import {
-    FeatureFlags,
-    isOfficialChartType,
-    type ChartType,
-} from '@lightdash/common';
+import { isOfficialChartType, type ChartType } from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
@@ -22,6 +18,7 @@ import {
 import { useEffect, useRef, type FC } from 'react';
 import { useCanEditDataAppChecker } from '../../../features/apps/hooks/useCanEditDataApp';
 import OfficialChartTypeBadge from '../../../features/chartTypes/components/OfficialChartTypeBadge';
+import { useChartStudioAvailable } from '../../../features/chartTypes/hooks/useChartStudioAvailable';
 import { useDataAppVisualization } from '../../../features/chartTypes/hooks/useDataAppVisualization';
 import {
     explorerActions,
@@ -31,7 +28,6 @@ import {
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import {
     CHART_GALLERY_SEARCH_ID,
     CHART_GALLERY_SIDEBAR_TITLE_ID,
@@ -39,7 +35,7 @@ import {
 } from '../../common/ChartGallery/ChartGalleryContext';
 import MantineIcon from '../../common/MantineIcon';
 import { isDataAppVizVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
+import { useVisualizationConfig } from '../../LightdashVisualization/useVisualizationContext';
 import VisualizationConfig from '../VisualizationCard/VisualizationConfig';
 import AddChartTypeMenu from './AddChartTypeMenu';
 import ExplorerChartTypeGallery, {
@@ -91,7 +87,7 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
         onClose();
     };
     const projectUuid = useProjectUuid();
-    const { visualizationConfig } = useVisualizationContext();
+    const visualizationConfig = useVisualizationConfig();
     const { getSelectedChartTypeItem } = useChartTypeOptions();
     const dataAppVizUuid = isDataAppVizVisualizationConfig(visualizationConfig)
         ? visualizationConfig.chartConfig.dataAppVizUuid
@@ -102,11 +98,9 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
         refetch: refetchSelectedProjectType,
     } = useDataAppVisualization(projectUuid, dataAppVizUuid, null);
     const canEditChartType = useCanEditDataAppChecker(projectUuid);
-    const dataAppsEnabled =
-        useServerFeatureFlag(FeatureFlags.EnableDataApps).data?.enabled ===
-        true;
+    const chartStudioAvailable = useChartStudioAvailable();
     const canEditSelectedType =
-        dataAppsEnabled &&
+        chartStudioAvailable &&
         selectedProjectType !== undefined &&
         canEditChartType(selectedProjectType) &&
         !isOfficialChartType(selectedProjectType);

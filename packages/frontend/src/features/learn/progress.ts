@@ -1,8 +1,5 @@
-import {
-    FeatureFlags,
-    type ApiError,
-    type LearnProgress,
-} from '@lightdash/common';
+import { subject } from '@casl/ability';
+import { type ApiError, type LearnProgress } from '@lightdash/common';
 import {
     useMutation,
     useQuery,
@@ -10,8 +7,9 @@ import {
     type QueryClient,
 } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
-import { lightdashApi } from '../../api';
-import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
+import { type LightdashApi } from '../../api';
+import useApp from '../../providers/App/useApp';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import { lessonScopesFor } from '../scopeTours/tourFor';
 
 /**
@@ -24,21 +22,21 @@ const LEARN_PROGRESS_QUERY_KEY = ['learn_progress'] as const;
 
 const EMPTY: LearnProgress = { completed: [], started: [], lastStarted: null };
 
-const getProgress = () =>
+const getProgress = (lightdashApi: LightdashApi) =>
     lightdashApi<LearnProgress>({
         url: '/user/learn-progress',
         method: 'GET',
         body: undefined,
     });
 
-const postStarted = (scope: string) =>
+const postStarted = (lightdashApi: LightdashApi, scope: string) =>
     lightdashApi<LearnProgress>({
         url: `/user/learn-progress/${encodeURIComponent(scope)}/started`,
         method: 'POST',
         body: undefined,
     });
 
-const postCompleted = (scope: string) =>
+const postCompleted = (lightdashApi: LightdashApi, scope: string) =>
     lightdashApi<LearnProgress>({
         url: `/user/learn-progress/${encodeURIComponent(scope)}/completed`,
         method: 'POST',
@@ -50,13 +48,14 @@ const postCompleted = (scope: string) =>
  * with data-tour-covers stands for several), one after the other so the
  * instance folds each into the same record; its last answer has them all.
  */
-const postLessonCompleted = (scope: string) =>
+const postLessonCompleted = (lightdashApi: LightdashApi, scope: string) =>
     lessonScopesFor(scope).reduce<Promise<LearnProgress>>(
-        (previous, each) => previous.then(() => postCompleted(each)),
+        (previous, each) =>
+            previous.then(() => postCompleted(lightdashApi, each)),
         Promise.resolve(EMPTY),
     );
 
-const postMerge = (progress: LearnProgress) =>
+const postMerge = (lightdashApi: LightdashApi, progress: LearnProgress) =>
     lightdashApi<LearnProgress>({
         url: '/user/learn-progress/merge',
         method: 'POST',
@@ -116,10 +115,12 @@ const clearLegacyProgress = () => {
  * in. The keys are only removed once the instance has it; if the merge
  * fails the browser keeps them and the next read tries again.
  */
-const fetchProgress = async (): Promise<LearnProgress> => {
+const fetchProgress = async (
+    lightdashApi: LightdashApi,
+): Promise<LearnProgress> => {
     const legacy = readLegacyProgress();
-    if (!legacy) return getProgress();
-    const merged = await postMerge(legacy);
+    if (!legacy) return getProgress(lightdashApi);
+    const merged = await postMerge(lightdashApi, legacy);
     clearLegacyProgress();
     return merged;
 };
@@ -152,21 +153,25 @@ export type LearnProgressState = LearnProgress & {
 };
 
 export const useLearnProgress = (): LearnProgressState => {
+    const lightdashApi = useLightdashApi();
     // The tour host mounts on every project page, so progress is asked for
-    // only where Learn exists at all: an organization with it switched off
-    // never calls the endpoint. The navbar's Learn link already reads this
-    // flag, so the gate costs no request of its own.
-    const { data: learnFlag } = useServerFeatureFlag(FeatureFlags.EnableLearn);
-    const enabled = learnFlag?.enabled === true;
+    // only by a user who can see Learn: the same ability the navbar's Learn
+    // link reads, so the gate costs no request of its own.
+    const { user } = useApp();
+    const enabled =
+        user.data?.ability.can(
+            'view',
+            subject('Learn', { organizationUuid: user.data.organizationUuid }),
+        ) === true;
     const query = useQuery<LearnProgress, ApiError>({
         queryKey: LEARN_PROGRESS_QUERY_KEY,
-        queryFn: fetchProgress,
+        queryFn: () => fetchProgress(lightdashApi),
         enabled,
         // Progress only changes through the actions below, which keep the
         // cache right; a tab that comes back into focus asks again.
         staleTime: 60 * 1000,
     });
-    // Nothing to wait for where Learn is switched off; everywhere else the
+    // Nothing to wait for where the user cannot see Learn; everywhere else the
     // instance has to have answered, one way or the other.
     const isSettled = !enabled || query.isSuccess || query.isError;
     return useMemo(
@@ -182,6 +187,7 @@ export const useLearnProgress = (): LearnProgressState => {
  * is refetched so the page shows what is actually held.
  */
 export const useLearnProgressActions = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const settle = useCallback(
         () => queryClient.cancelQueries(LEARN_PROGRESS_QUERY_KEY),
@@ -195,20 +201,23 @@ export const useLearnProgressActions = () => {
         (server: LearnProgress) => foldServer(queryClient, server),
         [queryClient],
     );
-    const started = useMutation<LearnProgress, ApiError, string>(postStarted, {
-        onMutate: async (scope) => {
-            await settle();
-            fold(queryClient, (previous) => ({
-                ...previous,
-                started: union(previous.started, scope),
-                lastStarted: scope,
-            }));
+    const started = useMutation<LearnProgress, ApiError, string>(
+        (scope: string) => postStarted(lightdashApi, scope),
+        {
+            onMutate: async (scope) => {
+                await settle();
+                fold(queryClient, (previous) => ({
+                    ...previous,
+                    started: union(previous.started, scope),
+                    lastStarted: scope,
+                }));
+            },
+            onSuccess,
+            onError,
         },
-        onSuccess,
-        onError,
-    });
+    );
     const completed = useMutation<LearnProgress, ApiError, string>(
-        postLessonCompleted,
+        (scope: string) => postLessonCompleted(lightdashApi, scope),
         {
             onMutate: async (scope) => {
                 await settle();

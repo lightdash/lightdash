@@ -4,6 +4,7 @@ import {
     MAX_RETENTION_WINDOW_HOURS,
     MIN_RETENTION_WINDOW_HOURS,
     type AiAgentModelConfig,
+    type AiAgentUserAccessDetail,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -106,6 +107,8 @@ const formSchema = z.object({
     enableContentTools: z.boolean(),
     enableUserContext: z.boolean(),
     enableSqlMode: z.boolean(),
+    enableSqlAutoApproval: z.boolean(),
+    enableComposerQueries: z.boolean(),
     adminOnly: z.boolean(),
     modelConfig: z.custom<AiAgentModelConfig>().nullable(),
     providerCredentialUuid: z.string().nullable(),
@@ -180,6 +183,7 @@ export const AiAgentFormSetup = ({
     isSavingAgent,
     onSubmit,
     persistedMcpServerUuids,
+    userAccessDetails,
     avatarMode,
     avatarFileName,
     onAvatarFileChange,
@@ -194,6 +198,9 @@ export const AiAgentFormSetup = ({
     isSavingAgent?: boolean;
     onSubmit: () => void;
     persistedMcpServerUuids?: string[];
+    // Names for the saved user access, so pills are labelled before the
+    // org user search has loaded them.
+    userAccessDetails?: AiAgentUserAccessDetail[];
     avatarMode: 'upload' | 'link';
     avatarFileName: string | null;
     onAvatarFileChange: (file: File | null) => void;
@@ -317,6 +324,12 @@ export const AiAgentFormSetup = ({
     const threadRetentionFlagQuery = useServerFeatureFlag(
         FeatureFlags.AiThreadRetention,
     );
+
+    const composeSqlRunnerFlagQuery = useServerFeatureFlag(
+        FeatureFlags.ComposeSqlRunner,
+    );
+    const composerQueriesAvailable =
+        composeSqlRunnerFlagQuery.data?.enabled === true;
 
     const isGroupsEnabled =
         userGroupsFeatureFlagQuery.isSuccess &&
@@ -608,7 +621,7 @@ export const AiAgentFormSetup = ({
                                 <Box>
                                     <Title
                                         order={6}
-                                        c="ldGray.7"
+                                        c="dimmed"
                                         size="sm"
                                         fw={500}
                                     >
@@ -939,7 +952,7 @@ export const AiAgentFormSetup = ({
                                 label={
                                     <SwitchLabel
                                         text="Create and edit content"
-                                        help="Requires reading rows to be enabled. Only works for users with content-as-code access (admins, developers, and editors)."
+                                        help="Requires reading rows to be enabled. Users only get the actions their role allows."
                                         badge={<BetaBadge />}
                                     />
                                 }
@@ -977,6 +990,43 @@ export const AiAgentFormSetup = ({
                                     type: 'checkbox',
                                 })}
                             />
+                            <Switch
+                                variant="subtle"
+                                label={
+                                    <SwitchLabel
+                                        text="Run SQL without approval"
+                                        help="Applies everywhere the agent runs, including Slack. Users still need SQL Runner access, and queries stay limited to the agent data scope."
+                                        badge={null}
+                                    />
+                                }
+                                description="Skip the approval step for SQL queries and SQL charts. Off by default."
+                                {...form.getInputProps(
+                                    'enableSqlAutoApproval',
+                                    {
+                                        type: 'checkbox',
+                                    },
+                                )}
+                            />
+                            {composerQueriesAvailable && (
+                                <Switch
+                                    variant="subtle"
+                                    label={
+                                        <SwitchLabel
+                                            text="Composer queries"
+                                            help="Requires reading rows to be enabled."
+                                            badge={<BetaBadge />}
+                                        />
+                                    }
+                                    description="Queries run through the composer pipeline instead of the classic query tools."
+                                    {...form.getInputProps(
+                                        'enableComposerQueries',
+                                        {
+                                            type: 'checkbox',
+                                        },
+                                    )}
+                                    disabled={!form.values.enableDataAccess}
+                                />
+                            )}
                         </Stack>
 
                         <Text size="xs" c="dimmed">
@@ -1076,6 +1126,9 @@ export const AiAgentFormSetup = ({
                                         <UserAccessMultiSelect
                                             projectUuid={projectUuid!}
                                             isGroupsEnabled={isGroupsEnabled}
+                                            selectedUserDetails={
+                                                userAccessDetails
+                                            }
                                             value={form.values.userAccess}
                                             onChange={(value) => {
                                                 form.setFieldValue(
@@ -1275,7 +1328,7 @@ export const AiAgentFormSetup = ({
                                 <Box>
                                     <Title
                                         order={6}
-                                        c="ldGray.7"
+                                        c="dimmed"
                                         size="sm"
                                         fw={500}
                                     >

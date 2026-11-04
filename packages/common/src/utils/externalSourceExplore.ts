@@ -23,7 +23,7 @@ export const EXTERNAL_SOURCE_ROW_COUNT_METRIC = 'total_rows';
 const buildAutoMetrics = (args: {
     tableName: string;
     tableLabel: string;
-    columns: VizColumn[];
+    columns: Array<VizColumn & { label?: string }>;
 }): Record<string, Metric> => {
     const { tableName, tableLabel, columns } = args;
     const columnReferences = new Set(columns.map(({ reference }) => reference));
@@ -49,7 +49,10 @@ const buildAutoMetrics = (args: {
     columns
         .filter((column) => column.type === DimensionType.NUMBER)
         .forEach((column) => {
-            const columnLabel = friendlyName(column.reference);
+            const columnLabel = column.label ?? friendlyName(column.reference);
+            // Names the user typed keep their casing
+            const metricSubject =
+                column.label ?? friendlyName(column.reference).toLowerCase();
             const dimensionReference = `\${${column.reference}}`;
             const variants: Array<{
                 suffix: string;
@@ -72,10 +75,10 @@ const buildAutoMetrics = (args: {
                 metrics[name] = {
                     ...base,
                     name,
-                    label: `${labelPrefix} ${columnLabel.toLowerCase()}`,
+                    label: `${labelPrefix} ${metricSubject}`,
                     type,
                     sql: dimensionReference,
-                    description: `${labelPrefix} ${columnLabel.toLowerCase()}, generated from the source table.`,
+                    description: `${labelPrefix} ${metricSubject}, generated from the source table.`,
                     groups: [columnLabel],
                 };
             });
@@ -98,8 +101,12 @@ export const createExternalSourceExplore = (args: {
     warehouseSqlBuilder: WarehouseSqlBuilder;
 }): Explore => {
     const { name, label, columns, externalSource, warehouseSqlBuilder } = args;
-    const vizColumns: VizColumn[] = Object.values(columns).map(
-        ({ reference, type }) => ({ reference, type }),
+    const vizColumns = Object.values(columns).map(
+        ({ reference, type, label: columnLabel }) => ({
+            reference,
+            type,
+            label: columnLabel,
+        }),
     );
     const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
 

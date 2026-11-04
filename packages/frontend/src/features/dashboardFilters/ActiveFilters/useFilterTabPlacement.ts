@@ -3,6 +3,11 @@ import { useCallback, useMemo } from 'react';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import {
+    selectDashboardTabs,
+    selectDashboardTiles,
+    useDashboardSelector,
+} from '../../dashboard/store';
+import {
     doesFilterApplyToAnyTile,
     getTabsForFilterRule,
 } from '../FilterConfiguration/utils';
@@ -22,8 +27,8 @@ export const isFilterHiddenOnTab = (
 
 export const useFilterTabPlacement = () => {
     const getUiString = useUiStrings();
-    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
-    const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
+    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
+    const dashboardTabs = useDashboardSelector(selectDashboardTabs);
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );

@@ -4,7 +4,11 @@ import {
 } from '@lightdash/visualization/editor';
 import { useMemo } from 'react';
 import { isFunnelVisualizationConfig } from '../../components/LightdashVisualization/types';
-import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
+import {
+    useVisualizationConfig,
+    useVisualizationInputs,
+    useVisualizationServices,
+} from '../../components/LightdashVisualization/useVisualizationContext';
 import { useVisualizationTheme } from '../useVisualizationTheme';
 
 export { type FunnelSeriesDataPoint };
@@ -17,15 +21,10 @@ const useEchartsFunnelConfig = (
     selectedLegends?: Record<string, boolean>,
     isInDashboard?: boolean,
 ) => {
-    const {
-        visualizationConfig,
-        itemsMap,
-        colorPalette,
-        parameters,
-        isTouchDevice,
-        minimal,
-        resolvedTimezone,
-    } = useVisualizationContext();
+    const { isTouchDevice } = useVisualizationServices();
+    const visualizationConfig = useVisualizationConfig();
+    const { itemsMap, colorPalette, parameters, minimal, resolvedTimezone } =
+        useVisualizationInputs();
 
     const theme = useVisualizationTheme();
 

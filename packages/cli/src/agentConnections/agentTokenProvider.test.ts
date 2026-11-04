@@ -1,3 +1,4 @@
+import { AgentCapability } from '@lightdash/common';
 import { promises as fs } from 'fs';
 import { tmpdir } from 'os';
 import path from 'path';
@@ -35,6 +36,7 @@ beforeEach(async () => {
                 refresh_token: 'new-refresh',
                 token_type: 'Bearer',
                 expires_in: 3600,
+                refresh_expires_in: 3600,
                 scope: 'read write',
             });
         if (url.endsWith('/user'))
@@ -89,7 +91,7 @@ it('two providers refresh once and use the committed generation', async () => {
     expect(saved?.tokens).toMatchObject({
         generation: 2,
         refreshToken: 'new-refresh',
-        refreshTokenExpiresAt: null,
+        refreshTokenExpiresAt: expect.any(String),
     });
     expect(await fs.readdir(directory)).toEqual(['agent-connections.yaml']);
 });
@@ -118,7 +120,7 @@ it('persists private intent and token-free journal before the request', async ()
     await new AgentTokenProvider(store).getToken(slot);
 });
 it.each(['lost', 'malformed', 'scope', 'identity', 'save'])(
-    'never resends after a %s response or save failure and redacts errors',
+    'never resends after a %s response or save failure and omits server text',
     async (failure) => {
         expiredAccess();
         await store.saveSlot(slot);
@@ -135,6 +137,7 @@ it.each(['lost', 'malformed', 'scope', 'identity', 'save'])(
                         refresh_token: 'new-refresh',
                         token_type: 'Bearer',
                         expires_in: 3600,
+                        refresh_expires_in: 3600,
                         scope: 'read write admin',
                     });
                 if (failure === 'save')
@@ -225,6 +228,7 @@ it('clips a short token lifetime and uses a conservative response clock', async 
                       refresh_token: 'new-refresh',
                       token_type: 'Bearer',
                       expires_in: 10,
+                      refresh_expires_in: 3600,
                       scope: 'write read',
                   }),
                   headers: {
@@ -377,3 +381,140 @@ it('retains reconnect behaviour when a same-grant journal cannot be read', async
     );
     expect(fetchMock).not.toHaveBeenCalled();
 });
+
+const reportProject = '44444444-4444-4444-8444-444444444444';
+it.each([false, true])(
+    'drops unknown proof fields with refresh=%s through the real store',
+    async (refresh) => {
+        if (refresh) expiredAccess();
+        await store.saveSlot(slot);
+        const implementation = fetchMock.getMockImplementation()!;
+        fetchMock.mockImplementation(async (...args) => {
+            const reply = await implementation(...args);
+            if (!args[0].endsWith('/status')) return reply;
+            const body = await reply.json();
+            return response({
+                ...body,
+                future: 'X3 leak!',
+                results: {
+                    ...body.results,
+                    future: 'X3 leak!',
+                    approvedProjects: [
+                        {
+                            projectUuid: reportProject,
+                            name: '\u001b[31mClean\nname\u001b[0m',
+                            approvedCapabilities: [
+                                AgentCapability.ReadDiscover,
+                            ],
+                            future: { marker: 'X3 leak!' },
+                        },
+                    ],
+                    effectiveProjects: [
+                        {
+                            projectUuid: reportProject,
+                            future: 'X3 leak!',
+                            capabilities: [
+                                {
+                                    capability: AgentCapability.ReadDiscover,
+                                    allowed: true,
+                                    reason: null,
+                                    future: { marker: 'X3 leak!' },
+                                },
+                            ],
+                        },
+                    ],
+                },
+            });
+        });
+        const result = await new AgentTokenProvider(store).getToken(slot);
+        expect(result.lastReported.approvedProjects[0].name).toBe('Cleanname');
+        expect(JSON.stringify(result)).not.toContain('X3 leak!');
+        if (!refresh) await store.saveSlot(result);
+        const saved = await fs.readFile(store.filePath, 'utf8');
+        expect(saved).not.toContain('X3 leak!');
+        expect(saved).toContain('Cleanname');
+        expect((await store.readSlot(slot))?.tokens.generation).toBe(
+            refresh ? 2 : 1,
+        );
+        await store.saveSlot((await store.readSlot(slot))!);
+        expect(await fs.readFile(store.filePath, 'utf8')).toBe(saved);
+    },
+);
+it.each([
+    { field: 'name', value: 'x'.repeat(2049), refused: false },
+    { field: 'name', value: 42, refused: true },
+    { field: 'projectUuid', value: 'X3 leak!', refused: true },
+    { field: 'approvedCapabilities', value: 'X3 leak!', refused: true },
+])(
+    'bounds and validates refreshed project $field ($refused)',
+    async ({ field, value, refused }) => {
+        expiredAccess();
+        await store.saveSlot(slot);
+        const implementation = fetchMock.getMockImplementation()!;
+        fetchMock.mockImplementation(async (...args) => {
+            const reply = await implementation(...args);
+            if (!args[0].endsWith('/status')) return reply;
+            const body = await reply.json();
+            return response({
+                ...body,
+                results: {
+                    ...body.results,
+                    approvedProjects: [
+                        {
+                            projectUuid: reportProject,
+                            name: 'Project',
+                            approvedCapabilities: [],
+                            [field]: value,
+                        },
+                    ],
+                    effectiveProjects: [
+                        { projectUuid: reportProject, capabilities: [] },
+                    ],
+                },
+            });
+        });
+        const pending = new AgentTokenProvider(store).getToken(slot);
+        if (refused) {
+            await expect(pending).rejects.toThrow(
+                'Reconnect before using this agent connection. Its refresh outcome is uncertain.',
+            );
+            expect((await store.readSlot(slot))?.refreshState.kind).toBe(
+                'reconnect_required',
+            );
+        } else {
+            expect(
+                (await pending).lastReported.approvedProjects[0].name,
+            ).toBeNull();
+            expect(
+                (await store.readSlot(slot))?.lastReported.approvedProjects[0]
+                    .name,
+            ).toBeNull();
+        }
+        if (typeof value === 'string')
+            expect(await fs.readFile(store.filePath, 'utf8')).not.toContain(
+                value,
+            );
+    },
+);
+it.each(['access_token', 'refresh_token', 'scope'])(
+    'refuses an oversized refresh %s',
+    async (field) => {
+        expiredAccess();
+        await store.saveSlot(slot);
+        const implementation = fetchMock.getMockImplementation()!;
+        fetchMock.mockImplementation(async (...args) => {
+            const reply = await implementation(...args);
+            if (!args[0].endsWith('/oauth/token')) return reply;
+            return response({
+                ...(await reply.json()),
+                [field]: 'x'.repeat(16385),
+            });
+        });
+        await expect(
+            new AgentTokenProvider(store).getToken(slot),
+        ).rejects.toThrow('Its refresh outcome is uncertain.');
+        expect(await fs.readFile(store.filePath, 'utf8')).not.toContain(
+            'x'.repeat(16385),
+        );
+    },
+);

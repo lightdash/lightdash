@@ -1,4 +1,5 @@
 import {
+    getEmbedWriteSpaceUuids,
     type AiAgentSummary,
     type ApiError,
     type CreateEmbedJwt,
@@ -27,14 +28,15 @@ import { IconEye, IconLink, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
 import { useCallback, type FC, type ReactNode } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { lightdashApi } from '../../../../api';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { useAsyncClipboard } from '../../../../hooks/useAsyncClipboard';
 import useUser from '../../../../hooks/user/useUser';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 import EmbedCodeSnippet from './EmbedCodeSnippet';
 
 const useEmbedUrlCreateMutation = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
     const { showToastError } = useToaster();
     return useMutation<EmbedUrl, ApiError, CreateEmbedJwt>(
         (data: CreateEmbedJwt) =>
@@ -104,7 +106,8 @@ const EmbedPreviewAiAgentForm: FC<{
     });
     const { onSubmit, values: formValues } = form;
     const hasRequiredWriteActions =
-        !!writeActions?.serviceAccountUserUuid && !!writeActions.spaceUuid;
+        !!writeActions?.serviceAccountUserUuid &&
+        getEmbedWriteSpaceUuids(writeActions).length > 0;
 
     const convertFormValuesToCreateEmbedJwt = useCallback(
         (

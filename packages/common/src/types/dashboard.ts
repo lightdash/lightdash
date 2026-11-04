@@ -1,4 +1,5 @@
 import { type AgentIdentityClaim } from './agentIdentity';
+import { type ContentAsCodeRepositorySource } from './contentAsCode/base';
 import { type ContentDraftStaleness } from './contentAsCode/draftRebase';
 import { type ContentVerificationInfo } from './contentVerification';
 import { type FilterableDimension, type Metric } from './field';
@@ -237,6 +238,18 @@ export type DateZoomControl = {
     granularity: DateGranularity | string;
     // Hidden from viewers; grain still applies to its tiles.
     hidden?: boolean;
+    /** Id of a DashboardConfig.controlSections entry; unsectioned if absent or dangling. */
+    sectionId?: string;
+};
+
+export type DashboardControlSection = {
+    /** uuid, stable across dashboard versions */
+    id: string;
+    name: string;
+    /** Starts folded in the rail and on the bar; absent, the bar folds only a dense section */
+    collapsed?: boolean;
+    /** Sits on the bar line of the section before it; absent, starts a line of its own */
+    inline?: boolean;
 };
 
 export type DateZoomConfig = {
@@ -257,6 +270,11 @@ export type DashboardConfig = {
     /** Custom metrics offered to charts built inside this dashboard. Interim
      *  store — moves to a semantic-layer draft later; don't read it elsewhere. */
     customMetrics?: AdditionalMetric[];
+    /** Named sets of controls, in display order. Controls point at a section
+     *  by id; controls with no section render first, unsectioned. */
+    controlSections?: DashboardControlSection[];
+    /** Parameter name to section id. Parameters have no saved object of their own. */
+    parameterSections?: { [parameterName: string]: string };
 };
 
 export type DashboardOwner = {
@@ -277,6 +295,8 @@ export type Dashboard = {
     projectType?: ProjectType;
     organizationUuid: string;
     projectUuid: string;
+    /** The repo owns this dashboard: UI saves become drafts until written back */
+    managedFromRepository?: ContentAsCodeRepositorySource;
     /** Set when the viewer has an unpublished draft applied on top */
     hasUnpublishedChanges?: boolean;
     /** For reviewers: open drafts by other users awaiting review */

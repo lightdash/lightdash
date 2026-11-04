@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import fetch from 'node-fetch';
 import { refuseAgentConnection } from '../../credentials';
+import { CLI_VERSION } from '../../env';
 
 export const generatePersonalAccessToken = async (
     headers: Record<string, string>,
@@ -26,6 +27,7 @@ export const generatePersonalAccessToken = async (
         headers: {
             'Content-Type': 'application/json',
             ...headers,
+            'User-Agent': `lightdash-cli/${CLI_VERSION}`,
         },
     });
     if (!patResponse.ok) {

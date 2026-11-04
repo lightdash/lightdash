@@ -3,11 +3,15 @@ import {
     type ApiExecuteAsyncDashboardChartQueryResults,
     type DateZoom,
 } from '@lightdash/common';
-import { useCallback, useMemo } from 'react';
-import { lightdashApi } from '../../api';
+import { useCallback } from 'react';
 import { Limit } from '../../components/ExportResults/types';
+import {
+    selectParameterValues,
+    selectTileChartSorts,
+    useDashboardSelector,
+} from '../../features/dashboard/store';
 import { pollForResults } from '../../features/queryRunner/executeQuery';
-import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import useDashboardFiltersForTile from './useDashboardFiltersForTile';
 
 export const useEmbedDashboardChartDownload = (
@@ -17,12 +21,11 @@ export const useEmbedDashboardChartDownload = (
     canExportPivotedData: boolean,
     dateZoom?: DateZoom,
 ) => {
+    const lightdashApi = useLightdashApi();
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
-    const chartSort = useDashboardContext((c) => c.chartSort);
-    const parameters = useDashboardContext((c) => c.parameterValues);
-    const dashboardSorts = useMemo(
-        () => chartSort[tileUuid] || [],
-        [chartSort, tileUuid],
+    const parameters = useDashboardSelector(selectParameterValues);
+    const dashboardSorts = useDashboardSelector((state) =>
+        selectTileChartSorts(state, tileUuid),
     );
 
     const getDownloadQueryUuid = useCallback(
@@ -62,6 +65,7 @@ export const useEmbedDashboardChartDownload = (
                 });
 
             const results = await pollForResults(
+                lightdashApi,
                 projectUuid,
                 executeQueryResponse.queryUuid,
             );
@@ -88,6 +92,7 @@ export const useEmbedDashboardChartDownload = (
             parameters,
             canExportPivotedData,
             originalQueryUuid,
+            lightdashApi,
         ],
     );
 
