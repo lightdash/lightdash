@@ -102,6 +102,7 @@
 }
 
 .runCard:has([data-run-activity]) {
+    margin-block: var(--mantine-spacing-sm);
     padding: var(--mantine-spacing-lg);
     border: 1px solid var(--mantine-color-default-border);
     border-radius: var(--mantine-radius-lg);
