@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     ApiGetAsyncQueryResults,
+    APP_PDF_EXPORT_GLOBAL,
     assertUnreachable,
     AuthorizationError,
     ChartType,
@@ -25,6 +26,7 @@ import {
     LightdashRequestMethodHeader,
     NotFoundError,
     ParameterError,
+    parseAppPdfExportResult,
     parseDeliveryCaptureManifest,
     QueryHistoryStatus,
     RequestMethod,
@@ -3393,6 +3395,132 @@ export class UnfurlService extends BaseService {
                 `App delivery capture returned ${manifest.items.length} queries (overflow ${manifest.overflowCount}) - contextId: ${contextId}`,
             );
             return manifest;
+        } finally {
+            if (page) await page.close().catch(() => {});
+            if (browser) await browser.close().catch(() => {});
+        }
+    }
+
+    /**
+     * Renders the app in `exportMode=pdf` and returns the PDF the app's own
+     * registered Download PDF builder produced. Fails loud — including for
+     * apps generated before the builder registration existed, which publish
+     * a typed "no PDF export" error — so a delivery never silently falls
+     * back to a page capture.
+     */
+    async unfurlAppPdf({
+        minimalUrl,
+        appName,
+        authUserUuid,
+        imageId,
+        contextId,
+    }: {
+        minimalUrl: string;
+        appName: string;
+        authUserUuid: string;
+        imageId: string;
+        contextId?: string;
+    }): Promise<{ pdfFile: { source: string; fileName: string } }> {
+        if (this.lightdashConfig.headlessBrowser?.host === undefined) {
+            throw new UnexpectedServerError(
+                `Can't export app PDF if HEADLESS_BROWSER_HOST env variable is not defined`,
+            );
+        }
+        const exportUrl = new URL(minimalUrl);
+        exportUrl.searchParams.set('exportMode', 'pdf');
+
+        const cookie = await this.getUserCookie(authUserUuid);
+
+        let browser: playwright.Browser | undefined;
+        let page: playwright.Page | undefined;
+        try {
+            browser = await playwright.chromium.connectOverCDP(
+                getAppBrowserEndpoint(
+                    this.lightdashConfig.headlessBrowser.browserEndpoint,
+                    appViewport,
+                    this.screenshotTimeoutMs + BROWSERLESS_SESSION_BUFFER_MS,
+                    this.lightdashConfig.headlessBrowser.internalLightdashHost,
+                ),
+                { timeout: 1000 * 60 * 30 },
+            );
+            page = await browser.newPage({
+                viewport: appViewport,
+                serviceWorkers: 'block',
+                ignoreHTTPSErrors:
+                    this.lightdashConfig.headlessBrowser
+                        .internalLightdashHostIgnoreHttpsErrors,
+            });
+            // Same geometry as the screenshot render so the app lays out the
+            // report the way its builder expects.
+            await this.overrideCdpViewport(
+                page,
+                appViewport,
+                `contextId: ${contextId}`,
+            );
+
+            await this.registerHeadlessBrowserRoutes({
+                browserContext: page.context(),
+                context: ScreenshotContext.SCHEDULED_DELIVERY,
+                contextId,
+            });
+
+            const cookieMatch = cookie.match(/connect\.sid=([^;]+)/);
+            if (!cookieMatch)
+                throw new UnexpectedServerError('Invalid cookie provided');
+            await page.context().addCookies([
+                {
+                    name: 'connect.sid',
+                    value: cookieMatch[1],
+                    domain: new URL(exportUrl).hostname,
+                    path: '/',
+                    sameSite: 'Strict',
+                },
+            ]);
+
+            page.on('console', (msg) => {
+                if (msg.type() === 'error') {
+                    this.logger.error(
+                        `App PDF export console error - contextId: ${contextId}, text: ${msg.text()}`,
+                    );
+                }
+            });
+
+            await page.goto(exportUrl.href, { timeout: 150000 });
+
+            // In exportMode=pdf the indicator mounts only once the app's PDF
+            // build settled (success or typed error), so the global is
+            // guaranteed readable right after.
+            await page.waitForSelector(SCREENSHOT_SELECTORS.READY_INDICATOR, {
+                state: 'attached',
+                timeout: this.screenshotTimeoutMs,
+            });
+
+            const raw = await page.evaluate(
+                (globalName) =>
+                    (window as unknown as Record<string, unknown>)[globalName],
+                APP_PDF_EXPORT_GLOBAL,
+            );
+            const result = parseAppPdfExportResult(raw);
+            if (result === null) {
+                throw new UnexpectedServerError(
+                    `App PDF export result missing or malformed - contextId: ${contextId}`,
+                );
+            }
+            if (result.status === 'error') {
+                throw new UnexpectedServerError(result.error);
+            }
+
+            const pdfBuffer = Buffer.from(result.pdfBase64, 'base64');
+            if (pdfBuffer.length === 0) {
+                throw new UnexpectedServerError(
+                    `App PDF export returned an empty document - contextId: ${contextId}`,
+                );
+            }
+            this.logger.info(
+                `App PDF export produced ${pdfBuffer.length} bytes - contextId: ${contextId}`,
+            );
+            const pdfFile = await this.uploadPdf(imageId, pdfBuffer, appName);
+            return { pdfFile };
         } finally {
             if (page) await page.close().catch(() => {});
             if (browser) await browser.close().catch(() => {});

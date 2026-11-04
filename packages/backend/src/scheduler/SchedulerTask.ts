@@ -1105,7 +1105,18 @@ export default class SchedulerTask {
                         'pagePerTab' in options &&
                         options.pagePerTab === true;
 
-                    if (pagePerTab && dashboardUuid) {
+                    if (appUuid) {
+                        // The app builds its own PDF (the Download PDF
+                        // builder); the headless render just carries it out.
+                        const appPdf = await this.unfurlService.unfurlAppPdf({
+                            minimalUrl: minimalRenderUrl.href,
+                            appName: details.name,
+                            authUserUuid: userUuid,
+                            imageId: pdfId,
+                            contextId: jobId,
+                        });
+                        pdfFile = appPdf.pdfFile;
+                    } else if (pagePerTab && dashboardUuid) {
                         const perTabResult =
                             await this.unfurlService.unfurlPdfCssPaged({
                                 minimalUrl: minimalRenderUrl.href,
