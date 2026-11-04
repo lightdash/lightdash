@@ -180,6 +180,7 @@ export const StatefulParameterPopover: FC<StatefulParameterPopoverProps> = ({
                             'all' as const,
                         ]),
                     ),
+                    ...(control.hidden && { hidden: true }),
                     ...(control.sectionId !== null && {
                         sectionId: control.sectionId,
                     }),
@@ -208,6 +209,7 @@ export const StatefulParameterPopover: FC<StatefulParameterPopoverProps> = ({
                         label: next.label,
                         value: next.value,
                         sectionId: next.sectionId ?? null,
+                        hidden: next.hidden,
                     }))
                 }
                 // Stands in for mapping: a control with no tiles takes every

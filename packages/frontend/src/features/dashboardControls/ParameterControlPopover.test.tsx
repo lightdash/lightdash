@@ -220,11 +220,10 @@ describe('ParameterControlPopover', () => {
         expect(screen.queryByText(/^Sets/)).toBeNull();
     });
 
-    it("renames in Settings with Enter, a blank name following the parameter's", async () => {
+    it("renames inline with Enter, a blank name following the parameter's", async () => {
         const { user, onChange } = render({
             control: control({ label: 'Sales region' }),
         });
-        await user.click(screen.getByRole('button', { name: 'Settings' }));
         await user.click(screen.getByRole('button', { name: 'Rename' }));
         await user.keyboard('EMEA region{Enter}');
         expect(onChange).toHaveBeenLastCalledWith(
@@ -241,7 +240,6 @@ describe('ParameterControlPopover', () => {
         const { user, onChange } = render({
             control: control({ label: null }),
         });
-        await user.click(screen.getByRole('button', { name: 'Settings' }));
         await user.click(screen.getByRole('button', { name: 'Rename' }));
         await user.keyboard('{Enter}');
         expect(onChange).not.toHaveBeenCalledWith(
@@ -256,9 +254,14 @@ describe('ParameterControlPopover', () => {
         expect(onChange).toHaveBeenCalledWith(
             expect.objectContaining({ sectionId: 'market' }),
         );
-        await user.click(
-            screen.getByRole('button', { name: 'Hide for viewers' }),
+        const visibility = screen.getByRole('switch', {
+            name: 'Show to viewers',
+        });
+        expect(visibility).toBeChecked();
+        expect(visibility).toHaveAccessibleDescription(
+            'The value still applies to its tiles when hidden.',
         );
+        await user.click(visibility);
         expect(onChange).toHaveBeenCalledWith(
             expect.objectContaining({ hidden: true }),
         );

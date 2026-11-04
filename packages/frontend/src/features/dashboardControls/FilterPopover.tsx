@@ -448,8 +448,6 @@ export const FilterPopover: FC<Props> = ({
                     mih={24}
                     classNames={{
                         root: classes.wrappingChip,
-                        inner: classes.wrappingChipInner,
-                        section: classes.wrappingChipSection,
                         label: classes.wrappingChipLabel,
                     }}
                     aria-label={

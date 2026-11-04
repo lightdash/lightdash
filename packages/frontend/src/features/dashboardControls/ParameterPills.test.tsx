@@ -835,9 +835,6 @@ describe('ParameterPills', () => {
             ]) {
                 await user.click(pill('region'));
                 await user.click(
-                    screen.getByRole('button', { name: 'Settings' }),
-                );
-                await user.click(
                     screen.getByRole('button', { name: 'Rename' }),
                 );
                 await user.keyboard('Sales region{Enter}');
@@ -855,7 +852,6 @@ describe('ParameterPills', () => {
             });
             expect(pill('region')).toHaveTextContent('Region is not set');
             await user.click(pill('region'));
-            await user.click(screen.getByRole('button', { name: 'Settings' }));
             await user.click(screen.getByRole('button', { name: 'Rename' }));
             await user.keyboard('Sales region{Enter}');
             await user.click(screen.getByRole('button', { name: 'Apply' }));
@@ -872,7 +868,6 @@ describe('ParameterPills', () => {
                 controls: [control('region', { value: 'EMEA' })],
             });
             await user.click(pill('region'));
-            await user.click(screen.getByRole('button', { name: 'Settings' }));
             await user.click(screen.getByRole('button', { name: 'Rename' }));
             await user.keyboard('Sales region{Enter}');
             act(() => setViewer(true));
@@ -980,9 +975,6 @@ describe('ParameterPills', () => {
             const rename = async () => {
                 await user.click(pill('region'));
                 await user.click(
-                    screen.getByRole('button', { name: 'Settings' }),
-                );
-                await user.click(
                     screen.getByRole('button', { name: 'Rename' }),
                 );
                 await user.keyboard('Sales region{Enter}');
@@ -1039,7 +1031,6 @@ describe('ParameterPills', () => {
             expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
             await user.click(pill('region'));
-            await user.click(screen.getByRole('button', { name: 'Settings' }));
             await user.click(screen.getByRole('button', { name: 'Rename' }));
             await user.keyboard('Sales region{Enter}');
             await user.click(
@@ -1158,8 +1149,8 @@ describe('ParameterPills', () => {
             await user.click(pill('region'));
             await user.click(screen.getByRole('button', { name: 'Settings' }));
             await user.click(
-                await screen.findByRole('button', {
-                    name: 'Hide for viewers',
+                await screen.findByRole('switch', {
+                    name: 'Show to viewers',
                 }),
             );
             // Only the draft so far
@@ -1174,8 +1165,8 @@ describe('ParameterPills', () => {
             await user.click(pill('region'));
             await user.click(screen.getByRole('button', { name: 'Settings' }));
             await user.click(
-                await screen.findByRole('button', {
-                    name: 'Show for viewers',
+                await screen.findByRole('switch', {
+                    name: 'Show to viewers',
                 }),
             );
             await user.click(screen.getByRole('button', { name: 'Apply' }));

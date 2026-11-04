@@ -48,16 +48,9 @@
     padding-block: calc(var(--mantine-spacing-xs) / 4);
 }
 
-.wrappingChipInner {
-    align-items: flex-start;
-}
-
-.wrappingChipSection {
-    height: calc(var(--mantine-font-size-xs) * var(--mantine-line-height-xs));
-}
-
 .wrappingChipLabel {
     height: auto;
+    line-height: var(--mantine-line-height-xs);
     overflow: visible;
     white-space: normal;
     text-align: start;

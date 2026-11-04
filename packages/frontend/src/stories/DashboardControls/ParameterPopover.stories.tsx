@@ -313,6 +313,18 @@ export const Settings: Story = {
     play: async ({ canvas, canvasElement, userEvent }) => {
         const section = canvas.getByRole('combobox', { name: 'Section' });
         await expect(section).toHaveValue('No section');
+        const visibility = canvas.getByRole('switch', {
+            name: 'Show to viewers',
+        });
+        await expect(visibility).toBeChecked();
+        await userEvent.click(
+            canvas.getByText('Show to viewers', { exact: true }),
+        );
+        await expect(visibility).not.toBeChecked();
+        await userEvent.click(
+            canvas.getByText('Show to viewers', { exact: true }),
+        );
+        await expect(visibility).toBeChecked();
         await expect(
             canvas.queryByRole('textbox', { name: 'Name' }),
         ).toBeNull();
@@ -434,7 +446,6 @@ export const RenameThenCancel: Story = {
         ),
     },
     play: async ({ canvas, userEvent, args }) => {
-        await userEvent.click(canvas.getByRole('button', { name: 'Settings' }));
         await userEvent.click(canvas.getByRole('button', { name: 'Rename' }));
         await expect(
             canvas.getByRole('textbox', { name: 'Name' }),
