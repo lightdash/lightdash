@@ -19,15 +19,18 @@ import { useServerFeatureFlag } from '../useServerOrClientFeatureFlag';
 const TILES_PER_REQUEST = 200;
 
 /**
- * Registers the parameters every tile uses, on every tab, before any tile
- * runs. In embeds the API client sends the embed token.
+ * While editing, registers the parameters every tile uses, on every tab,
+ * before any tile runs. In view mode tiles report them from their own query.
+ * In embeds the API client sends the embed token.
  */
 export const useDashboardTileParameterReferences = ({
     store,
     projectUuid,
+    isEditMode,
 }: {
     store: DashboardStore;
     projectUuid: string | undefined;
+    isEditMode: boolean;
 }) => {
     const lightdashApi = useLightdashApi();
     const { data: dashboardControlsFlag } = useServerFeatureFlag(
@@ -37,6 +40,7 @@ export const useDashboardTileParameterReferences = ({
         selectTileQuerySourcesKey(store.getState()),
     );
     const isEnabled =
+        isEditMode &&
         dashboardControlsFlag?.enabled === true &&
         !!projectUuid &&
         tilesKey !== '';

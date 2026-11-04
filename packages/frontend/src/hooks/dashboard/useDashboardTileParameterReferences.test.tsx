@@ -45,7 +45,11 @@ const tiles = [
     tile('tile-sql', 'tab-2', DashboardTileTypes.SQL_CHART, 'sql-1'),
 ];
 
-const setup = (embedApi?: LightdashApi, dashboardTiles = tiles) => {
+const setup = (
+    embedApi?: LightdashApi,
+    dashboardTiles = tiles,
+    isEditMode = true,
+) => {
     const store = createDashboardTestStore();
     store.dispatch(dashboardEditActions.setTiles(dashboardTiles));
     const queryClient = new QueryClient({
@@ -67,6 +71,7 @@ const setup = (embedApi?: LightdashApi, dashboardTiles = tiles) => {
             useDashboardTileParameterReferences({
                 store,
                 projectUuid: 'project-uuid',
+                isEditMode,
             }),
         { wrapper },
     );
@@ -229,6 +234,38 @@ describe('useDashboardTileParameterReferences', () => {
             }),
         );
         expect(mockApi).not.toHaveBeenCalled();
+    });
+
+    it('makes no request in view mode', async () => {
+        const store = setup(undefined, tiles, false);
+
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(mockApi).not.toHaveBeenCalled();
+        expect(store.getState().parameters.tileParameterReferences).toEqual({});
+    });
+
+    it('requests again when the tile set changes in edit mode', async () => {
+        mockApi.mockImplementation(async ({ body }: { body: string }) =>
+            (JSON.parse(body) as { tiles: { tileUuid: string }[] }).tiles.map(
+                ({ tileUuid }) => ({
+                    tileUuid,
+                    parameterReferences: ['orders.region'],
+                    error: null,
+                }),
+            ),
+        );
+
+        const store = setup(undefined, [tiles[0]]);
+
+        await waitFor(() => expect(mockApi).toHaveBeenCalledTimes(1));
+        store.dispatch(dashboardEditActions.setTiles(tiles));
+
+        await waitFor(() => expect(mockApi).toHaveBeenCalledTimes(2));
+        expect(
+            JSON.parse(mockApi.mock.calls[1][0].body).tiles.map(
+                ({ tileUuid }: { tileUuid: string }) => tileUuid,
+            ),
+        ).toEqual(['tile-open', 'tile-unopened', 'tile-sql']);
     });
 
     it('makes no request with the flag off', async () => {
