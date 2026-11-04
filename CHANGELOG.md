@@ -1,3 +1,10 @@
+# [3.149.0](https://github.com/lightdash/lightdash/compare/3.148.3...3.149.0) (2026-11-04)
+
+
+### Features
+
+* **ai:** offer a writeback PR when the agent derived a value itself ([#32052](https://github.com/lightdash/lightdash/issues/32052)) ([e58bf92](https://github.com/lightdash/lightdash/commit/e58bf928dc3870acfeab661a99956882af29cf7b))
+
 ## [3.148.3](https://github.com/lightdash/lightdash/compare/3.148.2...3.148.3) (2026-11-04)
 
 
