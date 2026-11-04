@@ -90,7 +90,11 @@ const mockOrgApi = (name: string, { optional = false } = {}) => {
     return interceptor.reply(200, { status: 'ok', results: { name } });
 };
 
-const mockBrandFetch = (name: string, ready?: Promise<void>) =>
+const mockBrandFetch = (
+    name: string,
+    ready?: Promise<void>,
+    colors: { hex: string; type: string; brightness: null }[] = [],
+) =>
     nock(BASE_API_URL)
         .post('/api/v1/org/brand/fetch')
         .reply(200, async () => {
@@ -103,7 +107,7 @@ const mockBrandFetch = (name: string, ready?: Promise<void>) =>
                     name,
                     description: null,
                     logos: [],
-                    colors: [],
+                    colors,
                     fonts: [],
                     updatedAt: new Date().toISOString(),
                 },
@@ -659,7 +663,9 @@ describe('OrganizationSetup', () => {
         const user = userEvent.setup();
 
         mockOrgApi('');
-        mockBrandFetch('Acme Inc.');
+        mockBrandFetch('Acme Inc.', undefined, [
+            { hex: '#ff5a1f', type: 'accent', brightness: null },
+        ]);
 
         renderSetupPage({
             user: {
@@ -705,6 +711,20 @@ describe('OrganizationSetup', () => {
         const brandScope = nock(BASE_API_URL)
             .put('/api/v1/org/brand', () => true)
             .reply(200, { status: 'ok', results: null });
+        const paletteScope = nock(BASE_API_URL)
+            .post(
+                '/api/v1/org/color-palettes',
+                (body: { name: string; colors: string[] }) =>
+                    body.name === 'Acme Inc brand' &&
+                    body.colors[0] === '#ff5a1f' &&
+                    body.colors.length > 1,
+            )
+            .reply(200, {
+                status: 'ok',
+                results: { colorPaletteUuid: 'palette-1' },
+            })
+            .post('/api/v1/org/color-palettes/palette-1/active')
+            .reply(200, { status: 'ok', results: null });
 
         await user.click(
             await screen.findByRole('button', { name: 'Continue' }),
@@ -712,6 +732,7 @@ describe('OrganizationSetup', () => {
 
         await waitFor(() => expect(scope.isDone()).toBe(true));
         await waitFor(() => expect(brandScope.isDone()).toBe(true));
+        await waitFor(() => expect(paletteScope.isDone()).toBe(true));
     });
 
     it('falls back to the domain-derived name when the brand name has no usable characters', async () => {

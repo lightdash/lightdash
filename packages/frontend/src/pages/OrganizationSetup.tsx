@@ -45,8 +45,10 @@ import { useOnboardingNavigate } from '../components/common/viewTransition';
 import PageSpinner from '../components/PageSpinner';
 import { jobTitles } from '../components/UserCompletionModal/jobTitles';
 import { BrandPreview } from '../components/UserSettings/AppearanceSettingsPanel/BrandPreview';
+import { generateBrandPalette } from '../components/UserSettings/AppearanceSettingsPanel/generateBrandPalette';
 import { useHomepageBuilderFlag } from '../ee/features/homepageBuilder/hooks/useProjectHomepage';
 import { withViewTransition } from '../features/apps/utils/viewTransition';
+import { useApplyColorPalette } from '../hooks/appearance/useOrganizationAppearance';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import {
     useDetectOrganizationBrand,
@@ -188,6 +190,7 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
         brandDetectionEnabled,
     );
     const saveBrand = useSaveOrganizationBrand({ showSuccessToast: false });
+    const applyColorPalette = useApplyColorPalette();
 
     const { setValues, isDirty } = form;
     const hasAppliedDetectedBrand = useRef(false);
@@ -296,18 +299,27 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
         const brandDomain =
             detectedBrand?.domain ?? (isCompanyDomain ? emailDomain : null);
         if (canUseBranding && brandDomain) {
+            const brandName =
+                values.organizationName.trim() || detectedBrand?.name || null;
+            const brandColors = buildBrandColors(
+                selectedColor,
+                detectedBrand?.colors ?? [],
+            );
+            // Without detected colors the default palette beats one derived from a placeholder
+            if (detectedColors.length > 0) {
+                applyColorPalette.mutate({
+                    name: `${brandName ?? brandDomain} brand`,
+                    colors: generateBrandPalette(
+                        brandColors.map(({ hex }) => hex),
+                    ),
+                });
+            }
             saveBrand.mutate({
                 domain: brandDomain,
-                name:
-                    values.organizationName.trim() ||
-                    detectedBrand?.name ||
-                    null,
+                name: brandName,
                 description: detectedBrand?.description ?? null,
                 logos: detectedBrand?.logos ?? [],
-                colors: buildBrandColors(
-                    selectedColor,
-                    detectedBrand?.colors ?? [],
-                ),
+                colors: brandColors,
                 fonts: detectedBrand?.fonts ?? [],
             });
         }
@@ -484,6 +496,9 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                                     from {detectedBrand.domain}
                                                 </Text>
                                                 <Text size="xs" c="dimmed">
+                                                    {detectedColors.length > 0
+                                                        ? 'Your logo and chart colors will match it. '
+                                                        : 'Your logo will match it. '}
                                                     Change it anytime in
                                                     Appearance settings.
                                                 </Text>
