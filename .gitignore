@@ -142,6 +142,7 @@ scripts/har-replay-server.ts
 !.agents/plugins/
 .agents/plugins/*
 !.agents/plugins/marketplace.json
+!.agents/skills/
 .codex
 .claude/*.lock
 
