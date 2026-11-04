@@ -345,7 +345,11 @@ export const buildSetupGuide = (
         {
             id: 'data',
             title: 'Your data',
-            why: `${AI_NAME} answers by querying your warehouse.`,
+            why:
+                facts.statuses['connect-warehouse'].isComplete ||
+                facts.appSourceNames.length === 0
+                    ? `${AI_NAME} answers by querying your warehouse.`
+                    : `${AI_NAME} already answers from ${facts.appSourceNames.join(', ')}. Connect a warehouse to add your own tables.`,
             rows: [warehouseRow(facts)],
         },
         {
