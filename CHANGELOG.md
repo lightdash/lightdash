@@ -1,3 +1,10 @@
+## [3.146.1](https://github.com/lightdash/lightdash/compare/3.146.0...3.146.1) (2026-11-04)
+
+
+### Bug Fixes
+
+* **frontend:** unify settings layout on AI, MCP and data apps settings pages ([#32044](https://github.com/lightdash/lightdash/issues/32044)) ([dfeac97](https://github.com/lightdash/lightdash/commit/dfeac97cd2f09b6faf528deede7cace2b02ffdaa))
+
 # [3.146.0](https://github.com/lightdash/lightdash/compare/3.145.0...3.146.0) (2026-11-04)
 
 
