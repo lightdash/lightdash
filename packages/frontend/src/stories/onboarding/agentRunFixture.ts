@@ -16,6 +16,7 @@ export const storyAgentRun = (completed: boolean): AgentOnboardingRun => ({
         ? {
               summary:
                   'Your orders, customers and revenue models are ready. Ask a starter question from home to explore weekly sales and repeat purchases.',
+              dashboardUrl: null,
               starterQuestions: [
                   'How have weekly sales changed this quarter?',
                   'Which products bring customers back most often?',

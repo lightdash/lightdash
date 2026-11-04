@@ -52,6 +52,8 @@ export type AgentOnboardingRunEvent = {
 
 export type AgentOnboardingHandoff = {
     summary: string | null;
+    /** @deprecated Onboarding no longer builds a starter dashboard; always null */
+    dashboardUrl: string | null;
     starterQuestions: string[];
 };
 

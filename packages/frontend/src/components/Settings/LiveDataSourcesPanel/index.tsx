@@ -43,8 +43,8 @@ import { GoogleConnectionModal } from './GoogleConnectionModal';
 import { GoogleSourcePickerModal } from './GoogleSourcePickerModal';
 import { getPostHogSignInUrl, toPostHogFormValues } from './postHogConnection';
 import { PostHogConnectionModal } from './PostHogConnectionModal';
-import { useLiveSourceSignInResult } from './useLiveSourceSignInResult';
 import { SemanticLayerModal } from './SemanticLayerModal';
+import { useLiveSourceSignInResult } from './useLiveSourceSignInResult';
 
 type Props = {
     projectUuid: string;

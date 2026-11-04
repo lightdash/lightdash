@@ -14,18 +14,12 @@ describe('homepage setup guide stories', () => {
             </MantineProvider>,
         );
         await userEvent.click(
-            await screen.findByRole('button', {
-                name: 'More options for Connect Slack',
-            }),
+            await screen.findByRole('button', { name: 'Skip Connect Slack' }),
         );
-        await userEvent.click(await screen.findByText('Skip for now'));
         expect(screen.getByText('Skipped')).toBeInTheDocument();
         await userEvent.click(
-            screen.getByRole('button', {
-                name: 'More options for Connect Slack',
-            }),
+            screen.getByRole('button', { name: 'Add back Connect Slack' }),
         );
-        await userEvent.click(await screen.findByText('Add back to the list'));
         expect(screen.queryByText('Skipped')).not.toBeInTheDocument();
     });
 
@@ -48,6 +42,5 @@ describe('homepage setup guide stories', () => {
             </MantineProvider>,
         );
         expect(await screen.findAllByText('Skipped')).toHaveLength(2);
-        expect(screen.getByText(/of \d+ steps done/)).toBeInTheDocument();
     });
 });

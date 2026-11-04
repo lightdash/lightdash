@@ -116,6 +116,7 @@ const toRun = (run: DbAgentOnboardingRun): AgentOnboardingRun => ({
     events: run.events,
     handoff: run.handoff && {
         summary: run.handoff.summary,
+        dashboardUrl: null,
         // Runs from before starter questions stored a dashboard link instead
         starterQuestions: run.handoff.starterQuestions ?? [],
     },
@@ -970,6 +971,7 @@ export class OnboardingAgentService extends BaseService {
         );
         return {
             summary: assistantText.trim() || null,
+            dashboardUrl: null,
             starterQuestions: starterQuestions.map((question) =>
                 sanitizeOnboardingMessage(question, sensitiveValues),
             ),
