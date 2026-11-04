@@ -60,7 +60,6 @@ When the backend creates a presigned URL for browser-direct upload, it uses `S3_
 
 -   Assume the dev-server is always running and watching source files; a separate `api-routes-watch` process regenerates TSOA routes when controllers change, so backend and generated-route changes reload the API automatically.
 -   Always use package-specific commands for faster linting/typechecking/testing.
--   T3 Code worktrees run `scripts/t3-setup-worktree.sh` on creation (`t3.json`): it copies untracked local files from the main checkout, installs deps, and builds backend/frontend dependency packages.
 
 **Code Quality:**
 
@@ -322,6 +321,7 @@ examples are in [docs/white-label-copy.md](docs/white-label-copy.md).
 ## Development Troubleshooting
 
 -   If there are issues running dbt, make sure there is a python3 venv in the root of the repo, which has dbt-core and dbt-postgres installed
+-   TS6305, `Cannot find module` from a workspace package, or `oxlint: command not found` (fresh worktree, or a rebase that changed `pnpm-lock.yaml`): run `scripts/t3-setup-worktree.sh` to install and build dependency packages. T3 runs it on worktree creation (`t3.json`).
 
 ## Checking the local database for debugging
 
