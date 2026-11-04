@@ -958,26 +958,9 @@ const PRIVATE_ROUTES: RouteObject[] = [
                 element: <Navigate to="/generalSettings/roadmap" replace />,
             },
             {
-                element: <NavBarLayout />,
                 children: [
                     {
-                        path: '/get-started',
-                        lazy: async () => {
-                            const { default: NoProjectHomepage } =
-                                await import('./ee/features/homepageBuilder/NoProjectHomepage');
-                            return {
-                                Component: () => (
-                                    <TrackPage
-                                        name={PageName.NO_PROJECT_HOMEPAGE}
-                                    >
-                                        <NoProjectHomepage />
-                                    </TrackPage>
-                                ),
-                            };
-                        },
-                    },
-                    {
-                        path: '/onboarding/data-source/:warehouse?',
+                        path: '/onboarding/data-source/:warehouse?/:mode?',
                         handle: { hideAILauncher: true },
                         lazy: async () => {
                             const OnboardingDataSource =
@@ -1009,6 +992,27 @@ const PRIVATE_ROUTES: RouteObject[] = [
                                 Component: () => (
                                     <TrackPage name={PageName.ONBOARDING_DBT}>
                                         <OnboardingDbt />
+                                    </TrackPage>
+                                ),
+                            };
+                        },
+                    },
+                ],
+            },
+            {
+                element: <NavBarLayout />,
+                children: [
+                    {
+                        path: '/get-started',
+                        lazy: async () => {
+                            const { default: NoProjectHomepage } =
+                                await import('./ee/features/homepageBuilder/NoProjectHomepage');
+                            return {
+                                Component: () => (
+                                    <TrackPage
+                                        name={PageName.NO_PROJECT_HOMEPAGE}
+                                    >
+                                        <NoProjectHomepage />
                                     </TrackPage>
                                 ),
                             };

@@ -163,7 +163,7 @@ const WarehouseConnect: FC<{
                             />
                         }
                         successRedirect={(projectUuid) =>
-                            `/onboarding/tools/${projectUuid}`
+                            `/projects/${projectUuid}/home`
                         }
                         footerStart={
                             <Button
