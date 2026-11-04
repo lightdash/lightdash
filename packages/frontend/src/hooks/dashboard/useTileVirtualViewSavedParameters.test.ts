@@ -35,6 +35,25 @@ describe('useTileVirtualViewSavedParameters', () => {
         );
     });
 
+    it('clears earlier values once the explore is gone', () => {
+        const { rerender } = renderHook(
+            ({ current }) =>
+                useTileVirtualViewSavedParameters('tile-1', current),
+            {
+                initialProps: {
+                    current: explore as ApiExploreResults | undefined,
+                },
+            },
+        );
+
+        rerender({ current: undefined });
+
+        expect(setTileVirtualViewSavedParameters).toHaveBeenLastCalledWith(
+            'tile-1',
+            {},
+        );
+    });
+
     it('reports nothing with dashboard controls off', () => {
         flag.enabled = false;
 
