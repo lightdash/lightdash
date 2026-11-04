@@ -1517,6 +1517,43 @@ describe('BigQuery execution stats', () => {
             cacheHit: true,
         });
     });
+
+    it('returns referenced tables and partitions processed from the completed job', async () => {
+        const result = await runWithJob(
+            completedJob({
+                query: {
+                    totalPartitionsProcessed: '3',
+                    referencedTables: [
+                        {
+                            projectId: 'example-project',
+                            datasetId: 'analytics',
+                            tableId: 'events',
+                        },
+                    ],
+                },
+            }),
+        );
+
+        expect(result.partitionScanStats).toStrictEqual({
+            referencedTables: [
+                {
+                    database: 'example-project',
+                    schema: 'analytics',
+                    table: 'events',
+                },
+            ],
+            partitionsProcessed: 3,
+        });
+    });
+
+    it('returns no referenced tables and null partitions when the job reported none', async () => {
+        const result = await runWithJob(completedJob(undefined));
+
+        expect(result.partitionScanStats).toStrictEqual({
+            referencedTables: [],
+            partitionsProcessed: null,
+        });
+    });
 });
 
 describe('BigqueryWarehouseClient.getTablePartitioning', () => {
@@ -1535,6 +1572,7 @@ describe('BigqueryWarehouseClient.getTablePartitioning', () => {
         await expect(
             partitioningFor({
                 timePartitioning: { type: 'DAY', field: 'created_at' },
+                numPartitions: '42',
             }),
         ).resolves.toEqual({
             partitionColumn: {
@@ -1543,6 +1581,7 @@ describe('BigqueryWarehouseClient.getTablePartitioning', () => {
             },
             granularity: PartitionGranularity.DAY,
             requiresPartitionFilter: false,
+            partitionCount: 42,
         });
     });
 
@@ -1559,6 +1598,7 @@ describe('BigqueryWarehouseClient.getTablePartitioning', () => {
             },
             granularity: PartitionGranularity.HOUR,
             requiresPartitionFilter: true,
+            partitionCount: null,
         });
     });
 
@@ -1577,6 +1617,7 @@ describe('BigqueryWarehouseClient.getTablePartitioning', () => {
             },
             granularity: null,
             requiresPartitionFilter: false,
+            partitionCount: null,
         });
     });
 

@@ -62,7 +62,12 @@ export const getDescribeWarehouseTable = ({
                             name,
                             type: nativeType ? `${type} (${nativeType})` : type,
                         })),
-                        partitioning,
+                        partitioning: partitioning && {
+                            partitionColumn: partitioning.partitionColumn,
+                            granularity: partitioning.granularity,
+                            requiresPartitionFilter:
+                                partitioning.requiresPartitionFilter,
+                        },
                     };
 
                 if (structuredContent.columnCount === 0) {

@@ -524,6 +524,19 @@ export type WarehouseExecutionStats = {
     cacheHit: boolean | null;
 };
 
+export type WarehouseTableReference = {
+    database: string;
+    schema: string;
+    table: string;
+};
+
+/** Partition pruning facts the warehouse reported for one query job. */
+export type WarehousePartitionScanStats = {
+    referencedTables: WarehouseTableReference[];
+    /** Summed across every partitioned table the job read. */
+    partitionsProcessed: number | null;
+};
+
 export type WarehouseExecuteAsyncQuery = {
     queryId: string | null;
     queryMetadata: WarehouseQueryMetadata | null;
@@ -532,6 +545,8 @@ export type WarehouseExecuteAsyncQuery = {
     phaseTimings: WarehousePhaseTimings;
     /** Omitted by warehouses that do not report execution statistics. */
     executionStats?: WarehouseExecutionStats;
+    /** Omitted by warehouses that do not report partition pruning. */
+    partitionScanStats?: WarehousePartitionScanStats;
 };
 
 export enum TimeIntervalUnit {
@@ -742,4 +757,6 @@ export type TablePartitioning = {
     partitionColumn: PartitionColumn;
     granularity: PartitionGranularity | null;
     requiresPartitionFilter: boolean;
+    /** Null when the warehouse does not report it; may lag recent writes. */
+    partitionCount: number | null;
 };

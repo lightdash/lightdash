@@ -437,6 +437,10 @@ import {
     type MergeSubmission,
 } from './mergeQueryTelemetry';
 import {
+    observePartitionScan,
+    TablePartitioningCache,
+} from './partitionScanTelemetry';
+import {
     NoOpPreAggregateStrategy,
     type PreAggregateExecutionResolution,
     type PreAggregateStrategy,
@@ -686,6 +690,8 @@ type PreparedAsyncQueryArgs = Omit<
 
 export class AsyncQueryService extends ProjectService {
     private readonly queryEstimateCache = new QueryEstimateCache();
+
+    private readonly tablePartitioningCache = new TablePartitioningCache();
 
     private readonly mergeSubmissionQueries = new AsyncLocalStorage<
         Map<string, Promise<QueryHistory>>
@@ -5629,6 +5635,33 @@ export class AsyncQueryService extends ProjectService {
                     queryCreatedAt,
                     queryTags.query_context || 'unknown',
                 );
+
+                const { partitionScanStats } = queryResults.warehouseResults;
+                if (
+                    partitionScanStats &&
+                    executionStats?.cacheHit !== true &&
+                    isAiAccessQueryContext(queryTags.query_context)
+                ) {
+                    // After READY, so pollers never wait on table metadata lookups.
+                    await observePartitionScan({
+                        warehouseClient: completedClient,
+                        cache: this.tablePartitioningCache,
+                        logger: this.logger,
+                        projectUuid,
+                        queryUuid,
+                        queryContext: queryTags.query_context,
+                        exploreName: queryTags.explore_name ?? null,
+                        jobId: executionStats?.jobId ?? null,
+                        bytesProcessed: executionStats?.bytesProcessed ?? null,
+                        stats: partitionScanStats,
+                    }).catch((error: unknown) => {
+                        this.logger.warn('partition_scan.failed', {
+                            projectUuid,
+                            queryUuid,
+                            error: getErrorMessage(error),
+                        });
+                    });
+                }
             };
             let queryResults: Awaited<ReturnType<typeof runWarehouseQuery>>;
             try {

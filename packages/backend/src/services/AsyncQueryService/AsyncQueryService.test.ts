@@ -54,6 +54,7 @@ import {
     OrganizationAccessStatus,
     ParameterError,
     parameterRegex,
+    PartitionType,
     PersistentDownloadFileAccessMode,
     PersonSignInProvider,
     PossibleAbilities,
@@ -11341,6 +11342,96 @@ describe('AsyncQueryService', () => {
         );
         expect(markErrored).not.toHaveBeenCalled();
     });
+
+    test.each([
+        { context: QueryExecutionContext.MCP_RUN_SQL, logged: true },
+        { context: QueryExecutionContext.EXPLORE, logged: false },
+    ])(
+        'logs a partition scan event for $context: $logged',
+        async ({ context, logged }) => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            vi.spyOn(
+                service.warehouseClientFactory,
+                'resolveWarehouseCredentials',
+            ).mockResolvedValue({
+                credentialKind: WarehouseCredentialKind.SHARED,
+                warehouseCredentials: warehouseCredentialsMock,
+                warehouseConnectionUuid: null,
+                connectionRoute: {
+                    route: 'single',
+                    originalWarehouseConnectionUuid: null,
+                },
+                aiPlan: null,
+            });
+            vi.spyOn(
+                service.warehouseClientFactory,
+                'acquireUnscoped',
+            ).mockResolvedValue({
+                warehouseClient: {
+                    ...warehouseClientMock,
+                    executeAsyncQuery: async (...args) => ({
+                        ...(await warehouseClientMock.executeAsyncQuery(
+                            ...args,
+                        )),
+                        partitionScanStats: {
+                            referencedTables: [
+                                { database: 'p', schema: 'd', table: 't' },
+                            ],
+                            partitionsProcessed: 1,
+                        },
+                    }),
+                    getTablePartitioning: async () => ({
+                        partitionColumn: {
+                            field: 'day',
+                            partitionType: PartitionType.DATE,
+                        },
+                        granularity: null,
+                        requiresPartitionFilter: false,
+                        partitionCount: 10,
+                    }),
+                },
+                sshTunnel: mockSshTunnel,
+                tunnelConnectMs: 0,
+            });
+            const info = vi.spyOn((service as AnyType).logger, 'info');
+            await service.runAsyncWarehouseQuery({
+                userUuid: sessionAccount.user.id,
+                organizationUuid: sessionAccount.organization.organizationUuid!,
+                isPreviewProject: false,
+                isRegisteredUser: true,
+                onboardingFlow: 'legacy',
+                projectUuid,
+                query: 'SELECT 1',
+                fieldsMap: {},
+                usedParameters: null,
+                queryTags: {
+                    ...service.getUserQueryTags(sessionAccount),
+                    query_context: context,
+                },
+                warehouseCredentialsOverrides: undefined,
+                queryUuid: 'partition-query',
+                cacheKey: 'cache',
+                pivotConfiguration: undefined,
+                originalColumns: undefined,
+                queryCreatedAt: new Date(),
+                displayTimezone: null,
+            });
+            const events = info.mock.calls.filter(
+                ([message]) => message === 'partition_scan.observed',
+            );
+            if (logged) {
+                expect(events).toHaveLength(1);
+                expect(events[0][1]).toMatchObject({
+                    queryUuid: 'partition-query',
+                    queryContext: context,
+                    totalPartitions: 10,
+                    pruned: true,
+                });
+            } else {
+                expect(events).toHaveLength(0);
+            }
+        },
+    );
 
     test.each([
         { submittedEnabled: true, enabled: false },

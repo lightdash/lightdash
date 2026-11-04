@@ -51,6 +51,7 @@ import {
     type TimestampDomain,
     type WarehouseExecutionStats,
     type WarehouseNestedColumnShape,
+    type WarehousePartitionScanStats,
     type WarehouseQueryEstimate,
 } from '@lightdash/common';
 import { pipeline, Transform } from 'stream';
@@ -457,6 +458,12 @@ const isPartitionGranularity = (
 ): value is PartitionGranularity =>
     Object.values<string | undefined>(PartitionGranularity).includes(value);
 
+const toFiniteNumber = (value: string | undefined): number | null => {
+    if (value === undefined) return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+};
+
 const getTablePartitioningFromMetadata = (
     metadata: bigquery.ITable,
 ): TablePartitioning | null => {
@@ -464,6 +471,7 @@ const getTablePartitioningFromMetadata = (
         metadata.requirePartitionFilter ??
         metadata.timePartitioning?.requirePartitionFilter,
     );
+    const partitionCount = toFiniteNumber(metadata.numPartitions);
     if (metadata.timePartitioning) {
         return {
             partitionColumn: {
@@ -475,6 +483,7 @@ const getTablePartitioningFromMetadata = (
                 ? metadata.timePartitioning.type
                 : null,
             requiresPartitionFilter,
+            partitionCount,
         };
     }
     if (metadata.rangePartitioning?.field) {
@@ -485,6 +494,7 @@ const getTablePartitioningFromMetadata = (
             },
             granularity: null,
             requiresPartitionFilter,
+            partitionCount,
         };
     }
     return null;
@@ -768,25 +778,43 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         jobId: string | null,
         statistics: bigquery.IJobStatistics | undefined,
     ): WarehouseExecutionStats {
-        const toNumber = (value: string | undefined): number | null => {
-            if (value === undefined) return null;
-            const parsed = Number(value);
-            return Number.isFinite(parsed) ? parsed : null;
-        };
-        const startTime = toNumber(statistics?.startTime);
-        const endTime = toNumber(statistics?.endTime);
+        const startTime = toFiniteNumber(statistics?.startTime);
+        const endTime = toFiniteNumber(statistics?.endTime);
         return {
             jobId,
-            bytesProcessed: toNumber(
+            bytesProcessed: toFiniteNumber(
                 statistics?.query?.totalBytesProcessed ??
                     statistics?.totalBytesProcessed,
             ),
-            bytesBilled: toNumber(statistics?.query?.totalBytesBilled),
+            bytesBilled: toFiniteNumber(statistics?.query?.totalBytesBilled),
             executionTimeMs:
                 startTime !== null && endTime !== null
                     ? endTime - startTime
                     : null,
             cacheHit: statistics?.query?.cacheHit ?? null,
+        };
+    }
+
+    static getPartitionScanStats(
+        statistics: bigquery.IJobStatistics | undefined,
+    ): WarehousePartitionScanStats {
+        return {
+            referencedTables: (
+                statistics?.query?.referencedTables ?? []
+            ).flatMap(({ projectId, datasetId, tableId }) =>
+                projectId && datasetId && tableId
+                    ? [
+                          {
+                              database: projectId,
+                              schema: datasetId,
+                              table: tableId,
+                          },
+                      ]
+                    : [],
+            ),
+            partitionsProcessed: toFiniteNumber(
+                statistics?.query?.totalPartitionsProcessed,
+            ),
         };
     }
 
@@ -1336,6 +1364,10 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                     job.id,
                     job.metadata?.statistics,
                 ),
+                partitionScanStats:
+                    BigqueryWarehouseClient.getPartitionScanStats(
+                        job.metadata?.statistics,
+                    ),
             };
         } catch (e: unknown) {
             this.throwIfGoogleOauthTokenError(e);
