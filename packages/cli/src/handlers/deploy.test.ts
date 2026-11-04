@@ -747,6 +747,32 @@ describe('deploy project context transport', () => {
         ).toBe(false);
     });
 
+    test('warns and still deploys when the file is invalid', async () => {
+        vi.mocked(readProjectContextFile).mockRejectedValue(
+            new Error('Invalid lightdash.project_context.yml'),
+        );
+        vi.mocked(lightdashApi).mockResolvedValue(null as never);
+        const output = vi.spyOn(console, 'error').mockImplementation(() => {});
+        try {
+            await deploy([compiledExplore], {
+                ...deployOptions,
+                batchedDeploy: false,
+            });
+            expect(lightdashApi).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    url: expect.stringContaining(
+                        '/api/v1/projects/project-uuid/explores',
+                    ),
+                }),
+            );
+            expect(output.mock.calls.flat().join('\n')).toContain(
+                'Invalid lightdash.project_context.yml',
+            );
+        } finally {
+            output.mockRestore();
+        }
+    });
+
     test('warns instead of failing the deploy when the server ignores the file', async () => {
         vi.mocked(readProjectContextFile).mockResolvedValue(
             'version: 2\nentries: []\n',

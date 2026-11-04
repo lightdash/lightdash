@@ -180,10 +180,7 @@ export type ApiReplaceProjectContextBody = {
 
 export type ApiReplaceProjectContextResults =
     | { ingested: true; entryCount: number }
-    | {
-          ingested: false;
-          reason: 'ai_agent_reviews_disabled' | 'unavailable';
-      };
+    | { ingested: false; reason: 'ai_agent_reviews_disabled' };
 
 // Judge-emitted write-path entry (op + nullable id, no global). Mirrors
 // aiAgentJudgeProjectContextEntrySchema; redeclared here to keep this module

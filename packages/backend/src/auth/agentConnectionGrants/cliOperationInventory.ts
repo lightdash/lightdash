@@ -311,25 +311,25 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             'Global job identifiers have no reviewed project resolver; an injected project filter cannot scope them.',
         ),
         allowed(
-            'handlers/deploy.ts:203',
+            'handlers/deploy.ts:202',
             'PUT',
             '`/api/v1/projects/${projectUuid}/tags/yaml`',
             ['ProjectController.replaceYamlTags'],
         ),
         allowed(
-            'handlers/deploy.ts:220',
+            'handlers/deploy.ts:219',
             'PUT',
             '`/api/v2/projects/${projectUuid}/parameters`',
             ['ParametersController.replaceParameters'],
         ),
         allowed(
-            'handlers/deploy.ts:232',
+            'handlers/deploy.ts:231',
             'PUT',
             '`/api/v2/projects/${projectUuid}/defaults`',
             ['ProjectDefaultsController.replaceProjectDefaults'],
         ),
         allowed(
-            'handlers/deploy.ts:247',
+            'handlers/deploy.ts:246',
             'PUT',
             '`/api/v1/projects/${projectUuid}/table-groups`',
             ['ProjectController.replaceProjectTableGroups'],
@@ -341,25 +341,25 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             ['ProjectController.replaceProjectContext'],
         ),
         allowed(
-            'handlers/deploy.ts:374',
+            'handlers/deploy.ts:378',
             'POST',
             '`/api/v2/projects/${options.projectUuid}/deploy`',
             ['DeployController.startDeploySession'],
         ),
         allowed(
-            'handlers/deploy.ts:419',
+            'handlers/deploy.ts:423',
             'POST',
             '`/api/v2/projects/${options.projectUuid}/deploy/${sessionUuid}/batch`',
             ['DeployController.addDeployBatch'],
         ),
         allowed(
-            'handlers/deploy.ts:472',
+            'handlers/deploy.ts:476',
             'POST',
             '`/api/v2/projects/${options.projectUuid}/deploy/${sessionUuid}/finalize`',
             ['DeployController.finalizeDeploySession'],
         ),
         allowed(
-            'handlers/deploy.ts:561',
+            'handlers/deploy.ts:562',
             'PUT',
             'options.dbtModelNames === undefined\n                            ? `/api/v1/projects/${options.projectUuid}/explores?complete=${options.complete === true}${deployDestinationQuery(options)}`\n                            : `/api/v2/projects/${options.projectUuid}/deploy`',
             [
@@ -368,7 +368,7 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             ],
         ),
         allowed(
-            'handlers/deploy.ts:584',
+            'handlers/deploy.ts:585',
             'PUT',
             '`/api/v1/projects/${options.projectUuid}/explores?complete=${options.complete === true}${deployDestinationQuery(options)}`',
             ['ExploreController.SetExplores'],

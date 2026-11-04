@@ -16981,9 +16981,10 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
 
                 // Stored context is readable on any connection; only writeback needs Git.
                 const projectContextEnabled =
-                    await this.aiOrganizationSettingsService.isAiAgentReviewsEnabled(
+                    hasTrustedPromptUserIdentity &&
+                    (await this.aiOrganizationSettingsService.isAiAgentReviewsEnabled(
                         user,
-                    );
+                    ));
                 const projectContext = projectContextEnabled
                     ? await this.projectContextModel.getDocument(
                           prompt.projectUuid,

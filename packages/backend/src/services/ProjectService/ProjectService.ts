@@ -13490,17 +13490,34 @@ export class ProjectService
             Partial<Pick<SessionUser, 'organizationName'>>;
         organizationUuid: string;
     }): Promise<ProjectContextEntry[] | undefined> {
-        if (!this.projectContextModel) {
-            return undefined;
-        }
-
-        const enabled = this.isProjectContextEnabled
-            ? await this.isProjectContextEnabled({ user, organizationUuid })
-            : false;
-        if (!enabled) {
+        const projectContextModel = await this.getProjectContextStore({
+            user,
+            organizationUuid,
+        });
+        if (!projectContextModel) {
             return undefined;
         }
         return adapter.getProjectContext();
+    }
+
+    // Context can only be stored when the EE model is wired and the org has
+    // agent reviews on; both paths that write it share this gate.
+    private async getProjectContextStore({
+        user,
+        organizationUuid,
+    }: {
+        user: Pick<SessionUser, 'userUuid'> &
+            Partial<Pick<SessionUser, 'organizationName'>>;
+        organizationUuid: string;
+    }): Promise<NonNullable<ProjectService['projectContextModel']> | null> {
+        if (!this.projectContextModel || !this.isProjectContextEnabled) {
+            return null;
+        }
+        const enabled = await this.isProjectContextEnabled({
+            user,
+            organizationUuid,
+        });
+        return enabled ? this.projectContextModel : null;
     }
 
     private async replaceProjectContext(
@@ -18883,18 +18900,16 @@ export class ProjectService
             );
         }
 
-        if (!this.projectContextModel) {
-            return { ingested: false, reason: 'unavailable' };
-        }
-        const enabled = this.isProjectContextEnabled
-            ? await this.isProjectContextEnabled({ user, organizationUuid })
-            : false;
-        if (!enabled) {
+        const projectContextModel = await this.getProjectContextStore({
+            user,
+            organizationUuid,
+        });
+        if (!projectContextModel) {
             return { ingested: false, reason: 'ai_agent_reviews_disabled' };
         }
 
         const entries = loadProjectContextFile(fileContents);
-        await this.projectContextModel.replaceEntriesForProject(
+        await projectContextModel.replaceEntriesForProject(
             projectUuid,
             entries,
         );

@@ -1085,8 +1085,10 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
      * Replace the project's AI agent context with the contents of
      * `lightdash.project_context.yml`. Sent by the CLI on deploy/preview so
      * projects without a Git connection get the same context a server-side
-     * compile would ingest. Requires the organization's "Review AI agent
-     * turns" setting; when it is off the entries are left unchanged.
+     * compile would ingest. The CLI only calls this when the file exists, so
+     * removing the file leaves the stored entries unchanged; send an empty
+     * `entries: []` file to clear them. Requires the organization's "Review AI
+     * agent turns" setting; when it is off the entries are left unchanged.
      * @summary Replace project AI context
      */
     @Middlewares([
@@ -1098,7 +1100,7 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
     @Put('{projectUuid}/project-context')
     @OperationId('replaceProjectContext')
     async replaceProjectContext(
-        @Path() projectUuid: string,
+        @Path() projectUuid: UUID,
         @Request() req: express.Request,
         @Body() body: ApiReplaceProjectContextBody,
     ): Promise<ApiSuccess<ApiReplaceProjectContextResults>> {

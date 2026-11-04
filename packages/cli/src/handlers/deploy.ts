@@ -1,7 +1,6 @@
 import {
     ApiDeployExploresResults,
     ApiReplaceProjectContextResults,
-    assertUnreachable,
     AuthorizationError,
     DeploySessionStatus,
     Explore,
@@ -253,8 +252,9 @@ const replaceProjectTableGroups = async (
 
 const replaceProjectContext = async (
     projectUuid: string,
-    projectContextYaml: string | undefined,
+    projectDir: string,
 ) => {
+    const projectContextYaml = await readProjectContextFile(projectDir);
     if (projectContextYaml === undefined) {
         return;
     }
@@ -269,23 +269,27 @@ const replaceProjectContext = async (
         );
         return;
     }
-    switch (results.reason) {
-        case 'ai_agent_reviews_disabled':
-            console.error(
-                styles.warning(
-                    '\nlightdash.project_context.yml was ignored: enable "Review AI agent turns" in the organization AI settings to use project context\n',
-                ),
-            );
-            break;
-        case 'unavailable':
-            console.error(
-                styles.warning(
-                    '\nlightdash.project_context.yml was ignored: project context is not available on this instance\n',
-                ),
-            );
-            break;
-        default:
-            assertUnreachable(results.reason, 'Unknown project context result');
+    console.error(
+        styles.warning(
+            '\nlightdash.project_context.yml was ignored: enable "Review AI agent turns" in the organization AI settings to use project context\n',
+        ),
+    );
+};
+
+// Explores are already deployed by the time these run, so a failure is
+// reported but never fails the deploy.
+const runPostDeployStep = async (
+    label: string,
+    step: () => Promise<void>,
+): Promise<void> => {
+    try {
+        await step();
+    } catch (e) {
+        console.error(
+            styles.warning(
+                `\nError replacing ${label}: ${getErrorMessage(e)}\n`,
+            ),
+        );
     }
 };
 
@@ -537,9 +541,6 @@ export const deploy = async (
         path.resolve(options.projectDir),
         options.projectUuid,
     );
-    const projectContextYaml = await readProjectContextFile(
-        path.resolve(options.projectDir),
-    );
 
     const shouldUseLegacyDeploy =
         options.batchedDeploy === false ||
@@ -629,69 +630,24 @@ export const deploy = async (
         }
     }
 
-    try {
-        await replaceProjectYamlTags(
+    await runPostDeployStep('YAML tags', () =>
+        replaceProjectYamlTags(options.projectUuid, lightdashProjectConfig),
+    );
+    await runPostDeployStep('project parameters', () =>
+        replaceProjectParameters(options.projectUuid, lightdashProjectConfig),
+    );
+    await runPostDeployStep('project defaults', () =>
+        replaceProjectDefaults(options.projectUuid, lightdashProjectConfig),
+    );
+    await runPostDeployStep('project table groups', () =>
+        replaceProjectTableGroups(options.projectUuid, lightdashProjectConfig),
+    );
+    await runPostDeployStep('project context', () =>
+        replaceProjectContext(
             options.projectUuid,
-            lightdashProjectConfig,
-        );
-    } catch (e) {
-        console.error(
-            styles.warning(
-                `\nError replacing YAML tags: ${getErrorMessage(e)}\n`,
-            ),
-        );
-    }
-
-    try {
-        await replaceProjectParameters(
-            options.projectUuid,
-            lightdashProjectConfig,
-        );
-    } catch (e) {
-        console.error(
-            styles.warning(
-                `\nError replacing project parameters: ${getErrorMessage(e)}\n`,
-            ),
-        );
-    }
-
-    try {
-        await replaceProjectDefaults(
-            options.projectUuid,
-            lightdashProjectConfig,
-        );
-    } catch (e) {
-        console.error(
-            styles.warning(
-                `\nError replacing project defaults: ${getErrorMessage(e)}\n`,
-            ),
-        );
-    }
-
-    try {
-        await replaceProjectTableGroups(
-            options.projectUuid,
-            lightdashProjectConfig,
-        );
-    } catch (e) {
-        console.error(
-            styles.warning(
-                `\nError replacing project table groups: ${getErrorMessage(
-                    e,
-                )}\n`,
-            ),
-        );
-    }
-
-    try {
-        await replaceProjectContext(options.projectUuid, projectContextYaml);
-    } catch (e) {
-        console.error(
-            styles.warning(
-                `\nError replacing project context: ${getErrorMessage(e)}\n`,
-            ),
-        );
-    }
+            path.resolve(options.projectDir),
+        ),
+    );
 };
 
 const createNewProject = async (

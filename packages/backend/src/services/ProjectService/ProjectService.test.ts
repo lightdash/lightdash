@@ -23444,6 +23444,23 @@ describe('ProjectService.replaceProjectContextFromFile', () => {
         expect(replaceEntriesForProject).not.toHaveBeenCalled();
     });
 
+    test('reports the file as ignored when the context store is not wired', async () => {
+        const service = getMockedProjectService(
+            lightdashConfigWithGoogleOAuthMock,
+            {},
+        );
+        await expect(
+            service.replaceProjectContextFromFile({
+                user: compileUser,
+                projectUuid: projectSummary.projectUuid,
+                fileContents: yaml,
+            }),
+        ).resolves.toEqual({
+            ingested: false,
+            reason: 'ai_agent_reviews_disabled',
+        });
+    });
+
     test('rejects an invalid file without touching the stored entries', async () => {
         const { service, replaceEntriesForProject } = makeService();
         await expect(

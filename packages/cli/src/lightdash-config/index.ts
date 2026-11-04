@@ -55,7 +55,7 @@ export const readAndLoadLightdashProjectConfig = async (
 };
 
 // Returns the raw file so the server parses it with the same loader; parsing
-// here only fails fast on an invalid file before anything is deployed.
+// here surfaces a readable error without a round trip.
 export const readProjectContextFile = async (
     projectDir: string,
 ): Promise<string | undefined> => {
