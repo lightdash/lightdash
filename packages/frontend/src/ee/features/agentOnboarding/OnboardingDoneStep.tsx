@@ -105,7 +105,7 @@ export const OnboardingDoneStep: FC<{ projectUuid: string }> = ({
                                     <SourceName source={source} />
                                 </Fragment>
                             ))}{' '}
-                            is ready for questions.
+                            is ready.
                         </Text>
                     )}
                 </Stack>
