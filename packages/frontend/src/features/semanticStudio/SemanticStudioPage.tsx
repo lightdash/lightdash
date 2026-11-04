@@ -66,13 +66,29 @@ const SemanticStudioPage: FC = () => {
     const explores = useExplores(projectUuid, true);
     const ability = user.data?.ability;
     const organizationUuid = user.data?.organizationUuid;
-    const permissions = useMemo(
-        (): StudioPermissions | null =>
-            ability && organizationUuid && projectUuid
-                ? getStudioPermissions(ability, organizationUuid, projectUuid)
-                : null,
-        [ability, organizationUuid, projectUuid],
-    );
+    const isExternalSourcesEnabled = !!externalSourcesFlag.data?.enabled;
+    const isLiveSourcesEnabled = !!liveSourcesFlag.data?.enabled;
+    // A kind whose feature flag is off can't be added or managed, matching
+    // the Explorer and project settings.
+    const permissions = useMemo((): StudioPermissions | null => {
+        if (!ability || !organizationUuid || !projectUuid) return null;
+        const granted = getStudioPermissions(
+            ability,
+            organizationUuid,
+            projectUuid,
+        );
+        return {
+            ...granted,
+            files: granted.files && isExternalSourcesEnabled,
+            live: granted.live && isLiveSourcesEnabled,
+        };
+    }, [
+        ability,
+        organizationUuid,
+        projectUuid,
+        isExternalSourcesEnabled,
+        isLiveSourcesEnabled,
+    ]);
     const canOpen =
         !!ability &&
         !!organizationUuid &&
@@ -87,12 +103,10 @@ const SemanticStudioPage: FC = () => {
     // backend answers; without them those explores still show, under their
     // own names.
     const externalSources = useExternalSources(
-        externalSourcesFlag.data?.enabled && permissions?.files
-            ? projectUuid
-            : undefined,
+        permissions?.files ? projectUuid : undefined,
     );
     const liveConnections = useExternalConnections(
-        liveSourcesFlag.data?.enabled &&
+        isLiveSourcesEnabled &&
             ability &&
             organizationUuid &&
             projectUuid &&

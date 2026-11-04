@@ -19,7 +19,7 @@ const toText = (hint: string | string[] | undefined): string =>
     Array.isArray(hint) ? hint.join('\n') : (hint ?? '');
 
 /** `team: finance, region: eu or us`, or null when nothing is required. */
-export const attributesText = (
+const attributesText = (
     required: Record<string, string | string[]> | undefined,
 ): string | null => {
     const entries = Object.entries(required ?? {});

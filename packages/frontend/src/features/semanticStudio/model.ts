@@ -7,7 +7,7 @@ import { getItemId, type ApiConnectorType } from '@lightdash/common';
 
 export type Kind = 'modelled' | 'sqlViews' | 'files' | 'live';
 
-export const KIND_ORDER: Kind[] = ['modelled', 'sqlViews', 'files', 'live'];
+const KIND_ORDER: Kind[] = ['modelled', 'sqlViews', 'files', 'live'];
 
 /**
  * Names match the rest of the product: "Warehouse" for the semantic layer,
@@ -19,10 +19,6 @@ const KIND_LABELS: Record<Exclude<Kind, 'modelled'>, string> = {
     files: 'External sources',
     live: 'Live data sources',
 };
-
-/** The project's one semantic layer connection, if it has one. */
-export const semanticLayerSource = (project: Project): Source | undefined =>
-    project.sources.find(({ kind }) => kind === 'modelled');
 
 /** The warehouse a source runs on, if it runs on one. */
 export const sourceWarehouse = (
@@ -40,7 +36,7 @@ const sourceLabel = (project: Project, source: Source): string => {
     return warehouse ? warehouse.label : source.name;
 };
 
-export const kindLabel = (project: Project, kind: Kind): string =>
+const kindLabel = (project: Project, kind: Kind): string =>
     kind === 'modelled'
         ? project.warehouse
             ? 'Warehouse'

@@ -120,7 +120,7 @@ const KIND_ICONS: Record<Kind, Icon> = {
     live: IconBroadcast,
 };
 
-export const SourceLogo: FC<{ source: Source; size?: number }> = ({
+const SourceLogo: FC<{ source: Source; size?: number }> = ({
     source,
     size = 16,
 }) => {
@@ -153,10 +153,9 @@ export const SourceLogo: FC<{ source: Source; size?: number }> = ({
     }
 };
 
-export const KindIcon: FC<{ kind: Kind; size?: number }> = ({
-    kind,
-    size = 16,
-}) => <MantineIcon icon={KIND_ICONS[kind]} size={size} color="dimmed" />;
+const KindIcon: FC<{ kind: Kind; size?: number }> = ({ kind, size = 16 }) => (
+    <MantineIcon icon={KIND_ICONS[kind]} size={size} color="dimmed" />
+);
 
 const isDimensionType = (type: string): type is DimensionType =>
     Object.values<string>(DimensionType).includes(type);
@@ -193,7 +192,7 @@ const KindTypeIcon: FC<{
     />
 );
 
-export const FieldTypeIcon: FC<{ field: Field; size?: 'md' | 'lg' }> = ({
+const FieldTypeIcon: FC<{ field: Field; size?: 'md' | 'lg' }> = ({
     field,
     size = 'md',
 }) => (
