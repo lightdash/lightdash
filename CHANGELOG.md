@@ -1,3 +1,12 @@
+# [3.143.0](https://github.com/lightdash/lightdash/compare/3.142.1...3.143.0) (2026-11-04)
+
+
+### Features
+
+* **ai:** load content read tools without content write access ([#32016](https://github.com/lightdash/lightdash/issues/32016)) ([1d77d6f](https://github.com/lightdash/lightdash/commit/1d77d6f14dc365cb14f6780bb5137a88f60d5c37))
+* **sql:** discover SQL columns via BigQuery dry run ([#31998](https://github.com/lightdash/lightdash/issues/31998)) ([61ee69a](https://github.com/lightdash/lightdash/commit/61ee69a6d7892c02cba7507e66b00b2e69ca9cc6))
+* **sql:** instrument SQL column discovery ([#32001](https://github.com/lightdash/lightdash/issues/32001)) ([18f6d47](https://github.com/lightdash/lightdash/commit/18f6d47767f994907d053aafa46bdf0835402193))
+
 ## [3.142.1](https://github.com/lightdash/lightdash/compare/3.142.0...3.142.1) (2026-11-03)
 
 
