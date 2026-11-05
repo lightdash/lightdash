@@ -1,3 +1,16 @@
+# [3.165.0](https://github.com/lightdash/lightdash/compare/3.164.0...3.165.0) (2026-11-05)
+
+
+### Bug Fixes
+
+* **ai:** show live data source explores to agents with tags ([#32134](https://github.com/lightdash/lightdash/issues/32134)) ([c7dce15](https://github.com/lightdash/lightdash/commit/c7dce153a1aebbcc2f0178dafe76df2b31efbc3b))
+
+
+### Features
+
+* **cli:** rename data app slugs with lightdash slug-update --type app ([#32121](https://github.com/lightdash/lightdash/issues/32121)) ([9bf39ea](https://github.com/lightdash/lightdash/commit/9bf39ea09d1a50a5a77a0f11fe0c3b69b55789c1)), closes [#31348](https://github.com/lightdash/lightdash/issues/31348)
+* **semantic-layer:** manage live data sources on the Semantic Layer page ([#32131](https://github.com/lightdash/lightdash/issues/32131)) ([f91bae4](https://github.com/lightdash/lightdash/commit/f91bae431ebe53c6e75516dad849fb4929ae7f8c))
+
 # [3.164.0](https://github.com/lightdash/lightdash/compare/3.163.1...3.164.0) (2026-11-05)
 
 
