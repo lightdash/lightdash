@@ -1,3 +1,10 @@
+## [3.154.2](https://github.com/lightdash/lightdash/compare/3.154.1...3.154.2) (2026-11-05)
+
+
+### Bug Fixes
+
+* **release:** wait for npm availability ([#31889](https://github.com/lightdash/lightdash/issues/31889)) ([e4467f5](https://github.com/lightdash/lightdash/commit/e4467f53db618703151441d7fb36d2f4b0c47dbf))
+
 ## [3.154.1](https://github.com/lightdash/lightdash/compare/3.154.0...3.154.1) (2026-11-05)
 
 
