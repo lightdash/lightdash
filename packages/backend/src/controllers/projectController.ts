@@ -26,7 +26,9 @@ import {
     ApiProjectResponse,
     ApiResultsCacheInvalidationResponse,
     ApiResultsCacheProjectSettingsResponse,
+    ApiResultsCacheStatsResponse,
     ApiResultsCacheStatusResponse,
+    ApiResultsCacheTtlProjectionsResponse,
     ApiScheduledDeliveryAsCodeListResponse,
     ApiScheduledDeliveryAsCodeUpsertResponse,
     ApiSpaceSummaryListResponse,
@@ -137,6 +139,7 @@ import { assertAgentConnectionGrantOperation } from '../auth/agentConnectionGran
 import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import type { DbTagUpdate } from '../database/entities/tags';
 import Logger from '../logging/logger';
+import { parseResultsCacheStatsDays } from '../services/ResultsCacheStats/resultsCacheStats';
 import {
     allowApiKeyAuthentication,
     getDeprecatedRouteMiddleware,
@@ -1673,6 +1676,52 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
             status: 'ok',
             results,
         };
+    }
+
+    /**
+     * Hit rate, warehouse time saved and recommendations for the project's
+     * results cache over the last 7 or 30 days.
+     * @summary Get results cache stats
+     * @param days Number of days to include: 7 (default) or 30
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/results-cache/stats')
+    @OperationId('getProjectResultsCacheStats')
+    async getProjectResultsCacheStats(
+        @Path() projectUuid: UUID,
+        @Request() req: express.Request,
+        @Query() days?: number,
+    ): Promise<ApiResultsCacheStatsResponse> {
+        assertRegisteredAccount(req.account);
+        const results = await this.services
+            .getAsyncQueryService()
+            .getResultsCacheStats(
+                req.account,
+                projectUuid,
+                parseResultsCacheStatsDays(days),
+            );
+        return { status: 'ok', results };
+    }
+
+    /**
+     * Estimated hit rate for the next longer cache durations, replayed from
+     * the last 30 days of queries.
+     * @summary Get results cache TTL projections
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/results-cache/ttl-projections')
+    @OperationId('getProjectResultsCacheTtlProjections')
+    async getProjectResultsCacheTtlProjections(
+        @Path() projectUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<ApiResultsCacheTtlProjectionsResponse> {
+        assertRegisteredAccount(req.account);
+        const results = await this.services
+            .getAsyncQueryService()
+            .getResultsCacheTtlProjections(req.account, projectUuid);
+        return { status: 'ok', results };
     }
 
     /**

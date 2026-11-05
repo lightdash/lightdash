@@ -119,6 +119,7 @@ import {
     resolveQueryTimezone,
     ResultRow,
     ResultsCacheMissReason,
+    ResultsCacheStatsContextGroup,
     ResultsExpiredError,
     S3Error,
     SchedulerFormat,
@@ -191,6 +192,9 @@ import {
     type RegisteredAccount,
     type ResultColumns,
     type ResultsCacheInvalidation,
+    type ResultsCacheStats,
+    type ResultsCacheStatsDays,
+    type ResultsCacheTtlProjections,
     type RunQueryTags,
     type SavedChartDAO,
     type SavedChartVisualization,
@@ -379,6 +383,17 @@ import {
 } from '../QuerySourceService/api/apiSourceExplores';
 import type { QuerySourceService } from '../QuerySourceService/QuerySourceService';
 import type { ApiConnectorResolver } from '../QuerySourceService/sources/ApiQuerySource';
+import {
+    buildResultsCacheStats,
+    getContextsInGroup,
+    RESULTS_CACHE_RECOMMENDATION_THRESHOLDS,
+} from '../ResultsCacheStats/resultsCacheStats';
+import {
+    buildResultsCacheTtlProjections,
+    getTtlCandidates,
+    TTL_PROJECTION_DAYS,
+    TTL_PROJECTION_MAX_RUNS,
+} from '../ResultsCacheStats/ttlProjections';
 import { mergeDraftIntoChart } from '../SavedChartsService/chartDraftOverlay';
 import { assertCanReplaceChartFilters } from '../SchedulerService/chartFilterOverridesAccess';
 import {
@@ -16945,6 +16960,77 @@ export class AsyncQueryService extends ProjectService {
             paginateArgs,
             filters,
         );
+    }
+
+    private async assertCanViewResultsCacheStats(
+        account: Account,
+        projectUuid: string,
+    ): Promise<void> {
+        assertIsAccountWithOrg(account);
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        if (
+            this.createAuditedAbility(account).cannot(
+                'update',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+    }
+
+    async getResultsCacheStats(
+        account: Account,
+        projectUuid: string,
+        days: ResultsCacheStatsDays,
+    ): Promise<ResultsCacheStats> {
+        await this.assertCanViewResultsCacheStats(account, projectUuid);
+        const [contextRows, recommendationRows] = await Promise.all([
+            this.queryHistoryModel.getResultsCacheContextStats(
+                projectUuid,
+                days,
+            ),
+            this.queryHistoryModel.getResultsCacheRecommendationRows(
+                projectUuid,
+                days,
+                {
+                    scheduledContexts: getContextsInGroup(
+                        ResultsCacheStatsContextGroup.SCHEDULED,
+                    ),
+                    ...RESULTS_CACHE_RECOMMENDATION_THRESHOLDS,
+                },
+            ),
+        ]);
+        return buildResultsCacheStats({
+            days,
+            contextRows,
+            recommendationRows,
+        });
+    }
+
+    async getResultsCacheTtlProjections(
+        account: Account,
+        projectUuid: string,
+    ): Promise<ResultsCacheTtlProjections> {
+        await this.assertCanViewResultsCacheStats(account, projectUuid);
+        const currentTtlSeconds =
+            await this.projectModel.getEffectiveResultsCacheTtlSeconds(
+                projectUuid,
+            );
+        if (getTtlCandidates(currentTtlSeconds).length === 0) {
+            return { kind: 'noLongerTtl', currentTtlSeconds };
+        }
+        const { totals, runs } =
+            await this.queryHistoryModel.getResultsCacheTtlReplayRows(
+                projectUuid,
+                TTL_PROJECTION_DAYS,
+                TTL_PROJECTION_MAX_RUNS + 1,
+            );
+        return buildResultsCacheTtlProjections({
+            currentTtlSeconds,
+            totals,
+            replayRuns: runs,
+        });
     }
 
     async getDashboardPreAggregateAudit(

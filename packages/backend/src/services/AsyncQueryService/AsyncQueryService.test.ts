@@ -30890,3 +30890,87 @@ describe('findResultsCache miss reasons', () => {
         ).resolves.toEqual(hit);
     });
 });
+
+describe('results cache stats', () => {
+    const build = (canUpdate: boolean) => {
+        const getResultsCacheRecommendationRows = vi.fn(async () => []);
+        const service = getMockedAsyncQueryService(lightdashConfigMock, {
+            queryHistoryModel: {
+                getResultsCacheContextStats: vi.fn(async () => [
+                    {
+                        context: QueryExecutionContext.DASHBOARD,
+                        runs: 4,
+                        hits: 2,
+                        warehouseTimeOnMissesMs: 10,
+                        warehouseTimeSavedMs: 20,
+                    },
+                ]),
+                getResultsCacheRecommendationRows,
+                getResultsCacheTtlReplayRows: vi.fn(async () => ({
+                    totals: { runs: 4, hits: 2 },
+                    runs: [],
+                })),
+            } as unknown as QueryHistoryModel,
+            projectModel: {
+                getSummary: vi.fn(async () => ({
+                    organizationUuid: 'org',
+                    projectUuid: 'project',
+                })),
+                getEffectiveResultsCacheTtlSeconds: vi.fn(async () => 86400),
+            } as unknown as ProjectModel,
+        } as never);
+        vi.spyOn(
+            service as unknown as {
+                createAuditedAbility: () => { cannot: () => boolean };
+            },
+            'createAuditedAbility',
+        ).mockReturnValue({ cannot: () => !canUpdate });
+        return { service, getResultsCacheRecommendationRows };
+    };
+
+    test('returns stats for project editors', async () => {
+        const stats = await build(true).service.getResultsCacheStats(
+            buildAccount(),
+            'project',
+            7,
+        );
+        expect(stats.summary).toMatchObject({ runs: 4, hits: 2, hitRate: 0.5 });
+    });
+
+    test('forbids users who cannot update the project', async () => {
+        await expect(
+            build(false).service.getResultsCacheStats(
+                buildAccount(),
+                'project',
+                7,
+            ),
+        ).rejects.toThrow(ForbiddenError);
+    });
+
+    test('passes scheduled contexts and thresholds to the recommendation query', async () => {
+        const { service, getResultsCacheRecommendationRows } = build(true);
+        await service.getResultsCacheStats(buildAccount(), 'project', 7);
+        expect(getResultsCacheRecommendationRows).toHaveBeenCalledWith(
+            'project',
+            7,
+            expect.objectContaining({
+                scheduledContexts: expect.arrayContaining([
+                    QueryExecutionContext.SCHEDULED_DELIVERY,
+                ]),
+                minMisses: 5,
+            }),
+        );
+    });
+
+    test('returns TTL projections based on the effective TTL', async () => {
+        await expect(
+            build(true).service.getResultsCacheTtlProjections(
+                buildAccount(),
+                'project',
+            ),
+        ).resolves.toMatchObject({
+            kind: 'projections',
+            currentTtlSeconds: 86400,
+        });
+    });
+});
