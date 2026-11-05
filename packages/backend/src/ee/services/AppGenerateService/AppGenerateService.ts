@@ -4437,9 +4437,7 @@ export class AppGenerateService extends BaseService {
                     : '\n\nNo CSS, font, or image files were copied for this theme.';
             const omittedFontNote =
                 designCopy.omittedRestrictedFonts.length > 0
-                    ? `\n\n${omittedThemeFontGuidance(
-                          designCopy.omittedRestrictedFonts,
-                      )}`
+                    ? `\n\n${omittedThemeFontGuidance(designCopy.omittedRestrictedFonts)}`
                     : '';
 
             sections.push(
@@ -13656,6 +13654,47 @@ export class AppGenerateService extends BaseService {
         };
     }
 
+    /**
+     * Rename a data app's slug in place (lightdash slug-update --type app).
+     * The old slug becomes a historical alias, so existing links and stale
+     * as-code checkouts keep resolving. Slug-shape validation and conflict
+     * handling live in AppModel.renameSlug.
+     */
+    async renameAppSlug(
+        user: SessionUser,
+        projectUuid: string,
+        { from, to }: { from: string; to: string },
+    ): Promise<void> {
+        if (!isValidDataAppSlug(to)) {
+            throw new ParameterError(
+                `Invalid data app slug "${to}". Slugs must start with a lowercase letter or digit and contain only lowercase letters, digits, and hyphens, up to 255 characters.`,
+            );
+        }
+        const app = await this.appModel.findAppBySlug(projectUuid, from);
+        if (!app) {
+            throw new NotFoundError(`Data app slug "${from}" not found`);
+        }
+        await this.assertAppsEnabled(user, app.template);
+        await this.assertCanManageApp(
+            user,
+            app,
+            `You don't have access to rename data app "${from}"`,
+        );
+        // Registry-managed apps mirror library content; their slug is the
+        // install identity and must not drift.
+        if (app.registry_slug !== null) {
+            throw new ForbiddenError(
+                `"${app.slug}" is an official chart type and its slug cannot be renamed.`,
+            );
+        }
+        await this.appModel.renameSlug({
+            projectUuid,
+            appUuid: app.app_id,
+            from,
+            to,
+        });
+    }
+
     /** Any version the caller can view is reportable; no session affinity. */
     async getDataAppBuildStatus(
         user: SessionUser,
@@ -14294,9 +14333,7 @@ export class AppGenerateService extends BaseService {
                       user,
                       organizationUuid,
                       access: code.manifest.access,
-                      contentLabel: `App ${
-                          code.manifest.slug ?? code.manifest.name
-                      }`,
+                      contentLabel: `App ${code.manifest.slug ?? code.manifest.name}`,
                   })
                 : null;
 

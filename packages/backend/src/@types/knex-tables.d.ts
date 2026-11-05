@@ -55,6 +55,10 @@ import {
     AppVersionsTableName,
 } from '../database/entities/apps';
 import {
+    AppSlugMappingsTableName,
+    AppSlugMappingTable,
+} from '../database/entities/appSlugMappings';
+import {
     AwsWebIdentityAudiencesTable,
     AwsWebIdentityAudiencesTableName,
 } from '../database/entities/awsWebIdentityAudiences';
@@ -846,6 +850,7 @@ declare module 'knex/types/tables' {
         [SavedChartsTableName]: SavedChartTable;
         [SavedChartSlugMappingsTableName]: SavedChartSlugMappingTable;
         [DashboardSlugMappingsTableName]: DashboardSlugMappingTable;
+        [AppSlugMappingsTableName]: AppSlugMappingTable;
         [SavedChartVersionsTableName]: SavedChartVersionsTable;
         [SavedChartVersionFieldsTableName]: SavedChartVersionFieldsTable;
         [SavedChartVersionSortsTableName]: SavedChartVersionSortsTable;

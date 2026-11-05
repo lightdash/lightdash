@@ -1851,6 +1851,14 @@ export class ServiceRepository
                     directAccessService: this.getDirectAccessService(),
                     warehouseConnectionModel:
                         this.models.getWarehouseConnectionModel(),
+                    // Lazy accessor: AppGenerateService depends on
+                    // CoderService, so resolving it eagerly here would cycle.
+                    // Core builds resolve undefined and data-app slug renames
+                    // stay unsupported.
+                    getAppGenerateService: () =>
+                        this.providers.appGenerateService
+                            ? this.getAppGenerateService<AppGenerateService>()
+                            : undefined,
                 }),
         );
     }
