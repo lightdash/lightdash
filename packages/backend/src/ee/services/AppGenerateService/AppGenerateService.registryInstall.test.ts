@@ -943,11 +943,10 @@ describe('AppGenerateService.installStarterChartTypes', () => {
         expect(createWithVersion).toHaveBeenCalledTimes(1);
     });
 
-    it('installs nothing while the chart type library is off', async () => {
+    it('installs nothing when no chart type library is configured', async () => {
         const getIndex = vi.fn();
         const svc = buildService({
-            chartRegistryClient: { getIndex },
-            featureFlags: { [FeatureFlags.ChartTypeRegistry]: false },
+            chartRegistryClient: { isEnabled: () => false, getIndex },
         });
 
         const result = await svc.installStarterChartTypes(

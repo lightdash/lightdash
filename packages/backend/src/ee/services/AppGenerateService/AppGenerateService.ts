@@ -10683,11 +10683,7 @@ export class AppGenerateService extends BaseService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<{ installedSlugs: string[] }> {
-        const { enabled } = await this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.ChartTypeRegistry,
-        });
-        if (!enabled || !this.chartRegistryClient.isEnabled()) {
+        if (!this.chartRegistryClient.isEnabled()) {
             return { installedSlugs: [] };
         }
         const { organizationUuid } = await this.assertDataAppAbility(
