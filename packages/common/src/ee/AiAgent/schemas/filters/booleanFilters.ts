@@ -70,4 +70,4 @@ const booleanFilterSchema = z.union([
         ),
 ]);
 
-export default booleanFilterSchema;
+export default booleanFilterSchema.meta({ id: 'BooleanFilterRule' });
