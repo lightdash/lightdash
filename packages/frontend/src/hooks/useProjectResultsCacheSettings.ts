@@ -56,10 +56,15 @@ const statsQueryKey = (projectUuid: string, days: ResultsCacheStatsDays) => [
     days,
 ];
 
-const ttlProjectionsQueryKey = (projectUuid: string) => [
+const ttlProjectionsQueryKeyPrefix = (projectUuid: string) => [
     'results_cache_ttl_projections',
     projectUuid,
 ];
+
+const ttlProjectionsQueryKey = (
+    projectUuid: string,
+    days: ResultsCacheStatsDays,
+) => [...ttlProjectionsQueryKeyPrefix(projectUuid), days];
 
 const getResultsCacheSettings = async (
     lightdashApi: LightdashApi,
@@ -100,14 +105,17 @@ export const useResultsCacheStats = (
     });
 };
 
-export const useResultsCacheTtlProjections = (projectUuid: string) => {
+export const useResultsCacheTtlProjections = (
+    projectUuid: string,
+    days: ResultsCacheStatsDays,
+) => {
     const lightdashApi = useLightdashApi();
     return useQuery<ApiResultsCacheTtlProjectionsResponse['results'], ApiError>(
         {
-            queryKey: ttlProjectionsQueryKey(projectUuid),
+            queryKey: ttlProjectionsQueryKey(projectUuid, days),
             queryFn: () =>
                 lightdashApi<ApiResultsCacheTtlProjectionsResponse['results']>({
-                    url: `/projects/${projectUuid}/results-cache/ttl-projections`,
+                    url: `/projects/${projectUuid}/results-cache/ttl-projections?days=${days}`,
                     method: 'GET',
                     body: undefined,
                 }),
@@ -151,7 +159,7 @@ export const useUpdateResultsCacheSettings = (projectUuid: string) => {
                 queryClient.invalidateQueries(queryKey(projectUuid)),
                 queryClient.invalidateQueries(statusQueryKey(projectUuid)),
                 queryClient.invalidateQueries(
-                    ttlProjectionsQueryKey(projectUuid),
+                    ttlProjectionsQueryKeyPrefix(projectUuid),
                 ),
             ]);
         },

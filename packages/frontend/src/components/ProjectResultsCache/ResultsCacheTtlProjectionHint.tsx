@@ -1,7 +1,9 @@
-import { Anchor, Group, Stack, Text, Tooltip } from '@mantine/core';
-import { type FC } from 'react';
+import { type ResultsCacheStatsDays } from '@lightdash/common';
+import { Anchor, Box, Divider, Group, Stack, Text } from '@mantine/core';
+import { Fragment, type FC } from 'react';
 import { useResultsCacheTtlProjections } from '../../hooks/useProjectResultsCacheSettings';
 import { formatWarehouseTime } from './formatWarehouseTime';
+import classes from './ResultsCacheTtlProjectionHint.module.css';
 
 const MIN_IMPROVEMENT = 0.01;
 
@@ -11,21 +13,20 @@ const formatTtl = (seconds: number): string => {
     return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
 };
 
-const formatPercent = (rate: number | null) =>
-    rate === null ? 'n/a' : `${Math.round(rate * 100)}%`;
-
 type Props = {
     projectUuid: string;
+    days: ResultsCacheStatsDays;
     onSelect: (ttlSeconds: number) => void;
     disabled: boolean;
 };
 
 export const ResultsCacheTtlProjectionHint: FC<Props> = ({
     projectUuid,
+    days,
     onSelect,
     disabled,
 }) => {
-    const { data, isError } = useResultsCacheTtlProjections(projectUuid);
+    const { data, isError } = useResultsCacheTtlProjections(projectUuid, days);
     if (
         isError ||
         !data ||
@@ -49,36 +50,47 @@ export const ResultsCacheTtlProjectionHint: FC<Props> = ({
     }
 
     return (
-        <Stack gap="xs">
-            <Tooltip
-                label="Estimated by replaying the last 30 days of queries. Older queries without a recorded reason are assumed to have expired, so early estimates can be optimistic."
-                multiline
-                w={300}
-            >
+        <Box className={classes.box}>
+            <Stack gap="xs">
+                <Text fz="sm">Estimated benefit of a longer duration</Text>
+                <Stack gap={0}>
+                    {useful.map((projection, index) => (
+                        <Fragment key={projection.ttlSeconds}>
+                            {index > 0 && <Divider />}
+                            <Group gap="md" wrap="nowrap" py="xs">
+                                <Box className={classes.ttl}>
+                                    <Anchor
+                                        component="button"
+                                        type="button"
+                                        fz="sm"
+                                        disabled={disabled}
+                                        onClick={() =>
+                                            onSelect(projection.ttlSeconds)
+                                        }
+                                    >
+                                        {formatTtl(projection.ttlSeconds)}
+                                    </Anchor>
+                                </Box>
+                                <Divider orientation="vertical" />
+                                <Text fz="sm" className={classes.hits}>
+                                    {`+${projection.additionalHits.toLocaleString()} potential hits`}
+                                </Text>
+                                <Divider orientation="vertical" />
+                                <Text fz="sm">
+                                    {`~${formatWarehouseTime(
+                                        Math.round(
+                                            projection.warehouseTimeSavedMs,
+                                        ),
+                                    )} warehouse time saved`}
+                                </Text>
+                            </Group>
+                        </Fragment>
+                    ))}
+                </Stack>
                 <Text c="dimmed" fz="xs">
-                    Estimated hit rate with a longer duration
+                    Based on queries in the selected period.
                 </Text>
-            </Tooltip>
-            {useful.map((projection) => (
-                <Group key={projection.ttlSeconds} gap="xs">
-                    <Anchor
-                        component="button"
-                        type="button"
-                        fz="xs"
-                        disabled={disabled}
-                        onClick={() => onSelect(projection.ttlSeconds)}
-                    >
-                        {`At ${formatTtl(projection.ttlSeconds)}`}
-                    </Anchor>
-                    <Text fz="xs">
-                        {`${formatPercent(data.baseline.hitRate)} → ${formatPercent(
-                            projection.hitRate,
-                        )} (+${projection.additionalHits.toLocaleString()} hits, about ${formatWarehouseTime(
-                            Math.round(projection.warehouseTimeSavedMs),
-                        )} of warehouse time saved)`}
-                    </Text>
-                </Group>
-            ))}
-        </Stack>
+            </Stack>
+        </Box>
     );
 };
