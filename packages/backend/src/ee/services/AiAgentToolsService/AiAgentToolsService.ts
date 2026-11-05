@@ -1364,12 +1364,6 @@ export class AiAgentToolsService extends BaseService {
         return types;
     }
 
-    private async customChartTypesEnabled(
-        context: AiAgentToolsRuntimeContext,
-    ): Promise<boolean> {
-        return this.appGenerateService.chartTypesEnabledFor(context.user);
-    }
-
     static readonly CUSTOM_CHART_TYPES_INLINE_LIMIT = 10;
 
     static readonly CUSTOM_CHART_TYPES_SEARCH_LIMIT = 10;
@@ -1378,9 +1372,6 @@ export class AiAgentToolsService extends BaseService {
         context: AiAgentToolsRuntimeContext,
     ): ReturnType<ListCustomChartTypesFn> {
         return this.getRuntimeCached(context, 'customChartTypes', async () => {
-            if (!(await this.customChartTypesEnabled(context))) {
-                return { types: [], totalCount: 0 };
-            }
             const { data, pagination } =
                 await this.appModel.listDataAppVisualizations(
                     context.projectUuid,
@@ -1406,9 +1397,6 @@ export class AiAgentToolsService extends BaseService {
             `${AiAgentToolsService.transactionPrefix(context)}.findCustomChartTypes`,
             args,
             async () => {
-                if (!(await this.customChartTypesEnabled(context))) {
-                    return [];
-                }
                 if ('slug' in args) {
                     const row =
                         await this.appModel.findDataAppVisualizationBySlug(
@@ -1572,9 +1560,6 @@ export class AiAgentToolsService extends BaseService {
         context: AiAgentToolsRuntimeContext,
         slug: string,
     ): ReturnType<ResolveCustomChartTypeFn> {
-        if (!(await this.customChartTypesEnabled(context))) {
-            return null;
-        }
         const row = await this.appModel.findDataAppVisualizationBySlug(
             context.projectUuid,
             slug,

@@ -1,4 +1,3 @@
-import { FeatureFlags } from '@lightdash/common';
 import {
     Box,
     Button,
@@ -22,10 +21,10 @@ import InlineErrorState from '../../../components/common/InlineErrorState';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { PolymorphicPaperButton } from '../../../components/common/PolymorphicPaperButton';
 import TruncatedText from '../../../components/common/TruncatedText';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { useCanCreateDataApp } from '../../apps/hooks/useCanCreateDataApp';
+import { useChartTypesEnabled } from '../hooks/useChartTypesEnabled';
 import { useRegistryChartTypes } from '../hooks/useRegistryChartTypes';
 import { getChartTypeIcon } from '../utils/chartTypeIcons';
 import ChartTypeLibraryCard from './ChartTypeLibraryCard';
@@ -44,8 +43,8 @@ type Props = {
 /**
  * Installable chart types from the configured chart registry, shown as a
  * section alongside the project's own chart types. Silent by default: no
- * flag, a disabled registry, or an org that hasn't configured one all render
- * nothing rather than an empty section nobody asked for.
+ * licence, a disabled registry, or an org that hasn't configured one all
+ * render nothing rather than an empty section nobody asked for.
  */
 const ChartTypeLibrarySection: FC<Props> = ({
     projectUuid,
@@ -53,9 +52,8 @@ const ChartTypeLibrarySection: FC<Props> = ({
     onShowInstalled,
     onInstalled,
 }) => {
-    const flagQuery = useServerFeatureFlag(FeatureFlags.ChartTypeRegistry);
-    const flagEnabled = flagQuery.data?.enabled ?? false;
-    const registryQuery = useRegistryChartTypes(projectUuid, flagEnabled);
+    const chartTypesEnabled = useChartTypesEnabled().enabled;
+    const registryQuery = useRegistryChartTypes(projectUuid, chartTypesEnabled);
     const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
     const [updatesOpen, { toggle: toggleUpdates }] = useDisclosure(false);
     const [isUpgradeAllOpen, setIsUpgradeAllOpen] = useState(false);
@@ -82,21 +80,22 @@ const ChartTypeLibrarySection: FC<Props> = ({
 
     const hasTrackedView = useRef(false);
     useEffect(() => {
-        if (hasTrackedView.current || !flagEnabled || !registryEnabled) return;
+        if (hasTrackedView.current || !chartTypesEnabled || !registryEnabled)
+            return;
         hasTrackedView.current = true;
         track({
             name: EventName.CHART_TYPE_LIBRARY_VIEWED,
             properties: { projectUuid, chartCount: visibleCharts.length },
         });
     }, [
-        flagEnabled,
+        chartTypesEnabled,
         registryEnabled,
         visibleCharts.length,
         projectUuid,
         track,
     ]);
 
-    if (!flagEnabled) {
+    if (!chartTypesEnabled) {
         return null;
     }
 

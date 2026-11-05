@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    FeatureFlags,
     type DataAppViz,
     type RegistryChartTypeListItem,
 } from '@lightdash/common';
@@ -19,7 +18,6 @@ import { useDebouncedValue, useIntersection } from '@mantine/hooks';
 import { IconPlus, IconSearch } from '@tabler/icons-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router';
-import { BetaBadge } from '../components/common/BetaBadge';
 import EmptyStateLoader from '../components/common/EmptyStateLoader';
 import InlineErrorState from '../components/common/InlineErrorState';
 import MantineIcon from '../components/common/MantineIcon';
@@ -39,7 +37,6 @@ import { useRegistryChartTypes } from '../features/chartTypes/hooks/useRegistryC
 import { chartTypeBuilderPath } from '../features/chartTypes/utils/chartTypeBuilderPath';
 import { useOptionalProjectRoute } from '../hooks/useProjectRoute';
 import { useProjectUuid } from '../hooks/useProjectUuid';
-import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { Can } from '../providers/Ability';
 import useApp from '../providers/App/useApp';
 
@@ -57,10 +54,6 @@ const ChartTypeGallery = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const chartTypesEnabled = useChartTypesEnabled();
     const chartStudioAvailable = useChartStudioAvailable();
-    const chartTypeRegistryFlag = useServerFeatureFlag(
-        FeatureFlags.ChartTypeRegistry,
-    );
-    const isLibraryFlagEnabled = chartTypeRegistryFlag.data?.enabled === true;
 
     const [search, setSearch] = useState('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
@@ -90,10 +83,11 @@ const ChartTypeGallery = () => {
     // and the registry (semver) version live here in the installed tab.
     const registryQuery = useRegistryChartTypes(
         projectUuid,
-        isLibraryFlagEnabled,
+        chartTypesEnabled.enabled,
     );
     const isLibraryEnabled =
-        isLibraryFlagEnabled && registryQuery.data?.registryEnabled === true;
+        chartTypesEnabled.enabled &&
+        registryQuery.data?.registryEnabled === true;
     const registryEntriesBySlug = useMemo(() => {
         const entries = new Map<string, RegistryChartTypeListItem>();
         for (const chart of registryQuery.data?.charts ?? []) {
@@ -311,10 +305,7 @@ const ChartTypeGallery = () => {
                                     )}
                                 </Group>
                             </Tabs.Tab>
-                            <Tabs.Tab
-                                value={GalleryTab.CHART_LIBRARY}
-                                rightSection={<BetaBadge />}
-                            >
+                            <Tabs.Tab value={GalleryTab.CHART_LIBRARY}>
                                 Chart type library
                             </Tabs.Tab>
                         </Tabs.List>

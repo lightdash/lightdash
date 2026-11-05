@@ -215,10 +215,7 @@ import {
 } from '../../../models/AppModel';
 import { CatalogModel } from '../../../models/CatalogModel/CatalogModel';
 import { ContentVerificationModel } from '../../../models/ContentVerificationModel';
-import {
-    FeatureFlagModel,
-    type FeatureFlagLogicArgs,
-} from '../../../models/FeatureFlagModel/FeatureFlagModel';
+import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { OrganizationDesignModel } from '../../../models/OrganizationDesignModel';
 import { PinnedListModel } from '../../../models/PinnedListModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
@@ -304,10 +301,6 @@ import {
     promptHistoryToMarkdown,
     SEMANTIC_LAYER_POINTER_FILE,
 } from './appContext';
-import {
-    assertChartTypesEnabled,
-    chartTypesEnabledFor,
-} from './chartTypeFeatureGate';
 import {
     CLARIFY_APP_SYSTEM_PROMPT,
     CLARIFY_VIZ_SYSTEM_PROMPT,
@@ -1766,15 +1759,12 @@ export class AppGenerateService extends BaseService {
         await this.assertDataAppsEnabled(user);
     }
 
-    /** Library installs uninstall and restore wherever chart types are usable, even without Chart Studio. */
+    /** Library installs uninstall and restore anywhere, even without Chart Studio. */
     private async assertCanRemoveAppGate(
         user: SessionUser,
         app: Pick<DbApp, 'registry_slug' | 'template'>,
     ): Promise<void> {
-        if (app.registry_slug !== null) {
-            await this.assertChartTypesUsable(user);
-            return;
-        }
+        if (app.registry_slug !== null) return;
         await this.assertAppsEnabled(user, app.template);
     }
 
@@ -1806,24 +1796,6 @@ export class AppGenerateService extends BaseService {
     private async assertAnyAppsEnabled(user: SessionUser): Promise<void> {
         if (this.isChartStudioAvailable()) return;
         await this.assertDataAppsEnabled(user);
-    }
-
-    async chartTypesEnabledFor(user: SessionUser): Promise<boolean> {
-        return chartTypesEnabledFor(
-            this.featureFlagModel,
-            this.isChartStudioAvailable(),
-            user,
-        );
-    }
-
-    private async assertChartTypesUsable(
-        user: FeatureFlagLogicArgs['user'],
-    ): Promise<void> {
-        await assertChartTypesEnabled(
-            this.featureFlagModel,
-            this.isChartStudioAvailable(),
-            user,
-        );
     }
 
     /**
@@ -1872,22 +1844,6 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
-     * The library surface — browsing, installing, registry assets — follows
-     * the `ChartTypeRegistry` flag alone, independent of data apps.
-     */
-    private async assertChartTypeLibraryEnabled(
-        user: SessionUser,
-    ): Promise<void> {
-        const { enabled } = await this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.ChartTypeRegistry,
-        });
-        if (!enabled) {
-            throw new ForbiddenError('The chart type library is not enabled');
-        }
-    }
-
-    /**
      * Chart types are offered to whoever can build a chart in an explore:
      * picking, configuring, and previewing a renderer is part of chart
      * building, not app access. Registry-installed chart types are space-less,
@@ -1912,9 +1868,6 @@ export class AppGenerateService extends BaseService {
         user: SessionUser,
         projectUuid: string | null,
     ): Promise<boolean> {
-        if (!(await this.chartTypesEnabledFor(user))) {
-            return false;
-        }
         const auditedAbility = this.createAuditedAbility(user);
         if (projectUuid === null) {
             return auditedAbility.can('manage', 'Explore');
@@ -2745,7 +2698,6 @@ export class AppGenerateService extends BaseService {
     ) {
         const app = await this.appModel.getApp(appUuid, projectUuid);
         if (app.template === DATA_APP_VIZ_TEMPLATE) {
-            await this.assertChartTypesUsable(user);
             this.assertCanUseChartTypes(user, {
                 organizationUuid: app.organization_uuid,
                 projectUuid,
@@ -10577,7 +10529,6 @@ export class AppGenerateService extends BaseService {
         search?: string,
         sort: DataAppVizListSort = DEFAULT_DATA_APP_VIZ_LIST_SORT,
     ): Promise<KnexPaginatedData<DataAppViz[]>> {
-        await this.assertChartTypesUsable(user);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         this.assertCanUseChartTypes(user, { organizationUuid, projectUuid });
@@ -10604,9 +10555,8 @@ export class AppGenerateService extends BaseService {
 
     /**
      * The catalog of installable chart types from the configured chart
-     * registry, merged with this project's install state. Gated behind the
-     * `ChartTypeRegistry` flag; the library is offered to whoever can build
-     * a chart in an explore, same as `listDataAppVisualizations`.
+     * registry, merged with this project's install state. Offered to whoever
+     * can build a chart in an explore, same as `listDataAppVisualizations`.
      */
     async listRegistryChartTypes(
         user: SessionUser,
@@ -10615,7 +10565,6 @@ export class AppGenerateService extends BaseService {
         registryEnabled: boolean;
         charts: RegistryChartTypeListItem[];
     }> {
-        await this.assertChartTypeLibraryEnabled(user);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         this.assertCanUseChartTypes(user, { organizationUuid, projectUuid });
@@ -10688,7 +10637,6 @@ export class AppGenerateService extends BaseService {
         action: 'installed' | 'upgraded' | 'unchanged';
         upgradedChartCount: number;
     }> {
-        await this.assertChartTypeLibraryEnabled(user);
         const { organizationUuid } = await this.assertDataAppAbility(
             user,
             'create',
@@ -10775,7 +10723,6 @@ export class AppGenerateService extends BaseService {
         }
         const provenance = parsedProvenance.data;
         const { slug, version } = provenance;
-        await this.assertChartTypeLibraryEnabled(user);
         const { organizationUuid } = await this.assertDataAppAbility(
             user,
             'create',
@@ -11175,16 +11122,13 @@ export class AppGenerateService extends BaseService {
     /**
      * Thin pass-through to the chart registry's index-listed images
      * (thumbnails/screenshots). No ability check beyond route auth — these
-     * are catalog metadata, not project data — but gated the same way as
-     * `listRegistryChartTypes`: the `ChartTypeRegistry` flag, before falling
-     * back to the registry client's own enabled check
-     * (`chartRegistryClient.getAsset` throws when it isn't).
+     * are catalog metadata, not project data — beyond the registry client's
+     * own enabled check (`chartRegistryClient.getAsset` throws when it isn't).
      */
     async getRegistryAsset(
         user: SessionUser,
         path: string,
     ): Promise<{ buffer: Buffer; contentType: string } | undefined> {
-        await this.assertChartTypeLibraryEnabled(user);
         if (!this.chartRegistryClient.isEnabled()) {
             return undefined;
         }
@@ -11226,7 +11170,6 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         dataAppVizUuid: string,
     ): Promise<DataAppVizUpgradeImpact> {
-        await this.assertChartTypeLibraryEnabled(user);
         await this.assertDataAppAbility(
             user,
             'create',
@@ -11260,7 +11203,6 @@ export class AppGenerateService extends BaseService {
         dataAppVizUuid: string,
         version?: number,
     ): Promise<DataAppViz> {
-        await this.assertChartTypesUsable(user);
         const dataAppViz = await this.appModel.findVisualizationApp(
             dataAppVizUuid,
             projectUuid,
@@ -11304,8 +11246,6 @@ export class AppGenerateService extends BaseService {
             dataAppVizUuid,
         );
 
-        await this.assertChartTypesUsable(user);
-
         this.assertCanUseChartTypes(user, {
             organizationUuid: dataAppViz.organization_uuid,
             projectUuid: dataAppViz.project_uuid,
@@ -11331,8 +11271,6 @@ export class AppGenerateService extends BaseService {
             projectUuid,
             dataAppVizUuid,
         );
-
-        await this.assertChartTypesUsable(user);
 
         await this.savedChartService.hasAccess(
             'view',
@@ -11413,11 +11351,6 @@ export class AppGenerateService extends BaseService {
             projectUuid,
             dataAppVizUuid,
         );
-
-        await this.assertChartTypesUsable({
-            userUuid: account.user.userUuid,
-            organizationUuid: account.organization.organizationUuid,
-        });
 
         const content = await this.documentService.getChart(
             account,

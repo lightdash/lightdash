@@ -94,14 +94,10 @@ import {
     decodeLightdashJwt,
     encodeLightdashJwt,
 } from '../../../auth/lightdashJwt';
-import { isAppRuntimeConfigured } from '../../../config/appRuntimeAvailability';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { AppModel } from '../../../models/AppModel';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
-import {
-    FeatureFlagModel,
-    type FeatureFlagLogicArgs,
-} from '../../../models/FeatureFlagModel/FeatureFlagModel';
+import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { OrganizationModel } from '../../../models/OrganizationModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../../models/SavedChartModel';
@@ -144,7 +140,6 @@ import { AiAgentModel } from '../../models/AiAgentModel';
 import { EmbedModel } from '../../models/EmbedModel';
 import { ExternalConnectionModel } from '../../models/ExternalConnectionModel';
 import { getBundleServableChecker } from '../AppGenerateService/appBundleStorage';
-import { assertChartTypesEnabled } from '../AppGenerateService/chartTypeFeatureGate';
 import { mapDataAppViz } from '../AppGenerateService/dataAppViz';
 import {
     assertDataAppVizPreviewVersionAllowed,
@@ -243,17 +238,6 @@ export class EmbedService extends BaseService {
         this.organizationModel = dependencies.organizationModel;
         this.externalConnectionModel = dependencies.externalConnectionModel;
         this.aiAgentModel = dependencies.aiAgentModel;
-    }
-
-    /** Embedded chart types follow the same usage gate as the app, with Chart Studio from this instance's runtime. */
-    private async assertChartTypesUsable(
-        user: FeatureFlagLogicArgs['user'],
-    ): Promise<void> {
-        await assertChartTypesEnabled(
-            this.featureFlagModel,
-            isAppRuntimeConfigured(this.lightdashConfig),
-            user,
-        );
     }
 
     async getEmbedUrl(
@@ -2156,11 +2140,6 @@ export class EmbedService extends BaseService {
         ) {
             throw new ForbiddenError('Insufficient permissions');
         }
-
-        await this.assertChartTypesUsable({
-            userUuid: account.user.id,
-            organizationUuid,
-        });
     }
 
     async listEmbedProjectDataAppVisualizations(
@@ -2284,11 +2263,6 @@ export class EmbedService extends BaseService {
                 'Project mismatch between URL and embed token',
             );
         }
-
-        await this.assertChartTypesUsable({
-            userUuid: account.user.id,
-            organizationUuid: dataAppViz.organization_uuid,
-        });
 
         const { chart } = await this.getAuthorizedSavedChartForEmbed(
             account,

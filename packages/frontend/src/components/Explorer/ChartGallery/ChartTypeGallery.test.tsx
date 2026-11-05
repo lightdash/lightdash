@@ -829,7 +829,7 @@ describe('ExplorerChartTypeGallery', () => {
         vi.mocked(useEmbed).mockReturnValue({} as ReturnType<typeof useEmbed>);
         selectedTypeProps.selectedProjectType = projectChartType;
         // Authoring follows Chart Studio, so the data apps flag stays off.
-        featureFlags.current = { [FeatureFlags.ChartTypeRegistry]: true };
+        featureFlags.current = {};
         vi.mocked(useChartStudioAvailable).mockReturnValue(true);
         visualizationConfig.current = {
             chartType: ChartType.TABLE,
@@ -1190,10 +1190,7 @@ describe('ExplorerChartTypeGallery', () => {
         });
 
         it('hides the overflow menu on an official card without Chart Studio, even with data apps on', () => {
-            featureFlags.current = {
-                [FeatureFlags.EnableDataApps]: true,
-                [FeatureFlags.ChartTypeRegistry]: true,
-            };
+            featureFlags.current = { [FeatureFlags.EnableDataApps]: true };
             vi.mocked(useChartStudioAvailable).mockReturnValue(false);
             renderGallery();
 
@@ -1287,10 +1284,14 @@ describe('ExplorerChartTypeGallery', () => {
         });
     });
 
-    it('shows only built-ins when chart types are off', () => {
-        featureFlags.current = {};
+    it('shows only built-ins without a licence', () => {
         vi.mocked(useChartStudioAvailable).mockReturnValue(false);
-        renderGallery();
+        renderWithProviders(
+            <ExplorerChartTypeGallery
+                {...selectedTypeProps}
+                onConfigure={vi.fn()}
+            />,
+        );
 
         expect(
             screen.getByRole('button', { name: 'Bar chart' }),
