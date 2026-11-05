@@ -305,6 +305,7 @@ const buildFixture = (
     const sshKeyPairModel = {
         find: vi.fn<SshKeyPairModel['find']>().mockResolvedValue(null),
     };
+    const isAnalyticsProjectEnabled = vi.fn(() => true);
     const factory = new WarehouseClientFactory({
         credentialResolvers: createCredentialResolverRegistry({
             databricksOAuthCredentialResolver:
@@ -329,6 +330,7 @@ const buildFixture = (
         },
         projectModel: projectModel as unknown as ProjectModel,
         featureFlagModel,
+        isAnalyticsProjectEnabled,
         aiAccessService: aiAccessService as unknown as AiAccessService,
         credentialSource,
         logger: logger as unknown as typeof Logger,
@@ -343,6 +345,7 @@ const buildFixture = (
         logger,
         base,
         featureFlagModel,
+        isAnalyticsProjectEnabled,
     };
 };
 
@@ -1125,7 +1128,8 @@ describe('WarehouseClientFactory', () => {
     });
 
     test('builds the local analytics client without connecting the tunnel', async () => {
-        const { factory, projectModel, featureFlagModel } = buildFixture();
+        const { factory, projectModel, isAnalyticsProjectEnabled } =
+            buildFixture();
         projectModel.get.mockResolvedValue({
             provisioningSource: 'analytics',
             organizationUuid: 'org-uuid',
@@ -1157,7 +1161,7 @@ describe('WarehouseClientFactory', () => {
         expect(client).toBe(warehouseClientMock);
         expect(createAnalyticsClient).toHaveBeenCalledWith(
             'org-uuid',
-            featureFlagModel,
+            isAnalyticsProjectEnabled,
         );
         expect(connect).not.toHaveBeenCalled();
         expect(

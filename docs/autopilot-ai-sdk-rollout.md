@@ -54,7 +54,7 @@ The per-step report records input/output tokens, cumulative input tokens and too
 
 ### Real chart workflow
 
-`AUTOPILOT_CONTENT_EVAL=true` runs one chart repair and one chart creation through the real services against a dedicated local PostgreSQL database and the three-row `content-eval` dbt fixture next to the service. The test refuses non-local databases and names outside `autopilot_eval_*`; never point it at an existing application database.
+`AUTOPILOT_CONTENT_EVAL=true` runs one chart repair and one chart creation through the real services against a dedicated local PostgreSQL database and the three-row `content-eval` dbt fixture next to the service. The test disables usage-event capture in its in-process application configuration. It refuses non-local databases and names outside `autopilot_eval_*`; never point it at an existing application database.
 
 ```sh
 export PGDATABASE=autopilot_eval_chart_workflow
@@ -62,7 +62,7 @@ export PGCONNECTIONURI="postgresql://$USER@127.0.0.1:5432/$PGDATABASE"
 export DBT_DEMO_DIR="$PWD/packages/backend/src/ee/services/ManagedAgentService/content-eval"
 export DBT_PROJECT_DIR="$DBT_DEMO_DIR/dbt" DBT_PROFILES_DIR="$DBT_DEMO_DIR/profiles"
 export DBT_PROFILE=autopilot_eval DBT_TARGET=dev
-export NATS_ENABLED=false SCHEDULER_ENABLED=false LIGHTDASH_DISABLE_FEATURE_FLAGS=analytics-project RUDDERSTACK_ANALYTICS_DISABLED=true
+export NATS_ENABLED=false SCHEDULER_ENABLED=false RUDDERSTACK_ANALYTICS_DISABLED=true
 export LIGHTDASH_ENABLE_FEATURE_FLAGS=ai-autopilot
 createdb && pnpm -F backend migrate
 dbt run --project-dir "$DBT_PROJECT_DIR" --profiles-dir "$DBT_PROFILES_DIR" --profile autopilot_eval

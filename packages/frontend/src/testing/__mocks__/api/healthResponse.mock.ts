@@ -21,6 +21,7 @@ export default function mockHealthResponse(
         localDbtEnabled: true,
         isAuthenticated: true,
         requiresOrgRegistration: false,
+        instanceBrand: null,
         latest: {
             version: '0.0.0',
         },

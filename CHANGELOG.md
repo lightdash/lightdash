@@ -1,3 +1,10 @@
+# [3.155.0](https://github.com/lightdash/lightdash/compare/3.154.3...3.155.0) (2026-11-05)
+
+
+### Features
+
+* instance logo and name for signed-out pages and bookmarks ([#32049](https://github.com/lightdash/lightdash/issues/32049)) ([c45eb12](https://github.com/lightdash/lightdash/commit/c45eb12d1d8424bb89522ba5c036ecca57c9e9e3))
+
 ## [3.154.3](https://github.com/lightdash/lightdash/compare/3.154.2...3.154.3) (2026-11-05)
 
 

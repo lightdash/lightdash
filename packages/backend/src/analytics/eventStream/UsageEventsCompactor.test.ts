@@ -134,9 +134,6 @@ const createCompactor = (
     usageProcessingModel?: Pick<UsageProcessingModel, 'start' | 'finish'>,
 ) =>
     new UsageEventsCompactor({
-        featureFlagModel: {
-            get: async () => ({ id: 'analytics-project', enabled: true }),
-        },
         s3Config: storageConfig,
         usageDimensionsModel: {
             async *getOrganizations(organizationUuid?: string) {
@@ -434,16 +431,13 @@ describe('UsageEventsCompactor.run', () => {
         ).toHaveBeenLastCalledWith(NOW, ['org-1'], expect.any(Function), true);
     });
 
-    it('rechecks eligibility and leaves all storage untouched if the scoped org is disabled', async () => {
+    it('leaves storage untouched when no organizations are selected', async () => {
         const compactor = new UsageEventsCompactor({
             s3Config,
             prometheusMetrics: null,
-            featureFlagModel: {
-                get: async () => ({ id: 'analytics-project', enabled: false }),
-            },
             usageDimensionsModel: {
                 async *getOrganizations() {
-                    yield { organization_id: 1, organization_uuid: 'org-1' };
+                    yield* [];
                 },
                 async *getJsonLines() {},
             },
@@ -558,9 +552,6 @@ describe('UsageEventsCompactor.run', () => {
         const key = rawKey('org-1', 'query_events', '2026-07-01');
         mockListedKeys([key]);
         const compactor = new UsageEventsCompactor({
-            featureFlagModel: {
-                get: async () => ({ id: 'analytics-project', enabled: true }),
-            },
             s3Config: {
                 endpoint: 'https://storage.googleapis.com',
                 bucket: 'events-bucket',

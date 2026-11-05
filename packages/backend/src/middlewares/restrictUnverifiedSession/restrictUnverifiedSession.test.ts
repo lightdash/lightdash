@@ -93,6 +93,8 @@ describe('createRestrictUnverifiedSessionMiddleware', () => {
         ['GET', '/api/v1/user/me/email/status?passcode=000000'],
         ['GET', '/api/v1/logout'],
         ['DELETE', '/api/v1/user/me'],
+        ['GET', '/api/v1/org/brand/favicon'],
+        ['GET', '/api/v1/org/brand/instance-logo?v=287eb53436ebd9d9'],
     ])('allows %s %s', (method, path) => {
         const { next } = run(buildRequest({ method, path }));
 

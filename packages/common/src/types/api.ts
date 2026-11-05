@@ -343,7 +343,10 @@ import {
     type UpdateAllowedEmailDomains,
 } from './organization';
 import { type OrganizationAccess } from './organizationAccess';
-import { type ApiOrganizationBrandResponse } from './organizationBrand';
+import {
+    type ApiOrganizationBrandResponse,
+    type InstanceBrand,
+} from './organizationBrand';
 import {
     type DomainVerificationStatus,
     type VerifiedDomain,
@@ -718,6 +721,7 @@ export type HealthState = {
     defaultProject?: DbtProjectConfig;
     isAuthenticated: boolean;
     requiresOrgRegistration: boolean;
+    instanceBrand: InstanceBrand | null;
     hasEmailClient: boolean;
     /**
      * Instance can provision the sample-data playground project (enterprise
@@ -843,6 +847,7 @@ export type HealthState = {
     hasPostHogOAuth: boolean;
     hasGoogleLiveSources: boolean;
     hasHeadlessBrowser: boolean;
+    hasManagedAnalytics?: boolean;
     hasExtendedUsageAnalytics: boolean;
     hasCacheAutocompleResults: boolean;
     appearance: {
