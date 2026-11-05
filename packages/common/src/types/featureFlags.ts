@@ -19,7 +19,6 @@ export enum FeatureFlags {
     /** Extra warehouse connections of a different type to the project's original connection. */
     MixedWarehouseConnections = 'mixed-warehouse-connections',
     /** Backend-provisioned usage analytics projects. */
-    AnalyticsProject = 'analytics-project',
     /* Show user groups */
     UserGroupsEnabled = 'user-groups-enabled',
 

@@ -24,7 +24,6 @@ import {
 } from '../../../models/ContentAsCodeSnapshotModel';
 import { type ContentVerificationModel } from '../../../models/ContentVerificationModel';
 import { type DashboardModel } from '../../../models/DashboardModel/DashboardModel';
-import type { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import type { OrganizationMemberProfileModel } from '../../../models/OrganizationMemberProfileModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { type SavedChartModel } from '../../../models/SavedChartModel';
@@ -35,7 +34,6 @@ import { UserModel } from '../../../models/UserModel';
 import type { SchedulerClient } from '../../../scheduler/SchedulerClient';
 import { BaseService } from '../../../services/BaseService';
 import { type CoderService } from '../../../services/CoderService/CoderService';
-import { isAnalyticsProjectEnabled } from '../../../services/ProjectService/analyticsProject/analyticsProjectClient';
 import {
     analyticsExploreNames,
     createAnalyticsExplores,
@@ -55,7 +53,6 @@ type Dependencies = {
         ContentAsCodeSnapshotModel,
         'get' | 'upsert'
     >;
-    featureFlagModel: Pick<FeatureFlagModel, 'get'>;
     organizationMemberProfileModel: Pick<
         OrganizationMemberProfileModel,
         'getOrganizationAdmins'
@@ -78,6 +75,7 @@ type Dependencies = {
     >;
     projectService: Pick<
         ProjectService,
+        | 'isAnalyticsProjectEnabled'
         | 'assertAnalyticsProjectAdministration'
         | 'ensureAnalyticsProject'
         | 'delete'
@@ -453,6 +451,8 @@ export class AnalyticsProjectService extends BaseService {
     }: {
         organizationUuid: string | null;
     }): Promise<void> {
+        if (!this.dependencies.projectService.isAnalyticsProjectEnabled())
+            return;
         for await (const organization of this.dependencies.usageDimensionsModel.getOrganizations(
             organizationUuid ?? undefined,
         )) {
@@ -470,10 +470,7 @@ export class AnalyticsProjectService extends BaseService {
         if (
             !this.dependencies.lightdashConfig.usageEvents.enabled ||
             !this.dependencies.lightdashConfig.usageEvents.s3 ||
-            !(await isAnalyticsProjectEnabled(
-                this.dependencies.featureFlagModel,
-                organizationUuid,
-            ))
+            !this.dependencies.projectService.isAnalyticsProjectEnabled()
         )
             return;
         const admins =

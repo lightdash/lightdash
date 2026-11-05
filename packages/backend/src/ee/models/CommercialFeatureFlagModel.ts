@@ -7,8 +7,6 @@ import {
 } from '../../models/FeatureFlagModel/FeatureFlagModel';
 
 export class CommercialFeatureFlagModel extends FeatureFlagModel {
-    protected override readonly supportsAnalyticsProject = true;
-
     constructor(args: { database: Knex; lightdashConfig: LightdashConfig }) {
         super(args);
         this.featureFlagHandlers = {

@@ -16,6 +16,7 @@ import { JiraAppService } from '../services/JiraAppService/JiraAppService';
 import { LinearAppService } from '../services/LinearAppService/LinearAppService';
 import { OAuthService } from '../services/OAuthService/OAuthService';
 import { OrganizationService } from '../services/OrganizationService/OrganizationService';
+import { isAnalyticsProjectAvailable } from '../services/ProjectService/analyticsProject/analyticsProjectAvailability';
 import { ProjectService } from '../services/ProjectService/ProjectService';
 import { provisionTrainingProject } from '../services/ProjectService/provisionTrainingProject';
 import { QuerySourceRegistry } from '../services/QuerySourceService/QuerySourceRegistry';
@@ -201,7 +202,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     schedulerClient: clients.getSchedulerClient(),
                     contentAsCodeSnapshotModel:
                         models.getContentAsCodeSnapshotModel(),
-                    featureFlagModel: models.getFeatureFlagModel(),
                     organizationMemberProfileModel:
                         models.getOrganizationMemberProfileModel(),
                     usageDimensionsModel: models.getUsageDimensionsModel(),
@@ -1242,6 +1242,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             organizationService: ({ models, context, repository }) =>
                 new OrganizationService({
+                    isAnalyticsProjectEnabled: () =>
+                        isAnalyticsProjectAvailable(
+                            context.lightdashConfig,
+                            repository.getLicenseService(),
+                        ),
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
                     organizationModel: models.getOrganizationModel(),
@@ -1260,6 +1265,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             projectService: ({ models, context, clients, utils, repository }) =>
                 new ProjectService({
+                    isAnalyticsProjectEnabled: () =>
+                        isAnalyticsProjectAvailable(
+                            context.lightdashConfig,
+                            repository.getLicenseService(),
+                        ),
                     dbtSourceRefCatalogModel:
                         models.getDbtSourceRefCatalogModel(),
                     getAgentConnectionGrantService: () =>
@@ -1499,6 +1509,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 prometheusMetrics,
             }) =>
                 new AsyncQueryService({
+                    isAnalyticsProjectEnabled: () =>
+                        isAnalyticsProjectAvailable(
+                            context.lightdashConfig,
+                            repository.getLicenseService(),
+                        ),
                     dbtSourceRefCatalogModel:
                         models.getDbtSourceRefCatalogModel(),
                     refreshTokenRotation: models.getRefreshTokenRotation(),
