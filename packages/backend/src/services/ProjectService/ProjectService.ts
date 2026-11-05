@@ -785,8 +785,6 @@ export type ProjectServiceArguments = {
         user: SessionUser;
         projectUuid: string;
         projectType: ProjectType;
-        dbtProjectType: DbtProjectType;
-        method: RequestMethod;
         provisioningSource?: InternalProvisioningSource;
     }) => Promise<void>;
     provisionPlaygroundProject?: (args: {
@@ -1493,8 +1491,6 @@ export class ProjectService
         user: SessionUser,
         projectUuid: string,
         projectType: ProjectType,
-        dbtProjectType: DbtProjectType,
-        method: RequestMethod,
         provisioningSource?: InternalProvisioningSource,
     ): Promise<void> {
         if (provisioningSource === 'analytics') return;
@@ -1516,8 +1512,6 @@ export class ProjectService
                 user,
                 projectUuid,
                 projectType,
-                dbtProjectType,
-                method,
                 provisioningSource,
             });
         } catch (error) {
@@ -5261,8 +5255,6 @@ export class ProjectService
             user,
             projectUuid,
             createProject.type,
-            createProject.dbtConnection.type,
-            method,
             internalProvisioning?.source,
         );
 
@@ -6008,8 +6000,6 @@ export class ProjectService
                 user,
                 projectUuid,
                 createProject.type,
-                createProject.dbtConnection.type,
-                method,
             );
 
             return { projectUuid };
