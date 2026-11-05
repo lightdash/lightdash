@@ -1,18 +1,53 @@
-/* Rendered as a native <button> for keyboard access — reset the UA
-   defaults a <div> never had (see AppTemplatePicker.module.css). */
 .card {
     position: relative;
     width: 100%;
     padding: 6px;
-    text-align: left;
-    font: inherit;
-    color: inherit;
     background: var(--ld-color-tile);
     transition: border-color 150ms ease;
+    cursor: pointer;
 }
 
-.card:hover {
+.card:hover,
+.card:has(.hit:focus-visible) {
     border-color: var(--mantine-color-ldGray-3);
+}
+
+/* The title is the card's button; it stretches over the whole card. */
+.hit {
+    outline: none;
+}
+
+.hit::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+}
+
+.install {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    z-index: 1;
+    opacity: 0;
+    transform: translateY(-2px);
+    transition:
+        opacity 150ms ease,
+        transform 150ms ease;
+}
+
+.card:hover .install,
+.card:focus-within .install,
+.install[data-loading] {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+@media (hover: none) {
+    .install {
+        opacity: 1;
+        transform: none;
+    }
 }
 
 .preview {

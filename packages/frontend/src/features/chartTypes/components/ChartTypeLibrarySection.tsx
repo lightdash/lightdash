@@ -23,6 +23,7 @@ import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { useCanCreateDataApp } from '../../apps/hooks/useCanCreateDataApp';
 import { useChartTypesEnabled } from '../hooks/useChartTypesEnabled';
+import { useInstallRegistryChartType } from '../hooks/useInstallRegistryChartType';
 import { useRegistryChartTypes } from '../hooks/useRegistryChartTypes';
 import { getChartTypeIcon } from '../utils/chartTypeIcons';
 import ChartTypeCardSkeletons from './ChartTypeCardSkeletons';
@@ -61,6 +62,7 @@ const ChartTypeLibrarySection: FC<Props> = ({
     const [isUpgradeAllOpen, setIsUpgradeAllOpen] = useState(false);
     const canUpgrade = useCanCreateDataApp(projectUuid);
     const { track } = useTracking();
+    const installMutation = useInstallRegistryChartType();
 
     const charts = useMemo(
         () => registryQuery.data?.charts ?? [],
@@ -258,6 +260,37 @@ const ChartTypeLibrarySection: FC<Props> = ({
                                 });
                                 setSelectedSlug(chart.slug);
                             }}
+                            onInstall={
+                                canUpgrade && chart.state === 'not_installed'
+                                    ? () => {
+                                          track({
+                                              name: EventName.CHART_TYPE_LIBRARY_INSTALL_CLICKED,
+                                              properties: {
+                                                  projectUuid,
+                                                  chartSlug: chart.slug,
+                                                  action: 'install',
+                                              },
+                                          });
+                                          installMutation.mutate(
+                                              {
+                                                  projectUuid,
+                                                  chartSlug: chart.slug,
+                                              },
+                                              {
+                                                  onSuccess: (result) =>
+                                                      onInstalled?.(
+                                                          result.appUuid,
+                                                      ),
+                                              },
+                                          );
+                                      }
+                                    : null
+                            }
+                            isInstalling={
+                                installMutation.isLoading &&
+                                installMutation.variables?.chartSlug ===
+                                    chart.slug
+                            }
                         />
                     ))}
                 </SimpleGrid>

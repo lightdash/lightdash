@@ -431,6 +431,36 @@ describe('ChartTypeLibrarySection', () => {
         ).toBeInTheDocument();
     });
 
+    it('offers Install on the card only when the user can install it', async () => {
+        defaultAbility.update([
+            {
+                action: 'create',
+                subject: 'DataApp',
+                conditions: {
+                    organizationUuid: DEFAULT_ORG_UUID,
+                    projectUuid: PROJECT_UUID,
+                },
+            },
+        ]);
+        setEnabled(true);
+        setRegistryData([
+            makeItem({ slug: 'radial-gauge' }),
+            makeItem({
+                slug: 'old-gauge',
+                name: 'Old gauge',
+                state: 'incompatible',
+            }),
+        ]);
+        renderSection();
+
+        expect(
+            await screen.findByRole('button', { name: 'Install Radial gauge' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Install Old gauge' }),
+        ).not.toBeInTheDocument();
+    });
+
     it('shows the incompatible explanation and disabled Install without gating on permission', async () => {
         // No defaultAbility grant — the informational incompatible footer
         // must still render for viewers who cannot create data apps.
