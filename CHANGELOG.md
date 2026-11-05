@@ -1,3 +1,10 @@
+# [3.162.0](https://github.com/lightdash/lightdash/compare/3.161.0...3.162.0) (2026-11-05)
+
+
+### Features
+
+* **semantic-layer:** remove semantic-studio feature flag ([#32124](https://github.com/lightdash/lightdash/issues/32124)) ([5fd494b](https://github.com/lightdash/lightdash/commit/5fd494b9ca271b72ce01e27f5b000dd57293559d))
+
 # [3.161.0](https://github.com/lightdash/lightdash/compare/3.160.0...3.161.0) (2026-11-05)
 
 
