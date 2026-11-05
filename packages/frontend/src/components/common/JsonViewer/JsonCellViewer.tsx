@@ -1,5 +1,4 @@
 import {
-    Box,
     Button,
     CopyButton,
     Group,
@@ -30,6 +29,12 @@ type ModalProps = Props & {
 type MenuItemProps = {
     onClick: () => void;
 };
+
+const getJsonPath = (path: (string | number)[]) =>
+    path.reduce<string>((acc, part) => {
+        const key = String(part);
+        return /^\d+$/.test(key) ? `${acc}[${key}]` : `${acc}.${key}`;
+    }, '$');
 
 const getJsonPreview = (value: JsonCellValue) => {
     if (Array.isArray(value)) {
@@ -114,14 +119,13 @@ export const JsonCellModal: FC<ModalProps> = ({ value, opened, onClose }) => {
 
                     <Tabs.Panel value="tree" pt="sm">
                         <ScrollArea.Autosize mah="60vh">
-                            <Box fz="xs">
-                                <JsonTree
-                                    value={value}
-                                    expandDepth={0}
-                                    withCopy={false}
-                                    onSelectPath={setSelectedPath}
-                                />
-                            </Box>
+                            <JsonTree
+                                value={value}
+                                defaultExpandDepth={1}
+                                onValueSelect={(path) =>
+                                    setSelectedPath(getJsonPath(path))
+                                }
+                            />
                         </ScrollArea.Autosize>
                     </Tabs.Panel>
 

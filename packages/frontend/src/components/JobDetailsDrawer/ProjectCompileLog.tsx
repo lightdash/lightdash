@@ -1,4 +1,4 @@
-import { Box, Button } from '@mantine/core';
+import { Button } from '@mantine/core';
 import { IconExternalLink } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useProjectCompileLogByJob } from '../../hooks/useProjectCompileLogs';
@@ -41,14 +41,7 @@ const ProjectCompileLog: FC<ProjectCompileLogProps> = ({
                 </Button>
             }
         >
-            <Box fz="xs">
-                <JsonTree
-                    value={compileLog}
-                    expandDepth={1}
-                    withCopy
-                    onSelectPath={null}
-                />
-            </Box>
+            <JsonTree value={compileLog} defaultExpandDepth={2} withCopy />
         </CollapsablePaper>
     );
 };

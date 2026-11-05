@@ -39,12 +39,7 @@ export const CompilationLogDrawer: FC<CompilationLogDrawerProps> = ({
                 <Stack gap="md">
                     {log && (
                         <Box>
-                            <JsonTree
-                                value={log}
-                                expandDepth={0}
-                                withCopy={false}
-                                onSelectPath={null}
-                            />
+                            <JsonTree value={log} defaultExpandDepth={1} />
                         </Box>
                     )}
                 </Stack>

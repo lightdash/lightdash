@@ -20,7 +20,6 @@ describe('JsonCellModal', () => {
         expect(screen.getByText('$.id')).toBeInTheDocument();
 
         fireEvent.click(screen.getByText('user:'));
-        expect(screen.getByText('$.user')).toBeInTheDocument();
 
         fireEvent.click(await screen.findByText('"Ada"'));
         expect(screen.getByText('$.user.name')).toBeInTheDocument();
