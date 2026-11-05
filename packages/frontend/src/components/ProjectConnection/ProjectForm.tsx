@@ -83,6 +83,7 @@ export const ProjectForm: FC<Props> = ({
                 </div>
 
                 <div>
+                    <ConnectionsPanel savedProject={savedProject} />
                     <WarehouseSettingsForm
                         allowMixedWarehouseTypes={false}
                         disabled={disabled}
@@ -133,8 +134,6 @@ export const ProjectForm: FC<Props> = ({
                     </div>
                 </SettingsGridCard>
             )}
-
-            <ConnectionsPanel savedProject={savedProject} />
 
             {savedProject &&
                 savedProject.type !== ProjectType.PREVIEW &&

@@ -1,5 +1,17 @@
+.section {
+    padding-bottom: var(--mantine-spacing-lg);
+    margin-bottom: var(--mantine-spacing-lg);
+    border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.list {
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    overflow: hidden;
+}
+
 .row {
-    padding: 12px 4px;
+    padding: 10px 12px;
     border-top: 1px solid var(--mantine-color-default-border);
 }
 

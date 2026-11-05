@@ -15,17 +15,14 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
-    Badge,
     Box,
     Button,
-    Card,
     Group,
     Loader,
     Menu,
     Stack,
     Text,
     TextInput,
-    Title,
     Tooltip,
 } from '@mantine/core';
 import { useForm as useMantineForm } from '@mantine/form';
@@ -33,7 +30,6 @@ import {
     IconDatabase,
     IconDots,
     IconPencil,
-    IconPlugConnected,
     IconPlus,
     IconTrash,
 } from '@tabler/icons-react';
@@ -54,10 +50,13 @@ import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
 import { ConnectionFields } from './ConnectionFields';
 import { unusedDbtFormValues } from './connectionFormDefaults';
-import classes from './ConnectionsPanel.module.css';
+import {
+    ConnectionsList,
+    ConnectionsSection,
+    ConnectionSummary,
+} from './ConnectionsSection';
 import { EnableMultipleConnectionsCard } from './EnableMultipleConnections';
 import { useForm } from './formContext';
-import { getWarehouseLabel } from './ProjectConnectFlow/utils';
 import WarehouseDatabaseListingFields, {
     type WarehouseDatabaseListingValues,
 } from './WarehouseDatabaseListingFields';
@@ -71,63 +70,52 @@ const ConnectionRow: FC<{
     onEditListing: (connection: WarehouseConnection) => void;
     onRemove: (connection: WarehouseConnection) => void;
 }> = ({ connection, onEdit, onRename, onEditListing, onRemove }) => (
-    <Group className={classes.row} gap="sm" wrap="nowrap">
-        <MantineIcon
-            icon={IconPlugConnected}
-            size="lg"
-            className={classes.mark}
-        />
-        <Box className={classes.info}>
-            <Group gap={6} wrap="nowrap">
-                <Text fw={600} size="sm" truncate>
-                    {connection.name}
-                </Text>
-                {connection.isOriginal && <Badge size="sm">Original</Badge>}
-            </Group>
-            <Text className={classes.meta} c="dimmed" truncate>
-                {getWarehouseLabel(connection.warehouseType)}
-            </Text>
-        </Box>
-        <Menu position="bottom-end">
-            <Menu.Target>
-                <ActionIcon aria-label={`Actions for ${connection.name}`}>
-                    <MantineIcon icon={IconDots} />
-                </ActionIcon>
-            </Menu.Target>
-            <Menu.Dropdown>
-                {!connection.isOriginal && (
-                    <Menu.Item
-                        leftSection={<MantineIcon icon={IconPencil} />}
-                        onClick={() => onEdit(connection)}
-                    >
-                        Edit
+    <ConnectionSummary
+        name={connection.name}
+        warehouseType={connection.warehouseType}
+        status={connection.isOriginal ? 'Original' : null}
+        actions={
+            <Menu position="bottom-end">
+                <Menu.Target>
+                    <ActionIcon aria-label={`Actions for ${connection.name}`}>
+                        <MantineIcon icon={IconDots} />
+                    </ActionIcon>
+                </Menu.Target>
+                <Menu.Dropdown>
+                    {!connection.isOriginal && (
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconPencil} />}
+                            onClick={() => onEdit(connection)}
+                        >
+                            Edit
+                        </Menu.Item>
+                    )}
+                    <Menu.Item onClick={() => onRename(connection)}>
+                        Rename
                     </Menu.Item>
-                )}
-                <Menu.Item onClick={() => onRename(connection)}>
-                    Rename
-                </Menu.Item>
-                {supportsConnectionDatabaseListing(
-                    connection.warehouseType,
-                ) && (
-                    <Menu.Item
-                        leftSection={<MantineIcon icon={IconDatabase} />}
-                        onClick={() => onEditListing(connection)}
-                    >
-                        SQL runner databases
-                    </Menu.Item>
-                )}
-                {!connection.isOriginal && (
-                    <Menu.Item
-                        color="red"
-                        leftSection={<MantineIcon icon={IconTrash} />}
-                        onClick={() => onRemove(connection)}
-                    >
-                        Remove
-                    </Menu.Item>
-                )}
-            </Menu.Dropdown>
-        </Menu>
-    </Group>
+                    {supportsConnectionDatabaseListing(
+                        connection.warehouseType,
+                    ) && (
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconDatabase} />}
+                            onClick={() => onEditListing(connection)}
+                        >
+                            SQL runner databases
+                        </Menu.Item>
+                    )}
+                    {!connection.isOriginal && (
+                        <Menu.Item
+                            color="red"
+                            leftSection={<MantineIcon icon={IconTrash} />}
+                            onClick={() => onRemove(connection)}
+                        >
+                            Remove
+                        </Menu.Item>
+                    )}
+                </Menu.Dropdown>
+            </Menu>
+        }
+    />
 );
 
 const AddConnectionModal: FC<{
@@ -545,64 +533,59 @@ const ConnectionsPanelContent: FC<{
     const closeAction = () => setAction(null);
 
     return (
-        <Card padding="lg">
-            <Stack gap="md">
-                <Title order={5}>Connections</Title>
-                {isInitialLoading && (
-                    <Group justify="center" py="md">
-                        <Loader size="sm" />
-                    </Group>
-                )}
-                {error && (
-                    <Text size="sm" c="red">
-                        Failed to load connections.
-                    </Text>
-                )}
-                {listing && (
-                    <Stack gap={0}>
-                        {connections.map((connection) => (
-                            <ConnectionRow
-                                key={connection.warehouseConnectionUuid}
-                                connection={connection}
-                                onEdit={() =>
-                                    setAction({ kind: 'edit', connection })
-                                }
-                                onRename={() =>
-                                    setAction({ kind: 'rename', connection })
-                                }
-                                onEditListing={() =>
-                                    setAction({ kind: 'listing', connection })
-                                }
-                                onRemove={() =>
-                                    setAction({ kind: 'remove', connection })
-                                }
-                            />
-                        ))}
-                    </Stack>
-                )}
-                <Group justify="flex-end">
-                    <Tooltip
-                        w={300}
-                        disabled={
-                            canAddConnection || !listing?.capabilities.reason
-                        }
-                        label={listing?.capabilities.reason}
-                    >
-                        <Box>
-                            <Button
-                                variant="default"
-                                leftSection={<MantineIcon icon={IconPlus} />}
-                                disabled={
-                                    !canAddConnection || !originalWarehouseType
-                                }
-                                onClick={() => setIsAddOpen(true)}
-                            >
-                                Add connection
-                            </Button>
-                        </Box>
-                    </Tooltip>
+        <ConnectionsSection>
+            {isInitialLoading && (
+                <Group justify="center" py="md">
+                    <Loader size="sm" />
                 </Group>
-            </Stack>
+            )}
+            {error && (
+                <Text size="sm" c="red">
+                    Failed to load connections.
+                </Text>
+            )}
+            {listing && (
+                <ConnectionsList>
+                    {connections.map((connection) => (
+                        <ConnectionRow
+                            key={connection.warehouseConnectionUuid}
+                            connection={connection}
+                            onEdit={() =>
+                                setAction({ kind: 'edit', connection })
+                            }
+                            onRename={() =>
+                                setAction({ kind: 'rename', connection })
+                            }
+                            onEditListing={() =>
+                                setAction({ kind: 'listing', connection })
+                            }
+                            onRemove={() =>
+                                setAction({ kind: 'remove', connection })
+                            }
+                        />
+                    ))}
+                </ConnectionsList>
+            )}
+            <Group justify="flex-end">
+                <Tooltip
+                    w={300}
+                    disabled={canAddConnection || !listing?.capabilities.reason}
+                    label={listing?.capabilities.reason}
+                >
+                    <Box>
+                        <Button
+                            variant="default"
+                            leftSection={<MantineIcon icon={IconPlus} />}
+                            disabled={
+                                !canAddConnection || !originalWarehouseType
+                            }
+                            onClick={() => setIsAddOpen(true)}
+                        >
+                            Add connection
+                        </Button>
+                    </Box>
+                </Tooltip>
+            </Group>
 
             {isAddOpen && originalWarehouseType && (
                 <AddConnectionModal
@@ -621,7 +604,7 @@ const ConnectionsPanelContent: FC<{
                     onClose={closeAction}
                 />
             )}
-        </Card>
+        </ConnectionsSection>
     );
 };
 

@@ -201,6 +201,38 @@ describe('ConnectionsPanel', () => {
         },
     );
 
+    it('lists each connection with its type and Original marker beside Add connection', async () => {
+        mockApi.mockResolvedValue({
+            connections: [
+                original,
+                { ...extra, warehouseType: WarehouseTypes.SNOWFLAKE },
+            ],
+            capabilities: { canAddConnection: true, reason: null },
+        });
+        renderPanel();
+
+        await screen.findByRole('button', { name: 'Actions for Warehouse' });
+        const addButton = screen.getByRole('button', {
+            name: 'Add connection',
+        });
+        const section = screen.getByText('Connections').parentElement!;
+        expect(section).toContainElement(addButton);
+
+        const originalRow = within(section).getByRole('button', {
+            name: 'Actions for Warehouse',
+        }).parentElement!;
+        expect(within(originalRow).getByText('Warehouse')).toBeInTheDocument();
+        expect(within(originalRow).getByText('PostgreSQL')).toBeInTheDocument();
+        expect(within(originalRow).getByText('Original')).toBeInTheDocument();
+
+        const extraRow = within(section).getByRole('button', {
+            name: 'Actions for Finance',
+        }).parentElement!;
+        expect(within(extraRow).getByText('Finance')).toBeInTheDocument();
+        expect(within(extraRow).getByText('Snowflake')).toBeInTheDocument();
+        expect(within(extraRow).queryByText('Original')).toBeNull();
+    });
+
     it('lists connections and only offers edit and removal for extra connections', async () => {
         mockApi.mockResolvedValue({
             connections: [original, extra],

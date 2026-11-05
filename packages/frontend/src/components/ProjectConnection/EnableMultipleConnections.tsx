@@ -14,7 +14,6 @@ import {
     Alert,
     Box,
     Button,
-    Card,
     Fieldset,
     Group,
     List,
@@ -22,7 +21,6 @@ import {
     Stack,
     Text,
     TextInput,
-    Title,
     Tooltip,
 } from '@mantine/core';
 import { IconAlertTriangle, IconPlus } from '@tabler/icons-react';
@@ -37,6 +35,11 @@ import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
 import { ConnectionFields } from './ConnectionFields';
 import { unusedDbtFormValues } from './connectionFormDefaults';
+import {
+    ConnectionsList,
+    ConnectionsSection,
+    ConnectionSummary,
+} from './ConnectionsSection';
 import { useForm } from './formContext';
 import { getWarehouseLabel } from './ProjectConnectFlow/utils';
 import { warehouseDefaultValues } from './WarehouseForms/defaultValues';
@@ -335,40 +338,43 @@ export const EnableMultipleConnectionsCard: FC<{
     if (!data) return null;
 
     return (
-        <Card padding="lg">
-            <Stack gap="md">
-                <Title order={5}>Connections</Title>
-                <Text size="sm" c="dimmed">
-                    This project uses one warehouse connection.{' '}
-                    {mixedWarehouseFlag.data?.enabled === true
-                        ? 'Add connections of any warehouse type to query several warehouses from this project.'
-                        : 'Add more connections of the same warehouse type to query several warehouses from this project.'}{' '}
-                    Everything that exists today keeps using the current
-                    connection.
-                </Text>
-                <Group justify="flex-end">
-                    <Tooltip
-                        w={300}
-                        disabled={data.canSwitch || !data.reason}
-                        label={data.reason}
-                    >
-                        <Box>
-                            <Button
-                                variant="default"
-                                leftSection={<MantineIcon icon={IconPlus} />}
-                                disabled={
-                                    !data.canSwitch ||
-                                    !supportsExtras ||
-                                    !data.originalWarehouseType
-                                }
-                                onClick={() => setIsOpen(true)}
-                            >
-                                Enable multiple connections
-                            </Button>
-                        </Box>
-                    </Tooltip>
-                </Group>
-            </Stack>
+        <ConnectionsSection>
+            <ConnectionsList>
+                <ConnectionSummary
+                    name="Current connection"
+                    warehouseType={data.originalWarehouseType}
+                    status={null}
+                />
+            </ConnectionsList>
+            <Text size="sm" c="dimmed">
+                This project uses one warehouse connection.{' '}
+                {mixedWarehouseFlag.data?.enabled === true
+                    ? 'Add connections of any warehouse type to query several warehouses from this project.'
+                    : 'Add more connections of the same warehouse type to query several warehouses from this project.'}{' '}
+                Everything that exists today keeps using the current connection.
+            </Text>
+            <Group justify="flex-end">
+                <Tooltip
+                    w={300}
+                    disabled={data.canSwitch || !data.reason}
+                    label={data.reason}
+                >
+                    <Box>
+                        <Button
+                            variant="default"
+                            leftSection={<MantineIcon icon={IconPlus} />}
+                            disabled={
+                                !data.canSwitch ||
+                                !supportsExtras ||
+                                !data.originalWarehouseType
+                            }
+                            onClick={() => setIsOpen(true)}
+                        >
+                            Enable multiple connections
+                        </Button>
+                    </Box>
+                </Tooltip>
+            </Group>
             {isOpen && data.originalWarehouseType && (
                 <EnableMultipleConnectionsModal
                     projectUuid={projectUuid}
@@ -379,6 +385,6 @@ export const EnableMultipleConnectionsCard: FC<{
                     onClose={() => setIsOpen(false)}
                 />
             )}
-        </Card>
+        </ConnectionsSection>
     );
 };

@@ -254,6 +254,22 @@ describe('Enable multiple connections', () => {
         );
     });
 
+    it('shows the current connection beside the switch in the connections section', async () => {
+        routeApi({ availability: { canSwitch: true, reason: null } });
+        renderPanel();
+
+        const button = await screen.findByRole('button', {
+            name: 'Enable multiple connections',
+        });
+        const section = screen.getByText('Connections').parentElement!;
+        expect(section).toContainElement(button);
+        expect(
+            within(section).getByText('Current connection'),
+        ).toBeInTheDocument();
+        expect(within(section).getByText('PostgreSQL')).toBeInTheDocument();
+        expect(within(section).queryByText('Original')).toBeNull();
+    });
+
     it('offers the switch on a single-connection project', async () => {
         routeApi({ availability: { canSwitch: true, reason: null } });
         renderPanel();
