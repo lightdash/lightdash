@@ -1,5 +1,5 @@
-import { format as formatDateFns, parseISO } from 'date-fns';
 import type { Column, FormatFunction, Row } from '@lightdash/query-sdk';
+import { format as formatDateFns, parseISO } from 'date-fns';
 
 export type FormatVariant = 'cell' | 'axis';
 
@@ -21,6 +21,93 @@ function inferGranularity(name: string): DateGranularity | undefined {
     return undefined;
 }
 
+// Lightdash returns dates/timestamps as the project's wall-clock reading with
+// a `Z` suffix (e.g. a March 1st date arrives as '2025-03-01T00:00:00Z').
+// Parsing that with `parseISO`/`new Date` and formatting locally shifts it
+// into the viewer's timezone — a UTC-7 viewer would see "Feb 28". Render the
+// wall-clock components exactly as the server sent them instead.
+const ISO_WALL_CLOCK_RE =
+    /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?)?/;
+
+/**
+ * A Date whose local-time getters return UTC components, so date-fns `format`
+ * renders the stored wall-clock reading in every viewer timezone. A plain
+ * `new Date(y, m, d, h, …)` is not enough: the constructor interprets the
+ * components in the viewer's timezone and normalizes local times that don't
+ * exist there (a DST spring-forward gap turns 02:30 into 03:30). date-fns
+ * clones inputs via their own constructor, so the subclass survives `format`.
+ * Same mechanism as @date-fns/utc's UTCDate, without the dependency.
+ */
+class WallClockDate extends Date {
+    getFullYear() {
+        return this.getUTCFullYear();
+    }
+
+    getMonth() {
+        return this.getUTCMonth();
+    }
+
+    getDate() {
+        return this.getUTCDate();
+    }
+
+    getDay() {
+        return this.getUTCDay();
+    }
+
+    getHours() {
+        return this.getUTCHours();
+    }
+
+    getMinutes() {
+        return this.getUTCMinutes();
+    }
+
+    getSeconds() {
+        return this.getUTCSeconds();
+    }
+
+    getMilliseconds() {
+        return this.getUTCMilliseconds();
+    }
+
+    getTimezoneOffset() {
+        return 0;
+    }
+
+    // Setters must match the getters: date-fns week tokens (II, ww, RRRR)
+    // compute via startOfWeek, which mutates clones with setDate/setHours.
+    // Inheriting the local setters would mix UTC reads with local writes and
+    // land on the wrong ISO week in non-UTC viewer timezones.
+    setFullYear(...args: Parameters<Date['setFullYear']>) {
+        return this.setUTCFullYear(...args);
+    }
+
+    setMonth(...args: Parameters<Date['setMonth']>) {
+        return this.setUTCMonth(...args);
+    }
+
+    setDate(day: number) {
+        return this.setUTCDate(day);
+    }
+
+    setHours(...args: Parameters<Date['setHours']>) {
+        return this.setUTCHours(...args);
+    }
+
+    setMinutes(...args: Parameters<Date['setMinutes']>) {
+        return this.setUTCMinutes(...args);
+    }
+
+    setSeconds(...args: Parameters<Date['setSeconds']>) {
+        return this.setUTCSeconds(...args);
+    }
+
+    setMilliseconds(ms: number) {
+        return this.setUTCMilliseconds(ms);
+    }
+}
+
 function toDate(value: unknown): Date | null {
     if (value === null || value === undefined || value === '') return null;
     if (value instanceof Date)
@@ -30,6 +117,23 @@ function toDate(value: unknown): Date | null {
         return Number.isNaN(d.getTime()) ? null : d;
     }
     if (typeof value === 'string') {
+        const wallClock = ISO_WALL_CLOCK_RE.exec(value);
+        if (wallClock) {
+            const [, year, month, day, hours, minutes, seconds, millis] =
+                wallClock;
+            const d = new WallClockDate(
+                Date.UTC(
+                    Number(year),
+                    Number(month) - 1,
+                    Number(day),
+                    Number(hours ?? 0),
+                    Number(minutes ?? 0),
+                    Number(seconds ?? 0),
+                    Number(millis?.padEnd(3, '0') ?? 0),
+                ),
+            );
+            return Number.isNaN(d.getTime()) ? null : d;
+        }
         const d = parseISO(value);
         return Number.isNaN(d.getTime()) ? null : d;
     }
@@ -135,9 +239,6 @@ export function formatField(
     }
 }
 
-export function getColumn(
-    columns: Column[],
-    name: string,
-): Column | undefined {
+export function getColumn(columns: Column[], name: string): Column | undefined {
     return columns.find((c) => c.name === name);
 }

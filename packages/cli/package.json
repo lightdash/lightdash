@@ -80,6 +80,7 @@
     "@vercel/ncc": "0.38.4",
     "@yao-pkg/pkg": "6.24.0",
     "copyfiles": "2.4.1",
+    "date-fns": "3.6.0",
     "oxlint": "1.75.0",
     "oxlint-tsgolint": "7.0.2001",
     "tsx": "4.19.4",

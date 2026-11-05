@@ -608,6 +608,8 @@ function RevenueTable() {
 
 ### Formatting
 
+**Trust Lightdash's values for date/time display — never re-convert them.** Date and timestamp values arrive as the correct wall-clock reading with a `Z` suffix (e.g. a March 1st date is `'2025-03-01T00:00:00Z'`). Rendering them through anything timezone-aware — `new Date(value).toLocaleDateString()`, `Intl.DateTimeFormat`, `date-fns-tz`, or manual offset math — shifts them into the viewer's local timezone, so a viewer behind UTC sees Feb 28 where Lightdash shows Mar 1. Always display dates via `format(row, fieldName)` or the `@/lib/format` helpers below (they render the server's wall-clock components as-is); when formatting manually, format the date's own Y/M/D components, never a locale/timezone conversion of them.
+
 Every Lightdash row carries two views of each value:
 
 - `row[fieldName]` — the **raw** value. Numbers are real numbers; **dates and timestamps are full ISO strings** (e.g. `'2025-03-01T00:00:00Z'`) regardless of the truncation grain. Pass these to charts as data, not as axis labels.
@@ -636,16 +638,14 @@ import { formatField, formatDate, formatNumber, getColumn } from '@/lib/format';
 - number — server-formatted (currency / % / suffix preserved via the SDK `format()` you pass in)
 - timestamp without grain — `Jun 16, 2025 14:00`
 
-**Override** by passing `opts.pattern` to `formatDate`, or by formatting yourself with `date-fns`/`Intl.NumberFormat`:
+**Override** by passing `opts.pattern` to `formatDate` — this keeps the server's wall-clock reading while changing the pattern:
 
 ```tsx
-import { format as formatDateFns, parseISO } from 'date-fns';
-
 formatDate(row.order_date_month, getColumn(columns, 'order_date_month'), 'axis', { pattern: 'MMM yyyy' });
-
-// Or fully manual:
-formatDateFns(parseISO(row.order_date as string), 'EEEE, MMM d');
+formatDate(row.order_date, undefined, 'cell', { pattern: 'EEEE, MMM d' });
 ```
+
+Avoid `parseISO`/`new Date` + `format` from `date-fns` for display: the `Z` suffix makes them shift the value into the viewer's timezone, moving midnight dates to the previous day for viewers behind UTC.
 
 #### Chart axes
 
@@ -1379,6 +1379,7 @@ The action-menu example above shows typical `drillDown()` usage. For the full AP
 | Skipping `tickFormatter` on a year axis because "year is just a number" | Year dimensions (`*_year`) are still full ISO timestamps at the data layer, so the axis renders `2025-01-01T00:00:00Z` | Apply the same `formatDate(...)` `tickFormatter` to year axes — `formatDate` will collapse to `2025` for year-grain columns |
 | Using `format(row, 'order_date')` for a date column in a table cell | Renders `2025-03-17` (zero-padded tabular) — readable but ugly in dashboards | `formatField(row, col, format, 'cell')` from `@/lib/format` — renders `Mar 17, 2025` while still routing currency/% metrics through the server format |
 | Treating `row.order_date_month` as a `Date` or short string | It's a full ISO timestamp string (`2025-03-01T00:00:00Z`) for every grain | Pass through `formatDate` / `formatField`, or `parseISO` it before doing date math |
+| Displaying dates via `toLocaleDateString()`, `Intl.DateTimeFormat`, or `parseISO` + `format` | The `Z` suffix makes these convert to the viewer's timezone — viewers behind UTC see the previous day (e.g. Feb 28 instead of Mar 1) | Render through `format(row, field)` or `@/lib/format` helpers; they display the server's wall-clock value as-is |
 | Wrong `.parameters()` key scope | Value silently ignored — query returns the default | Project-level → bare name (`{ region }`); model-level → `model.param` (`{ 'orders.region' }`), matching the `${lightdash.parameters.…}` reference |
 | Inventing a parameter not declared in the YAML | Backend ignores unknown params; nothing changes | Only pass parameters that exist in a model's `meta.parameters` or `lightdash.config.yml`. Use `.filters()` for row restriction instead |
 | Applying `.parameters()` at module scope for a UI-driven value | Value never updates when the control changes | Apply `.parameters()` in a `useMemo` keyed on the state value; keep the base query at module scope |
