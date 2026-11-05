@@ -49,7 +49,7 @@ export const OnboardingRunActivity: FC<{
         : isToast
           ? 'Getting your data ready'
           : isFailed
-            ? `${AI_NAME} couldn't finish project setup`
+            ? "Project setup couldn't finish"
             : `${AI_NAME} is building your semantic layer`;
     const counts = [
         summary.tables > 0 && plural(summary.tables, 'table'),
