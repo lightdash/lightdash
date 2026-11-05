@@ -50,6 +50,7 @@ const makeWorkerArgs = (
                 },
             },
             database: { connectionUri: 'postgres://noop' },
+            usageEvents: { enabled: false },
         } as unknown as LightdashConfig,
         projectService: { deleteExpiredPreviewProjects },
         learnSandboxService: { sweep },
