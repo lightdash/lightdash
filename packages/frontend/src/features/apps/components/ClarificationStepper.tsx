@@ -30,15 +30,28 @@ const ClarificationStepper: FC<Props> = ({
     onBuild,
 }) => {
     const [step, setStep] = useState(0);
+    // Steps answered by a chip; typed text never counts, even if it matches one.
+    const [chipSteps, setChipSteps] = useState<ReadonlySet<number>>(
+        () => new Set(),
+    );
     const questionId = useId();
     const current = questions[step];
     if (!current) return null;
 
     const isLast = step === questions.length - 1;
     const answer = answers[step] ?? '';
-    const customAnswer = current.options.includes(answer) ? '' : answer;
+    const fromChip = chipSteps.has(step);
+    const customAnswer = fromChip ? '' : answer;
     const next = () => (isLast ? onBuild() : setStep(step + 1));
+    const markChip = (picked: boolean) =>
+        setChipSteps((prev) => {
+            const nextSet = new Set(prev);
+            if (picked) nextSet.add(step);
+            else nextSet.delete(step);
+            return nextSet;
+        });
     const choose = (value: string) => {
+        markChip(true);
         onAnswer(step, value);
         if (!isLast) setStep(step + 1);
     };
@@ -73,7 +86,7 @@ const ClarificationStepper: FC<Props> = ({
                     <UnstyledButton
                         key={option}
                         className={classes.option}
-                        aria-pressed={answer === option}
+                        aria-pressed={fromChip && answer === option}
                         onClick={() => choose(option)}
                     >
                         {option}
@@ -99,7 +112,10 @@ const ClarificationStepper: FC<Props> = ({
                 }
                 aria-labelledby={questionId}
                 value={customAnswer}
-                onChange={(event) => onAnswer(step, event.currentTarget.value)}
+                onChange={(event) => {
+                    markChip(false);
+                    onAnswer(step, event.currentTarget.value);
+                }}
                 onKeyDown={(event) => {
                     if (event.key === 'Enter' && !event.nativeEvent.isComposing)
                         next();
