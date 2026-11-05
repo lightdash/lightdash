@@ -4,6 +4,7 @@ import * as tabs from '../20261021120000_index_dashboard_tabs_dashboard_id';
 import * as savedSql from '../20261021120100_index_saved_sql_dashboard_uuid';
 import * as apps from '../20261021120200_index_apps_space_uuid';
 import * as cache from '../20261021120400_index_query_history_cache_lookup';
+import * as tabVersions from '../20261021120500_index_dashboard_tabs_dashboard_version_id';
 import {
     createMigratedTestDatabase,
     type MigratedTestDatabase,
@@ -15,6 +16,12 @@ const indexes = [
         table: 'dashboard_tabs',
         name: 'dashboard_tabs_dashboard_id_index',
         columns: 'dashboard_id',
+    },
+    {
+        migration: tabVersions,
+        table: 'dashboard_tabs',
+        name: 'dashboard_tabs_dashboard_version_id_index',
+        columns: 'dashboard_version_id',
     },
     {
         migration: savedSql,
