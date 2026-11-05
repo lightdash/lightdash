@@ -742,6 +742,17 @@ This is a schema coverage contract, not a replacement for behavior tests. It
 catches unclassified top-level fields; resource adapters and round-trip tests
 must still prove that portable fields download, compare, and upload correctly.
 
+### Dashboard control sections
+
+When dashboard controls are enabled, `config.controlSections` downloads each
+section with a readable `slug`. Filters, parameter controls and date zoom
+controls refer to it with `sectionSlug`. The legacy parameter section map
+downloads as `config.parameterSectionSlugs`.
+
+Uploads match sections by slug and preserve their internal UUIDs, including
+after a name change. New sections receive UUID v4 IDs. Duplicate section slugs
+and unknown `sectionSlug` references are rejected.
+
 ### Dashboard parameter controls
 
 When dashboard controls are enabled, dashboard files can save controls under

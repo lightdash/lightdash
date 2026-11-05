@@ -227,6 +227,10 @@ import {
     getScheduledDeliveryTargetKey,
     getScheduledDeliveryTargetsAsCode,
 } from './scheduledContent';
+import {
+    getDashboardWithSectionIds,
+    getDashboardWithSectionSlugs,
+} from './sectionSlugs';
 
 type RuntimeChartAsCode = Omit<ChartAsCode, 'chartConfig'> & {
     chartConfig: ChartConfig;
@@ -2166,7 +2170,7 @@ export class CoderService extends BaseService {
             verification: verificationMap.get(dashboard.uuid) ?? null,
         };
 
-        return dashboardAsCode;
+        return getDashboardWithSectionSlugs(dashboardAsCode);
     }
 
     private static convertTabsWithSlugsToUuids(
@@ -5711,13 +5715,17 @@ export class CoderService extends BaseService {
                 };
             }
         }
+        const dashboardWithResolvedSections = getDashboardWithSectionIds(
+            dashboardWithDefaults,
+            existingDashboard?.config,
+        );
         const { tabs: tabsWithUuids, tabUuidsBySlug } =
             CoderService.convertTabsWithSlugsToUuids(
-                dashboardWithDefaults.tabs,
+                dashboardWithResolvedSections.tabs,
                 existingDashboard?.tabs,
             );
         let dashboardWithResolvedTabs = {
-            ...dashboardWithDefaults,
+            ...dashboardWithResolvedSections,
             tabs: tabsWithUuids,
         };
         const { tiles: resolvedTiles, warnings: tileWarnings } =

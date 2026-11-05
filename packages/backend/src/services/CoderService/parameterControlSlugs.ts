@@ -5,6 +5,7 @@ import {
     type DashboardParameterControlAsCode,
 } from '@lightdash/common';
 import { v4 as uuidv4 } from 'uuid';
+import { getPortableSlugs } from './portableSlugs';
 
 const baseSlug = (
     control: Pick<DashboardParameterControlAsCode, 'label' | 'parameters'>,
@@ -26,39 +27,7 @@ const controlSlugs = (
         DashboardParameterControlAsCode,
         'label' | 'parameters' | 'slug'
     >[],
-): string[] => {
-    const bases = controls.map(baseSlug);
-    const counts = new Map<string, number>();
-    controls.forEach((control, index) => {
-        if (control.slug === undefined)
-            counts.set(bases[index], (counts.get(bases[index]) ?? 0) + 1);
-    });
-    const reserved = new Set([
-        ...bases,
-        ...controls.flatMap((control) =>
-            control.slug === undefined ? [] : [control.slug],
-        ),
-    ]);
-    const used = new Set(
-        controls.flatMap((control) =>
-            control.slug === undefined ? [] : [control.slug],
-        ),
-    );
-    return controls.map((control, index) => {
-        if (control.slug !== undefined) return control.slug;
-        const base = bases[index];
-        let slug = base;
-        let suffix = 1;
-        if ((counts.get(base) ?? 0) > 1 || used.has(base)) {
-            do {
-                slug = `${base}-${suffix}`;
-                suffix += 1;
-            } while (reserved.has(slug) || used.has(slug));
-        }
-        used.add(slug);
-        return slug;
-    });
-};
+): string[] => getPortableSlugs(controls, baseSlug);
 
 export const getParameterControlsWithSlugs = (
     controls: DashboardParameterControl[],

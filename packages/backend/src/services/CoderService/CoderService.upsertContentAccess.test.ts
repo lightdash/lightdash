@@ -1518,6 +1518,7 @@ const registerContentAccessTests = (
         const upsertWithControls = async (
             projectParameters: { name: string; config: AnyType }[],
             enabled = true,
+            sectionSlug = 'calendar',
         ) => {
             const service = buildService();
             vi.mocked(
@@ -1578,9 +1579,13 @@ const registerContentAccessTests = (
                     },
                     config: {
                         isDateZoomDisabled: false,
+                        controlSections: [
+                            { slug: 'calendar', name: 'Calendar' },
+                        ],
                         parameterControls: [
                             {
                                 id: 'control-uuid',
+                                sectionSlug,
                                 label: null,
                                 value: 'monday',
                                 valueType: { type: 'string', multiple: false },
@@ -1611,6 +1616,17 @@ const registerContentAccessTests = (
             const created = await upsertWithControls([
                 { name: 'week_start', config: { label: 'Week start' } },
             ]);
+            const section = created.config?.controlSections?.[0];
+            expect(section).toMatchObject({
+                slug: 'calendar',
+                name: 'Calendar',
+            });
+            expect(section?.id).toMatch(
+                /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+            );
+            expect(created.config?.parameterControls?.[0].sectionId).toBe(
+                section?.id,
+            );
             const tileUuid = created.tiles[0].uuid!;
             expect(created.parameters).toEqual({
                 week_start: { parameterName: 'week_start', value: 'monday' },
@@ -1621,7 +1637,7 @@ const registerContentAccessTests = (
         });
 
         it('uses legacy values and ignores incoming controls when disabled', async () => {
-            const created = await upsertWithControls([], false);
+            const created = await upsertWithControls([], false, 'missing');
             expect(created.parameters).toEqual({
                 week_start: { parameterName: 'week_start', value: 'stale' },
                 currency: { parameterName: 'currency', value: 'EUR' },

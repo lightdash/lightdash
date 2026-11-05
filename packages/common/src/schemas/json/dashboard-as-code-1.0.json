@@ -401,7 +401,7 @@
             "properties": {
                 "controlSections": {
                     "items": {
-                        "$ref": "#/$defs/DashboardControlSection"
+                        "$ref": "#/$defs/DashboardControlSectionAsCode"
                     },
                     "type": "array"
                 },
@@ -412,7 +412,19 @@
                     "type": "array"
                 },
                 "dateZoomConfig": {
-                    "$ref": "#/$defs/DateZoomConfig"
+                    "properties": {
+                        "controls": {
+                            "items": {
+                                "$ref": "#/$defs/DateZoomControlAsCode"
+                            },
+                            "type": "array"
+                        },
+                        "tileTargets": {
+                            "$ref": "#/$defs/Record_string.DateZoomTileTarget_"
+                        }
+                    },
+                    "required": ["tileTargets", "controls"],
+                    "type": "object"
                 },
                 "dateZoomGranularities": {
                     "items": {
@@ -462,6 +474,9 @@
                     "properties": {},
                     "type": "object"
                 },
+                "parameterSectionSlugs": {
+                    "$ref": "#/$defs/Record_string.string_"
+                },
                 "pinnedParameters": {
                     "items": {
                         "type": "string"
@@ -475,26 +490,21 @@
             "required": ["isDateZoomDisabled"],
             "type": "object"
         },
-        "DashboardControlSection": {
-            "properties": {
-                "collapsed": {
-                    "description": "Starts folded in the rail and on the bar; absent, the bar folds only a dense section",
-                    "type": "boolean"
+        "DashboardControlSectionAsCode": {
+            "allOf": [
+                {
+                    "$ref": "#/$defs/Omit_DashboardControlSection.id_"
                 },
-                "id": {
-                    "description": "uuid, stable across dashboard versions",
-                    "type": "string"
-                },
-                "inline": {
-                    "description": "Sits on the bar line of the section before it; absent, starts a line of its own",
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
+                {
+                    "properties": {
+                        "id": {
+                            "description": "Legacy section identifier accepted on upload.",
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
                 }
-            },
-            "required": ["name", "id"],
-            "type": "object"
+            ]
         },
         "DashboardDataAppTileAsCode": {
             "additionalProperties": false,
@@ -616,6 +626,21 @@
                         },
                         "tileTargets": {
                             "$ref": "#/$defs/DashboardTileTargets"
+                        }
+                    },
+                    "type": "object"
+                }
+            ]
+        },
+        "DashboardFilterRuleAsCode": {
+            "allOf": [
+                {
+                    "$ref": "#/$defs/DashboardFilterRule"
+                },
+                {
+                    "properties": {
+                        "sectionSlug": {
+                            "type": "string"
                         }
                     },
                     "type": "object"
@@ -822,6 +847,9 @@
                     "$ref": "#/$defs/Record_string.DashboardParameterTarget_"
                 },
                 "sectionId": {
+                    "type": "string"
+                },
+                "sectionSlug": {
                     "type": "string"
                 },
                 "slug": {
@@ -1139,21 +1167,6 @@
             ],
             "type": "string"
         },
-        "DateZoomConfig": {
-            "properties": {
-                "controls": {
-                    "items": {
-                        "$ref": "#/$defs/DateZoomControl"
-                    },
-                    "type": "array"
-                },
-                "tileTargets": {
-                    "$ref": "#/$defs/Record_string.DateZoomTileTarget_"
-                }
-            },
-            "required": ["tileTargets", "controls"],
-            "type": "object"
-        },
         "DateZoomControl": {
             "properties": {
                 "granularity": {
@@ -1182,6 +1195,21 @@
             },
             "required": ["granularity", "name", "uuid"],
             "type": "object"
+        },
+        "DateZoomControlAsCode": {
+            "allOf": [
+                {
+                    "$ref": "#/$defs/DateZoomControl"
+                },
+                {
+                    "properties": {
+                        "sectionSlug": {
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
+                }
+            ]
         },
         "DateZoomTileTarget": {
             "properties": {
@@ -1379,8 +1407,12 @@
             ],
             "type": "string"
         },
-        "Omit_DashboardFilterRule.id_": {
-            "$ref": "#/$defs/Pick_DashboardFilterRule.Exclude_keyofDashboardFilterRule.id__",
+        "Omit_DashboardControlSection.id_": {
+            "$ref": "#/$defs/Pick_DashboardControlSection.Exclude_keyofDashboardControlSection.id__",
+            "description": "Construct a type with the properties of T except for those in type K."
+        },
+        "Omit_DashboardFilterRuleAsCode.id_": {
+            "$ref": "#/$defs/Pick_DashboardFilterRuleAsCode.Exclude_keyofDashboardFilterRuleAsCode.id__",
             "description": "Construct a type with the properties of T except for those in type K."
         },
         "ParameterValue": {
@@ -1422,6 +1454,28 @@
             },
             "type": "object"
         },
+        "Pick_DashboardControlSection.Exclude_keyofDashboardControlSection.id__": {
+            "description": "From T, pick a set of properties whose keys are in the union K",
+            "properties": {
+                "collapsed": {
+                    "description": "Starts folded in the rail and on the bar; absent, the bar folds only a dense section",
+                    "type": "boolean"
+                },
+                "inline": {
+                    "description": "Sits on the bar line of the section before it; absent, starts a line of its own",
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "slug": {
+                    "description": "Portable identity supplied by content as code.",
+                    "type": "string"
+                }
+            },
+            "required": ["name"],
+            "type": "object"
+        },
         "Pick_DashboardDataAppTileProperties-at-properties.title-or-hideTitle_": {
             "description": "From T, pick a set of properties whose keys are in the union K",
             "properties": {
@@ -1435,7 +1489,7 @@
             "required": ["title"],
             "type": "object"
         },
-        "Pick_DashboardFilterRule.Exclude_keyofDashboardFilterRule.id__": {
+        "Pick_DashboardFilterRuleAsCode.Exclude_keyofDashboardFilterRuleAsCode.id__": {
             "description": "From T, pick a set of properties whose keys are in the union K",
             "properties": {
                 "caseSensitive": {
@@ -1474,6 +1528,9 @@
                 },
                 "sectionId": {
                     "description": "Id of a DashboardConfig.controlSections entry; unsectioned if absent or dangling.",
+                    "type": "string"
+                },
+                "sectionSlug": {
                     "type": "string"
                 },
                 "settings": {
@@ -1534,6 +1591,11 @@
             "additionalProperties": {
                 "$ref": "#/$defs/DateZoomTileTarget"
             },
+            "description": "Construct a type with a set of properties K of type T",
+            "properties": {},
+            "type": "object"
+        },
+        "Record_string.string_": {
             "description": "Construct a type with a set of properties K of type T",
             "properties": {},
             "type": "object"
@@ -1610,19 +1672,19 @@
             "properties": {
                 "dimensions": {
                     "items": {
-                        "$ref": "#/$defs/Omit_DashboardFilterRule.id_"
+                        "$ref": "#/$defs/Omit_DashboardFilterRuleAsCode.id_"
                     },
                     "type": "array"
                 },
                 "metrics": {
                     "items": {
-                        "$ref": "#/$defs/DashboardFilterRule"
+                        "$ref": "#/$defs/DashboardFilterRuleAsCode"
                     },
                     "type": "array"
                 },
                 "tableCalculations": {
                     "items": {
-                        "$ref": "#/$defs/DashboardFilterRule"
+                        "$ref": "#/$defs/DashboardFilterRuleAsCode"
                     },
                     "type": "array"
                 }
