@@ -1,3 +1,10 @@
+# [3.160.0](https://github.com/lightdash/lightdash/compare/3.159.2...3.160.0) (2026-11-05)
+
+
+### Features
+
+* **dashboards:** always fit to screen behind a flag ([#32116](https://github.com/lightdash/lightdash/issues/32116)) ([1f0c917](https://github.com/lightdash/lightdash/commit/1f0c917af4439090a3e3b270f65171d58624c2d7))
+
 ## [3.159.2](https://github.com/lightdash/lightdash/compare/3.159.1...3.159.2) (2026-11-05)
 
 

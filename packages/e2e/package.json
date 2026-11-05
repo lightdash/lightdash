@@ -1,6 +1,6 @@
 {
     "name": "e2e",
-    "version": "3.159.2",
+    "version": "3.160.0",
     "private": true,
     "license": "MIT",
     "scripts": {
