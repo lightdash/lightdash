@@ -124,8 +124,8 @@ describe('AnalyticsFileCache', () => {
         expect(send).toHaveBeenCalledTimes(9);
     });
 
-    it('limits concurrent downloads globally and does not evict pending entries', async () => {
-        const cache = new AnalyticsFileCache();
+    it('queues the seventeenth download, deduplicates it and reserves its bytes', async () => {
+        const cache = new AnalyticsFileCache(17 * 4);
         let finish!: () => void;
         const waiting = new Promise<void>((resolve) => {
             finish = resolve;
@@ -138,13 +138,72 @@ describe('AnalyticsFileCache', () => {
         const pending = Array.from({ length: 16 }, (_, n) =>
             cache.get(scope, s3, 'bucket', `${n}`, 'v1', 4),
         );
-        expect(
-            await cache.get(scope, s3, 'bucket', 'seventeenth', 'v1', 4),
-        ).toBeUndefined();
+        const seventeenth = cache.get(scope, s3, 'bucket', 'seventeenth', 'v1', 4);
+        const duplicate = cache.get(scope, s3, 'bucket', 'seventeenth', 'v1', 4);
+        expect(await cache.get(scope, s3, 'bucket', 'over-budget', 'v1', 4)).toBeUndefined();
+        expect(send).toHaveBeenCalledTimes(16);
+        finish();
+        expect(await Promise.all([...pending, seventeenth, duplicate])).toEqual(
+            Array.from({ length: 18 }, () => Buffer.from('data')),
+        );
+        expect(await seventeenth).toBe(await duplicate);
+        expect(send).toHaveBeenCalledTimes(17);
+    });
+
+    it('releases queued downloads when an active download fails', async () => {
+        const cache = new AnalyticsFileCache();
+        let finish!: () => void;
+        const waiting = new Promise<void>((resolve) => {
+            finish = resolve;
+        });
+        const send = vi.fn(async (command: { input: { Key: string } }) => {
+            if (command.input.Key === '0') throw new Error('Download failed');
+            await waiting;
+            return response();
+        });
+        const s3 = client(send);
+        const pending = Array.from({ length: 17 }, (_, n) =>
+            cache.get(scope, s3, 'bucket', `${n}`, 'v1', 4),
+        );
+        expect(send).toHaveBeenCalledTimes(16);
+        expect(await pending[0]).toBeUndefined();
+        expect(send).toHaveBeenCalledTimes(17);
+        finish();
+        expect(await Promise.all(pending.slice(1))).toEqual(
+            Array.from({ length: 16 }, () => Buffer.from('data')),
+        );
+        expect((await cache.get(scope, s3, 'bucket', 'retry', 'v1', 4))?.toString()).toBe('data');
+    });
+
+    it('buffers many overlapping dashboard tiles without concurrency fallbacks', async () => {
+        const cache = new AnalyticsFileCache();
+        let finish!: () => void;
+        const waiting = new Promise<void>((resolve) => {
+            finish = resolve;
+        });
+        let active = 0;
+        let peak = 0;
+        const send = vi.fn(async () => {
+            active += 1;
+            peak = Math.max(peak, active);
+            await waiting;
+            active -= 1;
+            return response();
+        });
+        const s3 = client(send);
+        const tiles = Array.from({ length: 6 }, (_, tile) => [
+            'shared-dimension',
+            ...Array.from({ length: 8 }, (_, file) => `tile-${tile}/file-${file}`),
+        ]);
+        const pending = tiles.flat().map((file) =>
+            cache.get(scope, s3, 'bucket', file, 'v1', 4),
+        );
         expect(send).toHaveBeenCalledTimes(16);
         finish();
         expect(await Promise.all(pending)).toEqual(
-            Array.from({ length: 16 }, () => Buffer.from('data')),
+            Array.from({ length: 54 }, () => Buffer.from('data')),
         );
+        expect(peak).toBe(16);
+        expect(send).toHaveBeenCalledTimes(49);
     });
 });

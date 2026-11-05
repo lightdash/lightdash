@@ -28,8 +28,8 @@ export class AnalyticsSignedUrlCache {
             concurrency: number;
             now: () => number;
         } = {
-            maxEntries: 4096,
-            maxBytes: 8 * 1024 * 1024,
+            maxEntries: 16384,
+            maxBytes: 32 * 1024 * 1024,
             concurrency: 16,
             now: Date.now,
         },
