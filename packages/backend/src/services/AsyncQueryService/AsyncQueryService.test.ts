@@ -183,7 +183,10 @@ import type { OrganizationSettingsModel } from '../../models/OrganizationSetting
 import type { ProjectCompileLogModel } from '../../models/ProjectCompileLogModel';
 import type { ProjectDbtSourcesModel } from '../../models/ProjectDbtSourcesModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
-import { singleRouteProjectModelMethods } from '../../models/ProjectModel/ProjectModel.mock';
+import {
+    singleRouteProjectModelMethods,
+    withResultsCacheConfig,
+} from '../../models/ProjectModel/ProjectModel.mock';
 import { ProjectParametersModel } from '../../models/ProjectParametersModel';
 import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import { RefreshTokenLockTimeoutError } from '../../models/RefreshTokenRotation/RefreshTokenRotation';
@@ -401,14 +404,23 @@ const projectModel = {
     getWithSensitiveFields: vi.fn(async () => projectWithSensitiveFields),
     get: vi.fn(async () => projectWithSensitiveFields),
     getSummary: vi.fn(async () => projectSummary),
-    getEffectiveResultsCacheTtlSeconds: vi.fn(async () => 86400),
+    getEffectiveResultsCacheTtlSeconds: vi.fn(
+        async (_projectUuid: string) => 86400,
+    ),
+    getResultsCacheState: vi.fn(async () => ({
+        enabled: false,
+        cacheGeneration: 0,
+        ttlSeconds: 86400,
+    })),
     findExistingExploreNames: vi.fn(
         async (_projectUuid: string, exploreNames: string[]) => exploreNames,
     ),
     findExploreNamesReadingBaseTables: vi.fn(
         async (_projectUuid: string, exploreNames: string[]) => exploreNames,
     ),
-    getResultsCacheSettings: vi.fn(async () => ({
+    getResultsCacheSettings: vi.fn(async (_projectUuid: string) => ({
+        cacheEnabled: false,
+        cacheEnabledSetByInstance: false,
         cacheTtlSeconds: null,
         cacheGeneration: 0,
         lastInvalidatedAt: null,
@@ -526,6 +538,14 @@ const inMemoryDuckdbHistory = ({
     return model as unknown as QueryHistoryModel & typeof model;
 };
 
+const enabledResultsCacheProjectModel = {
+    getResultsCacheState: vi.fn(async () => ({
+        enabled: true,
+        cacheGeneration: 0,
+        ttlSeconds: 86400,
+    })),
+} as unknown as ProjectModel;
+
 const getMockedAsyncQueryService = (
     lightdashConfig: LightdashConfig,
     overrides: Partial<AsyncQueryService> & {
@@ -589,7 +609,10 @@ const getMockedAsyncQueryService = (
         contentDraftModel: {
             findOpenDraft: vi.fn().mockResolvedValue(undefined),
         } as unknown as ContentDraftModel,
-        projectModel: projectModel as unknown as ProjectModel,
+        projectModel: withResultsCacheConfig(
+            projectModel as unknown as ProjectModel,
+            lightdashConfig,
+        ),
         projectDbtSourcesModel: {} as unknown as ProjectDbtSourcesModel,
         preAggregateModel: {} as PreAggregateModel,
         onboardingModel: onboardingModel as unknown as OnboardingModel,
@@ -690,18 +713,12 @@ const getMockedAsyncQueryService = (
             })),
         } as unknown as S3ResultsFileStorageClient,
         featureFlagModel: {
-            // Mirror production behaviour: ResultsCacheEnabled resolves from
-            // the env-derived lightdashConfig.results.cacheEnabled when there
-            // is no DB row.
-            get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => {
-                if (featureFlagId === FeatureFlags.ResultsCacheEnabled) {
-                    return {
-                        id: featureFlagId,
-                        enabled: lightdashConfig.results.cacheEnabled,
-                    };
-                }
-                return { id: featureFlagId, enabled: false };
-            }),
+            get: vi.fn(
+                async ({ featureFlagId }: { featureFlagId: string }) => ({
+                    id: featureFlagId,
+                    enabled: false,
+                }),
+            ),
         } as unknown as FeatureFlagModel,
         projectParametersModel: {
             find: vi.fn(async () => []),
@@ -4163,7 +4180,6 @@ describe('AsyncQueryService', () => {
             // clear in memory cache so new mock is applied
             serviceWithCache.warehouseClientFactory.warehouseClients = {};
             serviceWithCache.cacheService = {
-                isResultsCacheEnabled: vi.fn(async () => true),
                 findCachedResultsFile: vi.fn(async () => null),
             } as unknown as ICacheService;
 
@@ -4826,7 +4842,6 @@ describe('AsyncQueryService', () => {
             // Clear cache and mocks for this service
             serviceWithoutCache.warehouseClientFactory.warehouseClients = {};
             serviceWithoutCache.cacheService = {
-                isResultsCacheEnabled: vi.fn(async () => false),
                 findCachedResultsFile: vi.fn(),
             } as unknown as ICacheService;
 
@@ -6078,9 +6093,11 @@ describe('AsyncQueryService', () => {
                 lightdashConfig: config,
                 queryHistoryModel,
                 projectModel: {
-                    getEffectiveResultsCacheTtlSeconds: vi
-                        .fn()
-                        .mockResolvedValue(86400),
+                    getResultsCacheState: vi.fn(async () => ({
+                        enabled: true,
+                        cacheGeneration: 0,
+                        ttlSeconds: 86400,
+                    })),
                 } as never,
                 featureFlagModel: service.featureFlagModel,
                 storageClient: {} as never,
@@ -8175,7 +8192,6 @@ describe('AsyncQueryService', () => {
             // clear in memory cache so new mock is applied
             serviceWithCache.warehouseClientFactory.warehouseClients = {};
             serviceWithCache.cacheService = {
-                isResultsCacheEnabled: vi.fn(async () => true),
                 findCachedResultsFile: vi.fn(async () => null),
             } as unknown as ICacheService;
 
@@ -10701,7 +10717,6 @@ describe('AsyncQueryService', () => {
         beforeEach(() => {
             serviceWithCache.warehouseClientFactory.warehouseClients = {};
             serviceWithCache.cacheService = {
-                isResultsCacheEnabled: vi.fn(async () => true),
                 findCachedResultsFile: vi.fn(async () => null),
             } as unknown as ICacheService;
             vi.clearAllMocks();
@@ -10814,8 +10829,7 @@ describe('AsyncQueryService', () => {
                     enabled:
                         featureFlagId === FeatureFlags.AgentIdentity
                             ? enabled
-                            : featureFlagId ===
-                              FeatureFlags.ResultsCacheEnabled,
+                            : false,
                 }));
                 let account: Account = sessionAccount;
                 if (serviceAccount) {
@@ -13222,7 +13236,6 @@ describe('AsyncQueryService', () => {
 
                 service.warehouseClientFactory.warehouseClients = {};
                 service.cacheService = {
-                    isResultsCacheEnabled: vi.fn(async () => true),
                     findCachedResultsFile: vi.fn(async () => null),
                 } as unknown as ICacheService;
 
@@ -21220,16 +21233,14 @@ describe('fresh stored result read boundary', () => {
                 vi.mocked(f.service.featureFlagModel.get).mockImplementation(
                     async ({ featureFlagId }) => ({
                         id: featureFlagId,
-                        enabled:
-                            featureFlagId === FeatureFlags.AgentIdentity ||
-                            featureFlagId === FeatureFlags.ResultsCacheEnabled,
+                        enabled: featureFlagId === FeatureFlags.AgentIdentity,
                     }),
                 );
                 Object.assign(f.service, {
                     cacheService: new CommercialCacheService({
                         lightdashConfig: lightdashConfigMock,
                         queryHistoryModel: f.service.queryHistoryModel,
-                        projectModel: f.service.projectModel,
+                        projectModel: enabledResultsCacheProjectModel,
                         storageClient: f.service.resultsStorageClient,
                         featureFlagModel: f.service.featureFlagModel,
                     }),
@@ -23119,9 +23130,11 @@ describe('fresh stored result read boundary', () => {
                     })),
                 } as unknown as QueryHistoryModel,
                 projectModel: {
-                    getEffectiveResultsCacheTtlSeconds: vi.fn(
-                        async () => 86400,
-                    ),
+                    getResultsCacheState: vi.fn(async () => ({
+                        enabled: true,
+                        cacheGeneration: 0,
+                        ttlSeconds: 86400,
+                    })),
                 } as unknown as ProjectModel,
                 featureFlagModel: {
                     get: vi.fn(async () => ({ enabled: true })),
@@ -24279,15 +24292,13 @@ describe('fresh execution producer to result reader', () => {
             vi.mocked(f.service.featureFlagModel.get).mockImplementation(
                 async ({ featureFlagId }) => ({
                     id: featureFlagId,
-                    enabled:
-                        featureFlagId === FeatureFlags.AgentIdentity ||
-                        featureFlagId === FeatureFlags.ResultsCacheEnabled,
+                    enabled: featureFlagId === FeatureFlags.AgentIdentity,
                 }),
             );
             const cacheService = new CommercialCacheService({
                 lightdashConfig: lightdashConfigMock,
                 queryHistoryModel: f.service.queryHistoryModel,
-                projectModel: f.service.projectModel,
+                projectModel: enabledResultsCacheProjectModel,
                 featureFlagModel: f.service.featureFlagModel,
                 storageClient: f.service.resultsStorageClient,
             });

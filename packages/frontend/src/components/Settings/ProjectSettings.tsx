@@ -123,8 +123,6 @@ const ProjectSettings: FC<{
 
     const { data: dataAppsFlag, isLoading: isDataAppsFlagLoading } =
         useServerFeatureFlag(FeatureFlags.EnableDataApps);
-    const { data: resultsCacheFlag, isLoading: isResultsCacheFlagLoading } =
-        useServerFeatureFlag(FeatureFlags.ResultsCacheEnabled);
     const { data: agentIdentityFlag, isLoading: isAgentIdentityFlagLoading } =
         useServerFeatureFlag(FeatureFlags.AgentIdentity);
     const canManageAgentIdentity =
@@ -138,7 +136,7 @@ const ProjectSettings: FC<{
             }),
         ) ??
             false);
-    const isResultsCacheEnabled = resultsCacheFlag?.enabled ?? false;
+    const isResultsCacheAvailable = health.data?.license?.valid === true;
     const isDataAppsEnabled = dataAppsFlag?.enabled ?? false;
     const canManageProjectConnections =
         !!project &&
@@ -507,14 +505,14 @@ const ProjectSettings: FC<{
                       },
                   ]
                 : []),
-            ...(isResultsCacheEnabled
+            ...(isResultsCacheAvailable
                 ? [
                       {
                           path: `/caching`,
                           element: (
                               <ProjectSettingsPage
                                   title="Results caching"
-                                  description="Choose how long charts and dashboards in this project load from cached results before Lightdash queries the warehouse again."
+                                  description="Load charts and dashboards from recent query results."
                               >
                                   <ProjectResultsCache
                                       projectUuid={projectUuid}
@@ -655,7 +653,7 @@ const ProjectSettings: FC<{
         isSoftDeleteEnabled,
         isPgWireEnabled,
         isGitProject,
-        isResultsCacheEnabled,
+        isResultsCacheAvailable,
         user.data?.ability,
         canManageExternalConnections,
         canManageAgentIdentity,
@@ -687,12 +685,6 @@ const ProjectSettings: FC<{
             '/generalSettings/projectManagement/:projectUuid/agentIdentity',
             location.pathname,
         );
-    const isAwaitingCachingRoute =
-        isResultsCacheFlagLoading &&
-        !!matchPath(
-            '/generalSettings/projectManagement/:projectUuid/caching',
-            location.pathname,
-        );
     const isAwaitingReviewRequestsRoute =
         contentReviewAvailability.isLoading &&
         !!matchPath(
@@ -705,7 +697,6 @@ const ProjectSettings: FC<{
         !project ||
         !projectUuid ||
         isAwaitingDataAppConnectionsRoute ||
-        isAwaitingCachingRoute ||
         isAwaitingAgentIdentityRoute ||
         isAwaitingReviewRequestsRoute
     ) {

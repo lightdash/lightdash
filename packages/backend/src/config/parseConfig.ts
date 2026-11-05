@@ -1798,7 +1798,8 @@ export type LightdashConfig = {
     s3?: S3Config;
     headlessBrowser: HeadlessBrowserConfig;
     results: {
-        cacheEnabled: boolean;
+        /** @deprecated When set, forces results caching on or off for every project. */
+        cacheEnabled: boolean | null;
         autocompleteEnabled: boolean;
         cacheStateTimeSeconds: number;
         s3?: Omit<S3Config, 'expirationTime'>;
@@ -3046,6 +3047,15 @@ const LEGACY_DISABLE_ENV_VARS: ReadonlyArray<
     // Add per migration; truthy env value disables the flag.
 ];
 
+// Unset means each project decides; any other value forces caching on or off for every project
+const parseResultsCacheEnabled = (
+    value: string | undefined,
+): boolean | null => {
+    const normalized = value?.trim().toLowerCase();
+    if (!normalized) return null;
+    return ['1', 'true'].includes(normalized);
+};
+
 const parseCertificateFingerprints = (value: string | undefined): string[] =>
     (value ?? '')
         .split(',')
@@ -3257,6 +3267,14 @@ export const parseConfig = (): LightdashConfig => {
     const preAggregatesS3 = parsePreAggregateResultsS3Config();
     const usageEventsS3 = parseUsageEventsS3Config();
     const usageEventsEnabled = licenseKey !== null && usageEventsS3 !== null;
+    const resultsCacheEnabled = parseResultsCacheEnabled(
+        process.env.RESULTS_CACHE_ENABLED,
+    );
+    if (resultsCacheEnabled !== null) {
+        console.warn(
+            'RESULTS_CACHE_ENABLED is deprecated. Unset it and enable results caching per project in project settings.',
+        );
+    }
     const natsWorkerEnabled = process.env.NATS_ENABLED === 'true';
     const natsWorkerUrl = process.env.NATS_URL;
     const natsWorkerConcurrency =
@@ -3833,7 +3851,7 @@ export const parseConfig = (): LightdashConfig => {
         },
         s3: parseBaseS3Config(),
         results: {
-            cacheEnabled: process.env.RESULTS_CACHE_ENABLED === 'true',
+            cacheEnabled: resultsCacheEnabled,
             autocompleteEnabled:
                 process.env.AUTOCOMPLETE_CACHE_ENABLED === 'true',
             cacheStateTimeSeconds: parseInt(

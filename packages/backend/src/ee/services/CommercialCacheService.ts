@@ -51,16 +51,6 @@ export class CommercialCacheService implements ICacheService {
         this.featureFlagModel = featureFlagModel;
     }
 
-    async isResultsCacheEnabled(
-        user: CacheServiceUser | undefined,
-    ): Promise<boolean> {
-        const { enabled } = await this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.ResultsCacheEnabled,
-        });
-        return enabled;
-    }
-
     async findCachedResultsFile(
         projectUuid: string,
         cacheKey: string,
@@ -68,10 +58,11 @@ export class CommercialCacheService implements ICacheService {
         requesterProducer: QueryResultProducer | null = null,
         resolvedIdentityEnabled: boolean | null = null,
     ): Promise<CacheHitCacheResult | null> {
-        // Self-protect: gate every cache lookup on the FF, regardless of how
-        // the caller arrived here. Belt-and-suspenders for embed and any
-        // future caller that might forget the outer gate.
-        if (!(await this.isResultsCacheEnabled(user))) {
+        // Self-protect: gate every cache lookup on the project setting, regardless
+        // of how the caller arrived here.
+        const { enabled, ttlSeconds: staleTimeSeconds } =
+            await this.projectModel.getResultsCacheState(projectUuid);
+        if (!enabled) {
             return null;
         }
 
@@ -90,8 +81,8 @@ export class CommercialCacheService implements ICacheService {
             return null;
 
         // Find recent query with matching cache key
-        const [latestMatchingQuery, staleTimeSeconds] = await Promise.all([
-            this.queryHistoryModel.findMostRecentByCacheKey(
+        const latestMatchingQuery =
+            await this.queryHistoryModel.findMostRecentByCacheKey(
                 cacheKey,
                 projectUuid,
                 {
@@ -103,9 +94,7 @@ export class CommercialCacheService implements ICacheService {
                         this.lightdashConfig?.ai
                             ?.agentResultIdentityCheckEnabled !== false,
                 },
-            ),
-            this.projectModel.getEffectiveResultsCacheTtlSeconds(projectUuid),
-        ]);
+            );
 
         if (
             identityEnabled &&

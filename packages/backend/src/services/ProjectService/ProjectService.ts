@@ -241,6 +241,7 @@ import {
     ResultRow,
     ResultsCacheInvalidation,
     ResultsCacheProjectSettings,
+    ResultsCacheStatus,
     SavedChartDAO,
     SavedChartsInfoForDashboardAvailableFilters,
     SessionUser,
@@ -11645,17 +11646,11 @@ export class ProjectService
                         (!user.organizationUuid ||
                             resultProducer === null ||
                             resultProducer.agentIdentity !== null));
-                const { enabled: resultsCacheEnabled } =
-                    await this.featureFlagModel.get({
-                        user,
-                        featureFlagId: FeatureFlags.ResultsCacheEnabled,
-                    });
+                const resultsCacheState =
+                    await this.projectModel.getResultsCacheState(projectUuid);
+                const resultsCacheEnabled = resultsCacheState.enabled;
                 const cacheGeneration = resultsCacheEnabled
-                    ? (
-                          await this.projectModel.getResultsCacheSettings(
-                              projectUuid,
-                          )
-                      ).cacheGeneration
+                    ? resultsCacheState.cacheGeneration
                     : 0;
                 const hashParts = [
                     projectUuid,
@@ -11683,14 +11678,10 @@ export class ProjectService
                         .catch((e) => undefined); // ignore since error is tracked in fileStorageClient
                     const isCacheEntryFresh = async () => {
                         if (!cacheEntryMetadata?.LastModified) return false;
-                        const cacheTtlSeconds =
-                            await this.projectModel.getEffectiveResultsCacheTtlSeconds(
-                                projectUuid,
-                            );
                         return (
                             Date.now() -
                                 cacheEntryMetadata.LastModified.getTime() <
-                            cacheTtlSeconds * 1000
+                            resultsCacheState.ttlSeconds * 1000
                         );
                     };
 
@@ -15773,16 +15764,36 @@ export class ProjectService
         ) {
             throw new ForbiddenError();
         }
-        const { enabled: resultsCacheEnabled } =
-            await this.featureFlagModel.get({
-                user,
-                featureFlagId: FeatureFlags.ResultsCacheEnabled,
-            });
-        if (!resultsCacheEnabled) {
-            throw new ForbiddenError('Results caching is not enabled');
+        const { cacheEnabled, cacheTtlSeconds } = settings;
+        if (cacheEnabled === undefined && cacheTtlSeconds === undefined) {
+            throw new ParameterError('No results cache settings to update');
         }
-        const { cacheTtlSeconds } = settings;
-        if (cacheTtlSeconds !== null) {
+        if (cacheEnabled !== undefined && typeof cacheEnabled !== 'boolean') {
+            throw new ParameterError('cacheEnabled must be true or false');
+        }
+        const current =
+            await this.projectModel.getResultsCacheSettings(projectUuid);
+        const cacheEnabledChanged =
+            cacheEnabled !== undefined && cacheEnabled !== current.cacheEnabled;
+        if (cacheEnabledChanged) {
+            if (current.cacheEnabledSetByInstance) {
+                throw new ForbiddenError(
+                    'Results caching is set for every project by the RESULTS_CACHE_ENABLED environment variable',
+                );
+            }
+            // Turning caching on or off clears the cache, so it needs the same access as clearing it
+            if (
+                auditedAbility.cannot(
+                    'manage',
+                    subject('Project', { organizationUuid, projectUuid }),
+                )
+            ) {
+                throw new ForbiddenError(
+                    'Only project admins can turn results caching on or off',
+                );
+            }
+        }
+        if (cacheTtlSeconds !== undefined && cacheTtlSeconds !== null) {
             if (!Number.isInteger(cacheTtlSeconds)) {
                 throw new ParameterError(
                     'Cache duration must be a whole number of seconds',
@@ -15797,16 +15808,52 @@ export class ProjectService
                 );
             }
         }
-        await this.projectModel.updateResultsCacheSettings(projectUuid, {
-            cacheTtlSeconds,
-        });
+        if (cacheEnabledChanged || cacheTtlSeconds !== undefined) {
+            await this.projectModel.updateResultsCacheSettings(projectUuid, {
+                cacheEnabled: cacheEnabledChanged ? cacheEnabled : undefined,
+                cacheTtlSeconds,
+            });
+        }
+        if (cacheEnabledChanged) {
+            this.analytics.track({
+                event: 'results_cache.toggled',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    enabled: cacheEnabled === true,
+                },
+            });
+        }
         return this.buildResultsCacheProjectSettings(projectUuid);
+    }
+
+    async getProjectResultsCacheStatus(
+        account: Account,
+        projectUuid: UUID,
+    ): Promise<ResultsCacheStatus> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(account);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const { enabled } =
+            await this.projectModel.getResultsCacheState(projectUuid);
+        return { enabled };
     }
 
     private async buildResultsCacheProjectSettings(
         projectUuid: string,
     ): Promise<ResultsCacheProjectSettings> {
         const {
+            cacheEnabled,
+            cacheEnabledSetByInstance,
             cacheTtlSeconds,
             lastInvalidatedAt,
             clearCron,
@@ -15815,6 +15862,8 @@ export class ProjectService
         } = await this.projectModel.getResultsCacheSettings(projectUuid);
         return {
             projectUuid,
+            cacheEnabled,
+            cacheEnabledSetByInstance,
             cacheTtlSeconds,
             instanceDefaultTtlSeconds:
                 this.lightdashConfig.results.cacheStateTimeSeconds,
@@ -15830,7 +15879,7 @@ export class ProjectService
         };
     }
 
-    protected async assertCanInvalidateResultsCache(
+    private async assertCanManageResultsCache(
         user: SessionUser,
         projectUuid: string,
     ): Promise<{ organizationUuid: string }> {
@@ -15845,12 +15894,20 @@ export class ProjectService
         ) {
             throw new ForbiddenError();
         }
-        const { enabled: resultsCacheEnabled } =
-            await this.featureFlagModel.get({
-                user,
-                featureFlagId: FeatureFlags.ResultsCacheEnabled,
-            });
-        if (!resultsCacheEnabled) {
+        return { organizationUuid };
+    }
+
+    protected async assertCanInvalidateResultsCache(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<{ organizationUuid: string }> {
+        const { organizationUuid } = await this.assertCanManageResultsCache(
+            user,
+            projectUuid,
+        );
+        const { enabled } =
+            await this.projectModel.getResultsCacheState(projectUuid);
+        if (!enabled) {
             throw new ForbiddenError('Results caching is not enabled');
         }
         return { organizationUuid };
@@ -15884,10 +15941,19 @@ export class ProjectService
         projectUuid: string,
         { cron, enabled }: UpdateResultsCacheClearSchedule,
     ): Promise<ResultsCacheProjectSettings> {
-        const { organizationUuid } = await this.assertCanInvalidateResultsCache(
+        const { organizationUuid } = await this.assertCanManageResultsCache(
             user,
             projectUuid,
         );
+        if (enabled) {
+            const { enabled: cacheEnabled } =
+                await this.projectModel.getResultsCacheState(projectUuid);
+            if (!cacheEnabled) {
+                throw new ParameterError(
+                    'Turn on results caching before scheduling cache clears',
+                );
+            }
+        }
         if (parseResultsCacheClearCron(cron) === null) {
             throw new ParameterError(
                 'Schedule must run daily or weekly at one or more hours, on the hour',
@@ -15924,10 +15990,7 @@ export class ProjectService
         await Promise.all(
             dueClears.map(async (due) => {
                 try {
-                    const { enabled: clear } = await this.featureFlagModel.get({
-                        user: { organizationUuid: due.organizationUuid },
-                        featureFlagId: FeatureFlags.ResultsCacheEnabled,
-                    });
+                    const clear = due.cacheEnabled;
                     const claimed =
                         await this.projectModel.claimDueResultsCacheClear(
                             due.projectUuid,

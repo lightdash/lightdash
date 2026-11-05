@@ -419,6 +419,7 @@ import { type ResultColumns, type ResultRow } from './results';
 import {
     type ApiResultsCacheInvalidationResponse,
     type ApiResultsCacheProjectSettingsResponse,
+    type ApiResultsCacheStatusResponse,
 } from './resultsCacheProjectSettings';
 import {
     type ApiRoadmapFollowProjectResponse,
@@ -1784,6 +1785,7 @@ type ApiResults =
     | ApiImpersonationOrganizationSettingsResponse['results']
     | ApiPreviewExpirationProjectSettingsResponse['results']
     | ApiResultsCacheProjectSettingsResponse['results']
+    | ApiResultsCacheStatusResponse['results']
     | ApiResultsCacheInvalidationResponse['results']
     | ApiPreviewExpiresAtResponse['results']
     | ApiContentVerificationResponse['results']

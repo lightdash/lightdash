@@ -554,6 +554,15 @@ export const LIVE_SOURCE_ONLY_CREDENTIALS: CreateWarehouseCredentials = {
     token: '',
 };
 
+/** The deprecated RESULTS_CACHE_ENABLED env var, when set, overrides every project's setting. */
+export const resolveResultsCacheEnabled = (
+    instanceCacheEnabled: boolean | null,
+    projectCacheEnabled: boolean,
+): { cacheEnabled: boolean; cacheEnabledSetByInstance: boolean } => ({
+    cacheEnabled: instanceCacheEnabled ?? projectCacheEnabled,
+    cacheEnabledSetByInstance: instanceCacheEnabled !== null,
+});
+
 export class ProjectModel {
     /** Serializes create-or-get across API pods without relying on a slug. */
     async runInAnalyticsProvisioningLock<T>(
@@ -1504,6 +1513,10 @@ export class ProjectModel {
                               use_project_timezone_in_filters:
                                   copiedProjects[0]
                                       .use_project_timezone_in_filters,
+                              results_cache_enabled:
+                                  copiedProjects[0].results_cache_enabled,
+                              results_cache_ttl_seconds:
+                                  copiedProjects[0].results_cache_ttl_seconds,
                           }
                         : {}),
                     created_by_user_uuid: userUuid,
@@ -1651,6 +1664,8 @@ export class ProjectModel {
     }
 
     async getResultsCacheSettings(projectUuid: string): Promise<{
+        cacheEnabled: boolean;
+        cacheEnabledSetByInstance: boolean;
         cacheTtlSeconds: number | null;
         cacheGeneration: number;
         lastInvalidatedAt: Date | null;
@@ -1661,6 +1676,7 @@ export class ProjectModel {
         const row = await this.database(ProjectTableName)
             .where('project_uuid', projectUuid)
             .select(
+                'results_cache_enabled',
                 'results_cache_ttl_seconds',
                 'results_cache_generation',
                 'results_cache_invalidated_at',
@@ -1677,6 +1693,10 @@ export class ProjectModel {
         }
 
         return {
+            ...resolveResultsCacheEnabled(
+                this.lightdashConfig.results.cacheEnabled,
+                row.results_cache_enabled,
+            ),
             cacheTtlSeconds: row.results_cache_ttl_seconds,
             cacheGeneration: row.results_cache_generation,
             lastInvalidatedAt: row.results_cache_invalidated_at,
@@ -1715,11 +1735,27 @@ export class ProjectModel {
 
     async updateResultsCacheSettings(
         projectUuid: string,
-        settings: { cacheTtlSeconds: number | null },
+        settings: { cacheEnabled?: boolean; cacheTtlSeconds?: number | null },
     ): Promise<void> {
         const affectedRows = await this.database(ProjectTableName)
             .where('project_uuid', projectUuid)
-            .update({ results_cache_ttl_seconds: settings.cacheTtlSeconds });
+            .update({
+                results_cache_enabled: settings.cacheEnabled,
+                results_cache_ttl_seconds: settings.cacheTtlSeconds,
+                // Turning caching off or on clears the cache so stale results are never reused
+                ...(settings.cacheEnabled !== undefined
+                    ? {
+                          results_cache_generation: this.database.raw(
+                              'CASE WHEN results_cache_enabled IS DISTINCT FROM ? THEN results_cache_generation + 1 ELSE results_cache_generation END',
+                              [settings.cacheEnabled],
+                          ) as unknown as number,
+                          results_cache_invalidated_at: this.database.raw(
+                              'CASE WHEN results_cache_enabled IS DISTINCT FROM ? THEN NOW() ELSE results_cache_invalidated_at END',
+                              [settings.cacheEnabled],
+                          ) as unknown as Date,
+                      }
+                    : {}),
+            });
         if (affectedRows === 0) {
             throw new NotFoundError(
                 `Cannot find project with id: ${projectUuid}`,
@@ -1751,6 +1787,7 @@ export class ProjectModel {
             cron: string;
             schedulerTimezone: string;
             nextRunAt: Date;
+            cacheEnabled: boolean;
         }[]
     > {
         const rows = await this.database(ProjectTableName)
@@ -1772,6 +1809,7 @@ export class ProjectModel {
                     results_cache_clear_cron: string;
                     scheduler_timezone: string;
                     results_cache_clear_next_run_at: Date;
+                    results_cache_enabled: boolean;
                 }[]
             >(
                 `${ProjectTableName}.project_uuid`,
@@ -1779,6 +1817,7 @@ export class ProjectModel {
                 `${ProjectTableName}.results_cache_clear_cron`,
                 `${ProjectTableName}.scheduler_timezone`,
                 `${ProjectTableName}.results_cache_clear_next_run_at`,
+                `${ProjectTableName}.results_cache_enabled`,
             );
         return rows.map((row) => ({
             projectUuid: row.project_uuid,
@@ -1786,6 +1825,10 @@ export class ProjectModel {
             cron: row.results_cache_clear_cron,
             schedulerTimezone: row.scheduler_timezone,
             nextRunAt: row.results_cache_clear_next_run_at,
+            cacheEnabled: resolveResultsCacheEnabled(
+                this.lightdashConfig.results.cacheEnabled,
+                row.results_cache_enabled,
+            ).cacheEnabled,
         }));
     }
 
@@ -1819,12 +1862,23 @@ export class ProjectModel {
     async getEffectiveResultsCacheTtlSeconds(
         projectUuid: string,
     ): Promise<number> {
-        const { cacheTtlSeconds } =
+        return (await this.getResultsCacheState(projectUuid)).ttlSeconds;
+    }
+
+    async getResultsCacheState(projectUuid: string): Promise<{
+        enabled: boolean;
+        cacheGeneration: number;
+        ttlSeconds: number;
+    }> {
+        const { cacheEnabled, cacheGeneration, cacheTtlSeconds } =
             await this.getResultsCacheSettings(projectUuid);
-        return (
-            cacheTtlSeconds ??
-            this.lightdashConfig.results.cacheStateTimeSeconds
-        );
+        return {
+            enabled: cacheEnabled,
+            cacheGeneration,
+            ttlSeconds:
+                cacheTtlSeconds ??
+                this.lightdashConfig.results.cacheStateTimeSeconds,
+        };
     }
 
     async updateExpiresAt(projectUuid: string, expiresAt: Date): Promise<void> {

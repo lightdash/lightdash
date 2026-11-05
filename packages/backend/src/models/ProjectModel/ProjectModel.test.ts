@@ -3829,4 +3829,83 @@ describe('ProjectModel', () => {
             expect(extrasClear).toBeDefined();
         });
     });
+
+    describe('getResultsCacheState', () => {
+        const projectRow = (resultsCacheEnabled: boolean) => ({
+            results_cache_enabled: resultsCacheEnabled,
+            results_cache_ttl_seconds: null,
+            results_cache_generation: 3,
+            results_cache_invalidated_at: null,
+            results_cache_clear_cron: null,
+            results_cache_clear_next_run_at: null,
+            scheduler_timezone: 'UTC',
+        });
+        const modelWithEnv = (cacheEnabled: boolean | null) =>
+            new ProjectModel({
+                database,
+                encryptionUtil: encryptionUtilMock,
+                lightdashConfig: {
+                    ...lightdashConfigMock,
+                    results: {
+                        ...lightdashConfigMock.results,
+                        cacheEnabled,
+                        cacheStateTimeSeconds: 600,
+                    },
+                },
+            });
+
+        test.each([
+            { env: null, project: false, expected: false },
+            { env: null, project: true, expected: true },
+            { env: true, project: false, expected: true },
+            { env: false, project: true, expected: false },
+        ])(
+            'env $env and project $project resolve to $expected',
+            async ({ env, project, expected }) => {
+                tracker.on
+                    .select(ProjectTableName)
+                    .response(projectRow(project));
+
+                await expect(
+                    modelWithEnv(env).getResultsCacheState('project-uuid'),
+                ).resolves.toEqual({
+                    enabled: expected,
+                    cacheGeneration: 3,
+                    ttlSeconds: 600,
+                });
+                expect(tracker.history.select).toHaveLength(1);
+            },
+        );
+    });
+
+    describe('updateResultsCacheSettings', () => {
+        test('clears the cache when caching is turned on or off', async () => {
+            tracker.on.update(ProjectTableName).response(1);
+
+            await model.updateResultsCacheSettings('project-uuid', {
+                cacheEnabled: true,
+            });
+
+            const [update] = tracker.history.update;
+            expect(update.sql).toMatch(
+                /CASE WHEN results_cache_enabled IS DISTINCT FROM \$\d+ THEN results_cache_generation \+ 1/,
+            );
+            expect(update.sql).toMatch(
+                /CASE WHEN results_cache_enabled IS DISTINCT FROM \$\d+ THEN NOW\(\) ELSE results_cache_invalidated_at END/,
+            );
+            expect(update.bindings).toContain(true);
+        });
+
+        test('keeps the cache generation when only the TTL changes', async () => {
+            tracker.on.update(ProjectTableName).response(1);
+
+            await model.updateResultsCacheSettings('project-uuid', {
+                cacheTtlSeconds: 600,
+            });
+
+            expect(tracker.history.update[0].sql).not.toContain(
+                'results_cache_generation',
+            );
+        });
+    });
 });

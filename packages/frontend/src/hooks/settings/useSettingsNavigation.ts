@@ -103,7 +103,7 @@ export const useSettingsNavigation = (
         isChartStudioAvailable,
         isApiQuerySourcesEnabled,
         externalSourcesFlag,
-        isResultsCacheEnabled,
+        isResultsCacheAvailable,
         isGitProject,
         isContentReviewAvailable,
         projectSettingsAccess,
@@ -1006,7 +1006,7 @@ export const useSettingsNavigation = (
                 });
             }
 
-            if (isResultsCacheEnabled) {
+            if (isResultsCacheAvailable) {
                 projectItems.push({
                     label: 'Results caching',
                     to: `${base}/caching`,
@@ -1406,7 +1406,7 @@ export const useSettingsNavigation = (
         isChartStudioAvailable,
         isApiQuerySourcesEnabled,
         isExternalSourcesEnabled,
-        isResultsCacheEnabled,
+        isResultsCacheAvailable,
         isGitProject,
         isContentReviewAvailable,
         projectSettingsAccess,
