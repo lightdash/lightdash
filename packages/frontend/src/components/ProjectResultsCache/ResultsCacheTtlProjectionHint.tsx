@@ -1,7 +1,7 @@
 import { Anchor, Group, Stack, Text, Tooltip } from '@mantine/core';
 import { type FC } from 'react';
 import { useResultsCacheTtlProjections } from '../../hooks/useProjectResultsCacheSettings';
-import { formatDuration as formatMs } from '../../utils/formatters';
+import { formatWarehouseTime } from './formatWarehouseTime';
 
 const MIN_IMPROVEMENT = 0.01;
 
@@ -25,8 +25,13 @@ export const ResultsCacheTtlProjectionHint: FC<Props> = ({
     onSelect,
     disabled,
 }) => {
-    const { data } = useResultsCacheTtlProjections(projectUuid);
-    if (!data || data.kind !== 'projections' || data.baseline.runs === 0)
+    const { data, isError } = useResultsCacheTtlProjections(projectUuid);
+    if (
+        isError ||
+        !data ||
+        data.kind !== 'projections' ||
+        data.baseline.runs === 0
+    )
         return null;
 
     const baselineRate = data.baseline.hitRate ?? 0;
@@ -68,7 +73,7 @@ export const ResultsCacheTtlProjectionHint: FC<Props> = ({
                     <Text fz="xs">
                         {`${formatPercent(data.baseline.hitRate)} → ${formatPercent(
                             projection.hitRate,
-                        )} (+${projection.additionalHits.toLocaleString()} hits, about ${formatMs(
+                        )} (+${projection.additionalHits.toLocaleString()} hits, about ${formatWarehouseTime(
                             Math.round(projection.warehouseTimeSavedMs),
                         )} of warehouse time saved)`}
                     </Text>

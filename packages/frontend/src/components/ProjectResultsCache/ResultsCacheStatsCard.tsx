@@ -19,8 +19,8 @@ import {
 import { useState, type FC } from 'react';
 import { Link } from 'react-router';
 import { useResultsCacheStats } from '../../hooks/useProjectResultsCacheSettings';
-import { formatDuration } from '../../utils/formatters';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
+import { formatWarehouseTime } from './formatWarehouseTime';
 
 const formatPercent = (rate: number | null) =>
     rate === null ? 'n/a' : `${Math.round(rate * 100)}%`;
@@ -56,9 +56,9 @@ const reasonLabel = (reason: ResultsCacheStatsMissReason): string => {
 const reasonFix = (reason: ResultsCacheStatsMissReason): string => {
     switch (reason) {
         case ResultsCacheStatsMissReason.EXPIRED:
-            return 'Raise the cache duration above.';
+            return 'Raise the cache duration below.';
         case ResultsCacheStatsMissReason.CLEARED:
-            return 'Clear specific explores or tables instead of the whole project.';
+            return 'Clear only what changed, such as specific explores or tables.';
         case ResultsCacheStatsMissReason.SCHEDULED_REFRESH:
             return 'Turn on "Use cached results" for these deliveries and syncs.';
         default:
@@ -77,6 +77,19 @@ const targetPath = (
             return `/projects/${projectUuid}/sql-runner/${target.slug}`;
         case 'explore':
             return `/projects/${projectUuid}/tables/${target.exploreName}`;
+        default:
+            return assertUnreachable(target, 'Unknown recommendation target');
+    }
+};
+
+const targetId = (target: ResultsCacheRecommendationTarget): string => {
+    switch (target.kind) {
+        case 'chart':
+            return target.chartUuid;
+        case 'sqlChart':
+            return target.savedSqlUuid;
+        case 'explore':
+            return target.exploreName;
         default:
             return assertUnreachable(target, 'Unknown recommendation target');
     }
@@ -106,7 +119,11 @@ type Props = {
 
 export const ResultsCacheStatsCard: FC<Props> = ({ projectUuid }) => {
     const [days, setDays] = useState<ResultsCacheStatsDays>(7);
-    const { data: stats, isLoading } = useResultsCacheStats(projectUuid, days);
+    const {
+        data: stats,
+        isLoading,
+        isError,
+    } = useResultsCacheStats(projectUuid, days);
 
     return (
         <SettingsGridCard>
@@ -124,7 +141,11 @@ export const ResultsCacheStatsCard: FC<Props> = ({ projectUuid }) => {
                     value={String(days)}
                     onChange={(value) => setDays(value === '30' ? 30 : 7)}
                 />
-                {isLoading || !stats ? (
+                {isError ? (
+                    <Text c="dimmed" fz="sm">
+                        Couldn't load usage stats. Try again later.
+                    </Text>
+                ) : isLoading || !stats ? (
                     <Loader size="sm" />
                 ) : stats.summary.runs === 0 ? (
                     <Text c="dimmed" fz="sm">
@@ -147,7 +168,7 @@ export const ResultsCacheStatsCard: FC<Props> = ({ projectUuid }) => {
                             />
                             <Stat
                                 label="Warehouse time saved"
-                                value={formatDuration(
+                                value={formatWarehouseTime(
                                     Math.round(
                                         stats.summary.warehouseTimeSavedMs,
                                     ),
@@ -190,7 +211,7 @@ export const ResultsCacheStatsCard: FC<Props> = ({ projectUuid }) => {
                         ) : (
                             <>
                                 <Text c="dimmed" fz="xs">
-                                    {`${stats.summary.avoidableMisses.toLocaleString()} misses (${formatDuration(
+                                    {`${stats.summary.avoidableMisses.toLocaleString()} misses (${formatWarehouseTime(
                                         Math.round(
                                             stats.summary
                                                 .avoidableWarehouseTimeMs,
@@ -210,7 +231,7 @@ export const ResultsCacheStatsCard: FC<Props> = ({ projectUuid }) => {
                                     <Table.Tbody>
                                         {stats.recommendations.map((row) => (
                                             <Table.Tr
-                                                key={`${row.reason}-${row.target.kind}-${row.target.name}`}
+                                                key={`${row.reason}-${row.target.kind}-${targetId(row.target)}`}
                                             >
                                                 <Table.Td>
                                                     <Anchor
@@ -231,7 +252,7 @@ export const ResultsCacheStatsCard: FC<Props> = ({ projectUuid }) => {
                                                     {row.misses.toLocaleString()}
                                                 </Table.Td>
                                                 <Table.Td>
-                                                    {formatDuration(
+                                                    {formatWarehouseTime(
                                                         Math.round(
                                                             row.warehouseTimeMs,
                                                         ),
