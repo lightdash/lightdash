@@ -219,6 +219,32 @@ describe('AppHeaderActions — Google Sheets Sync entry point', () => {
     });
 });
 
+describe('AppHeaderActions — Share', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockedCanEdit.mockReturnValue(true);
+        defaultAbility.update([]);
+    });
+
+    it('keeps the link in the share menu and deliveries in the overflow', async () => {
+        const user = userEvent.setup();
+        renderWithProviders(
+            <AppHeaderActions
+                {...baseProps}
+                shareUrl="https://example.com/app"
+            />,
+            {
+                health: withGoogleDriveNotConfigured(),
+                user: withScheduledDeliveryPermission(),
+            },
+        );
+
+        await user.click(screen.getByRole('button', { name: 'Share' }));
+        expect(await screen.findByText('Copy link')).toBeInTheDocument();
+        expect(screen.queryByText('Schedule delivery')).not.toBeInTheDocument();
+    });
+});
+
 describe('AppHeaderActions — Remove thumbnail', () => {
     beforeEach(() => {
         vi.clearAllMocks();

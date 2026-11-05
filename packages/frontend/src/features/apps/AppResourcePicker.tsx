@@ -116,8 +116,6 @@ export const ScreenshotButton: FC<{
 }> = ({ onClick, disabled, loading }) => (
     <Tooltip label="Attach a screenshot of the preview" position="top">
         <ActionIcon
-            variant="subtle"
-            color="gray"
             size="md"
             radius="xl"
             onClick={onClick}

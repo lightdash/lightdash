@@ -29,7 +29,7 @@
     padding: 4px 10px;
     border: 1px solid var(--mantine-color-ldGray-3);
     border-radius: var(--mantine-radius-xl);
-    font-size: 13px;
+    font-size: var(--mantine-font-size-xs);
     line-height: 1.4;
     color: var(--mantine-color-text);
     background-color: var(--mantine-color-body);
