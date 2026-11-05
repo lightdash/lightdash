@@ -1,6 +1,5 @@
 // TODO: Move to Series/ folder after refactor
 
-import { type DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
 import {
     getReadableTextColor,
     type PieChartValueLabel,
@@ -19,6 +18,7 @@ import { useDisclosure } from '@mantine/hooks';
 import { IconChevronDown, IconChevronUp } from '@tabler/icons-react';
 import { forwardRef } from 'react';
 import MantineIcon from '../../common/MantineIcon';
+import { type SortableHandleProps } from '../../common/Sortable/Sortable';
 import ColorSelector from '../ColorSelector';
 import { EditableText } from '../common/EditableText';
 import { GrabIcon } from '../common/GrabIcon';
@@ -28,7 +28,7 @@ import { ValueOptions } from './ValueOptions';
 type GroupItemProps = {
     isOnlyItem: boolean;
 
-    dragHandleProps?: DraggableProvidedDragHandleProps | null;
+    dragHandleProps?: SortableHandleProps | null;
 
     defaultColor: string;
     defaultLabel: string;
