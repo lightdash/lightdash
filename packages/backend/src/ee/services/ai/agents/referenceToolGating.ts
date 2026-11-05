@@ -1,6 +1,6 @@
 import type { ToolSet } from 'ai';
 import type { TurnIntent } from '../decisions/prepareContext';
-import type { DeferredPromptSection } from '../prompts/systemV2';
+import { DEFERRED_SECTION_TOOLS, type DeferredPromptSection } from '../loadout';
 import { getLoadAgentTools } from '../tools/loadAgentTools';
 
 const REFERENCE_TOOLS = new Set([
@@ -18,14 +18,14 @@ const REFERENCE_TOOLS = new Set([
     'findContent',
     'grepFields',
     'getMetadata',
-    'findExplores',
-    'findFields',
     'searchSemanticLayer',
 ]);
 
 const DATA_ANSWER_TOOLS = new Set([
     ...REFERENCE_TOOLS,
     'runQuery',
+    'query',
+    'visualize',
     'runSavedChart',
     'searchFieldValues',
 ]);
@@ -33,6 +33,8 @@ const DATA_ANSWER_TOOLS = new Set([
 const CHART_TOOLS = new Set([
     ...REFERENCE_TOOLS,
     'generateVisualization',
+    'query',
+    'visualize',
     'exportChartAsCode',
     'findCustomChartTypes',
     'getDashboardCharts',
@@ -67,6 +69,7 @@ const DOCUMENT_WRITE_TOOLS = new Set([
     'runContentQuery',
     'runSavedChart',
     'runQuery',
+    'query',
     'searchFieldValues',
     'exportChartAsCode',
     'getDashboardCharts',
@@ -76,12 +79,11 @@ const DOCUMENT_WRITE_TOOLS = new Set([
 
 const REPOSITORY_CHANGE_TOOLS = new Set([
     ...REFERENCE_TOOLS,
+    'loadSkill',
     'analyzeFieldImpact',
     'editDbtProject',
     'editProjectContext',
-    'editRepo',
     'syncDbtProject',
-    'setupPreviewDeploy',
     'exploreRepo',
     'discoverRepos',
     'listWorkstreams',
@@ -91,7 +93,9 @@ const REPOSITORY_CHANGE_TOOLS = new Set([
     'generateUuids',
 ]);
 
-const toolsForIntent = (intent: TurnIntent | null): Set<string> | null => {
+export const toolsForIntent = (
+    intent: TurnIntent | null,
+): Set<string> | null => {
     switch (intent) {
         case 'reference_answer':
             return REFERENCE_TOOLS;
@@ -120,31 +124,13 @@ const toolsForIntent = (intent: TurnIntent | null): Set<string> | null => {
     }
 };
 
-const PROMPT_SECTION_TOOLS: Record<DeferredPromptSection, string[]> = {
-    runSql: [
-        'runSql',
-        'runComposerQueries',
-        'listWarehouseTables',
-        'describeWarehouseTable',
-    ],
-    contentTools: ['createContent', 'editContent'],
-    schedulingTools: ['createScheduledDelivery'],
-    generateDataApp: ['generateDataApp', 'iterateDataApp'],
-    skills: ['loadSkill'],
-};
-
 /** Prompt sections whose tools are all outside the turn's initial toolbox. */
 export const getDeferredPromptSections = (
     initialToolNames: ReadonlySet<string> | null,
 ): Set<DeferredPromptSection> => {
     if (!initialToolNames) return new Set();
     return new Set(
-        (
-            Object.entries(PROMPT_SECTION_TOOLS) as [
-                DeferredPromptSection,
-                string[],
-            ][]
-        )
+        [...DEFERRED_SECTION_TOOLS]
             .filter(([, names]) =>
                 names.every((name) => !initialToolNames.has(name)),
             )

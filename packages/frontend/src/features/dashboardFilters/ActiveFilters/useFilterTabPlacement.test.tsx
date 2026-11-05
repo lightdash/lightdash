@@ -7,7 +7,14 @@ import {
     type DashboardTile,
 } from '@lightdash/common';
 import { renderHook } from '@testing-library/react';
+import { type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+    createDashboardTestStore,
+    seedDashboardEditState,
+    type DashboardEditTestValues,
+} from '../../../testing/dashboardStore';
+import { DashboardStoreTestProvider } from '../../../testing/DashboardStoreTestProvider';
 import {
     isFilterHiddenOnTab,
     useFilterTabPlacement,
@@ -57,7 +64,17 @@ const statusField = {
 const tab = (uuid: string, order: number) => ({ uuid, name: uuid, order });
 
 const place = (filterRule: DashboardFilterRule, activeTabUuid?: string) => {
-    const { result } = renderHook(() => useFilterTabPlacement());
+    const store = seedDashboardEditState(
+        createDashboardTestStore(),
+        mockDashboardContext.current as DashboardEditTestValues,
+    );
+    const { result } = renderHook(() => useFilterTabPlacement(), {
+        wrapper: ({ children }: { children: ReactNode }) => (
+            <DashboardStoreTestProvider store={store}>
+                {children}
+            </DashboardStoreTestProvider>
+        ),
+    });
     const appliesToTabs = result.current.getTabsUsingFilter(filterRule);
     return {
         appliesToTabs,

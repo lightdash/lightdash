@@ -11,6 +11,7 @@ import {
     ApiAiAgentArtifactResponseTSOACompat,
     ApiAiAgentArtifactVizQueryResponse,
     ApiAiAgentAvatarUploadResponse,
+    ApiAiAgentComposerArtifactVizQueryResponse,
     ApiAiAgentEvaluationResponse,
     ApiAiAgentEvaluationRunResponse,
     ApiAiAgentEvaluationRunResultsResponse,
@@ -19,6 +20,7 @@ import {
     ApiAiAgentExploreAccessSummaryResponse,
     ApiAiAgentMcpServerToolListResponse,
     ApiAiAgentMemoryResponse,
+    ApiAiAgentMessageQueryPipelinesResponse,
     ApiAiAgentModelOptionsResponse,
     ApiAiAgentProjectThreadSummaryListResponse,
     ApiAiAgentResponse,
@@ -46,6 +48,7 @@ import {
     ApiAiAgentThreadWorkstreamsResponse,
     ApiAiAgentVerifiedArtifactsResponse,
     ApiAiAgentVerifiedQuestionsResponse,
+    ApiAiAgentVisualizeSlackPreviewRequest,
     ApiAiMcpGithubAvailabilityResponse,
     ApiAiMcpOAuthCredentialRequest,
     ApiAiMcpServerListResponse,
@@ -101,6 +104,7 @@ import {
     SuccessResponse,
 } from '@tsoa/runtime';
 import express from 'express';
+import { Readable } from 'stream';
 import { toSessionUser } from '../../auth/account';
 import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
@@ -162,6 +166,30 @@ export class AiAgentController extends BaseController {
                 projectUuid,
             ),
         };
+    }
+
+    /**
+     * Draw rows with a visualize-tool viz config as the Slack chart image, for debugging the Slack renderer.
+     * @summary Preview visualize Slack chart
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/visualize/slack-preview')
+    @OperationId('previewVisualizeSlackChart')
+    async previewVisualizeSlackChart(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Body() body: ApiAiAgentVisualizeSlackPreviewRequest,
+    ): Promise<Readable> {
+        assertRegisteredAccount(req.account);
+        const image = await this.getAiAgentService().previewVisualizeSlackChart(
+            req.account,
+            projectUuid,
+            body,
+        );
+        this.setStatus(200);
+        this.setHeader('Content-Type', 'image/png');
+        return Readable.from(image);
     }
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -1803,6 +1831,153 @@ export class AiAgentController extends BaseController {
         return {
             status: 'ok',
             results: undefined,
+        };
+    }
+
+    /**
+     * List the composer query pipelines an assistant message ran, one per successful query call.
+     * @summary Get AI agent message query pipelines
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentController.getAgentThreadMessageQueryPipelines',
+        ),
+    ])
+    @SuccessResponse('200', 'Success')
+    @Get('/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/queries')
+    @OperationId('getAgentThreadMessageQueryPipelines')
+    async getAgentThreadMessageQueryPipelines(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: UUID,
+        @Path() threadUuid: UUID,
+        @Path() messageUuid: UUID,
+    ): Promise<ApiAiAgentMessageQueryPipelinesResponse> {
+        this.setStatus(200);
+        const args = { agentUuid, threadUuid, messageUuid };
+
+        if (req.account?.authentication.type === 'jwt') {
+            assertEmbeddedAuth(req.account);
+            return {
+                status: 'ok',
+                results:
+                    await this.getAiAgentService().getEmbedMessageQueryPipelines(
+                        req.account,
+                        projectUuid,
+                        args,
+                    ),
+            };
+        }
+
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().getMessageQueryPipelines(
+                toSessionUser(req.account),
+                { ...args, projectUuid },
+            ),
+        };
+    }
+
+    /**
+     * Run a message's query pipeline for preview; returns each node's queryUuid.
+     * @summary Get AI agent message query pipeline viz query
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentController.getAgentThreadMessageQueryPipelineVizQuery',
+        ),
+    ])
+    @SuccessResponse('200', 'Success')
+    @Get(
+        '/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/queries/{queryUuid}/viz-query',
+    )
+    @OperationId('getAgentThreadMessageQueryPipelineVizQuery')
+    async getAgentThreadMessageQueryPipelineVizQuery(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: UUID,
+        @Path() threadUuid: UUID,
+        @Path() messageUuid: UUID,
+        @Path() queryUuid: UUID,
+    ): Promise<ApiAiAgentComposerArtifactVizQueryResponse> {
+        this.setStatus(200);
+        const args = { agentUuid, threadUuid, messageUuid, queryUuid };
+
+        if (req.account?.authentication.type === 'jwt') {
+            assertEmbeddedAuth(req.account);
+            return {
+                status: 'ok',
+                results:
+                    await this.getAiAgentService().getEmbedMessageQueryPipelineVizQuery(
+                        req.account,
+                        projectUuid,
+                        args,
+                    ),
+            };
+        }
+
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results:
+                await this.getAiAgentService().getMessageQueryPipelineVizQuery(
+                    toSessionUser(req.account),
+                    { ...args, projectUuid, runtimeOptions: null },
+                ),
+        };
+    }
+
+    /**
+     * Read a node result of a message's query pipeline run.
+     * @summary Get AI agent message query pipeline results
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentController.getAgentThreadMessageQueryPipelineResults',
+        ),
+    ])
+    @SuccessResponse('200', 'Success')
+    @Get(
+        '/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/queries/{queryUuid}/query-results',
+    )
+    @OperationId('getAgentThreadMessageQueryPipelineResults')
+    async getAgentThreadMessageQueryPipelineResults(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: UUID,
+        @Path() threadUuid: UUID,
+        @Path() messageUuid: UUID,
+        @Path() queryUuid: UUID,
+        @Query() resultQueryUuid: UUID,
+        @Query() page?: number,
+        @Query() pageSize?: number,
+    ): Promise<ApiGetAsyncQueryResultsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results:
+                await this.getAiAgentService().getMessageQueryPipelineQueryResults(
+                    toSessionUser(req.account),
+                    {
+                        projectUuid,
+                        agentUuid,
+                        threadUuid,
+                        messageUuid,
+                        queryUuid,
+                        resultQueryUuid,
+                        page: page ?? null,
+                        pageSize: pageSize ?? null,
+                    },
+                    req.account,
+                ),
         };
     }
 

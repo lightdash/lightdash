@@ -7,6 +7,7 @@ import {
     ParameterError,
     ProjectType,
     RedshiftAuthenticationType,
+    RequestMethod,
     WarehouseTypes,
     type CreateBigqueryCredentials,
     type CreatePostgresCredentials,
@@ -25,6 +26,7 @@ import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCr
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { type FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 import { type LicenseService } from '../LicenseService/LicenseService';
+import { SSH_TUNNEL_KEY_UNKNOWN_MESSAGE } from '../WarehouseClientFactory/resolvers/SshTunnelCredentialResolver';
 import { WarehouseConnectionBindingService } from '../WarehouseConnectionBindingService/WarehouseConnectionBindingService';
 import { credentialRedactionCases } from './credentialRedactionFixtures.mock';
 import { warehouseConnectionCredentials } from './warehouseConnectionFixtures.mock';
@@ -123,8 +125,9 @@ const buildService = (mixedTypesEnabled = false) => {
         }),
         updateExtraCredentials: vi.fn(),
         getCredentials: vi.fn().mockResolvedValue(credentials),
-        loadOrganizationCredentials: vi.fn(),
-        getExtraCredentialSource: vi.fn(),
+        getExtraCredentialSource: vi.fn().mockResolvedValue({
+            credentials,
+        }),
         transaction: vi.fn(),
     };
     model.transaction.mockImplementation(
@@ -163,12 +166,7 @@ const buildService = (mixedTypesEnabled = false) => {
             .fn()
             .mockResolvedValue(credentials),
     };
-    const dbtSourceRefCatalogModel = {
-        deleteForProject: vi.fn(),
-        deleteForSource: vi.fn(),
-    };
     const service = new WarehouseConnectionService({
-        dbtSourceRefCatalogModel,
         warehouseConnectionModel: model as unknown as WarehouseConnectionModel,
         projectModel: projectModel as unknown as Pick<
             ProjectModel,
@@ -186,7 +184,6 @@ const buildService = (mixedTypesEnabled = false) => {
     });
     return {
         service,
-        dbtSourceRefCatalogModel,
         model,
         analytics,
         featureFlagService,
@@ -196,6 +193,42 @@ const buildService = (mixedTypesEnabled = false) => {
 };
 
 describe('WarehouseConnectionService lifecycle analytics', () => {
+    it.each(
+        (['create', 'update'] as const).flatMap((operation) =>
+            [false, true].map((includeInlineCredentials) => ({
+                operation,
+                includeInlineCredentials,
+            })),
+        ),
+    )(
+        'rejects retired references on $operation with inline credentials $includeInlineCredentials',
+        async ({ operation, includeInlineCredentials }) => {
+            const { service, model, credentialPolicy } = buildService();
+            const request = {
+                name: 'Extra',
+                warehouseType: WarehouseTypes.POSTGRES,
+                organizationWarehouseCredentialsUuid: 'retired-credential',
+                ...(includeInlineCredentials
+                    ? { warehouseConnection: credentials }
+                    : {}),
+            };
+
+            await expect(
+                operation === 'create'
+                    ? service.create(account, projectUuid, request)
+                    : service.update(account, projectUuid, extraUuid, request),
+            ).rejects.toThrow(
+                'Organization warehouse credentials are no longer supported',
+            );
+            expect(model.createExtra).not.toHaveBeenCalled();
+            expect(model.updateExtraCredentials).not.toHaveBeenCalled();
+            expect(model.updateListingSettings).not.toHaveBeenCalled();
+            expect(
+                credentialPolicy.testWarehouseConnectionCredentialsForSave,
+            ).not.toHaveBeenCalled();
+        },
+    );
+
     it('tracks the saved SQL runner listing settings for the primary connection', async () => {
         const { service, model, analytics } = buildService();
 
@@ -403,29 +436,6 @@ describe('WarehouseConnectionService mixed warehouse types', () => {
     );
 
     it.each(['create', 'update'] as const)(
-        'allows a BigQuery organization extra with the flag on on %s',
-        async (operation) => {
-            const { service, model } = buildService(true);
-            model.get.mockResolvedValue({
-                ...connection(extraUuid, false),
-                warehouseType: WarehouseTypes.BIGQUERY,
-            });
-            model.loadOrganizationCredentials.mockResolvedValue({
-                type: WarehouseTypes.BIGQUERY,
-            });
-            const request = {
-                name: 'BigQuery',
-                organizationWarehouseCredentialsUuid:
-                    'organization-credentials-uuid',
-            };
-            await (operation === 'create'
-                ? service.create(account, projectUuid, request)
-                : service.update(account, projectUuid, extraUuid, request));
-            expect(model.loadOrganizationCredentials).toHaveBeenCalled();
-        },
-    );
-
-    it.each(['create', 'update'] as const)(
         'rechecks the warehouse type inside the %s transaction with the same flag value',
         async (operation) => {
             const { service, model, featureFlagService } = buildService();
@@ -557,33 +567,22 @@ describe('WarehouseConnectionService warehouse matrix', () => {
             ).not.toHaveBeenCalled();
         },
     );
-    it.each(['project', 'organization'] as const)(
-        'refuses internal analytics from %s credentials',
-        async (kind) => {
-            const { service, model } = buildService(true);
-            const warehouseConnection = {
-                type: WarehouseTypes.DUCKDB,
-                connectionType: DuckdbConnectionType.ANALYTICS,
-                database: 'memory',
-                schema: 'main',
-            } as const;
-            model.loadOrganizationCredentials.mockResolvedValue(
+    it('refuses internal analytics from project credentials', async () => {
+        const { service, model } = buildService(true);
+        const warehouseConnection = {
+            type: WarehouseTypes.DUCKDB,
+            connectionType: DuckdbConnectionType.ANALYTICS,
+            database: 'memory',
+            schema: 'main',
+        } as const;
+        await expect(
+            service.create(account, projectUuid, {
+                name: 'Analytics',
                 warehouseConnection,
-            );
-            await expect(
-                service.create(account, projectUuid, {
-                    name: 'Analytics',
-                    ...(kind === 'project'
-                        ? { warehouseConnection }
-                        : {
-                              organizationWarehouseCredentialsUuid:
-                                  'org-credentials',
-                          }),
-                }),
-            ).rejects.toThrow('Internal analytics');
-            expect(model.createExtra).not.toHaveBeenCalled();
-        },
-    );
+            }),
+        ).rejects.toThrow('Internal analytics');
+        expect(model.createExtra).not.toHaveBeenCalled();
+    });
 });
 
 describe('WarehouseConnectionService database listing validation', () => {
@@ -678,7 +677,6 @@ describe('connection details credential redaction', () => {
                 warehouseType: savedCredentials.type,
             });
             model.getExtraCredentialSource.mockResolvedValue({
-                organizationWarehouseCredentialsUuid: null,
                 credentials: savedCredentials,
             });
             const response = await service.get(account, projectUuid, extraUuid);
@@ -696,28 +694,17 @@ describe('connection details credential redaction', () => {
 describe('connection type immutability', () => {
     it.each(
         [false, true].flatMap((enabled) =>
-            ['project', 'organization'].map((source) => ({ enabled, source })),
+            ['project'].map((source) => ({ enabled, source })),
         ),
     )(
         "refuses a type change with flag $enabled and $source credentials, with main's message when off",
-        async ({ enabled, source }) => {
+        async ({ enabled }) => {
             const { service, model, credentialPolicy } = buildService(enabled);
             model.get.mockResolvedValue(connection(extraUuid, false));
-            model.loadOrganizationCredentials.mockResolvedValue(
-                trinoCredentials,
-            );
             await expect(
-                service.update(
-                    account,
-                    projectUuid,
-                    extraUuid,
-                    source === 'project'
-                        ? { warehouseConnection: trinoCredentials }
-                        : {
-                              organizationWarehouseCredentialsUuid:
-                                  'org-credentials',
-                          },
-                ),
+                service.update(account, projectUuid, extraUuid, {
+                    warehouseConnection: trinoCredentials,
+                }),
             ).rejects.toThrow(
                 enabled
                     ? "A connection's warehouse type cannot be changed. Add a new connection instead."
@@ -748,119 +735,388 @@ describe('connection type immutability', () => {
     });
 });
 
-describe('cross-source ref cache invalidation', () => {
-    it.each([true, false])(
-        'deletes only the removed connection group when the flag is %s',
-        async (enabled) => {
-            const h = buildService();
-            h.featureFlagService.get.mockImplementation(
-                async ({ featureFlagId }) => ({
-                    id: featureFlagId,
-                    enabled:
-                        featureFlagId !== FeatureFlags.CrossSourceDbtRefs ||
-                        enabled,
-                }),
-            );
-            h.model.get.mockResolvedValue(connection(extraUuid, false));
-            h.model.getBoundContent.mockResolvedValue({
-                explores: [],
-                dbtSources: [],
-                sqlCharts: [],
-                inFlightQueries: 0,
-            });
-            await h.service.delete(account, projectUuid, extraUuid);
-            expect(h.model.deleteExtra).toHaveBeenCalledWith(
+describe('preview extra connection CLI refresh', () => {
+    const tunnel = {
+        useSshTunnel: true,
+        sshTunnelHost: 'extra-bastion',
+        sshTunnelPort: 22,
+        sshTunnelUser: 'extra-user',
+        sshTunnelPublicKey: 'extra-public-key',
+    };
+    const upstream = { ...project, projectUuid: 'upstream' };
+    const parentCredentials = {
+        ...credentials,
+        ...tunnel,
+        password: 'parent-password',
+        sshTunnelPrivateKey: 'parent-private-key',
+    };
+    const setupRefresh = (
+        saved: CreatePostgresCredentials = { ...credentials, ...tunnel },
+        method = RequestMethod.CLI,
+    ) => {
+        const h = buildService(true);
+        h.projectModel.getSummary.mockResolvedValue({
+            ...summary,
+            type: ProjectType.PREVIEW,
+            upstreamProjectUuid: upstream.projectUuid,
+        });
+        h.model.get.mockResolvedValue(connection(extraUuid, false));
+        h.model.getProject.mockImplementation(async (uuid: string) =>
+            uuid === upstream.projectUuid ? upstream : project,
+        );
+        h.model.list.mockImplementation(async (p: typeof project) =>
+            p.projectUuid === upstream.projectUuid
+                ? [connection('upstream-extra', false)]
+                : [connection(primaryUuid, true), connection(extraUuid, false)],
+        );
+        h.model.getCredentials.mockImplementation(async (p: typeof project) =>
+            p.projectUuid === upstream.projectUuid ? parentCredentials : saved,
+        );
+        return {
+            ...h,
+            refresh: (
+                connectionCredentials = {
+                    ...credentials,
+                    password: 'fresh-password',
+                },
+            ) =>
+                h.service.update(
+                    account,
+                    projectUuid,
+                    extraUuid,
+                    { warehouseConnection: connectionCredentials },
+                    method,
+                ),
+        };
+    };
+    it.each([RequestMethod.CLI, RequestMethod.CLI_CI])(
+        '%s preserves the extra connection tunnel',
+        async (method) => {
+            const h = setupRefresh(undefined, method);
+            await h.refresh();
+            expect(h.model.updateExtraCredentials).toHaveBeenCalledWith(
                 project,
                 extraUuid,
-            );
-            if (enabled)
-                expect(
-                    h.dbtSourceRefCatalogModel.deleteForProject,
-                ).toHaveBeenCalledExactlyOnceWith(projectUuid, extraUuid);
-            else
-                expect(
-                    h.dbtSourceRefCatalogModel.deleteForProject,
-                ).not.toHaveBeenCalled();
-        },
-    );
-
-    it('keeps rows when the connection cannot be deleted', async () => {
-        const h = buildService();
-        h.model.get.mockResolvedValue(connection(extraUuid, false));
-        await expect(
-            h.service.delete(account, projectUuid, extraUuid),
-        ).rejects.toThrow('cannot be removed while content uses it');
-        expect(
-            h.dbtSourceRefCatalogModel.deleteForProject,
-        ).not.toHaveBeenCalled();
-    });
-
-    it.each([true, false])(
-        'deletes rows for a rebound source when the flag is %s, even if analytics cannot read bindings',
-        async (enabled) => {
-            const h = buildService();
-            const bindDbtSource = vi.fn();
-            const service = new WarehouseConnectionBindingService({
-                projectModel: {
-                    getSummary: h.projectModel.getSummary,
-                    getDbtSourceIdentity: vi.fn(async () => ({
-                        dbtSourceUuid: 'primary-source',
-                        dbtSourceName: 'primary',
-                    })),
+                {
+                    kind: 'project',
+                    credentials: expect.objectContaining({
+                        ...tunnel,
+                        password: 'fresh-password',
+                    }),
                 },
-                warehouseConnectionModel: h.model,
-                warehouseConnectionCompileModel: {
-                    bindDbtSource,
-                    getDbtSourceBindings: vi
-                        .fn()
-                        .mockRejectedValue(new Error('analytics unavailable')),
-                } as never,
-                dbtSourceRefCatalogModel: h.dbtSourceRefCatalogModel,
-                featureFlagService: {
-                    get: vi.fn(async ({ featureFlagId }) => ({
-                        id: featureFlagId,
-                        enabled,
-                    })),
-                } as never,
-                credentialPolicy: h.credentialPolicy,
-                analytics: h.analytics,
-            });
-            await service.bindDbtSource(
-                account,
-                projectUuid,
-                'source',
-                extraUuid,
             );
-            expect(bindDbtSource).toHaveBeenCalledWith(
-                projectUuid,
-                'source',
-                extraUuid,
-            );
-            if (enabled)
-                expect(
-                    h.dbtSourceRefCatalogModel.deleteForSource,
-                ).toHaveBeenCalledExactlyOnceWith(projectUuid, 'source');
-            else
-                expect(
-                    h.dbtSourceRefCatalogModel.deleteForSource,
-                ).not.toHaveBeenCalled();
         },
     );
-
-    it('does not fail a connection deletion when cache cleanup fails', async () => {
-        const h = buildService();
-        h.model.get.mockResolvedValue(connection(extraUuid, false));
-        h.model.getBoundContent.mockResolvedValue({
-            explores: [],
-            dbtSources: [],
-            sqlCharts: [],
-            inFlightQueries: 0,
-        });
-        h.dbtSourceRefCatalogModel.deleteForProject.mockRejectedValue(
-            new Error('cache unavailable'),
+    it.each([RequestMethod.CLI, RequestMethod.CLI_CI])(
+        '%s heals from the matching upstream extra connection',
+        async (method) => {
+            const h = setupRefresh(credentials, method);
+            await h.refresh();
+            expect(h.model.getCredentials).toHaveBeenCalledWith(
+                upstream,
+                'upstream-extra',
+            );
+            expect(
+                h.credentialPolicy.testWarehouseConnectionCredentialsForSave,
+            ).toHaveBeenCalledWith(
+                account,
+                organizationUuid,
+                expect.objectContaining({
+                    ...tunnel,
+                    password: 'fresh-password',
+                }),
+            );
+            const stored =
+                h.model.updateExtraCredentials.mock.calls[0][2].credentials;
+            // Same parent destination and public key: destination-bound inheritance carries the parent key.
+            expect(stored).toMatchObject({
+                sshTunnelPrivateKey: 'parent-private-key',
+            });
+            expect(stored).not.toMatchObject({ password: 'parent-password' });
+        },
+    );
+    it('preserves the preview own tunnel and explicit opt-out', async () => {
+        const custom = {
+            ...tunnel,
+            sshTunnelHost: 'preview-bastion',
+            sshTunnelUser: 'preview-user',
+            sshTunnelPublicKey: 'preview-public-key',
+            useSshTunnel: false,
+        };
+        const h = setupRefresh({ ...credentials, ...custom });
+        await h.refresh();
+        expect(h.model.updateExtraCredentials).toHaveBeenCalledWith(
+            project,
+            extraUuid,
+            { kind: 'project', credentials: expect.objectContaining(custom) },
         );
-        await expect(
-            h.service.delete(account, projectUuid, extraUuid),
-        ).resolves.toBeUndefined();
+    });
+    it.each([RequestMethod.WEB_APP, RequestMethod.BACKEND])(
+        '%s keeps replacement behaviour',
+        async (method) => {
+            const h = setupRefresh(undefined, method);
+            await h.refresh();
+            expect(h.model.getProject).not.toHaveBeenCalledWith(
+                upstream.projectUuid,
+            );
+            expect(
+                h.model.updateExtraCredentials.mock.calls[0][2].credentials,
+            ).not.toHaveProperty('sshTunnelHost');
+        },
+    );
+    it('does not inherit on a non-preview', async () => {
+        const h = setupRefresh();
+        h.projectModel.getSummary.mockResolvedValue(summary);
+        await h.refresh();
+        expect(
+            h.model.updateExtraCredentials.mock.calls[0][2].credentials,
+        ).not.toHaveProperty('sshTunnelHost');
+    });
+    it('does not fall back to an unrelated upstream connection', async () => {
+        const h = setupRefresh(credentials);
+        h.model.list.mockResolvedValue([
+            { ...connection('other', false), name: 'Other' },
+        ]);
+        await h.refresh();
+        expect(
+            h.model.updateExtraCredentials.mock.calls[0][2].credentials,
+        ).not.toHaveProperty('sshTunnelHost');
+    });
+    it('rejects an upstream from a different organization before reading credentials', async () => {
+        const h = setupRefresh();
+        h.model.getProject.mockImplementation(async (uuid: string) =>
+            uuid === upstream.projectUuid
+                ? { ...upstream, organizationUuid: 'different-org' }
+                : project,
+        );
+        await expect(h.refresh()).rejects.toThrow();
+        expect(h.model.getCredentials).not.toHaveBeenCalledWith(
+            expect.objectContaining({ projectUuid: upstream.projectUuid }),
+            expect.anything(),
+        );
+        expect(h.model.updateExtraCredentials).not.toHaveBeenCalled();
+    });
+    it('does not persist if the merged connection fails its test', async () => {
+        const h = setupRefresh(credentials);
+        h.credentialPolicy.testWarehouseConnectionCredentialsForSave.mockRejectedValue(
+            new Error('tunnel unavailable'),
+        );
+        await expect(h.refresh()).rejects.toThrow('tunnel unavailable');
+        expect(h.model.updateExtraCredentials).not.toHaveBeenCalled();
     });
 });
+
+describe.each([
+    {
+        name: 'Postgres',
+        warehouseType: WarehouseTypes.POSTGRES,
+        incoming: {
+            ...credentials,
+            password: 'fresh-password',
+        } as CreatePostgresCredentials | CreateRedshiftCredentials,
+    },
+    {
+        name: 'Redshift IAM',
+        warehouseType: WarehouseTypes.REDSHIFT,
+        incoming: {
+            type: WarehouseTypes.REDSHIFT,
+            host: 'redshift',
+            port: 5439,
+            dbname: 'analytics',
+            schema: 'preview',
+            user: 'developer',
+            authenticationType: RedshiftAuthenticationType.IAM,
+            region: 'eu-west-1',
+            clusterIdentifier: 'cluster',
+            accessKeyId: 'fresh-key',
+            secretAccessKey: 'fresh-secret',
+            sessionToken: 'fresh-session',
+        } as CreatePostgresCredentials | CreateRedshiftCredentials,
+    },
+])(
+    'preview extra $name connection SSH key inheritance',
+    ({ warehouseType, incoming }) => {
+        const tunnel = {
+            useSshTunnel: true,
+            sshTunnelHost: 'extra-bastion',
+            sshTunnelPort: 22,
+            sshTunnelUser: 'extra-user',
+            sshTunnelPublicKey: 'extra-public-key',
+        };
+        const upstream = { ...project, projectUuid: 'upstream' };
+        const parent = {
+            ...incoming,
+            ...tunnel,
+            password: 'parent-password',
+            accessKeyId: 'parent-key',
+            secretAccessKey: 'parent-secret',
+            sessionToken: 'parent-session',
+            sshTunnelPrivateKey: 'parent-private-key',
+        };
+        const extra = { ...connection(extraUuid, false), warehouseType };
+        const setupRefresh = (
+            saved: Record<string, unknown>,
+            parentPatch: Record<string, unknown> = {},
+        ) => {
+            const h = buildService(true);
+            let stored = saved;
+            h.projectModel.getSummary.mockResolvedValue({
+                ...summary,
+                type: ProjectType.PREVIEW,
+                upstreamProjectUuid: upstream.projectUuid,
+            });
+            h.model.get.mockResolvedValue(extra);
+            h.model.getProject.mockImplementation(async (uuid: string) =>
+                uuid === upstream.projectUuid ? upstream : project,
+            );
+            h.model.list.mockImplementation(async (p: typeof project) =>
+                p.projectUuid === upstream.projectUuid
+                    ? [
+                          {
+                              ...connection('upstream-extra', false),
+                              warehouseType,
+                          },
+                      ]
+                    : [connection(primaryUuid, true), extra],
+            );
+            h.model.getCredentials.mockImplementation(
+                async (p: typeof project) =>
+                    p.projectUuid === upstream.projectUuid
+                        ? { ...parent, ...parentPatch }
+                        : stored,
+            );
+            h.model.updateExtraCredentials.mockImplementation(
+                async (_p, _uuid, source: { credentials: typeof stored }) => {
+                    stored = source.credentials;
+                },
+            );
+            h.credentialPolicy.testWarehouseConnectionCredentialsForSave.mockImplementation(
+                async (_account, _organizationUuid, warehouseConnection) => {
+                    if (
+                        warehouseConnection.useSshTunnel === true &&
+                        !warehouseConnection.sshTunnelPrivateKey
+                    ) {
+                        throw new ParameterError(
+                            SSH_TUNNEL_KEY_UNKNOWN_MESSAGE,
+                        );
+                    }
+                    return {
+                        credentials: warehouseConnection,
+                        result: { ok: true, hops: [] },
+                    };
+                },
+            );
+            return {
+                ...h,
+                stored: () => stored,
+                refresh: (payload: Record<string, unknown> = {}) =>
+                    h.service.update(
+                        account,
+                        projectUuid,
+                        extraUuid,
+                        {
+                            warehouseConnection: {
+                                ...incoming,
+                                ...payload,
+                            } as CreatePostgresCredentials,
+                        },
+                        RequestMethod.CLI,
+                    ),
+            };
+        };
+        const expectNoParentSecrets = (value: unknown) =>
+            expect(JSON.stringify(value ?? null)).not.toMatch(
+                /parent-(password|key|secret|session)"/,
+            );
+
+        it('carries the parent key for the same destination', async () => {
+            const h = setupRefresh({ ...incoming, ...tunnel });
+            await h.refresh();
+            expect(h.stored()).toMatchObject({
+                ...tunnel,
+                sshTunnelPrivateKey: 'parent-private-key',
+            });
+            expectNoParentSecrets(h.stored());
+        });
+        it('keeps working across consecutive refreshes', async () => {
+            const h = setupRefresh({ ...incoming, ...tunnel });
+            await h.refresh();
+            await h.refresh();
+            expect(h.model.updateExtraCredentials).toHaveBeenCalledTimes(2);
+            expect(h.stored()).toMatchObject({
+                sshTunnelPrivateKey: 'parent-private-key',
+            });
+            expectNoParentSecrets(h.stored());
+        });
+        it('keeps the preview own saved private key', async () => {
+            const h = setupRefresh({
+                ...incoming,
+                ...tunnel,
+                sshTunnelPrivateKey: 'preview-private-key',
+            });
+            await h.refresh();
+            expect(h.stored()).toMatchObject({
+                sshTunnelPrivateKey: 'preview-private-key',
+            });
+        });
+        it.each([
+            ['a changed tunnel host', { sshTunnelHost: 'other-bastion' }, {}],
+            ['a changed tunnel port', { sshTunnelPort: 2222 }, {}],
+            ['a changed tunnel user', { sshTunnelUser: 'other-user' }, {}],
+            ['a changed warehouse host', {}, { host: 'moved-warehouse' }],
+            ['a changed warehouse port', {}, { port: 6543 }],
+            [
+                'a different public key',
+                { sshTunnelPublicKey: 'previous-public-key' },
+                {},
+            ],
+        ])(
+            'does not carry the parent key to %s',
+            async (_case, savedPatch, payload) => {
+                const h = setupRefresh({
+                    ...incoming,
+                    ...tunnel,
+                    ...savedPatch,
+                });
+                await expect(h.refresh(payload)).rejects.toMatchObject({
+                    statusCode: 400,
+                    message: SSH_TUNNEL_KEY_UNKNOWN_MESSAGE,
+                });
+                expect(h.model.updateExtraCredentials).not.toHaveBeenCalled();
+            },
+        );
+        it('does not carry the parent key to a preview tunnel opt-out', async () => {
+            const h = setupRefresh({
+                ...incoming,
+                ...tunnel,
+                useSshTunnel: false,
+            });
+            await h.refresh();
+            expect(h.stored()).not.toHaveProperty('sshTunnelPrivateKey');
+            expectNoParentSecrets(h.stored());
+        });
+        it('does not carry the parent key when the parent has no tunnel', async () => {
+            const h = setupRefresh(
+                { ...incoming, ...tunnel },
+                { useSshTunnel: false },
+            );
+            await expect(h.refresh()).rejects.toMatchObject({
+                statusCode: 400,
+                message: SSH_TUNNEL_KEY_UNKNOWN_MESSAGE,
+            });
+        });
+        it('does not read or carry the key of an upstream in another organisation', async () => {
+            const h = setupRefresh({ ...incoming, ...tunnel });
+            h.model.getProject.mockImplementation(async (uuid: string) =>
+                uuid === upstream.projectUuid
+                    ? { ...upstream, organizationUuid: 'other-organisation' }
+                    : project,
+            );
+            await expect(h.refresh()).rejects.toThrow();
+            expect(
+                h.credentialPolicy.testWarehouseConnectionCredentialsForSave,
+            ).not.toHaveBeenCalled();
+            expect(h.model.updateExtraCredentials).not.toHaveBeenCalled();
+        });
+    },
+);

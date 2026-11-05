@@ -151,7 +151,7 @@ export const composeHeartbeatNarrative = async ({
             ...callOptions,
             model,
             providerOptions,
-            system: buildReportSystemPrompt(await loadWritingBrief()),
+            instructions: buildReportSystemPrompt(await loadWritingBrief()),
             messages: [
                 {
                     role: 'user',

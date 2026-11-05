@@ -58,3 +58,35 @@ describe('getRunQueryChartConfig with a custom chart type answer', () => {
         expect(getGroupByDimensions(webAiChartConfig)).toBeUndefined();
     });
 });
+
+describe('getRunQueryChartConfig new chart defaults', () => {
+    it.each(['bar', 'horizontal', 'line'] as const)(
+        'turns the incomplete period on for a %s chart',
+        (chartType) => {
+            const queryTool = toolRunQueryArgsSchemaTransformed.parse({
+                ...rawCustomArgs,
+                chartConfig: {
+                    defaultVizType: chartType,
+                    xAxisDimension: 'orders_order_date_month',
+                    yAxisMetrics: ['orders_revenue'],
+                    groupBy: null,
+                    xAxisType: 'time',
+                    stackBars: null,
+                    lineType: null,
+                    xAxisLabel: 'Month',
+                    yAxisLabel: 'Revenue',
+                },
+            });
+            expect(
+                getRunQueryChartConfig({
+                    queryTool,
+                    metricQuery,
+                    fieldsMap: {},
+                }),
+            ).toMatchObject({
+                type: ChartType.CARTESIAN,
+                config: { layout: { showIncompletePeriod: true } },
+            });
+        },
+    );
+});

@@ -5,6 +5,7 @@ import { Box, Group, Stack } from '@mantine/core';
 import { type FC } from 'react';
 import ColorSelector from '../ColorSelector';
 import { EditableText } from '../common/EditableText';
+import { useDebouncedDraft } from '../common/useDebouncedDraft';
 
 type StepConfigProps = {
     defaultColor: string;
@@ -35,6 +36,11 @@ export const StepConfig: FC<StepConfigProps> = ({
     ...rest
 }) => {
     const stepId = id ?? defaultLabel;
+    const [draftLabel, setDraftLabel, flushLabel] = useDebouncedDraft(
+        label ?? '',
+        (value) => onLabelChange(stepId, value),
+        { delay: 500 },
+    );
     return (
         <Stack gap="xs" {...rest}>
             <Group gap="xs">
@@ -42,18 +48,19 @@ export const StepConfig: FC<StepConfigProps> = ({
                     color={color}
                     defaultColor={defaultColor}
                     swatches={swatches}
-                    onColorChange={(newColor: string) =>
+                    onColorChange={(newColor) =>
                         onColorChange(stepId, newColor)
                     }
                 />
                 <Box flex={1}>
                     <EditableText
                         placeholder={defaultLabel}
-                        value={label}
+                        value={draftLabel}
                         granularityFields={granularityFields}
-                        onChange={(event) => {
-                            onLabelChange(stepId, event.currentTarget.value);
-                        }}
+                        onChange={(event) =>
+                            setDraftLabel(event.currentTarget.value)
+                        }
+                        onBlur={flushLabel}
                     />
                 </Box>
             </Group>

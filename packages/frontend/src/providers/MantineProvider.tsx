@@ -2,14 +2,25 @@ import { type MantineThemeOverride } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { Notifications } from '@mantine/notifications';
 import { useEffect, useMemo, type FC } from 'react';
-import { type ColorScheme } from '../theme';
+import {
+    isColorSchemePreference,
+    type ColorScheme,
+    type ColorSchemePreference,
+} from '../theme';
 import { ColorSchemeContext } from './ColorSchemeContext';
 import MantineBaseProvider from './MantineBaseProvider';
+import { useResolvedColorScheme } from './useResolvedColorScheme';
+
+// Older builds read `color-scheme` and only understand light|dark, so the
+// resolved scheme keeps living there and the preference gets its own key.
+const RESOLVED_SCHEME_STORAGE_KEY = 'color-scheme';
+const PREFERENCE_STORAGE_KEY = 'color-scheme-preference';
 
 type Props = {
     themeOverride?: MantineThemeOverride;
     notificationsLimit?: number;
-    forceColorScheme?: ColorScheme;
+    /** Pins the scheme and disables the stored preference; `system` follows the OS. */
+    forceColorScheme?: ColorSchemePreference;
     /** 'test' disables transitions so timers cannot outlive jsdom teardown. */
     env?: 'default' | 'test';
     cssVariablesSelector?: string;
@@ -28,25 +39,47 @@ const MantineProvider: FC<React.PropsWithChildren<Props>> = ({
     getRootElement,
     syncBodyColorMode = true,
 }) => {
-    const [storedColorScheme, setColorScheme] = useLocalStorage<ColorScheme>({
-        key: 'color-scheme',
+    const [storedScheme, setStoredScheme] = useLocalStorage<ColorScheme>({
+        key: RESOLVED_SCHEME_STORAGE_KEY,
         defaultValue: 'light',
+        getInitialValueInEffect: false,
     });
+    const [storedPreference, setStoredPreference] =
+        useLocalStorage<ColorSchemePreference>({
+            key: PREFERENCE_STORAGE_KEY,
+            defaultValue: storedScheme,
+            getInitialValueInEffect: false,
+        });
+    const storedColorSchemePreference = isColorSchemePreference(
+        storedPreference,
+    )
+        ? storedPreference
+        : 'light';
 
-    const colorScheme = forceColorScheme ?? storedColorScheme;
+    const colorSchemePreference =
+        forceColorScheme ?? storedColorSchemePreference;
+    const colorScheme = useResolvedColorScheme(colorSchemePreference);
+
+    useEffect(() => {
+        if (forceColorScheme || storedScheme === colorScheme) return;
+        setStoredScheme(colorScheme);
+    }, [colorScheme, forceColorScheme, setStoredScheme, storedScheme]);
 
     const colorSchemeContextValue = useMemo(
         () => ({
             colorScheme,
-            // Pass a plain value: @mantine/hooks useLocalStorage's functional
-            // updater is impure (writes storage inside the updater) and
-            // double-toggles under StrictMode.
-            toggleColorScheme: () => {
+            colorSchemePreference,
+            setColorSchemePreference: (preference: ColorSchemePreference) => {
                 if (forceColorScheme) return;
-                setColorScheme(colorScheme === 'dark' ? 'light' : 'dark');
+                setStoredPreference(preference);
             },
         }),
-        [colorScheme, forceColorScheme, setColorScheme],
+        [
+            colorScheme,
+            colorSchemePreference,
+            forceColorScheme,
+            setStoredPreference,
+        ],
     );
 
     useEffect(() => {

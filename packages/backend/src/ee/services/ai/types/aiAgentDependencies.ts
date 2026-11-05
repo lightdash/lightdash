@@ -4,17 +4,18 @@ import {
     AiAgentDocumentContent,
     AiAgentDocumentSummary,
     AiAgentJudgeProjectContextEntry,
+    AiAgentPromptLoadout,
     AiArtifact,
     AiMetricQueryWithFilters,
     AiPromptSteer,
     AiWebAppPrompt,
-    AiWritebackRunResult,
     AllChartsSearchResult,
     AnyType,
     ApiExecuteAsyncMetricQueryResults,
     CacheMetadata,
     CatalogField,
     ChartAsCode,
+    ComposerNodeColumn,
     CreateSchedulerAndTargetsWithoutIds,
     CustomChartType,
     CustomChartTypeLibrary,
@@ -36,9 +37,9 @@ import {
     McpDocumentRead,
     ParameterDefinitions,
     ParametersValuesMap,
-    PreviewDeploySetupResult,
     ProjectType,
     QueryExecutionContext,
+    QueryHistoryStatus,
     ReadContentType,
     ResultColumns,
     SavedChart,
@@ -47,6 +48,7 @@ import {
     SourceQuery,
     SourceQuerySubmission,
     SqlChartAsCode,
+    TablePartitioning,
     ThreadComposerQueryNode,
     ToolFindContentArgs,
     ToolFindFieldsArgs,
@@ -68,10 +70,7 @@ import {
     AiAgentToolCallFailedEvent,
 } from '../../../../analytics/LightdashAnalytics';
 import { PostSlackFile } from '../../../../clients/Slack/SlackClient';
-import type {
-    DbAiPromptComposerVizDecision,
-    DbAiPromptTurnDecision,
-} from '../../../database/entities/ai';
+import type { DbAiPromptTurnDecision } from '../../../database/entities/ai';
 import type { DataAppRead } from '../../AiAgentToolsService/dataAppRead';
 import type { DataAppBuildStatusSource } from '../../AppGenerateService/AppGenerateService';
 import { AiAgentSkill } from '../skills/types';
@@ -252,6 +251,7 @@ export type FindContentSpaceResult = {
     childSpaceCount: number;
     appCount: number;
     directAccess: boolean;
+    canEdit: boolean;
     space: FindContentSpaceMetadata;
     verification: null;
 };
@@ -316,6 +316,7 @@ export type ListContentFn = (args: {
               childSpaceCount: number;
               appCount: number;
               directAccess: boolean;
+              canEdit: boolean;
           }
     >;
     pagination:
@@ -650,6 +651,11 @@ export type StoreReasoningFn = (
     }>,
 ) => Promise<void>;
 
+export type StoreLoadoutFn = (
+    promptUuid: string,
+    loadout: AiAgentPromptLoadout,
+) => Promise<void>;
+
 export type IsPromptInterruptedFn = (promptUuid: string) => Promise<boolean>;
 
 export type ConsumePromptSteersFn = (args: {
@@ -691,10 +697,18 @@ export type ListThreadComposerQueryNodesFn = (
     threadUuid: string,
 ) => Promise<ThreadComposerQueryNode[]>;
 
+/** Null when the node was registered without node columns. */
+export type GetThreadComposerNodeColumnsFn = (args: {
+    threadUuid: string;
+    nodeId: string;
+}) => Promise<ComposerNodeColumn[] | null>;
+
 /** Throws on a different definition under a registered node id. */
 export type RegisterThreadComposerQueryNodesFn = (args: {
     threadUuid: string;
     nodes: ThreadComposerQueryNode[];
+    /** Columns by node id; a node without an entry keeps the columns it has. */
+    nodeColumns: Record<string, ComposerNodeColumn[]>;
 }) => Promise<void>;
 
 type RecordedPromptDecisionField =
@@ -709,9 +723,7 @@ type RecordedPromptDecisionField =
 
 /** Records a fast decision for the current prompt; failures are logged, never thrown. */
 export type RecordPromptDecisionFn = (
-    decision:
-        | Pick<DbAiPromptTurnDecision, RecordedPromptDecisionField>
-        | Pick<DbAiPromptComposerVizDecision, RecordedPromptDecisionField>,
+    decision: Pick<DbAiPromptTurnDecision, RecordedPromptDecisionField>,
 ) => Promise<void>;
 
 export type CheckUserPermissionFn = (args: {
@@ -746,27 +758,70 @@ export type ComposerNodeStatusUpdate = {
     errorMessage: string | null;
 };
 
+/** How one node did in a run, read from its query history row. */
+export type ComposerNodeStatus = {
+    nodeId: string;
+    state: QueryHistoryStatus;
+    error: string | null;
+    /** Null until the node's query is ready. */
+    rowCount: number | null;
+    /** Result columns; null until the node's query is ready. */
+    columns: ResultColumns | null;
+    /** First rows of a node asked to be sampled; null otherwise or when the read fails. */
+    sample: Record<string, AnyType>[] | null;
+};
+
+/** Every submitted node's status, read once after the terminal node settles. */
+export type ComposerRunOutcome =
+    | {
+          status: 'success';
+          submissions: SourceQuerySubmission[];
+          terminal: {
+              queryUuid: string;
+              columns: ResultColumns;
+              /** First COMPOSER_QUERY_PREVIEW_ROW_LIMIT rows; rowCount is the full count. */
+              rows: Record<string, AnyType>[];
+              rowCount: number;
+          };
+          nodeStatuses: ComposerNodeStatus[];
+      }
+    | {
+          status: 'failure';
+          error: string;
+          nodeStatuses: ComposerNodeStatus[];
+      };
+
 /**
  * Submits a composer query (multi-source pipeline) and waits for the terminal
- * node's results. Submissions carry the pinned nodeId → queryUuid mapping for
+ * node to settle. Submissions carry the pinned nodeId → queryUuid mapping for
  * every node; the terminal snapshot is the first page of the terminal node's
  * results, capped at that node's limit. `onNodeStatus` receives per-node
  * lifecycle transitions (running on submission, then success/error) while the
- * pipeline executes.
+ * pipeline executes. Throws only when submission fails before any query id exists.
  */
 export type RunComposerQueriesFn = (args: {
     queries: SourceQuery[];
     terminalNodeId: string;
+    /** Nodes whose node sample is read through the terminal rows' reader once the terminal settles. */
+    sampleNodeIds: string[];
     onNodeStatus?: (update: ComposerNodeStatusUpdate) => void;
-}) => Promise<{
+}) => Promise<ComposerRunOutcome>;
+
+/** Terminal still running at the deadline; statuses are read once then. */
+export type ComposerRunningOutcome = {
+    status: 'running';
     submissions: SourceQuerySubmission[];
-    terminal: {
-        queryUuid: string;
-        columns: ResultColumns;
-        rows: Record<string, AnyType>[];
-        rowCount: number;
-    };
-}>;
+    nodeStatuses: ComposerNodeStatus[];
+};
+
+/** RunComposerQueriesFn that returns running once deadlineMs passes instead of failing. */
+export type RunComposerQueriesUntilDeadlineFn = (args: {
+    queries: SourceQuery[];
+    terminalNodeId: string;
+    /** Ready nodes to read a node sample of, also when the terminal is still running. */
+    sampleNodeIds: string[];
+    deadlineMs: number;
+}) => Promise<ComposerRunOutcome | ComposerRunningOutcome>;
 
 export type ListWarehouseTablesFn = (
     context?: QueryExecutionContext,
@@ -777,9 +832,11 @@ export type DescribeWarehouseTableFn = (args: {
     schema?: string;
     database?: string;
 }) => Promise<{
-    columns: Array<{ name: string; type: string }>;
+    columns: Array<{ name: string; type: string; nativeType: string | null }>;
     resolvedSchema: string | null;
     resolvedDatabase: string | null;
+    partitioning: TablePartitioning | null;
+    warehouseType: WarehouseTypes;
 }>;
 
 export type ListKnowledgeDocumentsFn = () => Promise<AiAgentDocumentSummary[]>;
@@ -916,23 +973,6 @@ export type EditProjectContextFn = (
 ) => Promise<{ prUrl: string; prAction: 'opened' | 'updated' }>;
 
 /**
- * Make a code change to a writable repository and open/update a pull request,
- * via the general coding agent. The counterpart to {@link EditDbtProjectFn} for
- * non-dbt repos: no compile/preview step (verification lives in the PR's CI), so
- * it returns the base writeback result without the preview fields.
- */
-export type EditRepoFn = (args: {
-    repoTarget: string;
-    prompt: string | null;
-    prUrl: string | null;
-    /** Open a new PR instead of continuing the repo's existing one in-thread. */
-    startNewPullRequest: boolean | null;
-    progressId?: string;
-}) => Promise<AiWritebackRunResult>;
-
-export type SetupPreviewDeployFn = () => Promise<PreviewDeploySetupResult>;
-
-/**
  * Run one read-only shell command (ls/cat/find/grep/head/wc) against a repo
  * virtual filesystem and return combined stdout. With no `target` this reads the
  * project's dbt repo (subPath-scoped, as before); with an `"owner/repo"` target
@@ -958,7 +998,7 @@ export type DiscoverReposFn = () => Promise<
 
 /**
  * List the pull requests (workstreams) the current chat thread has opened with
- * {@link EditRepoFn}, so the agent can route a follow-up to the right one or
+ * {@link EditDbtProjectFn}, so the agent can route a follow-up to the right one or
  * decide to open a new one. Optionally scoped to a single `owner/repo`.
  */
 export type ListWorkstreamsFn = (args: {
@@ -975,7 +1015,7 @@ export type ListWorkstreamsFn = (args: {
 
 /**
  * Close (without merging) a pull request the chat thread opened with
- * {@link EditRepoFn}. Thin wrapper over the same write-back close path the chat
+ * {@link EditDbtProjectFn}. Thin wrapper over the same write-back close path the chat
  * PR card's "Close PR" button uses; the underlying service enforces
  * `manage:SourceCode` and that the URL targets this project's own repo.
  */
@@ -1014,14 +1054,5 @@ export type GetProjectInfoFn = () => Promise<{
         branch: string;
         projectSubPath: string;
         hostDomain: string | null;
-    } | null;
-    /**
-     * Whether the git-backed repo deploys Lightdash preview projects via GitHub
-     * Actions. Null when it can't be determined (not a git project, GitHub App
-     * not installed, or the host has no preview-deploy support).
-     */
-    previewDeployCi: {
-        hasPreviewDeployWorkflow: boolean;
-        workflowPath: string | null;
     } | null;
 }>;

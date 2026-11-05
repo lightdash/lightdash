@@ -109,6 +109,15 @@ const blockLayoutTraits: Record<HomepageBlock['type'], BlockLayoutTrait> = {
         fullRowOnly: false,
         itemSpan: null,
     },
+    learn: {
+        // One card, so it reads at the content width alone and shares a row
+        // with a list block (favorites, recent) as an equal column.
+        widthTier: 'content',
+        columnWeight: 1,
+        rhythm: 'section',
+        fullRowOnly: false,
+        itemSpan: null,
+    },
     markdown: {
         // Full width even alone: a text banner joins the page's card-grid
         // axis instead of floating as a narrow reading column.

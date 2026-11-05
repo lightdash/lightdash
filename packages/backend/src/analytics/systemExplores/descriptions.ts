@@ -1,6 +1,10 @@
 import type { Dimension } from '@lightdash/common';
 
 export const analyticsTableDescriptions: Record<string, string> = {
+    embed_reach:
+        'Observed successful embedded dashboard fetches, with explicit external-viewer attribution. Excludes previews and duplicate deliveries. Refetches count; child queries do not. Does not measure browser rendering, tenant attribution, embedding configuration or billable loads. Capture starts after deployment.',
+    historical_activity:
+        'Retained database history for views, apps, AI conversations and tools, MCP calls, research and exports. These records use different counting rules from captured Analytics events: filter by activity type and do not add their totals to captured events. Status fields reflect the last import.',
     query_events:
         'Query outcomes, with one recorded event per completed query attempt, including cache hits and execution errors. Use this Explore to investigate query volume, latency and workload origin. Preview projects and failures before query execution are excluded.',
     ai_usage:
@@ -23,6 +27,8 @@ export const analyticsTableDescriptions: Record<string, string> = {
         'Captured chart and dashboard fetches, with audience and returning-viewer metrics. Qualifying views are successful backend fetches by identified users, excluding known previews and embeds. Refetches count; browser-cache-only visits are not captured. Data app loads are in Data app reach.',
     content_health:
         'The latest inventory of charts, dashboards and data apps, including items with no observed activity and soft-deleted items. Combines current ownership and known dependencies with retained usage. No observed activity does not prove an item is unused or safe to delete.',
+    content_inventory:
+        'The latest inventory of charts, dashboards and data apps, including zero-activity and soft-deleted items. Use for creation dates, ownership and current metadata without reading usage history. This is not a historical inventory.',
     semantic_usage:
         'Direct field references in captured semantic queries, with one row per query, field and role. Use this Explore to find which metrics and dimensions are queried. Counts are distinct and cannot be summed across fields or roles; SQL-only and older queries may have no field details.',
     data_app_reach:
@@ -39,6 +45,8 @@ export const analyticsTableDescriptions: Record<string, string> = {
         'Dashboard names, slugs and state from the latest available snapshot, joined to recorded dashboard identifiers.',
     lightdash_agents:
         'AI agent names from the latest available snapshot, joined to recorded agent identifiers.',
+    lightdash_projects:
+        'Project names from the latest available organization snapshot, including projects without saved content. Names are current snapshot values, not a history of names.',
     lightdash_apps:
         'App and project names from the latest content inventory, joined to recorded app identifiers.',
 };
@@ -318,6 +326,7 @@ const sharedDimensions: Record<string, string> = {
 const modelDimensions: Record<string, Record<string, string>> = {
     query_events: {
         status: 'Recorded query outcome, such as success or error. Queries failing before the captured execution path are absent.',
+        error: 'Recorded query error message, limited to 1,000 characters including a truncation marker. Empty for successful queries and historical events that did not capture the message.',
         event_name:
             'The captured query.completed event, emitted when a query reaches a recorded outcome. Includes cache hits and execution errors.',
     },
@@ -371,6 +380,12 @@ const modelDimensions: Record<string, Record<string, string>> = {
         view_context:
             'Captured fetch context: backend, preview or embed. Legacy unclassified context is unknown and does not qualify for audience counts.',
     },
+    content_inventory: {
+        content_name: 'Content name in the latest inventory snapshot.',
+        project_name: 'Project name in the latest inventory snapshot.',
+        is_verified:
+            'Verification state in the latest inventory snapshot, not its historical state during activity.',
+    },
     content_health: {
         content_name:
             'Content name in the latest inventory snapshot, not its name at the time of each historical event.',
@@ -388,6 +403,9 @@ const modelDimensions: Record<string, Record<string, string>> = {
     },
     lightdash_agents: {
         name: 'AI agent name from the latest available snapshot. Unknown agent means no matching name is available.',
+    },
+    lightdash_projects: {
+        name: 'Project name from the latest organization snapshot. Missing or deleted projects appear as Unknown project; historical names are not retained.',
     },
     lightdash_charts: {
         name: 'Chart name from the latest available snapshot. Historical activity uses this snapshot name, which can differ from the name at event time.',

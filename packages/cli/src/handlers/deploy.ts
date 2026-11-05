@@ -1,5 +1,6 @@
 import {
     ApiDeployExploresResults,
+    ApiReplaceProjectContextResults,
     AuthorizationError,
     DeploySessionStatus,
     Explore,
@@ -35,7 +36,10 @@ import {
     warehouseCredentialsFromDbtTarget,
 } from '../dbt/profile';
 import GlobalState from '../globalState';
-import { readAndLoadLightdashProjectConfig } from '../lightdash-config';
+import {
+    readAndLoadLightdashProjectConfig,
+    readProjectContextFile,
+} from '../lightdash-config';
 import { CliProjectType, detectProjectType } from '../lightdash/projectType';
 import * as styles from '../styles';
 import {
@@ -43,10 +47,7 @@ import {
     hasBlockingCompileError,
     stripWarehouseColumnErrors,
 } from './compile';
-import {
-    createProject,
-    resolveOrganizationCredentialsName,
-} from './createProject';
+import { createProject } from './createProject';
 import {
     checkLightdashVersion,
     lightdashApi,
@@ -73,7 +74,6 @@ type DeployHandlerOptions = DbtCompileOptions & {
     ignoreErrors: boolean;
     startOfWeek?: number;
     warehouseCredentials?: boolean;
-    organizationCredentials?: string;
     assumeYes?: boolean;
     batchedDeploy?: boolean;
     batchSize?: string;
@@ -210,10 +210,16 @@ const replaceProjectParameters = async (
     projectUuid: string,
     lightdashProjectConfig: LightdashProjectConfig,
 ) => {
+    if (lightdashProjectConfig.parameters === undefined) {
+        GlobalState.log(
+            'No parameters section in lightdash.config.yml; project parameters left unchanged (use `parameters: {}` to clear)',
+        );
+        return;
+    }
     await lightdashApi<null>({
         method: 'PUT',
         url: `/api/v2/projects/${projectUuid}/parameters`,
-        body: JSON.stringify(lightdashProjectConfig.parameters ?? {}),
+        body: JSON.stringify(lightdashProjectConfig.parameters),
     });
 };
 
@@ -242,6 +248,49 @@ const replaceProjectTableGroups = async (
         url: `/api/v1/projects/${projectUuid}/table-groups`,
         body: JSON.stringify(lightdashProjectConfig.table_groups),
     });
+};
+
+const replaceProjectContext = async (
+    projectUuid: string,
+    projectDir: string,
+) => {
+    const projectContextYaml = await readProjectContextFile(projectDir);
+    if (projectContextYaml === undefined) {
+        return;
+    }
+    const results = await lightdashApi<ApiReplaceProjectContextResults>({
+        method: 'PUT',
+        url: `/api/v1/projects/${projectUuid}/project-context`,
+        body: JSON.stringify({ yaml: projectContextYaml }),
+    });
+    if (results.ingested) {
+        GlobalState.debug(
+            `> Uploaded ${results.entryCount} project context entries`,
+        );
+        return;
+    }
+    console.error(
+        styles.warning(
+            '\nlightdash.project_context.yml was ignored: enable "Review AI agent turns" in the organization AI settings to use project context\n',
+        ),
+    );
+};
+
+// Explores are already deployed by the time these run, so a failure is
+// reported but never fails the deploy.
+const runPostDeployStep = async (
+    label: string,
+    step: () => Promise<void>,
+): Promise<void> => {
+    try {
+        await step();
+    } catch (e) {
+        console.error(
+            styles.warning(
+                `\nError replacing ${label}: ${getErrorMessage(e)}\n`,
+            ),
+        );
+    }
 };
 
 const BATCH_UPLOAD_MAX_ATTEMPTS = 4;
@@ -493,61 +542,6 @@ export const deploy = async (
         options.projectUuid,
     );
 
-    // These two methods are not critical to the deployment process, so we can ignore errors and show warnings instead
-    try {
-        await replaceProjectYamlTags(
-            options.projectUuid,
-            lightdashProjectConfig,
-        );
-    } catch (e) {
-        console.error(
-            styles.warning(
-                `\nError replacing YAML tags: ${getErrorMessage(e)}\n`,
-            ),
-        );
-    }
-
-    try {
-        await replaceProjectParameters(
-            options.projectUuid,
-            lightdashProjectConfig,
-        );
-    } catch (e) {
-        console.error(
-            styles.warning(
-                `\nError replacing project parameters: ${getErrorMessage(e)}\n`,
-            ),
-        );
-    }
-
-    try {
-        await replaceProjectDefaults(
-            options.projectUuid,
-            lightdashProjectConfig,
-        );
-    } catch (e) {
-        console.error(
-            styles.warning(
-                `\nError replacing project defaults: ${getErrorMessage(e)}\n`,
-            ),
-        );
-    }
-
-    try {
-        await replaceProjectTableGroups(
-            options.projectUuid,
-            lightdashProjectConfig,
-        );
-    } catch (e) {
-        console.error(
-            styles.warning(
-                `\nError replacing project table groups: ${getErrorMessage(
-                    e,
-                )}\n`,
-            ),
-        );
-    }
-
     const shouldUseLegacyDeploy =
         options.batchedDeploy === false ||
         !(await deployBatched(deployableExplores, options));
@@ -635,6 +629,25 @@ export const deploy = async (
             throw error;
         }
     }
+
+    await runPostDeployStep('YAML tags', () =>
+        replaceProjectYamlTags(options.projectUuid, lightdashProjectConfig),
+    );
+    await runPostDeployStep('project parameters', () =>
+        replaceProjectParameters(options.projectUuid, lightdashProjectConfig),
+    );
+    await runPostDeployStep('project defaults', () =>
+        replaceProjectDefaults(options.projectUuid, lightdashProjectConfig),
+    );
+    await runPostDeployStep('project table groups', () =>
+        replaceProjectTableGroups(options.projectUuid, lightdashProjectConfig),
+    );
+    await runPostDeployStep('project context', () =>
+        replaceProjectContext(
+            options.projectUuid,
+            path.resolve(options.projectDir),
+        ),
+    );
 };
 
 const createNewProject = async (
@@ -788,22 +801,6 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
             GlobalState.debug(
                 `> Could not detect adapter type: ${getErrorMessage(e)}`,
             );
-        }
-    }
-
-    // Resolve organization credentials early before doing any heavy work
-    if (options.organizationCredentials) {
-        try {
-            await resolveOrganizationCredentialsName(
-                options.organizationCredentials,
-            );
-        } catch (error) {
-            console.error(
-                styles.error(
-                    error instanceof Error ? error.message : 'Unknown error',
-                ),
-            );
-            process.exit(1);
         }
     }
 

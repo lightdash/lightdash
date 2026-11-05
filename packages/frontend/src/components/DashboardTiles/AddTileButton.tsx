@@ -25,7 +25,9 @@ import { useCallback, useMemo, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import {
     selectDashboardFilters,
+    selectDashboardTiles,
     selectHaveFiltersChanged,
+    selectHaveTilesChanged,
     useDashboardSelector,
 } from '../../features/dashboard/store';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
@@ -68,9 +70,9 @@ const AddTileButton: FC<Props> = ({
     const [addTileType, setAddTileType] = useState<DashboardTileTypes>();
     const [isAddChartTilesModalOpen, setIsAddChartTilesModalOpen] =
         useState<boolean>(false);
-    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
+    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const dashboardFilters = useDashboardSelector(selectDashboardFilters);
-    const haveTilesChanged = useDashboardContext((c) => c.haveTilesChanged);
+    const haveTilesChanged = useDashboardSelector(selectHaveTilesChanged);
     const haveFiltersChanged = useDashboardSelector(selectHaveFiltersChanged);
     const dashboard = useDashboardContext((c) => c.dashboard);
 

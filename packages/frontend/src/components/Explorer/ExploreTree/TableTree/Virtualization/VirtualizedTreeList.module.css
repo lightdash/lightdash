@@ -28,12 +28,20 @@
 .sizer {
     position: relative;
     width: 100%;
+    height: var(--tree-height);
 }
 
 .item {
+    position: absolute;
     top: 0;
     left: 0;
     width: 100%;
+    transform: translateY(var(--item-start));
+
+    &[data-active-sticky] {
+        position: sticky;
+        transform: none;
+    }
 }
 
 .item[data-sticky-header] {

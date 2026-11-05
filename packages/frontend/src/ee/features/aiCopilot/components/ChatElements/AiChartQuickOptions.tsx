@@ -29,7 +29,12 @@ import { CHART_TYPES_WITHOUT_IMAGE_EXPORT } from '../../../../../components/comm
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { SaveToSpaceOrDashboard } from '../../../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
-import { useVisualizationContext } from '../../../../../components/LightdashVisualization/useVisualizationContext';
+import {
+    useVisualizationServices,
+    useEditedChartConfig,
+    useVisualizationConfig,
+    useVisualizationInputs,
+} from '../../../../../components/LightdashVisualization/useVisualizationContext';
 import useEmbed from '../../../../../ee/providers/Embed/useEmbed';
 import { useChartVersionPreview } from '../../../../../features/apps/ChartVersionPreview/useChartVersionPreview';
 import { useDataAppVizRenderMetadata } from '../../../../../features/chartTypes/hooks/useDataAppVizRender';
@@ -113,7 +118,12 @@ export const AiChartQuickOptions = ({
     const { track } = useTracking();
     const { user } = useApp();
     const ability = useAbilityContext();
-    const { content, writeActions, embedToken } = useEmbed();
+    const {
+        content,
+        embedWriteContext,
+        embedToken,
+        aiAgentNavigationDisabled,
+    } = useEmbed();
     const isEmbed = useIsEmbedded();
     const getBackUrl = useChatBackUrl();
     const optionsAnchorId = `chart-options-${artifactData?.artifactUuid ?? message.uuid}`;
@@ -169,15 +179,16 @@ export const AiChartQuickOptions = ({
             projectUuid,
         }),
     );
+    const { chartRef } = useVisualizationServices();
+    const visualizationConfig = useVisualizationConfig();
+    const chartConfig = useEditedChartConfig();
     const {
-        visualizationConfig,
         columnOrder,
         resultsData,
-        chartConfig,
         pivotDimensions,
-        chartRef,
         savedChartUuid,
-    } = useVisualizationContext();
+        parameters,
+    } = useVisualizationInputs();
     const canDownloadResults =
         showDownloadResults &&
         (isEmbed
@@ -361,6 +372,7 @@ export const AiChartQuickOptions = ({
                 pivotColumns: pivotDimensions?.length
                     ? remapFieldIdsDeep(pivotDimensions, fieldIdByAiFieldId)
                     : undefined,
+                parameters: merge.parameters,
             });
             const search = new URLSearchParams(url.search);
             search.set(
@@ -381,6 +393,7 @@ export const AiChartQuickOptions = ({
             pivotColumns: customChartTypeConfig
                 ? savedData?.pivotConfig?.columns
                 : pivotDimensions,
+            parameters,
         });
     }, [
         isDisabled,
@@ -393,6 +406,7 @@ export const AiChartQuickOptions = ({
         pivotDimensions,
         customChartTypeConfig,
         savedData,
+        parameters,
     ]);
 
     const { mutateAsync: createShareUrl } = useCreateShareMutation();
@@ -499,7 +513,7 @@ export const AiChartQuickOptions = ({
     // artifacts only offer the explore action in the full app.
     const hasExploreAction = merge
         ? !isEmbed && !!canonicalMerge
-        : !isEmbed || canExploreFromEmbed;
+        : !isEmbed || (canExploreFromEmbed && !aiAgentNavigationDisabled);
     const hasSqlActions = !!compiledSql;
     const hasQuickActions =
         canDownloadResults ||
@@ -725,8 +739,10 @@ export const AiChartQuickOptions = ({
                             name: saveChartOptions.name ?? '',
                             description: saveChartOptions.description ?? '',
                         }}
-                        forcedSpaceUuid={
-                            isEmbed ? writeActions?.spaceUuid : undefined
+                        restrictedSpaces={
+                            isEmbed
+                                ? embedWriteContext?.writableSpaces
+                                : undefined
                         }
                         redirectOnSuccess={false}
                     />

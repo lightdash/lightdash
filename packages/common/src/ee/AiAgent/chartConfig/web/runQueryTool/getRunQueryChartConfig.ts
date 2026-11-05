@@ -1,13 +1,11 @@
 import { type ItemsMap } from '../../../../../types/field';
 import { type MetricQuery } from '../../../../../types/metricQuery';
 import { type ChartConfig } from '../../../../../types/savedCharts';
-import {
-    isCustomChartTypeSlugChartConfig,
-    type ToolRunQueryArgsTransformed,
-} from '../../../schemas';
+import { applyNewChartDefaults } from '../../../../../utils/charts';
+import { isCustomChartTypeSlugChartConfig } from '../../../schemas';
 import { canRenderAsChart } from '../shared/canRenderAsChart';
 import { getTableChartConfig } from '../shared/getTableChartConfig';
-import { type AiAgentChartTypeOption } from '../types';
+import { type AiAgentChartTypeOption, type RunQueryChartInput } from '../types';
 import { getBarChartConfig } from './viz/bar';
 import { getFunnelChartConfig } from './viz/funnel';
 import { getHorizontalBarChartConfig } from './viz/horizontalBar';
@@ -15,17 +13,13 @@ import { getLineChartConfig } from './viz/line';
 import { getPieChartConfig } from './viz/pie';
 import { getScatterChartConfig } from './viz/scatter';
 
-/**
- * Converts runQuery tool result to echarts config
- * This is the main function used for chart type switching
- */
-export const getRunQueryChartConfig = ({
+const buildRunQueryChartConfig = ({
     queryTool,
     metricQuery,
     fieldsMap,
     overrideChartType,
 }: {
-    queryTool: ToolRunQueryArgsTransformed;
+    queryTool: RunQueryChartInput;
     metricQuery: MetricQuery;
     fieldsMap: ItemsMap;
     overrideChartType?: AiAgentChartTypeOption;
@@ -109,3 +103,11 @@ export const getRunQueryChartConfig = ({
             throw new Error(`Unknown chart type: ${chartType}`);
     }
 };
+
+/**
+ * Converts runQuery tool result to echarts config
+ * This is the main function used for chart type switching
+ */
+export const getRunQueryChartConfig = (
+    args: Parameters<typeof buildRunQueryChartConfig>[0],
+): ChartConfig => applyNewChartDefaults(buildRunQueryChartConfig(args));

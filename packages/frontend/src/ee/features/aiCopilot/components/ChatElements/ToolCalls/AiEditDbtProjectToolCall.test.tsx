@@ -29,7 +29,6 @@ describe('Bitbucket dbt writeback card', () => {
             <MemoryRouter>
                 <AiEditDbtProjectToolCall
                     projectUuid="project"
-                    isPreviewDeploySetup={false}
                     metadata={{
                         status: 'success',
                         prUrl,
@@ -66,7 +65,6 @@ describe('Bitbucket dbt writeback card', () => {
             <MemoryRouter>
                 <AiEditDbtProjectToolCall
                     projectUuid="project"
-                    isPreviewDeploySetup={false}
                     metadata={{
                         status: 'error',
                         errorCode: 'bitbucket_token_missing',

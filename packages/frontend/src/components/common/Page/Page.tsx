@@ -2,6 +2,7 @@ import { ProjectType, type AnyType } from '@lightdash/common';
 import { Box, Button, Drawer, useMatches } from '@mantine/core';
 import { useDisclosure, useElementSize } from '@mantine/hooks';
 import { IconLayoutSidebarLeftExpand } from '@tabler/icons-react';
+import clsx from 'clsx';
 import { useEffect, useState, type FC } from 'react';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import ErrorBoundary from '../../../features/errorBoundary/ErrorBoundary';
@@ -155,11 +156,9 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
                 data-sidebar-resizing={isSidebarResizing}
                 data-centered-root={withCenteredRoot}
                 data-compact={compact}
-                style={
-                    header
-                        ? { '--header-offset': `${headerHeight}px` }
-                        : undefined
-                }
+                style={{
+                    '--header-offset': header ? `${headerHeight}px` : undefined,
+                }}
             >
                 {sidebar && compact && isSidebarOpen ? (
                     <Box px="sm" py="xs" className={classes.sidebarToolbar}>
@@ -248,7 +247,14 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
 
                 {rightSidebar && compact && onRightSidebarClose ? (
                     <Drawer
-                        classNames={sidebarDrawerClasses}
+                        classNames={{
+                            ...sidebarDrawerClasses,
+                            body: clsx(
+                                sidebarDrawerClasses.body,
+                                noRightSidebarPadding &&
+                                    classes.drawerBodyFlush,
+                            ),
+                        }}
                         opened={isRightSidebarOpen}
                         onClose={onRightSidebarClose}
                         title={rightSidebarTitle}
@@ -260,11 +266,6 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
                         size="100%"
                         keepMounted={keepRightSidebarMounted}
                         padding="md"
-                        styles={
-                            noRightSidebarPadding
-                                ? { body: { padding: 0 } }
-                                : undefined
-                        }
                     >
                         <Box
                             ref={setRightSidebarTarget}

@@ -3,96 +3,136 @@ import {
     type DashboardFilterableField,
     type DashboardFilterRule,
 } from '@lightdash/common';
-import { ActionIcon, Box, Button, Group, Tooltip } from '@mantine/core';
-import {
-    IconCircleCheck,
-    IconCircleDashed,
-    IconGripVertical,
-    IconLock,
-    IconLockOpen,
-    IconX,
-} from '@tabler/icons-react';
-import { memo, useMemo, type FC } from 'react';
+import { Box, Text, Tooltip } from '@mantine/core';
+import { useOs } from '@mantine/hooks';
+import { IconCheck } from '@tabler/icons-react';
+import { memo, type FC, type KeyboardEvent, type MouseEvent } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useTracking from '../../providers/Tracking/useTracking';
-import { getFieldColor } from '../../utils/fieldColors';
-import pillClasses from '../dashboardFilters/ActiveFilters/Filter.module.css';
-import { showsComposedFilterValue } from '../dashboardFilters/ActiveFilters/filterLabels';
 import {
     getFilterLockKey,
     getFilterLockLabel,
     getFilterLockToggle,
 } from '../dashboardFilters/ActiveFilters/filterLock';
-import { FilterRuleLabel } from '../dashboardFilters/ActiveFilters/FilterRuleLabel';
-import { getTruncatedValuesDisplay } from '../dashboardFilters/ActiveFilters/utils';
-import { useFilterChipRequirementState } from '../dashboardFilters/FilterRequirements/useFilterChipRequirementState';
+import { FilterPillButton } from '../dashboardFilters/ActiveFilters/FilterPillButton';
+import { useBarSelection } from './barSelection';
+import { EditorPopover } from './FilterEditor';
 import classes from './FilterPills.module.css';
 import { replaceFilterRule } from './sidebarState';
 import { useControlsSidebarSelector } from './useControlsSidebar';
+import { usePillActionHover } from './usePillActionHover';
+import { getFilterHoverTileUuids, useTileHover } from './useTileHover';
+
+// An editor's pill, a viewer's on a saved filter, or a viewer's on a filter of
+// their own (dashed, with an X)
+export type FilterPillKind = 'editor' | 'viewerSaved' | 'viewerOwn';
 
 type Props = {
+    kind: FilterPillKind;
     filter: DashboardFilterRule;
     field: DashboardFilterableField | undefined;
     isOrphaned: boolean;
     orphanedTooltip: string;
     isSelected: boolean;
-    /** A new control that has no label yet. */
+    /** Its fields are not loaded yet, so it opens no editor. */
+    isDisabled: boolean;
+    /** Edit mode: added in this session, not in the saved dashboard. */
     isDraft: boolean;
-    /** While open the pill is only a click target: no grip, lock or X. */
+    /** While a filter is edited the grip and lock are hidden and inert. */
     isSidebarOpen: boolean;
     activeTabUuid: string | undefined;
     hasTabs: boolean;
     dashboardUuid: string | undefined;
+    triggerClassName: string | undefined;
+    /** Stable: the tile fields, read when the pill is hovered. */
+    getFieldsByTile: () =>
+        | Record<string, DashboardFilterableField[]>
+        | undefined;
 };
 
 export const FilterPill: FC<Props> = memo(
     ({
+        kind,
         filter,
         field,
         isOrphaned,
         orphanedTooltip,
         isSelected,
+        isDisabled,
         isDraft,
         isSidebarOpen,
         activeTabUuid,
         hasTabs,
         dashboardUuid,
+        triggerClassName,
+        getFieldsByTile,
     }) => {
         const { track } = useTracking();
+        const getUiString = useUiStrings();
         const open = useControlsSidebarSelector((c) => c.open);
         const removeFilterById = useControlsSidebarSelector(
             (c) => c.removeFilterById,
         );
+        const moveFilter = useControlsSidebarSelector((c) => c.moveFilter);
         const setDashboardFilters = useDashboardContext(
             (c) => c.setDashboardFilters,
         );
         const setHaveFiltersChanged = useDashboardContext(
             (c) => c.setHaveFiltersChanged,
         );
-        const { showRequirementIcon, isRequirementUnmet, requirementTooltip } =
-            useFilterChipRequirementState(filter);
-
-        const truncated = useMemo(
-            () =>
-                getTruncatedValuesDisplay(
-                    filter.values,
-                    showsComposedFilterValue(
-                        field?.type,
-                        filter.target.fallbackType,
-                    ),
-                    filter.operator,
-                ),
-            [filter, field],
+        const selection = useBarSelection();
+        const os = useOs();
+        // On an editor's sectioned bar a modified click picks the pill
+        const isSelectable =
+            selection !== null && kind === 'editor' && !isSidebarOpen;
+        const isPicked =
+            isSelectable && selection.selectedIds.includes(filter.id);
+        const tileHover = useTileHover(
+            filter.id,
+            kind === 'editor' && !isSidebarOpen,
+            (state) =>
+                getFilterHoverTileUuids(filter, state, getFieldsByTile()),
         );
-
+        // The X, the lock and the required mark (`data-own-tooltip`) have
+        // tooltips of their own: the pill's waits meanwhile
+        const { isOnAction, trackAction } = usePillActionHover(
+            '[data-controls-pill]',
+        );
+        // Dashed pills say why first, in the tooltip the pill already has:
+        // the select hint, else the tables one. The open pill has its editor
+        const dashedNote =
+            isSelected && isSidebarOpen
+                ? null
+                : kind === 'viewerOwn'
+                  ? getUiString('controls.onlyYouSeeFilter')
+                  : isDraft
+                    ? 'Not saved yet'
+                    : null;
+        const selectHint = `Click to edit · ${os === 'macos' ? '⌘' : 'Ctrl'} click to select`;
+        const tooltipLabel = isOrphaned ? (
+            orphanedTooltip
+        ) : !isSelectable ? null : dashedNote === null ? (
+            selectHint
+        ) : (
+            <>
+                <Text fz="xs">{dashedNote}</Text>
+                <Text fz="xs">{selectHint}</Text>
+            </>
+        );
+        const tablesTooltipNote =
+            dashedNote !== null && (isOrphaned || !isSelectable)
+                ? dashedNote
+                : undefined;
         const isLocked = isFilterLockedOnTab(filter, activeTabUuid, hasTabs);
+        // As the shipped view-mode pill: a locked saved filter opens nothing
+        const isReadOnlyLocked = kind === 'viewerSaved' && isLocked;
         const lockKey = getFilterLockKey({
             hasTabs,
             activeTabUuid,
             dashboardUuid,
         });
-        const lockLabel = getFilterLockLabel(isLocked, hasTabs);
 
         const toggleLock = () => {
             const toggle = getFilterLockToggle(filter, {
@@ -109,130 +149,112 @@ export const FilterPill: FC<Props> = memo(
             setHaveFiltersChanged(true);
         };
 
-        const isDraggable = !isSidebarOpen;
+        // On an editor's sectioned bar a modified click picks the pill and a
+        // plain one ends the selection before it opens the filter
+        const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
+            if (isReadOnlyLocked) return;
+            if (isSelectable) {
+                if (event.metaKey || event.ctrlKey || event.shiftKey) {
+                    selection.pick(filter.id, event.shiftKey);
+                    return;
+                }
+                selection.clear();
+            }
+            open(filter.id);
+        };
+
+        // As a section's name: Alt with an arrow moves it one place
+        const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+            if (
+                !event.altKey ||
+                (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight')
+            )
+                return;
+            event.preventDefault();
+            moveFilter(filter.id, event.key === 'ArrowLeft' ? 'left' : 'right');
+        };
 
         return (
-            <Tooltip
-                fz="xs"
-                maw={300}
-                disabled={!isOrphaned}
-                label={orphanedTooltip}
-            >
-                <Box className={classes.pill}>
-                    <Button
-                        size="xs"
-                        variant="default"
-                        aria-pressed={isSelected}
-                        data-requirement-unmet={isRequirementUnmet || undefined}
-                        classNames={{ label: pillClasses.label }}
-                        className={[
-                            pillClasses.button,
-                            isOrphaned ? pillClasses.inactiveFilter : '',
-                            isSelected ? classes.selectedPill : '',
-                            isDraft ? classes.draftPill : '',
-                        ].join(' ')}
-                        pr={truncated.hasMore ? 6 : undefined}
-                        leftSection={
-                            (isDraggable || showRequirementIcon) && (
-                                <Group gap={2} wrap="nowrap">
-                                    {isDraggable && (
-                                        <MantineIcon
-                                            icon={IconGripVertical}
-                                            cursor="grab"
-                                            size="sm"
-                                        />
-                                    )}
-                                    {showRequirementIcon && (
-                                        <Tooltip
-                                            fz="xs"
-                                            label={requirementTooltip}
-                                            disabled={!isRequirementUnmet}
-                                        >
-                                            <MantineIcon
-                                                icon={
-                                                    isRequirementUnmet
-                                                        ? IconCircleDashed
-                                                        : IconCircleCheck
-                                                }
-                                                size="sm"
-                                                color={
-                                                    isRequirementUnmet
-                                                        ? 'yellow.7'
-                                                        : field
-                                                          ? getFieldColor(field)
-                                                          : 'dimmed'
-                                                }
-                                            />
-                                        </Tooltip>
-                                    )}
-                                </Group>
-                            )
-                        }
-                        rightSection={
-                            !isSidebarOpen && (
-                                <Group gap={2} wrap="nowrap">
-                                    {lockKey && (
-                                        <Box
-                                            component="span"
-                                            className={
-                                                isLocked
-                                                    ? pillClasses.lockSlotActive
-                                                    : pillClasses.lockSlot
-                                            }
-                                        >
-                                            <Tooltip fz="xs" label={lockLabel}>
-                                                <ActionIcon
-                                                    size="xs"
-                                                    radius="xl"
-                                                    aria-label={lockLabel}
-                                                    aria-pressed={isLocked}
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        toggleLock();
-                                                    }}
-                                                >
-                                                    <MantineIcon
-                                                        icon={
-                                                            isLocked
-                                                                ? IconLock
-                                                                : IconLockOpen
-                                                        }
-                                                        size="sm"
-                                                    />
-                                                </ActionIcon>
-                                            </Tooltip>
-                                        </Box>
-                                    )}
-                                    <Tooltip fz="xs" label="Remove filter">
-                                        <ActionIcon
-                                            size="xs"
-                                            radius="xl"
-                                            aria-label="Remove filter"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                removeFilterById(filter.id);
-                                            }}
-                                        >
-                                            <MantineIcon
-                                                icon={IconX}
-                                                size="sm"
-                                            />
-                                        </ActionIcon>
-                                    </Tooltip>
-                                </Group>
-                            )
-                        }
-                        onClick={() => open(filter.id)}
+            <EditorPopover isOpen={isSelected && isSidebarOpen}>
+                <Tooltip
+                    fz="xs"
+                    maw={300}
+                    disabled={tooltipLabel === null || isOnAction}
+                    openDelay={isOrphaned ? 0 : 500}
+                    label={tooltipLabel}
+                >
+                    <Box
+                        className={classes.pill}
+                        onPointerOver={trackAction}
+                        onPointerLeave={trackAction}
                     >
-                        <FilterRuleLabel
-                            filterRule={filter}
+                        <FilterPillButton
+                            {...tileHover}
                             field={field}
-                            truncatedValuesDisplay={truncated}
-                            isTablesTooltipDisabled={isSelected}
+                            filterRule={filter}
+                            isOrphaned={isOrphaned}
+                            isPlain
+                            // Not saved for everyone: dashed
+                            isTemporary={kind === 'viewerOwn' || isDraft}
+                            // The pill itself drags (`PillDraggable`): no grip.
+                            // While a filter is edited the lock stays in place,
+                            // hidden and inert, so no pill changes width. The
+                            // lock shows only on a locked filter
+                            isDraggable={false}
+                            isLocked={isLocked}
+                            lockLabel={
+                                kind === 'editor' && lockKey && isLocked
+                                    ? getFilterLockLabel(isLocked, hasTabs)
+                                    : null
+                            }
+                            areActionsHidden={isSidebarOpen}
+                            onLockToggle={(e) => {
+                                e.stopPropagation();
+                                toggleLock();
+                            }}
+                            isLockSpaceReserved
+                            readOnlyLockLabel={
+                                isReadOnlyLocked
+                                    ? getUiString(
+                                          hasTabs
+                                              ? 'filters.filterIsLockedOnTab'
+                                              : 'filters.filterIsLocked',
+                                      )
+                                    : null
+                            }
+                            onRemove={
+                                kind === 'viewerSaved'
+                                    ? null
+                                    : (e) => {
+                                          e.stopPropagation();
+                                          removeFilterById(filter.id);
+                                      }
+                            }
+                            removeLabel={getUiString('controls.removeFilter')}
+                            // One tooltip at a time: the hint takes the pill's
+                            isTablesTooltipDisabled={isSelected || isSelectable}
+                            tablesTooltipNote={tablesTooltipNote}
+                            triggerClassName={triggerClassName}
+                            aria-pressed={isSelected || isPicked}
+                            data-controls-pill={filter.id}
+                            data-open={isSelected || undefined}
+                            disabled={isDisabled}
+                            className={
+                                isPicked ? classes.pickedPill : undefined
+                            }
+                            fieldIconOverride={
+                                isPicked ? (
+                                    <MantineIcon icon={IconCheck} size="sm" />
+                                ) : undefined
+                            }
+                            onClick={handleClick}
+                            onKeyDown={
+                                kind === 'editor' ? handleKeyDown : undefined
+                            }
                         />
-                    </Button>
-                </Box>
-            </Tooltip>
+                    </Box>
+                </Tooltip>
+            </EditorPopover>
         );
     },
 );

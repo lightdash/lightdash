@@ -1,4 +1,5 @@
 import { type CacheMetadata } from '@lightdash/common';
+import { type TileQueryRegistration } from '../../features/dashboard/store/dashboardTileStatusReducer';
 import {
     type SqlChartTileMetadata,
     type TilePreAggregateStatus,
@@ -16,6 +17,9 @@ export type DashboardTileStatusContextType = {
         metadata: SqlChartTileMetadata,
     ) => void;
     markTileLoaded: (tileUuid: string) => void;
+    /** Publishes a tile's ready query as an AI analysis source. */
+    registerTileQuery: (registration: TileQueryRegistration) => void;
+    unregisterTileQuery: (tileUuid: string) => void;
     /** Marks a visible embed tile as settled for the current load cycle. */
     markEmbedTileComplete: (tileUuid: string) => void;
     /** Chart tiles that must load before all charts count as loaded; undefined while unknown */

@@ -41,7 +41,7 @@ or more than 10,000 listing pages, fails explicitly. Checking existing partition
 still requires storage metadata requests, so runtime depends on partition/file
 count and storage latency as well as event rows.
 
-At most 500 changed or failed stream/day partitions are processed per run; a
+At most 5,000 changed or failed stream/day partitions are processed per run; a
 warning identifies remaining work, which subsequent runs retry. Initial backfill
 can therefore span several runs. A missing day represents unknown coverage,
 not proof of zero activity. Existing analytics projects receive the User activity and

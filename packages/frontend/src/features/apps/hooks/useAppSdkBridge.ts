@@ -1,4 +1,6 @@
 import {
+    APP_SDK_APP_STATE_MESSAGE,
+    APP_SDK_APP_STATE_RESPONSE_MESSAGE,
     APP_SDK_COLOR_SCHEME_MESSAGE,
     APP_SDK_COLOR_SCHEME_REQUEST_MESSAGE,
     APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE,
@@ -7,15 +9,23 @@ import {
     APP_SDK_INSIGHTS_REQUEST_MESSAGE,
     APP_SDK_MOUNTED_QUERIES_MESSAGE,
     APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE,
+    DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS,
+    DATA_APP_INSTRUCTION_INVESTIGATE_MAX_CHARS,
     APP_SDK_VIZ_DRILL_DOWN_PATH,
     APP_SDK_VIZ_POINT_MENU_PATH,
     APP_SDK_VIZ_SUBTOTALS_PATH,
     APP_SDK_VIZ_UNDERLYING_DATA_OPEN_PATH,
     APP_SDK_VIZ_UNDERLYING_DATA_PATH,
     APP_SDK_EXPLORE_BASE_TABLE_PATH,
+    APP_SDK_SPACE_CHARTS_PATH,
+    emptyAppSdkSpaceCharts,
     extractAppSdkRouteProjectUuid,
+    extractAppSdkSpaceCharts,
     extractExploreBaseTable,
+    FEATURE_NOT_ENABLED_CODE,
     isAllowedAppSdkRoute,
+    parseAppSdkSpaceChartsRequest,
+    resolveAppSdkSpaceUuid,
     isAppSdkScheduleDownloadRoute,
     JWT_HEADER_NAME,
     LightdashAppPreviewTokenHeader,
@@ -23,6 +33,7 @@ import {
     LightdashSignedDownloadHeader,
     parseAppSdkExploreBaseTableRequest,
     type AppColorScheme,
+    type AppSdkSpaceChartsResult,
     type AppSdkExploreBaseTableResult,
     type DashboardFilters,
     type DataAppInsightAction,
@@ -71,6 +82,126 @@ const getEmbedAuthHeaders = (
 ): Record<string, string> =>
     embedToken ? { [JWT_HEADER_NAME]: embedToken } : {};
 
+type AppStateBridgeErrorCode =
+    | 'conflict'
+    | 'feature_disabled'
+    | 'forbidden'
+    | 'invalid'
+    | 'unavailable'
+    | 'unknown';
+
+type AppStateBridgeError = {
+    code: AppStateBridgeErrorCode;
+    message: string;
+    current?: unknown;
+};
+
+/**
+ * Map an app state API failure to the SDK's error codes. A 409 carries the
+ * key's current value so the SDK can retry an updater on top of it.
+ */
+export const mapAppStateApiError = (
+    httpStatus: number,
+    error: { message?: string; data?: unknown } | undefined,
+): AppStateBridgeError => {
+    const message =
+        error?.message ?? `App state request failed (${httpStatus})`;
+    const data =
+        typeof error?.data === 'object' && error.data !== null
+            ? (error.data as Record<string, unknown>)
+            : {};
+    if (httpStatus === 409) {
+        return { code: 'conflict', message, current: data.current ?? null };
+    }
+    if (httpStatus === 403) {
+        return {
+            code:
+                data.code === FEATURE_NOT_ENABLED_CODE
+                    ? 'feature_disabled'
+                    : 'forbidden',
+            message,
+        };
+    }
+    if (httpStatus === 400 || httpStatus === 422) {
+        return { code: 'invalid', message };
+    }
+    return { code: 'unknown', message };
+};
+
+type AppStateBridgeRequest = {
+    id: string;
+    op: unknown;
+    key?: unknown;
+    value?: unknown;
+    expectedVersion?: unknown;
+    limit?: unknown;
+    beforeVersion?: unknown;
+};
+
+/** Resolve an SDK app state op to the REST call the host makes as the viewer. */
+export const resolveAppStateRequest = (
+    base: string,
+    req: AppStateBridgeRequest,
+): {
+    method: 'GET' | 'PUT' | 'DELETE';
+    path: string;
+    body?: unknown;
+} | null => {
+    const key =
+        typeof req.key === 'string' ? encodeURIComponent(req.key) : null;
+    switch (req.op) {
+        case 'get':
+            return { method: 'GET', path: base };
+        case 'set-user':
+            return key
+                ? {
+                      method: 'PUT',
+                      path: `${base}/user/${key}`,
+                      body: { value: req.value },
+                  }
+                : null;
+        case 'delete-user':
+            return key
+                ? { method: 'DELETE', path: `${base}/user/${key}` }
+                : null;
+        case 'set-shared':
+            return key
+                ? {
+                      method: 'PUT',
+                      path: `${base}/shared/${key}`,
+                      body: {
+                          value: req.value,
+                          expectedVersion:
+                              typeof req.expectedVersion === 'number'
+                                  ? req.expectedVersion
+                                  : null,
+                      },
+                  }
+                : null;
+        case 'delete-shared':
+            return key
+                ? { method: 'DELETE', path: `${base}/shared/${key}` }
+                : null;
+        case 'history': {
+            if (!key) return null;
+            const params = new URLSearchParams();
+            if (typeof req.limit === 'number') {
+                params.set('limit', String(req.limit));
+            }
+            if (typeof req.beforeVersion === 'number') {
+                params.set('beforeVersion', String(req.beforeVersion));
+            }
+            const query = params.toString();
+            return {
+                method: 'GET',
+                path: `${base}/shared/${key}/history${query ? `?${query}` : ''}`,
+            };
+        }
+        default:
+            return null;
+    }
+};
+
 // Headers every API call made on the app's behalf carries: embed auth and
 // self-reported app attribution (the backend tags warehouse queries with it).
 const getAppSdkRequestHeaders = (
@@ -107,6 +238,50 @@ const fetchExploreBaseTable = async ({
         return extractExploreBaseTable(await res.json());
     } catch {
         return null;
+    }
+};
+
+/**
+ * Resolve a slug-or-uuid space reference to its trimmed chart list with the
+ * viewer's credentials. Any failure — unknown space, no access, network —
+ * answers uniformly empty, so apps can't probe for spaces they can't see.
+ */
+const fetchSpaceCharts = async ({
+    projectUuid,
+    spaceRef,
+    embedToken,
+    appUuid,
+}: {
+    projectUuid: string;
+    spaceRef: string;
+    embedToken: string | undefined;
+    appUuid: string;
+}): Promise<AppSdkSpaceChartsResult> => {
+    const headers = getAppSdkRequestHeaders(embedToken, appUuid);
+    try {
+        const listRes = await fetch(
+            resolveFetchUrl(`/api/v1/projects/${projectUuid}/spaces`),
+            { method: 'GET', headers },
+        );
+        if (!listRes.ok) return emptyAppSdkSpaceCharts();
+        const spaceUuid = resolveAppSdkSpaceUuid(
+            await listRes.json(),
+            spaceRef,
+        );
+        if (spaceUuid === null) return emptyAppSdkSpaceCharts();
+        const res = await fetch(
+            resolveFetchUrl(
+                `/api/v1/projects/${projectUuid}/spaces/${spaceUuid}`,
+            ),
+            { method: 'GET', headers },
+        );
+        if (!res.ok) return emptyAppSdkSpaceCharts();
+        return (
+            extractAppSdkSpaceCharts(await res.json()) ??
+            emptyAppSdkSpaceCharts()
+        );
+    } catch {
+        return emptyAppSdkSpaceCharts();
     }
 };
 
@@ -295,6 +470,7 @@ export type UseAppSdkBridgeParams = {
     onElementSelected?: (event: ElementSelectedEvent) => void;
     onInspectorAvailable?: () => void;
     onScreenshotAvailable?: () => void;
+    onPdfExportAvailable?: () => void;
     /**
      * When set, these filters are stamped onto every intercepted metric-query
      * POST before it reaches the backend. Used by dashboard data-app tiles so
@@ -415,6 +591,12 @@ export type UseAppSdkBridgeParams = {
     onInsightAction?: (action: DataAppInsightAction) => void;
     /** The app subscribed to analysis: it renders `useInsights`/`useAiPrompt`. */
     onInsightsInUse?: () => void;
+    /** Author guidance for the analysis model declared in app code, or null
+     *  when the running bundle declares none. */
+    onInsightInstructionsChange?: (instructions: string | null) => void;
+    /** Whether app code asks to analyse on load, or null when the running
+     *  bundle declares nothing. */
+    onInsightAnalyseOnLoadChange?: (analyseOnLoad: boolean | null) => void;
     /** Which query uuids the app currently has on screen (SDKs that report). */
     onMountedQueriesChange?: (queryUuids: string[]) => void;
 };
@@ -429,6 +611,7 @@ export function useAppSdkBridge({
     onElementSelected,
     onInspectorAvailable,
     onScreenshotAvailable,
+    onPdfExportAvailable,
     dashboardFilters,
     invalidateCache,
     capabilities,
@@ -456,6 +639,8 @@ export function useAppSdkBridge({
     insights = null,
     onInsightAction,
     onInsightsInUse,
+    onInsightInstructionsChange,
+    onInsightAnalyseOnLoadChange,
     onMountedQueriesChange,
 }: UseAppSdkBridgeParams) {
     const lightdashApi = useLightdashApi();
@@ -612,6 +797,11 @@ export function useAppSdkBridge({
                 return;
             }
 
+            if (data?.type === 'lightdash:sdk:pdf-export-available') {
+                onPdfExportAvailable?.();
+                return;
+            }
+
             // Handshake: the iframe's viz renderer asks for the current context
             // once its listener is mounted. Reply with a push (no-op if this
             // isn't a data app viz).
@@ -629,18 +819,42 @@ export function useAppSdkBridge({
             }
 
             if (data?.type === APP_SDK_INSIGHTS_REQUEST_MESSAGE) {
-                if ((data as { inUse?: unknown }).inUse === true) {
+                const { inUse, instructions, analyseOnLoad } = data as {
+                    inUse?: unknown;
+                    instructions?: unknown;
+                    analyseOnLoad?: unknown;
+                };
+                if (inUse === true) {
                     onInsightsInUse?.();
                 }
+                // App code is untrusted: cap the author guidance here so a
+                // runaway string never reaches the analysis request.
+                onInsightInstructionsChange?.(
+                    typeof instructions === 'string'
+                        ? instructions
+                              .trim()
+                              .slice(
+                                  0,
+                                  DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS,
+                              ) || null
+                        : null,
+                );
+                onInsightAnalyseOnLoadChange?.(
+                    typeof analyseOnLoad === 'boolean' ? analyseOnLoad : null,
+                );
                 pushInsights();
                 return;
             }
 
             if (data?.type === APP_SDK_INSIGHT_ACTION_MESSAGE) {
-                const { action, anomalyId } = data as {
-                    action?: unknown;
-                    anomalyId?: unknown;
-                };
+                const { action, anomalyId, requestId, instruction, sources } =
+                    data as {
+                        action?: unknown;
+                        anomalyId?: unknown;
+                        requestId?: unknown;
+                        instruction?: unknown;
+                        sources?: unknown;
+                    };
                 if (action === 'analyse') {
                     onInsightAction?.({ action });
                 } else if (
@@ -648,6 +862,40 @@ export function useAppSdkBridge({
                     typeof anomalyId === 'string'
                 ) {
                     onInsightAction?.({ action, anomalyId });
+                } else if (
+                    action === 'investigate-instruction' &&
+                    typeof requestId === 'string' &&
+                    typeof instruction === 'string' &&
+                    instruction.trim().length > 0 &&
+                    Array.isArray(sources) &&
+                    sources.length > 0 &&
+                    sources.every(
+                        (s): s is { queryUuid: string; label?: unknown } =>
+                            typeof (s as { queryUuid?: unknown })?.queryUuid ===
+                            'string',
+                    )
+                ) {
+                    // App code is untrusted: cap the instruction here so a
+                    // runaway string never reaches the investigation request.
+                    onInsightAction?.({
+                        action,
+                        requestId,
+                        instruction: instruction
+                            .trim()
+                            .slice(
+                                0,
+                                DATA_APP_INSTRUCTION_INVESTIGATE_MAX_CHARS,
+                            ),
+                        sources: sources.map((s) => ({
+                            queryUuid: s.queryUuid,
+                            label: typeof s.label === 'string' ? s.label : null,
+                        })),
+                    });
+                } else if (
+                    action === 'continue-instruction' &&
+                    typeof requestId === 'string'
+                ) {
+                    onInsightAction?.({ action, requestId });
                 }
                 return;
             }
@@ -778,6 +1026,76 @@ export function useAppSdkBridge({
                 } catch (e) {
                     respondGsheet({
                         error: e instanceof Error ? e.message : 'Export failed',
+                    });
+                }
+                return;
+            }
+
+            if (data?.type === APP_SDK_APP_STATE_MESSAGE) {
+                const req = data as AppStateBridgeRequest;
+                const respondAppState = (response: {
+                    result?: unknown;
+                    error?: AppStateBridgeError;
+                }) => {
+                    iframeRef.current?.contentWindow?.postMessage(
+                        {
+                            type: APP_SDK_APP_STATE_RESPONSE_MESSAGE,
+                            id: req.id,
+                            ...response,
+                        },
+                        '*',
+                    );
+                };
+                // The backend authorizes the viewer against the app and
+                // enforces the flag and caps; the host only routes the call.
+                const resolved = resolveAppStateRequest(
+                    `/api/v1/ee/projects/${projectUuid}/apps/${appUuid}/state`,
+                    req,
+                );
+                if (!resolved) {
+                    respondAppState({
+                        error: {
+                            code: 'invalid',
+                            message: 'Unknown app state request',
+                        },
+                    });
+                    return;
+                }
+                try {
+                    const res = await fetch(resolveFetchUrl(resolved.path), {
+                        method: resolved.method,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            ...getEmbedAuthHeaders(embedToken),
+                        },
+                        ...(resolved.body !== undefined
+                            ? { body: JSON.stringify(resolved.body) }
+                            : {}),
+                        // Writes flushed as the page unloads must outlive it.
+                        keepalive: resolved.method !== 'GET',
+                    });
+                    const json = await res.json();
+                    if (json.status === 'ok') {
+                        respondAppState({
+                            result:
+                                req.op === 'history'
+                                    ? (json.results?.versions ?? [])
+                                    : json.results,
+                        });
+                    } else {
+                        respondAppState({
+                            error: mapAppStateApiError(res.status, json.error),
+                        });
+                    }
+                } catch (err) {
+                    respondAppState({
+                        error: {
+                            code: 'unavailable',
+                            message:
+                                err instanceof Error
+                                    ? err.message
+                                    : 'App state request failed',
+                        },
                     });
                 }
                 return;
@@ -1034,6 +1352,25 @@ export function useAppSdkBridge({
                 } catch {
                     respond(unavailable);
                 }
+                return;
+            }
+
+            // Host-answered virtual route: only the trimmed chart list leaves
+            // the host — space access/member data never enters the iframe.
+            if (path === APP_SDK_SPACE_CHARTS_PATH) {
+                const request = parseAppSdkSpaceChartsRequest(body);
+                if (request === null) {
+                    respond({ error: 'Invalid space-charts request.' });
+                    return;
+                }
+                respond({
+                    result: await fetchSpaceCharts({
+                        projectUuid,
+                        spaceRef: request.space,
+                        embedToken,
+                        appUuid,
+                    }),
+                });
                 return;
             }
 
@@ -1389,6 +1726,7 @@ export function useAppSdkBridge({
             onElementSelected,
             onInspectorAvailable,
             onScreenshotAvailable,
+            onPdfExportAvailable,
             dashboardFilters,
             invalidateCache,
             embedToken,
@@ -1419,6 +1757,8 @@ export function useAppSdkBridge({
             pushInsights,
             onInsightAction,
             onInsightsInUse,
+            onInsightInstructionsChange,
+            onInsightAnalyseOnLoadChange,
             onMountedQueriesChange,
             lightdashApi,
         ],
@@ -1455,6 +1795,11 @@ export function useAppSdkBridge({
                 ...(captureRender ? { deliveryRender: true } : {}),
                 // Lets the SDK address app-scoped routes (AI prompts).
                 ...(appUuid ? { appUuid } : {}),
+                // Negotiates the space-charts virtual route: SDKs only call
+                // it on hosts that announce it, so `useSpaceCharts` can
+                // report `available: false` on older hosts instead of
+                // hitting a blocked route.
+                spaceCharts: true,
             },
             '*',
         );

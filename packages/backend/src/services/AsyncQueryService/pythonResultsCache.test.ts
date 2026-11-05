@@ -172,6 +172,7 @@ const buildHarness = ({
                 if (!hit?.resultsFileName) return null;
                 return {
                     cacheHit: true,
+                    cacheGeneration: 0,
                     queryUuid: hit.queryUuid,
                     resultProducer: null,
                     cacheKey,
@@ -208,6 +209,13 @@ const buildHarness = ({
                     columns: [{ name: 'id', type: 'number' }],
                     rowCount: 1,
                     truncated: false,
+                    timings: {
+                        importMs: 0,
+                        loadInputsMs: 0,
+                        loadCodeMs: 0,
+                        runMs: 0,
+                        writeOutputMs: 0,
+                    },
                 }),
                 stdout: '',
             }),
@@ -229,8 +237,7 @@ const buildHarness = ({
                     id: featureFlagId,
                     enabled:
                         flags[featureFlagId as FeatureFlags] ??
-                        (featureFlagId === FeatureFlags.ComposeSqlRunner ||
-                            featureFlagId === FeatureFlags.PythonQueryRunner),
+                        featureFlagId === FeatureFlags.ComposeSqlRunner,
                 }),
             ),
         } as unknown as FeatureFlagModel,
@@ -238,7 +245,9 @@ const buildHarness = ({
             assertCanReadResultsForQueries: vi.fn(async () => new Map()),
         },
     } as unknown as ConstructorParameters<typeof AsyncQueryService>[0]);
-    Object.assign(service, { pythonSandboxRunner: sandbox });
+    Object.assign(service, {
+        pythonSandboxRunner: sandbox,
+    });
     vi.spyOn(service, 'getUserAttributes').mockResolvedValue({
         userAttributes: {},
         intrinsicUserAttributes: {},
@@ -265,7 +274,7 @@ const buildHarness = ({
         return rows.get(queryUuid)!;
     };
 
-    return { submit, sandbox, uploads, rows };
+    return { submit, sandbox, uploads, rows, service };
 };
 
 describe('python transformations and the results cache', () => {

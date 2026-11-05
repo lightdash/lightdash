@@ -91,8 +91,8 @@ import {
     warehouseClientFromCredentials,
     type WarehouseClientOptions,
 } from '@lightdash/warehouses';
+import { isEqual } from 'es-toolkit/compat';
 import { Knex } from 'knex';
-import isEqual from 'lodash/isEqual';
 import NodeCache from 'node-cache';
 import { createHash } from 'node:crypto';
 import { DatabaseError } from 'pg';
@@ -121,6 +121,7 @@ import {
     DbDashboardTabs,
 } from '../../database/entities/dashboards';
 import { DashboardSlugMappingsTableName } from '../../database/entities/dashboardSlugMappings';
+import { DbtSourceRefCatalogsTableName } from '../../database/entities/dbtSourceRefCatalogs';
 import {
     ExternalSourcesTableName,
     ExternalSourceTablesTableName,
@@ -139,6 +140,7 @@ import {
     PinnedListTableName,
     PinnedSpaceTableName,
 } from '../../database/entities/pinnedList';
+import { ProjectDbtSourcesTableName } from '../../database/entities/projectDbtSources';
 import { ProjectGroupAccessTableName } from '../../database/entities/projectGroupAccess';
 import { ProjectGroupAccessCustomRolesTableName } from '../../database/entities/projectGroupAccessCustomRoles';
 import { ProjectMembershipCustomRolesTableName } from '../../database/entities/projectMembershipCustomRoles';
@@ -214,23 +216,29 @@ import { type StoredPreAggregateRefresh } from '../../services/ProjectService/pr
 import { wrapSentryTransaction, wrapSentryTransactionSync } from '../../utils';
 import { AwsWebIdentityResolver } from '../../utils/awsWebIdentity/AwsWebIdentityResolver';
 import {
-    defaultGoogleIdentityTokenSource,
-    type GoogleIdentityTokenSource,
-} from '../../utils/awsWebIdentity/googleIdentityTokenSource';
-import {
     chunkAsyncRowsByBytes,
     chunkRowsByBytes,
 } from '../../utils/chunkRowsByBytes';
+import {
+    cliDeployCollisionReason,
+    cliDeployConflictError,
+} from '../../utils/cliDeployError';
 import {
     hasSameDbtCredentialDestination,
     hasSameWarehouseCredentialDestination,
 } from '../../utils/credentialDestination';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import { BigqueryWorkloadIdentityResolver } from '../../utils/googleIdentity/BigqueryWorkloadIdentityResolver';
+import {
+    defaultGoogleIdentityTokenSource,
+    type GoogleIdentityTokenSource,
+} from '../../utils/googleIdentity/googleIdentityTokenSource';
 import {
     acquireProjectSlugLock,
     generateUniqueProjectSlug,
     generateUniqueSlugScopedToProject,
 } from '../../utils/SlugUtils';
+import { stripSensitiveWarehouseCredentials } from '../../utils/stripSensitiveWarehouseCredentials';
 import { warehouseCredentialsEqual } from '../../utils/warehouseCredentialsEqual';
 import {
     copyWarehouseCredentialVersions,
@@ -242,7 +250,6 @@ import {
 } from '../../utils/warehouseCredentialVersion';
 import { AwsWebIdentityAudienceModel } from '../AwsWebIdentityAudienceModel';
 import { FeatureFlagModel } from '../FeatureFlagModel/FeatureFlagModel';
-import { OrganizationWarehouseCredentialsModel } from '../OrganizationWarehouseCredentialsModel';
 import { RefreshTokenSourceChangedError } from '../RefreshTokenRotation/RefreshTokenRotation';
 import { clearProjectExtraRoles } from '../roleSetUtils';
 import {
@@ -256,6 +263,17 @@ import {
     type CredentialReadTarget,
     type ResolvedCredentialRead,
 } from '../WarehouseConnectionRouter/WarehouseConnectionRouter';
+import {
+    cachedExploreSourcesForSources,
+    type CachedExploreSource,
+    type CachedSourceCatalog,
+} from './cachedExploreSource';
+import {
+    allocateStagedExploreNames,
+    getLegacyPrimaryExploreNames,
+    type ExploreNaming,
+} from './exploreNameAllocation';
+import { validateExplorePublication } from './explorePublication';
 import { normalizeStoredDbtConnection } from './normalizeStoredDbtConnection';
 import { omitProjectUuid, replaceProjectUuid } from './previewContent';
 import Transaction = Knex.Transaction;
@@ -276,7 +294,18 @@ export type BoundExplore = {
 };
 
 export type MultiConnectionCarry =
-    | { kind: 'connections'; warehouseConnectionUuids: string[] }
+    | {
+          kind: 'connections';
+          warehouseConnectionUuids: string[];
+          dbtSourceUuids?: string[];
+      }
+    | { kind: 'dbtSources'; dbtSourceUuids: string[] }
+    | {
+          kind: 'otherDbtSourceSet';
+          dbtSourceUuids: string[];
+          packageSources: Record<string, string>;
+          sourceAliases: Record<string, string>;
+      }
     | {
           kind: 'otherDbtSources';
           dbtSourceUuid: string;
@@ -516,6 +545,15 @@ type PreviewChartUuidMapping = {
     previewChartUuid: string;
 };
 
+// Only shapes the query for a live source in a project without a warehouse; it can never open a connection
+export const LIVE_SOURCE_ONLY_CREDENTIALS: CreateWarehouseCredentials = {
+    type: WarehouseTypes.DUCKDB,
+    connectionType: DuckdbConnectionType.MOTHERDUCK,
+    database: '',
+    schema: '',
+    token: '',
+};
+
 export class ProjectModel {
     /** Serializes create-or-get across API pods without relying on a slug. */
     async runInAnalyticsProvisioningLock<T>(
@@ -546,6 +584,7 @@ export class ProjectModel {
     private connectionRouter: WarehouseConnectionRouter;
 
     readonly awsWebIdentity: AwsWebIdentityResolver;
+    readonly bigqueryWorkloadIdentity: BigqueryWorkloadIdentityResolver;
 
     constructor(args: ProjectModelArguments) {
         this.database = args.database;
@@ -558,14 +597,24 @@ export class ProjectModel {
             database: args.database,
             lightdashConfig: args.lightdashConfig,
         });
-        this.awsWebIdentity = new AwsWebIdentityResolver({
-            isEnabledFor: async (organizationUuid) =>
+        const isFlagEnabledFor =
+            (featureFlagId: FeatureFlags) => async (organizationUuid: string) =>
                 (
                     await featureFlagModel.get({
                         user: { organizationUuid },
-                        featureFlagId: FeatureFlags.AthenaWebIdentityAuth,
+                        featureFlagId,
                     })
-                ).enabled,
+                ).enabled;
+        this.bigqueryWorkloadIdentity = new BigqueryWorkloadIdentityResolver({
+            isEnabledFor: isFlagEnabledFor(
+                FeatureFlags.BigqueryWorkloadIdentityAuth,
+            ),
+            tokenSource:
+                args.googleIdentityTokenSource ??
+                defaultGoogleIdentityTokenSource,
+        });
+        this.awsWebIdentity = new AwsWebIdentityResolver({
+            isEnabledFor: isFlagEnabledFor(FeatureFlags.AthenaWebIdentityAuth),
             audienceModel: new AwsWebIdentityAudienceModel({
                 database: args.database,
             }),
@@ -659,9 +708,12 @@ export class ProjectModel {
                 completeConfig,
             ) ||
             // BigQuery ADC authentication does not require credentials to be set
+            // BigQuery workload identity federation must not inherit keyfiles either.
             (incompleteConfig.type === WarehouseTypes.BIGQUERY &&
-                incompleteConfig.authenticationType ===
-                    BigqueryAuthenticationType.ADC) ||
+                (incompleteConfig.authenticationType ===
+                    BigqueryAuthenticationType.ADC ||
+                    incompleteConfig.authenticationType ===
+                        BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION)) ||
             // Athena IAM role and web identity authentication should not merge old access keys
             (incompleteConfig.type === WarehouseTypes.ATHENA &&
                 (incompleteConfig.authenticationType ===
@@ -796,6 +848,15 @@ export class ProjectModel {
             );
         }
         return projects[0].project_uuid;
+    }
+
+    async hasExploreNameAllocations(projectUuid: string): Promise<boolean> {
+        return (
+            (await this.database('explore_name_allocations')
+                .where('project_uuid', projectUuid)
+                .select('name')
+                .first()) !== undefined
+        );
     }
 
     async getDbtSourceIdentity(projectUuid: string): Promise<{
@@ -1446,8 +1507,7 @@ export class ProjectModel {
                           }
                         : {}),
                     created_by_user_uuid: userUuid,
-                    organization_warehouse_credentials_uuid:
-                        data.organizationWarehouseCredentialsUuid ?? null,
+                    organization_warehouse_credentials_uuid: null,
                     provisioning_source: provisioningSource ?? null,
                     ...(expiresAt !== undefined
                         ? { expires_at: expiresAt }
@@ -1590,12 +1650,24 @@ export class ProjectModel {
             });
     }
 
-    async getResultsCacheSettings(
-        projectUuid: string,
-    ): Promise<{ cacheTtlSeconds: number | null }> {
+    async getResultsCacheSettings(projectUuid: string): Promise<{
+        cacheTtlSeconds: number | null;
+        cacheGeneration: number;
+        lastInvalidatedAt: Date | null;
+        clearCron: string | null;
+        clearNextRunAt: Date | null;
+        schedulerTimezone: string;
+    }> {
         const row = await this.database(ProjectTableName)
             .where('project_uuid', projectUuid)
-            .select('results_cache_ttl_seconds')
+            .select(
+                'results_cache_ttl_seconds',
+                'results_cache_generation',
+                'results_cache_invalidated_at',
+                'results_cache_clear_cron',
+                'results_cache_clear_next_run_at',
+                'scheduler_timezone',
+            )
             .first();
 
         if (!row) {
@@ -1604,7 +1676,41 @@ export class ProjectModel {
             );
         }
 
-        return { cacheTtlSeconds: row.results_cache_ttl_seconds };
+        return {
+            cacheTtlSeconds: row.results_cache_ttl_seconds,
+            cacheGeneration: row.results_cache_generation,
+            lastInvalidatedAt: row.results_cache_invalidated_at,
+            clearCron: row.results_cache_clear_cron,
+            clearNextRunAt: row.results_cache_clear_next_run_at,
+            schedulerTimezone: row.scheduler_timezone,
+        };
+    }
+
+    async invalidateResultsCache(
+        projectUuid: string,
+    ): Promise<{ cacheGeneration: number; invalidatedAt: Date }> {
+        const [row] = await this.database(ProjectTableName)
+            .where('project_uuid', projectUuid)
+            .update({
+                results_cache_generation: this.database.raw(
+                    'results_cache_generation + 1',
+                ) as unknown as number,
+                results_cache_invalidated_at:
+                    this.database.fn.now() as unknown as Date,
+            })
+            .returning([
+                'results_cache_generation',
+                'results_cache_invalidated_at',
+            ]);
+        if (!row?.results_cache_invalidated_at) {
+            throw new NotFoundError(
+                `Cannot find project with id: ${projectUuid}`,
+            );
+        }
+        return {
+            cacheGeneration: row.results_cache_generation,
+            invalidatedAt: row.results_cache_invalidated_at,
+        };
     }
 
     async updateResultsCacheSettings(
@@ -1619,6 +1725,95 @@ export class ProjectModel {
                 `Cannot find project with id: ${projectUuid}`,
             );
         }
+    }
+
+    async updateResultsCacheClearSchedule(
+        projectUuid: string,
+        schedule: { cron: string; nextRunAt: Date | null },
+    ): Promise<void> {
+        const affectedRows = await this.database(ProjectTableName)
+            .where('project_uuid', projectUuid)
+            .update({
+                results_cache_clear_cron: schedule.cron,
+                results_cache_clear_next_run_at: schedule.nextRunAt,
+            });
+        if (affectedRows === 0) {
+            throw new NotFoundError(
+                `Cannot find project with id: ${projectUuid}`,
+            );
+        }
+    }
+
+    async getDueResultsCacheClears(now: Date): Promise<
+        {
+            projectUuid: string;
+            organizationUuid: string;
+            cron: string;
+            schedulerTimezone: string;
+            nextRunAt: Date;
+        }[]
+    > {
+        const rows = await this.database(ProjectTableName)
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
+            )
+            .whereNotNull(`${ProjectTableName}.results_cache_clear_cron`)
+            .where(
+                `${ProjectTableName}.results_cache_clear_next_run_at`,
+                '<=',
+                now,
+            )
+            .select<
+                {
+                    project_uuid: string;
+                    organization_uuid: string;
+                    results_cache_clear_cron: string;
+                    scheduler_timezone: string;
+                    results_cache_clear_next_run_at: Date;
+                }[]
+            >(
+                `${ProjectTableName}.project_uuid`,
+                `${OrganizationTableName}.organization_uuid`,
+                `${ProjectTableName}.results_cache_clear_cron`,
+                `${ProjectTableName}.scheduler_timezone`,
+                `${ProjectTableName}.results_cache_clear_next_run_at`,
+            );
+        return rows.map((row) => ({
+            projectUuid: row.project_uuid,
+            organizationUuid: row.organization_uuid,
+            cron: row.results_cache_clear_cron,
+            schedulerTimezone: row.scheduler_timezone,
+            nextRunAt: row.results_cache_clear_next_run_at,
+        }));
+    }
+
+    /** Compare-and-swap on next_run_at, so concurrent sweeps or an edit mid-sweep can't double-clear. */
+    async claimDueResultsCacheClear(
+        projectUuid: string,
+        claim: { expectedNextRunAt: Date; nextRunAt: Date; clear: boolean },
+    ): Promise<boolean> {
+        const affectedRows = await this.database(ProjectTableName)
+            .where('project_uuid', projectUuid)
+            // JS dates only keep milliseconds, Postgres timestamps keep microseconds
+            .whereRaw(
+                `date_trunc('milliseconds', results_cache_clear_next_run_at) = ?`,
+                [claim.expectedNextRunAt],
+            )
+            .update({
+                results_cache_clear_next_run_at: claim.nextRunAt,
+                ...(claim.clear
+                    ? {
+                          results_cache_generation: this.database.raw(
+                              'results_cache_generation + 1',
+                          ) as unknown as number,
+                          results_cache_invalidated_at:
+                              this.database.fn.now() as unknown as Date,
+                      }
+                    : {}),
+            });
+        return affectedRows > 0;
     }
 
     async getEffectiveResultsCacheTtlSeconds(
@@ -1710,8 +1905,7 @@ export class ProjectModel {
                     dbt_connection_type: data.dbtConnection.type,
                     dbt_connection: encryptedCredentials,
                     dbt_version: data.dbtVersion,
-                    organization_warehouse_credentials_uuid:
-                        data.organizationWarehouseCredentialsUuid,
+                    organization_warehouse_credentials_uuid: null,
                     project_defaults: data.projectDefaults ?? null,
                 })
                 .where('project_uuid', projectUuid)
@@ -1818,6 +2012,11 @@ export class ProjectModel {
             .forUpdate(ProjectTableName)
             .first();
         if (!project) return null;
+        if (project.organization_warehouse_credentials_uuid) {
+            throw new ParameterError(
+                'Organization warehouse credentials are no longer supported',
+            );
+        }
         const row = await trx(WarehouseCredentialTableName)
             .where('project_id', project.project_id)
             .select<{ encrypted_credentials: Buffer }[]>(
@@ -1825,13 +2024,6 @@ export class ProjectModel {
             )
             .forUpdate()
             .first();
-        if (project.organization_warehouse_credentials_uuid) {
-            return this.getOrganizationWarehouseCredentials(
-                project.organization_warehouse_credentials_uuid,
-                project.organization_uuid,
-                trx,
-            );
-        }
         return row
             ? this.decryptWarehouseCredentials(row.encrypted_credentials)
             : null;
@@ -2405,6 +2597,11 @@ export class ProjectModel {
                     );
                 }
                 const [project] = projects;
+                if (project.organization_warehouse_credentials_uuid) {
+                    throw new ParameterError(
+                        'Organization warehouse credentials are no longer supported',
+                    );
+                }
                 if (!project.dbt_connection) {
                     throw new NotFoundError(
                         'Project has no valid dbt credentials',
@@ -2444,9 +2641,7 @@ export class ProjectModel {
                     schedulerFailureContactOverride:
                         project.scheduler_failure_contact_override,
                     createdByUserUuid: project.created_by_user_uuid,
-                    organizationWarehouseCredentialsUuid:
-                        project.organization_warehouse_credentials_uuid ??
-                        undefined,
+                    organizationWarehouseCredentialsUuid: undefined,
                     hasDefaultUserSpaces: project.has_default_user_spaces,
                     projectDefaults: project.project_defaults ?? undefined,
                     colorPaletteUuid: project.color_palette_uuid ?? null,
@@ -2459,20 +2654,6 @@ export class ProjectModel {
                     ),
                 };
 
-                // If project uses organization warehouse credentials, load them
-                if (project.organization_warehouse_credentials_uuid) {
-                    const sensitiveCredentials =
-                        await this.getOrganizationWarehouseCredentials(
-                            project.organization_warehouse_credentials_uuid,
-                            project.organization_uuid,
-                        );
-                    return {
-                        ...result,
-                        warehouseConnection: sensitiveCredentials,
-                    };
-                }
-
-                // Fall back to project-level credentials
                 if (!project.warehouse_type) {
                     return result;
                 }
@@ -2661,45 +2842,6 @@ export class ProjectModel {
             }
             default:
                 return nonSensitiveCredentials;
-        }
-    }
-
-    private async getOrganizationWarehouseCredentials(
-        organizationWarehouseCredentialsUuid: string,
-        organizationUuid: string, // Extra filter value to ensure we are getting the credentials from the correct organization
-        database: Knex = this.database,
-    ): Promise<CreateWarehouseCredentials> {
-        const [orgCredentials] = await database(
-            'organization_warehouse_credentials',
-        )
-            .where(
-                'organization_warehouse_credentials_uuid',
-                organizationWarehouseCredentialsUuid,
-            )
-            .andWhere('organization_uuid', organizationUuid)
-            .select('warehouse_connection');
-
-        if (!orgCredentials) {
-            throw new NotFoundError(
-                'Organization warehouse credentials not found',
-            );
-        }
-
-        try {
-            return withWarehouseCredentialVersion(
-                normalizeWarehouseCredentials(
-                    JSON.parse(
-                        this.encryptionUtil.decrypt(
-                            orgCredentials.warehouse_connection,
-                        ),
-                    ) as CreateWarehouseCredentials,
-                ),
-                `organization:${organizationWarehouseCredentialsUuid}`,
-            );
-        } catch (e) {
-            throw new UnexpectedServerError(
-                'Failed to load organization warehouse credentials',
-            );
         }
     }
 
@@ -2944,6 +3086,49 @@ export class ProjectModel {
             exploreCount: Number(row?.exploreCount ?? 0),
             totalBytes: Number(row?.totalBytes ?? 0),
         };
+    }
+
+    async findExistingExploreNames(
+        projectUuid: string,
+        exploreNames: string[],
+    ): Promise<string[]> {
+        return this.database(CachedExploreTableName)
+            .where('project_uuid', projectUuid)
+            .whereIn('name', exploreNames)
+            .distinct('name')
+            .pluck('name');
+    }
+
+    /**
+     * Matches on sqlTable because a join can alias the table, which makes it
+     * invisible to table_names.
+     */
+    async findExploreNamesReadingBaseTables(
+        projectUuid: string,
+        exploreNames: string[],
+    ): Promise<string[]> {
+        const { rows } = await this.database.raw<{
+            rows: { name: string }[];
+        }>(
+            `SELECT DISTINCT reader.name
+             FROM ${CachedExploreTableName} reader
+             CROSS JOIN LATERAL jsonb_each(
+                 CASE WHEN jsonb_typeof(reader.explore->'tables') = 'object'
+                      THEN reader.explore->'tables'
+                      ELSE '{}'::jsonb
+                 END
+             ) AS reader_table
+             WHERE reader.project_uuid = ?
+               AND reader.explore->>'type' IS DISTINCT FROM 'pre_aggregate'
+               AND reader_table.value->>'sqlTable' IN (
+                   SELECT listed.explore->'tables'->(listed.explore->>'baseTable')->>'sqlTable'
+                   FROM ${CachedExploreTableName} listed
+                   WHERE listed.project_uuid = ?
+                     AND listed.name = ANY(?)
+               )`,
+            [projectUuid, projectUuid, exploreNames],
+        );
+        return rows.map(({ name }) => name);
     }
 
     async findExploreTableSummariesFromCache(
@@ -3650,8 +3835,13 @@ export class ProjectModel {
                           );
 
                     if (complete) {
+                        // Drop only explores that are gone; survivors keep their uuid
                         await trx(CachedExploreTableName)
                             .where('project_uuid', projectUuid)
+                            .whereNotIn(
+                                'name',
+                                exploresToSave.map((explore) => explore.name),
+                            )
                             .delete();
                     }
 
@@ -3692,13 +3882,22 @@ export class ProjectModel {
                         const insertQuery = trx<DbCachedExplore>(
                             CachedExploreTableName,
                         ).insert(rows);
+                        // A complete single-connection save owns every
+                        // explore, so a survivor loses any multi-connection
+                        // binding it had; a partial save leaves it alone
                         // eslint-disable-next-line no-await-in-loop
-                        const saved = await (complete
-                            ? insertQuery.returning('cached_explore_uuid')
-                            : insertQuery
-                                  .onConflict(['name', 'project_uuid'])
-                                  .merge(['table_names', 'explore'])
-                                  .returning('cached_explore_uuid'));
+                        const saved = await insertQuery
+                            .onConflict(['name', 'project_uuid'])
+                            .merge(
+                                complete
+                                    ? [
+                                          'table_names',
+                                          'explore',
+                                          'warehouse_connection_uuid',
+                                      ]
+                                    : ['table_names', 'explore'],
+                            )
+                            .returning('cached_explore_uuid');
                         individualCachedExplores.push(...saved);
                     }
 
@@ -3733,12 +3932,107 @@ export class ProjectModel {
         );
     }
 
+    private static async cachedExploreSourcesForDbtSources(
+        database: Knex,
+        projectUuid: string,
+        dbtSourceUuids: string[],
+    ): Promise<Map<string, string>> {
+        const [project, sources, packages, explores] = await Promise.all([
+            database(ProjectTableName)
+                .select('dbt_source_uuid')
+                .where('project_uuid', projectUuid)
+                .first(),
+            database(ProjectDbtSourcesTableName)
+                .select('project_dbt_source_uuid')
+                .where('project_uuid', projectUuid),
+            database(DbtSourceRefCatalogsTableName)
+                .select<CachedSourceCatalog[]>(
+                    {
+                        sourceUuid: 'dbt_source_uuid',
+                        packageName: 'project_name',
+                    },
+                    database.raw(
+                        "ARRAY(SELECT DISTINCT node->>'package_name' FROM jsonb_array_elements(??) AS node WHERE node->>'package_name' IS NOT NULL) AS ??",
+                        ['nodes', 'nodePackageNames'],
+                    ),
+                )
+                .where('project_uuid', projectUuid),
+            database(CachedExploreTableName)
+                .select<CachedExploreSource[]>(
+                    'name',
+                    database.raw(
+                        "COALESCE(explore->'tables'->COALESCE(explore->>'baseTable', name)->>'dbtSourceUuid', explore->>'dbtSourceUuid') AS ??",
+                        ['sourceUuid'],
+                    ),
+                    database.raw(
+                        "explore->'tables'->COALESCE(explore->>'baseTable', name)->>'dbtPackageName' AS ??",
+                        ['packageName'],
+                    ),
+                )
+                .where('project_uuid', projectUuid)
+                .whereRaw("NOT (COALESCE(explore->>'type', '') = ANY(?))", [
+                    [...USER_MANAGED_EXPLORE_TYPES],
+                ]),
+        ]);
+        return cachedExploreSourcesForSources(
+            explores,
+            packages,
+            [
+                project?.dbt_source_uuid ?? projectUuid,
+                ...sources.map((source) => source.project_dbt_source_uuid),
+            ],
+            dbtSourceUuids,
+        );
+    }
+
+    private static async cachedExploreNamesForDbtSources(
+        database: Knex,
+        projectUuid: string,
+        dbtSourceUuids: string[],
+    ): Promise<string[]> {
+        return [
+            ...(
+                await ProjectModel.cachedExploreSourcesForDbtSources(
+                    database,
+                    projectUuid,
+                    dbtSourceUuids,
+                )
+            ).keys(),
+        ];
+    }
+
+    async countCachedExploresForDbtSource(
+        projectUuid: string,
+        dbtSourceUuid: string,
+    ): Promise<number> {
+        return (
+            await ProjectModel.cachedExploreNamesForDbtSources(
+                this.database,
+                projectUuid,
+                [dbtSourceUuid],
+            )
+        ).length;
+    }
+
     async saveExploreStreamToCache(
         projectUuid: string,
         explores: AsyncIterable<Explore | ExploreError>,
         // Use only statements on the given transaction; no other I/O or connection.
         beforeWrite?: StagedExploreWriteCheck,
+        failedDbtSourceUuids: string[] = [],
     ): Promise<{ cachedExploreUuids: string[] }> {
+        async function* boundExplores() {
+            for await (const explore of explores)
+                yield { explore, warehouseConnectionUuid: null };
+        }
+        if (failedDbtSourceUuids.length > 0) {
+            return this.saveMultiConnectionExplores(
+                projectUuid,
+                boundExplores(),
+                { kind: 'dbtSources', dbtSourceUuids: failedDbtSourceUuids },
+                beforeWrite,
+            );
+        }
         return wrapSentryTransaction(
             'ProjectModel.saveExploresToCache',
             {},
@@ -3855,8 +4149,23 @@ export class ProjectModel {
                                     'Cached explore staging name set mismatch',
                                 );
                             }
+                            // Explores that survive a compile keep their uuid so rows
+                            // that reference them (pre-aggregate registry and
+                            // materializations, changes) are not cascade-deleted.
                             await trx(CachedExploreTableName)
                                 .where('project_uuid', projectUuid)
+                                .whereNotExists(
+                                    trx(CachedExploreStagingTableName)
+                                        .select(trx.raw('1'))
+                                        .where({
+                                            save_uuid: saveUuid,
+                                            project_uuid: projectUuid,
+                                        })
+                                        .whereRaw('??.name = ??.name', [
+                                            CachedExploreStagingTableName,
+                                            CachedExploreTableName,
+                                        ]),
+                                )
                                 .delete();
                             const promotedResult = await trx.raw<{
                                 rows: {
@@ -3868,6 +4177,10 @@ export class ProjectModel {
                                  SELECT cached_explore_uuid, project_uuid, name, table_names, explore
                                  FROM ??
                                  WHERE save_uuid = ? AND project_uuid = ?
+                                 ON CONFLICT (name, project_uuid) DO UPDATE
+                                 SET table_names = EXCLUDED.table_names,
+                                     explore = EXCLUDED.explore,
+                                     warehouse_connection_uuid = NULL
                                  RETURNING name, cached_explore_uuid`,
                                 [
                                     CachedExploreTableName,
@@ -3975,12 +4288,149 @@ export class ProjectModel {
         );
     }
 
+    async getLegacyPrimaryExploreNames(projectUuid: string): Promise<string[]> {
+        return getLegacyPrimaryExploreNames(this.database, projectUuid);
+    }
+
+    async assertSourceDeployOwnership(
+        projectUuid: string,
+        sourceUuid: string | null,
+        saveUuid: string,
+        trx: Transaction,
+        allowUnstampedErrors = false,
+        previewMapping?: {
+            sourcesByPackage: ReadonlyMap<string, string>;
+            sourceAliases: ReadonlyMap<string, string>;
+        },
+    ): Promise<void> {
+        const ownerOf = (alias = '') => {
+            const prefix = alias ? `${alias}.` : '';
+            const stamped = `COALESCE(${prefix}explore->'tables'->COALESCE(${prefix}explore->>'baseTable', ${prefix}name)->>'dbtSourceUuid', ${prefix}explore->>'dbtSourceUuid')`;
+            return previewMapping
+                ? trx.raw(
+                      `COALESCE(?::jsonb->>(${stamped}), ${stamped}, ?::jsonb->>(${prefix}explore->'tables'->COALESCE(${prefix}explore->>'baseTable', ${prefix}name)->>'dbtPackageName'))`,
+                      [
+                          JSON.stringify(
+                              Object.fromEntries(previewMapping.sourceAliases),
+                          ),
+                          JSON.stringify(
+                              Object.fromEntries(
+                                  previewMapping.sourcesByPackage,
+                              ),
+                          ),
+                      ],
+                  )
+                : trx.raw(stamped);
+        };
+        const sourceIdentity = ownerOf();
+        const conflicts = await trx(CachedExploreTableName)
+            .select<{ name: string; source_uuid: string | null }[]>(
+                'name',
+                trx.raw('? AS source_uuid', [sourceIdentity]),
+            )
+            .where('project_uuid', projectUuid)
+            .whereRaw("NOT (COALESCE(explore->>'type', '') = ANY(?))", [
+                [...USER_MANAGED_EXPLORE_TYPES],
+            ])
+            .where((query) => {
+                void query
+                    .where((unknown) => {
+                        void unknown.whereRaw('? IS NULL', [sourceIdentity]);
+                        if (allowUnstampedErrors) {
+                            void unknown.whereRaw(
+                                "NOT jsonb_exists(explore, 'errors')",
+                            );
+                        }
+                    })
+                    .orWhere((collision) => {
+                        if (sourceUuid === null) {
+                            void collision.whereExists(
+                                trx(
+                                    `${CachedExploreStagingTableName} AS incoming`,
+                                )
+                                    .select(trx.raw('1'))
+                                    .where({
+                                        'incoming.project_uuid': projectUuid,
+                                        'incoming.save_uuid': saveUuid,
+                                    })
+                                    .whereRaw(
+                                        'incoming.name = cached_explore.name',
+                                    )
+                                    .whereRaw('? IS DISTINCT FROM ?', [
+                                        ownerOf('incoming'),
+                                        ownerOf(CachedExploreTableName),
+                                    ]),
+                            );
+                            return;
+                        }
+                        void collision
+                            .whereRaw('? <> ?', [sourceIdentity, sourceUuid])
+                            .whereIn(
+                                'name',
+                                trx(CachedExploreStagingTableName)
+                                    .select('name')
+                                    .where({
+                                        project_uuid: projectUuid,
+                                        save_uuid: saveUuid,
+                                    })
+                                    .whereRaw('? = ?', [
+                                        sourceIdentity,
+                                        sourceUuid,
+                                    ]),
+                            );
+                    });
+            });
+        if (conflicts.length > 0) {
+            const [primary] = await trx(ProjectTableName)
+                .select('dbt_source_name', 'dbt_source_uuid')
+                .where('project_uuid', projectUuid);
+            const extraSources = await trx(ProjectDbtSourcesTableName)
+                .select('name', 'project_dbt_source_uuid')
+                .where('project_uuid', projectUuid)
+                .orderBy('precedence', 'asc')
+                .orderBy('name', 'asc');
+            const sourceNames = new Map([
+                [
+                    primary.dbt_source_uuid ?? projectUuid,
+                    primary.dbt_source_name,
+                ],
+                ...extraSources.map(
+                    (source) =>
+                        [source.project_dbt_source_uuid, source.name] as const,
+                ),
+            ]);
+            const collisions = conflicts
+                .filter(
+                    (
+                        conflict,
+                    ): conflict is { name: string; source_uuid: string } =>
+                        conflict.source_uuid !== null,
+                )
+                .map((conflict) => ({
+                    exploreName: conflict.name,
+                    sourceName:
+                        sourceNames.get(conflict.source_uuid) ??
+                        'unknown source',
+                }));
+            throw cliDeployConflictError(
+                collisions.length > 0
+                    ? `another deploy or refresh changed the project while this deploy ran; ${cliDeployCollisionReason(collisions)}; deploy again`
+                    : 'another deploy or refresh changed the project while this deploy ran; deploy again',
+                [
+                    primary.dbt_source_name,
+                    ...extraSources.map((source) => source.name),
+                ],
+            );
+        }
+    }
+
     async saveMultiConnectionExplores(
         projectUuid: string,
         explores: AsyncIterable<BoundExplore>,
         carry: MultiConnectionCarry,
         // Use only statements on the given transaction; no other I/O or connection.
         beforeWrite?: StagedExploreWriteCheck,
+        naming?: ExploreNaming,
     ): Promise<{ cachedExploreUuids: string[] }> {
         return wrapSentryTransaction(
             'ProjectModel.saveMultiConnectionExplores',
@@ -4045,24 +4495,77 @@ export class ProjectModel {
                             .merge(['table_names', 'explore']);
                     }
 
-                    const { promotedRows, managedNames, carriedNames } =
-                        await this.database.transaction(async (trx) => {
-                            await lockCompilePublication(trx);
-                            await ProjectModel.lockAndEnsureCachedExplores(
+                    const {
+                        promotedRows,
+                        managedNames,
+                        carriedNames,
+                        namedExplores,
+                        namingWarnings,
+                    } = await this.database.transaction(async (trx) => {
+                        await lockCompilePublication(trx);
+                        await ProjectModel.lockAndEnsureCachedExplores(
+                            trx,
+                            projectUuid,
+                        );
+                        const failedSourceUuids =
+                            carry.kind === 'dbtSources' ||
+                            carry.kind === 'connections'
+                                ? (carry.dbtSourceUuids ?? [])
+                                : [];
+                        const carriedSources =
+                            failedSourceUuids.length > 0
+                                ? await ProjectModel.cachedExploreSourcesForDbtSources(
+                                      trx,
+                                      projectUuid,
+                                      failedSourceUuids,
+                                  )
+                                : new Map<string, string>();
+                        const named = naming
+                            ? await allocateStagedExploreNames(
+                                  trx,
+                                  projectUuid,
+                                  saveUuid,
+                                  {
+                                      ...naming,
+                                      cachedExploreSources: carriedSources,
+                                  },
+                              )
+                            : null;
+                        if (named) {
+                            stagedNameOrder.splice(
+                                0,
+                                stagedNameOrder.length,
+                                ...named.names,
+                            );
+                            const bindings = await trx(
+                                CachedExploreStagingTableName,
+                            )
+                                .select('name', 'warehouse_connection_uuid')
+                                .where({
+                                    save_uuid: saveUuid,
+                                    project_uuid: projectUuid,
+                                });
+                            stagedBindings.clear();
+                            bindings.forEach((row) =>
+                                stagedBindings.set(
+                                    row.name,
+                                    row.warehouse_connection_uuid,
+                                ),
+                            );
+                        }
+                        const carriedResult =
+                            await ProjectModel.stageCarriedExplores(
                                 trx,
                                 projectUuid,
+                                saveUuid,
+                                carry,
+                                named?.activeSourceUuids,
+                                [...carriedSources.keys()],
                             );
-                            const carriedResult =
-                                await ProjectModel.stageCarriedExplores(
-                                    trx,
-                                    projectUuid,
-                                    saveUuid,
-                                    carry,
-                                );
-                            const managedResult = await trx.raw<{
-                                rows: { name: string }[];
-                            }>(
-                                `INSERT INTO ?? (save_uuid, project_uuid, name, table_names, explore, warehouse_connection_uuid)
+                        const managedResult = await trx.raw<{
+                            rows: { name: string }[];
+                        }>(
+                            `INSERT INTO ?? (save_uuid, project_uuid, name, table_names, explore, warehouse_connection_uuid)
                                  SELECT ?, project_uuid, name, table_names, explore, warehouse_connection_uuid
                                  FROM ??
                                  WHERE project_uuid = ?
@@ -4072,76 +4575,128 @@ export class ProjectModel {
                                      explore = EXCLUDED.explore,
                                      warehouse_connection_uuid = EXCLUDED.warehouse_connection_uuid
                                  RETURNING name`,
-                                [
-                                    CachedExploreStagingTableName,
-                                    saveUuid,
-                                    CachedExploreTableName,
-                                    projectUuid,
-                                    [...USER_MANAGED_EXPLORE_TYPES],
-                                ],
-                            );
-                            if (beforeWrite) await beforeWrite(trx, saveUuid);
-                            const expectedNames = new Set(
-                                stagedBindings.keys(),
-                            );
-                            carriedResult.forEach((name) =>
-                                expectedNames.add(name),
-                            );
-                            managedResult.rows.forEach(({ name }) =>
-                                expectedNames.add(name),
-                            );
-                            if (expectedNames.size === 0) {
-                                throw new ParameterError('No explores to save');
-                            }
-                            const lockedStagedRows = await trx(
+                            [
                                 CachedExploreStagingTableName,
-                            )
-                                .select<{ name: string }[]>('name')
-                                .where({
-                                    save_uuid: saveUuid,
-                                    project_uuid: projectUuid,
-                                })
-                                .forUpdate();
-                            if (
-                                lockedStagedRows.length !==
-                                    expectedNames.size ||
-                                lockedStagedRows.some(
-                                    ({ name }) => !expectedNames.has(name),
-                                )
-                            ) {
-                                throw new UnexpectedServerError(
-                                    'Cached explore staging name set mismatch',
-                                );
-                            }
-                            await trx(CachedExploreTableName)
-                                .where('project_uuid', projectUuid)
-                                .delete();
-                            const promotedResult = await trx.raw<{
-                                rows: {
+                                saveUuid,
+                                CachedExploreTableName,
+                                projectUuid,
+                                [...USER_MANAGED_EXPLORE_TYPES],
+                            ],
+                        );
+                        if (beforeWrite) await beforeWrite(trx, saveUuid);
+                        const expectedNames = new Set(stagedBindings.keys());
+                        carriedResult.forEach((name) =>
+                            expectedNames.add(name),
+                        );
+                        managedResult.rows.forEach(({ name }) =>
+                            expectedNames.add(name),
+                        );
+                        if (expectedNames.size === 0) {
+                            throw new ParameterError('No explores to save');
+                        }
+                        const lockedStagedRows = await trx(
+                            CachedExploreStagingTableName,
+                        )
+                            .select<
+                                {
                                     name: string;
-                                    cached_explore_uuid: string;
-                                }[];
-                            }>(
-                                `INSERT INTO ?? (cached_explore_uuid, project_uuid, name, table_names, explore, warehouse_connection_uuid)
+                                    explore: Explore | ExploreError;
+                                }[]
+                            >('name', 'explore')
+                            .where({
+                                save_uuid: saveUuid,
+                                project_uuid: projectUuid,
+                            })
+                            .forUpdate();
+                        if (
+                            lockedStagedRows.length !== expectedNames.size ||
+                            lockedStagedRows.some(
+                                ({ name }) => !expectedNames.has(name),
+                            )
+                        ) {
+                            throw new UnexpectedServerError(
+                                'Cached explore staging name set mismatch',
+                            );
+                        }
+                        await lockedStagedRows.reduce(async (previous, row) => {
+                            await previous;
+                            const validated = validateExplorePublication(
+                                row.explore,
+                                row.name,
+                            );
+                            if (validated !== row.explore) {
+                                await trx(CachedExploreStagingTableName)
+                                    .where({
+                                        save_uuid: saveUuid,
+                                        project_uuid: projectUuid,
+                                        name: row.name,
+                                    })
+                                    .update({
+                                        explore: JSON.stringify(validated),
+                                        table_names: [],
+                                    });
+                                const index =
+                                    named?.explores.findIndex(
+                                        (explore) => explore.name === row.name,
+                                    ) ?? -1;
+                                if (named && index >= 0)
+                                    named.explores[index] = validated;
+                            }
+                        }, Promise.resolve());
+                        // Explores that survive a compile keep their uuid so rows
+                        // that reference them (pre-aggregate registry and
+                        // materializations, changes) are not cascade-deleted.
+                        await trx(CachedExploreTableName)
+                            .where('project_uuid', projectUuid)
+                            .whereNotExists(
+                                trx(CachedExploreStagingTableName)
+                                    .select(trx.raw('1'))
+                                    .where({
+                                        save_uuid: saveUuid,
+                                        project_uuid: projectUuid,
+                                    })
+                                    .whereRaw('??.name = ??.name', [
+                                        CachedExploreStagingTableName,
+                                        CachedExploreTableName,
+                                    ]),
+                            )
+                            .delete();
+                        const promotedResult = await trx.raw<{
+                            rows: {
+                                name: string;
+                                cached_explore_uuid: string;
+                            }[];
+                        }>(
+                            `INSERT INTO ?? (cached_explore_uuid, project_uuid, name, table_names, explore, warehouse_connection_uuid)
                                  SELECT cached_explore_uuid, project_uuid, name, table_names, explore, warehouse_connection_uuid
                                  FROM ??
                                  WHERE save_uuid = ? AND project_uuid = ?
+                                 ON CONFLICT (name, project_uuid) DO UPDATE
+                                 SET table_names = EXCLUDED.table_names,
+                                     explore = EXCLUDED.explore,
+                                     warehouse_connection_uuid = EXCLUDED.warehouse_connection_uuid
                                  RETURNING name, cached_explore_uuid`,
-                                [
-                                    CachedExploreTableName,
-                                    CachedExploreStagingTableName,
-                                    saveUuid,
-                                    projectUuid,
-                                ],
-                            );
-                            return {
-                                promotedRows: promotedResult.rows,
-                                managedNames: managedResult.rows.map(
-                                    ({ name }) => name,
-                                ),
-                                carriedNames: carriedResult,
-                            };
-                        });
+                            [
+                                CachedExploreTableName,
+                                CachedExploreStagingTableName,
+                                saveUuid,
+                                projectUuid,
+                            ],
+                        );
+                        return {
+                            promotedRows: promotedResult.rows,
+                            managedNames: managedResult.rows.map(
+                                ({ name }) => name,
+                            ),
+                            carriedNames: carriedResult,
+                            namedExplores: named?.explores ?? [],
+                            namingWarnings: named?.warnings ?? [],
+                        };
+                    });
+                    if (naming) {
+                        naming.warnings.push(...namingWarnings);
+                        naming.onPublished?.(namedExplores);
+                    }
                     markCompilePublished();
                     const cachedExploreUuidsByName = new Map(
                         promotedRows.map(
@@ -4191,6 +4746,8 @@ export class ProjectModel {
         projectUuid: string,
         saveUuid: string,
         carry: MultiConnectionCarry,
+        activeSourceUuids?: string[],
+        failedSourceNames: string[] = [],
     ): Promise<string[]> {
         const carriedQuery = trx(CachedExploreTableName)
             .select(
@@ -4205,14 +4762,66 @@ export class ProjectModel {
             .whereRaw("NOT (COALESCE(explore->>'type', '') = ANY(?))", [
                 [...USER_MANAGED_EXPLORE_TYPES],
             ]);
+        if (activeSourceUuids) {
+            void carriedQuery.where((query) => {
+                query.whereRaw(
+                    "(COALESCE(explore->'tables'->COALESCE(explore->>'baseTable', name)->>'dbtSourceUuid', explore->>'dbtSourceUuid') IS NULL OR COALESCE(explore->'tables'->COALESCE(explore->>'baseTable', name)->>'dbtSourceUuid', explore->>'dbtSourceUuid') = ANY(?))",
+                    [activeSourceUuids],
+                );
+                if (failedSourceNames.length > 0)
+                    query.orWhereIn('name', failedSourceNames);
+            });
+        }
         switch (carry.kind) {
             case 'connections':
-                if (carry.warehouseConnectionUuids.length === 0) return [];
-                void carriedQuery.whereIn(
-                    'warehouse_connection_uuid',
-                    carry.warehouseConnectionUuids,
-                );
+                if (
+                    carry.warehouseConnectionUuids.length === 0 &&
+                    !carry.dbtSourceUuids?.length
+                )
+                    return [];
+                void carriedQuery.where((query) => {
+                    query.whereIn(
+                        'warehouse_connection_uuid',
+                        carry.warehouseConnectionUuids,
+                    );
+                    if (carry.dbtSourceUuids?.length)
+                        query.orWhereIn('name', failedSourceNames);
+                });
                 break;
+            case 'dbtSources':
+                if (carry.dbtSourceUuids.length === 0) return [];
+                void carriedQuery.whereIn('name', failedSourceNames);
+                break;
+            case 'otherDbtSourceSet': {
+                const stamped = `COALESCE(explore->'tables'->COALESCE(explore->>'baseTable', name)->>'dbtSourceUuid', explore->>'dbtSourceUuid')`;
+                const owner = trx.raw(
+                    `COALESCE(?::jsonb->>(${stamped}), ${stamped}, ?::jsonb->>(explore->'tables'->COALESCE(explore->>'baseTable', name)->>'dbtPackageName'))`,
+                    [
+                        JSON.stringify(carry.sourceAliases),
+                        JSON.stringify(carry.packageSources),
+                    ],
+                );
+                void carriedQuery
+                    .clearSelect()
+                    .select(
+                        trx.raw('?', [saveUuid]),
+                        'project_uuid',
+                        'name',
+                        'table_names',
+                        trx.raw(
+                            `CASE WHEN ${stamped} IS DISTINCT FROM ? THEN
+                                CASE WHEN explore->'tables'->COALESCE(explore->>'baseTable', name) IS NULL
+                                    THEN jsonb_set(explore, '{dbtSourceUuid}', to_jsonb(?))
+                                    ELSE jsonb_set(explore, ARRAY['tables', COALESCE(explore->>'baseTable', name), 'dbtSourceUuid'], to_jsonb(?))
+                                END
+                            ELSE explore END`,
+                            [owner, owner, owner],
+                        ),
+                        'warehouse_connection_uuid',
+                    )
+                    .whereRaw('? <> ALL(?)', [owner, carry.dbtSourceUuids]);
+                break;
+            }
             case 'otherDbtSources':
                 void carriedQuery.whereRaw(
                     `CASE
@@ -4225,6 +4834,33 @@ export class ProjectModel {
                 break;
             default:
                 return assertUnreachable(carry, 'Unknown carried explores');
+        }
+        if (
+            carry.kind === 'dbtSources' ||
+            (carry.kind === 'connections' && carry.dbtSourceUuids?.length)
+        ) {
+            const collision = await carriedQuery
+                .clone()
+                .clearSelect()
+                .select('name')
+                .whereIn('name', failedSourceNames)
+                .whereExists(
+                    trx(CachedExploreStagingTableName)
+                        .select(trx.raw('1'))
+                        .where({
+                            save_uuid: saveUuid,
+                            project_uuid: projectUuid,
+                        })
+                        .whereRaw('??.name = ??.name', [
+                            CachedExploreStagingTableName,
+                            CachedExploreTableName,
+                        ]),
+                )
+                .first();
+            if (collision)
+                throw new ParameterError(
+                    `Explore "${collision.name}" conflicts with an explore kept from a failed dbt source. Rename the model before refreshing again.`,
+                );
         }
         const result = await trx.raw<{ rows: { name: string }[] }>(
             `INSERT INTO ?? (save_uuid, project_uuid, name, table_names, explore, warehouse_connection_uuid)
@@ -5408,11 +6044,6 @@ export class ProjectModel {
         return new WarehouseConnectionModel({
             database: this.database,
             encryptionUtil: this.encryptionUtil,
-            organizationWarehouseCredentialsModel:
-                new OrganizationWarehouseCredentialsModel({
-                    database: this.database,
-                    encryptionUtil: this.encryptionUtil,
-                }),
         });
     }
 
@@ -5435,9 +6066,7 @@ export class ProjectModel {
                       await model.getProject(projectUuid),
                       target.warehouseConnectionUuid,
                   );
-        return OrganizationWarehouseCredentialsModel.stripSensitiveCredentials(
-            credentials,
-        );
+        return stripSensitiveWarehouseCredentials(credentials);
     }
 
     private async getDbtSourceWarehouseConnectionUuid(
@@ -5451,9 +6080,9 @@ export class ProjectModel {
             return null;
         }
         const source = await this.database('project_dbt_sources')
-            .select<{ warehouse_connection_uuid: string | null }>(
-                'warehouse_connection_uuid',
-            )
+            .select<{
+                warehouse_connection_uuid: string | null;
+            }>('warehouse_connection_uuid')
             .where('project_uuid', projectUuid)
             .where('project_dbt_source_uuid', sourceUuid)
             .first();
@@ -5558,7 +6187,28 @@ export class ProjectModel {
                 'Extra connection credentials load per user',
             );
         }
-        return this.getWarehouseCredentialsForProject(projectUuid);
+        return this.getWarehouseCredentialsForProject(projectUuid).catch(
+            (error: unknown) =>
+                this.liveSourceCredentialsOrThrow(error, projectUuid, binding),
+        );
+    }
+
+    async liveSourceCredentialsOrThrow(
+        error: unknown,
+        projectUuid: string,
+        binding: ConnectionBinding,
+    ): Promise<CreateWarehouseCredentials> {
+        if (!(error instanceof NotFoundError) || binding.kind !== 'explore') {
+            throw error;
+        }
+        const explore = await this.getExploreFromCache(
+            projectUuid,
+            binding.exploreName,
+        ).catch(() => null);
+        if (explore?.type === ExploreType.API_SOURCE) {
+            return LIVE_SOURCE_ONLY_CREDENTIALS;
+        }
+        throw error;
     }
 
     /** The column is the only source; a version copied into stored credentials is ignored. */
@@ -5744,14 +6394,11 @@ export class ProjectModel {
                 `Cannot find any warehouse credentials for project.`,
             );
         }
+
         if (row.organization_warehouse_credentials_uuid) {
-            // If organization_warehouse_credentials_uuid is set, we overwrite the credentials with the organization credentials
-            const orgCredentials =
-                await this.getOrganizationWarehouseCredentials(
-                    row.organization_warehouse_credentials_uuid,
-                    row.organization_uuid,
-                );
-            return orgCredentials;
+            throw new ParameterError(
+                'Organization warehouse credentials are no longer supported',
+            );
         }
 
         try {
@@ -7940,11 +8587,23 @@ export class ProjectModel {
      * Identity options for warehouse clients that authenticate as this
      * instance. A web identity audience is only used for the organization it
      * was generated for, so a connection can't use another organization's.
+     * BigQuery workload identity federation requires the owning organization's flag.
      */
     async getWarehouseClientIdentityOptions(
         credentials: CreateWarehouseCredentials | undefined,
         organizationUuid: string | undefined,
-    ): Promise<Pick<WarehouseClientOptions, 'awsCredentials'>> {
+    ): Promise<
+        Pick<
+            WarehouseClientOptions,
+            'awsCredentials' | 'bigqueryExternalAccount'
+        >
+    > {
+        const bigqueryExternalAccount =
+            await this.bigqueryWorkloadIdentity.getExternalAccountCredentials(
+                credentials,
+                organizationUuid,
+            );
+        if (bigqueryExternalAccount) return { bigqueryExternalAccount };
         const awsCredentials = await this.awsWebIdentity.resolveCredentials(
             credentials,
             organizationUuid,
@@ -8135,6 +8794,114 @@ export class ProjectModel {
         });
     }
 
+    /**
+     * Replaces every explore of one live data source. Sources are soft
+     * deleted and explores have no foreign key, so explores are always
+     * written and removed per source.
+     */
+    async replaceApiSourceExplores(
+        projectUuid: string,
+        connectionUuid: string,
+        explores: Explore[],
+    ): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            await ProjectModel.lockAndEnsureCachedExplores(trx, projectUuid);
+            const clashing = await trx(CachedExploreTableName)
+                .select('name')
+                .where('project_uuid', projectUuid)
+                .whereIn(
+                    'name',
+                    explores.map(({ name }) => name),
+                )
+                .whereRaw(
+                    "(explore->>'type' IS DISTINCT FROM ? OR explore->'apiSource'->>'connectionUuid' IS DISTINCT FROM ?)",
+                    [ExploreType.API_SOURCE, connectionUuid],
+                );
+            if (clashing.length > 0) {
+                throw new AlreadyExistsError(
+                    `Explore "${clashing[0].name}" already exists`,
+                );
+            }
+            await ProjectModel.deleteApiSourceExploreRows(
+                trx,
+                projectUuid,
+                connectionUuid,
+            );
+            if (explores.length > 0) {
+                await trx(CachedExploreTableName).insert(
+                    explores.map((explore) => ({
+                        project_uuid: projectUuid,
+                        name: explore.name,
+                        table_names: Object.keys(explore.tables),
+                        explore,
+                    })),
+                );
+            }
+        });
+    }
+
+    /** Which of these explore names belong to something other than this live source. */
+    async findExploreNamesTakenByOthers(
+        projectUuid: string,
+        connectionUuid: string,
+        names: string[],
+    ): Promise<string[]> {
+        if (names.length === 0) {
+            return [];
+        }
+        return this.database(CachedExploreTableName)
+            .where('project_uuid', projectUuid)
+            .whereIn('name', names)
+            .whereRaw(
+                "(explore->>'type' IS DISTINCT FROM ? OR explore->'apiSource'->>'connectionUuid' IS DISTINCT FROM ?)",
+                [ExploreType.API_SOURCE, connectionUuid],
+            )
+            .pluck('name');
+    }
+
+    async hasApiSourceExplores(
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<boolean> {
+        const row = await this.database(CachedExploreTableName)
+            .select('name')
+            .where('project_uuid', projectUuid)
+            .whereRaw("explore->>'type' = ?", [ExploreType.API_SOURCE])
+            .whereRaw("explore->'apiSource'->>'connectionUuid' = ?", [
+                connectionUuid,
+            ])
+            .first();
+        return row !== undefined;
+    }
+
+    async deleteApiSourceExplores(
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            await ProjectModel.lockAndEnsureCachedExplores(trx, projectUuid);
+            await ProjectModel.deleteApiSourceExploreRows(
+                trx,
+                projectUuid,
+                connectionUuid,
+            );
+        });
+    }
+
+    private static async deleteApiSourceExploreRows(
+        trx: Transaction,
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<void> {
+        await trx(CachedExploreTableName)
+            .where('project_uuid', projectUuid)
+            .whereRaw("explore->>'type' = ?", [ExploreType.API_SOURCE])
+            .whereRaw("explore->'apiSource'->>'connectionUuid' = ?", [
+                connectionUuid,
+            ])
+            .delete();
+    }
+
     static async lockAndEnsureCachedExplores(
         trx: Transaction,
         projectUuid: string,
@@ -8195,7 +8962,7 @@ export class ProjectModel {
         queryTimezone: string | null;
     }> {
         const [project] = await this.database(ProjectTableName)
-            .select('organization_warehouse_credentials_uuid', 'query_timezone')
+            .select('query_timezone')
             .where('project_uuid', projectUuid);
 
         if (!project) {
@@ -8205,8 +8972,7 @@ export class ProjectModel {
         }
 
         return {
-            organizationWarehouseCredentialsUuid:
-                project.organization_warehouse_credentials_uuid,
+            organizationWarehouseCredentialsUuid: null,
             queryTimezone: project.query_timezone,
         };
     }

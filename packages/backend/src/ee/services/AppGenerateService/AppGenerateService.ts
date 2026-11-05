@@ -53,8 +53,8 @@ import {
     getVisibleDataAppClaudeModels,
     isChartTypeIcon,
     isDashboardChartTileType,
-    isDataAppAutoAnalysis,
     isExploreError,
+    isExploreIncludedInTableSelection,
     isExternalFetchDocumentContext,
     isSemverVersion,
     isValidDataAppSlug,
@@ -64,7 +64,6 @@ import {
     MAX_APP_VIZ_BUILD_SAMPLE_FIELDS,
     MAX_APP_VIZ_BUILD_SAMPLE_ROWS,
     MissingConfigError,
-    normalizeDataAppAutoAnalysis,
     NotFoundError,
     ParameterError,
     ProjectType,
@@ -110,7 +109,6 @@ import {
     type DashboardBlueprint,
     type DataAppActivityEvent,
     type DataAppActivityFilters,
-    type DataAppAutoAnalysis,
     type DataAppClaudeEffort,
     type DataAppClaudeModel,
     type DataAppCode,
@@ -143,6 +141,7 @@ import {
     type ExternalConnectionMethod,
     type ExternalConnectionSample,
     type ExternalFetchRequest,
+    type FieldUrl,
     type ImportAppCodeRequestBody,
     type InstallRegistryChartTypeBody,
     type KnexPaginateArgs,
@@ -166,8 +165,8 @@ import {
     type UpgradeCandidateFeature,
 } from '@lightdash/common';
 import { generateText, Output } from 'ai';
+import { isEqual } from 'es-toolkit/compat';
 import { Knex } from 'knex';
-import isEqual from 'lodash/isEqual';
 import { createHash } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { PassThrough, Readable } from 'node:stream';
@@ -187,6 +186,12 @@ import {
 } from '../../../analytics/LightdashAnalytics';
 import { fromSession, toSessionUser } from '../../../auth/account';
 import { createObjectUrlSigner } from '../../../clients/Aws/ObjectUrlSigner';
+import {
+    AppRuntimeConfigErrors,
+    getDataAppAzureSandboxGroup,
+    getDataAppCloudRunGateway,
+    isAppRuntimeConfigured,
+} from '../../../config/appRuntimeAvailability';
 import { LightdashConfig } from '../../../config/parseConfig';
 import {
     APP_VERSION_STAGE_ORDER,
@@ -210,7 +215,10 @@ import {
 } from '../../../models/AppModel';
 import { CatalogModel } from '../../../models/CatalogModel/CatalogModel';
 import { ContentVerificationModel } from '../../../models/ContentVerificationModel';
-import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
+import {
+    FeatureFlagModel,
+    type FeatureFlagLogicArgs,
+} from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { OrganizationDesignModel } from '../../../models/OrganizationDesignModel';
 import { PinnedListModel } from '../../../models/PinnedListModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
@@ -660,6 +668,9 @@ type RenderedModel = {
     // Field refs of model filters left out because their value is not a list.
     skippedFilterRefs: string[];
     hasSqlFilter: boolean;
+    // Visible fields carrying `urls` link patterns; drives the index marker
+    // and the generation-prompt reminder.
+    urlFields: string[];
 };
 
 /**
@@ -769,6 +780,12 @@ const CANCELLED_PROMPT_NOTICE =
     'Treat that instruction as withdrawn: do not resume, finish, or build on it. ' +
     'The working tree may contain unfinished changes from the cancelled work. ' +
     "Act only on the user's new request below.";
+
+/** Prepended to the build prompt when the builder's org has saved app state. */
+export const APP_STATE_PROMPT_BLOCK =
+    '[Saved app state is available — this app can remember what each person enters with useAppState and keep values every viewer shares, with a change history, with useSharedAppState. ' +
+    'Read /app/references/app-state.md before building anything that should survive a reload. ' +
+    'Remember a person\'s inputs by default without being asked; use shared state only when the prompt asks for comments, targets, annotations, or anything "everyone" or "the team" sees.]\n\n';
 
 // Maximum number of in-progress app builds allowed per project at one time.
 // Prevents trivial sandbox exhaustion via repeated POST /code calls.
@@ -1388,8 +1405,6 @@ export class AppGenerateService extends BaseService {
                 );
             }
         }
-        await this.assertDataAppsEnabled(user);
-
         const app = await this.appModel.getApp(
             payload.appUuid,
             payload.projectUuid,
@@ -1399,6 +1414,7 @@ export class AppGenerateService extends BaseService {
                 'Data app is not available in this organization',
             );
         }
+        await this.assertAppsEnabled(user, app.template);
         await this.assertCanManageApp(
             user,
             app,
@@ -1631,7 +1647,7 @@ export class AppGenerateService extends BaseService {
                 this.lightdashConfig.appRuntime.lambdaMicroVmDataAppImageArn;
             if (!imageArn) {
                 throw new MissingConfigError(
-                    'Lambda MicroVM data-app image ARN is not configured (LAMBDA_MICROVM_DATA_APP_IMAGE_ARN)',
+                    AppRuntimeConfigErrors.lambdaMicroVmDataAppImage,
                 );
             }
             return imageArn;
@@ -1641,7 +1657,7 @@ export class AppGenerateService extends BaseService {
                 this.lightdashConfig.appRuntime.azureSandboxesDataAppDiskImage;
             if (!diskImage) {
                 throw new MissingConfigError(
-                    'Azure data-app sandbox disk image is not configured (AZURE_SANDBOXES_DATA_APP_DISK_IMAGE)',
+                    AppRuntimeConfigErrors.azureSandboxesDataAppDiskImage,
                 );
             }
             return diskImage;
@@ -1662,25 +1678,17 @@ export class AppGenerateService extends BaseService {
     /** Assemble the `azure-sandboxes` provider config for the data-app pipeline
      * (the data-app sandbox group + shared subscription/region settings). */
     private getAzureSandboxesConfig(): AzureSandboxesConfig {
-        const {
-            azureSandboxes,
-            azureSandboxesDataAppGroup,
-            sandboxIdleTimeoutMs,
-        } = this.lightdashConfig.appRuntime;
-        if (
-            !azureSandboxes.subscriptionId ||
-            !azureSandboxes.resourceGroup ||
-            !azureSandboxesDataAppGroup
-        ) {
+        const { appRuntime } = this.lightdashConfig;
+        const { azureSandboxes, sandboxIdleTimeoutMs } = appRuntime;
+        const group = getDataAppAzureSandboxGroup(appRuntime);
+        if (!group) {
             throw new MissingConfigError(
-                'Azure Sandboxes is not configured (AZURE_SANDBOXES_SUBSCRIPTION_ID / AZURE_SANDBOXES_RESOURCE_GROUP / AZURE_SANDBOXES_DATA_APP_GROUP)',
+                AppRuntimeConfigErrors.azureSandboxesDataAppGroup,
             );
         }
         return {
-            subscriptionId: azureSandboxes.subscriptionId,
-            resourceGroup: azureSandboxes.resourceGroup,
+            ...group,
             region: azureSandboxes.region,
-            sandboxGroup: azureSandboxesDataAppGroup,
             apiVersion: azureSandboxes.apiVersion,
             tokenScope: azureSandboxes.tokenScope,
             resourceTier: azureSandboxes.resourceTier,
@@ -1690,16 +1698,13 @@ export class AppGenerateService extends BaseService {
 
     /** Assemble the `gcp-cloud-run` provider config (gateway URL + secret). */
     private getCloudRunSandboxesConfig(): CloudRunSandboxesConfig {
-        const { gcpCloudRun } = this.lightdashConfig.appRuntime;
-        if (!gcpCloudRun.sandboxUrl || !gcpCloudRun.sandboxSecret) {
-            throw new MissingConfigError(
-                'GCP Cloud Run sandboxes are not configured (GCP_CLOUD_RUN_SANDBOX_URL / GCP_CLOUD_RUN_SANDBOX_SECRET)',
-            );
+        const gateway = getDataAppCloudRunGateway(
+            this.lightdashConfig.appRuntime,
+        );
+        if (!gateway) {
+            throw new MissingConfigError(AppRuntimeConfigErrors.gcpCloudRun);
         }
-        return {
-            sandboxUrl: gcpCloudRun.sandboxUrl,
-            sandboxSecret: gcpCloudRun.sandboxSecret,
-        };
+        return gateway;
     }
 
     private buildSandboxSpec(
@@ -1736,6 +1741,89 @@ export class AppGenerateService extends BaseService {
         if (!enabled) {
             throw new ForbiddenError('Data apps are not enabled');
         }
+    }
+
+    /** Chart Studio is available with a valid licence (this EE service) and a configured sandbox provider. */
+    isChartStudioAvailable(): boolean {
+        return isAppRuntimeConfigured(this.lightdashConfig);
+    }
+
+    private assertChartStudioAvailable(): void {
+        if (!this.isChartStudioAvailable()) {
+            throw new ForbiddenError('Chart Studio is not available');
+        }
+    }
+
+    /** Chart type authoring follows Chart Studio; every other template follows data apps. */
+    private async assertAppsEnabled(
+        user: SessionUser,
+        template: DataAppTemplate | null,
+    ): Promise<void> {
+        if (template === DATA_APP_VIZ_TEMPLATE) {
+            this.assertChartStudioAvailable();
+            return;
+        }
+        await this.assertDataAppsEnabled(user);
+    }
+
+    /** Library installs uninstall and restore wherever chart types are usable, even without Chart Studio. */
+    private async assertCanRemoveAppGate(
+        user: SessionUser,
+        app: Pick<DbApp, 'registry_slug' | 'template'>,
+    ): Promise<void> {
+        if (app.registry_slug !== null) {
+            await this.assertChartTypesUsable(user);
+            return;
+        }
+        await this.assertAppsEnabled(user, app.template);
+    }
+
+    /** Chart types are spaceless and never built from a dashboard, so a create cannot claim either. */
+    private static assertChartTypeCreateInputs(
+        template: DataAppTemplate | null,
+        {
+            spaceUuid,
+            dashboard,
+        }: {
+            spaceUuid: string | undefined;
+            dashboard: AppDashboardReference | undefined;
+        },
+    ): void {
+        if (template !== DATA_APP_VIZ_TEMPLATE) return;
+        if (spaceUuid) {
+            throw new ParameterError(
+                'Custom chart types cannot be placed in spaces',
+            );
+        }
+        if (dashboard !== undefined) {
+            throw new ParameterError(
+                'Custom chart types cannot be built from a dashboard',
+            );
+        }
+    }
+
+    /** For requests whose template is not known yet, such as staging a file before creation. */
+    private async assertAnyAppsEnabled(user: SessionUser): Promise<void> {
+        if (this.isChartStudioAvailable()) return;
+        await this.assertDataAppsEnabled(user);
+    }
+
+    async chartTypesEnabledFor(user: SessionUser): Promise<boolean> {
+        return chartTypesEnabledFor(
+            this.featureFlagModel,
+            this.isChartStudioAvailable(),
+            user,
+        );
+    }
+
+    private async assertChartTypesUsable(
+        user: FeatureFlagLogicArgs['user'],
+    ): Promise<void> {
+        await assertChartTypesEnabled(
+            this.featureFlagModel,
+            this.isChartStudioAvailable(),
+            user,
+        );
     }
 
     /**
@@ -1824,7 +1912,7 @@ export class AppGenerateService extends BaseService {
         user: SessionUser,
         projectUuid: string | null,
     ): Promise<boolean> {
-        if (!(await chartTypesEnabledFor(this.featureFlagModel, user))) {
+        if (!(await this.chartTypesEnabledFor(user))) {
             return false;
         }
         const auditedAbility = this.createAuditedAbility(user);
@@ -2019,18 +2107,19 @@ export class AppGenerateService extends BaseService {
         );
     }
 
-    /** Project connections the user may link to a data app. */
+    /** Project connections the user may link to a data app or chart type. */
     async listLinkableExternalConnections(
         user: SessionUser,
         projectUuid: string,
     ): Promise<ExternalConnection[]> {
-        await this.assertDataAppsEnabled(user);
+        await this.assertAnyAppsEnabled(user);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         const ability = this.createAuditedAbility(user);
         const connections = await this.externalConnectionModel.list(
             projectUuid,
             organizationUuid,
+            { kind: 'data_app' },
         );
         return connections.filter((connection) =>
             ability.can('view', getExternalConnectionSubject(connection)),
@@ -2479,14 +2568,17 @@ export class AppGenerateService extends BaseService {
         filename: string;
         mimeType: string;
     }> {
-        await this.assertDataAppsEnabled(user);
-
         // For iterations the app already exists — use its space + creator
         // context so a space editor or the creator can attach a file. For
         // initial creation the appUuid is generated client-side and the app
         // row doesn't exist yet, so we authorize against `create:DataApp`
         // (anyone who can create an app can stage a file for it).
         const app = await this.appModel.findApp(appUuid, projectUuid);
+        if (app) {
+            await this.assertAppsEnabled(user, app.template);
+        } else {
+            await this.assertAnyAppsEnabled(user);
+        }
         let organizationUuid: string;
         if (app) {
             await this.assertCanManageApp(
@@ -2606,13 +2698,12 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
         imageId: string,
     ): Promise<{ imageUrl: string }> {
-        await this.assertDataAppsEnabled(user);
-
         if (!isValidUuid(imageId)) {
             throw new ParameterError('Invalid imageId: must be a valid UUID');
         }
 
         const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertAppsEnabled(user, app.template);
         await this.assertCanManageApp(
             user,
             app,
@@ -2654,14 +2745,14 @@ export class AppGenerateService extends BaseService {
     ) {
         const app = await this.appModel.getApp(appUuid, projectUuid);
         if (app.template === DATA_APP_VIZ_TEMPLATE) {
-            await assertChartTypesEnabled(this.featureFlagModel, user);
+            await this.assertChartTypesUsable(user);
             this.assertCanUseChartTypes(user, {
                 organizationUuid: app.organization_uuid,
                 projectUuid,
             });
             return app;
         }
-        await this.assertDataAppsEnabled(user);
+        await this.assertAppsEnabled(user, app.template);
         await this.assertCanViewApp(user, app);
         return app;
     }
@@ -2672,8 +2763,8 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         appUuid: string,
     ) {
-        await this.assertDataAppsEnabled(user);
         const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertAppsEnabled(user, app.template);
         await this.assertCanManageApp(
             user,
             app,
@@ -3819,6 +3910,7 @@ export class AppGenerateService extends BaseService {
         dashboardBlueprint: DashboardBlueprint | undefined,
         template: DataAppTemplate | undefined,
         isDataAppViz: boolean,
+        builder?: { userUuid: string; organizationUuid: string },
     ): Promise<{
         durationMs: number;
         tableCount: number;
@@ -3841,17 +3933,24 @@ export class AppGenerateService extends BaseService {
         let dimensionCount = 0;
         let metricCount = 0;
         let totalBytes = 0;
+        let urlModels: { model: string; fields: string[] }[] = [];
         if (!isDataAppViz) {
             // Source the synthetic schema from the compiled explore cache (not
             // the flattened catalog summary) so it carries joins, real field
             // types, and parameters. A chart type receives host rows instead.
-            const [exploresByUuid, chartUsageByTable] = await Promise.all([
-                this.projectModel.getAllExploresFromCache(projectUuid),
-                this.catalogModel.getChartUsageByTable(projectUuid),
-            ]);
-            const explores = Object.values(exploresByUuid).filter(
-                (explore): explore is Explore => !isExploreError(explore),
-            );
+            const [exploresByUuid, chartUsageByTable, { tableSelection }] =
+                await Promise.all([
+                    this.projectModel.getAllExploresFromCache(projectUuid),
+                    this.catalogModel.getChartUsageByTable(projectUuid),
+                    this.projectModel.getTablesConfiguration(projectUuid),
+                ]);
+            const explores = Object.values(exploresByUuid)
+                .filter(
+                    (explore): explore is Explore => !isExploreError(explore),
+                )
+                .filter((explore) =>
+                    isExploreIncludedInTableSelection(explore, tableSelection),
+                );
             const catalog = AppGenerateService.exploresToModelFiles(
                 explores,
                 chartUsageByTable,
@@ -3861,6 +3960,7 @@ export class AppGenerateService extends BaseService {
             dimensionCount = catalog.dimensionCount;
             metricCount = catalog.metricCount;
             totalBytes = catalog.totalBytes;
+            urlModels = catalog.urlModels;
             if (catalog.skippedFilters.length > 0) {
                 this.logger.warn(
                     `App ${appUuid}: left ${catalog.skippedFilters.length} model filter(s) out of the catalog because their value is not a list: ${catalog.skippedFilters.join(', ')}`,
@@ -3891,6 +3991,16 @@ export class AppGenerateService extends BaseService {
 
         // Write chart reference files and prepend summary to prompt
         let finalPrompt = prompt;
+
+        // Doc-level guidance alone is unreliably followed, so fields with
+        // `urls` link patterns also get a per-run reminder in the prompt.
+        if (urlModels.length > 0) {
+            const listing = urlModels
+                .map(({ model, fields }) => `${model}: ${fields.join(', ')}`)
+                .join('; ')
+                .slice(0, 2_000);
+            finalPrompt = `[Field links: these fields declare \`urls\` link patterns in their model YAML — ${listing}. Wherever the app displays one of their values (including via a join), render it as a link built from the pattern, styled visibly as a link. See "Field links — urls" in the skill.]\n\n${finalPrompt}`;
+        }
         if (chartReferences && chartReferences.length > 0) {
             const referenceBlock = await this.writeChartReferences(
                 sandbox,
@@ -3925,6 +4035,20 @@ export class AppGenerateService extends BaseService {
             );
             if (externalBlock) {
                 finalPrompt = externalBlock + finalPrompt;
+            }
+        }
+
+        // Saved app state: told to the agent only when the builder (or their
+        // organization) has the store enabled, so an app never relies on hooks
+        // that would only keep values in memory.
+        if (!isDataAppViz && builder) {
+            const { enabled: appStateEnabled } =
+                await this.featureFlagModel.get({
+                    user: builder,
+                    featureFlagId: FeatureFlags.EnableDataAppState,
+                });
+            if (appStateEnabled) {
+                finalPrompt = APP_STATE_PROMPT_BLOCK + finalPrompt;
             }
         }
 
@@ -6465,6 +6589,10 @@ export class AppGenerateService extends BaseService {
                     payload.dashboardBlueprint,
                     template,
                     isDataAppViz,
+                    {
+                        userUuid: payload.userUuid,
+                        organizationUuid: payload.organizationUuid,
+                    },
                 );
                 durations.catalogMs = catalogResult.durationMs;
                 catalogStats = {
@@ -7308,7 +7436,11 @@ export class AppGenerateService extends BaseService {
         dashboard?: AppDashboardReference,
         fileIds?: string[],
     ): Promise<{ questions: string[] }> {
-        await this.assertDataAppsEnabled(user);
+        await this.assertAppsEnabled(user, template ?? null);
+        AppGenerateService.assertChartTypeCreateInputs(template ?? null, {
+            spaceUuid: undefined,
+            dashboard,
+        });
         const { organizationUuid } = await this.assertDataAppAbility(
             user,
             'create',
@@ -7651,7 +7783,11 @@ export class AppGenerateService extends BaseService {
             vizContext,
             thread,
         } = options;
-        await this.assertDataAppsEnabled(user);
+        await this.assertAppsEnabled(user, template ?? null);
+        AppGenerateService.assertChartTypeCreateInputs(template ?? null, {
+            spaceUuid,
+            dashboard,
+        });
         const { organizationUuid } = await this.assertDataAppAbility(
             user,
             'create',
@@ -7920,8 +8056,8 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         appUuid: string,
     ): Promise<void> {
-        await this.assertDataAppsEnabled(user);
         const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertAppsEnabled(user, app.template);
         await this.assertCanManageApp(
             user,
             app,
@@ -7949,11 +8085,10 @@ export class AppGenerateService extends BaseService {
             aiAgentToolCall,
             vizContext,
         } = options;
-        await this.assertDataAppsEnabled(user);
-
         AppGenerateService.validateFileIds(fileIds);
 
         const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertAppsEnabled(user, app.template);
         const { organizationUuid } = await this.assertCanManageApp(
             user,
             app,
@@ -8405,9 +8540,8 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
         body: UpgradeAppRequestBody = {},
     ): Promise<GenerateAppResult> {
-        await this.assertDataAppsEnabled(user);
-
         const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertAppsEnabled(user, app.template);
         const { organizationUuid } = await this.assertCanManageApp(
             user,
             app,
@@ -8540,9 +8674,8 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
         sourceVersion: number,
     ): Promise<{ appUuid: string; version: number }> {
-        await this.assertDataAppsEnabled(user);
-
         const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertAppsEnabled(user, app.template);
         const { organizationUuid } = await this.assertCanManageApp(
             user,
             app,
@@ -8749,9 +8882,8 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         appUuid: string,
     ): Promise<ApiGetAppResponse['results']> {
-        await this.assertDataAppsEnabled(user);
-
         const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertAppsEnabled(user, app.template);
         await this.assertCanManageApp(
             user,
             app,
@@ -9156,8 +9288,8 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         appUuid: string,
     ): Promise<PromoteAppDiff> {
-        await this.assertDataAppsEnabled(user);
         const sourceApp = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertAppsEnabled(user, sourceApp.template);
         const sourceAuthorization = await this.assertCanManageApp(
             user,
             sourceApp,
@@ -9207,9 +9339,8 @@ export class AppGenerateService extends BaseService {
         version: number;
         action: PromoteAppAction;
     }> {
-        await this.assertDataAppsEnabled(user);
-
         const sourceApp = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertAppsEnabled(user, sourceApp.template);
         const sourceAuthorization = await this.assertCanManageApp(
             user,
             sourceApp,
@@ -9492,7 +9623,20 @@ export class AppGenerateService extends BaseService {
         if (appUuids.length === 0) {
             return [];
         }
-        await this.assertDataAppsEnabled(user);
+
+        const sourceApps = (
+            await Promise.all(
+                appUuids.map((appUuid) =>
+                    this.appModel.findApp(appUuid, projectUuid),
+                ),
+            )
+        ).filter((app): app is NonNullable<typeof app> => app !== undefined);
+        // Gate every app before promoting any, so a refused one leaves nothing half-promoted.
+        await Promise.all(
+            sourceApps.map((sourceApp) =>
+                this.assertAppsEnabled(user, sourceApp.template),
+            ),
+        );
 
         const results: {
             sourceAppUuid: string;
@@ -9500,19 +9644,14 @@ export class AppGenerateService extends BaseService {
             upstreamAppVersion: number;
         }[] = [];
         /* eslint-disable no-await-in-loop */
-        for (const appUuid of appUuids) {
-            const sourceApp = await this.appModel.findApp(appUuid, projectUuid);
-            if (sourceApp) {
-                const {
-                    appUuid: upstreamAppUuid,
-                    version: upstreamAppVersion,
-                } = await this.promoteApp(user, projectUuid, appUuid);
-                results.push({
-                    sourceAppUuid: appUuid,
-                    upstreamAppUuid,
-                    upstreamAppVersion,
-                });
-            }
+        for (const sourceApp of sourceApps) {
+            const { appUuid: upstreamAppUuid, version: upstreamAppVersion } =
+                await this.promoteApp(user, projectUuid, sourceApp.app_id);
+            results.push({
+                sourceAppUuid: sourceApp.app_id,
+                upstreamAppUuid,
+                upstreamAppVersion,
+            });
         }
         /* eslint-enable no-await-in-loop */
 
@@ -9534,7 +9673,6 @@ export class AppGenerateService extends BaseService {
         if (appUuids.length === 0) {
             return [];
         }
-        await this.assertDataAppsEnabled(user);
 
         const { upstreamProjectUuid } =
             await this.getUpstreamProjectForPromotion(projectUuid);
@@ -9548,6 +9686,7 @@ export class AppGenerateService extends BaseService {
                 if (!sourceApp) {
                     return null;
                 }
+                await this.assertAppsEnabled(user, sourceApp.template);
                 await this.assertCanManageApp(
                     user,
                     sourceApp,
@@ -9591,12 +9730,11 @@ export class AppGenerateService extends BaseService {
         sourceAppUuid: string,
         options?: { name?: string },
     ): Promise<ApiDuplicateAppResponse['results']> {
-        await this.assertDataAppsEnabled(user);
-
         const sourceApp = await this.appModel.getApp(
             sourceAppUuid,
             projectUuid,
         );
+        await this.assertAppsEnabled(user, sourceApp.template);
         await this.assertCanViewApp(user, sourceApp);
 
         // The duplicate lands as a personal app in the same project. We need
@@ -10003,8 +10141,8 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
         version: number,
     ): Promise<void> {
-        await this.assertDataAppsEnabled(user);
         const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertAppsEnabled(user, app.template);
         await this.assertCanManageApp(
             user,
             app,
@@ -10178,26 +10316,27 @@ export class AppGenerateService extends BaseService {
         }[];
         hasMore: boolean;
         latestReadyVersion: number | null;
+        latestReadyVersionUsesAiAnalysis: boolean | null;
+        latestReadyVersionHasAnalyzableData: boolean | null;
+        addAnalysisDismissed: boolean;
         registrySlug: string | null;
         icon: ChartTypeIcon | null;
         verification: ContentVerificationInfo | null;
-        autoAnalysis: DataAppAutoAnalysis;
     }> {
-        await this.assertDataAppsEnabled(user);
-
         // Resolve to the real uuid before any query — the raw arg may be a
         // slug and must never reach a uuid-typed filter.
         const resolvedApp = await this.appModel.getAppByUuidOrSlug(
             projectUuid,
             appUuidOrSlug,
         );
+        await this.assertAppsEnabled(user, resolvedApp.template);
         const appUuid = resolvedApp.app_id;
 
         const {
             name,
             description,
             icon,
-            autoAnalysis,
+            addAnalysisDismissedAt,
             createdByUserUuid,
             organizationUuid,
             spaceUuid,
@@ -10229,6 +10368,21 @@ export class AppGenerateService extends BaseService {
         // The latest ready version can be older than the returned page of
         // versions, so resolve it independently of pagination.
         const latestReady = await this.appModel.getLatestReadyVersion(appUuid);
+        // Whether that version wires up AI analysis, from the same cached
+        // source scan as data references (lazily re-extracted on extractor
+        // bumps). Null when there is no ready version or the scan failed —
+        // a scan failure must never fail the app read itself.
+        const latestReadyDataReferences = latestReady
+            ? await this.getVersionDataReferences(
+                  appUuid,
+                  latestReady.version,
+              ).catch((error) => {
+                  this.logger.warn(
+                      `App ${appUuid}: failed to read data references for version ${latestReady.version}: ${getErrorMessage(error)}`,
+                  );
+                  return null;
+              })
+            : null;
         const verification = await this.contentVerificationModel.getByContent(
             ContentType.DATA_APP,
             appUuid,
@@ -10315,11 +10469,22 @@ export class AppGenerateService extends BaseService {
             })),
             hasMore,
             latestReadyVersion: latestReady?.version ?? null,
+            latestReadyVersionUsesAiAnalysis:
+                latestReadyDataReferences?.usesAiAnalysis ?? null,
+            // Analysis runs over query results, so only query and saved-chart
+            // references count — an app that only calls external connections
+            // (e.g. the Lightdash API) has nothing for analysis to summarise.
+            latestReadyVersionHasAnalyzableData: latestReadyDataReferences
+                ? latestReadyDataReferences.references.some(
+                      (ref) =>
+                          ref.kind === 'query' || ref.kind === 'savedChart',
+                  )
+                : null,
+            addAnalysisDismissed: addAnalysisDismissedAt !== null,
             registrySlug,
             // An icon retired from the curated set reads back as no icon.
             icon: isChartTypeIcon(icon) ? icon : null,
             verification,
-            autoAnalysis: normalizeDataAppAutoAnalysis(autoAnalysis),
         };
     }
 
@@ -10336,7 +10501,10 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         dataAppVizsFilter: DataAppVizsFilter = 'exclude',
     ): Promise<EmbedProjectApp[]> {
-        await this.assertDataAppsEnabled(user);
+        await this.assertAppsEnabled(
+            user,
+            dataAppVizsFilter === 'only' ? DATA_APP_VIZ_TEMPLATE : null,
+        );
         const { organizationUuid } =
             await this.getDataAppProjectContext(projectUuid);
         // Coarse gate: roles with no view:DataApp rule at all (plain viewers)
@@ -10409,7 +10577,7 @@ export class AppGenerateService extends BaseService {
         search?: string,
         sort: DataAppVizListSort = DEFAULT_DATA_APP_VIZ_LIST_SORT,
     ): Promise<KnexPaginatedData<DataAppViz[]>> {
-        await assertChartTypesEnabled(this.featureFlagModel, user);
+        await this.assertChartTypesUsable(user);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         this.assertCanUseChartTypes(user, { organizationUuid, projectUuid });
@@ -11028,12 +11196,12 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         dataAppVizUuid: string,
     ): Promise<DataAppVizDeleteImpact> {
-        await this.assertDataAppsEnabled(user);
         const dataAppViz = await resolveDataAppVisualizationForRender(
             this.appModel,
             projectUuid,
             dataAppVizUuid,
         );
+        await this.assertCanRemoveAppGate(user, dataAppViz);
         await this.assertCanManageApp(
             user,
             dataAppViz,
@@ -11092,7 +11260,7 @@ export class AppGenerateService extends BaseService {
         dataAppVizUuid: string,
         version?: number,
     ): Promise<DataAppViz> {
-        await assertChartTypesEnabled(this.featureFlagModel, user);
+        await this.assertChartTypesUsable(user);
         const dataAppViz = await this.appModel.findVisualizationApp(
             dataAppVizUuid,
             projectUuid,
@@ -11136,7 +11304,7 @@ export class AppGenerateService extends BaseService {
             dataAppVizUuid,
         );
 
-        await assertChartTypesEnabled(this.featureFlagModel, user);
+        await this.assertChartTypesUsable(user);
 
         this.assertCanUseChartTypes(user, {
             organizationUuid: dataAppViz.organization_uuid,
@@ -11164,7 +11332,7 @@ export class AppGenerateService extends BaseService {
             dataAppVizUuid,
         );
 
-        await assertChartTypesEnabled(this.featureFlagModel, user);
+        await this.assertChartTypesUsable(user);
 
         await this.savedChartService.hasAccess(
             'view',
@@ -11246,7 +11414,7 @@ export class AppGenerateService extends BaseService {
             dataAppVizUuid,
         );
 
-        await assertChartTypesEnabled(this.featureFlagModel, {
+        await this.assertChartTypesUsable({
             userUuid: account.user.userUuid,
             organizationUuid: account.organization.organizationUuid,
         });
@@ -11676,17 +11844,15 @@ export class AppGenerateService extends BaseService {
             name?: string;
             description?: string;
             icon?: ChartTypeIcon | null;
-            autoAnalysis?: DataAppAutoAnalysis;
         },
     ): Promise<{
         appUuid: string;
         name: string;
         description: string;
         icon: ChartTypeIcon | null;
-        autoAnalysis: DataAppAutoAnalysis;
     }> {
-        await this.assertDataAppsEnabled(user);
         const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertAppsEnabled(user, app.template);
         const { organizationUuid } = await this.assertCanManageApp(
             user,
             app,
@@ -11704,7 +11870,6 @@ export class AppGenerateService extends BaseService {
             name: string;
             description: string;
             icon: string | null;
-            auto_analysis: DataAppAutoAnalysis;
         }> = {};
         if (update.name !== undefined) {
             const trimmedName = update.name.trim();
@@ -11740,18 +11905,10 @@ export class AppGenerateService extends BaseService {
             }
             fieldsToUpdate.icon = update.icon;
         }
-        if (update.autoAnalysis !== undefined) {
-            if (!isDataAppAutoAnalysis(update.autoAnalysis)) {
-                throw new ParameterError(
-                    `Invalid auto analysis value: ${String(update.autoAnalysis)}`,
-                );
-            }
-            fieldsToUpdate.auto_analysis = update.autoAnalysis;
-        }
 
         if (Object.keys(fieldsToUpdate).length === 0) {
             throw new ParameterError(
-                'At least one of name, description, icon or autoAnalysis must be provided',
+                'At least one of name, description or icon must be provided',
             );
         }
 
@@ -11771,10 +11928,29 @@ export class AppGenerateService extends BaseService {
             name: updatedApp.name,
             description: updatedApp.description,
             icon: isChartTypeIcon(updatedApp.icon) ? updatedApp.icon : null,
-            autoAnalysis: normalizeDataAppAutoAnalysis(
-                updatedApp.auto_analysis,
-            ),
         };
+    }
+
+    /**
+     * Dismiss the builder-side "add AI analysis" offer for an app, so it
+     * stops reappearing for every builder (the old localStorage dismissal
+     * was per browser). Deliberately not part of `updateApp`: dismissing a
+     * nudge must not unverify the app and is allowed on registry-managed
+     * apps.
+     */
+    async dismissAddAnalysisOffer(
+        user: SessionUser,
+        projectUuid: string,
+        appUuid: string,
+    ): Promise<void> {
+        const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertAppsEnabled(user, app.template);
+        await this.assertCanManageApp(
+            user,
+            app,
+            'Insufficient permissions to manage data apps',
+        );
+        await this.appModel.dismissAddAnalysisOffer(appUuid, projectUuid);
     }
 
     /**
@@ -11799,13 +11975,7 @@ export class AppGenerateService extends BaseService {
                 organizationUuid: app.organization_uuid,
             });
         } else {
-            if (app.registry_slug !== null) {
-                // Uninstalling a library chart type must work wherever the
-                // library does, even with data apps off.
-                await assertChartTypesEnabled(this.featureFlagModel, user);
-            } else {
-                await this.assertDataAppsEnabled(user);
-            }
+            await this.assertCanRemoveAppGate(user, app);
             await this.assertCanManageApp(
                 user,
                 app,
@@ -11866,13 +12036,7 @@ export class AppGenerateService extends BaseService {
                 organizationUuid: app.organization_uuid,
             });
         } else {
-            if (app.registry_slug !== null) {
-                // Restoring an uninstalled library chart type must work
-                // wherever uninstalling it does, even with data apps off.
-                await assertChartTypesEnabled(this.featureFlagModel, user);
-            } else {
-                await this.assertDataAppsEnabled(user);
-            }
+            await this.assertCanRemoveAppGate(user, app);
             await this.assertCanManageApp(
                 user,
                 app,
@@ -11939,7 +12103,7 @@ export class AppGenerateService extends BaseService {
                 organizationUuid: app.organization_uuid,
             });
         } else {
-            await this.assertDataAppsEnabled(user);
+            await this.assertCanRemoveAppGate(user, app);
             await this.assertCanManageApp(
                 user,
                 app,
@@ -12142,8 +12306,6 @@ export class AppGenerateService extends BaseService {
             trackEvent?: boolean;
         } = {},
     ): Promise<void> {
-        await this.assertDataAppsEnabled(user);
-
         if (targetSpaceUuid === null) {
             throw new ParameterError(
                 'You cannot move a data app outside of a space',
@@ -12151,6 +12313,7 @@ export class AppGenerateService extends BaseService {
         }
 
         const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertAppsEnabled(user, app.template);
 
         // Vizs are project-global chart content — space semantics don't apply.
         if (app.template === DATA_APP_VIZ_TEMPLATE) {
@@ -12341,8 +12504,6 @@ export class AppGenerateService extends BaseService {
         version: number,
         viewContext: DataAppViewContext = 'unknown',
     ): Promise<string> {
-        await this.assertDataAppsEnabled(user);
-
         if (!isValidUuid(appUuid)) {
             throw new ParameterError('Invalid UUID format');
         }
@@ -12352,6 +12513,7 @@ export class AppGenerateService extends BaseService {
         }
 
         const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertAppsEnabled(user, app.template);
         await this.assertCanViewApp(user, app);
 
         return mintPreviewToken(
@@ -12527,6 +12689,26 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
+     * Field link patterns (`urls`), verbatim: `${value.raw}` and
+     * `${row.<model>.<field>.raw}` placeholders are the template's own syntax,
+     * not something to resolve here. The index header explains them.
+     */
+    private static renderFieldUrlsYaml(
+        urls: FieldUrl[] | undefined,
+        indent: string,
+    ): string[] {
+        if (!urls || urls.length === 0) return [];
+        const lines: string[] = [`${indent}urls:`];
+        for (const { label, url } of urls) {
+            lines.push(
+                `${indent}  - label: ${AppGenerateService.yamlQuote(label)}`,
+                `${indent}    url: ${AppGenerateService.yamlQuote(url)}`,
+            );
+        }
+        return lines;
+    }
+
+    /**
      * Render one compiled table as a dbt-style model, carrying real
      * metric/dimension types, join relationships (`meta.joins`), AI hints,
      * model-level parameters, and model-level filters (`sql_filter`,
@@ -12606,6 +12788,12 @@ export class AppGenerateService extends BaseService {
                             );
                         }
                     }
+                    headerLines.push(
+                        ...AppGenerateService.renderFieldUrlsYaml(
+                            m.urls,
+                            '          ',
+                        ),
+                    );
                 }
             }
             if (joins.length > 0) {
@@ -12683,6 +12871,12 @@ export class AppGenerateService extends BaseService {
             block.push(`        meta:`);
             block.push(`          dimension:`);
             block.push(`            type: ${d.type}`);
+            block.push(
+                ...AppGenerateService.renderFieldUrlsYaml(
+                    d.urls,
+                    '            ',
+                ),
+            );
             return block;
         });
 
@@ -12698,6 +12892,9 @@ export class AppGenerateService extends BaseService {
             defaultFilterCount: defaultFilters.length,
             skippedFilterRefs,
             hasSqlFilter: sqlFilter !== null,
+            urlFields: [...metrics, ...dimensions]
+                .filter((f) => f.urls && f.urls.length > 0)
+                .map((f) => f.name),
         };
     }
 
@@ -12916,6 +13113,7 @@ export class AppGenerateService extends BaseService {
         metricCount: number;
         totalBytes: number;
         skippedFilters: string[];
+        urlModels: { model: string; fields: string[] }[];
     } {
         const models = AppGenerateService.exploresToRenderedModels(explores);
         const filenames = AppGenerateService.modelFilenames(models);
@@ -12950,8 +13148,14 @@ export class AppGenerateService extends BaseService {
             'A `filters=` marker means the model declares model-level filters',
             '(required/default/sql_filter) that affect every query against it —',
             'read that model file before querying it.',
+            "A `urls=N` marker means N of the model's fields declare `urls:` —",
+            'link patterns whose values MUST render as links: `${value.raw}` is',
+            "the cell's raw value; `${row.<model>.<field>.raw}` references",
+            'another field in the same row (include that field in the query).',
+            'Check the marked model file before displaying any of its fields,',
+            'including fields queried through a join.',
             '',
-            'name  file  dims/metrics  joins  [filters]  description',
+            'name  file  dims/metrics  joins  [filters]  [urls]  description',
             '',
         ].join('\n');
 
@@ -12974,12 +13178,16 @@ export class AppGenerateService extends BaseService {
                 filterParts.length > 0
                     ? `  filters=${filterParts.join(',')}`
                     : '';
+            const urls =
+                model.urlFields.length > 0
+                    ? `  urls=${model.urlFields.length}`
+                    : '';
             const description = model.description
                 ? `  ${model.description
                       .replace(/\s+/g, ' ')
                       .slice(0, AppGenerateService.INDEX_DESCRIPTION_MAX_LEN)}`
                 : '';
-            return `${model.name}  ${filename}  dims=${model.dimensionCount} metrics=${model.metricCount}  joins=${joins}${filters}${description}`;
+            return `${model.name}  ${filename}  dims=${model.dimensionCount} metrics=${model.metricCount}  joins=${joins}${filters}${urls}${description}`;
         };
 
         const compactLine = (entry: (typeof ranked)[number]): string =>
@@ -13028,6 +13236,9 @@ export class AppGenerateService extends BaseService {
             skippedFilters: models.flatMap((m) =>
                 m.skippedFilterRefs.map((fieldRef) => `${m.name}.${fieldRef}`),
             ),
+            urlModels: models
+                .filter((m) => m.urlFields.length > 0)
+                .map((m) => ({ model: m.name, fields: m.urlFields })),
         };
     }
 
@@ -13114,6 +13325,7 @@ export class AppGenerateService extends BaseService {
             references: extracted.references,
             parseErrors: extracted.parseErrors,
             stats: extracted.stats,
+            usesAiAnalysis: extracted.usesAiAnalysis,
         };
     }
 
@@ -13339,6 +13551,12 @@ export class AppGenerateService extends BaseService {
         spaceSlug: string | undefined,
     ): Promise<string | undefined> {
         if (spaceSlug === undefined) return undefined;
+        // A UUID would otherwise become a new private root space named after it.
+        if (isValidUuid(spaceSlug)) {
+            throw new ParameterError(
+                await this.describeUuidSpaceSlug(user, projectUuid, spaceSlug),
+            );
+        }
         const { space } = await this.coderService.getOrCreateSpace(
             projectUuid,
             spaceSlug,
@@ -13349,6 +13567,28 @@ export class AppGenerateService extends BaseService {
             true,
         );
         return space.uuid;
+    }
+
+    private async describeUuidSpaceSlug(
+        user: SessionUser,
+        projectUuid: string,
+        spaceUuid: string,
+    ): Promise<string> {
+        const base = `Manifest spaceSlug "${spaceUuid}" is a space UUID, but spaceSlug expects a space path like "parent/child" (as written by lightdash download).`;
+        try {
+            const space = await this.spaceModel.getSpaceSummary(spaceUuid, {
+                projectUuid,
+            });
+            // Only name the path to someone who can already see the space.
+            if (
+                await this.spacePermissionService.can('view', user, spaceUuid)
+            ) {
+                return `${base} Use spaceSlug: ${getContentAsCodePathFromLtreePath(space.path)}`;
+            }
+        } catch (error) {
+            if (!(error instanceof NotFoundError)) throw error;
+        }
+        return base;
     }
 
     // First half of the as-code download, without downloading the source.
@@ -13433,6 +13673,7 @@ export class AppGenerateService extends BaseService {
         if (!app) {
             throw new NotFoundError(`Data app "${slug}" was not found`);
         }
+        await this.assertAppsEnabled(user, app.template);
         await this.assertCanViewApp(user, app);
 
         const versionRow =
@@ -13689,7 +13930,8 @@ export class AppGenerateService extends BaseService {
         slug: string,
         designUuid: string | null,
     ): Promise<DataAppContext> {
-        await this.assertDataAppsEnabled(user);
+        // The CLI fetches this for data apps and chart types alike without naming the template.
+        await this.assertAnyAppsEnabled(user);
         const { organizationUuid } = await this.assertDataAppAbility(
             user,
             'create',
@@ -13723,13 +13965,15 @@ export class AppGenerateService extends BaseService {
 
         const { semanticLayer, semanticLayerFiles } = await (async () => {
             try {
-                const exploresByUuid =
-                    await this.projectModel.getAllExploresFromCache(
-                        projectUuid,
+                const [exploresByUuid, { tableSelection }] = await Promise.all([
+                    this.projectModel.getAllExploresFromCache(projectUuid),
+                    this.projectModel.getTablesConfiguration(projectUuid),
+                ]);
+                const explores = Object.values(exploresByUuid)
+                    .filter((e): e is Explore => !isExploreError(e))
+                    .filter((e) =>
+                        isExploreIncludedInTableSelection(e, tableSelection),
                     );
-                const explores = Object.values(exploresByUuid).filter(
-                    (e): e is Explore => !isExploreError(e),
-                );
                 // Chart usage only orders the index — degrade the ranking, not
                 // the whole semantic layer, when it is unavailable.
                 const chartUsageByTable = await (async () => {
@@ -14029,7 +14273,7 @@ export class AppGenerateService extends BaseService {
             if (outcome.kind === 'installed') return outcome.result;
             warnings.push(outcome.warning);
         }
-        await this.assertDataAppsEnabled(user);
+        await this.assertAppsEnabled(user, code.manifest.template);
 
         const { organizationUuid } =
             await this.getDataAppProjectContext(projectUuid);
@@ -14287,6 +14531,12 @@ export class AppGenerateService extends BaseService {
             throw new ForbiddenError(
                 `"${existingApp.slug}" is an official chart type and cannot be updated by upload. Change the slug in lightdash-app.yml to upload a modified copy as a new chart type, or fork it in the app.`,
             );
+        }
+        if (
+            existingApp !== undefined &&
+            existingApp.template !== code.manifest.template
+        ) {
+            await this.assertAppsEnabled(user, existingApp.template);
         }
         const action: 'create' | 'append' =
             existingApp !== undefined ? 'append' : 'create';

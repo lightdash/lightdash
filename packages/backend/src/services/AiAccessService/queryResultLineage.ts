@@ -20,7 +20,7 @@ import {
 } from '../../utils/queryResultProducer';
 import { agentExecutionContext } from './agentExecutionContext';
 
-export type QueryResultNodeKind = 'semantic' | 'sql' | 'derived';
+export type QueryResultNodeKind = 'semantic' | 'sql' | 'derived' | 'api';
 
 export const getQueryResultNodeKind = (
     parameters: QueryHistory['requestParameters'] | undefined,
@@ -39,7 +39,28 @@ export const getQueryResultNodeKind = (
             parameters.resultSource)
     )
         return 'sql';
+    // A live data source query: its rows come from an external API, so it
+    // has no explore behind its placeholder metric query.
+    if (parameters && 'connectionUuid' in parameters && 'payload' in parameters)
+        return 'api';
     return 'semantic';
+};
+
+/** Reading a sql or derived result needs raw SQL; a semantic or api one does not, as submitting it does not. */
+export const queryResultNodeRequiresRawSql = (
+    parameters: QueryHistory['requestParameters'] | undefined,
+): boolean => {
+    const kind = getQueryResultNodeKind(parameters);
+    switch (kind) {
+        case 'sql':
+        case 'derived':
+            return true;
+        case 'semantic':
+        case 'api':
+            return false;
+        default:
+            return assertUnreachable(kind, 'Unknown result node kind');
+    }
 };
 
 export type TrustedQueryResultParameters = Pick<
@@ -60,6 +81,7 @@ export const getQueryResultRequestParameters = (
     aiSignInCredentialUuid: undefined,
     resultProducer: undefined,
     resultArtifact: undefined,
+    resultMessageQuery: undefined,
     resultResearchRunUuid: undefined,
     resultSource: undefined,
     resultEntitlementFingerprint: undefined,
@@ -98,6 +120,16 @@ export const getQueryResultEntitlementFingerprintForms = ({
                 explore,
                 metricQuery,
                 scope ?? null,
+            );
+        case 'api':
+            // Same form as a semantic result without an explore: every
+            // attribute the person has, so results stored before api nodes
+            // had their own kind keep matching
+            return getResultEntitlementFingerprintForms(
+                controls,
+                null,
+                null,
+                null,
             );
         default:
             return assertUnreachable(kind, 'Unknown result node kind');

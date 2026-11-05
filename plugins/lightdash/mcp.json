@@ -1,7 +1,0 @@
-{
-  "mcpServers": {
-    "lightdash": {
-      "url": "${env:LIGHTDASH_MCP_URL}"
-    }
-  }
-}

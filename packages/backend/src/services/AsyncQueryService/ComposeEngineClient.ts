@@ -5,9 +5,11 @@ import {
 } from '@lightdash/common';
 import {
     DuckdbWarehouseClient,
+    type DuckdbQueryProfileMetrics,
     type DuckdbResourceLimits,
     type DuckdbS3SessionConfig,
 } from '@lightdash/warehouses';
+import { trace } from '@opentelemetry/api';
 import { type LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import type PrometheusMetrics from '../../prometheus/PrometheusMetrics';
@@ -71,6 +73,26 @@ type ComposeEngineClientArgs = {
     resolveCaCertFile?: () => string | null;
 };
 
+/** Splits DuckDB time inside the active execute span, e.g. lazy S3 reads. */
+const setDuckdbProfileSpanAttributes = (profile: DuckdbQueryProfileMetrics) => {
+    const metrics: Record<string, number | null> = {
+        latencyMs: profile.latencyMs,
+        cpuMs: profile.cpuMs,
+        waitMs: profile.waitMs,
+        readParquetMs: profile.readParquetMs,
+        readJsonMs: profile.readJsonMs,
+        bytesRead: profile.bytesRead,
+        rowsScanned: profile.rowsScanned,
+        rowsReturned: profile.rowsReturned,
+    };
+    const attributes: Record<string, number> = {};
+    Object.entries(metrics).forEach(([key, value]) => {
+        if (value !== null)
+            attributes[`lightdash.duckdb.${key}`] = Math.round(value);
+    });
+    trace.getActiveSpan()?.setAttributes(attributes);
+};
+
 /**
  * The DuckDB engine that executes composed queries (compose SQL, merges and
  * external SQL) over materialized results. Available in every edition: the
@@ -114,8 +136,12 @@ export class ComposeEngineClient {
                             warehouseArgs.organizationConcurrencyLimit,
                         logger: Logger,
                         enableQueryProfiling: true,
-                        onQueryProfile:
-                            prometheusMetrics?.observeDuckdbQueryProfile,
+                        onQueryProfile: (profile) => {
+                            prometheusMetrics?.observeDuckdbQueryProfile(
+                                profile,
+                            );
+                            setDuckdbProfileSpanAttributes(profile);
+                        },
                     },
                 ));
     }

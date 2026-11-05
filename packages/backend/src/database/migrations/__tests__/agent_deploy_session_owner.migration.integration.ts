@@ -713,18 +713,24 @@ it('keeps the part 1 SQL order and HTTP answers with exactly one project summary
     } finally {
         trace.stop();
     }
-    expect(mainDeploySql).toHaveLength(81);
-    expect(mainDeploySql[56]).toMatch(/^select .* from "projects" /);
-    expect(mainDeploySql[56]).not.toMatch(
-        /dbt_connection|encrypted_credentials|warehouse_credentials/,
-    );
-    expect(mainDeploySql[55]).toBe(
-        'select * from "deploy_sessions" where "deploy_session_uuid" = $1 limit $2',
-    );
-    expect(mainDeploySql[57]).toBe(
+    const finalizeStatusWrite = mainDeploySql.indexOf(
         'update "deploy_sessions" set "status" = $1 where "deploy_session_uuid" = $2',
     );
-    expect(mainDeploySql[58]).toBe(mainDeploySql[10]);
+    const credentialRead = mainDeploySql.find((statement) =>
+        /^select .*encrypted_credentials.* from "projects" /.test(statement),
+    );
+    expect(finalizeStatusWrite).toBeGreaterThan(0);
+    expect(credentialRead).toBeDefined();
+    expect(mainDeploySql[finalizeStatusWrite - 2]).toBe(
+        'select * from "deploy_sessions" where "deploy_session_uuid" = $1 limit $2',
+    );
+    expect(mainDeploySql[finalizeStatusWrite - 1]).toMatch(
+        /^select .* from "projects" /,
+    );
+    expect(mainDeploySql[finalizeStatusWrite - 1]).not.toMatch(
+        /dbt_connection|encrypted_credentials|warehouse_credentials/,
+    );
+    expect(mainDeploySql[finalizeStatusWrite + 1]).toBe(credentialRead);
     expect(trace.statements).toEqual(mainDeploySql);
 });
 

@@ -9,11 +9,13 @@ import {
 import { tool, type FlexibleSchema } from 'ai';
 import { z } from 'zod';
 import type { ReadContentFn } from '../types/aiAgentDependencies';
+import { toAbsoluteHref } from '../utils/absoluteHref';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorOutput } from '../utils/toolErrorHandler';
 
 type Dependencies = {
     readContent: ReadContentFn;
+    siteUrl: string;
     documentsEnabled?: boolean;
 };
 
@@ -70,6 +72,7 @@ const toStructuredContent = (
 
 export const getReadContent = ({
     readContent,
+    siteUrl,
     documentsEnabled = false,
 }: Dependencies) => {
     const definition = documentsEnabled
@@ -108,10 +111,17 @@ export const getReadContent = ({
                         : {}),
                 };
 
+                const absoluteHref = toAbsoluteHref(
+                    siteUrl,
+                    structuredContent.href,
+                );
                 return {
                     result: contentResult({
-                        content: read.type === 'document' ? read : read.content,
-                        href: structuredContent.href,
+                        content:
+                            read.type === 'document'
+                                ? { ...read, href: absoluteHref }
+                                : read.content,
+                        href: absoluteHref,
                         type: structuredContent.type,
                     }),
                     metadata,

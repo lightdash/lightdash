@@ -96,7 +96,7 @@ import {
     type UserWarehouseCredentialsWithAgentStatus,
 } from '@lightdash/common';
 import { randomInt } from 'crypto';
-import { uniq } from 'lodash';
+import { uniq } from 'es-toolkit/compat';
 import { nanoid } from 'nanoid';
 import refresh from 'passport-oauth2-refresh';
 import {
@@ -157,6 +157,7 @@ import {
 } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { wrapSentryTransaction } from '../utils';
+import { getMissingUserNames } from '../utils/missingUserNames';
 import {
     getOrganizationSystemRoleScopes,
     validateOrganizationScopesCanBeGranted,
@@ -496,15 +497,24 @@ export class UserService extends BaseService {
         inviteCode: string,
         activateUser: ActivateUser | OpenIdUser,
     ): Promise<LightdashUser> {
-        const inviteLink = await this.inviteLinkModel.getByCode(inviteCode);
-        return this.activateUserFromInviteLink(inviteLink, activateUser);
+        const { inviteLink, invitedByUserUuid } =
+            await this.inviteLinkModel.getByCodeWithInviter(inviteCode);
+        return this.activateUserFromInviteLink(
+            inviteLink,
+            invitedByUserUuid,
+            activateUser,
+        );
     }
 
     async activateUserFromInviteWithoutPassword(
         inviteCode: string,
     ): Promise<SessionUser> {
-        const inviteLink = await this.getInviteLink(inviteCode);
-        const user = await this.activateUserFromInviteLink(inviteLink);
+        const { inviteLink, invitedByUserUuid } =
+            await this.inviteLinkModel.getByCodeWithInviter(inviteCode);
+        const user = await this.activateUserFromInviteLink(
+            inviteLink,
+            invitedByUserUuid,
+        );
         // The invite link was delivered to this address, so opening it proves
         // mailbox ownership — same trust as OpenID email verification.
         await this.tryVerifyUserEmail(user, inviteLink.email, 'link');
@@ -513,6 +523,7 @@ export class UserService extends BaseService {
 
     private async activateUserFromInviteLink(
         inviteLink: InviteLink,
+        invitedByUserUuid: string | null,
         activateUser?: ActivateUser | OpenIdUser,
     ): Promise<LightdashUser> {
         const userEmail =
@@ -656,6 +667,7 @@ export class UserService extends BaseService {
                     organizationId: inviteLink.organizationUuid,
                     invitePurpose: InviteLinkPurpose.Setup,
                     onboardingFlow,
+                    invitedByUserId: invitedByUserUuid,
                 },
             });
         }
@@ -922,11 +934,16 @@ export class UserService extends BaseService {
             organizationUuid,
             userUuid,
             purpose,
+            user.userUuid,
         );
         await this.emailClient.sendInviteEmail(user, inviteLink);
         this.analytics.track({
             userId: user.userUuid,
             event: 'invite_link.created',
+            properties: {
+                organizationId: organizationUuid,
+                purpose,
+            },
         });
 
         const organization = await this.organizationModel.get(organizationUuid);
@@ -1241,7 +1258,11 @@ export class UserService extends BaseService {
                     'sso',
                 );
             }
-            this.identifyUser(loginUser);
+            const namedLoginUser = await this.fillMissingNamesFromGoogle(
+                loginUser,
+                openIdUser.openId,
+            );
+            this.identifyUser(namedLoginUser);
             this.analytics.track({
                 userId: loginUser.userUuid,
                 event: 'user.logged_in',
@@ -1269,7 +1290,7 @@ export class UserService extends BaseService {
                 });
             }
 
-            return loginUser;
+            return namedLoginUser;
         }
 
         // Link the new openid identity to an existing user if they already
@@ -1584,13 +1605,34 @@ export class UserService extends BaseService {
             });
         }
 
-        return sessionUser;
+        return this.fillMissingNamesFromGoogle(sessionUser, openIdUser.openId);
+    }
+
+    /**
+     * Passwordless invites and email codes activate accounts without names, so
+     * a later Google sign-in fills whichever names are still blank.
+     */
+    async fillMissingNamesFromGoogle(
+        user: SessionUser,
+        openId: OpenIdUser['openId'],
+    ): Promise<SessionUser> {
+        if (openId.issuerType !== OpenIdIdentityIssuerType.GOOGLE) {
+            return user;
+        }
+        const missingNames = getMissingUserNames(user, openId);
+        if (!missingNames) {
+            return user;
+        }
+        await this.userModel.updateUser(user.userUuid, undefined, missingNames);
+        return { ...user, ...missingNames };
     }
 
     async completeUserSetup(
         user: SessionUser,
         {
             organizationName,
+            firstName,
+            lastName,
             jobTitle,
             isTrackingAnonymized,
             isMarketingOptedIn,
@@ -1600,6 +1642,14 @@ export class UserService extends BaseService {
     ): Promise<LightdashUser> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
+        }
+        if (
+            (firstName !== undefined && !validateUserName(firstName)) ||
+            (lastName !== undefined && !validateUserName(lastName))
+        ) {
+            throw new ParameterError(
+                'First name and last name must not contain HTML',
+            );
         }
         const auditedAbility = this.createAuditedAbility(user);
         if (organizationName) {
@@ -1659,6 +1709,8 @@ export class UserService extends BaseService {
             user.userUuid,
             undefined,
             {
+                firstName: firstName?.trim(),
+                lastName: lastName?.trim(),
                 isSetupComplete: true,
                 isTrackingAnonymized,
                 isMarketingOptedIn,
@@ -2405,7 +2457,8 @@ export class UserService extends BaseService {
     private async getAccountForSessionUser(
         sessionUser: SessionUser,
     ): Promise<RegisteredAccount> {
-        if (!this.lightdashConfig.serviceAccount.enabled) {
+        // The service_accounts table only exists on licensed instances (EE migrations).
+        if (this.lightdashConfig.license.licenseKey === null) {
             return AccountFactory.fromSession(sessionUser);
         }
 

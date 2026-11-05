@@ -1,12 +1,16 @@
 import {
     agentToolDefinitions,
     agentToolDefinitionsByName,
+    AI_DEFAULT_MAX_QUERY_LIMIT,
+    queryConfigBaseSchema,
 } from '@lightdash/common';
 import { asSchema, type FlexibleSchema, type ToolSet } from 'ai';
 import { DISTILL_TOOL_POLICIES } from '../../AiAgentMemoryService/transcriptToolPolicy';
+import type { PromptSection } from '../loadout';
 import { getSystemPromptV2 } from '../prompts/systemV2';
 import { AgentContext } from '../utils/AgentContext';
 import { getStaticToolDescription } from '../utils/toolDescription';
+import { getAnalyzeFieldImpact } from './analyzeFieldImpact';
 import { getClosePullRequest } from './closePullRequest';
 import { getCreateContent } from './createContent';
 import { getCreateScheduledDelivery } from './createScheduledDelivery';
@@ -15,7 +19,6 @@ import { getDiscoverRepos } from './discoverRepos';
 import { getEditContent } from './editContent';
 import { getEditDbtProject } from './editDbtProject';
 import { getEditProjectContext } from './editProjectContext';
-import { getEditRepo } from './editRepo';
 import { getExploreRepo } from './exploreRepo';
 import { getExportChartAsCode } from './exportChartAsCode';
 import { getFindContent } from './findContent';
@@ -26,8 +29,10 @@ import { getGenerateHashes } from './generateHashes';
 import { getGenerateUuids } from './generateUuids';
 import { getGetDashboardCharts } from './getDashboardCharts';
 import { getGetKnowledgeDocumentContent } from './getKnowledgeDocumentContent';
+import { getGetMetadata } from './getMetadata';
 import { getGetProjectInfo } from './getProjectInfo';
 import { getGetPullRequestDiff } from './getPullRequestDiff';
+import { getGrepFields } from './grepFields';
 import { getIterateDataApp } from './iterateDataApp';
 import { getListContent } from './listContent';
 import { getListDataAppConnections } from './listDataAppConnections';
@@ -46,8 +51,9 @@ import { getRunQuery } from './runQuery';
 import { getRunSavedChart } from './runSavedChart';
 import { getRunSql } from './runSql';
 import { getSearchFieldValues } from './searchFieldValues';
-import { getSetupPreviewDeploy } from './setupPreviewDeploy';
+import { getSearchSemanticLayer } from './searchSemanticLayer';
 import { getUpdateUserName } from './updateUserName';
+import { getVisualize } from './visualize';
 
 const schemaToJson = (schema: FlexibleSchema | undefined): unknown => {
     if (!schema) {
@@ -87,12 +93,19 @@ const makeAgentTools = (enableFilterExpressions = false) => {
         // Historical contract retained so persisted discoverFields calls still
         // parse and render, although the agent no longer executes this tool.
         discoverFields: agentToolDefinitionsByName.discoverFields.for('agent'),
-        createContent: getCreateContent({ createContent: noop }),
+        createContent: getCreateContent({
+            siteUrl: 'https://app.lightdash.cloud',
+            createContent: noop,
+        }),
         createScheduledDelivery: getCreateScheduledDelivery({
+            siteUrl: 'https://app.lightdash.cloud',
             createScheduledDelivery: noop,
         }),
         updateUserName: getUpdateUserName({ updateUserName: noopAsync }),
-        editContent: getEditContent({ editContent: noop }),
+        editContent: getEditContent({
+            siteUrl: 'https://app.lightdash.cloud',
+            editContent: noop,
+        }),
         findContent: getFindContent({
             findContent: noop,
             siteUrl: 'https://lightdash.example',
@@ -120,7 +133,10 @@ const makeAgentTools = (enableFilterExpressions = false) => {
             getKnowledgeDocumentContent: noop,
         }),
         getProjectInfo: getGetProjectInfo({ getProjectInfo: noop }),
-        listContent: getListContent({ listContent: noop }),
+        listContent: getListContent({
+            siteUrl: 'https://app.lightdash.cloud',
+            listContent: noop,
+        }),
         listKnowledgeDocuments: getListKnowledgeDocuments({
             listKnowledgeDocuments: noop,
         }),
@@ -142,12 +158,6 @@ const makeAgentTools = (enableFilterExpressions = false) => {
         editProjectContext: getEditProjectContext({
             editProjectContext: noop,
         }),
-        editRepo: getEditRepo({
-            editRepo: noop,
-        }),
-        setupPreviewDeploy: getSetupPreviewDeploy({
-            setupPreviewDeploy: noop,
-        }),
         exploreRepo: getExploreRepo({ exploreRepo: noop }),
         discoverRepos: getDiscoverRepos({ discoverRepos: noop }),
         listWorkstreams: getListWorkstreams({ listWorkstreams: noop }),
@@ -155,7 +165,10 @@ const makeAgentTools = (enableFilterExpressions = false) => {
         getPullRequestDiff: getGetPullRequestDiff({
             getPullRequestDiff: noop,
         }),
-        readContent: getReadContent({ readContent: noop }),
+        readContent: getReadContent({
+            siteUrl: 'https://app.lightdash.cloud',
+            readContent: noop,
+        }),
         runContentQuery: getRunContentQuery({
             enableDataAccess: true,
             getSavedChart: noop,
@@ -195,7 +208,6 @@ const makeAgentTools = (enableFilterExpressions = false) => {
             updateProgress: noopAsync,
         }),
         runSql: getRunSql({
-            hyphenatedIdentifiers: true,
             createOrUpdateArtifact: noop,
             enableDataAccess: true,
             slackLinksOnly: false,
@@ -208,13 +220,15 @@ const makeAgentTools = (enableFilterExpressions = false) => {
             runSqlJob: noop,
             sendFile: noop,
             siteUrl: 'https://lightdash.example',
-            maxQueryLimit: 500,
+            // The runSqlMaxLimit production ships when AI_COPILOT_RUN_SQL_MAX_LIMIT is unset.
+            maxQueryLimit: AI_DEFAULT_MAX_QUERY_LIMIT,
             updateProgress: noopAsync,
             updateSlackMessage: noop,
             waitForSqlApproval: noop,
         }),
-        runComposerQueries: getRunComposerQueries({
+        query: getRunComposerQueries({
             agentContext: new AgentContext([]),
+            filterValueHints: null,
             listThreadComposerQueryNodes: noop,
             registerThreadComposerQueryNodes: noop,
             enableDataAccess: true,
@@ -232,11 +246,43 @@ const makeAgentTools = (enableFilterExpressions = false) => {
             maxQueryLimit: 500,
             updateProgress: noopAsync,
             waitForSqlApproval: noop,
+            projectParameterDefinitions: {},
+        }),
+        visualize: getVisualize({
+            getPrompt: noop,
+            getExplore: noop,
+            listThreadComposerQueryNodes: noop,
+            getThreadComposerNodeColumns: noop,
+            runComposerQueries: noop,
+            resolveCustomChartType: noop,
+            createOrUpdateArtifact: noop,
+            updateProgress: noopAsync,
+            slackLinksOnly: false,
+            maxQueryLimit: 500,
         }),
         searchFieldValues: getSearchFieldValues({
             searchFieldValues: noop,
             getExplore: noop,
             enableFilterExpressions,
+        }),
+        grepFields: getGrepFields({
+            availableExplores: [],
+            findExplores: noop,
+            verifiedFieldUsage: new Map(),
+        }),
+        getMetadata: getGetMetadata({
+            availableExplores: [],
+            projectParameterDefinitions: {},
+        }),
+        analyzeFieldImpact: getAnalyzeFieldImpact({
+            analyzeFieldImpact: noop,
+            updateProgress: noopAsync,
+        }),
+        searchSemanticLayer: getSearchSemanticLayer({
+            searchSemanticLayer: noop,
+            updateProgress: noopAsync,
+            maxPageSize: 500,
+            toolDescriptionMaxChars: 600,
         }),
     };
 };
@@ -264,21 +310,26 @@ describe('AI agent tool contracts', () => {
             const { generateVisualization, runSql } = makeAgentTools(
                 enableFilterExpressions,
             );
+            const runQueryDescription =
+                agentToolDefinitionsByName.runQuery.for('agent').description;
             for (const description of [
                 generateVisualization.description,
                 runSql.description,
-                agentToolDefinitionsByName.runQuery.for('agent').description,
+                runQueryDescription,
                 agentToolDefinitionsByName.runSql.for('agent').description,
             ]) {
-                expect(description).toContain('execution');
                 expect(description).not.toMatch(
                     /get_query_result|render_chart|structuredContent|nextPollAfterMs|heartbeatAt|~50s/,
                 );
             }
-            expect(generateVisualization.description).toContain(
-                'queryConfig.parameters',
+            expect(generateVisualization.description).toContain('execution');
+            expect(runQueryDescription).toContain('execution');
+            expect(
+                queryConfigBaseSchema.shape.parameters.description,
+            ).toContain('requires parameters');
+            expect(runSql.description).toContain(
+                `max ${AI_DEFAULT_MAX_QUERY_LIMIT}`,
             );
-            expect(runSql.description).toContain('max 500');
         },
     );
 
@@ -317,23 +368,27 @@ describe('AI agent tool contracts', () => {
             name: 'structured-filter-with-composer',
             enableFilterExpressions: false,
             enableGenerateDataApp: false,
-            enableComposerQueries: true,
+            composer: true,
         },
     ])(
         'matches the $name Agent system prompt snapshot',
-        ({
-            enableFilterExpressions,
-            enableGenerateDataApp,
-            enableComposerQueries,
-        }) => {
+        ({ enableFilterExpressions, enableGenerateDataApp, composer }) => {
             expect(
                 getSystemPromptV2({
                     availableExplores: [],
                     date: '2026-08-27',
                     enableFilterExpressions,
-                    enableContentTools: enableGenerateDataApp,
-                    enableGenerateDataApp,
-                    enableComposerQueries,
+                    canRunQuery: !composer,
+                    promptSections: new Set<PromptSection>([
+                        ...(enableGenerateDataApp
+                            ? ([
+                                  'contentTools',
+                                  'schedulingTools',
+                                  'generateDataApp',
+                              ] as const)
+                            : []),
+                        ...(composer ? (['queryingComposer'] as const) : []),
+                    ]),
                 }).content,
             ).toMatchSnapshot();
         },

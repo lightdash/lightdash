@@ -187,6 +187,7 @@ const setup = () => {
         },
     );
     const input: SlackArtifactRenderInput = {
+        source: 'runQuery',
         queryUuid: 'execution',
         artifactUuid: 'artifact',
         versionUuid: 'version',

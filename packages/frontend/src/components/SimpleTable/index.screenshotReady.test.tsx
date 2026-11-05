@@ -19,9 +19,16 @@ vi.mock('../LightdashVisualization/types', () => ({
     isTableVisualizationConfig: () => true,
 }));
 
-vi.mock('../LightdashVisualization/useVisualizationContext', () => ({
-    useVisualizationContext: () => mockContext.current,
-}));
+vi.mock('../LightdashVisualization/useVisualizationContext', () => {
+    const useVisualizationContext = () => mockContext.current;
+    return {
+        useVisualizationContext,
+        useVisualizationServices: useVisualizationContext,
+        useVisualizationLayout: useVisualizationContext,
+        useVisualizationInputs: useVisualizationContext,
+        useVisualizationConfig: () => mockContext.current.visualizationConfig,
+    };
+});
 
 // eslint-disable-next-line import/first
 import SimpleTable from './index';

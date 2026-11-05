@@ -1,5 +1,5 @@
 import { type NotificationDashboardComment } from '@lightdash/common';
-import { Menu, Text, Tooltip, useMantineTheme } from '@mantine/core';
+import { Menu, Text, Tooltip } from '@mantine/core';
 import { IconCircleFilled } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useCallback, type FC } from 'react';
@@ -47,7 +47,6 @@ export const DashboardCommentsNotifications: FC<Props> = ({
     notifications,
 }) => {
     const { track } = useTracking();
-    const theme = useMantineTheme();
     const navigate = useNavigate();
     const { mutateAsync: updateNotification } = useUpdateNotification();
 
@@ -91,11 +90,9 @@ export const DashboardCommentsNotifications: FC<Props> = ({
                         <MantineIcon
                             size={10}
                             icon={IconCircleFilled}
-                            style={{
-                                color: notification.viewed
-                                    ? 'transparent'
-                                    : theme.colors.blue[4],
-                            }}
+                            color={
+                                notification.viewed ? 'transparent' : 'blue.4'
+                            }
                         />
                     }
                     onClick={() => handleOnNotificationClick(notification)}

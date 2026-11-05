@@ -47,6 +47,33 @@
     animation: pillIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+.starter {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    max-width: 100%;
+    padding: 3px 10px;
+    border: 1px dashed var(--mantine-color-ldGray-3);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--mantine-color-dimmed);
+    font-family: inherit;
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+    transition:
+        color 0.18s ease,
+        border-color 0.18s ease;
+}
+
+.starter:hover {
+    border-style: solid;
+    color: var(--mantine-color-text);
+}
+
 .pill:nth-child(2) {
     animation-delay: 40ms;
 }

@@ -34,6 +34,7 @@ export const getTooltipStyle = ({
     backgroundColor: TOOLTIP_BACKGROUND,
     renderMode: 'html' as const,
     confine: true,
+    transitionDuration: 0,
     textStyle: {
         color: GRAY_7,
         fontSize: 12,

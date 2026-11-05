@@ -573,6 +573,9 @@ export const applyOrganizationMemberStaticAbilities: Record<
         can('manage', 'AiAgentThread', {
             organizationUuid: member.organizationUuid,
         });
+        can('view', 'AiAgentThreadContext', {
+            organizationUuid: member.organizationUuid,
+        });
         can('manage', 'ScheduledDeliveries', {
             organizationUuid: member.organizationUuid,
         });

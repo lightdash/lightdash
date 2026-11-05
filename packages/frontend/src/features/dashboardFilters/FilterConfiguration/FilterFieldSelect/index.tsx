@@ -17,7 +17,14 @@ import {
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconSearch, IconSelector } from '@tabler/icons-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { useCallback, useMemo, useRef, useState, type FC } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import FieldIcon from '../../../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
@@ -38,6 +45,15 @@ interface FilterFieldSelectProps {
     onChange: (field: DashboardFilterableField) => void;
     // Mounts with the list open; the caller gives the input focus
     defaultOpened?: boolean;
+    // Shows "Select a field to filter" above the input
+    withLabel?: boolean;
+    // Replaces the placeholders the input has open and closed
+    placeholder?: string;
+    // Renders the list in a portal, for a host that clips its overflow
+    withinPortal?: boolean;
+    isPickerSearch?: boolean;
+    getRowHint?: (field: DashboardFilterableField) => string;
+    isFirstMatchSelected?: boolean;
     popoverProps?: {
         onOpen?: () => void;
         onClose?: () => void;
@@ -69,7 +85,13 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
     selectedField,
     onChange,
     defaultOpened = false,
+    withLabel = true,
+    withinPortal = false,
+    placeholder: placeholderOverride,
     popoverProps,
+    getRowHint,
+    isPickerSearch = false,
+    isFirstMatchSelected = false,
 }) => {
     const getUiString = useUiStrings();
     const [search, setSearch] = useState('');
@@ -157,6 +179,30 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
         estimateSize: getItemSize,
         overscan: 10,
     });
+    // Mounted open, the list exists before the virtualizer has seen its
+    // scroll box; one measure after mount gets the first rows drawn
+    useEffect(() => {
+        virtualizer.measure();
+    }, [virtualizer]);
+
+    const { selectFirstOption } = combobox;
+    const pendingFirst = useRef(false);
+    useEffect(() => {
+        if (!isFirstMatchSelected || search !== debouncedSearch) return;
+        pendingFirst.current = true;
+        virtualizer.scrollToOffset(0);
+    }, [isFirstMatchSelected, search, debouncedSearch, virtualizer]);
+    const firstOptionIndex = virtualItems.findIndex(
+        (item) => item.type === 'field',
+    );
+    const isFirstOptionDrawn = virtualizer
+        .getVirtualItems()
+        .some(({ index }) => index === firstOptionIndex);
+    useEffect(() => {
+        if (!pendingFirst.current || !isFirstOptionDrawn) return;
+        pendingFirst.current = false;
+        selectFirstOption();
+    });
 
     const collidingFieldIds = useMemo(
         () => getCollidingFieldIds(fields),
@@ -208,6 +254,11 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
                     return (
                         <Combobox.Option
                             value={fieldId}
+                            aria-label={
+                                getRowHint
+                                    ? `${getItemLabelWithoutTableName(item.field)}, ${isField(item.field) ? item.field.tableLabel : ''}, ${getRowHint(item.field)}`
+                                    : undefined
+                            }
                             active={fieldId === selectedFieldId}
                             className={`${styles.option} ${item.dimmed ? styles.dimmedOption : ''}`}
                         >
@@ -227,11 +278,24 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
                             >
                                 <Group gap="xs" wrap="nowrap">
                                     <FieldIcon item={item.field} size="md" />
-                                    <Text size="xs" truncate="end">
+                                    <Text
+                                        size="xs"
+                                        truncate="end"
+                                        flex={getRowHint ? 1 : undefined}
+                                    >
                                         {getItemLabelWithoutTableName(
                                             item.field,
                                         )}
                                     </Text>
+                                    {getRowHint && (
+                                        <Text
+                                            size="xs"
+                                            c="dimmed"
+                                            flex="0 0 auto"
+                                        >
+                                            {getRowHint(item.field)}
+                                        </Text>
+                                    )}
                                 </Group>
                             </Tooltip>
                         </Combobox.Option>
@@ -239,7 +303,7 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
                 }
             }
         },
-        [getOptionValue, selectedFieldId],
+        [getOptionValue, selectedFieldId, getRowHint],
     );
 
     const isOpen = combobox.dropdownOpened;
@@ -247,33 +311,45 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
         ? getSelectedFieldLabel(selectedField)
         : null;
 
-    const placeholder = isOpen
-        ? (selectedLabel ??
-          getUiString('filters.config.searchFieldPlaceholder'))
-        : getUiString('filters.config.selectFilterPlaceholder');
+    const placeholder =
+        placeholderOverride ??
+        (isOpen
+            ? (selectedLabel ??
+              getUiString('filters.config.searchFieldPlaceholder'))
+            : getUiString('filters.config.selectFilterPlaceholder'));
 
     return (
         <div>
-            <Text size="sm" mb={4}>
-                {getUiString('filters.config.selectField')}{' '}
-                <Text component="span" c="red">
-                    *
+            {withLabel && (
+                <Text size="sm" mb={4}>
+                    {getUiString('filters.config.selectField')}{' '}
+                    <Text component="span" c="red">
+                        *
+                    </Text>
                 </Text>
-            </Text>
+            )}
 
             <Combobox
                 store={combobox}
                 onOptionSubmit={handleOptionSubmit}
-                withinPortal={false}
+                withinPortal={withinPortal}
+                offset={isPickerSearch ? 2 : undefined}
             >
                 <Combobox.Target>
                     <InputBase
                         radius="md"
                         size="xs"
                         value={isOpen ? search : (selectedLabel ?? '')}
+                        aria-label={
+                            isFirstMatchSelected || isPickerSearch
+                                ? placeholderOverride
+                                : undefined
+                        }
                         placeholder={placeholder}
                         onChange={(event) => {
                             setSearch(event.currentTarget.value);
+                            if (isFirstMatchSelected)
+                                combobox.resetSelectedOption();
                             combobox.openDropdown();
                         }}
                         onClick={() => combobox.openDropdown()}
@@ -285,7 +361,11 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
                                 <MantineIcon icon={IconSearch} color="dimmed" />
                             )
                         }
-                        rightSection={<MantineIcon icon={IconSelector} />}
+                        rightSection={
+                            isPickerSearch ? undefined : (
+                                <MantineIcon icon={IconSelector} />
+                            )
+                        }
                         rightSectionPointerEvents="none"
                         autoComplete="off"
                         data-autofocus
@@ -320,13 +400,12 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
                                             return (
                                                 <Box
                                                     key={virtualRow.key}
-                                                    pos="absolute"
-                                                    top={0}
-                                                    left={0}
-                                                    w="100%"
                                                     h={virtualRow.size}
+                                                    className={
+                                                        styles.virtualItem
+                                                    }
                                                     style={{
-                                                        transform: `translateY(${virtualRow.start}px)`,
+                                                        '--item-start': `${virtualRow.start}px`,
                                                     }}
                                                 >
                                                     {renderVirtualItem(item)}

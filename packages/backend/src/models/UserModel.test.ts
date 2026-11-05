@@ -6,11 +6,11 @@ import {
 } from '@casl/ability';
 import {
     CommercialFeatureFlags,
-    FeatureFlags,
     LightdashMode,
     LightdashUser,
     MemberAbility,
     NotFoundError,
+    OpenIdIdentityIssuerType,
     OrganizationMemberRole,
     PasswordLoginBlockedError,
     projectMemberAbilities,
@@ -25,6 +25,7 @@ import knex, { type Knex } from 'knex';
 import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
 import { type LightdashConfig } from '../config/parseConfig';
 import { EmailTableName } from '../database/entities/emails';
+import { OpenIdIdentitiesTableName } from '../database/entities/openIdIdentities';
 import { PasswordLoginTableName } from '../database/entities/passwordLogins';
 import { ProjectMembershipCustomRolesTableName } from '../database/entities/projectMembershipCustomRoles';
 import { ProjectMembershipsTableName } from '../database/entities/projectMemberships';
@@ -56,6 +57,10 @@ type TestableUserModel = {
     getTrainingProjects: (
         organizationId: number,
         userUuid: string,
+        training?: {
+            project_uuid: string;
+            created_by_user_uuid: string | null;
+        },
         trx?: Knex,
     ) => Promise<
         {
@@ -344,7 +349,10 @@ describe('UserModel', () => {
         expect(merge).toHaveBeenCalledOnce();
     });
 
-    it('activates an invited user without creating a password login', async () => {
+    it.each([
+        { firstName: '', lastName: '' },
+        { firstName: 'José', lastName: 'Müller' },
+    ])('preserves names during passwordless activation: %j', async (names) => {
         const update = vi.fn(() => ({
             returning: vi.fn(async () => [{ user_id: 1 }]),
         }));
@@ -369,8 +377,8 @@ describe('UserModel', () => {
         const activatedUser = mapDbUserDetailsToLightdashUser(
             {
                 ...userDetails,
-                first_name: '',
-                last_name: '',
+                first_name: names.firstName,
+                last_name: names.lastName,
             },
             false,
         );
@@ -384,14 +392,81 @@ describe('UserModel', () => {
 
         expect(activatedUser.isActive).toBe(true);
         expect(update).toHaveBeenCalledWith({
-            first_name: '',
-            last_name: '',
             updated_at: expect.any(Date),
         });
         expect(transactionClient).not.toHaveBeenCalledWith(
             PasswordLoginTableName,
         );
     });
+
+    it.each([
+        [
+            'keeps names a returning user already saved',
+            { first_name: 'Ana', last_name: 'Lee' },
+            { updated_at: expect.any(Date) },
+        ],
+        [
+            'fills only the blank name from the identity provider',
+            { first_name: ' ', last_name: 'Lee' },
+            { first_name: 'Google', updated_at: expect.any(Date) },
+        ],
+    ])(
+        'activates an invited OpenID user and %s',
+        async (_name, savedNames, expectedUpdate) => {
+            const first = vi.fn(async () => savedNames);
+            const update = vi.fn(() => ({
+                returning: vi.fn(async () => [{ user_id: 1 }]),
+            }));
+            const insert = vi.fn(() => ({
+                returning: vi.fn(async () => []),
+            }));
+            const transactionClient = vi.fn((tableName: string) => {
+                if (tableName === UserTableName) {
+                    return {
+                        select: vi.fn(() => ({
+                            where: vi.fn(() => ({ first })),
+                        })),
+                        where: vi.fn(() => ({ update })),
+                    };
+                }
+                if (tableName === OpenIdIdentitiesTableName) {
+                    return { insert };
+                }
+                throw new Error(`Unexpected table ${tableName}`);
+            }) as unknown as Knex.Transaction;
+            const database = Object.assign(vi.fn(), {
+                transaction: vi.fn(
+                    async (
+                        callback: (trx: Knex.Transaction) => Promise<unknown>,
+                    ) => callback(transactionClient),
+                ),
+            }) as unknown as Knex;
+            const model = new UserModel({
+                database,
+                lightdashConfig,
+                featureFlagModel,
+            });
+            vi.spyOn(model, 'getUserDetailsByUuid').mockResolvedValue(
+                mapDbUserDetailsToLightdashUser(userDetails, false),
+            );
+
+            await model.activateUser(userDetails.user_uuid, {
+                openId: {
+                    issuer: 'https://accounts.google.com',
+                    issuerType: OpenIdIdentityIssuerType.GOOGLE,
+                    subject: 'google-subject',
+                    email: 'ana@example.com',
+                    firstName: 'Google',
+                    lastName: 'Name',
+                },
+            });
+
+            expect(update).toHaveBeenCalledWith(expectedUpdate);
+            expect(insert).toHaveBeenCalledWith(
+                expect.objectContaining({ subject: 'google-subject' }),
+            );
+        },
+    );
 
     it('collapses legacy service account project membership rules before returning the ability builder', async () => {
         const model = createUserModel();
@@ -458,7 +533,7 @@ describe('UserModel', () => {
             role_uuid: undefined,
         };
 
-        const createHumanModel = (learnEnabled = true) => {
+        const createHumanModel = () => {
             const model = new UserModel({
                 database: vi.fn() as unknown as Knex,
                 lightdashConfig: {
@@ -472,10 +547,9 @@ describe('UserModel', () => {
                         }: {
                             featureFlagId: string;
                         }) => ({
+                            // Every flag off: Learn needs none of them.
                             id: featureFlagId,
-                            enabled:
-                                featureFlagId === FeatureFlags.EnableLearn &&
-                                learnEnabled,
+                            enabled: false,
                         }),
                     ),
                 } as unknown as FeatureFlagModel,
@@ -505,19 +579,27 @@ describe('UserModel', () => {
             return model;
         };
 
-        it('does not grant trainee scopes when the org Learn flag is off', async () => {
-            const model = createHumanModel(false);
+        it('grants trainee scopes with every feature flag off', async () => {
+            const model = createHumanModel();
+            model.getTrainingProjects = vi.fn(async () => [
+                {
+                    projectUuid: 'training-copy',
+                    projectType: ProjectType.PREVIEW,
+                    createdByUserUuid: humanDetails.user_uuid,
+                },
+            ]);
             const { abilityBuilder } =
                 await model.generateUserAbilityBuilder(humanDetails);
-            expect(model.getTrainingProjects).not.toHaveBeenCalled();
+            expect(model.getTrainingProjects).toHaveBeenCalledOnce();
             expect(
                 abilityBuilder.build().can(
                     'manage',
                     subject('PinnedItems', {
+                        organizationUuid: humanDetails.organization_uuid,
                         projectUuid: 'training-copy',
                     }),
                 ),
-            ).toBe(false);
+            ).toBe(true);
         });
 
         it.each([false, true])(
@@ -784,7 +866,20 @@ describe('UserModel', () => {
             });
 
             it('reads the training project from the user row, not the database', async () => {
-                const model = createHumanModel(false);
+                const model = createHumanModel();
+                model.getTrainingProjects = vi.fn(
+                    async (_organizationId, _userUuid, training) =>
+                        training
+                            ? [
+                                  {
+                                      projectUuid: training.project_uuid,
+                                      projectType: ProjectType.TRAINING,
+                                      createdByUserUuid:
+                                          training.created_by_user_uuid,
+                                  },
+                              ]
+                            : [],
+                );
 
                 const { abilityBuilder } =
                     await model.generateUserAbilityBuilder({
@@ -808,7 +903,7 @@ describe('UserModel', () => {
             });
 
             it('reads nothing when the user row says the org has no training project', async () => {
-                const model = createHumanModel(false);
+                const model = createHumanModel();
 
                 await model.generateUserAbilityBuilder({
                     ...adminDetails,
@@ -819,36 +914,6 @@ describe('UserModel', () => {
                 expect(
                     model.getOrganizationTrainingProject,
                 ).not.toHaveBeenCalled();
-            });
-
-            it('stays locked when the org Learn flag is off', async () => {
-                const model = createHumanModel(false);
-                model.getOrganizationTrainingProject = vi.fn(async () => ({
-                    project_uuid: 'training-project',
-                    created_by_user_uuid: adminDetails.user_uuid,
-                }));
-
-                const { abilityBuilder } =
-                    await model.generateUserAbilityBuilder(adminDetails);
-                const ability = abilityBuilder.build();
-
-                expect(model.getTrainingProjects).not.toHaveBeenCalled();
-                lockedWrites.forEach(([action, subjectName]) => {
-                    expect({
-                        action,
-                        subjectName,
-                        can: ability.can(action, trainingSubject(subjectName)),
-                    }).toEqual({ action, subjectName, can: false });
-                });
-                expect(
-                    ability.can(
-                        'manage',
-                        subject('SavedChart', {
-                            organizationUuid: adminDetails.organization_uuid,
-                            projectUuid: 'another-project',
-                        }),
-                    ),
-                ).toBe(true);
             });
 
             it('stays locked for a role that can edit content but not view Learn', async () => {

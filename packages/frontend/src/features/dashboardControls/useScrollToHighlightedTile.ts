@@ -11,10 +11,12 @@ const isInViewport = (element: Element): boolean => {
     return rect.height > 0 && visible / rect.height >= 0.5;
 };
 
-// When a row is clicked, the first tile on its field scrolls into view if none
-// of them is visible. Hover never scrolls, and neither do the marks tiles carry
-// while no row is clicked: the list passes the clicked field only then, and
-// only to the tiles on it. A field on no tile scrolls nothing.
+// Read when it scrolls, not as a hook: that would re-render every tile card
+const prefersReducedMotion = () =>
+    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+
+// A clicked row scrolls the first tile on its field into view when none is
+// visible. Hover never does: the list passes the clicked field, not the active
 export const useScrollToHighlightedTile = (
     ref: RefObject<HTMLElement | null>,
     highlightedFieldId: string | null,
@@ -26,6 +28,9 @@ export const useScrollToHighlightedTile = (
         const highlighted = [...document.querySelectorAll(HIGHLIGHTED_OVERLAY)];
         if (highlighted[0] !== element) return;
         if (highlighted.some(isInViewport)) return;
-        element.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        element.scrollIntoView({
+            block: 'center',
+            behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+        });
     }, [ref, highlightedFieldId, isHighlighted]);
 };

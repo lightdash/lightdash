@@ -197,7 +197,7 @@ organization resources will use the same root.
 | Dashboards           | Project      | Slug                             | `lightdash/dashboards/` or nested spaces |
 | Spaces               | Project      | Full hierarchy path              | `.space.yml` files                       |
 | Virtual views        | Project      | Slug                             | `lightdash/virtual-views/`               |
-| AI agents            | Project      | Slug                             | `lightdash/ai-agents/`                   |
+| AI agents            | Project      | Slug                             | `lightdash/ai-agents/` (+ `<slug>/knowledge-documents/`) |
 | Scheduled deliveries | Project      | Project-scoped slug              | `lightdash/scheduled-deliveries/`        |
 | Alerts               | Project      | Project-scoped slug              | `lightdash/alerts/`                      |
 | Google Sheets syncs  | Project      | Project-scoped slug              | `lightdash/google-sheets/`               |
@@ -224,6 +224,56 @@ used by new clients.
 Organization themes use the organization-design package endpoints instead of a
 `/code/{resource}` endpoint because their portable representation is an
 uncompressed tar archive rather than one JSON document.
+
+## AI agent knowledge documents
+
+An agent's knowledge documents travel with the agent. The YAML lists them
+under `knowledgeDocuments`, and each document's text lives in its own file
+beside the YAML so a change in Git is a readable diff:
+
+```
+lightdash/ai-agents/
+  revenue-agent.yml
+  revenue-agent/
+    knowledge-documents/
+      revenue-definitions.md
+      refund-policy.md
+```
+
+```yaml
+knowledgeDocuments:
+    - name: Revenue definitions
+      file: revenue-agent/knowledge-documents/revenue-definitions.md
+      alwaysIncludeInContext: true
+    - name: Refund policy
+      file: revenue-agent/knowledge-documents/refund-policy.md
+      alwaysIncludeInContext: false
+```
+
+`file` is relative to the YAML's directory and must stay inside it; `.md`
+files are markdown documents and `.txt` files plain text, and download writes
+each document back with the matching extension. The CLI inlines the content
+for the API; the server never sees file paths. Download
+writes only the documents the agent owns alone: documents shared with other
+agents or with the whole organization are not exported and an upload never
+touches them.
+
+The list follows the same rule as `skills`: omitted means "leave the agent's
+documents as they are", present means authoritative. Upload matches by
+document name, creates the missing ones, rewrites changed content, toggles
+`alwaysIncludeInContext`, and deletes the agent-owned documents the list no
+longer names. Unchanged content is skipped, so a repeat upload does not
+regenerate the document's AI summary. The per-document size limit and the
+organization quota apply as in the UI; a document that fails them fails only
+its agent.
+
+With `content_as_code.sync: true`, every uploaded document is recorded as
+Git-backed. The agent settings page then shows it as managed by Content as
+Code and refuses edits, usage changes and deletion from the UI for everyone;
+the repo is the only writer until the document is removed from the repo and
+uploaded again. Documents nobody uploaded stay editable, so one agent can mix
+repo-managed and UI-managed documents. Without sync, upload is a plain copy
+and the UI stays editable, like charts.
 
 ## Optional project resources
 
@@ -492,6 +542,8 @@ Organization users are stored under `lightdash/users/*.yml`:
 ```yaml
 version: 1
 email: analyst@example.com
+firstName: Alex
+lastName: Example
 disabled: false
 role:
   type: system
@@ -505,9 +557,13 @@ The endpoints are:
 
 Email is the portable identity and is normalized to lowercase. An upload
 creates a missing organization member or reconciles the existing member's
-organization role and disabled state. A custom role is referenced by its exact
-organization-level role name, so organization uploads process custom roles
-before users.
+organization role, disabled state, and supplied names. `firstName` and
+`lastName` are independently optional: omitting either preserves that name on
+an existing user, so older version 1 files remain valid. Supplied names are
+trimmed; an explicit empty string clears that name. Downloads include both
+names, including empty strings when a name is unset. A custom role is
+referenced by its exact organization-level role name, so organization uploads
+process custom roles before users.
 
 Credentials are not portable, so authentication status is not written to user
 files. A missing user is staged without an authentication method and reported
@@ -685,6 +741,24 @@ pnpm -F backend exec vitest run \
 This is a schema coverage contract, not a replacement for behavior tests. It
 catches unclassified top-level fields; resource adapters and round-trip tests
 must still prove that portable fields download, compare, and upload correctly.
+
+### Dashboard parameter controls
+
+When dashboard controls are enabled, dashboard files can save controls under
+`config.parameterControls`. Each control has a unique lowercase `slug`, a
+`label`, `value`, `valueType` (`type` and `multiple`), and a `parameters` map.
+Downloads derive readable slugs from labels or parameter keys when none is
+saved. Uploads save each slug and match existing controls by slug, preserving
+internal IDs through label changes. Legacy `id` fields are accepted; duplicate
+slugs are rejected.
+
+Each parameter rule is `all`, `{ only: [tile-slug] }`, or
+`{ except: [tile-slug] }`. A key has at most one default (`all` or `except`),
+and explicit assignments cannot overlap another assignment. `only: []` assigns
+no tiles. Hidden controls still apply their assignments and values. A present
+empty list means no saved controls and an empty parameter mirror; an absent list
+uses legacy top-level parameters. With a saved list, upload derives that mirror
+from control values.
 
 Charts, dashboards, SQL Runner charts, spaces, and data apps reserve slugs
 within their project, including slugs owned by soft-deleted rows. The database

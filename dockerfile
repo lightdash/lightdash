@@ -5,12 +5,12 @@
 FROM duckdb/duckdb:1.5.2@sha256:5658472bf45cce867048a17201b9d38d4632507e7df4a69994f8236599f69d45 AS duckdb-extensions
 RUN ["/duckdb", "-c", "INSTALL httpfs; INSTALL aws;"]
 
-FROM ghcr.io/pnpm/pnpm:12.3.4@sha256:b81d53184f670fe19d1a33f9d5041907d314b31d596838e8133cbd83d45be043 AS pnpm-cli
+FROM ghcr.io/pnpm/pnpm:12.16.1@sha256:33081d3d2c96ba582d316cfd630f0f43961d9c60ff919b50edd1835a1462976b AS pnpm-cli
 
 # -----------------------------
 # Stage 0: pnpm setup base
 # -----------------------------
-FROM node:24-trixie-slim AS node-runtime
+FROM node:24.22.1-trixie-slim AS node-runtime
 
 # Keep Python 3.11 for the older supported dbt adapters on Debian 13.
 FROM python:3.11-slim-trixie AS pnpm-base
@@ -133,6 +133,9 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     "dbt-clickhouse~=1.9.0" \
     "dbt-athena~=1.9.0" \
     "dbt-duckdb~=1.9.0" \
+# dbt-snowflake below 1.12.4 caps certifi under 2025.4.26, which still trusts
+# the distrusted emSign ECC Root CA - G3. certifi is only a CA bundle.
+    && /usr/local/dbt1.9/bin/pip install --no-deps "certifi>=2026.10.19" \
     && ln -s /usr/local/dbt1.9/bin/dbt /usr/local/bin/dbt1.9 \
     && python3 -m venv /usr/local/dbt1.10 \
     && /usr/local/dbt1.10/bin/pip install \
@@ -146,6 +149,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     "dbt-clickhouse~=1.9.0" \
     "dbt-athena~=1.10.0" \
     "dbt-duckdb~=1.10.0" \
+    && /usr/local/dbt1.10/bin/pip install --no-deps "certifi>=2026.10.19" \
     && ln -s /usr/local/dbt1.10/bin/dbt /usr/local/bin/dbt1.10 \
     && python3 -m venv /usr/local/dbt1.11 \
     && /usr/local/dbt1.11/bin/pip install \
@@ -159,6 +163,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     "dbt-clickhouse~=1.9.0" \
     "dbt-athena~=1.10.0" \
     "dbt-duckdb~=1.10.0" \
+    && /usr/local/dbt1.11/bin/pip install --no-deps "certifi>=2026.10.19" \
     && ln -s /usr/local/dbt1.11/bin/dbt /usr/local/bin/dbt1.11 \
     && python3 -m venv /usr/local/dbt1.12 \
 # dbt-databricks 1.12 requires dbt-core below 1.12.1.
@@ -173,6 +178,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     "dbt-clickhouse~=1.9.0" \
     "dbt-athena~=1.10.0" \
     "dbt-duckdb~=1.10.0" \
+    && /usr/local/dbt1.12/bin/pip install --no-deps "certifi>=2026.10.19" \
     && ln -s /usr/local/dbt1.12/bin/dbt /usr/local/bin/dbt1.12
 
 # -----------------------------
@@ -371,6 +377,8 @@ RUN if [ -n "${SENTRY_AUTH_TOKEN}" ] && [ -n "${SENTRY_ORG}" ] && [ -n "${SENTRY
     # Inject debug IDs into frontend artifacts \
     echo "Injecting debug IDs into frontend artifacts"; \
     sentry-cli sourcemaps inject ./packages/frontend/build/assets/; \
+    # Inject rewrites the .js files, so regenerate the precompressed copies browsers are actually served \
+    find ./packages/frontend/build/assets -name '*.js.gzip' | while read -r f; do gzip -9 -n -c "${f%.gzip}" > "$f"; done; \
     # Upload frontend sourcemaps \
     echo "Uploading frontend sourcemaps"; \
     sentry-cli sourcemaps upload --release "${SENTRY_RELEASE_VERSION}" \

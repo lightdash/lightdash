@@ -29,6 +29,7 @@ import { renderWithProviders } from '../../../testing/testUtils';
 import { ChartGalleryContext } from '../../common/ChartGallery/ChartGalleryContext';
 import { ConfigTabs } from './DataAppVizConfigTabs';
 
+vi.mock('../../../features/chartTypes/hooks/useChartStudioAvailable');
 vi.mock('../../../hooks/useProjectRoute', () => ({
     useOptionalProjectRoute: () => ({ projectUrlIdentifier: 'jaffle-shop' }),
 }));
@@ -117,9 +118,10 @@ vi.mock('../CustomChartType/CustomChartTypePicker', () => ({
         return <div data-testid="viz-picker" />;
     },
 }));
+// Chart Studio does not read feature flags, so they all stay off.
 vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: () => ({
-        data: { enabled: true },
+        data: { enabled: false },
         isLoading: false,
     }),
 }));
@@ -184,14 +186,23 @@ vi.mock('../../common/FieldSelect', () => ({
         );
     },
 }));
-vi.mock('../../LightdashVisualization/useVisualizationContext', () => ({
-    useVisualizationContext: vi.fn(),
-}));
+vi.mock('../../LightdashVisualization/useVisualizationContext', () => {
+    const useVisualizationContext = vi.fn();
+    return {
+        useVisualizationContext,
+        useVisualizationServices: useVisualizationContext,
+        useVisualizationLayout: useVisualizationContext,
+        useVisualizationInputs: useVisualizationContext,
+        useVisualizationConfig: () =>
+            useVisualizationContext().visualizationConfig,
+    };
+});
 // Self-wiring against the Explorer store, which this panel test doesn't mount.
 vi.mock('../common/ColorPaletteSection', () => ({
     ColorPaletteSection: () => <div data-testid="color-palette-section" />,
 }));
 
+import { useChartStudioAvailable } from '../../../features/chartTypes/hooks/useChartStudioAvailable';
 import { useDataAppVisualization } from '../../../features/chartTypes/hooks/useDataAppVisualization';
 import { useDataAppVizRenderMetadata } from '../../../features/chartTypes/hooks/useDataAppVizRender';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
@@ -364,6 +375,7 @@ describe('DataAppVizConfigTabs', () => {
         } as unknown as ReturnType<typeof useVisualizationContext>);
 
     beforeEach(() => {
+        vi.mocked(useChartStudioAvailable).mockReturnValue(true);
         dispatch.mockClear();
         fieldSelectItems.length = 0;
         fieldSelectProps.length = 0;
@@ -682,6 +694,21 @@ describe('DataAppVizConfigTabs', () => {
             pathname: '/projects/jaffle-shop/chart-studio/new',
             search: locationSearch.current,
         });
+    });
+
+    it('offers no builder without Chart Studio', async () => {
+        vi.mocked(useChartStudioAvailable).mockReturnValue(false);
+        signInAs(OrganizationMemberRole.EDITOR);
+        mockContext(queryColumns, null);
+        vi.mocked(useDataAppVisualization).mockReturnValue({
+            data: undefined,
+        } as unknown as ReturnType<typeof useDataAppVisualization>);
+
+        renderWithProviders(<ConfigTabs />);
+
+        await screen.findByText(/Pick a chart type above/);
+        expect(screen.queryByText('builder')).not.toBeInTheDocument();
+        expect(pickerProps[pickerProps.length - 1].onCreateNew).toBeNull();
     });
 
     it('starts authoring in place from inside the chart gallery', async () => {

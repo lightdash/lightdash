@@ -1,4 +1,5 @@
 import {
+    convertItemTypeToDimensionType,
     DimensionType,
     FieldType,
     ParameterError,
@@ -69,6 +70,13 @@ const pythonResultMetaSchema = z.object({
         .min(1),
     rowCount: z.number().int().nonnegative(),
     truncated: z.boolean(),
+    timings: z.object({
+        importMs: z.number().nonnegative(),
+        loadInputsMs: z.number().nonnegative(),
+        loadCodeMs: z.number().nonnegative(),
+        runMs: z.number().nonnegative(),
+        writeOutputMs: z.number().nonnegative(),
+    }),
 });
 
 export type PythonResultMeta = z.infer<typeof pythonResultMetaSchema>;
@@ -227,12 +235,23 @@ export const pythonResultToFields = (meta: PythonResultMeta): ItemsMap =>
 /** Column types of a referenced result, as the harness reads them. */
 export const resultColumnsToPythonInput = (
     columns: ResultColumns,
+    itemsMap: ItemsMap,
 ): Record<string, PythonColumnType> =>
     Object.fromEntries(
-        Object.values(columns).map((column) => [
-            column.reference,
-            toPythonColumnType(column.type),
-        ]),
+        Object.values(columns).map((column) => {
+            const item = itemsMap[column.reference];
+            // Truncating a date can return a warehouse timestamp (Postgres DATE_TRUNC).
+            const isTruncatedDate =
+                column.type === DimensionType.TIMESTAMP &&
+                item !== undefined &&
+                convertItemTypeToDimensionType(item) === DimensionType.DATE;
+            return [
+                column.reference,
+                toPythonColumnType(
+                    isTruncatedDate ? DimensionType.DATE : column.type,
+                ),
+            ];
+        }),
     );
 
 /**
@@ -243,7 +262,12 @@ export const resultColumnsToPythonInput = (
  * trust boundary.
  */
 export const PYTHON_RUNNER_SOURCE = `
+import time
+
+STARTED = time.perf_counter()
+
 import importlib.util
+import inspect
 import json
 import math
 import re
@@ -252,6 +276,8 @@ import traceback
 
 import numpy as np
 import pandas as pd
+
+TIMINGS = {"importMs": (time.perf_counter() - STARTED) * 1000}
 
 WORK = "${PYTHON_WORK_DIR}"
 IN_DIR = f"{WORK}/in"
@@ -281,20 +307,26 @@ def load_input(name, spec):
                 lambda value: pd.NA if pd.isna(value) else bool(value)
             ).astype("boolean")
         elif kind in ("date", "timestamp"):
-            frame[column] = pd.to_datetime(frame[column], errors="coerce", utc=(kind == "timestamp"))
+            parsed = pd.to_datetime(frame[column], errors="coerce", utc=True).dt.tz_localize(None)
+            if kind == "date":
+                parsed = parsed.dt.normalize()
+            frame[column] = parsed
         else:
             frame[column] = frame[column].astype("string")
     return frame
 
 
-def column_type(series):
+def column_type(series, is_timestamp_input):
     dtype = series.dtype
     if pd.api.types.is_bool_dtype(dtype):
         return "boolean"
     if pd.api.types.is_numeric_dtype(dtype):
         return "number"
     if pd.api.types.is_datetime64_any_dtype(dtype):
-        return "timestamp"
+        if is_timestamp_input or getattr(dtype, "tz", None) is not None:
+            return "timestamp"
+        non_null = series.dropna()
+        return "date" if bool((non_null == non_null.dt.normalize()).all()) else "timestamp"
     return "string"
 
 
@@ -306,6 +338,7 @@ def to_json_value(value, kind):
     if value is pd.NaT:
         return None
     if isinstance(value, (pd.Timestamp,)):
+        value = value.tz_localize("UTC") if value.tzinfo is None else value.tz_convert("UTC")
         return value.isoformat()
     if isinstance(value, np.generic):
         value = value.item()
@@ -317,12 +350,19 @@ def to_json_value(value, kind):
     return value
 
 
+def timed(name, started):
+    TIMINGS[name] = (time.perf_counter() - started) * 1000
+
+
 def main():
+    started = time.perf_counter()
     with open(f"{IN_DIR}/meta.json", encoding="utf-8") as handle:
         meta = json.load(handle)
 
     inputs = {name: load_input(name, spec) for name, spec in meta["inputs"].items()}
+    timed("loadInputsMs", started)
 
+    started = time.perf_counter()
     spec = importlib.util.spec_from_file_location("user_main", f"{WORK}/main.py")
     module = importlib.util.module_from_spec(spec)
     try:
@@ -334,10 +374,20 @@ def main():
     if not callable(run):
         fail("Python code must define run(inputs, params)")
 
+    arity = len(inspect.signature(run).parameters)
+    if arity == 0 or arity > 2:
+        fail("run() must take (inputs, params) or (inputs)")
+
+    timed("loadCodeMs", started)
+
+    started = time.perf_counter()
     try:
-        result = run(inputs, meta.get("params", {}))
+        result = run(inputs) if arity == 1 else run(inputs, meta.get("params", {}))
     except Exception:
         fail("run() raised:\\n" + traceback.format_exc())
+    timed("runMs", started)
+
+    started = time.perf_counter()
 
     if not isinstance(result, pd.DataFrame):
         fail(f"run() must return a pandas DataFrame, got {type(result).__name__}")
@@ -358,12 +408,19 @@ def main():
     if truncated:
         result = result.iloc[:limit]
 
-    kinds = {name: column_type(result[name]) for name in names}
+    timestamp_inputs = {
+        column
+        for spec in meta["inputs"].values()
+        for column, kind in spec["columns"].items()
+        if kind == "timestamp"
+    }
+    kinds = {name: column_type(result[name], name in timestamp_inputs) for name in names}
     records = result.to_dict(orient="records")
     with open(f"{OUT_DIR}/result.jsonl", "w", encoding="utf-8") as handle:
         for record in records:
             row = {name: to_json_value(record[name], kinds[name]) for name in names}
             handle.write(json.dumps(row, allow_nan=False) + "\\n")
+    timed("writeOutputMs", started)
 
     with open(f"{OUT_DIR}/meta.json", "w", encoding="utf-8") as handle:
         json.dump(
@@ -371,6 +428,7 @@ def main():
                 "columns": [{"name": name, "type": kinds[name]} for name in names],
                 "rowCount": len(records),
                 "truncated": truncated,
+                "timings": TIMINGS,
             },
             handle,
         )

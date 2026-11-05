@@ -17,7 +17,14 @@ export const ToolCallSqlBlock: FC<ToolCallSqlBlockProps> = ({
     const formattedSql = useMemo(() => formatSql(sql, dialect), [sql, dialect]);
     return (
         <Box className={styles.code}>
-            <CodeBlock code={formattedSql} language="sql" />
+            <CodeBlock
+                code={formattedSql}
+                language="sql"
+                classNames={{
+                    codeHighlight: styles.codeHighlight,
+                    code: styles.codeInner,
+                }}
+            />
         </Box>
     );
 };

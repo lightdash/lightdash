@@ -163,12 +163,12 @@ describe('trusted surface to persisted chart identity', () => {
                 enable_content_tools: true,
                 enable_sql_mode: false,
                 enable_sql_auto_approval: false,
+                enable_composer_queries: false,
                 enable_user_context: false,
                 enable_self_improvement: false,
                 admin_only: false,
                 model_config: null,
                 ai_organization_provider_credential_uuid: null,
-                is_system: false,
                 version: 1,
                 thread_retention_hours: null,
             })
@@ -258,6 +258,8 @@ describe('trusted surface to persisted chart identity', () => {
             },
         } as unknown as ConstructorParameters<typeof AiAgentToolsService>[0]);
         vi.spyOn(tools, 'canGenerateDataApp').mockResolvedValue(false);
+        vi.spyOn(tools, 'isChartStudioAvailable').mockReturnValue(false);
+        vi.spyOn(tools, 'canAuthorCustomChartTypes').mockResolvedValue(false);
         vi.spyOn(tools, 'canUseCustomChartTypes').mockResolvedValue(false);
         const content = {
             version: 1,
@@ -367,7 +369,11 @@ describe('trusted surface to persisted chart identity', () => {
                     getProject: vi.fn().mockResolvedValue(f.projectInfo),
                 },
                 aiOrganizationSettingsService: {
+                    isMcpEnabled: vi.fn().mockResolvedValue(true),
                     isMcpContentWritesEnabled: vi.fn().mockResolvedValue(true),
+                    getMcpProjectAccess: vi
+                        .fn()
+                        .mockResolvedValue({ mode: 'all' }),
                 },
                 aiAgentSkillService: {
                     listMcpSkills: vi.fn().mockResolvedValue([]),
@@ -460,10 +466,13 @@ describe('trusted surface to persisted chart identity', () => {
             } as ConstructorParameters<typeof AiAgentModel>[0]),
             featureFlagService: f.featureFlagService,
             aiOrganizationSettingsService: {
+                isMcpEnabled: vi.fn().mockResolvedValue(true),
                 isAiAgentMemoryEnabled: vi.fn().mockResolvedValue(false),
+                isAiAgentReviewsEnabled: vi.fn().mockResolvedValue(false),
             },
             orgAiCopilotConfigResolver: {
                 isOrgBedrockRouted: vi.fn().mockResolvedValue(false),
+                getDecisionClient: vi.fn().mockResolvedValue(undefined),
                 getCopilotConfig: vi
                     .fn()
                     .mockResolvedValue({ defaultProvider: 'openai' }),
@@ -498,12 +507,7 @@ describe('trusted surface to persisted chart identity', () => {
             },
             'getPromptDecisionClient',
         ).mockResolvedValue(undefined);
-        vi.spyOn(
-            service as unknown as {
-                canCreateDashboardsInProject: () => Promise<boolean>;
-            },
-            'canCreateDashboardsInProject',
-        ).mockResolvedValue(true);
+        vi.spyOn(f.tools, 'canAuthorContent').mockResolvedValue(true);
         vi.spyOn(
             service as unknown as {
                 getAgentRuntimeMcpServers: () => Promise<[]>;
@@ -513,6 +517,7 @@ describe('trusted surface to persisted chart identity', () => {
         vi.mocked(generateAgentResponse).mockImplementation(
             async ({ dependencies }) => {
                 const tool = getCreateContent({
+                    siteUrl: 'https://app.lightdash.cloud',
                     createContent: dependencies.createContent,
                     sqlChartSaving: { mode: 'client_approved' },
                 });

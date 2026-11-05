@@ -11,6 +11,7 @@ import {
     DirectAccessResourceType,
     PromotionAction,
     SpaceMemberRole,
+    type DashboardParameterControl,
 } from '@lightdash/common';
 import { defaultSessionUser } from '../../auth/account/account.mock';
 import {
@@ -18,7 +19,12 @@ import {
     withAgentActionScope,
 } from '../AiAccessService/agentActionTestUtils.mock';
 import { CoderService } from './CoderService';
-import { withTileWarnings } from './dashboardReferences';
+import {
+    getConfigWithParameterControlTileSlugs,
+    getConfigWithParameterControlTileUuids,
+    withTileWarnings,
+} from './dashboardReferences';
+import { getParameterControlsWithIds } from './parameterControlSlugs';
 
 describe('CoderService', () => {
     describe('getMissingIds', () => {
@@ -976,6 +982,173 @@ describe('CoderService', () => {
         });
     });
 
+    describe('parameter control tile targets', () => {
+        const control = (
+            id: string,
+            tileTargets?: Record<string, boolean>,
+        ): DashboardParameterControl => ({
+            id,
+            label: `Week starts on, ${id}`,
+            value: 'monday',
+            valueType: { type: 'string', multiple: false },
+            parameters: {
+                week_start: tileTargets
+                    ? { except: Object.keys(tileTargets) }
+                    : 'all',
+            },
+        });
+        const tilesWithUuids = [
+            {
+                uuid: 'uuid-1',
+                type: DashboardTileTypes.SAVED_CHART,
+                properties: { chartSlug: 'slug-1' },
+            },
+            {
+                uuid: 'uuid-2',
+                type: DashboardTileTypes.SAVED_CHART,
+                properties: { chartSlug: 'slug-2' },
+            },
+        ];
+
+        it('exports tile uuids as tile slugs, dropping tiles that no longer exist', () => {
+            const result = getConfigWithParameterControlTileSlugs(
+                { tiles: tilesWithUuids } as AnyType,
+                {
+                    isDateZoomDisabled: false,
+                    parameterControls: [
+                        control('sales', {
+                            'uuid-1': false,
+                            'orphaned-uuid': false,
+                        }),
+                        control('ops'),
+                    ],
+                },
+            );
+
+            expect(result?.parameterControls).toEqual([
+                control('sales', { 'slug-1': false }),
+                control('ops'),
+            ]);
+        });
+
+        it('retains references to non-chart tiles in the portable config', () => {
+            const markdown = {
+                uuid: 'markdown-1',
+                type: DashboardTileTypes.MARKDOWN,
+                properties: { title: 'Text' },
+            };
+            const result = getConfigWithParameterControlTileSlugs(
+                { tiles: [markdown] } as AnyType,
+                {
+                    isDateZoomDisabled: false,
+                    parameterControls: [
+                        control('sales', { 'markdown-1': false }),
+                    ],
+                },
+            );
+            expect(result?.parameterControls).toEqual([
+                control('sales', { 'tile-markdown-1': false }),
+            ]);
+        });
+
+        it('leaves a config without parameter controls unchanged', () => {
+            const config = { isDateZoomDisabled: false };
+            expect(
+                getConfigWithParameterControlTileSlugs(
+                    { tiles: [] } as AnyType,
+                    config,
+                ),
+            ).toBe(config);
+        });
+
+        it('resolves tile slugs back to tile uuids, aliases of one tile included', () => {
+            const result = getConfigWithParameterControlTileUuids(
+                {
+                    isDateZoomDisabled: false,
+                    parameterControls: [
+                        control('sales', {
+                            'slug-1': false,
+                            'tile-two': false,
+                        }),
+                    ],
+                },
+                [
+                    tilesWithUuids[0],
+                    { ...tilesWithUuids[1], tileSlug: 'tile-two' },
+                ] as AnyType,
+            );
+
+            expect(result.parameterControls).toEqual([
+                control('sales', { 'uuid-1': false, 'uuid-2': false }),
+            ]);
+        });
+
+        it('rejects a tile target whose slug does not match a tile, naming the control', () => {
+            expect(() =>
+                getConfigWithParameterControlTileUuids(
+                    {
+                        isDateZoomDisabled: false,
+                        parameterControls: [
+                            control('sales', { 'missing-slug': false }),
+                        ],
+                    },
+                    tilesWithUuids as AnyType,
+                ),
+            ).toThrow(
+                'Tile with slug missing-slug not found for parameter control "Week starts on, sales"',
+            );
+        });
+
+        it('rejects an ambiguous tile slug', () => {
+            expect(() =>
+                getConfigWithParameterControlTileUuids(
+                    {
+                        isDateZoomDisabled: false,
+                        parameterControls: [
+                            control('sales', { 'slug-1': false }),
+                        ],
+                    },
+                    [
+                        tilesWithUuids[0],
+                        { ...tilesWithUuids[0], uuid: 'another' },
+                    ] as AnyType,
+                ),
+            ).toThrow('Tile slug slug-1 is ambiguous');
+        });
+
+        it('mints a missing control id and keeps a given one', () => {
+            const result = getConfigWithParameterControlTileUuids(
+                {
+                    isDateZoomDisabled: false,
+                    parameterControls: [
+                        { ...control('sales'), id: '' },
+                        control('ops'),
+                    ],
+                },
+                tilesWithUuids as AnyType,
+            );
+            expect(result.parameterControls?.[0].id).toMatch(/^[0-9a-f-]{36}$/);
+            expect(result.parameterControls?.[1].id).toBe('ops');
+        });
+
+        it('rejects two controls with the same id', () => {
+            expect(() =>
+                getConfigWithParameterControlTileUuids(
+                    {
+                        isDateZoomDisabled: false,
+                        parameterControls: [
+                            control('sales'),
+                            { ...control('ops'), id: 'sales' },
+                        ],
+                    },
+                    tilesWithUuids as AnyType,
+                ),
+            ).toThrow(
+                'Parameter control id sales is used by more than one control',
+            );
+        });
+    });
+
     describe('date zoom config round-trip', () => {
         it('should preserve tileTargets through download then upload', () => {
             // Download: a saved dashboard keyed by the original tile UUID
@@ -1706,6 +1879,128 @@ describe('CoderService', () => {
                     new Map(),
                 ),
             ).toThrow('Space space-uuid not found');
+        });
+
+        it('round-trips controls when generated tile slugs collide with chart slugs', () => {
+            const tiles = ['sales', 'sales', 'sales-1'].map(
+                (chartSlug, index) => ({
+                    uuid: `tile-${index}`,
+                    type: DashboardTileTypes.SAVED_CHART,
+                    x: 0,
+                    y: index,
+                    h: 2,
+                    w: 4,
+                    tabUuid: null,
+                    properties: {
+                        chartSlug,
+                        chartName: chartSlug,
+                        title: chartSlug,
+                    },
+                }),
+            );
+            const dashboard = {
+                description: null,
+                filters: {
+                    dimensions: [
+                        {
+                            id: 'filter',
+                            tileTargets: {
+                                'tile-0': { fieldId: 'f', tableName: 't' },
+                            },
+                        },
+                    ],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                name: 'Dashboard',
+                slug: 'dashboard',
+                spaceUuid: 'space-uuid',
+                tabs: [],
+                tiles,
+                uuid: 'dashboard-uuid',
+                config: {
+                    isDateZoomDisabled: false,
+                    dateZoomConfig: {
+                        controls: [],
+                        tileTargets: {
+                            'tile-2': {
+                                controlUuid: 'c',
+                                fieldId: 'f',
+                                tableName: 't',
+                            },
+                        },
+                    },
+                    parameterControls: [
+                        {
+                            id: 'region',
+                            label: 'Region',
+                            value: 'EU',
+                            valueType: { type: 'string', multiple: false },
+                            parameters: {
+                                region: { only: ['tile-0', 'tile-2'] },
+                            },
+                        },
+                    ],
+                },
+            };
+            const exported = (
+                CoderService as unknown as {
+                    transformDashboard: (...args: AnyType[]) => AnyType;
+                }
+            ).transformDashboard(
+                dashboard,
+                [{ name: 'Space', path: 'space', uuid: 'space-uuid' }],
+                new Map(),
+            );
+            const importedTiles = exported.tiles.map(
+                (tile: AnyType, index: number) => ({
+                    ...tile,
+                    uuid: `imported-${index}`,
+                }),
+            );
+            expect(
+                new Set(importedTiles.map((tile: AnyType) => tile.tileSlug))
+                    .size,
+            ).toBe(3);
+            expect(exported.config.parameterControls[0]).toMatchObject({
+                slug: 'region',
+            });
+            expect(exported.config.parameterControls[0].id).toBeUndefined();
+            const imported = getConfigWithParameterControlTileUuids(
+                {
+                    ...exported.config,
+                    parameterControls: getParameterControlsWithIds(
+                        exported.config.parameterControls,
+                        dashboard.config
+                            .parameterControls as DashboardParameterControl[],
+                    ),
+                },
+                importedTiles,
+            );
+            expect(imported.parameterControls?.[0].id).toBe('region');
+            expect(imported.parameterControls?.[0].parameters.region).toEqual({
+                only: ['imported-0', 'imported-2'],
+            });
+            expect(
+                Object.keys(exported.filters.dimensions[0].tileTargets),
+            ).toEqual([importedTiles[0].tileSlug]);
+            expect(
+                Object.keys(exported.config.dateZoomConfig.tileTargets),
+            ).toEqual([importedTiles[2].tileSlug]);
+            const legacy = (
+                CoderService as unknown as {
+                    transformDashboard: (...args: AnyType[]) => AnyType;
+                }
+            ).transformDashboard(
+                { ...dashboard, config: { isDateZoomDisabled: false } },
+                [{ name: 'Space', path: 'space', uuid: 'space-uuid' }],
+                new Map(),
+            );
+            expect(legacy.tiles.map((tile: AnyType) => tile.tileSlug)).toEqual([
+                'sales-1',
+                'sales-2',
+                'sales-1',
+            ]);
         });
 
         it('exports tabs and tile references as portable slugs', () => {
@@ -2769,3 +3064,135 @@ describe.each(agentActionTestCases)(
         );
     },
 );
+
+describe('CoderService.upsertChart new chart defaults', () => {
+    const updatedAt = new Date('2026-09-01T12:00:00.000Z');
+    const existingChart = {
+        uuid: 'chart-uuid',
+        slug: 'orders',
+        name: 'Orders',
+        description: null,
+        updatedAt,
+        spaceUuid: 'space-uuid',
+        chartConfig: {
+            type: ChartType.CARTESIAN,
+            config: { layout: {}, eChartsConfig: {} },
+        },
+    };
+    const chartAsCode = {
+        name: 'Orders',
+        description: null,
+        slug: 'orders',
+        spaceSlug: 'space',
+        updatedAt,
+        chartConfig: {
+            type: ChartType.CARTESIAN,
+            config: {
+                layout: { xField: 'orders_created_week' },
+                eChartsConfig: {},
+            },
+        },
+        metricQuery: { exploreName: 'orders', filters: {} },
+        tableName: 'orders',
+    };
+
+    const upload = async (existing: typeof existingChart | undefined) => {
+        const create = vi.fn(async () => ({ uuid: 'new-chart-uuid' }));
+        const upsertCharts = vi.fn(
+            async (_user: AnyType, changes: AnyType) => changes,
+        );
+        const service = Object.assign(Object.create(CoderService.prototype), {
+            resolveSyncEnabled: vi.fn(async () => false),
+            projectModel: {
+                get: vi.fn(async () => ({
+                    projectUuid: 'project-uuid',
+                    organizationUuid: 'organization-uuid',
+                })),
+            },
+            savedChartModel: {
+                find: vi.fn(async () => (existing ? [existing] : [])),
+                create,
+            },
+            promoteService: {
+                getPromoteCharts: vi.fn(async () => ({
+                    promotedChart: {
+                        chart: existing,
+                        space: { uuid: 'space-uuid', slug: 'space' },
+                        spaces: [],
+                    },
+                    upstreamChart: {
+                        chart: existing && {
+                            uuid: existing.uuid,
+                            name: existing.name,
+                            updatedAt: existing.updatedAt,
+                        },
+                        projectUuid: 'project-uuid',
+                    },
+                })),
+                getChartChanges: vi.fn(async (promotedChart: AnyType) => ({
+                    spaces: [],
+                    dashboards: [],
+                    charts: [
+                        {
+                            action: PromotionAction.UPDATE,
+                            data: promotedChart.chart,
+                        },
+                    ],
+                })),
+                upsertCharts,
+            },
+            createAuditedAbility: vi.fn(() => ({
+                can: () => true,
+                cannot: () => false,
+            })),
+            prepareDirectAccessReplace: vi.fn(async () => []),
+            findAccessibleSpace: vi.fn(async () => ({ uuid: 'space-uuid' })),
+            getOrCreateSpace: vi.fn(async () => ({
+                space: { uuid: 'space-uuid' },
+                created: false,
+            })),
+            assertSpaceContentAccess: vi.fn(async () => undefined),
+            assertContentAccessForMissingSpace: vi.fn(async () => undefined),
+            spacePermissionService: {
+                resolveAccessBatch: vi.fn(async () => ({})),
+            },
+            syncVerification: vi.fn(async () => undefined),
+            stampAppliedChartSnapshot: vi.fn(async () => undefined),
+            applyDirectAccessPolicy: vi.fn(async () => undefined),
+        }) as CoderService;
+
+        await service.upsertChart(
+            { userUuid: 'user-uuid' } as AnyType,
+            'project-uuid',
+            'orders',
+            chartAsCode as AnyType,
+        );
+        return { create, upsertCharts };
+    };
+
+    it('turns the incomplete period on for a chart created from code without it', async () => {
+        const { create } = await upload(undefined);
+        expect(create).toHaveBeenCalledTimes(1);
+        expect(
+            (create.mock.calls[0] as unknown as [string, string, AnyType])[2]
+                .chartConfig,
+        ).toEqual({
+            type: ChartType.CARTESIAN,
+            config: {
+                layout: {
+                    xField: 'orders_created_week',
+                    showIncompletePeriod: true,
+                },
+                eChartsConfig: {},
+            },
+        });
+    });
+
+    it('leaves an existing chart uploaded without it unchanged', async () => {
+        const { create, upsertCharts } = await upload(existingChart);
+        expect(create).not.toHaveBeenCalled();
+        expect(
+            upsertCharts.mock.calls[0][1].charts[0].data.chartConfig,
+        ).toEqual(chartAsCode.chartConfig);
+    });
+});

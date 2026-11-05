@@ -32,7 +32,7 @@ const detectCI = (): CIInfo => {
 const identifyUser = async (): Promise<Config['user']> => {
     refuseAgentConnection();
     const config = await getConfig();
-    if (config.context?.serverUrl && config.context.apiKey) {
+    if (config.context?.serverUrl) {
         try {
             const user = await lightdashApi<LightdashUser>({
                 method: 'GET',
@@ -575,6 +575,7 @@ const ERROR_NAME_TO_CATEGORY: Record<string, string> = {
     DbtError: 'dbt',
     WarehouseConnectionError: 'warehouse_connection',
     WarehouseQueryError: 'warehouse_query',
+    WarehouseQueryTimeoutError: 'warehouse_query',
 };
 
 export const categorizeError = (error: unknown): string => {

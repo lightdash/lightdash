@@ -4,7 +4,11 @@ import {
 } from '@lightdash/visualization/editor';
 import { useMemo } from 'react';
 import { isPieVisualizationConfig } from '../../components/LightdashVisualization/types';
-import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
+import {
+    useVisualizationConfig,
+    useVisualizationInputs,
+    useVisualizationServices,
+} from '../../components/LightdashVisualization/useVisualizationContext';
 import { useVisualizationTheme } from '../useVisualizationTheme';
 
 export { type PieSeriesDataPoint };
@@ -17,16 +21,16 @@ const useEchartsPieConfig = (
     selectedLegends?: Record<string, boolean>,
     isInDashboard?: boolean,
 ) => {
+    const { isTouchDevice } = useVisualizationServices();
+    const visualizationConfig = useVisualizationConfig();
     const {
-        visualizationConfig,
         resultsData,
         itemsMap,
         getGroupColor,
         minimal,
         parameters,
-        isTouchDevice,
         resolvedTimezone,
-    } = useVisualizationContext();
+    } = useVisualizationInputs();
 
     const theme = useVisualizationTheme();
 

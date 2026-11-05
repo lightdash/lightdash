@@ -1,14 +1,25 @@
-import { type FC, type PropsWithChildren } from 'react';
+import { type ComponentProps, type FC } from 'react';
+import DashboardHeader from '../../components/common/Dashboard/DashboardHeader';
 import classes from './DashboardHeaderGuard.module.css';
-import { useControlsSidebar } from './useControlsSidebar';
+import pillClasses from './FilterPills.module.css';
+import { useIsControlEdited } from './useIsControlEdited';
 
-// The header is inert while the sidebar is open, so its Save and Cancel
-// cannot race the sidebar's Done and Discard.
-export const DashboardHeaderGuard: FC<PropsWithChildren> = ({ children }) => {
-    const { isSidebarOpen } = useControlsSidebar();
+type Props = ComponentProps<typeof DashboardHeader>;
+
+// While a filter is edited the header is inert, Save and Cancel included:
+// Apply or Cancel in the rail ends the filter, then Save ends the dashboard.
+// A viewer's filter leaves the dashboard as it is: nothing to lock
+export const DashboardHeaderGuard: FC<Props> = (props) => {
+    // A filter or a parameter control, edited in edit mode
+    const isLocked = useIsControlEdited(true);
     return (
-        <div className={classes.guard} inert={isSidebarOpen || undefined}>
-            {children}
+        <div
+            // The shared dimming of what is inert while a filter is edited
+            className={`${classes.guard} ${pillClasses.inert}`}
+            data-dashboard-header-guard
+            inert={isLocked || undefined}
+        >
+            <DashboardHeader {...props} />
         </div>
     );
 };

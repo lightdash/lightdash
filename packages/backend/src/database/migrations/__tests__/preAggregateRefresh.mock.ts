@@ -92,6 +92,7 @@ export const refreshFixture = async (database: Knex) => {
             projectParametersModel: parameters,
             projectDbtSourcesModel: {
                 hasSources: vi.fn().mockResolvedValue(false),
+                getSources: vi.fn().mockResolvedValue([]),
             },
             featureFlagModel: {
                 get: vi.fn(async ({ featureFlagId }) => ({

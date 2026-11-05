@@ -291,26 +291,6 @@ describe('Document pins', () => {
         ]);
     });
 
-    it('hides pins and rejects pin/reorder mutations when Documents is disabled', async () => {
-        const { service, featureFlagModel, pinnedListModel } = setup();
-        featureFlagModel.get.mockResolvedValue({ enabled: false });
-        await expect(
-            service.getPinnedItems(accountFor(), projectUuid, pinnedListUuid),
-        ).resolves.toEqual([]);
-        await expect(
-            service.toggleDocumentPin(accountFor(), projectUuid, document.slug),
-        ).rejects.toThrow(ForbiddenError);
-        await expect(
-            service.updatePinnedItemsOrder(
-                accountFor(),
-                projectUuid,
-                pinnedListUuid,
-                [pinnedDocument],
-            ),
-        ).rejects.toThrow(ForbiddenError);
-        expect(pinnedListModel.updatePinnedItemsOrder).not.toHaveBeenCalled();
-    });
-
     it('omits deleted Documents and rejects reordering stale membership', async () => {
         const { service, documentModel } = setup();
         documentModel.listSummariesByUuid.mockResolvedValue([]);

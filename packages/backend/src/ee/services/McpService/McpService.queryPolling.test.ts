@@ -639,6 +639,7 @@ const makeMcpService = ({
         aiAgentService,
         aiAgentToolsService,
         aiOrganizationSettingsService: {
+            getMcpProjectAccess: vi.fn().mockResolvedValue({ mode: 'all' }),
             isMcpAgentsEnabled: vi.fn().mockResolvedValue(true),
         },
         aiRouterService: {},
@@ -991,14 +992,17 @@ describe('MCP catalogue audit', () => {
                         ai_mcp_server_uuid: null,
                         result_metadata: {
                             catalogue: {
+                                agentPinned: false,
                                 projectPinned: pinnedProjectUuid !== undefined,
                                 mcpContentWritesEnabled: true,
                                 scheduledDeliveryEnabled: true,
                                 runSqlEnabled: true,
                                 runMetricQueryEnabled: false,
+                                queryEnabled: false,
                                 filterExpressionsEnabled: true,
                                 documentsEnabled: false,
                                 dataAppBuildsEnabled: false,
+                                chartTypeBuildsEnabled: false,
                                 customChartTypesEnabled: false,
                                 agentIdentityEnabled: false,
                             },
@@ -1140,35 +1144,6 @@ describe('MCP async query polling', () => {
             headerProjectUuid,
             account,
         );
-    });
-
-    it('returns active agent space access in get_current_agent', async () => {
-        makeMcpService({
-            context: {
-                projectUuid,
-                projectName: 'Project',
-                agentUuid: 'agent-uuid',
-                agentName: 'Agent',
-                tags: null,
-            },
-            agent: {
-                uuid: 'agent-uuid',
-                name: 'Agent',
-                tags: ['ai'],
-                spaceAccess: ['space-uuid'],
-            },
-        });
-
-        const result = await getToolCallback(McpToolName.GET_CURRENT_AGENT)(
-            {},
-            extra,
-        );
-
-        expect(parseTextResult(result)).toMatchObject({
-            agentUuid: 'agent-uuid',
-            agentTags: ['ai'],
-            agentSpaceAccess: ['space-uuid'],
-        });
     });
 
     it('registers grep_fields', async () => {

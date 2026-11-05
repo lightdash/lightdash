@@ -64,6 +64,36 @@ describe('useAiAgentRouterFlow', () => {
         expect(defaultCreateThread).not.toHaveBeenCalled();
     });
 
+    it('tells the router what content the question is pinned to', async () => {
+        routePrompt.mockResolvedValue(routeResult('create_thread'));
+        const context = [
+            { type: 'dashboard' as const, dashboardUuid: 'dash-1' },
+        ];
+        const { result } = renderHook(() =>
+            useAiAgentRouterFlow({
+                agents: [],
+                createThreadForAgent: vi
+                    .fn()
+                    .mockResolvedValue({ uuid: 'thread-3' }),
+                projectUuid: 'project-1',
+            }),
+        );
+
+        await act(() =>
+            result.current.handleSubmit({
+                context,
+                message: 'What is the conversion rate here?',
+                toolHints: [],
+            }),
+        );
+
+        expect(routePrompt).toHaveBeenCalledWith({
+            prompt: 'What is the conversion rate here?',
+            projectUuid: 'project-1',
+            context,
+        });
+    });
+
     it('retains the submitted operation while the user picks an agent', async () => {
         routePrompt.mockResolvedValue(routeResult('show_picker'));
         const submittedCreateThread = vi

@@ -1,5 +1,6 @@
-import { Portal, Tooltip, type TooltipProps } from '@mantine/core';
+import { Box, Portal, Tooltip, type TooltipProps } from '@mantine/core';
 import { type FC } from 'react';
+import classes from './CellAnchor.module.css';
 
 type CellTooltipProps = Omit<TooltipProps, 'children'> & {
     elementBounds: DOMRect | null;
@@ -8,15 +9,13 @@ type CellTooltipProps = Omit<TooltipProps, 'children'> & {
 const CellTooltip: FC<CellTooltipProps> = ({ elementBounds, ...rest }) => (
     <Portal>
         <Tooltip {...rest} opened>
-            <div
+            <Box
+                className={classes.anchor}
                 style={{
-                    pointerEvents: 'none',
-                    position: 'absolute',
-                    zIndex: -1,
-                    left: (elementBounds?.x ?? 0) + window.scrollX,
-                    top: (elementBounds?.y ?? 0) + window.scrollY,
-                    width: elementBounds?.width ?? 0,
-                    height: elementBounds?.height ?? 0,
+                    '--anchor-left': `${(elementBounds?.x ?? 0) + window.scrollX}px`,
+                    '--anchor-top': `${(elementBounds?.y ?? 0) + window.scrollY}px`,
+                    '--anchor-width': `${elementBounds?.width ?? 0}px`,
+                    '--anchor-height': `${elementBounds?.height ?? 0}px`,
                 }}
             />
         </Tooltip>

@@ -9,7 +9,9 @@ spec:
     description: >
         Open API documentation for all public Lightdash API endpoints.
         # Authentication
-        Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens
+        Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'.
+        Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens
+        Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.
     contact:
         name: Lightdash Support
         email: support@lightdash.com
@@ -28,6 +30,8 @@ spec:
           description: These routes allow users to manage roles and permissions for their organization.
           externalDocs:
               url: 'https://docs.lightdash.com/references/roles'
+        - name: Service Accounts
+          description: Create and manage machine credentials for your organization. Requires organization administration permission. Use predefined organization scopes, a custom organization role, or grants to selected projects. Credentials cannot grant more access than the caller holds.
         - name: Query
           description: These routes allow users to execute and manage queries against their data warehouse. This includes metric queries, SQL queries, and retrieving query results.
     outputDirectory: ./src/generated/
@@ -42,7 +46,7 @@ spec:
             type: apiKey
             in: header
             name: Authorization
-            description: Value should be 'ApiKey <your key>'
+            description: Value should be 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'
 routes:
     routesDir: ./src/generated/
     iocModule: ./src/services/tsoaServiceContainer

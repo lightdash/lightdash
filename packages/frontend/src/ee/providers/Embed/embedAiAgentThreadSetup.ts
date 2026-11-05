@@ -11,7 +11,9 @@ export type EmbedAiAgentThreadSetup = {
 };
 
 const BOUND_DASHBOARD_UUID_PARAM = 'boundDashboardUuid';
+const BOUND_CHART_UUID_PARAM = 'boundChartUuid';
 const THREAD_CONTEXT_PARAM = 'threadContext';
+const DISABLE_NAVIGATION_PARAM = 'disableNavigation';
 
 export const getEmbedAiAgentThreadSetup = ({
     binding,
@@ -28,6 +30,7 @@ export const getEmbedAiAgentThreadSetup = ({
 export const buildEmbedHash = (
     token: string,
     setup: EmbedAiAgentThreadSetup | null,
+    navigationDisabled: boolean,
 ): string => {
     const params = new URLSearchParams();
     if (setup?.binding) {
@@ -36,9 +39,12 @@ export const buildEmbedHash = (
             case 'dashboard':
                 params.set(BOUND_DASHBOARD_UUID_PARAM, binding.dashboardUuid);
                 break;
+            case 'chart':
+                params.set(BOUND_CHART_UUID_PARAM, binding.chartUuid);
+                break;
             default:
                 return assertUnreachable(
-                    binding.type,
+                    binding,
                     'Unknown thread binding type',
                 );
         }
@@ -46,29 +52,47 @@ export const buildEmbedHash = (
     if (setup?.threadContext) {
         params.set(THREAD_CONTEXT_PARAM, setup.threadContext);
     }
+    if (navigationDisabled) {
+        params.set(DISABLE_NAVIGATION_PARAM, 'true');
+    }
     const query = params.toString();
     return query ? `${token}&${query}` : token;
 };
 
+const parseBinding = (params: URLSearchParams): AiThreadBinding | undefined => {
+    const dashboardUuid = params.get(BOUND_DASHBOARD_UUID_PARAM);
+    if (dashboardUuid) return { type: 'dashboard', dashboardUuid };
+    const chartUuid = params.get(BOUND_CHART_UUID_PARAM);
+    if (chartUuid) return { type: 'chart', chartUuid };
+    return undefined;
+};
+
 export const parseEmbedHash = (
     hash: string,
-): { token: string; aiAgentThreadSetup: EmbedAiAgentThreadSetup | null } => {
+): {
+    token: string;
+    aiAgentThreadSetup: EmbedAiAgentThreadSetup | null;
+    aiAgentNavigationDisabled: boolean;
+} => {
     const fragment = hash.replace(/^#/, '');
     const separatorIndex = fragment.indexOf('&');
     if (separatorIndex === -1) {
-        return { token: fragment, aiAgentThreadSetup: null };
+        return {
+            token: fragment,
+            aiAgentThreadSetup: null,
+            aiAgentNavigationDisabled: false,
+        };
     }
 
     const params = new URLSearchParams(fragment.slice(separatorIndex + 1));
-    const dashboardUuid = params.get(BOUND_DASHBOARD_UUID_PARAM);
     return {
         token: fragment.slice(0, separatorIndex),
         aiAgentThreadSetup: getEmbedAiAgentThreadSetup({
-            binding: dashboardUuid
-                ? { type: 'dashboard', dashboardUuid }
-                : undefined,
+            binding: parseBinding(params),
             threadContext: params.get(THREAD_CONTEXT_PARAM) ?? undefined,
         }),
+        aiAgentNavigationDisabled:
+            params.get(DISABLE_NAVIGATION_PARAM) === 'true',
     };
 };
 

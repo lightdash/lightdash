@@ -1,4 +1,8 @@
-import { formatMinutesOffset, getTzMinutesOffset } from '@lightdash/common';
+import {
+    FeatureFlags,
+    formatMinutesOffset,
+    getTzMinutesOffset,
+} from '@lightdash/common';
 import {
     Box,
     Group,
@@ -16,6 +20,7 @@ import TimeZonePicker from '../../../components/common/TimeZonePicker';
 import { CronInternalInputs } from '../../../components/CronInput';
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useProject } from '../../../hooks/useProject';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { SelectGoogleSheetButton } from './SelectGoogleSheetButton';
 import classes from './SyncModalForm.module.css';
 import {
@@ -50,6 +55,10 @@ export const SyncModalForm: FC<Props> = ({
     }, [project]);
 
     const form = useSyncModalFormContext();
+    const { data: resultsCacheFlag } = useServerFeatureFlag(
+        FeatureFlags.ResultsCacheEnabled,
+    );
+    const isResultsCacheEnabled = resultsCacheFlag?.enabled ?? false;
 
     return (
         <form
@@ -99,6 +108,16 @@ export const SyncModalForm: FC<Props> = ({
                         label="Show filters applied"
                         description="Add a fixed three-row filter summary above the synced data"
                         {...form.getInputProps('showFilters', {
+                            type: 'checkbox',
+                        })}
+                    />
+                )}
+
+                {!isApp && isResultsCacheEnabled && (
+                    <Switch
+                        label="Use cached results when available"
+                        description="Reuses unexpired results instead of querying your warehouse on every run."
+                        {...form.getInputProps('useCachedResults', {
                             type: 'checkbox',
                         })}
                     />

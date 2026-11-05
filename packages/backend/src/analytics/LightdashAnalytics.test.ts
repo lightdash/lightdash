@@ -30,65 +30,93 @@ const queueOf = (analytics: LightdashAnalytics, size: number) => {
 };
 
 describe('LightdashAnalytics', () => {
-    it('keeps semantic references in the usage copy only, without adding events or mutating the caller', () => {
-        const writer = { push: vi.fn(), flush: vi.fn(), close: vi.fn() };
-        const eventEmitter = new EventEmitter();
-        const metricEvent = vi.fn();
-        eventEmitter.on('analytics.track.query.completed', metricEvent);
-        const analytics = new LightdashAnalytics({
-            lightdashConfig: {
-                ...lightdashConfigMock,
-                rudder: { writeKey: 'test', dataPlaneUrl: 'notrack' },
-                prometheus: {
-                    ...lightdashConfigMock.prometheus,
-                    enabled: true,
-                    eventMetricsEnabled: true,
+    it.each([true, false])(
+        'keeps query diagnostics in the usage copy only (semantic references=%s)',
+        (withSemanticUsage) => {
+            const writer = { push: vi.fn(), flush: vi.fn(), close: vi.fn() };
+            const eventEmitter = new EventEmitter();
+            const metricEvent = vi.fn();
+            eventEmitter.on('analytics.track.query.completed', metricEvent);
+            const analytics = new LightdashAnalytics({
+                lightdashConfig: {
+                    ...lightdashConfigMock,
+                    rudder: { writeKey: 'test', dataPlaneUrl: 'notrack' },
+                    prometheus: {
+                        ...lightdashConfigMock.prometheus,
+                        enabled: true,
+                        eventMetricsEnabled: true,
+                    },
                 },
-            },
-            writeKey: 'notrack',
-            dataPlaneUrl: 'notrack',
-            options: { enable: false },
-            eventEmitter,
-            eventStreamSink: new EventStreamSink(eventStreamRegistry, writer),
-        });
-        const payload = {
-            event: 'query.completed',
-            userId: 'user',
-            properties: {
-                organizationId: 'org',
-                projectId: 'project',
-                isPreviewProject: false,
-                semanticUsage: {
-                    status: 'captured',
-                    references: [{ fieldId: 'private_field' }],
+                writeKey: 'notrack',
+                dataPlaneUrl: 'notrack',
+                options: { enable: false },
+                eventEmitter,
+                eventStreamSink: new EventStreamSink(
+                    eventStreamRegistry,
+                    writer,
+                ),
+            });
+            const payload = {
+                event: 'query.completed',
+                userId: 'user',
+                properties: {
+                    organizationId: 'org',
+                    projectId: 'project',
+                    isPreviewProject: false,
+                    status: 'error',
+                    errorMessage: 'column "private_field" does not exist',
+                    ...(withSemanticUsage
+                        ? {
+                              semanticUsage: {
+                                  status: 'captured',
+                                  references: [{ fieldId: 'private_field' }],
+                              },
+                          }
+                        : {}),
                 },
-            },
-        } as QueryCompletedEvent;
-        const track = vi
-            .spyOn(Analytics.prototype, 'track')
-            .mockImplementation(() => {});
-        try {
-            analytics.track(payload);
-            expect(writer.push).toHaveBeenCalledTimes(1);
-            expect(writer.push).toHaveBeenCalledWith(
-                'query_events',
-                expect.objectContaining({
-                    semantic_lineage_status: 'captured',
-                    semantic_field_references: '[{"fieldId":"private_field"}]',
-                }),
-            );
-            expect(track).toHaveBeenCalledTimes(1);
-            expect(track.mock.calls[0][0].properties).not.toHaveProperty(
-                'semanticUsage',
-            );
-            expect(metricEvent.mock.calls[0][0].properties).not.toHaveProperty(
-                'semanticUsage',
-            );
-            expect(payload.properties.semanticUsage).toBeDefined();
-        } finally {
-            track.mockRestore();
-        }
-    });
+            } as QueryCompletedEvent;
+            const track = vi
+                .spyOn(Analytics.prototype, 'track')
+                .mockImplementation(() => {});
+            try {
+                analytics.track(payload);
+                expect(writer.push).toHaveBeenCalledTimes(1);
+                expect(writer.push).toHaveBeenCalledWith(
+                    'query_events',
+                    expect.objectContaining({
+                        error: payload.properties.errorMessage,
+                        semantic_lineage_status: withSemanticUsage
+                            ? 'captured'
+                            : null,
+                        semantic_field_references: withSemanticUsage
+                            ? '[{"fieldId":"private_field"}]'
+                            : null,
+                    }),
+                );
+                expect(track).toHaveBeenCalledTimes(1);
+                expect(track.mock.calls[0][0].properties).not.toHaveProperty(
+                    'semanticUsage',
+                );
+                expect(
+                    metricEvent.mock.calls[0][0].properties,
+                ).not.toHaveProperty('semanticUsage');
+                expect(track.mock.calls[0][0].properties).not.toHaveProperty(
+                    'errorMessage',
+                );
+                expect(
+                    metricEvent.mock.calls[0][0].properties,
+                ).not.toHaveProperty('errorMessage');
+                expect(payload.properties.errorMessage).toBe(
+                    'column "private_field" does not exist',
+                );
+                expect(Boolean(payload.properties.semanticUsage)).toBe(
+                    withSemanticUsage,
+                );
+            } finally {
+                track.mockRestore();
+            }
+        },
+    );
 
     it('tracks one aggregated feature flag check event per entry', () => {
         const analytics = new LightdashAnalytics({

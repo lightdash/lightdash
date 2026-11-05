@@ -147,7 +147,6 @@ export type ContentTableMantineProps<TElement extends HTMLElement> = {
     ref?: Ref<TElement>;
     shadow?: string;
     style?: CSSProperties;
-    sx?: unknown;
     w?: unknown;
     [key: string]: unknown;
 };

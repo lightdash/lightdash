@@ -33,7 +33,7 @@ jobs:
               with:
                   egress-policy: audit
             - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-            - uses: ./.github/workflows/_setup_node_pnpm_cypress
+            - uses: ./.github/workflows/_setup_node_pnpm
             # After the setup action: it cleans the workspace, which would remove
             # a docs checkout made before it.
             - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -58,8 +58,9 @@ jobs:
                   LIGHTDASH_DOCS_DIR: ${{ github.workspace }}/mintlify-docs
               run: |
                   pnpm scope-tours:generate
-                  pnpm -F frontend run formatter -- src/features/scopeTours/generated.ts
-                  git diff --exit-code -- packages/frontend/src/features/scopeTours/generated.ts
+                  pnpm -F frontend run formatter -- src/features/scopeTours/generated.ts src/features/scopeTours/released.ts
+                  git diff --exit-code -- packages/frontend/src/features/scopeTours/generated.ts packages/frontend/src/features/scopeTours/released.ts
+                  test -z "$(git status --porcelain -- packages/frontend/src/features/scopeTours/released.ts)"
             - name: The teaching order is up to date
               env:
                   LIGHTDASH_DOCS_DIR: ${{ github.workspace }}/mintlify-docs

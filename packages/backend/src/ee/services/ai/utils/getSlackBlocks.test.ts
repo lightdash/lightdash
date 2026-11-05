@@ -23,12 +23,12 @@ import {
     getMemoryCitationBlocks,
     getModernArtifactCardBlocks,
     getModernPullRequestCardBlocks,
-    getProjectSelectionBlocks,
     getSlackToolTitle,
     getSqlArtifactCardBlocks,
     selectSlackAiAccessRefusal,
     splitMarkdownIntoMessages,
 } from './getSlackBlocks';
+import { getSlackArtifactCardVersions } from './slackArtifactImages';
 import { mockOrdersExplore } from './validationExplore.mock';
 
 const parseStoredChartConfig = (raw: unknown) => {
@@ -260,34 +260,6 @@ describe('Slack AI agent blocks', () => {
         ).toEqual([]);
     });
 
-    it('keeps project picker option values within Slack limits', () => {
-        const blocks = getProjectSelectionBlocks(
-            Array.from({ length: 20 }, (_, index) => ({
-                projectUuid: `00000000-0000-4000-8000-${String(index).padStart(
-                    12,
-                    '0',
-                )}`,
-                name: `Very long project name ${index} ${'x'.repeat(200)}`,
-            })),
-            'C0AD7R21BLG',
-        );
-        const actions = blocks[1] as {
-            type: 'actions';
-            elements: Array<{
-                type: string;
-                options?: Array<{ value: string }>;
-            }>;
-        };
-        const select = actions.elements[0];
-        if (actions.type !== 'actions' || select.type !== 'static_select') {
-            throw new Error('Expected static_select');
-        }
-
-        select.options?.forEach((option) => {
-            expect(option.value.length).toBeLessThan(151);
-        });
-    });
-
     it('builds modern pull request cards from writeback metadata', () => {
         const blocks = getModernPullRequestCardBlocks([
             {
@@ -331,39 +303,6 @@ describe('Slack AI agent blocks', () => {
                         text: { text: 'Preview' },
                         url: 'https://preview.example.com',
                         style: 'primary',
-                    },
-                ],
-            },
-        ]);
-    });
-
-    it('builds modern pull request cards for preview deploy setup', () => {
-        const blocks = getModernPullRequestCardBlocks([
-            {
-                uuid: 'result-1',
-                promptUuid: 'prompt-1',
-                toolCallId: 'call-1',
-                toolType: 'built-in',
-                toolName: 'setupPreviewDeploy',
-                result: 'Opened a pull request',
-                createdAt: new Date(),
-                metadata: {
-                    status: 'success',
-                    prUrl: 'https://github.com/lightdash/lightdash/pull/124',
-                },
-            },
-        ]);
-
-        expect(blocks).toMatchObject([
-            {
-                type: 'card',
-                title: {
-                    text: 'Opened preview deploy PR #124',
-                },
-                actions: [
-                    {
-                        text: { text: 'PR' },
-                        url: 'https://github.com/lightdash/lightdash/pull/124',
                     },
                 ],
             },
@@ -482,6 +421,143 @@ describe('Slack AI agent blocks', () => {
         const saved = JSON.parse(savedRaw);
         expect(saved.metricQuery.filters.dimensions).toHaveProperty('and');
         expect(saved.metricQuery.filters.metrics).toHaveProperty('or');
+    });
+
+    it('links a visualized composer version to the thread, its chart card taking a delivered image', async () => {
+        const composer = (
+            versionUuid: string,
+            title: string,
+            type: 'bar' | 'table' | 'big_number',
+        ) => ({
+            artifactUuid: `artifact-${versionUuid}`,
+            threadUuid: 'thread-1',
+            promptUuid: 'prompt-1',
+            artifactType: 'chart',
+            savedQueryUuid: null,
+            savedDashboardUuid: null,
+            createdAt: new Date(),
+            versionNumber: 1,
+            versionUuid,
+            title,
+            description: null,
+            dashboardConfig: null,
+            versionCreatedAt: new Date(),
+            verifiedByUserUuid: null,
+            verifiedAt: null,
+            chartConfig: {
+                source: 'composer',
+                schemaVersion: 2,
+                queries: [],
+                terminalNodeId: 'final',
+                vizConfig: { type },
+            },
+        });
+
+        const blocks = await getModernArtifactCardBlocks(
+            {
+                promptUuid: 'prompt-1',
+                projectUuid: 'project-1',
+                threadUuid: 'thread-1',
+            } as never,
+            'https://lightdash.example.com',
+            500,
+            async () => 'https://lightdash.example.com/share/chart',
+            async () => mockOrdersExplore,
+            async () => true,
+            'agent-1',
+            [
+                composer('chart', 'Revenue by month', 'bar'),
+                composer('table', 'Top customers', 'table'),
+                composer('kpi', 'Total revenue', 'big_number'),
+            ] as never,
+            [],
+        );
+
+        const threadUrl =
+            'https://lightdash.example.com/projects/project-1/ai-agents/agent-1/threads/thread-1';
+        expect(blocks).toMatchObject([
+            {
+                type: 'carousel',
+                elements: [
+                    {
+                        title: { text: 'Revenue by month' },
+                        actions: [{ url: threadUrl }],
+                    },
+                    {
+                        title: { text: 'Top customers' },
+                        actions: [{ url: threadUrl }],
+                    },
+                    {
+                        title: { text: 'Total revenue' },
+                        actions: [{ url: threadUrl }],
+                    },
+                ],
+            },
+        ]);
+        expect(getSlackArtifactCardVersions(blocks as never)).toEqual([
+            'chart',
+        ]);
+    });
+
+    it('shows a visualized big number value on its card, escaped for mrkdwn', async () => {
+        const blocks = await getModernArtifactCardBlocks(
+            {
+                promptUuid: 'prompt-1',
+                projectUuid: 'project-1',
+                threadUuid: 'thread-1',
+            } as never,
+            'https://lightdash.example.com',
+            500,
+            async () => 'https://lightdash.example.com/share/chart',
+            async () => mockOrdersExplore,
+            async () => true,
+            'agent-1',
+            [
+                {
+                    artifactUuid: 'artifact-kpi',
+                    threadUuid: 'thread-1',
+                    promptUuid: 'prompt-1',
+                    artifactType: 'chart',
+                    savedQueryUuid: null,
+                    savedDashboardUuid: null,
+                    createdAt: new Date(),
+                    versionNumber: 1,
+                    versionUuid: 'kpi',
+                    title: 'Total revenue',
+                    description: 'All paid orders',
+                    dashboardConfig: null,
+                    versionCreatedAt: new Date(),
+                    verifiedByUserUuid: null,
+                    verifiedAt: null,
+                    chartConfig: {
+                        source: 'composer',
+                        schemaVersion: 2,
+                        queries: [],
+                        terminalNodeId: 'final',
+                        vizConfig: { type: 'big_number' },
+                    },
+                },
+            ] as never,
+            [],
+            undefined,
+            false,
+            new Map([['kpi', { value: '$48,210', label: 'Net & gross' }]]),
+        );
+
+        expect(blocks).toMatchObject([
+            {
+                type: 'card',
+                title: { text: 'Total revenue' },
+                body: { text: '*$48,210*\nNet &amp; gross' },
+                subtext: { text: 'All paid orders' },
+                actions: [
+                    {
+                        url: 'https://lightdash.example.com/projects/project-1/ai-agents/agent-1/threads/thread-1',
+                    },
+                ],
+            },
+        ]);
+        expect(blocks[0]).not.toHaveProperty('subtitle');
     });
 
     it('uses generateVisualization chart image URLs as card hero images', async () => {

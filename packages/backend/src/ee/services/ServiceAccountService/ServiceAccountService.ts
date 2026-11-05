@@ -4,7 +4,9 @@ import {
     AuthTokenPrefix,
     CreateServiceAccount,
     ForbiddenError,
+    getAllScopesForRole,
     getServiceAccountScopePermissions,
+    isOrganizationOnlyScope,
     NotFoundError,
     ParameterError,
     ServiceAccount,
@@ -135,6 +137,7 @@ export class ServiceAccountService extends BaseService {
     private async validateProjectAccessGrantsOrThrow(
         projectAccess: ServiceAccountProjectAccessInput[],
         organizationUuid: string,
+        user: SessionUser,
     ): Promise<void> {
         // Each grant carries exactly one of `role` / `roleUuid`. The TS union
         // covers compile-time callers, but request bodies arrive as JSON, so
@@ -165,6 +168,24 @@ export class ServiceAccountService extends BaseService {
                 );
             }
         }
+        const grantedScopes = await Promise.all(
+            projectAccess.map(async (grant) => {
+                if (grant.role) return getAllScopesForRole(grant.role);
+                const role = await this.rolesModel.getRoleWithScopesByUuid(
+                    grant.roleUuid!,
+                );
+                return role.scopes;
+            }),
+        );
+        // Delegate from organization permissions, never from unrelated projects.
+        await validateOrganizationScopesCanBeGranted({
+            user,
+            organizationUuid,
+            grantedScopes: grantedScopes
+                .flat()
+                .filter((scope) => !isOrganizationOnlyScope(scope)),
+            rolesModel: this.rolesModel,
+        });
     }
 
     private throwForbiddenErrorOnNoPermission(user: SessionUser) {
@@ -189,7 +210,7 @@ export class ServiceAccountService extends BaseService {
         user: SessionUser;
         tokenDetails: CreateServiceAccount;
         prefix?: string;
-    }): Promise<ServiceAccount> {
+    }): Promise<ServiceAccountWithToken> {
         assertOAuthCredentialOperationAllowed(
             user,
             prefix === AuthTokenPrefix.SCIM
@@ -221,6 +242,7 @@ export class ServiceAccountService extends BaseService {
                 await this.validateProjectAccessGrantsOrThrow(
                     projectAccess,
                     tokenDetails.organizationUuid,
+                    user,
                 );
             }
             await this.validateOrganizationPermissionsCanBeGranted({
@@ -499,6 +521,7 @@ export class ServiceAccountService extends BaseService {
             await this.validateProjectAccessGrantsOrThrow(
                 grants,
                 existingToken.organizationUuid,
+                user,
             );
 
             // Replace grants first, then flip scopes to system:member. Grant

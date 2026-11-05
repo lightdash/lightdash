@@ -6,6 +6,10 @@ import { useEffect, type FC } from 'react';
 import { useExplore } from '../../../hooks/useExplore';
 import { useSavedQuery } from '../../../hooks/useSavedQuery';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import {
+    selectDashboardTiles,
+    useDashboardSelector,
+} from '../../dashboard/store';
 
 type TileLoaderProps = {
     tileUuid: string;
@@ -48,7 +52,7 @@ const TileZoomableFieldsLoader: FC<TileLoaderProps> = ({
 // date-zoom control modal lists charts on all tabs, not just the active one.
 // Rendered only while authoring (edit mode).
 export const DateZoomCrossTabFieldsLoader: FC = () => {
-    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
+    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
 
     return (
         <>

@@ -3,6 +3,7 @@ import { ParameterError } from '../types/errors';
 type ManifestNamedItem = {
     uniqueId: string;
     name: string;
+    version?: string | number | null;
 } & ManifestNamespaceFields;
 
 export type ManifestNamespaceFields = {
@@ -37,6 +38,25 @@ export const getManifestNamespaceKey = (
     return namespace
         ? `${namespace.kind}\u0000${namespace.name}\u0000${name}`
         : undefined;
+};
+
+const areVersionsOfSameModel = (items: ManifestNamedItem[]): boolean => {
+    const first = items[0];
+    if (first?.version == null || first.package_name === undefined) {
+        return false;
+    }
+    const namespaceKey = getManifestNamespaceKey(first, first.name);
+    return (
+        namespaceKey !== undefined &&
+        items.every(
+            (item) =>
+                item.version != null &&
+                item.name === first.name &&
+                item.package_name === first.package_name &&
+                getManifestNamespaceKey(item, item.name) === namespaceKey,
+        ) &&
+        new Set(items.map((item) => String(item.version))).size === items.length
+    );
 };
 
 export const qualifyManifestNames = (
@@ -83,6 +103,10 @@ export const qualifyManifestNames = (
         .filter(
             ([resolvedName, resolvedItems]) =>
                 resolvedItems.length > 1 &&
+                !(
+                    itemType === 'model' &&
+                    areVersionsOfSameModel(resolvedItems)
+                ) &&
                 resolvedItems.some((item) => item.name !== resolvedName),
         )
         .sort(([left], [right]) => left.localeCompare(right))[0];
@@ -128,3 +152,9 @@ export const qualifyManifestNames = (
 
     return resolvedNames;
 };
+
+export const getDeferredExploreName = (model: {
+    unique_id: string;
+    lightdash_source_uuid?: string;
+}): string =>
+    `__model_${Array.from(`${model.lightdash_source_uuid ?? 'primary'}:${model.unique_id}`, (character) => character.codePointAt(0)!.toString(16).padStart(6, '0')).join('')}`;

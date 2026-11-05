@@ -2,9 +2,3 @@
 .guard {
     display: contents;
 }
-
-/* Dim the controls, not the header: it is sticky and has to stay opaque */
-.guard[inert] button,
-.guard[inert] a {
-    opacity: 0.4;
-}

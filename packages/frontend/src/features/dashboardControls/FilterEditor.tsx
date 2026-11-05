@@ -1,0 +1,302 @@
+import {
+    type DashboardFilterableField,
+    type DashboardFilterRule,
+} from '@lightdash/common';
+import { Box, Group, Popover } from '@mantine/core';
+import { useCallback, useMemo, type FC, type ReactNode } from 'react';
+import FiltersProvider from '../../components/common/Filters/FiltersProvider';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
+import { useProjectUuid } from '../../hooks/useProjectUuid';
+import useApp from '../../providers/App/useApp';
+import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import {
+    selectActiveTabUuid,
+    selectDashboardTiles,
+    selectDashboardEffectiveParameterValues,
+    selectSqlChartTilesMetadata,
+    useDashboardAllFilters,
+    useDashboardSelector,
+} from '../dashboard/store';
+import {
+    getFilterRuleFilterType,
+    getUniqueSqlColumns,
+} from '../dashboardFilters/FilterConfiguration/utils';
+import { useFilterBarPopovers } from '../dashboardFilters/FilterRequirements/useFilterBarPopovers';
+import { focusStartOnMount } from './editorFocus';
+import { FieldsAndTiles } from './FieldsAndTiles';
+import classes from './FilterEditor.module.css';
+import { EditorActions, EditorPrompt, FilterPopover } from './FilterPopover';
+import { canTileTakeFilter } from './peers';
+import { useRailContractClasses } from './railContractClasses';
+import { findFilterRule } from './sidebarState';
+import { useAppliedTileCount } from './useAppliedTileCount';
+import { useApplyBlockedReason } from './useApplyBlockedReason';
+import { useControlsSidebarSelector } from './useControlsSidebar';
+import { useFilterRuleField } from './useFilterRuleField';
+import { useFiltersStartOfWeek } from './useFiltersStartOfWeek';
+import { useSqlColumnsByTile } from './useSqlColumnsByTile';
+
+// A filter with no field yet: a new one's field search alone, or an existing
+// one left with no field, which keeps its name and cannot be applied
+const PlaceholderEditor: FC<{ rule: DashboardFilterRule }> = ({ rule }) => {
+    const isNew = useControlsSidebarSelector((c) => c.isNew);
+    const emptiedFieldLabel = useControlsSidebarSelector(
+        (c) => c.emptiedFieldLabel,
+    );
+    const isAsking = useControlsSidebarSelector((c) => c.isAsking);
+    const resolvePending = useControlsSidebarSelector((c) => c.resolvePending);
+    const discard = useControlsSidebarSelector((c) => c.discard);
+    const close = useControlsSidebarSelector((c) => c.close);
+    const getUiString = useUiStrings();
+    const applyBlockedReason = useApplyBlockedReason(rule);
+    // No props, so one element: the list never re-renders on its own
+    const fieldsAndTiles = useMemo(() => <FieldsAndTiles />, []);
+    const name = isNew
+        ? getUiString('controls.newFilter')
+        : (rule.label ??
+          emptiedFieldLabel ??
+          getUiString('controls.filterName'));
+    const focusOnMount = useCallback(
+        (node: HTMLElement | null) => focusStartOnMount(node),
+        [],
+    );
+    return (
+        <Box
+            className={classes.root}
+            role="dialog"
+            aria-label={name}
+            ref={focusOnMount}
+        >
+            {isAsking && (
+                <EditorPrompt
+                    name={name}
+                    applyBlockedReason={applyBlockedReason}
+                    onResolvePending={resolvePending}
+                />
+            )}
+            <Box
+                className={classes.body}
+                data-dimmed={isAsking || undefined}
+                inert={isAsking || undefined}
+            >
+                <Box className={classes.content}>{fieldsAndTiles}</Box>
+                {/* A new filter shows only its field search until a field is picked */}
+                {!isNew && (
+                    <Group
+                        justify="flex-end"
+                        wrap="nowrap"
+                        className={classes.footer}
+                    >
+                        <EditorActions
+                            applyBlockedReason={applyBlockedReason}
+                            isApplyDisabled
+                            isAsking={isAsking}
+                            onCancel={discard}
+                            onApply={close}
+                        />
+                    </Group>
+                )}
+            </Box>
+        </Box>
+    );
+};
+
+// The popover wired to the provider, the only writer
+const FilterEditor: FC<{
+    rule: DashboardFilterRule;
+    field: DashboardFilterableField | null;
+}> = ({ rule, field }) => {
+    const isNew = useControlsSidebarSelector((c) => c.isNew);
+    const isAsking = useControlsSidebarSelector((c) => c.isAsking);
+    const isViewer = useControlsSidebarSelector((c) => c.isViewer);
+    const canChooseTiles = useControlsSidebarSelector((c) => c.canChooseTiles);
+    const editorFilters = useControlsSidebarSelector((c) => c.editorFilters);
+    const updateFilter = useControlsSidebarSelector((c) => c.updateFilter);
+    const updateOtherFilters = useControlsSidebarSelector(
+        (c) => c.updateOtherFilters,
+    );
+    const startMapping = useControlsSidebarSelector((c) => c.startMapping);
+    const resolvePending = useControlsSidebarSelector((c) => c.resolvePending);
+    const discard = useControlsSidebarSelector((c) => c.discard);
+    const close = useControlsSidebarSelector((c) => c.close);
+    const { user } = useApp();
+    const canManageExplore = !!user.data?.ability?.can('manage', 'Explore');
+    const savedFilters = useDashboardContext((c) => c.dashboard?.filters);
+    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
+    const fieldsByTile = useDashboardContext(
+        (c) => c.filterableFieldsByTileUuid,
+    );
+    const sqlColumnsByTile = useSqlColumnsByTile(rule);
+    // As mapping counts: the tiles that can take a filter
+    const takeableTileCount = useMemo(
+        () =>
+            (dashboardTiles ?? []).filter((tile) =>
+                canTileTakeFilter(tile, fieldsByTile, sqlColumnsByTile),
+            ).length,
+        [dashboardTiles, fieldsByTile, sqlColumnsByTile],
+    );
+    const appliedTileCount = useAppliedTileCount(rule);
+    // As the shipped popover reads it: the field's type, else the column's
+    const sqlChartTilesMetadata = useDashboardSelector(
+        selectSqlChartTilesMetadata,
+    );
+    const filterType = useMemo(
+        () =>
+            getFilterRuleFilterType(
+                field ?? undefined,
+                getUniqueSqlColumns(sqlChartTilesMetadata),
+                rule,
+            ),
+        [field, sqlChartTilesMetadata, rule],
+    );
+    // "Filter rules" opens from its button on the bar, which is only there
+    // once the editor has closed
+    const filterBarPopovers = useFilterBarPopovers();
+    const handleEditRules = useMemo(() => {
+        if (!filterBarPopovers) return null;
+        return () => {
+            close();
+            filterBarPopovers.openRulesPopover();
+        };
+    }, [filterBarPopovers, close]);
+    // A viewer's saved filter, as the dashboard was saved: its reset
+    const savedRule =
+        isViewer && !canChooseTiles && savedFilters
+            ? findFilterRule(savedFilters, rule.id)
+            : null;
+    return (
+        <FilterPopover
+            rule={rule}
+            field={field}
+            filterType={filterType}
+            isViewer={isViewer}
+            canChooseTiles={canChooseTiles}
+            isCreatingNew={isViewer && isNew}
+            canManageExplore={canManageExplore}
+            savedRule={savedRule}
+            appliedTileCount={appliedTileCount}
+            totalTileCount={takeableTileCount}
+            filters={editorFilters}
+            isAsking={isAsking}
+            initialView="value"
+            onChange={updateFilter}
+            onChangeOthers={updateOtherFilters}
+            onCancel={discard}
+            onApply={close}
+            onChooseTiles={startMapping}
+            onEditRules={handleEditRules}
+            onResolvePending={resolvePending}
+        />
+    );
+};
+
+// The shipped value inputs read the dashboard's fields, tiles and filters
+const EditorFiltersProvider: FC<{ children: ReactNode }> = ({ children }) => {
+    const projectUuid = useProjectUuid();
+    const startOfWeek = useFiltersStartOfWeek(projectUuid);
+    const allFilters = useDashboardAllFilters();
+    const allFilterableFieldsMap = useDashboardContext(
+        (c) => c.allFilterableFieldsMap,
+    );
+    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
+    const parameterValues = useDashboardSelector(
+        selectDashboardEffectiveParameterValues,
+    );
+    const filterableFieldsByTileUuid = useDashboardContext(
+        (c) => c.filterableFieldsByTileUuid,
+    );
+    const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
+    return (
+        <FiltersProvider
+            projectUuid={projectUuid}
+            itemsMap={allFilterableFieldsMap}
+            startOfWeek={startOfWeek}
+            dashboardFilters={allFilters}
+            dashboardTiles={dashboardTiles}
+            filterableFieldsByTileUuid={filterableFieldsByTileUuid}
+            activeTabUuid={activeTabUuid}
+            parameterValues={parameterValues}
+        >
+            {children}
+        </FiltersProvider>
+    );
+};
+
+// Mounted with the filter id as key, so the view and the name never carry
+// over to another filter
+const FilterEditorContent: FC<{ rule: DashboardFilterRule }> = ({ rule }) => {
+    const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
+    // A dimension or a metric, as the shipped bar resolves it
+    const field = useFilterRuleField(rule);
+    if (isPlaceholder) return <PlaceholderEditor rule={rule} />;
+    return (
+        <EditorFiltersProvider>
+            <FilterEditor rule={rule} field={field} />
+        </EditorFiltersProvider>
+    );
+};
+
+// The edited filter's body, keyed by its id
+const EditorContent: FC = () => {
+    const filterId = useControlsSidebarSelector((c) =>
+        c.isSidebarOpen ? (c.editing?.filterId ?? null) : null,
+    );
+    const editingRule = useControlsSidebarSelector((c) => c.editingRule);
+    if (filterId === null || editingRule === null) return null;
+    return <FilterEditorContent key={filterId} rule={editingRule} />;
+};
+
+// Closing is immediate and opening is the dropdown's own CSS arrival, which
+// also plays when the editor moves to a new pill
+const NO_TRANSITION = { duration: 0 };
+
+type EditorPopoverProps = {
+    /** This target's filter is the one edited. */
+    isOpen: boolean;
+    /** The pill, or "Add filter" for a new filter; must take a ref. */
+    children: ReactNode;
+};
+
+// The editor as a popover under its pill, placed as the shipped pill's, with
+// focus kept inside. The provider owns Escape and clicks outside
+// (`useEditorDismiss`), so Mantine's are off, and so are its roles: an
+// expanded target reads as an open list. Focus goes back to the pill from
+// the provider (`FocusReturn`)
+export const EditorPopover: FC<EditorPopoverProps> = ({ isOpen, children }) => {
+    const contractClasses = useRailContractClasses();
+    // Mapping stands in for the popover until its Cancel brings it back
+    const isMapping = useControlsSidebarSelector((c) => c.isMapping);
+    return (
+        <Popover
+            opened={isOpen && !isMapping}
+            position="bottom-start"
+            withArrow
+            offset={1}
+            arrowOffset={14}
+            transitionProps={NO_TRANSITION}
+            trapFocus
+            closeOnEscape={false}
+            closeOnClickOutside={false}
+            withRoles={false}
+        >
+            <Popover.Target>{children}</Popover.Target>
+            {/* Mounted only while open, so a closing popover draws nothing,
+                not even for the frame its transition takes to end */}
+            {isOpen && !isMapping && (
+                <Popover.Dropdown
+                    p={0}
+                    // The trap's last resort before its body has mounted
+                    tabIndex={-1}
+                    data-controls-editor
+                    className={
+                        contractClasses === null
+                            ? classes.dropdown
+                            : `${classes.dropdown} ${contractClasses.rail} ${contractClasses.filterDropdown}`
+                    }
+                >
+                    <EditorContent />
+                </Popover.Dropdown>
+            )}
+        </Popover>
+    );
+};

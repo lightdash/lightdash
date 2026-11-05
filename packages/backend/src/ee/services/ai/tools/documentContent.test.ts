@@ -5,9 +5,11 @@ import {
     toolCreateContentOutputSchema,
 } from '@lightdash/common';
 import { asSchema, type FlexibleSchema, type ToolExecutionOptions } from 'ai';
+import type { PromptSection } from '../loadout';
 import { getSystemPromptV2 } from '../prompts/systemV2';
 import type { DocumentContentResult } from '../types/aiAgentDependencies';
 import type { PreparedChartAsCode } from '../utils/chartAsCode';
+import { getStaticToolDescription } from '../utils/toolDescription';
 import { getCreateContent } from './createContent';
 import { getEditContent } from './editContent';
 import { getReadContent } from './readContent';
@@ -96,14 +98,17 @@ describe('AI Agent Document authoring', () => {
         (documentsEnabled) => {
             const definitions: { inputSchema: FlexibleSchema }[] = [
                 getCreateContent({
+                    siteUrl: 'https://app.lightdash.cloud',
                     createContent: vi.fn(),
                     documentsEnabled,
                 }),
                 getReadContent({
+                    siteUrl: 'https://app.lightdash.cloud',
                     readContent: vi.fn(),
                     documentsEnabled,
                 }),
                 getEditContent({
+                    siteUrl: 'https://app.lightdash.cloud',
                     editContent: vi.fn(),
                     documentsEnabled,
                 }),
@@ -121,6 +126,7 @@ describe('AI Agent Document authoring', () => {
     test('creates with the shared ID-free contract and returns the canonical reference', async () => {
         const createContent = vi.fn().mockResolvedValue(document);
         const tool = getCreateContent({
+            siteUrl: 'https://app.lightdash.cloud',
             createContent,
             documentsEnabled: true,
         });
@@ -165,9 +171,31 @@ describe('AI Agent Document authoring', () => {
         );
     });
 
+    test('gives the agent an absolute Document link and keeps the UI href relative', async () => {
+        const tool = getCreateContent({
+            siteUrl: 'https://app.lightdash.cloud/',
+            createContent: vi.fn().mockResolvedValue(document),
+            documentsEnabled: true,
+        });
+        const result = await tool.execute!(
+            { type: 'document', content: input },
+            options,
+        );
+        if (Symbol.asyncIterator in result) {
+            throw new Error('Unexpected streamed output');
+        }
+        const absoluteHref = `https://app.lightdash.cloud${document.href}`;
+        expect(result.result).toContain(`<document href="${absoluteHref}" />`);
+        expect(result.result).toContain(`"href": "${absoluteHref}"`);
+        expect(result.result).not.toContain(`"${document.href}"`);
+        expect(result).toHaveProperty('metadata.href', document.href);
+        expect(result).toHaveProperty('structuredContent.href', document.href);
+    });
+
     test('creates a Document with a custom chart type by slug and version', async () => {
         const createContent = vi.fn().mockResolvedValue(document);
         const tool = getCreateContent({
+            siteUrl: 'https://app.lightdash.cloud',
             createContent,
             documentsEnabled: true,
         });
@@ -192,6 +220,7 @@ describe('AI Agent Document authoring', () => {
             .fn()
             .mockRejectedValue(new ParameterError(message));
         const tool = getCreateContent({
+            siteUrl: 'https://app.lightdash.cloud',
             createContent,
             documentsEnabled: true,
         });
@@ -211,6 +240,7 @@ describe('AI Agent Document authoring', () => {
     test('rejects disabled creation even when called directly', async () => {
         const createContent = vi.fn();
         const tool = getCreateContent({
+            siteUrl: 'https://app.lightdash.cloud',
             createContent,
             documentsEnabled: false,
         });
@@ -236,7 +266,11 @@ describe('AI Agent Document authoring', () => {
 
     test('reads a Document by slug', async () => {
         const readContent = vi.fn().mockResolvedValue(document);
-        const tool = getReadContent({ readContent, documentsEnabled: true });
+        const tool = getReadContent({
+            siteUrl: 'https://app.lightdash.cloud',
+            readContent,
+            documentsEnabled: true,
+        });
         if (!tool.execute) {
             throw new Error('Missing executor');
         }
@@ -257,7 +291,11 @@ describe('AI Agent Document authoring', () => {
 
     test('rejects disabled reads even when called directly', async () => {
         const readContent = vi.fn();
-        const tool = getReadContent({ readContent, documentsEnabled: false });
+        const tool = getReadContent({
+            siteUrl: 'https://app.lightdash.cloud',
+            readContent,
+            documentsEnabled: false,
+        });
         if (!tool.execute) {
             throw new Error('Missing executor');
         }
@@ -269,7 +307,11 @@ describe('AI Agent Document authoring', () => {
 
     test('rejects disabled edits even when called directly', async () => {
         const editContent = vi.fn();
-        const tool = getEditContent({ editContent, documentsEnabled: false });
+        const tool = getEditContent({
+            siteUrl: 'https://app.lightdash.cloud',
+            editContent,
+            documentsEnabled: false,
+        });
         if (!tool.execute) {
             throw new Error('Missing executor');
         }
@@ -288,7 +330,11 @@ describe('AI Agent Document authoring', () => {
 
     test('returns metadata updates with the canonical reference and current version', async () => {
         const editContent = vi.fn().mockResolvedValue(document);
-        const tool = getEditContent({ editContent, documentsEnabled: true });
+        const tool = getEditContent({
+            siteUrl: 'https://app.lightdash.cloud',
+            editContent,
+            documentsEnabled: true,
+        });
         if (!tool.execute) {
             throw new Error('Missing executor');
         }
@@ -311,7 +357,11 @@ describe('AI Agent Document authoring', () => {
         const editContent = vi
             .fn()
             .mockRejectedValue(new ConflictError('Document has changed'));
-        const tool = getEditContent({ editContent, documentsEnabled: true });
+        const tool = getEditContent({
+            siteUrl: 'https://app.lightdash.cloud',
+            editContent,
+            documentsEnabled: true,
+        });
         if (!tool.execute) {
             throw new Error('Missing executor');
         }
@@ -337,7 +387,11 @@ describe('AI Agent Document authoring', () => {
 
     test('passes full replacement and base version to the shared edit path', async () => {
         const editContent = vi.fn().mockResolvedValue(document);
-        const tool = getEditContent({ editContent, documentsEnabled: true });
+        const tool = getEditContent({
+            siteUrl: 'https://app.lightdash.cloud',
+            editContent,
+            documentsEnabled: true,
+        });
         if (!tool.execute) {
             throw new Error('Missing executor');
         }
@@ -359,7 +413,11 @@ describe('AI Agent Document authoring', () => {
 
     test('rejects patch-based Document edits', async () => {
         const editContent = vi.fn();
-        const tool = getEditContent({ editContent, documentsEnabled: true });
+        const tool = getEditContent({
+            siteUrl: 'https://app.lightdash.cloud',
+            editContent,
+            documentsEnabled: true,
+        });
         if (!tool.execute) {
             throw new Error('Missing executor');
         }
@@ -374,7 +432,11 @@ describe('AI Agent Document authoring', () => {
 
     test('reads one chart in full by id', async () => {
         const readContent = vi.fn().mockResolvedValue(document);
-        const tool = getReadContent({ readContent, documentsEnabled: true });
+        const tool = getReadContent({
+            siteUrl: 'https://app.lightdash.cloud',
+            readContent,
+            documentsEnabled: true,
+        });
         if (!tool.execute) {
             throw new Error('Missing executor');
         }
@@ -393,6 +455,7 @@ describe('AI Agent Document authoring', () => {
         const createContent = vi.fn().mockResolvedValue(document);
         const access = artifacts();
         const tool = getCreateContent({
+            siteUrl: 'https://app.lightdash.cloud',
             createContent,
             documentsEnabled: true,
             artifacts: access,
@@ -440,6 +503,7 @@ describe('AI Agent Document authoring', () => {
             limit: 500,
         });
         const tool = getCreateContent({
+            siteUrl: 'https://app.lightdash.cloud',
             createContent,
             documentsEnabled: true,
             artifacts: access,
@@ -479,6 +543,7 @@ describe('AI Agent Document authoring', () => {
     test('replaces a chart with an artifact on edit', async () => {
         const editContent = vi.fn().mockResolvedValue(document);
         const tool = getEditContent({
+            siteUrl: 'https://app.lightdash.cloud',
             editContent,
             documentsEnabled: true,
             artifacts: artifacts(),
@@ -519,6 +584,7 @@ describe('AI Agent Document authoring', () => {
     ])('returns an actionable error %s', async (_label, access, message) => {
         const createContent = vi.fn();
         const tool = getCreateContent({
+            siteUrl: 'https://app.lightdash.cloud',
             createContent,
             documentsEnabled: true,
             artifacts: access,
@@ -548,8 +614,11 @@ describe('AI Agent Document authoring', () => {
         (enableDocuments) => {
             const prompt = getSystemPromptV2({
                 availableExplores: [],
-                enableContentTools: true,
-                enableDocuments,
+                promptSections: new Set<PromptSection>([
+                    'contentTools',
+                    'schedulingTools',
+                    ...(enableDocuments ? (['documents'] as const) : []),
+                ]),
             });
             expect(
                 prompt.content.includes(
@@ -557,32 +626,20 @@ describe('AI Agent Document authoring', () => {
                 ),
             ).toBe(enableDocuments);
             if (enableDocuments) {
-                expect(prompt.content).toContain(
-                    'Do not ask where to save a Document',
-                );
-                expect(prompt.content).toContain(
-                    'pass spaceSlug: null to create a personal Document',
-                );
-                expect(prompt.content).toContain(
-                    'keeping every unchanged chart as its <document-chart id="cN"> tag',
-                );
+                expect(prompt.content).toContain('the Document is personal');
                 expect(prompt.content).toContain('<artifact-chart version=');
-                expect(prompt.content).toContain('Use H1 for sections');
-                expect(prompt.content).toContain(
-                    'questions explored, evidence and findings, follow-up questions, and conclusions and limitations',
-                );
-                expect(prompt.content).toContain(
-                    'Explicit user scope and format instructions take precedence',
-                );
-                expect(prompt.content).toContain(
-                    'not private model reasoning or a verbatim transcript',
-                );
-                expect(prompt.content).toContain(
-                    'do not invent findings or research steps',
-                );
             } else {
-                expect(prompt.content).not.toContain('research journey');
+                expect(prompt.content).not.toContain('## Documents');
             }
+            expect(
+                getStaticToolDescription(
+                    getCreateContent({
+                        siteUrl: 'https://app.lightdash.cloud',
+                        createContent: vi.fn(),
+                        documentsEnabled: enableDocuments,
+                    }),
+                )?.includes('research journey'),
+            ).toBe(enableDocuments);
         },
     );
 });

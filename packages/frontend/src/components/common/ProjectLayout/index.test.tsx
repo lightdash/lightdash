@@ -16,13 +16,6 @@ vi.mock('../../../features/scopeTours/ScopeTourHost', () => ({
     default: () => null,
 }));
 
-vi.mock(
-    '../../../features/sourceCodeEditor/components/SourceCodeDrawer',
-    () => ({
-        default: () => null,
-    }),
-);
-
 vi.mock('../../NavBar', () => ({
     default: () => (
         <Box component="nav">

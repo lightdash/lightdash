@@ -1,5 +1,9 @@
 import { subject } from '@casl/ability';
-import { assertUnreachable, type UiStringKey } from '@lightdash/common';
+import {
+    assertUnreachable,
+    getEmbedWriteSpaceUuids,
+    type UiStringKey,
+} from '@lightdash/common';
 import { Badge, Box, Button, Group, Tooltip } from '@mantine/core';
 import {
     IconAlertCircle,
@@ -41,6 +45,7 @@ import { RefreshButton } from '../../RefreshButton';
 import RefreshDbtButton from '../../RefreshDbtButton';
 import SaveChartButton from '../SaveChartButton';
 import { useExplorerResultsData } from '../VisualizationCard/useExplorerResultsData';
+import classes from './ExplorerHeader.module.css';
 import QueryWarnings from './QueryWarnings';
 
 const getBackButtonLabelKey = (
@@ -134,9 +139,9 @@ const ExplorerHeader: FC = memo(() => {
     const isModalHosted = useIsModalHosted();
     const verificationSavePrompt = useVerificationSavePrompt(savedChart);
     const hasEmbedWriteActions =
-        !!embed.writeActions?.spaceUuid &&
-        (!!embed.writeActions.userUuid ||
-            !!embed.writeActions.serviceAccountUserUuid);
+        getEmbedWriteSpaceUuids(embed.writeActions).length > 0 &&
+        (!!embed.writeActions?.userUuid ||
+            !!embed.writeActions?.serviceAccountUserUuid);
     const canCreateEmbedSavedChart =
         hasEmbedWriteActions &&
         embed.embedWriteContext?.canCreateSavedChart === true;
@@ -230,7 +235,7 @@ const ExplorerHeader: FC = memo(() => {
                             }
                             color="yellow"
                             variant="outline"
-                            style={{ cursor: 'help' }}
+                            className={classes.helpBadge}
                         >
                             Results out of date
                         </Badge>
@@ -248,7 +253,7 @@ const ExplorerHeader: FC = memo(() => {
                             }
                             color="yellow"
                             variant="outline"
-                            style={{ cursor: 'help' }}
+                            className={classes.helpBadge}
                         >
                             Results may be incomplete
                         </Badge>

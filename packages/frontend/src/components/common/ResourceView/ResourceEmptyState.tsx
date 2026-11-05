@@ -10,7 +10,7 @@ const ResourceEmptyState: FC<ResourceEmptyStateProps> = ({
 }) => {
     return (
         <Stack align="center" gap="md" py={40}>
-            {icon && <Box c="ldGray.4">{icon}</Box>}
+            {icon && <Box c="dimmed">{icon}</Box>}
 
             <Stack align="center" gap={4}>
                 <Title order={4} fw={500}>

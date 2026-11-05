@@ -5,6 +5,7 @@ import {
     IconAppWindow,
     IconBolt,
     IconBook2,
+    IconBroadcast,
     IconBrain,
     IconBrowser,
     IconBrush,
@@ -80,7 +81,6 @@ export const useSettingsNavigation = (
         allowPasswordAuthentication,
         hasSocialLogin,
         isGroupManagementEnabled,
-        isProLimitsEnabled,
         canAccessAnalyticsSettings,
         isOrganizationRoadmapEnabled,
         canAccessAiCredits,
@@ -98,6 +98,9 @@ export const useSettingsNavigation = (
         embeddingEnabled,
         dataAppsFlag,
         dataAppAnalysisFlag,
+        dashboardAnalysisFlag,
+        isChartStudioAvailable,
+        isApiQuerySourcesEnabled,
         externalSourcesFlag,
         isResultsCacheEnabled,
         isGitProject,
@@ -109,6 +112,7 @@ export const useSettingsNavigation = (
     const isScimEnabled = isScimTokenManagementEnabled?.enabled ?? false;
     const isDataAppsEnabled = dataAppsFlag?.enabled ?? false;
     const isDataAppAnalysisEnabled = dataAppAnalysisFlag?.enabled ?? false;
+    const isDashboardAnalysisEnabled = dashboardAnalysisFlag?.enabled ?? false;
     const isExternalSourcesEnabled =
         (externalSourcesFlag?.enabled ?? false) &&
         (health?.externalSources.engineAvailable ?? false);
@@ -251,7 +255,7 @@ export const useSettingsNavigation = (
             });
         }
 
-        if (isProLimitsEnabled && ability?.can('manage', 'Organization')) {
+        if (ability?.can('manage', 'Organization')) {
             organizationItems.push({
                 label: 'Limits',
                 to: '/generalSettings/limits',
@@ -378,7 +382,7 @@ export const useSettingsNavigation = (
             }
 
             if (
-                isDataAppAnalysisEnabled &&
+                (isDataAppAnalysisEnabled || isDashboardAnalysisEnabled) &&
                 ability?.can('manage', 'Organization')
             ) {
                 dataAppChildren.push({
@@ -405,6 +409,42 @@ export const useSettingsNavigation = (
                     icon: IconAppWindow,
                     keywords: ['apps', 'data apps'],
                     children: dataAppChildren,
+                });
+            }
+        } else {
+            if (
+                isChartStudioAvailable &&
+                ability?.can('manage', 'OrganizationDesign')
+            ) {
+                organizationItems.push({
+                    label: 'Themes',
+                    to: '/generalSettings/dataApps/themes',
+                    icon: IconBrush,
+                    keywords: ['design', 'colors', 'charts', 'chart types'],
+                    children: [],
+                    exact: true,
+                });
+            }
+            // Dashboard analysis shares the consent toggle that lives on the
+            // data-apps AI-analysis page; surface it even without data apps.
+            if (
+                isDashboardAnalysisEnabled &&
+                ability?.can('manage', 'Organization')
+            ) {
+                organizationItems.push({
+                    label: 'AI analysis',
+                    to: '/generalSettings/dataApps/aiAnalysis',
+                    icon: IconSparkles,
+                    keywords: [
+                        'ai',
+                        'analysis',
+                        'insights',
+                        'anomalies',
+                        'investigate',
+                        'dashboards',
+                    ],
+                    children: [],
+                    exact: true,
                 });
             }
         }
@@ -717,6 +757,10 @@ export const useSettingsNavigation = (
                         'writes',
                     ],
                     pageSections: [
+                        {
+                            title: 'Allow MCP access',
+                            keywords: ['access', 'disable', 'organization'],
+                        },
                         {
                             title: 'Enable agents over MCP',
                             keywords: ['tools', 'context', 'access'],
@@ -1094,21 +1138,31 @@ export const useSettingsNavigation = (
                 exact: true,
             });
 
-            if (
-                isDataAppsEnabled &&
-                ability?.can(
-                    'manage',
-                    subject('ExternalConnection', {
-                        organizationUuid: organization.organizationUuid,
-                        projectUuid: project.projectUuid,
-                    }),
-                )
-            ) {
+            const canManageProjectConnections = ability?.can(
+                'manage',
+                subject('ExternalConnection', {
+                    organizationUuid: organization.organizationUuid,
+                    projectUuid: project.projectUuid,
+                }),
+            );
+
+            if (isDataAppsEnabled && canManageProjectConnections) {
                 projectItems.push({
                     label: 'Data app connections',
                     to: `${base}/dataAppConnections`,
                     icon: IconPlugConnected,
                     keywords: ['external', 'api', 'http', 'fetch', 'apps'],
+                    children: [],
+                    exact: true,
+                });
+            }
+
+            if (isApiQuerySourcesEnabled && canManageProjectConnections) {
+                projectItems.push({
+                    label: 'Live data sources',
+                    to: `${base}/liveDataSources`,
+                    icon: IconBroadcast,
+                    keywords: ['posthog', 'api', 'saas', 'live', 'sources'],
                     children: [],
                     exact: true,
                 });
@@ -1317,7 +1371,6 @@ export const useSettingsNavigation = (
         allowPasswordAuthentication,
         hasSocialLogin,
         isGroupManagementEnabled,
-        isProLimitsEnabled,
         canAccessAnalyticsSettings,
         isOrganizationRoadmapEnabled,
         canAccessAiCredits,
@@ -1335,6 +1388,9 @@ export const useSettingsNavigation = (
         isEmbeddingEnabled,
         isDataAppsEnabled,
         isDataAppAnalysisEnabled,
+        isDashboardAnalysisEnabled,
+        isChartStudioAvailable,
+        isApiQuerySourcesEnabled,
         isExternalSourcesEnabled,
         isResultsCacheEnabled,
         isGitProject,

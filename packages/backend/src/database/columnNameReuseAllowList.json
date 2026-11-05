@@ -38,5 +38,9 @@
     {
         "column": "document_versions.agent_identity",
         "reason": "Existing version queries do not join query_history or select agent_identity without a table qualifier. This nullable field preserves writes from previous releases."
+    },
+    {
+        "column": "data_app_analyses.dashboard_uuid",
+        "reason": "Previous releases never join data_app_analyses to dashboards or any table carrying dashboard_uuid; every existing query filters data_app_analyses on its own columns (app_id, created_by_user_uuid, content_hash)."
     }
 ]

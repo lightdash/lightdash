@@ -37,6 +37,7 @@ function useEmbed(): EmbedContext {
             backgroundColor: null,
             timezone: null,
             aiAgentThreadSetup: null,
+            aiAgentNavigationDisabled: false,
         };
     }
 

@@ -1,6 +1,7 @@
 import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { MissingConfigError } from '@lightdash/common';
 import { createS3ClientFromConfig } from '../../../clients/Aws/S3BaseClient';
+import { AppRuntimeConfigErrors } from '../../../config/appRuntimeAvailability';
 import { type LightdashConfig } from '../../../config/parseConfig';
 
 export type AppRuntimeS3 = { client: S3Client; bucket: string };
@@ -11,7 +12,7 @@ export const createAppRuntimeS3 = (
 ): AppRuntimeS3 => {
     const s3Config = lightdashConfig.appRuntime.s3;
     if (!s3Config) {
-        throw new MissingConfigError('S3 is not configured for app runtime');
+        throw new MissingConfigError(AppRuntimeConfigErrors.s3);
     }
     return {
         client: createS3ClientFromConfig(s3Config),

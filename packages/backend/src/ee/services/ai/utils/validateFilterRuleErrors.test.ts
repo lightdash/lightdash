@@ -223,6 +223,19 @@ describe('validateFilterRules error messages', () => {
         expect(message).not.toContain('ZodError');
     });
 
+    it('accepts minute-precision datetimes in date filters', () => {
+        expect(() =>
+            validateFilterRules(mockOrdersExplore, [
+                rule({
+                    id: 'filter-date-minute-precision',
+                    fieldId: 'orders_order_date',
+                    operator: FilterOperator.EQUALS,
+                    values: ['2025-01-01T06:15Z'],
+                }),
+            ]),
+        ).not.toThrow();
+    });
+
     it('explains invalid date filters with available combinations', () => {
         const message = getValidationMessage(
             rule({

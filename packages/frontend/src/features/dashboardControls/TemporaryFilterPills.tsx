@@ -1,9 +1,11 @@
 import { useCallback, useState, type FC } from 'react';
 import FiltersProvider from '../../components/common/Filters/FiltersProvider';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { useProject } from '../../hooks/useProject';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
+    selectDashboardTiles,
     selectParameterValues,
     useDashboardAllFilters,
     useDashboardSelector,
@@ -18,6 +20,7 @@ type Props = {
 // Rules added from a tile or the URL are never saved. The shipped pills show
 // and edit them in their own popover, which needs the shipped provider
 const TemporaryPills: FC<Props> = ({ activeTabUuid }) => {
+    const getUiString = useUiStrings();
     const projectUuid = useProjectUuid();
     const project = useProject(projectUuid);
     const [openPopoverId, setOpenPopoverId] = useState<string>();
@@ -27,7 +30,7 @@ const TemporaryPills: FC<Props> = ({ activeTabUuid }) => {
     const allFilterableFieldsMap = useDashboardContext(
         (c) => c.allFilterableFieldsMap,
     );
-    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
+    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const parameterValues = useDashboardSelector(selectParameterValues);
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
@@ -40,6 +43,7 @@ const TemporaryPills: FC<Props> = ({ activeTabUuid }) => {
             startOfWeek={
                 project.data?.warehouseConnection?.startOfWeek ?? undefined
             }
+            warehouseType={project.data?.warehouseConnection?.type}
             dashboardFilters={allFilters}
             dashboardTiles={dashboardTiles}
             filterableFieldsByTileUuid={filterableFieldsByTileUuid}
@@ -48,6 +52,8 @@ const TemporaryPills: FC<Props> = ({ activeTabUuid }) => {
         >
             <TemporaryFilters
                 isEditMode
+                isPlain
+                tablesTooltipNote={getUiString('controls.onlyYouSeeFilter')}
                 activeTabUuid={activeTabUuid}
                 openPopoverId={openPopoverId}
                 onPopoverOpen={setOpenPopoverId}

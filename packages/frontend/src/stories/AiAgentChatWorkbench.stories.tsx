@@ -660,19 +660,6 @@ const workActivity: LiveActivityToolGroup[] = [
 
 const verifyActivity: LiveActivityToolGroup[] = [
     {
-        keyId: 'preview-deploy',
-        toolName: 'setupPreviewDeploy',
-        calls: [
-            {
-                toolCallId: 'preview-deploy-call',
-                toolName: 'setupPreviewDeploy',
-                toolArgs: {
-                    pullRequestUrl: 'https://github.com/org/repo/pull/42',
-                },
-            },
-        ],
-    },
-    {
         keyId: 'verify-query',
         toolName: 'generateVisualization',
         calls: chartCalls,
@@ -1202,6 +1189,7 @@ const makeThread = (scenario: ThreadScenario): AiAgentThread => {
             tokenUsage: null,
             responseTiming: null,
             jevDecision: null,
+            loadout: null,
         };
     });
 

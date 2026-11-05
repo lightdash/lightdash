@@ -3,6 +3,7 @@ import {
     assertUnreachable,
     copyDateZoomTileTargets,
     FeatureFlags,
+    getDefaultStartOfWeek,
     type DashboardFilterRule,
     type DashboardTab,
     type DashboardTile,
@@ -11,9 +12,10 @@ import {
     type ParameterValue,
 } from '@lightdash/common';
 import { Button, Group, Tabs, Tooltip } from '@mantine/core';
+import { useMergedRef } from '@mantine/hooks';
 import { IconPlus } from '@tabler/icons-react';
+import { cloneDeep } from 'es-toolkit/compat';
 import { produce } from 'immer';
-import cloneDeep from 'lodash/cloneDeep';
 import {
     Activity,
     memo,
@@ -26,9 +28,13 @@ import {
     type FC,
 } from 'react';
 import { type Layout } from 'react-grid-layout';
-import { useLocation, useNavigate } from 'react-router';
+import { useLocation, useNavigate, useParams } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
-import { DASHBOARD_HEADER_HEIGHT } from '../../components/common/Dashboard/dashboard.constants';
+import {
+    DASHBOARD_HEADER_HEIGHT,
+    SCROLL_TO_TOP_BOTTOM,
+    SCROLL_TO_TOP_BOTTOM_WITH_LAUNCHER,
+} from '../../components/common/Dashboard/dashboard.constants';
 import MantineIcon from '../../components/common/MantineIcon';
 import { ScrollToTop } from '../../components/common/ScrollToTop';
 import { StickyWithDetection } from '../../components/common/StickyWithDetection';
@@ -48,7 +54,10 @@ import { SectionName } from '../../types/Events';
 import '../../styles/droppable.css';
 import {
     selectDashboardFilters,
+    selectDashboardTabs,
     selectDateZoomGranularity,
+    selectIsDateZoomDisabled,
+    useDashboardDateZoomConfig,
     useDashboardSelector,
     useDashboardTemporaryFilters,
     useDashboardUnmetFilterRequirements,
@@ -67,14 +76,18 @@ import { TabEditModal } from './EditTabModal';
 import GridTile from './GridTile';
 import {
     convertLayoutToBaseCoordinates,
+    DEFAULT_ROW_HEIGHT,
+    FIT_TO_SCREEN_GRID_BOTTOM_PADDING,
     getDashboardLayouts,
     type DashboardLayouts,
     getResponsiveGridLayoutProps,
+    GRID_COLS,
     GRID_CONTAINER_PADDING,
 } from './gridUtils';
 import { ResponsiveGridLayout } from './ResponsiveGridLayout';
 import DraggableTab from './Tab';
 import styles from './tabs.module.css';
+import { getDashboardTabPath, getDashboardUrlIdentifier } from './tabUrl';
 import { useAutoScrollOnDrag } from './useAutoScrollOnDrag';
 import { useGridStyles } from './useGridStyles';
 
@@ -86,8 +99,6 @@ const EMPTY_LAYOUTS: DashboardLayouts = {
 };
 
 const DASHBOARD_GRID_BOTTOM_PADDING = 60;
-const SCROLL_TO_TOP_BOTTOM = 24;
-const SCROLL_TO_TOP_BOTTOM_WITH_LAUNCHER = 52;
 
 type TabGridPanelProps = {
     tabUuid: string;
@@ -144,17 +155,7 @@ const TabGridPanel = memo<TabGridPanelProps>(
             <div
                 key={tabUuid}
                 data-tab-uuid={tabUuid}
-                style={
-                    isActive
-                        ? { position: 'relative' }
-                        : {
-                              contentVisibility: 'hidden',
-                              containIntrinsicSize: 'auto 1px auto 1px',
-                              position: 'absolute' as const,
-                              width: '100%',
-                              pointerEvents: 'none' as const,
-                          }
-                }
+                className={isActive ? styles.tabPane : styles.tabPaneHidden}
             >
                 <ErrorBoundary>
                     <ResponsiveGridLayout
@@ -205,6 +206,8 @@ const TabGridPanel = memo<TabGridPanelProps>(
         // Re-render only when layouts reference changes.
         if (nextProps.isActive && prevProps.layouts !== nextProps.layouts)
             return false;
+        if (nextProps.isActive && prevProps.gridProps !== nextProps.gridProps)
+            return false;
 
         // No meaningful changes — skip re-render
         return true;
@@ -224,6 +227,10 @@ type DashboardTabsProps = {
     setAddingTab: (value: React.SetStateAction<boolean>) => void;
     setGridWidth: (value: React.SetStateAction<number>) => void;
     onNewChart?: () => void;
+
+    // fit to screen: the computed row height, null when not fitting
+    fitToScreenRowHeight: number | null;
+    gridContainerRef: (element: HTMLDivElement | null) => void;
 
     // parameters
     hasTilesThatSupportFilters: boolean;
@@ -252,6 +259,8 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     setGridWidth,
     setAddingTab,
     onNewChart,
+    fitToScreenRowHeight,
+    gridContainerRef,
     // parameters
     hasTilesThatSupportFilters,
     parameterValues,
@@ -265,11 +274,9 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     parameterOrder,
     onParameterReorder,
 }) => {
-    const gridProps = useMemo(
-        () => getResponsiveGridLayoutProps({ isEditMode }),
-        [isEditMode],
-    );
-    const [currentCols, setCurrentCols] = useState(gridProps.cols.lg);
+    const gridWrapperRef = useRef<HTMLDivElement>(null);
+    const mergedGridWrapperRef = useMergedRef(gridWrapperRef, gridContainerRef);
+    const [currentCols, setCurrentCols] = useState<number>(GRID_COLS.lg);
     const { showToastError } = useToaster();
     const { health } = useApp();
     const [, startTabTransition] = useTransition();
@@ -282,12 +289,11 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const { data: dashboardControlsFlag } = useServerFeatureFlag(
         FeatureFlags.DashboardControls,
     );
-    const FiltersBar =
-        dashboardControlsFlag?.enabled === true
-            ? ControlsBar
-            : DashboardFiltersBar;
+    const isDashboardControlsEnabled = dashboardControlsFlag?.enabled === true;
+    const FiltersBar = isDashboardControlsEnabled
+        ? ControlsBar
+        : DashboardFiltersBar;
 
-    const gridWrapperRef = useRef<HTMLDivElement>(null);
     const [isInteracting, setIsInteracting] = useState(false);
 
     const gridLineStyles = useGridStyles({ ref: gridWrapperRef });
@@ -345,11 +351,17 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const navigate = useNavigate();
     const dashboard = useDashboardContext((c) => c.dashboard);
     const dashboardUuid = dashboard?.uuid;
-    const dashboardIdentifier = dashboard?.slug;
+    const { dashboardUuid: routeDashboardUuidOrSlug } = useParams<{
+        dashboardUuid: string;
+    }>();
+    const dashboardIdentifier = getDashboardUrlIdentifier({
+        routeDashboardUuidOrSlug,
+        dashboardSlug: dashboard?.slug,
+    });
     const projectUuid = useDashboardContext((c) => c.projectUuid);
     const projectUrlIdentifier = useProjectUrlIdentifier();
     const setHaveTabsChanged = useDashboardContext((c) => c.setHaveTabsChanged);
-    const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
+    const dashboardTabs = useDashboardSelector(selectDashboardTabs);
     const setDashboardTabs = useDashboardContext((c) => c.setDashboardTabs);
     const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
     const setHaveTilesChanged = useDashboardContext(
@@ -362,13 +374,13 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const setHaveFiltersChanged = useDashboardContext(
         (c) => c.setHaveFiltersChanged,
     );
-    const dateZoomConfig = useDashboardContext((c) => c.dateZoomConfig);
+    const dateZoomConfig = useDashboardDateZoomConfig();
     const setDateZoomConfig = useDashboardContext((c) => c.setDateZoomConfig);
     const unmetFilterRequirements = useDashboardUnmetFilterRequirements();
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );
-    const isDateZoomDisabled = useDashboardContext((c) => c.isDateZoomDisabled);
+    const isDateZoomDisabled = useDashboardSelector(selectIsDateZoomDisabled);
     const getUiString = useUiStrings();
     const dateZoomGranularity = useDashboardSelector(selectDateZoomGranularity);
     const dashboardTemporaryFilters = useDashboardTemporaryFilters();
@@ -383,10 +395,6 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const scrollToTopBottom = isLauncherMounted
         ? SCROLL_TO_TOP_BOTTOM_WITH_LAUNCHER
         : SCROLL_TO_TOP_BOTTOM;
-    const dashboardGridBottomPadding =
-        DASHBOARD_GRID_BOTTOM_PADDING +
-        scrollToTopBottom -
-        SCROLL_TO_TOP_BOTTOM;
 
     // tabs state
     const [isEditingTab, setEditingTab] = useState<boolean>(false);
@@ -453,17 +461,6 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         return map;
     }, [dashboardTiles, dashboardTabs, defaultTab?.uuid, tabsEnabled]);
 
-    const layoutsByTab = useMemo(() => {
-        const map = new Map<string, DashboardLayouts>();
-        for (const [tabUuid, tiles] of tilesByTab) {
-            map.set(
-                tabUuid,
-                getDashboardLayouts(tiles, isEditMode, gridProps.cols),
-            );
-        }
-        return map;
-    }, [tilesByTab, isEditMode, gridProps]);
-
     // In view mode, drop tiles whose tab is hidden. Otherwise, when hiding tabs
     // leaves only one visible tab, the non-tabbed grid path below renders every
     // tile and the hidden tab's charts surface on the remaining grid.
@@ -478,6 +475,32 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
             (t) => !t.tabUuid || !hiddenTabUuids.has(t.tabUuid),
         );
     }, [dashboardTiles, dashboardTabs, isEditMode]);
+
+    const dashboardGridBottomPadding =
+        fitToScreenRowHeight !== null
+            ? FIT_TO_SCREEN_GRID_BOTTOM_PADDING
+            : DASHBOARD_GRID_BOTTOM_PADDING +
+              scrollToTopBottom -
+              SCROLL_TO_TOP_BOTTOM;
+
+    const gridProps = useMemo(
+        () =>
+            getResponsiveGridLayoutProps({
+                isEditMode,
+                rowHeight: fitToScreenRowHeight ?? DEFAULT_ROW_HEIGHT,
+            }),
+        [isEditMode, fitToScreenRowHeight],
+    );
+    const layoutsByTab = useMemo(() => {
+        const map = new Map<string, DashboardLayouts>();
+        for (const [tabUuid, tiles] of tilesByTab) {
+            map.set(
+                tabUuid,
+                getDashboardLayouts(tiles, isEditMode, gridProps.cols),
+            );
+        }
+        return map;
+    }, [tilesByTab, isEditMode, gridProps]);
 
     // Layouts for non-tabbed dashboards (single grid with all tiles)
     const allTilesLayouts = useMemo(
@@ -566,6 +589,12 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const project = useProject(
         showGuidedSetup ? dashboardProjectUuid : undefined,
     );
+
+    const warehouseConnection = project.data?.warehouseConnection;
+    const startOfWeek = warehouseConnection
+        ? (warehouseConnection.startOfWeek ??
+          getDefaultStartOfWeek(warehouseConnection.type))
+        : undefined;
 
     const firstSortedTabUuid = sortedTabs?.[0]?.uuid;
     const isActiveTile = useCallback(
@@ -660,9 +689,12 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
             startTabTransition(() => {
                 void navigate(
                     {
-                        pathname: isEditMode
-                            ? `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/edit/tabs/${tab?.uuid}`
-                            : `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/view/tabs/${tab?.uuid}`,
+                        pathname: getDashboardTabPath({
+                            projectUrlIdentifier,
+                            dashboardUrlIdentifier: dashboardIdentifier,
+                            isEditMode,
+                            tabUuid: tab?.uuid,
+                        }),
                         search: newParams.toString(),
                     },
                     { replace: true },
@@ -1027,6 +1059,9 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                                 setDeletingTab={
                                                                     setDeletingTab
                                                                 }
+                                                                hasQuietActions={
+                                                                    isDashboardControlsEnabled
+                                                                }
                                                             />
                                                         ),
                                                     )}
@@ -1157,10 +1192,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
 
                                 {showGuidedSetup && (
                                     <GuidedFilterSetupOverlay
-                                        startOfWeek={
-                                            project.data?.warehouseConnection
-                                                ?.startOfWeek ?? undefined
-                                        }
+                                        startOfWeek={startOfWeek}
                                         onDismiss={() =>
                                             setIsGuidedSetupDismissed(true)
                                         }
@@ -1173,7 +1205,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                     px="xs"
                                 >
                                     <div
-                                        ref={gridWrapperRef}
+                                        ref={mergedGridWrapperRef}
                                         className={[
                                             styles.tabGridContainer,
                                             showGridLines
@@ -1185,6 +1217,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                         ]
                                             .filter(Boolean)
                                             .join(' ')}
+                                        // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                                         style={
                                             showGridLines
                                                 ? gridLineStyles

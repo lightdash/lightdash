@@ -5,9 +5,11 @@ import {
     AiAccessRefusedError,
     DELIVERY_CAPTURE_GLOBAL,
     DownloadFileType,
+    ForbiddenError,
     LightdashPage,
     LightdashRequestMethodHeader,
     NotFoundError,
+    ParameterError,
     RequestMethod,
     SCREENSHOT_FAILED_STATUS,
     SCREENSHOT_SELECTORS,
@@ -236,6 +238,196 @@ describe('UnfurlService', () => {
         );
         return { service, browser, page };
     };
+
+    describe('exportEmbedDashboardPdf', () => {
+        const PROJECT_UUID = '11111111-1111-4111-8111-111111111111';
+        const DASHBOARD_UUID = '22222222-2222-4222-8222-222222222222';
+        const dashboard = {
+            uuid: DASHBOARD_UUID,
+            name: 'Embedded dashboard',
+            projectUuid: PROJECT_UUID,
+            organizationUuid: 'org-uuid-1',
+            tiles: [],
+            tabs: [
+                { uuid: 'tab-visible', name: 'Visible', order: 0 },
+                {
+                    uuid: 'tab-hidden',
+                    name: 'Hidden',
+                    order: 1,
+                    hidden: true,
+                },
+            ],
+        };
+
+        const setup = () => {
+            const page = createScreenshotMockPage();
+            page.waitForSelector.mockRejectedValue(new Error('stop render'));
+            const browser = {
+                newPage: vi.fn().mockResolvedValue(page),
+                close: vi.fn().mockResolvedValue(undefined),
+            };
+            playwrightMocks.connectOverCDP.mockResolvedValue(browser);
+            const service = createService({
+                dashboardModel: {
+                    getByIdOrSlug: vi.fn().mockResolvedValue(dashboard),
+                },
+                headlessBrowser: {
+                    host: 'headless-browser',
+                    browserEndpoint: 'ws://headless-browser:3000',
+                    maxScreenshotRetries: 1,
+                },
+            });
+            const getUserCookie = vi.spyOn(
+                service as unknown as {
+                    getUserCookie: (userUuid: string) => Promise<string>;
+                },
+                'getUserCookie',
+            );
+            return { service, page, getUserCookie };
+        };
+
+        const exportArgs = {
+            projectUuid: PROJECT_UUID,
+            dashboardUuid: DASHBOARD_UUID,
+            embedToken: 'embed.jwt.token',
+            externalId: 'external::viewer',
+            selectedTabs: null,
+            dashboardFilters: null,
+            parameters: null,
+            dateZoomGranularity: 'Month',
+            gridWidth: null,
+            contextId: 'job-1',
+        };
+
+        it('renders the minimal embed page with the token only in the URL hash', async () => {
+            const { service, page, getUserCookie } = setup();
+
+            await expect(
+                service.exportEmbedDashboardPdf(exportArgs),
+            ).rejects.toThrow();
+
+            const navigatedUrl = new URL(page.goto.mock.calls[0][0]);
+            expect(navigatedUrl.pathname).toBe(`/embed/${PROJECT_UUID}`);
+            expect(navigatedUrl.searchParams.get('minimal')).toBe('true');
+            expect(navigatedUrl.searchParams.has('selectedTabs')).toBe(false);
+            expect(navigatedUrl.searchParams.get('dateZoom')).toBe('month');
+            expect(navigatedUrl.hash).toBe('#embed.jwt.token');
+            expect(getUserCookie).not.toHaveBeenCalled();
+            expect(page.pageContext.addCookies).not.toHaveBeenCalled();
+        });
+
+        it.each(['pdf', 'image'] as const)(
+            'initializes tile parameters for an embed %s',
+            async (format) => {
+                const { service, page } = setup();
+                const tileParameters = {
+                    'tile-1': {
+                        parameters: { region: 'US' },
+                        excludedParameterKeys: [],
+                    },
+                };
+                await expect(
+                    format === 'pdf'
+                        ? service.exportEmbedDashboardPdf({
+                              ...exportArgs,
+                              tileParameters,
+                          })
+                        : service.exportEmbedDashboardImage({
+                              ...exportArgs,
+                              tileParameters,
+                          }),
+                ).rejects.toThrow();
+                expect(page.addInitScript).toHaveBeenCalledWith(
+                    expect.any(Function),
+                    expect.objectContaining({
+                        [`dashboardExportTileParameters:${DASHBOARD_UUID}`]:
+                            tileParameters,
+                    }),
+                );
+            },
+        );
+
+        it('forwards an explicit tab selection to the page', async () => {
+            const { service, page } = setup();
+
+            await expect(
+                service.exportEmbedDashboardPdf({
+                    ...exportArgs,
+                    selectedTabs: ['tab-visible'],
+                }),
+            ).rejects.toThrow();
+
+            const navigatedUrl = new URL(page.goto.mock.calls[0][0]);
+            expect(navigatedUrl.searchParams.get('selectedTabs')).toBe(
+                JSON.stringify(['tab-visible']),
+            );
+        });
+
+        it('rejects hidden tabs', async () => {
+            const { service, page } = setup();
+
+            await expect(
+                service.exportEmbedDashboardPdf({
+                    ...exportArgs,
+                    selectedTabs: ['tab-hidden'],
+                }),
+            ).rejects.toThrow(ParameterError);
+            expect(page.goto).not.toHaveBeenCalled();
+        });
+
+        it('renders images through the same minimal embed page', async () => {
+            const { service, page, getUserCookie } = setup();
+
+            await expect(
+                service.exportEmbedDashboardImage(exportArgs),
+            ).rejects.toThrow();
+
+            const navigatedUrl = new URL(page.goto.mock.calls[0][0]);
+            expect(navigatedUrl.pathname).toBe(`/embed/${PROJECT_UUID}`);
+            expect(navigatedUrl.searchParams.get('minimal')).toBe('true');
+            expect(navigatedUrl.hash).toBe('#embed.jwt.token');
+            expect(getUserCookie).not.toHaveBeenCalled();
+        });
+
+        it('returns an expiring storage URL for images, not a preview link', async () => {
+            const { service } = setup();
+            vi.spyOn(
+                service as unknown as {
+                    renderEmbedDashboard: () => Promise<unknown>;
+                },
+                'renderEmbedDashboard',
+            ).mockResolvedValue({
+                dashboard,
+                imageId: 'embed-image_id',
+                result: { imageBuffer: Buffer.from('png-bytes') },
+            });
+            mockFileStorageClient.uploadImage.mockResolvedValue(
+                'https://storage.example/embed-image_id.png?X-Amz-Expires=259200',
+            );
+
+            await expect(
+                service.exportEmbedDashboardImage(exportArgs),
+            ).resolves.toBe(
+                'https://storage.example/embed-image_id.png?X-Amz-Expires=259200',
+            );
+            expect(mockFileStorageClient.uploadImage).toHaveBeenCalledWith(
+                Buffer.from('png-bytes'),
+                'embed-image_id',
+            );
+            expect(mockSlackUnfurlImageModel.create).not.toHaveBeenCalled();
+        });
+
+        it('rejects dashboards outside the token project', async () => {
+            const { service } = setup();
+
+            await expect(
+                service.exportEmbedDashboardPdf({
+                    ...exportArgs,
+                    projectUuid: '33333333-3333-4333-8333-333333333333',
+                }),
+            ).rejects.toThrow(ForbiddenError);
+        });
+    });
 
     describe('exportChart', () => {
         it('keeps legacy slug export compatible without a project', async () => {

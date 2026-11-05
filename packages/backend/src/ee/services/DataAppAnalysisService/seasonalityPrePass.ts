@@ -10,6 +10,11 @@ import {
  * day-grain row against the median of its own weekday (within the same
  * combination of the section's other dimensions) so the detect model
  * describes pre-computed deviations instead of eyeballing raw rows.
+ *
+ * Coverage is tracked explicitly (GLITCH-930): every present measurement is
+ * counted as assessed, skipped, or excluded, and the note and limitation are
+ * derived from those counts so partial assessment is never presented as a
+ * complete verdict.
  */
 
 export const SEASONALITY_COLUMN_HEADER = 'Seasonality';
@@ -33,19 +38,43 @@ const WEEKDAYS = [
     'Saturday',
 ] as const;
 
+/**
+ * Where every present measurement (row × metric; missing values excluded)
+ * ended up. Invariant: total = assessed + skippedInsufficientHistory +
+ * skippedZeroBaseline + excludedIncompleteToday.
+ */
+export type SeasonalityCoverage = {
+    total: number;
+    /** Scored against a computed weekday baseline. */
+    assessed: number;
+    /** In a weekday group with fewer than the minimum baseline samples. */
+    skippedInsufficientHistory: number;
+    /** In a weekday group whose median and MAD are both zero. */
+    skippedZeroBaseline: number;
+    /** On the run's own (incomplete) calendar day; never part of a baseline. */
+    excludedIncompleteToday: number;
+    /** Assessed measurements that broke their baseline. */
+    flagged: number;
+    /** Flagged deviations left unmarked by the marker cap. */
+    omittedByMarkerCap: number;
+};
+
 export type SeasonalityPrePass = {
     /** Extra CSV column with one marker cell per row; null when nothing is flagged. */
     annotations: { header: string; cells: (string | null)[] } | null;
-    /** Preamble line telling the model how to read (or trust) the pre-pass. */
+    /** Preamble line telling the model how far to trust the pre-pass. */
     note: string | null;
     /** Deterministic caveat to surface in the result's limitations. */
     limitation: string | null;
+    /** Null when the pre-pass does not apply to the section at all. */
+    coverage: SeasonalityCoverage | null;
 };
 
 const NO_PRE_PASS: SeasonalityPrePass = {
     annotations: null,
     note: null,
     limitation: null,
+    coverage: null,
 };
 
 /** The one day-grain date dimension the weekly treatment keys on, or null. */
@@ -107,12 +136,119 @@ type Flag = {
     text: string;
 };
 
+const plural = (count: number, noun: string): string =>
+    `${count} ${noun}${count === 1 ? '' : 's'}`;
+
+/** Skip reasons in note order; `forUsers` leaves out the routine today-exclusion. */
+const describeSkips = (
+    coverage: SeasonalityCoverage,
+    forUsers: boolean,
+): string[] => {
+    const parts: string[] = [];
+    if (coverage.skippedInsufficientHistory > 0) {
+        parts.push(
+            `${plural(
+                coverage.skippedInsufficientHistory,
+                'measurement',
+            )} with fewer than ${MIN_SAMPLES_PER_WEEKDAY} same-weekday samples`,
+        );
+    }
+    if (coverage.skippedZeroBaseline > 0) {
+        parts.push(
+            `${plural(
+                coverage.skippedZeroBaseline,
+                'measurement',
+            )} against a zero baseline (zero median and zero MAD)`,
+        );
+    }
+    if (!forUsers && coverage.excludedIncompleteToday > 0) {
+        parts.push(
+            `${plural(
+                coverage.excludedIncompleteToday,
+                'measurement',
+            )} on today's incomplete day`,
+        );
+    }
+    return parts;
+};
+
+const buildNote = (
+    coverage: SeasonalityCoverage,
+    hasMarkers: boolean,
+): string => {
+    const parts: string[] = [
+        hasMarkers
+            ? `Seasonality: the "${SEASONALITY_COLUMN_HEADER}" column holds deterministically pre-computed deviations from each row's own weekday baseline (median of the same weekday).`
+            : `Seasonality: weekday baselines ${
+                  coverage.assessed === 0
+                      ? 'could not be computed for this section'
+                      : 'were computed deterministically'
+              }.`,
+    ];
+    const skips = describeSkips(coverage, false);
+    const fullyCovered = coverage.assessed === coverage.total;
+    if (fullyCovered && coverage.omittedByMarkerCap === 0) {
+        parts.push(
+            coverage.flagged === 0
+                ? `All ${coverage.total} measurements were assessed; no row breaks its own weekday baseline.`
+                : `All ${coverage.total} measurements were assessed; rows without a marker are within their normal weekly pattern.`,
+        );
+        return parts.join(' ');
+    }
+    if (!fullyCovered) {
+        parts.push(
+            `${coverage.assessed} of ${
+                coverage.total
+            } measurements were assessed; not assessed: ${skips.join(', ')}.`,
+        );
+    }
+    if (coverage.omittedByMarkerCap > 0) {
+        parts.push(
+            `Only the ${MAX_MARKERS} strongest deviations are marked; ${plural(
+                coverage.omittedByMarkerCap,
+                'further flagged deviation',
+            )} ${coverage.omittedByMarkerCap === 1 ? 'is' : 'are'} unmarked.`,
+        );
+    }
+    parts.push(
+        'Absence of a marker does not establish that a row is within its normal weekly pattern; treat unassessed and unmarked rows as unverified, not as normal and not as anomalous.',
+    );
+    return parts.join(' ');
+};
+
+const buildLimitation = (coverage: SeasonalityCoverage): string | null => {
+    const parts: string[] = [];
+    const skips = describeSkips(coverage, true);
+    if (skips.length > 0) {
+        parts.push(
+            coverage.assessed === 0
+                ? `Weekly seasonality was not assessed: ${skips.join(', ')}.`
+                : `Weekly-seasonality assessment covered ${
+                      coverage.assessed
+                  } of ${
+                      coverage.total - coverage.excludedIncompleteToday
+                  } measurements; not assessed: ${skips.join(', ')}.`,
+        );
+    }
+    if (coverage.omittedByMarkerCap > 0) {
+        parts.push(
+            `${plural(
+                coverage.omittedByMarkerCap,
+                'weekly-seasonality deviation',
+            )} beyond the ${MAX_MARKERS}-marker cap ${
+                coverage.omittedByMarkerCap === 1 ? 'is' : 'are'
+            } not marked.`,
+        );
+    }
+    return parts.length > 0 ? parts.join(' ') : null;
+};
+
 /**
  * Pure: same rows and `todayUtc` always produce the same markers, so the
  * annotated content hashes stay stable within a day.
  *
  * @param todayUtc the run's UTC calendar day (YYYY-MM-DD); rows on that day
- * are a trailing incomplete period and are never flagged.
+ * are a trailing incomplete period, excluded from baselines and never flagged.
  */
 export const seasonalityPrePass = (
     rows: Record<string, unknown>[],
@@ -125,6 +261,9 @@ export const seasonalityPrePass = (
 
     const dates = rows.map((row) => parseUtcDate(row[dateFieldId]));
     if (dates.some((date) => date === null)) return NO_PRE_PASS;
+    const isToday = dates.map(
+        (date) => (date as Date).toISOString().slice(0, 10) === todayUtc,
+    );
 
     const metricIds = fieldIds.filter((fieldId) => {
         const item = fields[fieldId];
@@ -160,14 +299,19 @@ export const seasonalityPrePass = (
         groups.set(key, [...(groups.get(key) ?? []), rowIndex]);
     });
 
+    const coverage: SeasonalityCoverage = {
+        total: 0,
+        assessed: 0,
+        skippedInsufficientHistory: 0,
+        skippedZeroBaseline: 0,
+        excludedIncompleteToday: 0,
+        flagged: 0,
+        omittedByMarkerCap: 0,
+    };
     const flags: Flag[] = [];
-    let hadAssessableGroup = false;
-    let skippedZeroBaseline = false;
     groups.forEach((rowIndexes) => {
-        if (rowIndexes.length < MIN_SAMPLES_PER_WEEKDAY) return;
-        hadAssessableGroup = true;
         metricIds.forEach((fieldId) => {
-            const samples = rowIndexes
+            const present = rowIndexes
                 .filter((rowIndex) => {
                     const value = rows[rowIndex][fieldId];
                     return (
@@ -179,7 +323,17 @@ export const seasonalityPrePass = (
                     value: Number(rows[rowIndex][fieldId]),
                 }))
                 .filter((sample) => Number.isFinite(sample.value));
-            if (samples.length < MIN_SAMPLES_PER_WEEKDAY) return;
+            coverage.total += present.length;
+            // Today is a trailing incomplete period: no baseline membership,
+            // no sample-count contribution, no flagging.
+            const samples = present.filter(
+                ({ rowIndex }) => !isToday[rowIndex],
+            );
+            coverage.excludedIncompleteToday += present.length - samples.length;
+            if (samples.length < MIN_SAMPLES_PER_WEEKDAY) {
+                coverage.skippedInsufficientHistory += samples.length;
+                return;
+            }
             const values = samples.map((s) => s.value).sort((a, b) => a - b);
             const groupMedian = median(values);
             const mad = median(
@@ -189,12 +343,11 @@ export const seasonalityPrePass = (
             );
             // Relative deviations have no meaningful scale for this baseline.
             if (groupMedian === 0 && mad === 0) {
-                skippedZeroBaseline = true;
+                coverage.skippedZeroBaseline += samples.length;
                 return;
             }
+            coverage.assessed += samples.length;
             samples.forEach(({ rowIndex, value }) => {
-                const date = dates[rowIndex] as Date;
-                if (date.toISOString().slice(0, 10) === todayUtc) return;
                 const diff = Math.abs(value - groupMedian);
                 const relative = diff / Math.max(Math.abs(groupMedian), 1e-9);
                 const flagged =
@@ -210,33 +363,19 @@ export const seasonalityPrePass = (
                     text: describeDeviation(
                         value,
                         groupMedian,
-                        WEEKDAYS[date.getUTCDay()],
+                        WEEKDAYS[(dates[rowIndex] as Date).getUTCDay()],
                     ),
                 });
             });
         });
     });
 
-    if (!hadAssessableGroup) {
-        return {
-            annotations: null,
-            note: null,
-            limitation: `Too little history to assess weekly seasonality (needs at least ${MIN_SAMPLES_PER_WEEKDAY} of each weekday)`,
-        };
-    }
-    const limitation = skippedZeroBaseline
-        ? 'Weekday groups with zero median and zero MAD were not assessed for anomalies; relative deviations from these baselines are undefined.'
-        : null;
-    if (flags.length === 0) {
-        return {
-            annotations: null,
-            note: limitation
-                ? `Seasonality: no deviations were flagged in assessed weekday groups. ${limitation}`
-                : 'Seasonality: weekday baselines were computed deterministically; no row breaks its own weekday baseline.',
-            limitation,
-        };
-    }
+    coverage.flagged = flags.length;
+    coverage.omittedByMarkerCap = Math.max(0, flags.length - MAX_MARKERS);
 
+    // Even at zero coverage the section keeps its note: the pre-pass owns
+    // daily-row judgement wherever it applies, so the model never falls back
+    // to flagging unassessed rows itself (the conservative skip).
     const kept = [...flags]
         .sort((a, b) => b.score - a.score)
         .slice(0, MAX_MARKERS);
@@ -247,12 +386,12 @@ export const seasonalityPrePass = (
             cells[rowIndex] === null ? marker : `${cells[rowIndex]}; ${marker}`;
     });
     return {
-        annotations: { header: SEASONALITY_COLUMN_HEADER, cells },
-        note: `Seasonality: the "${SEASONALITY_COLUMN_HEADER}" column holds deterministically pre-computed deviations from each row's own weekday baseline (median of the same weekday). ${
-            limitation
-                ? `${limitation} Absence of a marker does not establish that a row is within its normal weekly pattern.`
-                : 'Rows without a marker are within their normal weekly pattern.'
-        }`,
-        limitation,
+        annotations:
+            kept.length > 0
+                ? { header: SEASONALITY_COLUMN_HEADER, cells }
+                : null,
+        note: buildNote(coverage, kept.length > 0),
+        limitation: buildLimitation(coverage),
+        coverage,
     };
 };

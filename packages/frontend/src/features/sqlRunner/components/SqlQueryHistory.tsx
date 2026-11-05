@@ -81,10 +81,7 @@ const SqlQueryHistoryItem: FC<Props> = ({ timestamp, sql }) => {
                             fz="xs"
                             fw={500}
                             mb="xs"
-                            style={{
-                                borderBottom:
-                                    '1px solid var(--mantine-color-ldGray-3)',
-                            }}
+                            className={styles.historyTimestamp}
                         >
                             {timeAgo}
                         </Text>

@@ -15,7 +15,7 @@
  */
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createAzure } from '@ai-sdk/azure';
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { createGoogle } from '@ai-sdk/google';
 import { createOpenAI } from '@ai-sdk/openai';
 import { generateObject, generateText, Output } from 'ai';
 import { z } from 'zod';
@@ -121,7 +121,7 @@ const run = async (label: string, provider: Provider) => {
                     'claude-haiku-4-5-20251001',
                 );
             case 'google':
-                return createGoogleGenerativeAI({
+                return createGoogle({
                     apiKey: 'd',
                     fetch: fetchImpl,
                 })('gemini-2.5-flash');

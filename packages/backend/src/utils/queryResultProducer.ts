@@ -9,6 +9,7 @@ import {
     DucklakeCatalogType,
     DucklakeDataPathType,
     getAgentConnectionGrantRef,
+    getBigqueryWorkloadIdentityTokenAudience,
     getIntrinsicUserAttributeRegex,
     getParsedReference,
     getReferencedDimension,
@@ -16,6 +17,7 @@ import {
     getUserAttributeRegex,
     lightdashVariablePattern,
     parameterRegex,
+    usesBigqueryWorkloadIdentity,
     WarehouseTypes,
     type AgentConnectionExecution,
     type AgentIdentityClaim,
@@ -317,6 +319,7 @@ export const getSqlResultEntitlementFingerprintForms = (
                                 'resultEntitlementFingerprint',
                                 'resultSource',
                                 'resultArtifact',
+                                'resultMessageQuery',
                                 'resultResearchRunUuid',
                                 'queryUsage',
                                 'aiSignInCredentialUuid',
@@ -388,6 +391,17 @@ export const getWarehouseIdentityFingerprint = (
                     credentials.authenticationType ?? 'password',
                 ];
             case WarehouseTypes.BIGQUERY:
+                if (usesBigqueryWorkloadIdentity(credentials)) {
+                    return [
+                        credentials.project,
+                        credentials.executionProject ?? null,
+                        credentials.dataset,
+                        credentials.location ?? null,
+                        credentials.authenticationType,
+                        credentials.workloadIdentityProvider ?? null,
+                        getBigqueryWorkloadIdentityTokenAudience(credentials),
+                    ];
+                }
                 if (
                     !credentials.keyfileContents?.client_email &&
                     (!credentials.keyfileContents?.client_id ||

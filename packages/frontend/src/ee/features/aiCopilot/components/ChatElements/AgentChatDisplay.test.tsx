@@ -91,6 +91,7 @@ const getAssistantMessage = (
     tokenUsage: null,
     responseTiming: null,
     jevDecision: null,
+    loadout: null,
 });
 
 const followUpUserMessage: AiAgentMessageUser = {

@@ -102,7 +102,7 @@ const WelcomeCard: FC<WelcomeCardProps> = ({
                     {content}
                 </Card>
             )}
-            <Text c="ldGray.7" ta={textAlign} fz="sm" fw={500}>
+            <Text c="dimmed" ta={textAlign} fz="sm" fw={500}>
                 {`Not ${email ? email : 'for you'}?`}
                 <br />
                 <Text c="dimmed" ta={textAlign} fz="xs" fw={500}>
@@ -119,7 +119,7 @@ const ErrorCard: FC<{ title: string }> = ({ title }) => {
     const content = (
         <Stack gap="md" align={isNewLayout ? 'stretch' : 'center'}>
             <Title order={3}>{title}</Title>
-            <Text c="ldGray.7" ta={isNewLayout ? 'left' : 'center'}>
+            <Text c="dimmed" ta={isNewLayout ? 'left' : 'center'}>
                 Please check with the person who shared it with you to see if
                 there’s a new link available.
             </Text>
@@ -348,7 +348,7 @@ const Invite: FC = () => {
                     my="md"
                     labelPosition="center"
                     label={
-                        <Text c="ldGray.5" size="sm" fw={500}>
+                        <Text c="dimmed" size="sm" fw={500}>
                             OR
                         </Text>
                     }
@@ -407,7 +407,7 @@ const Invite: FC = () => {
                                 my="md"
                                 labelPosition="center"
                                 label={
-                                    <Text c="ldGray.5" size="sm" fw={500}>
+                                    <Text c="dimmed" size="sm" fw={500}>
                                         OR
                                     </Text>
                                 }

@@ -7,6 +7,7 @@ import {
     ForbiddenError,
     getCustomSqlFieldKey,
     LIGHTDASH_APP_PREVIEW_TOKEN_MAX_AGE_SECONDS,
+    NotFoundError,
     ParameterError,
     TooManyRequestsError,
     type DataAppCode,
@@ -22,6 +23,7 @@ import { mintPreviewToken } from '../../../routers/appPreviewToken';
 import { buildAppThumbnailClientMock } from '../../clients/AppThumbnailClient.mock';
 import { MockSandbox } from '../SandboxRuntime/SandboxRuntime.mock';
 import { AppGenerateService } from './AppGenerateService';
+import { featureFlagModelWith } from './AppGenerateService.mock';
 import { ZERO_CLAUDE_USAGE } from './ClaudeStreamProcessor';
 import {
     TEMPLATE_DEPENDENCIES,
@@ -155,6 +157,8 @@ function buildService(
     opts: {
         customDependenciesOrgEnabled?: boolean;
         canManageDataAppDependencies?: boolean;
+        dataAppsEnabled?: boolean;
+        chartStudioAvailable?: boolean;
     } = {},
 ) {
     const appModel = {
@@ -190,18 +194,11 @@ function buildService(
         appBuildFromSource: vi.fn().mockResolvedValue({ jobId: 'job-1' }),
     };
 
-    const featureFlagModel = {
-        get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => {
-            if (
-                featureFlagId === FeatureFlags.EnableDataAppCustomDependencies
-            ) {
-                return {
-                    enabled: opts.customDependenciesOrgEnabled ?? true,
-                };
-            }
-            return { enabled: true };
-        }),
-    };
+    const featureFlagModel = featureFlagModelWith({
+        [FeatureFlags.EnableDataAppCustomDependencies]:
+            opts.customDependenciesOrgEnabled ?? true,
+        [FeatureFlags.EnableDataApps]: opts.dataAppsEnabled ?? true,
+    });
 
     const projectModel = {
         getSummary: vi.fn().mockResolvedValue({
@@ -212,6 +209,11 @@ function buildService(
 
     const spacePermissionService = {
         resolveAccess: vi.fn().mockResolvedValue({}),
+        can: vi.fn().mockResolvedValue(true),
+    };
+
+    const spaceModel = {
+        getSpaceSummary: vi.fn(),
     };
 
     const lightdashConfig = {
@@ -250,7 +252,7 @@ function buildService(
         pinnedListModel: {} as never,
         projectModel: projectModel as never,
         projectParametersModel: {} as never,
-        spaceModel: {} as never,
+        spaceModel: spaceModel as never,
         savedChartModel: {} as never,
         schedulerClient: schedulerClient as never,
         savedChartService: {} as never,
@@ -273,6 +275,9 @@ function buildService(
             unverify: async () => undefined,
         } as never,
     });
+    vi.spyOn(service, 'isChartStudioAvailable').mockReturnValue(
+        opts.chartStudioAvailable ?? true,
+    );
 
     // Stub ability checks to allow everything
     vi.spyOn(
@@ -315,6 +320,8 @@ function buildService(
         analytics,
         externalConnectionModel,
         coderService,
+        spaceModel,
+        spacePermissionService,
     };
 }
 
@@ -555,6 +562,7 @@ describe('AppGenerateService.importAppCode', () => {
                     partiallyResolved: 0,
                     unresolved: 0,
                 },
+                usesAiAnalysis: false,
             },
         );
     });
@@ -856,6 +864,81 @@ describe('AppGenerateService.importAppCode', () => {
         expect(appModel.moveToSpace).not.toHaveBeenCalled();
     });
 
+    describe('UUID-shaped manifest spaceSlug', () => {
+        const SPACE_UUID = '4c2874fc-eda2-457c-828d-a81038748d46';
+
+        it('rejects instead of creating a space, and names the real path to a viewer', async () => {
+            const { service, appModel, coderService, spaceModel } =
+                buildService();
+            appModel.findApp.mockResolvedValue(undefined);
+            spaceModel.getSpaceSummary.mockResolvedValue({
+                uuid: SPACE_UUID,
+                path: 'finance.monthly_reports',
+            });
+
+            const result = service.importAppCode(makeUser(), PROJECT_UUID, {
+                code: makeCode(undefined, { spaceSlug: SPACE_UUID }),
+            } as ImportAppCodeRequestBody);
+
+            await expect(result).rejects.toThrow(ParameterError);
+            await expect(result).rejects.toThrow(
+                'Use spaceSlug: finance/monthly-reports',
+            );
+            expect(spaceModel.getSpaceSummary).toHaveBeenCalledWith(
+                SPACE_UUID,
+                { projectUuid: PROJECT_UUID },
+            );
+            expect(coderService.getOrCreateSpace).not.toHaveBeenCalled();
+            expect(appModel.createWithVersion).not.toHaveBeenCalled();
+        });
+
+        it('does not reveal the path to someone who cannot view the space', async () => {
+            const {
+                service,
+                appModel,
+                coderService,
+                spaceModel,
+                spacePermissionService,
+            } = buildService();
+            appModel.findApp.mockResolvedValue({
+                ...makeExistingApp(),
+                space_uuid: 'old-space-uuid',
+            });
+            spaceModel.getSpaceSummary.mockResolvedValue({
+                uuid: SPACE_UUID,
+                path: 'finance.monthly_reports',
+            });
+            spacePermissionService.can.mockResolvedValue(false);
+
+            const result = service.importAppCode(makeUser(), PROJECT_UUID, {
+                code: makeCode(undefined, { spaceSlug: SPACE_UUID }),
+                targetAppUuid: EXISTING_APP_UUID,
+            } as ImportAppCodeRequestBody);
+
+            await expect(result).rejects.toThrow(
+                'expects a space path like "parent/child"',
+            );
+            await expect(result).rejects.not.toThrow('finance');
+            expect(coderService.getOrCreateSpace).not.toHaveBeenCalled();
+            expect(appModel.moveToSpace).not.toHaveBeenCalled();
+            expect(appModel.createVersion).not.toHaveBeenCalled();
+        });
+
+        it('rejects with the generic message when the UUID is not a space in this project', async () => {
+            const { service, appModel, spaceModel } = buildService();
+            appModel.findApp.mockResolvedValue(undefined);
+            spaceModel.getSpaceSummary.mockRejectedValue(
+                new NotFoundError('missing'),
+            );
+
+            await expect(
+                service.importAppCode(makeUser(), PROJECT_UUID, {
+                    code: makeCode(undefined, { spaceSlug: SPACE_UUID }),
+                } as ImportAppCodeRequestBody),
+            ).rejects.toThrow('expects a space path like "parent/child"');
+        });
+    });
+
     it('create mode: a custom chart type is created spaceless and warns when a space was requested', async () => {
         const { service, appModel, coderService } = buildService();
         appModel.findApp.mockResolvedValue(undefined);
@@ -922,6 +1005,90 @@ describe('AppGenerateService.importAppCode', () => {
                 ),
             ]),
         );
+    });
+
+    describe('the app gate with data apps off', () => {
+        const chartTypeCode = () =>
+            makeCode(undefined, {
+                template: 'data_app_viz',
+                vizSchema: VIZ_SCHEMA,
+            });
+
+        it('imports a chart type manifest while Chart Studio is available', async () => {
+            const { service, appModel } = buildService({
+                dataAppsEnabled: false,
+            });
+            appModel.findApp.mockResolvedValue(undefined);
+
+            await service.importAppCode(makeUser(), PROJECT_UUID, {
+                code: chartTypeCode(),
+            } as ImportAppCodeRequestBody);
+
+            expect(appModel.createWithVersion).toHaveBeenCalledWith(
+                expect.objectContaining({ template: 'data_app_viz' }),
+                expect.anything(),
+                'pending',
+                expect.any(Object),
+                undefined,
+                expect.anything(),
+                expect.anything(),
+            );
+        });
+
+        it('refuses a chart type manifest when Chart Studio is not available', async () => {
+            const { service, appModel } = buildService({
+                dataAppsEnabled: false,
+                chartStudioAvailable: false,
+            });
+            appModel.findApp.mockResolvedValue(undefined);
+
+            await expect(
+                service.importAppCode(makeUser(), PROJECT_UUID, {
+                    code: chartTypeCode(),
+                } as ImportAppCodeRequestBody),
+            ).rejects.toThrow(
+                new ForbiddenError('Chart Studio is not available'),
+            );
+            expect(appModel.createWithVersion).not.toHaveBeenCalled();
+        });
+
+        it('refuses a data app manifest', async () => {
+            const { service, appModel } = buildService({
+                dataAppsEnabled: false,
+            });
+            appModel.findApp.mockResolvedValue(undefined);
+
+            await expect(
+                service.importAppCode(makeUser(), PROJECT_UUID, {
+                    code: makeCode(),
+                } as ImportAppCodeRequestBody),
+            ).rejects.toThrow(new ForbiddenError('Data apps are not enabled'));
+            expect(appModel.createWithVersion).not.toHaveBeenCalled();
+        });
+    });
+
+    it('refuses a chart type manifest that targets an existing data app while data apps are off', async () => {
+        const { service, appModel, schedulerClient } = buildService({
+            dataAppsEnabled: false,
+        });
+        appModel.findAppBySlug.mockResolvedValue({
+            ...makeExistingApp(),
+            template: null,
+        });
+        appModel.getLatestVersion.mockResolvedValue({ version: 4 });
+
+        await expect(
+            service.importAppCode(makeUser(), PROJECT_UUID, {
+                code: makeCode(undefined, {
+                    slug: EXISTING_APP_SLUG,
+                    template: 'data_app_viz',
+                    vizSchema: VIZ_SCHEMA,
+                }),
+            } as ImportAppCodeRequestBody),
+        ).rejects.toThrow(new ForbiddenError('Data apps are not enabled'));
+
+        expect(appModel.createVersion).not.toHaveBeenCalled();
+        expect(schedulerClient.appBuildFromSource).not.toHaveBeenCalled();
     });
 
     it('throws ParameterError when targetAppUuid is given but app is not found', async () => {
@@ -1675,6 +1842,42 @@ describe('AppGenerateService.getVersionDataReferences', () => {
 
         expect(first).toEqual(second);
         expect(s3SendSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+        [
+            'detects AI-analysis usage in the refreshed source',
+            `
+                import { useInsights } from '@lightdash/query-sdk';
+                export const Page = () => { useInsights(); return null; };
+            `,
+            true,
+        ],
+        [
+            'reports no AI-analysis usage for a plain app',
+            `
+                import { query } from '@lightdash/query-sdk';
+                query('orders').dimensions(['order_date']);
+            `,
+            false,
+        ],
+    ])('%s', async (_name, source, expected) => {
+        const { service, appModel } = buildService();
+        appModel.getVersion.mockResolvedValue({
+            status: 'ready',
+            data_references: null,
+        });
+        const sourceTar = await makeSingleSourceTar(source);
+        s3SendSpy.mockResolvedValue({ Body: Readable.from([sourceTar]) });
+
+        const result = await service.getVersionDataReferences(NEW_APP_UUID, 2);
+
+        expect(result?.usesAiAnalysis).toBe(expected);
+        expect(appModel.updateVersionDataReferences).toHaveBeenCalledWith(
+            NEW_APP_UUID,
+            2,
+            expect.objectContaining({ usesAiAnalysis: expected }),
+        );
     });
 });
 

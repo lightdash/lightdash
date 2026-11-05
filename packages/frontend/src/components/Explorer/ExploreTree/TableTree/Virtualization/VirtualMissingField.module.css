@@ -5,3 +5,7 @@
 .rowIcon {
     flex-shrink: 0;
 }
+
+.tooltipLabel {
+    word-break: break-all;
+}

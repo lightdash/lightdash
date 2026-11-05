@@ -306,7 +306,6 @@ const ViewSqlChart = () => {
                                                     error={
                                                         chartResultsError?.error
                                                     }
-                                                    style={{ height: '100%' }}
                                                     onChartReady={
                                                         setEchartsInstance
                                                     }

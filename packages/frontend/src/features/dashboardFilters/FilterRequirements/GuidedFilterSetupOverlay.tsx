@@ -8,6 +8,7 @@ import useDashboardContext from '../../../providers/Dashboard/useDashboardContex
 import {
     selectDashboardFilters,
     useDashboardSelector,
+    useRequiredFiltersNote,
 } from '../../dashboard/store';
 import { useIsLockedDashboardFilterRule } from '../useIsLockedDashboardFilterRule';
 import GuidedFilterSetup, {
@@ -37,9 +38,7 @@ const GuidedFilterSetupOverlay: FC<Props> = ({
     const isLoadingDashboardFilters = useDashboardContext(
         (c) => c.isLoadingDashboardFilters,
     );
-    const requiredFiltersNote = useDashboardContext(
-        (c) => c.requiredFiltersNote,
-    );
+    const requiredFiltersNote = useRequiredFiltersNote();
     const dashboardFilters = useDashboardSelector(selectDashboardFilters);
     const isLocked = useIsLockedDashboardFilterRule();
 

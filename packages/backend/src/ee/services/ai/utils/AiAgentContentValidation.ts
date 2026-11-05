@@ -8,7 +8,7 @@ import {
 } from '@lightdash/common';
 import Ajv, { type ErrorObject, type ValidateFunction } from 'ajv';
 import addFormats from 'ajv-formats';
-import { compact, get, set, uniq } from 'lodash';
+import { compact, get, set, uniq } from 'es-toolkit/compat';
 
 export type AiAgentValidatedContentType = 'dashboard' | 'chart' | 'sql_chart';
 

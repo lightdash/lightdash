@@ -1,10 +1,16 @@
 import {
     ChartType,
+    DimensionType,
+    FieldType,
     FilterOperator,
+    MetricType,
+    SupportedDbtAdapter,
+    type Explore,
     type SemanticChartAsCode,
 } from '@lightdash/common';
 import {
     buildDocumentChartEditorState,
+    getDefaultDocumentChartName,
     getDocumentChartFromVersion,
     getDocumentChartVersion,
 } from './documentChartEditor';
@@ -98,4 +104,100 @@ it('round-trips a custom chart type binding through the chart editor', () => {
     expect(
         getDocumentChartFromVersion(version, 'Custom', '').chartConfig,
     ).toEqual({ type: ChartType.DATA_APP_VIZ, config: binding });
+});
+
+describe('getDefaultDocumentChartName', () => {
+    const field = {
+        table: 'orders',
+        tableLabel: 'Orders',
+        sql: '',
+        compiledSql: '',
+        tablesReferences: [],
+    };
+    const explore: Explore = {
+        name: 'orders',
+        label: 'Orders',
+        tags: [],
+        baseTable: 'orders',
+        joinedTables: [],
+        tables: {
+            orders: {
+                name: 'orders',
+                label: 'Orders',
+                database: '',
+                schema: '',
+                sqlTable: 'orders',
+                dimensions: {
+                    date: {
+                        ...field,
+                        fieldType: FieldType.DIMENSION,
+                        type: DimensionType.DATE,
+                        name: 'date',
+                        label: 'Order date',
+                        hidden: false,
+                    },
+                },
+                metrics: {
+                    count: {
+                        ...field,
+                        fieldType: FieldType.METRIC,
+                        type: MetricType.COUNT,
+                        name: 'count',
+                        label: 'Order count',
+                        hidden: false,
+                    },
+                },
+                lineageGraph: {},
+            },
+        },
+        targetDatabase: SupportedDbtAdapter.POSTGRES,
+    };
+    const withFields = (metrics: string[], dimensions: string[]) => {
+        const version = getDocumentChartVersion(chart);
+        return {
+            ...version,
+            metricQuery: {
+                ...version.metricQuery,
+                metrics,
+                dimensions,
+                tableCalculations: [],
+            },
+        };
+    };
+
+    it('names the chart after its first metric by its first dimension', () => {
+        expect(
+            getDefaultDocumentChartName(
+                withFields(['orders_count'], ['orders_date']),
+                explore,
+            ),
+        ).toBe('Order count by Order date');
+    });
+
+    it('uses the only selected field when the other kind is missing', () => {
+        expect(
+            getDefaultDocumentChartName(
+                withFields(['orders_count'], []),
+                explore,
+            ),
+        ).toBe('Order count');
+        expect(
+            getDefaultDocumentChartName(
+                withFields([], ['orders_date']),
+                explore,
+            ),
+        ).toBe('Order date');
+    });
+
+    it('falls back to the table, then a generic name', () => {
+        expect(getDefaultDocumentChartName(withFields([], []), explore)).toBe(
+            'Orders',
+        );
+        expect(
+            getDefaultDocumentChartName(
+                withFields(['orders_count'], ['orders_date']),
+                null,
+            ),
+        ).toBe('Untitled chart');
+    });
 });

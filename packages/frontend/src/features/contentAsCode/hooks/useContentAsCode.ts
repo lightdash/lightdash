@@ -1,7 +1,7 @@
 import { type ApiError } from '@lightdash/common';
 import { useQuery, type QueryKey } from '@tanstack/react-query';
+import { omit } from 'es-toolkit/compat';
 import * as yaml from 'js-yaml';
-import omit from 'lodash/omit';
 import { useMemo } from 'react';
 
 const NO_FIELDS_TO_OMIT: string[] = [];

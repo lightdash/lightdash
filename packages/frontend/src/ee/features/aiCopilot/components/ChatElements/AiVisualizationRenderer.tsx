@@ -283,6 +283,7 @@ export const AiVisualizationRenderer: FC<Props> = ({
             tableName={tableName}
             explore={explore}
             queryUuid={vizQueryData.query.queryUuid}
+            parameters={vizQueryData.query.usedParametersValues}
             resolvedTimezone={resolvedTimezone}
         >
             <VisualizationProvider
@@ -304,17 +305,7 @@ export const AiVisualizationRenderer: FC<Props> = ({
                 onChartConfigChange={handleChartConfigChange}
                 unsavedMetricQuery={metricQuery}
             >
-                <Stack
-                    gap="md"
-                    h="100%"
-                    w="100%"
-                    maw="100%"
-                    style={{
-                        minHeight: 0,
-                        minWidth: 0,
-                        overflow: 'hidden',
-                    }}
-                >
+                <Stack gap="md" className={styles.vizStack}>
                     {headerContent}
                     {!isCustomChartTypeAnswer && onChartTypeChange && (
                         <Group justify="flex-end">
@@ -332,16 +323,10 @@ export const AiVisualizationRenderer: FC<Props> = ({
                         </Group>
                     )}
                     <Box
-                        flex="1"
-                        mih={0}
-                        miw={0}
-                        w="100%"
-                        maw="100%"
-                        className={clsx(flush && styles.flushViz)}
-                        style={{
-                            // Scrolling for tables
-                            overflow: 'auto',
-                        }}
+                        className={clsx(
+                            styles.vizBody,
+                            flush && styles.flushViz,
+                        )}
                     >
                         <LightdashVisualization
                             className="sentry-block ph-no-capture"
@@ -398,12 +383,7 @@ export const AiVisualizationRenderer: FC<Props> = ({
                                     onClick={() =>
                                         setDetailsExpanded((value) => !value)
                                     }
-                                    styles={{
-                                        root: {
-                                            flexShrink: 0,
-                                            border: 'none',
-                                        },
-                                    }}
+                                    className={styles.detailsToggle}
                                 >
                                     {[
                                         fieldsCount > 0

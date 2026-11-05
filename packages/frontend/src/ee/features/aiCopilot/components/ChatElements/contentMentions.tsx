@@ -12,7 +12,7 @@ import {
     type GitRepo,
     type SummaryContent,
 } from '@lightdash/common';
-import { Badge, Group, Text } from '@mantine/core';
+import { Group, Text } from '@mantine/core';
 import {
     IconBrandGithub,
     IconBrandGitlab,
@@ -115,10 +115,6 @@ export type RepositoryMentionSuggestionItem = SuggestionItem & {
     fullName: string;
     ownerLogin: string;
     provider?: 'github' | 'gitlab';
-    // Whether the coding agent can WRITE this repo (open a PR). When false the
-    // repo is still mentionable for read (exploreRepo), so we badge it
-    // "Read-only" rather than hide it — see the suggestion render.
-    writable?: boolean;
     group: typeof REPOSITORY_MENTION_GROUP;
 };
 
@@ -245,7 +241,6 @@ const getRepositorySuggestions = async (
         fullName: repo.fullName,
         ownerLogin: repo.ownerLogin,
         provider: repo.provider,
-        writable: repo.writable,
         group: REPOSITORY_MENTION_GROUP,
     }));
 };
@@ -616,17 +611,6 @@ const renderRepositoryMentionItem = (
                         {item.ownerLogin}
                     </Text>
                 </div>
-                {item.writable === false && (
-                    // Still mentionable for read (exploreRepo); the badge signals
-                    // the coding agent can't open a PR against it.
-                    <Badge
-                        ml="auto"
-                        size="xs"
-                        title="The coding agent can't open a pull request on this repository"
-                    >
-                        Read-only
-                    </Badge>
-                )}
             </Group>
         </PolymorphicGroupButton>
     );
@@ -668,7 +652,7 @@ const renderContentMentionItem = (
                             fz="xs"
                             fw={500}
                             inline
-                            style={{ flex: 1, minWidth: 0 }}
+                            className={styles.contentMentionSuggestionName}
                         >
                             {item.label}
                         </TruncatedText>

@@ -311,15 +311,4 @@ describe('Document history page', () => {
             ),
         );
     });
-
-    test('fails closed when the feature flag is off', async () => {
-        mocks.flag = {
-            data: { enabled: false },
-            isInitialLoading: false,
-            isError: false,
-        };
-        renderPage();
-        expect(await screen.findByText('Project home')).toBeInTheDocument();
-        expect(mockedLightdashApi).not.toHaveBeenCalled();
-    });
 });

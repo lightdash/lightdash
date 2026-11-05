@@ -1,10 +1,16 @@
 import { ChartType } from '@lightdash/common';
 import { act, cleanup, render, waitFor } from '@testing-library/react';
-import { createRef, type ContextType } from 'react';
+import { createRef } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import MantineProvider from '../../providers/MantineProvider';
 import { type EChartsReact } from '../EChartsReactWrapper';
-import VisualizationContext from '../LightdashVisualization/context';
+import {
+    ConfigContext,
+    LayoutContext,
+    ServicesContext,
+    StateContext,
+    type VisualizationContextValue,
+} from '../LightdashVisualization/context';
 import { type VisualizationConfigTreemap } from '../LightdashVisualization/types';
 import SimpleTreemap from './index';
 
@@ -37,6 +43,13 @@ const makeContext = () => {
         selectedColorMetric: undefined,
         colorMetricChange: vi.fn(),
         useDynamicColors: false,
+        toggleDynamicColors: vi.fn(),
+        startColor: '#000000',
+        endColor: '#ffffff',
+        onStartColorChange: vi.fn(),
+        onEndColorChange: vi.fn(),
+        startColorThreshold: undefined,
+        endColorThreshold: undefined,
         setStartColorThreshold: vi.fn(),
         setEndColorThreshold: vi.fn(),
         visibleMin: 0,
@@ -53,6 +66,12 @@ const makeContext = () => {
         chartRef: createRef<EChartsReact>(),
         leafletMapRef: createRef(),
         pivotDimensions: undefined,
+        initialPivotRows: undefined,
+        parameters: undefined,
+        unsavedMetricQuery: undefined,
+        tableCalculationsMetadata: undefined,
+        dashboardFilters: undefined,
+        invalidateCache: undefined,
         resultsData: { ...makeResultsData(), hasFetchedAllRows: true },
         isLoading: false,
         columnOrder: [],
@@ -67,16 +86,24 @@ const makeContext = () => {
         setCartesianType: vi.fn(),
         setChartType: vi.fn(),
         setPivotDimensions: vi.fn(),
+        setPivotRows: vi.fn(),
+        getInputs: vi.fn(),
+        savedChartUuid: undefined,
+        apiErrorDetail: undefined,
+        isDashboard: undefined,
+        isEditMode: undefined,
+        resolvedTimezone: undefined,
+        dateZoom: undefined,
         getSeriesColor: () => '#123456',
         getGroupColor: () => '#123456',
         colorPalette: ['#123456'],
         chartConfig: { type: ChartType.TREEMAP, config: {} },
         hasExplorerStore: false,
         isTouchDevice: false,
-    } satisfies NonNullable<ContextType<typeof VisualizationContext>>;
+    } satisfies VisualizationContextValue;
 };
 
-type TestContext = NonNullable<ContextType<typeof VisualizationContext>>;
+type TestContext = VisualizationContextValue;
 
 const renderTreemap = (
     context: TestContext,
@@ -84,14 +111,20 @@ const renderTreemap = (
     onScreenshotError = vi.fn(),
 ) => (
     <MantineProvider env="test">
-        <VisualizationContext.Provider value={context}>
-            <SimpleTreemap
-                isInDashboard
-                opts={{ renderer: 'svg', width: 800, height: 600 }}
-                onScreenshotReady={onScreenshotReady}
-                onScreenshotError={onScreenshotError}
-            />
-        </VisualizationContext.Provider>
+        <ServicesContext.Provider value={context}>
+            <LayoutContext.Provider value={context}>
+                <StateContext.Provider value={context}>
+                    <ConfigContext.Provider value={context}>
+                        <SimpleTreemap
+                            isInDashboard
+                            opts={{ renderer: 'svg', width: 800, height: 600 }}
+                            onScreenshotReady={onScreenshotReady}
+                            onScreenshotError={onScreenshotError}
+                        />
+                    </ConfigContext.Provider>
+                </StateContext.Provider>
+            </LayoutContext.Provider>
+        </ServicesContext.Provider>
     </MantineProvider>
 );
 
@@ -322,5 +355,20 @@ describe('SimpleTreemap screenshot readiness', { timeout: 20_000 }, () => {
         );
         expect(onScreenshotError).toHaveBeenCalledOnce();
         expect(onScreenshotReady).not.toHaveBeenCalled();
+    });
+});
+
+describe('SimpleTreemap resize listener', { timeout: 20_000 }, () => {
+    it('adds the window resize listener once across re-renders', () => {
+        const addListener = vi.spyOn(window, 'addEventListener');
+        const context = makeContext();
+        const onScreenshotReady = vi.fn();
+        const { rerender } = render(renderTreemap(context, onScreenshotReady));
+        rerender(renderTreemap({ ...context }, onScreenshotReady));
+        rerender(renderTreemap({ ...context }, onScreenshotReady));
+        expect(
+            addListener.mock.calls.filter(([type]) => type === 'resize'),
+        ).toHaveLength(1);
+        addListener.mockRestore();
     });
 });

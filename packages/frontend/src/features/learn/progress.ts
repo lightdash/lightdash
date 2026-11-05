@@ -1,8 +1,5 @@
-import {
-    FeatureFlags,
-    type ApiError,
-    type LearnProgress,
-} from '@lightdash/common';
+import { subject } from '@casl/ability';
+import { type ApiError, type LearnProgress } from '@lightdash/common';
 import {
     useMutation,
     useQuery,
@@ -11,7 +8,7 @@ import {
 } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
 import { type LightdashApi } from '../../api';
-import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
+import useApp from '../../providers/App/useApp';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import { lessonScopesFor } from '../scopeTours/tourFor';
 
@@ -158,11 +155,14 @@ export type LearnProgressState = LearnProgress & {
 export const useLearnProgress = (): LearnProgressState => {
     const lightdashApi = useLightdashApi();
     // The tour host mounts on every project page, so progress is asked for
-    // only where Learn exists at all: an organization with it switched off
-    // never calls the endpoint. The navbar's Learn link already reads this
-    // flag, so the gate costs no request of its own.
-    const { data: learnFlag } = useServerFeatureFlag(FeatureFlags.EnableLearn);
-    const enabled = learnFlag?.enabled === true;
+    // only by a user who can see Learn: the same ability the navbar's Learn
+    // link reads, so the gate costs no request of its own.
+    const { user } = useApp();
+    const enabled =
+        user.data?.ability.can(
+            'view',
+            subject('Learn', { organizationUuid: user.data.organizationUuid }),
+        ) === true;
     const query = useQuery<LearnProgress, ApiError>({
         queryKey: LEARN_PROGRESS_QUERY_KEY,
         queryFn: () => fetchProgress(lightdashApi),
@@ -171,7 +171,7 @@ export const useLearnProgress = (): LearnProgressState => {
         // cache right; a tab that comes back into focus asks again.
         staleTime: 60 * 1000,
     });
-    // Nothing to wait for where Learn is switched off; everywhere else the
+    // Nothing to wait for where the user cannot see Learn; everywhere else the
     // instance has to have answered, one way or the other.
     const isSettled = !enabled || query.isSuccess || query.isError;
     return useMemo(

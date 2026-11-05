@@ -27,6 +27,8 @@ export const AGENT_CLIENT_IDS = {
     [AgentActorSurface.SLACK_AGENT]: null,
 } as const;
 
+export const CLI_PERSONAL_SESSION_LIFETIME_SECONDS = 8 * 60 * 60;
+
 export type AgentSubjectRef = {
     type: 'user' | 'service_account';
     uuid: string;
@@ -391,8 +393,14 @@ export interface AiServiceAccountParent {
     verification?: AiServiceAccountTestResult | null;
 }
 
+export type AiServiceAccountParentUnavailableReason =
+    | 'destination_mismatch'
+    | 'transport_mismatch'
+    | 'parent_connection_unreadable';
+
 export interface ApiAiServiceAccountStatusResponse extends ApiAiServiceAccountSlotResponse {
     parent: AiServiceAccountParent | null;
+    parentUnavailableReason: AiServiceAccountParentUnavailableReason | null;
     credentialsReadable: boolean;
     verification?: AiServiceAccountTestResult | null;
 }

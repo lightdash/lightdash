@@ -13,7 +13,6 @@ import {
     Stack,
     Text,
     Tooltip,
-    useMantineTheme,
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import {
@@ -49,6 +48,7 @@ import {
 } from '../common/ContentTable';
 import EmptyStateLoader from '../common/EmptyStateLoader';
 import MantineIcon from '../common/MantineIcon';
+import classes from './LogsTable.module.css';
 import { LogsTopToolbar } from './LogsTopToolbar';
 import RunDetailsModal from './RunDetailsModal';
 import {
@@ -213,7 +213,6 @@ const LogsTable: FC<LogsTableProps> = ({
         return () => resizeObserver.disconnect();
     }, [isLoading, tableContainerRef]);
 
-    const theme = useMantineTheme();
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const [selectedScheduler, setSelectedScheduler] = useState<{
         uuid: string;
@@ -316,7 +315,7 @@ const LogsTable: FC<LogsTableProps> = ({
                                     <Tooltip
                                         label={
                                             <Stack gap="two" fz="xs">
-                                                <Text c="ldGray.5" fz="xs">
+                                                <Text c="gray.5" fz="xs">
                                                     Scheduler:{' '}
                                                     <Text
                                                         c="white"
@@ -326,7 +325,7 @@ const LogsTable: FC<LogsTableProps> = ({
                                                         {run.schedulerName}
                                                     </Text>
                                                 </Text>
-                                                <Text c="ldGray.5" fz="xs">
+                                                <Text c="gray.5" fz="xs">
                                                     Created by:{' '}
                                                     <Text
                                                         c="white"
@@ -343,10 +342,7 @@ const LogsTable: FC<LogsTableProps> = ({
                                             fw={600}
                                             fz="xs"
                                             lineClamp={1}
-                                            style={{
-                                                overflowWrap: 'anywhere',
-                                                cursor: 'pointer',
-                                            }}
+                                            className={classes.runName}
                                         >
                                             {run.schedulerName}
                                         </Text>
@@ -373,9 +369,8 @@ const LogsTable: FC<LogsTableProps> = ({
                                 <>
                                     {getLogStatusIconWithoutTooltip(
                                         SchedulerJobStatus.COMPLETED,
-                                        theme,
                                     )}
-                                    <Text fz="xs" c="ldGray.7">
+                                    <Text fz="xs" c="dimmed">
                                         Completed successfully
                                     </Text>
                                 </>
@@ -383,9 +378,8 @@ const LogsTable: FC<LogsTableProps> = ({
                                 <>
                                     {getLogStatusIconWithoutTooltip(
                                         SchedulerJobStatus.ERROR,
-                                        theme,
                                     )}
-                                    <Text fz="xs" c="ldGray.7">
+                                    <Text fz="xs" c="dimmed">
                                         Failed
                                     </Text>
                                 </>
@@ -395,11 +389,8 @@ const LogsTable: FC<LogsTableProps> = ({
                                     <MantineIcon
                                         icon={IconAlertTriangleFilled}
                                         color="orange.6"
-                                        style={{
-                                            color: theme.colors.orange[6],
-                                        }}
                                     />
-                                    <Text fz="xs" c="ldGray.7">
+                                    <Text fz="xs" c="dimmed">
                                         Partial failure
                                     </Text>
                                 </>
@@ -407,9 +398,8 @@ const LogsTable: FC<LogsTableProps> = ({
                                 <>
                                     {getLogStatusIconWithoutTooltip(
                                         SchedulerJobStatus.STARTED,
-                                        theme,
                                     )}
-                                    <Text fz="xs" c="ldGray.7">
+                                    <Text fz="xs" c="dimmed">
                                         Running
                                     </Text>
                                 </>
@@ -417,9 +407,8 @@ const LogsTable: FC<LogsTableProps> = ({
                                 <>
                                     {getLogStatusIconWithoutTooltip(
                                         SchedulerJobStatus.SCHEDULED,
-                                        theme,
                                     )}
-                                    <Text fz="xs" c="ldGray.7">
+                                    <Text fz="xs" c="dimmed">
                                         Scheduled
                                     </Text>
                                 </>
@@ -500,15 +489,7 @@ const LogsTable: FC<LogsTableProps> = ({
                                         closeOnClickOutside
                                     >
                                         <Menu.Target>
-                                            <ActionIcon
-                                                style={{
-                                                    ':hover': {
-                                                        backgroundColor:
-                                                            theme.colors
-                                                                .gray[1],
-                                                    },
-                                                }}
-                                            >
+                                            <ActionIcon>
                                                 <IconDots size={16} />
                                             </ActionIcon>
                                         </Menu.Target>
@@ -538,7 +519,7 @@ const LogsTable: FC<LogsTableProps> = ({
                 },
             },
         ],
-        [projectUuid, theme, setSelectedScheduler, setIsConfirmOpen],
+        [projectUuid, setSelectedScheduler, setIsConfirmOpen],
     );
 
     const columns = useMemo(
@@ -583,75 +564,18 @@ const LogsTable: FC<LogsTableProps> = ({
         ),
         mantineTableContainerProps: {
             ref: tableContainerRef,
-            style: {
-                maxHeight: isResourceScoped
-                    ? 'calc(80vh - 220px)'
-                    : 'calc(100dvh - 420px)',
-            },
+            mah: isResourceScoped
+                ? 'calc(80vh - 220px)'
+                : 'calc(100dvh - 420px)',
             onScroll,
         },
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: Boolean(tableData.length),
         },
-        mantineTableHeadCellProps: (props) => {
-            const isLastColumn =
-                props.table.getAllColumns().indexOf(props.column) ===
-                props.table.getAllColumns().length - 1;
-
-            const isAnyColumnResizing = props.table
-                .getAllColumns()
-                .some((c) => c.getIsResizing());
-            const canResize = props.column.getCanResize();
-
-            return {
-                bg: 'ldGray.0',
-                h: '3xl',
-                pos: 'relative',
-                style: {
-                    userSelect: 'none',
-                    justifyContent: 'center',
-                    padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
-                    borderTop: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderRight: props.column.getIsResizing()
-                        ? `2px solid ${theme.colors.blue[3]}`
-                        : `1px solid ${
-                              isLastColumn
-                                  ? 'transparent'
-                                  : theme.colors.ldGray[2]
-                          }`,
-                    borderLeft: 'none',
-                },
-                sx: {
-                    '&:hover': canResize
-                        ? {
-                              borderRight: !isAnyColumnResizing
-                                  ? `2px solid ${theme.colors.blue[3]} !important`
-                                  : undefined,
-                              transition: `border-right ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
-                          }
-                        : {},
-                },
-            };
-        },
-        mantineTableBodyCellProps: () => {
-            return {
-                h: 48,
-                style: {
-                    padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-                    borderRight: 'none',
-                    borderLeft: 'none',
-                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderTop: 'none',
-                },
-            };
-        },
+        mantineTableBodyCellProps: { h: 48 },
         mantineTableBodyRowProps: ({ row }) => ({
             onClick: () => handleRowClick(row.original.run),
-            style: {
-                cursor: 'pointer',
-            },
         }),
         rowVirtualizerInstanceRef,
         rowVirtualizerProps: { estimateSize: () => 48, overscan: 10 },

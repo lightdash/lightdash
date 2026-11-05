@@ -13,6 +13,10 @@ import {
     type ItemsMap,
 } from '@lightdash/common';
 import { type EchartsSeriesClickEvent } from '../SimpleChart';
+import {
+    combineUnderlyingDataFilters,
+    getUnderlyingDataFilterParts,
+} from './underlyingDataFilters';
 import { getDataFromChartClick, getUnderlyingDataColumnOrder } from './utils';
 
 const weekDimension: CompiledDimension = {
@@ -257,6 +261,100 @@ describe('getDataFromChartClick', () => {
 
         expect(result.fieldValues.orders_order_priority?.raw).toBe('urgent');
         expect(result.value.raw).toBe(4);
+    });
+});
+
+describe('getDataFromChartClick with more than one group-by dimension', () => {
+    const statusDimension: CompiledDimension = {
+        ...priorityDimension,
+        name: 'status',
+        label: 'Status',
+    };
+    const pivotReference = {
+        field: 'orders_unique_order_count',
+        pivotValues: [
+            { field: 'orders_order_priority', value: 'urgent' },
+            { field: 'orders_status', value: 'shipped' },
+        ],
+    };
+    // The backend names the pivoted column with every group-by value
+    const columnName = getPivotValueColumnName(
+        pivotReference.field,
+        VizAggregationOptions.ANY,
+        pivotReference.pivotValues.map((p) => p.value),
+    );
+    const pivotedSeries = [{ ...series[0], pivotReference }];
+    const groupedItemsMap: ItemsMap = {
+        ...itemsMap,
+        orders_status: statusDimension,
+    };
+
+    test('resolves the clicked metric from the pivoted column name', () => {
+        const result = getDataFromChartClick(
+            {
+                ...baseClickEvent,
+                dimensionNames: ['orders_order_date_week', columnName],
+                value: 7,
+                data: {
+                    orders_order_date_week: '2024-12-30',
+                    [columnName]: 7,
+                },
+            },
+            groupedItemsMap,
+            pivotedSeries,
+        );
+
+        expect(result.item).toBe(countMetric);
+        expect(result.value.raw).toBe(7);
+        expect(result.fieldValues[hashFieldReference(pivotReference)]).toEqual(
+            result.value,
+        );
+    });
+
+    test('scopes underlying data to the clicked bar when the x-axis is not in the items map', () => {
+        // e.g. a custom dimension on the x-axis: the explore items map used by
+        // the chart context menu does not contain it
+        const customDimensionId = 'order_bucket';
+        const click = getDataFromChartClick(
+            {
+                ...baseClickEvent,
+                dimensionNames: [customDimensionId, columnName],
+                value: 7,
+                data: { [customDimensionId]: 'large', [columnName]: 7 },
+            },
+            groupedItemsMap,
+            pivotedSeries,
+        );
+
+        const parts = getUnderlyingDataFilterParts({
+            item: click.item,
+            value: click.value,
+            fieldValues: click.fieldValues,
+            pivotReference: click.pivotReference,
+            dateZoom: undefined,
+            allDimensions: [weekDimension, priorityDimension, statusDimension],
+            resolvedTimezone: undefined,
+        });
+        const filters = combineUnderlyingDataFilters({
+            filterParts: parts,
+            exploreDimensionFilters: undefined,
+            allFields: [
+                weekDimension,
+                priorityDimension,
+                statusDimension,
+                countMetric,
+            ],
+        });
+
+        expect(filters.dimensions).toMatchObject({
+            and: [
+                {
+                    target: { fieldId: 'orders_order_priority' },
+                    values: ['urgent'],
+                },
+                { target: { fieldId: 'orders_status' }, values: ['shipped'] },
+            ],
+        });
     });
 });
 

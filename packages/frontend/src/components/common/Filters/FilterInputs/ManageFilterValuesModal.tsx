@@ -18,7 +18,7 @@ import {
     IconSettings,
 } from '@tabler/icons-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import uniq from 'lodash/uniq';
+import { uniq } from 'es-toolkit/compat';
 import {
     useCallback,
     useEffect,
@@ -327,9 +327,9 @@ export const ManageFilterValuesModal: FC<Props> = ({
                                             <Box
                                                 key={value}
                                                 className={classes.row}
+                                                h={virtualRow.size}
                                                 style={{
-                                                    transform: `translateY(${virtualRow.start}px)`,
-                                                    height: `${virtualRow.size}px`,
+                                                    '--row-start': `${virtualRow.start}px`,
                                                 }}
                                             >
                                                 <Group

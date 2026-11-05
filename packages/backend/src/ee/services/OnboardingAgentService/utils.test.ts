@@ -15,9 +15,39 @@ import {
     classifyOnboardingStage,
     containsOnboardingSecret,
     hasCompleteOnboardingOutput,
+    isOnboardingOutputFile,
+    parseStarterQuestions,
     sanitizeOnboardingMessage,
     validateOnboardingOutputFileLimits,
 } from './utils';
+
+describe('starter questions', () => {
+    it('keeps the questions file and stops at temporary charts', () => {
+        expect(isOnboardingOutputFile('lightdash-starter-questions.yml')).toBe(
+            true,
+        );
+        expect(isOnboardingOutputFile('tmp/question-1.yml')).toBe(false);
+    });
+
+    it('parses up to five trimmed string questions', () => {
+        expect(
+            parseStarterQuestions(
+                [
+                    'questions:',
+                    '  - "  Revenue by month?  "',
+                    '  - 42',
+                    '  - ""',
+                    ...['a', 'b', 'c', 'd', 'e'].map((q) => `  - ${q}`),
+                ].join('\n'),
+            ),
+        ).toEqual(['Revenue by month?', 'a', 'b', 'c', 'd']);
+    });
+
+    it('returns nothing for malformed files', () => {
+        expect(parseStarterQuestions('questions: [unclosed')).toEqual([]);
+        expect(parseStarterQuestions('- not a map')).toEqual([]);
+    });
+});
 
 describe('classifyOnboardingStage', () => {
     it.each([

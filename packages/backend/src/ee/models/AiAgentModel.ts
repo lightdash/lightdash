@@ -25,6 +25,7 @@ import {
     AiAgentMessageUser,
     AiAgentModelConfig,
     AiAgentNotFoundError,
+    AiAgentPromptLoadout,
     AiAgentReasoning,
     AiAgentReviewItemSummary,
     AiAgentSummary,
@@ -55,6 +56,7 @@ import {
     AiResultType,
     AiThread,
     AiThreadBinding,
+    AiThreadBindingSummary,
     AiThreadCompaction,
     AiThreadCreatedFrom,
     AiWebAppPrompt,
@@ -67,6 +69,7 @@ import {
     ApiUpdateEvaluationRequest,
     assertUnreachable,
     ChartKind,
+    COMPOSER_QUERY_TOOL_NAMES,
     ContentType,
     CreateLlmAssessment,
     CreateSlackPrompt,
@@ -85,6 +88,7 @@ import {
     isAiAgentMcpToolName,
     isAiAgentToolName,
     isAiAppThreadCreatedFrom,
+    isAiComposerChartArtifactConfig,
     isAiWritebackRunInProgress,
     isSameComposerNodeDefinition,
     isThreadPrompt,
@@ -98,6 +102,7 @@ import {
     parseAiArtifactChartConfig,
     ProjectType,
     PullRequestProvider,
+    QuerySourceType,
     servedSkillMetadataSchema,
     SlackPrompt,
     ToolName,
@@ -114,6 +119,7 @@ import {
     type AiAgentJevDecision,
     type AiChartRuntimeOverrides,
     type AiDashboardRuntimeOverrides,
+    type ComposerNodeColumn,
     type ServedSkillMetadata,
     type ThreadComposerQueryNode,
     type ToolEditDbtProjectOutput,
@@ -122,6 +128,7 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import moment from 'moment';
+import { validate as isValidUuid } from 'uuid';
 import { z } from 'zod';
 import type { AiThreadOrigin } from '../../analytics/aiUsage';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -132,6 +139,7 @@ import {
     type DbApp,
     type DbAppVersion,
 } from '../../database/entities/apps';
+import { ContentAsCodeSnapshotsTableName } from '../../database/entities/contentAsCodeSnapshots';
 import {
     DashboardsTableName,
     DashboardVersionsTableName,
@@ -161,6 +169,7 @@ import { DbUser, UserTableName } from '../../database/entities/users';
 import { isUniqueConstraintViolation } from '../../database/errors';
 import KnexPaginate from '../../database/pagination';
 import Logger from '../../logging/logger';
+import { AI_AGENT_KNOWLEDGE_DOCUMENT_SNAPSHOT_TYPE } from '../../models/ContentAsCodeSnapshotModel';
 import { wrapSentryTransaction } from '../../utils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
@@ -169,12 +178,12 @@ import {
     AiAgentToolCallTableName,
     AiAgentToolResultTableName,
     AiOrganizationSettingsTableName,
+    AiPromptComposerNodeSnapshot,
     AiPromptContextEntityType,
     AiPromptContextTableName,
     AiPromptDataAppElementSnapshot,
     AiPromptDataAppRestoreSnapshot,
     AiPromptDataAppSnapshot,
-    AiPromptDecisionShadowTableName,
     AiPromptDecisionTableName,
     AiPromptInterruptTableName,
     AiPromptSkillSnapshot,
@@ -195,7 +204,6 @@ import {
     DbAiPromptContext,
     DbAiPromptDecision,
     DbAiPromptDecisionInsert,
-    DbAiPromptDecisionShadow,
     DbAiPromptInterrupt,
     DbAiPromptSteer,
     DbAiPromptTurnDecision,
@@ -267,7 +275,9 @@ import {
     DbAiEvalRunResultAssessment,
 } from '../database/entities/aiEvals';
 import {
+    COMPOSER_SESSION_SCOPE_TYPE,
     ComposerQueryNodesTableName,
+    ComposerSessionsTableName,
     THREAD_COMPOSER_QUERY_SCOPE_TYPE,
     threadComposerQueryScope,
     type ComposerQueryNodeScope,
@@ -289,6 +299,14 @@ import { AiAgentReviewClassifierModel } from './AiAgentReviewClassifierModel';
 import { AiSlackArtifactDeliveryModel } from './AiSlackArtifactDeliveryModel';
 import type { AiThreadFileModel } from './AiThreadFileModel';
 import { claimAiPromptExecutionMode } from './claimAiPromptExecutionMode';
+
+// Tool calls that can wait on SQL approval: runSql, or a composer query call with a sql node.
+const sqlApprovalToolCallSql = (alias: string): string =>
+    `(${alias}.tool_name = 'runSql' OR (${alias}.tool_name IN (${COMPOSER_QUERY_TOOL_NAMES.map(
+        (name) => `'${name}'`,
+    ).join(', ')}) AND ${alias}.tool_args @> '${JSON.stringify({
+        queries: [{ sourceType: QuerySourceType.SQL }],
+    })}'::jsonb))`;
 
 export type AiPromptResponseState = {
     respondedAt: string | null;
@@ -503,6 +521,8 @@ type AiThreadSummaryRow = Pick<
         user_name: string | null;
         agent_name: string | null;
         agent_image_url: string | null;
+        bound_dashboard_name: string | null;
+        bound_chart_name: string | null;
     };
 
 type AiAgentThreadLiveStateRow = {
@@ -797,6 +817,7 @@ export class AiAgentModel {
                 enableUserContext: `${AiAgentTableName}.enable_user_context`,
                 enableSqlMode: `${AiAgentTableName}.enable_sql_mode`,
                 enableSqlAutoApproval: `${AiAgentTableName}.enable_sql_auto_approval`,
+                enableComposerQueries: `${AiAgentTableName}.enable_composer_queries`,
                 adminOnly: `${AiAgentTableName}.admin_only`,
                 modelConfig: `${AiAgentTableName}.model_config`,
                 providerCredentialUuid: `${AiAgentTableName}.ai_organization_provider_credential_uuid`,
@@ -957,6 +978,7 @@ export class AiAgentModel {
                 enableUserContext: `${AiAgentTableName}.enable_user_context`,
                 enableSqlMode: `${AiAgentTableName}.enable_sql_mode`,
                 enableSqlAutoApproval: `${AiAgentTableName}.enable_sql_auto_approval`,
+                enableComposerQueries: `${AiAgentTableName}.enable_composer_queries`,
                 adminOnly: `${AiAgentTableName}.admin_only`,
                 modelConfig: `${AiAgentTableName}.model_config`,
                 providerCredentialUuid: `${AiAgentTableName}.ai_organization_provider_credential_uuid`,
@@ -1003,8 +1025,8 @@ export class AiAgentModel {
                 `),
             } satisfies Record<keyof AiAgentSummary, unknown>)
             .where(`${AiAgentTableName}.organization_uuid`, organizationUuid)
-            // System agents are an internal fallback — never surface them in
-            // normal listings, or they'd count as "an agent configured".
+            // TODO: drop with the is_system column once no release that writes
+            // system agents (<= 3.60) can still be running during an upgrade.
             .where(`${AiAgentTableName}.is_system`, false)
             .groupBy(`${AiAgentTableName}.ai_agent_uuid`);
 
@@ -1061,6 +1083,7 @@ export class AiAgentModel {
                 | 'enableUserContext'
                 | 'enableSqlMode'
                 | 'enableSqlAutoApproval'
+                | 'enableComposerQueries'
                 | 'threadRetentionHours'
                 | 'modelConfig'
                 | 'updatedAt'
@@ -1094,6 +1117,7 @@ export class AiAgentModel {
                 enableUserContext: `${AiAgentTableName}.enable_user_context`,
                 enableSqlMode: `${AiAgentTableName}.enable_sql_mode`,
                 enableSqlAutoApproval: `${AiAgentTableName}.enable_sql_auto_approval`,
+                enableComposerQueries: `${AiAgentTableName}.enable_composer_queries`,
                 threadRetentionHours: `${AiAgentTableName}.thread_retention_hours`,
                 modelConfig: `${AiAgentTableName}.model_config`,
                 updatedAt: `${AiAgentTableName}.updated_at`,
@@ -2300,6 +2324,7 @@ export class AiAgentModel {
             | 'enableUserContext'
             | 'enableSqlMode'
             | 'enableSqlAutoApproval'
+            | 'enableComposerQueries'
             | 'adminOnly'
             | 'modelConfig'
             | 'providerCredentialUuid'
@@ -2308,7 +2333,6 @@ export class AiAgentModel {
             | 'threadRetentionHours'
         > & {
             organizationUuid: string;
-            isSystem?: boolean;
             slug?: string;
             imageUrl?: string | null;
         },
@@ -2339,12 +2363,12 @@ export class AiAgentModel {
                     enable_sql_mode: args.enableSqlMode ?? true,
                     enable_sql_auto_approval:
                         args.enableSqlAutoApproval ?? false,
+                    enable_composer_queries: args.enableComposerQueries ?? true,
                     admin_only: args.adminOnly ?? false,
                     model_config: args.modelConfig ?? null,
                     ai_organization_provider_credential_uuid:
                         args.providerCredentialUuid ?? null,
                     version: args.version,
-                    is_system: args.isSystem ?? false,
                     thread_retention_hours: args.threadRetentionHours ?? null,
                 })
                 .returning('*');
@@ -2454,6 +2478,7 @@ export class AiAgentModel {
                 enableUserContext: agent.enable_user_context,
                 enableSqlMode: agent.enable_sql_mode,
                 enableSqlAutoApproval: agent.enable_sql_auto_approval,
+                enableComposerQueries: agent.enable_composer_queries,
                 adminOnly: agent.admin_only,
                 modelConfig: agent.model_config,
                 providerCredentialUuid:
@@ -2462,75 +2487,6 @@ export class AiAgentModel {
                 threadRetentionHours: agent.thread_retention_hours,
             };
         });
-    }
-
-    /**
-     * Returns the org's system (built-in fallback) agent for a project,
-     * creating it on first use. There is at most one per (org, project),
-     * enforced by a partial unique index — so a concurrent create losing the
-     * race is caught and re-read rather than erroring.
-     */
-    async getOrCreateSystemAgent({
-        organizationUuid,
-        projectUuid,
-        name,
-        instruction,
-    }: {
-        organizationUuid: string;
-        projectUuid: string;
-        name: string;
-        instruction: string;
-    }): Promise<AiAgent> {
-        const findExisting = () =>
-            this.database(AiAgentTableName)
-                .where('organization_uuid', organizationUuid)
-                .where('project_uuid', projectUuid)
-                .where('is_system', true)
-                .first();
-
-        const existing = await findExisting();
-        if (existing) {
-            return this.getAgent({
-                organizationUuid,
-                agentUuid: existing.ai_agent_uuid,
-            });
-        }
-
-        try {
-            return await this.createAgent({
-                name,
-                description: 'Built-in Lightdash assistant',
-                projectUuid,
-                organizationUuid,
-                tags: null,
-                integrations: [],
-                instruction,
-                groupAccess: [],
-                userAccess: [],
-                spaceAccess: [],
-                enableDataAccess: true,
-                enableSelfImprovement: false,
-                enableContentTools: false,
-                enableUserContext: false,
-                enableSqlMode: true,
-                modelConfig: null,
-                version: 1,
-                mcpServerUuids: [],
-                isSystem: true,
-            });
-        } catch (error) {
-            // Lost the create race against a concurrent mention — re-read.
-            if (isUniqueConstraintViolation(error)) {
-                const row = await findExisting();
-                if (row) {
-                    return this.getAgent({
-                        organizationUuid,
-                        agentUuid: row.ai_agent_uuid,
-                    });
-                }
-            }
-            throw error;
-        }
     }
 
     /**
@@ -2600,6 +2556,12 @@ export class AiAgentModel {
                         ? {
                               enable_sql_auto_approval:
                                   args.enableSqlAutoApproval,
+                          }
+                        : {}),
+                    ...(args.enableComposerQueries !== undefined
+                        ? {
+                              enable_composer_queries:
+                                  args.enableComposerQueries,
                           }
                         : {}),
                     ...(args.adminOnly !== undefined
@@ -2793,6 +2755,7 @@ export class AiAgentModel {
                 enableUserContext: agent.enable_user_context,
                 enableSqlMode: agent.enable_sql_mode,
                 enableSqlAutoApproval: agent.enable_sql_auto_approval,
+                enableComposerQueries: agent.enable_composer_queries,
                 adminOnly: agent.admin_only,
                 modelConfig: agent.model_config,
                 providerCredentialUuid:
@@ -3066,6 +3029,31 @@ export class AiAgentModel {
             });
         }
         return this.getUserAccess(agentUuid, { trx });
+    }
+
+    /** Undefined when the agent is not in the project; empty when it is not space-restricted. */
+    async findSpaceAccess(
+        agentUuid: AiAgent['uuid'],
+        projectUuid: string,
+    ): Promise<NonNullable<AiAgent['spaceAccess']> | undefined> {
+        const row: { space_uuids: string[] } | undefined = await this.database(
+            AiAgentTableName,
+        )
+            .leftJoin(
+                AiAgentSpaceAccessTableName,
+                `${AiAgentSpaceAccessTableName}.ai_agent_uuid`,
+                `${AiAgentTableName}.ai_agent_uuid`,
+            )
+            .where(`${AiAgentTableName}.ai_agent_uuid`, agentUuid)
+            .andWhere(`${AiAgentTableName}.project_uuid`, projectUuid)
+            .groupBy(`${AiAgentTableName}.ai_agent_uuid`)
+            .select(
+                this.database.raw(
+                    `COALESCE(array_agg(${AiAgentSpaceAccessTableName}.space_uuid::text) FILTER (WHERE ${AiAgentSpaceAccessTableName}.space_uuid IS NOT NULL), '{}') AS space_uuids`,
+                ),
+            )
+            .first();
+        return row?.space_uuids;
     }
 
     private async getSpaceAccess(
@@ -3352,10 +3340,23 @@ export class AiAgentModel {
         organizationUuid: string;
         agentUuid: string;
     }): Promise<void> {
-        await this.database(AiAgentTableName)
-            .where('ai_agent_uuid', agentUuid)
-            .where('organization_uuid', organizationUuid)
-            .delete();
+        await this.database.transaction(async (trx) => {
+            const [deleted] = await trx(AiAgentTableName)
+                .where('ai_agent_uuid', agentUuid)
+                .where('organization_uuid', organizationUuid)
+                .delete()
+                .returning(['slug', 'project_uuid']);
+            if (!deleted) return;
+            // Knowledge document stamps key on the slug; a later agent with the
+            // same slug must not inherit them.
+            await trx(ContentAsCodeSnapshotsTableName)
+                .where({
+                    project_uuid: deleted.project_uuid,
+                    content_type: AI_AGENT_KNOWLEDGE_DOCUMENT_SNAPSHOT_TYPE,
+                })
+                .whereLike('slug', `${deleted.slug}/%`)
+                .delete();
+        });
     }
 
     // Threads without a prompt are only listed when created bound or with context.
@@ -3392,6 +3393,32 @@ export class AiAgentModel {
                 `${AiThreadTableName}.agent_uuid`,
                 `${AiAgentTableName}.ai_agent_uuid`,
             )
+            .leftJoin(DashboardsTableName, function joinBoundDashboard() {
+                this.on(
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    '=',
+                    `${AiThreadTableName}.bound_entity_uuid`,
+                )
+                    .andOnVal(
+                        `${AiThreadTableName}.bound_entity_type`,
+                        '=',
+                        'dashboard',
+                    )
+                    .andOnNull(`${DashboardsTableName}.deleted_at`);
+            })
+            .leftJoin(SavedChartsTableName, function joinBoundChart() {
+                this.on(
+                    `${SavedChartsTableName}.saved_query_uuid`,
+                    '=',
+                    `${AiThreadTableName}.bound_entity_uuid`,
+                )
+                    .andOnVal(
+                        `${AiThreadTableName}.bound_entity_type`,
+                        '=',
+                        'chart',
+                    )
+                    .andOnNull(`${SavedChartsTableName}.deleted_at`);
+            })
             .where((builder) => {
                 void builder
                     .whereNotNull('first_prompt.ai_prompt_uuid')
@@ -3423,6 +3450,8 @@ export class AiAgentModel {
                 `${AiSlackThreadTableName}.slack_user_id`,
                 `${AiAgentTableName}.name as agent_name`,
                 `${AiAgentTableName}.image_url as agent_image_url`,
+                `${DashboardsTableName}.name as bound_dashboard_name`,
+                `${SavedChartsTableName}.name as bound_chart_name`,
             )
             .orderBy(`${AiThreadTableName}.created_at`, 'desc');
     }
@@ -3431,8 +3460,10 @@ export class AiAgentModel {
         switch (binding.type) {
             case 'dashboard':
                 return binding.dashboardUuid;
+            case 'chart':
+                return binding.chartUuid;
             default:
-                return assertUnreachable(binding.type, 'Unknown binding type');
+                return assertUnreachable(binding, 'Unknown binding type');
         }
     }
 
@@ -3444,8 +3475,28 @@ export class AiAgentModel {
         switch (type) {
             case 'dashboard':
                 return { type, dashboardUuid: entityUuid };
+            case 'chart':
+                return { type, chartUuid: entityUuid };
             default:
                 return assertUnreachable(type, 'Unknown binding type');
+        }
+    }
+
+    private static toThreadBindingSummary(
+        row: AiThreadSummaryRow,
+    ): AiThreadBindingSummary | null {
+        const binding = AiAgentModel.toThreadBinding(
+            row.bound_entity_type,
+            row.bound_entity_uuid,
+        );
+        if (binding === null) return null;
+        switch (binding.type) {
+            case 'dashboard':
+                return { ...binding, displayName: row.bound_dashboard_name };
+            case 'chart':
+                return { ...binding, displayName: row.bound_chart_name };
+            default:
+                return assertUnreachable(binding, 'Unknown binding type');
         }
     }
 
@@ -3475,10 +3526,7 @@ export class AiAgentModel {
                 slackUserId: row.slack_user_id,
             },
             liveStatus: null,
-            binding: AiAgentModel.toThreadBinding(
-                row.bound_entity_type,
-                row.bound_entity_uuid,
-            ),
+            binding: AiAgentModel.toThreadBindingSummary(row),
             threadContext: row.thread_context,
         };
     }
@@ -3545,7 +3593,7 @@ export class AiAgentModel {
                     LEFT JOIN ${AiSqlApprovalTableName} as sql_approval
                         ON sql_approval.tool_call_id = tool_call.tool_call_id
                     WHERE tool_call.ai_prompt_uuid = latest_prompt.ai_prompt_uuid
-                        AND tool_call.tool_name = 'runSql'
+                        AND ${sqlApprovalToolCallSql('tool_call')}
                     ORDER BY tool_call.created_at DESC
                 ) as run_sql_tool_calls ON true`,
             )
@@ -3767,12 +3815,14 @@ export class AiAgentModel {
         threadUuid,
         userUuid,
         createdFrom,
+        embedWriteSpaceUuids,
     }: {
         organizationUuid: string;
         agentUuid: string;
         threadUuid?: string;
         userUuid?: string;
         createdFrom?: AiThreadCreatedFrom[];
+        embedWriteSpaceUuids?: string[];
     }): Promise<
         AiAgentThreadSummary<AiAgentUser & { slackUserId: string | null }>[]
     > {
@@ -3798,6 +3848,12 @@ export class AiAgentModel {
 
         if (userUuid) {
             void query.andWhere(`${UserTableName}.user_uuid`, userUuid);
+        }
+
+        if (embedWriteSpaceUuids) {
+            void query.andWhere(
+                this.embedThreadSpacesWithin(embedWriteSpaceUuids),
+            );
         }
 
         const rows = await query;
@@ -4766,6 +4822,7 @@ export class AiAgentModel {
                     | 'token_usage'
                     | 'response_timing'
                     | 'hidden'
+                    | 'loadout_base'
                 > &
                     Pick<DbUser, 'user_uuid'> &
                     Pick<DbAiThread, 'ai_thread_uuid'> &
@@ -4791,6 +4848,7 @@ export class AiAgentModel {
                 `${AiPromptTableName}.token_usage`,
                 `${AiPromptTableName}.response_timing`,
                 `${AiPromptTableName}.hidden`,
+                `${AiPromptTableName}.loadout_base`,
                 `${UserTableName}.user_uuid`,
                 `${AiThreadTableName}.ai_thread_uuid`,
                 `${AiSlackPromptTableName}.slack_user_id`,
@@ -4910,6 +4968,7 @@ export class AiAgentModel {
                 tokenUsage: row.token_usage,
                 responseTiming: row.response_timing,
                 jevDecision: decisionsMap.get(row.ai_prompt_uuid) ?? null,
+                loadout: AiAgentModel.toPromptLoadout(row),
                 toolCalls: toolCalls
                     .filter((tc) => isParseableToolName(tc.tool_name))
                     .map((tc) => this.parseToolCall(tc)),
@@ -5478,6 +5537,21 @@ export class AiAgentModel {
         return 'idle';
     }
 
+    private static toPromptLoadout(
+        row: Pick<DbAiPrompt, 'loadout_base'>,
+    ): AiAgentPromptLoadout | null {
+        return row.loadout_base ? { base: row.loadout_base } : null;
+    }
+
+    async updatePromptLoadout(
+        promptUuid: string,
+        loadout: AiAgentPromptLoadout,
+    ): Promise<void> {
+        await this.database(AiPromptTableName)
+            .where({ ai_prompt_uuid: promptUuid })
+            .update({ loadout_base: loadout.base });
+    }
+
     async findThreadMessage(
         role: 'user',
         {
@@ -5534,6 +5608,7 @@ export class AiAgentModel {
                     | 'token_usage'
                     | 'response_timing'
                     | 'hidden'
+                    | 'loadout_base'
                 > &
                     Pick<DbUser, 'user_uuid'> &
                     Pick<DbAiThread, 'ai_thread_uuid'> &
@@ -5559,6 +5634,7 @@ export class AiAgentModel {
                 `${AiPromptTableName}.token_usage`,
                 `${AiPromptTableName}.response_timing`,
                 `${AiPromptTableName}.hidden`,
+                `${AiPromptTableName}.loadout_base`,
                 `${UserTableName}.user_uuid`,
                 `${AiThreadTableName}.ai_thread_uuid`,
                 `${AiSlackPromptTableName}.slack_user_id`,
@@ -5708,6 +5784,7 @@ export class AiAgentModel {
                         (
                             await this.findPromptDecisions([row.ai_prompt_uuid])
                         ).get(row.ai_prompt_uuid) ?? null,
+                    loadout: AiAgentModel.toPromptLoadout(row),
                     toolCalls: toolCalls
                         .filter((tc) => isParseableToolName(tc.tool_name))
                         .map((tc) => this.parseToolCall(tc)),
@@ -6220,21 +6297,6 @@ export class AiAgentModel {
         decision: DbAiPromptDecisionInsert,
     ): Promise<void> {
         await this.database(AiPromptDecisionTableName).insert(decision);
-    }
-
-    async createPromptDecisionShadow(
-        row: Omit<
-            DbAiPromptDecisionShadow,
-            'ai_prompt_decision_shadow_uuid' | 'created_at'
-        >,
-    ): Promise<void> {
-        await this.database(AiPromptDecisionShadowTableName).insert({
-            ...row,
-            // State may be any JSON value; node-postgres would turn an array into a Postgres array.
-            state: this.database.raw('?::jsonb', [
-                JSON.stringify(row.state ?? null),
-            ]),
-        });
     }
 
     async updatePromptNeedsUserInput({
@@ -7121,7 +7183,10 @@ export class AiAgentModel {
             await trx(AiWebAppThreadTableName).insert({
                 ai_thread_uuid: row.ai_thread_uuid,
                 user_uuid: data.userUuid,
-                embed_space_uuid: data.embedSpaceUuid ?? null,
+                embed_space_uuid: data.embedSpaceUuids?.[0] ?? null,
+                embed_space_uuids: data.embedSpaceUuids?.length
+                    ? data.embedSpaceUuids
+                    : null,
             });
 
             return row.ai_thread_uuid;
@@ -7178,6 +7243,19 @@ export class AiAgentModel {
                     )
                     .andOnNull(`${DashboardsTableName}.deleted_at`);
             })
+            .leftJoin(SavedChartsTableName, function joinBoundChart() {
+                this.on(
+                    `${SavedChartsTableName}.saved_query_uuid`,
+                    '=',
+                    `${AiThreadTableName}.bound_entity_uuid`,
+                )
+                    .andOnVal(
+                        `${AiThreadTableName}.bound_entity_type`,
+                        '=',
+                        'chart',
+                    )
+                    .andOnNull(`${SavedChartsTableName}.deleted_at`);
+            })
             .where(`${AiThreadTableName}.ai_thread_uuid`, threadUuid)
             .first<
                 | {
@@ -7185,6 +7263,8 @@ export class AiAgentModel {
                       thread_context: string | null;
                       dashboard_name: string | null;
                       dashboard_slug: string | null;
+                      chart_name: string | null;
+                      chart_slug: string | null;
                   }
                 | undefined
             >(
@@ -7192,6 +7272,8 @@ export class AiAgentModel {
                 `${AiThreadTableName}.thread_context`,
                 `${DashboardsTableName}.name as dashboard_name`,
                 `${DashboardsTableName}.slug as dashboard_slug`,
+                `${SavedChartsTableName}.name as chart_name`,
+                `${SavedChartsTableName}.slug as chart_slug`,
             );
         if (!row) return { threadBinding: null, threadContext: null };
 
@@ -7212,6 +7294,15 @@ export class AiAgentModel {
                             : null,
                 };
                 break;
+            case 'chart':
+                threadBinding = {
+                    type: 'chart',
+                    chart:
+                        row.chart_name !== null && row.chart_slug !== null
+                            ? { name: row.chart_name, slug: row.chart_slug }
+                            : null,
+                };
+                break;
             default:
                 return assertUnreachable(
                     row.bound_entity_type,
@@ -7221,13 +7312,26 @@ export class AiAgentModel {
         return { threadBinding, threadContext: row.thread_context };
     }
 
-    async getWebAppThreadEmbedSpace(threadUuid: string) {
+    // Rows from older pods only have embed_space_uuid; a deleted space keeps the thread hidden.
+    private embedThreadSpacesWithin(writeSpaceUuids: string[]) {
+        const spaces = `COALESCE(${AiWebAppThreadTableName}.embed_space_uuids, ARRAY[${AiWebAppThreadTableName}.embed_space_uuid])`;
+        return this.database.raw(
+            `(${spaces} <@ ?::uuid[] AND cardinality(${spaces}) > 0)`,
+            [writeSpaceUuids],
+        );
+    }
+
+    async isWebAppThreadInEmbedSpaces(
+        threadUuid: string,
+        writeSpaceUuids: string[],
+    ): Promise<boolean> {
         const row = await this.database(AiWebAppThreadTableName)
-            .select('embed_space_uuid')
+            .select('ai_thread_uuid')
             .where('ai_thread_uuid', threadUuid)
+            .andWhere(this.embedThreadSpacesWithin(writeSpaceUuids))
             .first();
 
-        return row?.embed_space_uuid ?? null;
+        return row !== undefined;
     }
 
     async createWebAppPrompt(
@@ -7356,6 +7460,36 @@ export class AiAgentModel {
                         'name',
                     )
             ).map((r) => [r.app_id, r.name] as const),
+        );
+
+        const composerVersionUuids = context.flatMap((c) =>
+            c.type === 'composer_node' ? [c.versionUuid] : [],
+        );
+        const composerNodeTitleByKey = new Map(
+            (composerVersionUuids.length === 0
+                ? []
+                : await trx(AiArtifactVersionsTableName)
+                      .whereIn('ai_artifact_version_uuid', composerVersionUuids)
+                      .select<
+                          {
+                              ai_artifact_version_uuid: string;
+                              chart_config: Record<string, unknown> | null;
+                          }[]
+                      >('ai_artifact_version_uuid', 'chart_config')
+            ).flatMap((version) =>
+                isAiComposerChartArtifactConfig(version.chart_config)
+                    ? version.chart_config.queries.flatMap((query) =>
+                          query.nodeId
+                              ? [
+                                    [
+                                        `${version.ai_artifact_version_uuid}:${query.nodeId}`,
+                                        query.title ?? null,
+                                    ] as const,
+                                ]
+                              : [],
+                      )
+                    : [],
+            ),
         );
 
         const designUuids = context.flatMap((c) =>
@@ -7793,6 +7927,23 @@ export class AiAgentModel {
                         } satisfies AiPromptDataAppElementSnapshot,
                     };
                 }
+                case 'composer_node':
+                    return {
+                        ai_prompt_uuid: promptUuid,
+                        entity_type:
+                            'composer_node' as AiPromptContextEntityType,
+                        entity_uuid: null,
+                        entity_ref: `${ctx.artifactUuid}:${ctx.versionUuid}:${ctx.nodeId}`,
+                        display_name:
+                            composerNodeTitleByKey.get(
+                                `${ctx.versionUuid}:${ctx.nodeId}`,
+                            ) ?? null,
+                        runtime_overrides: {
+                            artifactUuid: ctx.artifactUuid,
+                            versionUuid: ctx.versionUuid,
+                            nodeId: ctx.nodeId,
+                        } satisfies AiPromptComposerNodeSnapshot,
+                    };
                 case 'data_app_restore': {
                     const appName = appNameByUuid.get(ctx.appUuid);
                     return {
@@ -8327,6 +8478,22 @@ export class AiAgentModel {
                     displayName: app
                         ? getAppDisplayName(app.name, snapshot.appUuid)
                         : row.display_name,
+                };
+            }
+            case 'composer_node': {
+                if (row.runtime_overrides === null) {
+                    throw new Error(
+                        `ai_prompt_context row ${row.ai_prompt_context_uuid} of type 'composer_node' is missing runtime_overrides`,
+                    );
+                }
+                const snapshot =
+                    row.runtime_overrides as AiPromptComposerNodeSnapshot;
+                return {
+                    type: 'composer_node',
+                    artifactUuid: snapshot.artifactUuid,
+                    versionUuid: snapshot.versionUuid,
+                    nodeId: snapshot.nodeId,
+                    title: row.display_name ?? snapshot.nodeId,
                 };
             }
             case 'data_app_restore': {
@@ -9893,25 +10060,6 @@ export class AiAgentModel {
         });
     }
 
-    async findChartArtifactConfigsByThreadUuid(
-        threadUuid: string,
-    ): Promise<AiArtifact['chartConfig'][]> {
-        const rows: { chart_config: unknown }[] = await this.database(
-            AiArtifactVersionsTableName,
-        )
-            .select(`${AiArtifactVersionsTableName}.chart_config`)
-            .join(
-                AiArtifactsTableName,
-                `${AiArtifactVersionsTableName}.ai_artifact_uuid`,
-                `${AiArtifactsTableName}.ai_artifact_uuid`,
-            )
-            .where(`${AiArtifactsTableName}.ai_thread_uuid`, threadUuid)
-            .andWhere(`${AiArtifactsTableName}.artifact_type`, 'chart')
-            .orderBy(`${AiArtifactVersionsTableName}.created_at`, 'asc')
-            .orderBy(`${AiArtifactVersionsTableName}.version_number`, 'asc');
-        return rows.map((row) => parseAiArtifactChartConfig(row.chart_config));
-    }
-
     async listComposerQueryNodes(
         scope: ComposerQueryNodeScope,
     ): Promise<ThreadComposerQueryNode[]> {
@@ -9923,28 +10071,61 @@ export class AiAgentModel {
         return rows.map((row) => row.definition);
     }
 
-    /** Identical definitions are a no-op; a different one under a registered node id throws. */
+    async findComposerQueryNodeColumns({
+        scope,
+        nodeId,
+    }: {
+        scope: ComposerQueryNodeScope;
+        nodeId: string;
+    }): Promise<ComposerNodeColumn[] | null> {
+        const row = await this.database(ComposerQueryNodesTableName)
+            .select('node_columns')
+            .where({
+                scope_type: scope.scopeType,
+                scope_uuid: scope.scopeUuid,
+                node_id: nodeId,
+            })
+            .first();
+        return row?.node_columns ?? null;
+    }
+
+    /**
+     * Identical definitions are a no-op apart from storing given columns;
+     * a different one under a registered node id throws.
+     */
     async registerComposerQueryNodes({
         scope,
         nodes,
+        nodeColumns,
     }: {
         scope: ComposerQueryNodeScope;
         nodes: ThreadComposerQueryNode[];
+        nodeColumns: Record<string, ComposerNodeColumn[]>;
     }): Promise<void> {
         if (nodes.length === 0) return;
         const submitted = new Map(nodes.map((node) => [node.nodeId, node]));
         await this.database.transaction(async (trx) => {
             await trx(ComposerQueryNodesTableName)
                 .insert(
-                    nodes.map((node) => ({
-                        scope_type: scope.scopeType,
-                        scope_uuid: scope.scopeUuid,
-                        node_id: node.nodeId,
-                        definition: node,
-                    })),
+                    nodes.map((node) => {
+                        const columns = nodeColumns[node.nodeId];
+                        return {
+                            scope_type: scope.scopeType,
+                            scope_uuid: scope.scopeUuid,
+                            node_id: node.nodeId,
+                            definition: node,
+                            node_columns: columns
+                                ? JSON.stringify(columns)
+                                : null,
+                        };
+                    }),
                 )
                 .onConflict(['scope_type', 'scope_uuid', 'node_id'])
-                .ignore();
+                .merge({
+                    node_columns: trx.raw(
+                        `COALESCE(EXCLUDED.node_columns, ${ComposerQueryNodesTableName}.node_columns)`,
+                    ),
+                });
             const registered = await trx(ComposerQueryNodesTableName)
                 .select('node_id', 'definition')
                 .where({
@@ -9959,11 +10140,55 @@ export class AiAgentModel {
                     !isSameComposerNodeDefinition(row.definition, node)
                 ) {
                     throw new ParameterError(
-                        getComposerNodeConflictMessage(row.definition),
+                        getComposerNodeConflictMessage(
+                            row.definition,
+                            scope.scopeType === COMPOSER_SESSION_SCOPE_TYPE
+                                ? 'session'
+                                : 'thread',
+                        ),
                     );
                 }
             });
         });
+    }
+
+    async createComposerSession(owner: {
+        userUuid: string;
+        organizationUuid: string;
+        projectUuid: string;
+    }): Promise<string> {
+        const [row] = await this.database(ComposerSessionsTableName)
+            .insert({
+                user_uuid: owner.userUuid,
+                organization_uuid: owner.organizationUuid,
+                project_uuid: owner.projectUuid,
+            })
+            .returning('composer_session_uuid');
+        return row.composer_session_uuid;
+    }
+
+    /** Bumps last_used_at; false when the session is unknown or not this owner's in this project. */
+    async useComposerSession({
+        sessionUuid,
+        userUuid,
+        organizationUuid,
+        projectUuid,
+    }: {
+        sessionUuid: string;
+        userUuid: string;
+        organizationUuid: string;
+        projectUuid: string;
+    }): Promise<boolean> {
+        if (!isValidUuid(sessionUuid)) return false;
+        const updated = await this.database(ComposerSessionsTableName)
+            .where({
+                composer_session_uuid: sessionUuid,
+                user_uuid: userUuid,
+                organization_uuid: organizationUuid,
+                project_uuid: projectUuid,
+            })
+            .update({ last_used_at: this.database.fn.now() });
+        return updated > 0;
     }
 
     async findArtifactVersionsByPromptUuid(
@@ -11474,8 +11699,8 @@ export class AiAgentModel {
 
             await trx.raw(
                 `INSERT INTO ${ComposerQueryNodesTableName}
-                    (scope_type, scope_uuid, node_id, definition, created_at)
-                 SELECT scope_type, :targetThreadUuid, node_id, definition, created_at
+                    (scope_type, scope_uuid, node_id, definition, node_columns, created_at)
+                 SELECT scope_type, :targetThreadUuid, node_id, definition, node_columns, created_at
                  FROM ${ComposerQueryNodesTableName}
                  WHERE scope_type = :scopeType AND scope_uuid = :scopeUuid`,
                 {
@@ -11581,7 +11806,7 @@ export class AiAgentModel {
      * Shared predicate for retention sweeps: the effective window (LEAST of
      * agent/org values — nulls ignored, so agentless threads inherit the org
      * value) must have elapsed since the last activity, and nothing may be
-     * in flight: an unanswered prompt under 24h old, a runSql call awaiting
+     * in flight: an unanswered prompt under 24h old, a SQL call awaiting
      * human approval at any age, or a non-terminal deep research/writeback
      * run (their stale-run sweepers guarantee eventual termination).
      */
@@ -11629,7 +11854,7 @@ export class AiAgentModel {
                         ON ap.tool_call_id = tc.tool_call_id
                     WHERE p.ai_thread_uuid = t.ai_thread_uuid
                         AND t.sql_auto_approved_at IS NULL
-                        AND tc.tool_name = 'runSql'
+                        AND ${sqlApprovalToolCallSql('tc')}
                         AND tr.ai_agent_tool_result_uuid IS NULL
                         AND ap.tool_call_id IS NULL
                 )

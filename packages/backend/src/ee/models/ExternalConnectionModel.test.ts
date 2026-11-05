@@ -1,15 +1,19 @@
-import { ConflictError } from '@lightdash/common';
+import { ConflictError, ParameterError } from '@lightdash/common';
 import knex, { type Knex } from 'knex';
 import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
+    ApiSourceCallsTableName,
     AppExternalConnectionsTableName,
     ExternalConnectionRateCountersTableName,
     ExternalConnectionSamplesTableName,
     ExternalConnectionSecretsTableName,
     ExternalConnectionsTableName,
 } from '../database/entities/externalConnections';
-import { ExternalConnectionModel } from './ExternalConnectionModel';
+import {
+    ExternalConnectionModel,
+    parseApiSourceSchemaScan,
+} from './ExternalConnectionModel';
 
 const PROJECT_UUID = '00000000-0000-0000-0000-000000000001';
 const ORG_UUID = '00000000-0000-0000-0000-000000000002';
@@ -396,6 +400,45 @@ describe('ExternalConnectionModel', () => {
         });
     });
 
+    describe('getApiSourceUsage', () => {
+        it('sums usage per connection and rounds the median of calls that reached the integration', async () => {
+            tracker.on.select(ApiSourceCallsTableName).responseOnce([
+                {
+                    external_connection_uuid: CONNECTION_UUID,
+                    api_calls: '12',
+                    response_bytes: '4096',
+                    median_duration_ms: 842.5,
+                },
+                {
+                    external_connection_uuid: 'conn-reused-only',
+                    api_calls: '0',
+                    response_bytes: null,
+                    median_duration_ms: null,
+                },
+            ]);
+
+            const usage = await model.getApiSourceUsage(PROJECT_UUID);
+
+            expect(tracker.history.select[0].sql).toContain(
+                'percentile_cont(0.5) within group (order by duration_ms) filter (where api_calls > 0)',
+            );
+            expect(usage).toEqual([
+                {
+                    externalConnectionUuid: CONNECTION_UUID,
+                    apiCalls: 12,
+                    responseBytes: 4096,
+                    medianDurationMs: 843,
+                },
+                {
+                    externalConnectionUuid: 'conn-reused-only',
+                    apiCalls: 0,
+                    responseBytes: 0,
+                    medianDurationMs: null,
+                },
+            ]);
+        });
+    });
+
     describe('listLinkedApps', () => {
         it('groups aliases by active app and distinguishes project chart types', async () => {
             tracker.on.select(AppExternalConnectionsTableName).responseOnce([
@@ -650,6 +693,8 @@ describe('ExternalConnectionModel', () => {
 
     describe('link + resolveAppAlias', () => {
         it('inserts a link row', async () => {
+            // No live source among the linked connections
+            tracker.on.select(ExternalConnectionsTableName).responseOnce([]);
             tracker.on
                 .insert(AppExternalConnectionsTableName)
                 .responseOnce([{}]);
@@ -666,6 +711,8 @@ describe('ExternalConnectionModel', () => {
         });
 
         it('keeps retries of the same app alias and connection idempotent', async () => {
+            // No live source among the linked connections
+            tracker.on.select(ExternalConnectionsTableName).responseOnce([]);
             tracker.on.insert(AppExternalConnectionsTableName).responseOnce([]);
             tracker.on
                 .select(AppExternalConnectionsTableName)
@@ -677,6 +724,8 @@ describe('ExternalConnectionModel', () => {
         });
 
         it('rejects an app alias already owned by another connection', async () => {
+            // No live source among the linked connections
+            tracker.on.select(ExternalConnectionsTableName).responseOnce([]);
             tracker.on.insert(AppExternalConnectionsTableName).responseOnce([]);
             tracker.on
                 .select(AppExternalConnectionsTableName)
@@ -690,6 +739,8 @@ describe('ExternalConnectionModel', () => {
         });
 
         it('replaceAppLinks deletes stale aliases and upserts with repoint-on-conflict', async () => {
+            // No live source among the linked connections
+            tracker.on.select(ExternalConnectionsTableName).responseOnce([]);
             tracker.on.delete(AppExternalConnectionsTableName).responseOnce(1);
             tracker.on
                 .insert(AppExternalConnectionsTableName)
@@ -712,6 +763,17 @@ describe('ExternalConnectionModel', () => {
             // Must repoint an existing alias, not conflict-ignore like linkToApp
             expect(insertQuery.sql).toContain('on conflict');
             expect(insertQuery.sql).toContain('do update');
+        });
+
+        it('refuses to link a live data source to an app', async () => {
+            tracker.on
+                .select(ExternalConnectionsTableName)
+                .responseOnce([{ name: 'PostHog' }]);
+
+            await expect(
+                model.linkToApp(APP_ID, CONNECTION_UUID, 'acme'),
+            ).rejects.toThrow(ParameterError);
+            expect(tracker.history.insert).toHaveLength(0);
         });
 
         it('replaceAppLinks with an empty set deletes all links and inserts nothing', async () => {
@@ -907,6 +969,32 @@ describe('ExternalConnectionModel', () => {
 
             const result = await model.getSampleConnectionUuid(SAMPLE_UUID);
             expect(result).toBeUndefined();
+        });
+    });
+});
+
+describe('parseApiSourceSchemaScan', () => {
+    const requestedAt = new Date('2026-11-04T10:00:00.000Z');
+
+    it('keeps a recent pending scan pending', () => {
+        expect(
+            parseApiSourceSchemaScan(
+                { status: 'pending', requestedAt: requestedAt.toISOString() },
+                new Date(requestedAt.getTime() + 60 * 1000),
+            ),
+        ).toEqual({ status: 'pending', requestedAt });
+    });
+
+    it('reports a pending scan that outlived its worker as failed', () => {
+        expect(
+            parseApiSourceSchemaScan(
+                { status: 'pending', requestedAt: requestedAt.toISOString() },
+                new Date(requestedAt.getTime() + 60 * 60 * 1000),
+            ),
+        ).toEqual({
+            status: 'failed',
+            scannedAt: requestedAt,
+            error: 'The schema scan did not finish',
         });
     });
 });

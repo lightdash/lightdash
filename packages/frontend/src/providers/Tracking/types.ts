@@ -1,10 +1,12 @@
 import {
+    type AgentOnboardingRunStatus,
     type AppVersionStatus,
     type AiDeepResearchTerminalStatus,
     type ContentReviewContentType,
     type CustomFormatType,
     type DataAppTemplate,
     type HomepageRecommendedActionKey,
+    type JobStepType,
     type MapTileBackground,
     type RegistryChartTypeState,
     type SearchItemType,
@@ -15,6 +17,7 @@ import {
 import type * as rudderSDK from 'rudder-sdk-js';
 import { type PlaygroundSetupFailure } from '../../components/ProjectConnection/ProjectConnectFlow/playgroundSetupFailure';
 import { type AgentSuggestionsDisplayedProperties } from '../../ee/features/aiCopilot/hooks/agentSuggestionsTelemetry';
+import { type SetupGuideRowId } from '../../ee/features/homepageBuilder/blocks/setupGuide/setupGuideModel';
 import {
     type CategoryName,
     type EventName,
@@ -92,21 +95,22 @@ type GenericEvent = {
 type SetupInviteSentEvent = {
     name: EventName.SETUP_INVITE_SENT;
     properties: {
-        organizationId: string;
+        organizationId: string | null;
+        surface: 'data_source_chooser' | 'invite_expert';
     };
 };
 
 type PlaygroundProjectEnteredEvent = {
     name: EventName.PLAYGROUND_PROJECT_ENTERED;
     properties: {
-        organizationId: string;
+        organizationId: string | null;
     };
 };
 
 type PlaygroundProjectSetupFailedEvent = {
     name: EventName.PLAYGROUND_PROJECT_SETUP_FAILED;
     properties: {
-        organizationId: string;
+        organizationId: string | null;
         failureType: PlaygroundSetupFailure;
     };
 };
@@ -184,6 +188,27 @@ export type HomepageV2PromoDismissedEvent = {
     };
 };
 
+export type ChartStudioVegaNudgeViewedEvent = {
+    name: EventName.CHART_STUDIO_VEGA_NUDGE_VIEWED;
+    properties: {
+        projectUuid: string;
+    };
+};
+
+export type ChartStudioVegaNudgeDismissedEvent = {
+    name: EventName.CHART_STUDIO_VEGA_NUDGE_DISMISSED;
+    properties: {
+        projectUuid: string;
+    };
+};
+
+export type ChartStudioVegaNudgeOpenedEvent = {
+    name: EventName.CHART_STUDIO_VEGA_NUDGE_OPENED;
+    properties: {
+        projectUuid: string;
+    };
+};
+
 export type HomepageV2OptedInEvent = {
     name: EventName.HOMEPAGE_V2_OPTED_IN;
     properties: {
@@ -215,19 +240,30 @@ export type HomepageOpeningSwappedEvent = {
     };
 };
 
+export type HomepageRecommendedActionSurface =
+    | 'setup_guide'
+    | 'first_chart_banner'
+    | 'checklist';
+
+export type HomepageRecommendedActionProperties = {
+    surface: HomepageRecommendedActionSurface;
+    projectId: string | null;
+    rowId: SetupGuideRowId | null;
+    actionKey: HomepageRecommendedActionKey | null;
+    choice: 'ask' | 'explore' | null;
+};
+
 export type HomepageRecommendedActionClickedEvent = {
     name: EventName.HOMEPAGE_RECOMMENDED_ACTION_CLICKED;
-    properties: {
-        actionKey: HomepageRecommendedActionKey;
-        destination: string;
+    // null when the click fills the composer instead of navigating
+    properties: HomepageRecommendedActionProperties & {
+        destination: string | null;
     };
 };
 
 export type HomepageRecommendedActionSkippedEvent = {
     name: EventName.HOMEPAGE_RECOMMENDED_ACTION_SKIPPED;
-    properties: {
-        actionKey: HomepageRecommendedActionKey;
-    };
+    properties: HomepageRecommendedActionProperties;
 };
 
 export type SetupStepClickedEvent = {
@@ -599,6 +635,28 @@ type AiAgentChatMinimizedEvent = {
     };
 };
 
+type AiAgentResponseEventProperties = {
+    organizationId: string | undefined;
+    projectId: string;
+    agentUuid: string;
+    threadUuid: string;
+    messageUuid: string;
+};
+
+type AiAgentResponseFeedbackClickedEvent = {
+    name: EventName.AI_AGENT_RESPONSE_FEEDBACK_CLICKED;
+    properties: AiAgentResponseEventProperties & { rating: 'up' | 'down' };
+};
+
+type AiAgentResponseActionEvent = {
+    name:
+        | EventName.AI_AGENT_RESPONSE_FEEDBACK_COMMENT_SUBMITTED
+        | EventName.AI_AGENT_RESPONSE_COPIED
+        | EventName.AI_AGENT_RESPONSE_ADD_TO_EVALS_CLICKED
+        | EventName.AI_AGENT_RESPONSE_DEBUG_OPENED;
+    properties: AiAgentResponseEventProperties;
+};
+
 type AiAgentBattleStartedEvent = {
     name: EventName.AI_AGENT_BATTLE_STARTED;
     properties: {
@@ -606,7 +664,7 @@ type AiAgentBattleStartedEvent = {
         aiAgentId: string;
         modelA: string | null;
         modelB: string | null;
-        battleType: 'models' | 'speed' | 'decisions';
+        battleType: 'models' | 'speed' | 'queryPath';
     };
 };
 
@@ -754,6 +812,80 @@ type DashboardFilterLockToggledEvent = {
     };
 };
 
+// Dashboard controls: counts, booleans and fixed values only, never names
+type DashboardControlsEventBase = {
+    dashboardUuid: string | undefined;
+    filtersCount: number;
+};
+
+export type DashboardSectionCreatedSource =
+    | 'add_section_icon'
+    | 'new_section_capsule'
+    | 'new_section_drop'
+    | 'selection_bar'
+    | 'move_to_menu';
+
+export type DashboardFiltersMovedMethod =
+    | 'drag'
+    | 'selection_bar'
+    | 'editor_section_select';
+
+export type DashboardFilterEditorCloseOutcome =
+    | 'apply'
+    | 'cancel'
+    | 'switch'
+    | 'remove'
+    | 'mode_change';
+
+type DashboardSectionCreatedEvent = {
+    name: EventName.DASHBOARD_SECTION_CREATED;
+    properties: DashboardControlsEventBase & {
+        source: DashboardSectionCreatedSource;
+        filtersMoved: number;
+    };
+};
+
+type DashboardFiltersMovedEvent = {
+    name: EventName.DASHBOARD_FILTERS_MOVED;
+    properties: DashboardControlsEventBase & {
+        method: DashboardFiltersMovedMethod;
+        count: number;
+        whileEditing: boolean;
+    };
+};
+
+type DashboardFilterEditorOpenedEvent = {
+    name: EventName.DASHBOARD_FILTER_EDITOR_OPENED;
+    properties: DashboardControlsEventBase & {
+        source: 'pill' | 'add_filter' | 'section_add';
+        isNew: boolean;
+    };
+};
+
+type DashboardFilterEditorClosedEvent = {
+    name: EventName.DASHBOARD_FILTER_EDITOR_CLOSED;
+    properties: DashboardControlsEventBase & {
+        outcome: DashboardFilterEditorCloseOutcome;
+        hadChanges: boolean;
+    };
+};
+
+type DashboardFilterEditorSwitchAnsweredEvent = {
+    name: EventName.DASHBOARD_FILTER_EDITOR_SWITCH_ANSWERED;
+    properties: DashboardControlsEventBase & {
+        choice: 'apply' | 'discard' | 'withdrawn';
+    };
+};
+
+type DashboardSectionToggledEvent = {
+    name: EventName.DASHBOARD_SECTION_TOGGLED;
+    // filtersCount: the section's members
+    properties: DashboardControlsEventBase & {
+        expanded: boolean;
+        collapsedByDefault: boolean;
+    };
+};
+
 type DashboardFilterRequirementsSavedEvent = {
     name: EventName.DASHBOARD_FILTER_REQUIREMENTS_SAVED;
     properties: {
@@ -774,12 +906,24 @@ type CreateProjectButtonClickedEvent = {
     };
 };
 
+export type CreateProjectErrorCategory =
+    | 'authentication'
+    | 'network'
+    | 'permission'
+    | 'not_found'
+    | 'timeout'
+    | 'dbt'
+    | 'unknown';
+
 type CreateProjectFailedEvent = {
     name: EventName.CREATE_PROJECT_FAILED;
     properties: {
         warehouse: WarehouseTypes;
         errorType: string;
-        warehouseOnly?: boolean;
+        // The create job's failed step, null for sync API errors
+        failedStep: JobStepType | null;
+        errorCategory: CreateProjectErrorCategory;
+        warehouseOnly: boolean;
         onboardingFlow: 'legacy' | 'new';
     };
 };
@@ -821,6 +965,35 @@ type OrganizationBrandDetectedEvent = {
     };
 };
 
+export type OnboardingScreen =
+    | 'verify_email'
+    | 'organization'
+    | 'about_you'
+    | 'choose_source'
+    | 'warehouse_form'
+    | 'dbt_repo'
+    | 'dbt'
+    | 'tools'
+    | 'team'
+    | 'done';
+
+type OnboardingScreenViewedEvent = {
+    name: EventName.ONBOARDING_SCREEN_VIEWED;
+    properties: {
+        screen: OnboardingScreen;
+        organizationId: string | null;
+        projectId: string | null;
+        secondsOnPreviousScreen: number | null;
+    };
+};
+
+type OnboardingStepSkippedEvent = {
+    name: EventName.ONBOARDING_STEP_SKIPPED;
+    properties: {
+        screen: OnboardingScreen;
+    };
+};
+
 type OnboardingWarehouseSelectedEvent = {
     name: EventName.ONBOARDING_WAREHOUSE_SELECTED;
     properties: {
@@ -828,6 +1001,15 @@ type OnboardingWarehouseSelectedEvent = {
         warehouse: string;
         tier: 'popular' | 'all' | 'other';
         onboardingFlow: 'legacy' | 'new';
+    };
+};
+
+type LiveDataSourceRequestedEvent = {
+    name: EventName.LIVE_DATA_SOURCE_REQUESTED;
+    properties: {
+        organizationId: string | null;
+        projectId: string;
+        integration: string;
     };
 };
 
@@ -865,25 +1047,37 @@ type OnboardingProjectReadyStartExploringClickedEvent = {
 type HomepageAskSubmittedEvent = {
     name: EventName.HOMEPAGE_ASK_SUBMITTED;
     properties: {
-        mode: string;
+        organizationId: string | null;
+        projectId: string | null;
+        mode: 'auto' | 'agent';
         hasProject: boolean;
+        source: 'typed' | 'guide_prefill' | 'starter_chip';
+        prefillEdited: boolean;
     };
 };
 
 type HomepageRecommendedActionImpressionEvent = {
     name: EventName.HOMEPAGE_RECOMMENDED_ACTION_IMPRESSION;
-    properties: {
-        actionKey: HomepageRecommendedActionKey;
-        position: number;
-        trigger: 'initial' | 'auto_rotate' | 'manual';
-    };
+    properties: HomepageRecommendedActionProperties &
+        (
+            | {
+                  surface: 'checklist';
+                  position: number;
+                  trigger: 'initial' | 'auto_rotate' | 'manual';
+              }
+            | {
+                  surface: 'setup_guide';
+                  completedCount: number;
+                  totalCount: number;
+                  isMinimized: boolean;
+              }
+            | { surface: 'first_chart_banner' }
+        );
 };
 
 type HomepageRecommendedActionRestoredEvent = {
     name: EventName.HOMEPAGE_RECOMMENDED_ACTION_RESTORED;
-    properties: {
-        actionKey: HomepageRecommendedActionKey;
-    };
+    properties: HomepageRecommendedActionProperties;
 };
 
 type HomepageStarsMediaCardClickedEvent = {
@@ -902,7 +1096,7 @@ type CreateProjectColumnsDefinedButtonClickedEvent = {
 };
 
 type AgentOnboardingDemoOfferProperties = {
-    organizationId: string;
+    organizationId: string | null;
     projectUuid: string;
     agentOnboardingRunUuid: string;
     offerType: 'provision_demo' | 'open_existing_demo';
@@ -921,9 +1115,20 @@ type AgentOnboardingDemoOfferAcceptedEvent = {
 };
 
 type AgentOnboardingCompletionToastProperties = {
-    organizationId: string;
+    organizationId: string | null;
     projectUuid: string;
     agentOnboardingRunUuid: string;
+};
+
+type OnboardingDoneActionClickedEvent = {
+    name: EventName.ONBOARDING_DONE_ACTION_CLICKED;
+    properties: {
+        organizationId: string | null;
+        projectId: string;
+        action: 'ask_first_question' | 'look_around';
+        areMetricsLive: boolean;
+        runStatus: AgentOnboardingRunStatus | null;
+    };
 };
 
 type AgentOnboardingCompletionToastShownEvent = {
@@ -1057,7 +1262,8 @@ export type LearnStartSource =
     | 'resume'
     | 'recommended'
     | 'next_from_completion'
-    | 'deep_link';
+    | 'deep_link'
+    | 'homepage';
 
 type LearnLibraryViewedEvent = {
     name: EventName.LEARN_LIBRARY_VIEWED;
@@ -1188,6 +1394,7 @@ export type EventData =
     | AgentOnboardingDemoOfferAcceptedEvent
     | AgentOnboardingCompletionToastShownEvent
     | AgentOnboardingCompletionToastClickedEvent
+    | OnboardingDoneActionClickedEvent
     | SetupInviteSentEvent
     | PlaygroundProjectEnteredEvent
     | PlaygroundProjectSetupFailedEvent
@@ -1199,6 +1406,8 @@ export type EventData =
     | OrganizationSetupStepCompletedEvent
     | OrganizationBrandDetectedEvent
     | OnboardingWarehouseSelectedEvent
+    | OnboardingScreenViewedEvent
+    | OnboardingStepSkippedEvent
     | BigquerySsoSigninCompletedEvent
     | SnowflakeCliSsoCommandCopiedEvent
     | SnowflakeCliSsoConnectCompletedEvent
@@ -1213,6 +1422,9 @@ export type EventData =
     | DocumentChartAppliedEvent
     | HomepageV2PromoViewedEvent
     | HomepageV2PromoDismissedEvent
+    | ChartStudioVegaNudgeViewedEvent
+    | ChartStudioVegaNudgeDismissedEvent
+    | ChartStudioVegaNudgeOpenedEvent
     | HomepageV2OptedInEvent
     | HomepageBlockAddedEvent
     | HomepageBlockRemovedEvent
@@ -1259,6 +1471,8 @@ export type EventData =
     | AiAgentChatMinimizedEvent
     | AiDeepResearchReportEngagedEvent
     | AiAgentBattleStartedEvent
+    | AiAgentResponseFeedbackClickedEvent
+    | AiAgentResponseActionEvent
     | ContentReviewSimilarContentClickedEvent
     | AiAgentSuggestionsDisplayedEvent
     | AiAgentSuggestionImpressionEvent
@@ -1276,6 +1490,12 @@ export type EventData =
     | TableCalculationSaveEvent
     | FormulaTableCalculationAiGenerateClickedEvent
     | DashboardFilterLockToggledEvent
+    | DashboardSectionCreatedEvent
+    | DashboardFiltersMovedEvent
+    | DashboardFilterEditorOpenedEvent
+    | DashboardFilterEditorClosedEvent
+    | DashboardFilterEditorSwitchAnsweredEvent
+    | DashboardSectionToggledEvent
     | LearnLibraryViewedEvent
     | LearnWalkthroughStartedEvent
     | LearnWalkthroughCompletedEvent
@@ -1283,7 +1503,8 @@ export type EventData =
     | SqlRunnerConnectionSwitchedEvent
     | SqlRunnerConnectionHintResolvedEvent
     | SqlRunnerShareLinkOpenedEvent
-    | OpenInSqlRunnerClickedEvent;
+    | OpenInSqlRunnerClickedEvent
+    | LiveDataSourceRequestedEvent;
 
 export type IdentifyData = {
     id: string;

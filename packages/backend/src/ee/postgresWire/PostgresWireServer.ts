@@ -68,6 +68,8 @@ export type PgWireHandlers<TSession> = {
         user: string;
         database: string;
         password: string;
+        /** `application_name` from the startup message, when the client sent one */
+        applicationName: string | null;
     }) => Promise<TSession>;
     /**
      * Throw PgWireServerError to return an error to the client. The command
@@ -574,6 +576,7 @@ class PgWireConnection<TSession> {
                 user,
                 database,
                 password,
+                applicationName: this.startupParams.application_name || null,
             });
         } catch (e) {
             const error =

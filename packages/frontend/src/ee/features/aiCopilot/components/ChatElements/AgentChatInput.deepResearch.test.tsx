@@ -5,17 +5,22 @@ import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../../testing/testUtils';
-import { readAiAgentFastMode } from '../../hooks/useAiAgentFastMode';
 import { store } from '../../store';
 import { AgentChatInput } from './AgentChatInput';
 
-const { useHasActiveDeepResearchRunMock, useServerFeatureFlagMock } =
-    vi.hoisted(() => ({
-        useHasActiveDeepResearchRunMock: vi.fn(() => false),
-        useServerFeatureFlagMock: vi.fn(() => ({
-            data: { enabled: false },
-        })),
-    }));
+const {
+    useHasActiveDeepResearchRunMock,
+    useServerFeatureFlagMock,
+    useHealthMock,
+} = vi.hoisted(() => ({
+    useHasActiveDeepResearchRunMock: vi.fn(() => false),
+    useServerFeatureFlagMock: vi.fn(() => ({
+        data: { enabled: false },
+    })),
+    useHealthMock: vi.fn(() => ({
+        data: { ai: { fastDecisionsEnabled: false } },
+    })),
+}));
 
 vi.mock('../../hooks/useDeepResearch', () => ({
     useHasActiveDeepResearchRun: useHasActiveDeepResearchRunMock,
@@ -23,6 +28,10 @@ vi.mock('../../hooks/useDeepResearch', () => ({
 
 vi.mock('../../../../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: useServerFeatureFlagMock,
+}));
+
+vi.mock('../../../../../hooks/health/useHealth', () => ({
+    default: useHealthMock,
 }));
 
 const renderInput = ({
@@ -56,6 +65,9 @@ const renderInput = ({
         useServerFeatureFlagMock.mockImplementation((flag?: FeatureFlags) => ({
             data: { enabled: flag !== FeatureFlags.AgentIdentity },
         }));
+        useHealthMock.mockReturnValue({
+            data: { ai: { fastDecisionsEnabled: true } },
+        });
     }
 
     renderWithProviders(
@@ -113,6 +125,9 @@ describe('AgentChatInput Deep Research mode', () => {
         useServerFeatureFlagMock.mockReturnValue({
             data: { enabled: false },
         });
+        useHealthMock.mockReturnValue({
+            data: { ai: { fastDecisionsEnabled: false } },
+        });
     });
 
     const openComposerOptions = async () => {
@@ -137,7 +152,6 @@ describe('AgentChatInput Deep Research mode', () => {
             'Attach a document',
             'SQL Runner',
             'Deep research',
-            'Fast',
         ]);
         expect(
             screen.getByRole('menuitem', { name: 'Enable SQL Runner' }),
@@ -201,31 +215,6 @@ describe('AgentChatInput Deep Research mode', () => {
 
         expect(inputClick).toHaveBeenCalledOnce();
         inputClick.mockRestore();
-    });
-
-    it('saves the Fast mode choice from the composer menu', async () => {
-        window.localStorage.removeItem('lightdash-ai-agent-fast-mode');
-        renderInput({ enableCsvAttachment: true });
-        const user = await openComposerOptions();
-
-        await user.click(
-            screen.getByRole('menuitem', { name: 'Disable Fast mode' }),
-        );
-
-        expect(
-            screen.getByRole('menuitem', { name: 'Enable Fast mode' }),
-        ).toBeInTheDocument();
-        expect(readAiAgentFastMode()).toBe(false);
-        window.localStorage.removeItem('lightdash-ai-agent-fast-mode');
-    });
-
-    it('hides Fast mode when fast decisions are off', async () => {
-        renderInput({ onSqlModeChange: vi.fn() });
-        await openComposerOptions();
-
-        expect(
-            screen.queryByRole('menuitem', { name: /Fast mode/ }),
-        ).not.toBeInTheDocument();
     });
 
     it('toggles SQL Runner from the action menu', async () => {

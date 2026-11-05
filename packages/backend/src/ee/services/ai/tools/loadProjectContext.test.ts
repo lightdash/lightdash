@@ -178,7 +178,7 @@ describe('loadProjectContext tool', () => {
         const res = await run(['nonexistent_xyz']);
         expect(res.metadata).toMatchObject({ entryIds: [] });
         expect(res.result).toContain('No context entry matched');
-        expect(res.result).toContain('4 entries exist');
+        expect(res.result).toContain('load all 4 entries');
         expect(res.result).toContain('arr-def');
         expect(res.result).toContain('sao-def');
         expect(res.result).not.toContain('annual recurring revenue');

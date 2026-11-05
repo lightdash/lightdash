@@ -31,6 +31,7 @@ export const OAUTH_OPERATIONS: Partial<
     AiAgentDocument: OAUTH_ACTIONS,
     AiAgentSkill: OAUTH_ACTIONS,
     AiAgentThread: OAUTH_ACTIONS,
+    AiAgentThreadContext: ['view'],
     AiDeepResearch: ['create'],
     Analytics: ['view'],
     ChangeCsvResults: OAUTH_ACTIONS,

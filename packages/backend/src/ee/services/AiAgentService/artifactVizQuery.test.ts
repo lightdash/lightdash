@@ -106,7 +106,7 @@ const buildService = () => {
             agentUuid: 'agent-uuid',
         }),
         getThread: vi.fn().mockResolvedValue({ user: { uuid: 'user-uuid' } }),
-        getWebAppThreadEmbedSpace: vi.fn().mockResolvedValue('space-uuid'),
+        isWebAppThreadInEmbedSpaces: vi.fn().mockResolvedValue(true),
     };
     const asyncQueryService = {
         bindQueryToArtifact: vi.fn(),

@@ -17,7 +17,7 @@ sslip.io hostname, real HTTPS                      ServiceAccount → Workload I
 - **No Terraform** — Azure resources are created imperatively (idempotent `az ... show || create`). Sandbox groups + disk images are driven via the standalone **`aca` CLI** (the Sandboxes ADC data plane, `management.azuredevcompute.io`); `az rest` reaches only ARM. The `containerapp` `az` extension still can't install on the broken Homebrew `az` bottle, but `aca` is a separate binary and unaffected (see gotchas).
 - **AKS** with `--enable-oidc-issuer --enable-workload-identity --attach-acr`. The backend pod gets a federated **Workload Identity** token; `DefaultAzureCredential` mints ADC data-plane bearers for the sandbox groups — **no client secret in config**.
 - **Object storage is in-cluster MinIO**, not Azure Blob: Lightdash speaks the S3 API strictly (`parseBaseS3Config` enforces `S3_ENDPOINT/BUCKET/REGION`). MinIO backs the app's file storage only — the `azure-sandboxes` backend is `pauseResume:true` (native memory+disk snapshot), so it writes **no** sandbox snapshots to S3.
-- **Two sandbox groups** (data-app + writeback), one group + disk image per feature, mirroring the split images on every other backend. Sandboxes expose **native exec/file** data-plane APIs — there is no in-container agent to bake into the image.
+- **Two sandbox groups** (data-app + writeback; optional python group for python query nodes), one group + disk image per feature, mirroring the split images on every other backend. Sandboxes expose **native exec/file** data-plane APIs — there is no in-container agent to bake into the image.
 - **EE is wired from the start** (license from 1Password) so data-apps / writeback are unlocked.
 
 ## Commands
@@ -53,7 +53,7 @@ Deletes the sandbox groups (releases sandbox billing), then `az group delete` th
 ### Sandbox disk image
 
 ```bash
-./scripts/aks-dev/build-sandbox-image.sh <data-app|writeback>
+./scripts/aks-dev/build-sandbox-image.sh <data-app|writeback|python>
 ```
 
 Builds the feature's base toolchain image (`sandboxes/<feature>/Dockerfile.local`), **amd64 on ACR** (`az acr build` — no BuildKit cache mounts, so the classic builder is fine). Azure nodes are x86, so amd64 (vs Lambda's arm64/Graviton). Unlike the old dynamic-sessions image there is **no `agent.js` layer** — Sandboxes exec/files are native. `up.sh` registers the image as a sandbox-group disk image (`aca sandboxgroup disk create`).

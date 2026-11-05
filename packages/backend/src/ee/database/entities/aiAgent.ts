@@ -19,6 +19,7 @@ export type DbAiAgent = {
     enable_user_context: boolean;
     enable_sql_mode: boolean;
     enable_sql_auto_approval: boolean;
+    enable_composer_queries: boolean;
     admin_only: boolean;
     model_config: AiAgentModelConfig | null;
     /**
@@ -33,13 +34,6 @@ export type DbAiAgent = {
      * Column kept on the table (DB default `false`); drop in a follow-up migration.
      */
     enable_reasoning?: boolean;
-    /**
-     * Built-in fallback agent used when an organization has no configured
-     * agents. Hidden from normal agent listings (so it never counts as "an
-     * agent configured") but usable as a Slack fallback. At most one per
-     * (organization, project).
-     */
-    is_system: boolean;
     version: number;
     thread_retention_hours: number | null;
     created_at: Date;

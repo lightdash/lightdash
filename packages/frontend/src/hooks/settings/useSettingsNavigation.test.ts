@@ -21,9 +21,8 @@ const settingsContext = (
     project: undefined,
     showImpersonationPanel: false,
     isCustomRolesEnabled: false,
-    isProLimitsEnabled: false,
     canAccessAnalyticsSettings: false,
-    isAnalyticsProjectFlagLoading: false,
+    isAnalyticsProjectLoading: false,
     isOrganizationRoadmapEnabled: false,
     canAccessAiCredits: false,
     isAiCreditsLoading: false,
@@ -38,7 +37,10 @@ const settingsContext = (
     isAiOrganizationSettingsLoading: false,
     dataAppsFlag: undefined,
     dataAppAnalysisFlag: undefined,
+    dashboardAnalysisFlag: undefined,
     isDataAppsFlagLoading: false,
+    isApiQuerySourcesEnabled: false,
+    isChartStudioAvailable: false,
     externalSourcesFlag: undefined,
     isResultsCacheEnabled: false,
     embeddingEnabled: undefined,
@@ -196,6 +198,76 @@ describe('Data apps settings navigation', () => {
         ).toEqual([
             { label: 'Themes', to: '/generalSettings/dataApps/themes' },
         ]);
+    });
+});
+
+describe('Themes settings navigation with Chart Studio', () => {
+    const chartStudioNavigation = (
+        rules: { action: string; subject: string }[],
+        overrides: Partial<SettingsContext> = {},
+    ) =>
+        organizationNavigation({
+            user: {
+                ability: new Ability(rules),
+            } as unknown as SettingsContext['user'],
+            isChartStudioAvailable: true,
+            ...overrides,
+        });
+
+    const allRules = [
+        { action: 'manage', subject: 'Organization' },
+        { action: 'manage', subject: 'OrganizationDesign' },
+    ];
+
+    it('shows Themes as a top-level entry without the data apps flag', () => {
+        const items = chartStudioNavigation(allRules);
+
+        expect(
+            items
+                ?.filter((item) => item.label === 'Themes')
+                .map(({ to, children }) => ({ to, children })),
+        ).toEqual([{ to: '/generalSettings/dataApps/themes', children: [] }]);
+        expect(items?.some((item) => item.label === 'Data apps')).toBe(false);
+        expect(
+            items?.some((item) =>
+                [
+                    '/generalSettings/dataApps/general',
+                    '/generalSettings/dataApps/activity',
+                ].includes(item.to),
+            ),
+        ).toBe(false);
+    });
+
+    it('hides Themes from users who cannot manage designs', () => {
+        expect(
+            chartStudioNavigation([
+                { action: 'manage', subject: 'Organization' },
+            ])?.some((item) => item.label === 'Themes'),
+        ).toBe(false);
+    });
+
+    it('keeps Themes inside Data apps when the flag is on', () => {
+        const items = chartStudioNavigation(allRules, {
+            dataAppsFlag: {
+                id: 'data-apps',
+                enabled: true,
+            } as SettingsContext['dataAppsFlag'],
+        });
+
+        expect(items?.some((item) => item.label === 'Themes')).toBe(false);
+        expect(
+            items
+                ?.find((item) => item.label === 'Data apps')
+                ?.children.map(({ label }) => label),
+        ).toEqual(['General', 'Themes', 'Activity']);
+    });
+
+    it('shows no Themes entry without Chart Studio or data apps', () => {
+        expect(
+            chartStudioNavigation(allRules, {
+                isChartStudioAvailable: false,
+            })?.some((item) => item.label === 'Themes'),
+        ).toBe(false);
     });
 });
 
@@ -378,6 +450,60 @@ describe('Agent identity settings navigation', () => {
             );
             expect(items[index - 1].label).toBe('Tables configuration');
         } else expect(index).toBe(-1);
+    });
+});
+
+describe('Project connections settings navigation', () => {
+    const projectLabels = (overrides: Partial<SettingsContext>) => {
+        const { result } = renderHook(() =>
+            useSettingsNavigation(
+                settingsContext({
+                    organization: {
+                        organizationUuid: 'org',
+                        name: 'Organization',
+                    },
+                    project: {
+                        projectUuid: 'project',
+                        organizationUuid: 'org',
+                        name: 'Project',
+                    } as Project,
+                    user: {
+                        ability: new Ability([
+                            {
+                                action: 'manage',
+                                subject: 'ExternalConnection',
+                                conditions: {
+                                    organizationUuid: 'org',
+                                    projectUuid: 'project',
+                                },
+                            },
+                        ]),
+                    } as SettingsContext['user'],
+                    projectSettingsAccess: {
+                        type: 'full',
+                        defaultPage: 'settings',
+                    },
+                    ...overrides,
+                }),
+            ),
+        );
+        return result.current
+            .find(({ id }) => id === 'current-project')!
+            .items.map(({ label }) => label);
+    };
+
+    it('shows Live data sources without Data app connections when only live sources are enabled', () => {
+        const labels = projectLabels({ isApiQuerySourcesEnabled: true });
+        expect(labels).toContain('Live data sources');
+        expect(labels).not.toContain('Data app connections');
+    });
+
+    it('shows Data app connections without Live data sources when only data apps are enabled', () => {
+        const labels = projectLabels({
+            dataAppsFlag: { id: 'enable-data-apps', enabled: true },
+        });
+        expect(labels).toContain('Data app connections');
+        expect(labels).not.toContain('Live data sources');
     });
 });
 

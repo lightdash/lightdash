@@ -1,4 +1,3 @@
-import { FeatureFlags } from '@lightdash/common';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { AiAgentService } from './AiAgentService';
 
@@ -14,7 +13,6 @@ vi.mock('../ai/AiAgentMcpRuntimeClient', () => ({
 type PrivateService = {
     getIsCopilotEnabled: () => Promise<boolean>;
     getAgentSettings: (...args: unknown[]) => Promise<unknown>;
-    canCreateDashboardsInProject: (...args: unknown[]) => Promise<boolean>;
     getAgentRuntimeMcpServers: (...args: unknown[]) => Promise<unknown[]>;
     createAuditedAbility: (...args: unknown[]) => { can: () => boolean };
     getAiAgentDependencies: (
@@ -34,8 +32,17 @@ type PrivateService = {
             stream: false;
             canManageAgent: false;
             aiCreditCheck: null;
+            runtimeOptions?: unknown;
         },
     ) => Promise<unknown>;
+};
+
+const embedRuntimeOptions = {
+    writeSpaceUuids: ['write-space'],
+    externalUserId: null,
+    spaceAccess: ['write-space'],
+    readOnlySpaceUuids: [],
+    userAttributeOverrides: {},
 };
 
 describe('Document runtime access', () => {
@@ -44,45 +51,98 @@ describe('Document runtime access', () => {
             name: 'trusted Slack',
             slack: true,
             trusted: true,
-            authorized: true,
-            enabled: true,
+            canSaveCharts: true,
+            canSaveDocuments: true,
             expected: true,
         },
         {
             name: 'untrusted Slack',
             slack: true,
             trusted: false,
-            authorized: true,
-            enabled: true,
+            canSaveCharts: true,
+            canSaveDocuments: true,
             expected: false,
         },
         {
-            name: 'denied ContentAsCode',
+            name: 'no space the user can save in',
             slack: false,
             trusted: true,
-            authorized: false,
-            enabled: true,
-            expected: false,
-        },
-        {
-            name: 'disabled Documents flag',
-            slack: false,
-            trusted: true,
-            authorized: true,
-            enabled: false,
+            canSaveCharts: false,
+            canSaveDocuments: false,
             expected: false,
         },
         {
             name: 'authorized web',
             slack: false,
             trusted: true,
-            authorized: true,
-            enabled: true,
+            canSaveCharts: true,
+            canSaveDocuments: true,
+            expected: true,
+        },
+        {
+            name: 'charts without Documents',
+            slack: false,
+            trusted: true,
+            canSaveCharts: true,
+            canSaveDocuments: false,
+            expected: false,
+        },
+        {
+            name: 'Documents without charts',
+            slack: false,
+            trusted: true,
+            canSaveCharts: false,
+            canSaveDocuments: true,
+            expected: true,
+        },
+        {
+            name: 'embedded, a write space allows both',
+            slack: false,
+            trusted: true,
+            canSaveCharts: true,
+            canSaveDocuments: true,
+            runtimeOptions: embedRuntimeOptions,
+            expected: true,
+        },
+        {
+            name: 'embedded, no write space allows Documents',
+            slack: false,
+            trusted: true,
+            canSaveCharts: true,
+            canSaveDocuments: false,
+            runtimeOptions: embedRuntimeOptions,
+            expected: false,
+        },
+        {
+            name: 'embedded, a write space allows only Documents',
+            slack: false,
+            trusted: true,
+            canSaveCharts: false,
+            canSaveDocuments: true,
+            runtimeOptions: embedRuntimeOptions,
             expected: true,
         },
     ])(
         '$name passes effective access to discovery and authoring',
-        async ({ slack, trusted, authorized, enabled, expected }) => {
+        async ({
+            slack,
+            trusted,
+            canSaveCharts,
+            canSaveDocuments,
+            runtimeOptions,
+            expected,
+        }: {
+            slack: boolean;
+            trusted: boolean;
+            canSaveCharts: boolean;
+            canSaveDocuments: boolean;
+            runtimeOptions?: typeof embedRuntimeOptions;
+            expected: boolean;
+        }) => {
+            const canAuthorContent = vi.fn().mockResolvedValue(canSaveCharts);
+            const canAuthorDocuments = vi
+                .fn()
+                .mockResolvedValue(canSaveDocuments);
             const service = new AiAgentService({
                 agentPermissionService: {
                     loadRequest: vi.fn().mockResolvedValue({
@@ -104,9 +164,10 @@ describe('Document runtime access', () => {
                 },
                 aiOrganizationSettingsService: {
                     isAiAgentMemoryEnabled: vi.fn().mockResolvedValue(false),
+                    isAiAgentReviewsEnabled: vi.fn().mockResolvedValue(false),
                 },
                 orgAiCopilotConfigResolver: {
-                    isOrgBedrockRouted: vi.fn().mockResolvedValue(false),
+                    getDecisionClient: vi.fn().mockResolvedValue(undefined),
                 },
                 slackAuthenticationModel: {
                     getInstallationFromOrganizationUuid: vi
@@ -130,22 +191,12 @@ describe('Document runtime access', () => {
                     findLatestProgressByRunUuids: vi.fn().mockResolvedValue([]),
                 },
                 featureFlagService: {
-                    get: vi
-                        .fn()
-                        .mockImplementation(
-                            async ({
-                                featureFlagId,
-                            }: {
-                                featureFlagId: FeatureFlags;
-                            }) => ({
-                                enabled:
-                                    featureFlagId === FeatureFlags.Documents &&
-                                    enabled,
-                            }),
-                        ),
+                    get: vi.fn().mockResolvedValue({ enabled: false }),
                 },
                 aiAgentToolsService: {
                     canGenerateDataApp: vi.fn().mockResolvedValue(false),
+                    canAuthorContent,
+                    canAuthorDocuments,
                 },
             } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
             const privateService = service as unknown as PrivateService;
@@ -160,14 +211,10 @@ describe('Document runtime access', () => {
             });
             vi.spyOn(
                 privateService,
-                'canCreateDashboardsInProject',
-            ).mockResolvedValue(false);
-            vi.spyOn(
-                privateService,
                 'getAgentRuntimeMcpServers',
             ).mockResolvedValue([]);
             vi.spyOn(privateService, 'createAuditedAbility').mockReturnValue({
-                can: () => authorized,
+                can: () => true,
             });
             const stopAtDependencies = new Error('Dependency boundary reached');
             const dependencies = vi
@@ -183,6 +230,7 @@ describe('Document runtime access', () => {
                 projectUuid: 'project',
                 promptUuid: 'prompt',
                 threadUuid: 'thread',
+                battleProfile: null,
                 ...(slack ? { slackUserId: 'slack-user' } : {}),
             };
 
@@ -199,9 +247,17 @@ describe('Document runtime access', () => {
                         stream: false,
                         canManageAgent: false,
                         aiCreditCheck: null,
+                        runtimeOptions,
                     },
                 ),
             ).rejects.toBe(stopAtDependencies);
+            if (!slack || trusted) {
+                const writeSpaces = expect.objectContaining({
+                    spaceUuids: runtimeOptions?.writeSpaceUuids ?? null,
+                });
+                expect(canAuthorContent).toHaveBeenCalledWith(writeSpaces);
+                expect(canAuthorDocuments).toHaveBeenCalledWith(writeSpaces);
+            }
             expect(dependencies).toHaveBeenCalledWith(
                 user,
                 prompt,

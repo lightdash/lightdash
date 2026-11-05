@@ -16,6 +16,7 @@ import { defaultContext, type QueryClient } from '@tanstack/react-query';
 import { useContext, useLayoutEffect, useRef, useState } from 'react';
 import { CopyActionIcon } from '../../components/common/CopyActionIcon';
 import MantineIcon from '../../components/common/MantineIcon';
+import { Z_INDEX_FLOATING } from '../../components/common/Page/constants';
 import { getSharedSignInExpiry } from '../../components/ProjectConnection/SharedSignIn/sharedSignInCopy';
 import { SharedSignInExpiredMessage } from '../../components/ProjectConnection/SharedSignIn/SharedSignInExpiredMessage';
 import { SnowflakeFormInput } from '../../components/UserSettings/MyWarehouseConnectionsPanel/WarehouseFormInputs';
@@ -91,7 +92,7 @@ const ErrorMessage = ({
                         component="button"
                         type="button"
                         fz="xs"
-                        c="ldGray.7"
+                        c="dimmed"
                         underline="always"
                         onClick={() => setIsExpanded(!isExpanded)}
                     >
@@ -150,7 +151,7 @@ const openSupportModal = () =>
         size: 'lg',
         children: <SupportDrawerContent />,
         yOffset: 100,
-        zIndex: 1000,
+        zIndex: Z_INDEX_FLOATING,
     });
 
 // A request that failed before Lightdash answered. The message already says

@@ -1,14 +1,20 @@
 import {
     type ChartZoomableField,
+    type Dashboard,
     type DashboardFilters,
+    type DateZoomConfig,
     type DateGranularity,
     type DashboardParameters,
     type ParameterDefinitions,
     type ParametersValuesMap,
+    type SortField,
 } from '@lightdash/common';
 import {
     buildInitialDashboardState,
     createDashboardStore,
+    dashboardEditActions,
+    getSavedDateZoomSettings,
+    type DashboardSourceState,
     type DashboardStore,
 } from '../features/dashboard/store';
 import { toDashboardParameters } from '../providers/Dashboard/dashboardParametersUrl';
@@ -37,6 +43,9 @@ export type DashboardStoreTestValues = Partial<{
     chartZoomableFieldsByTileUuid: Record<string, ChartZoomableField[]>;
     invalidateCache: boolean;
     sqlChartTilesMetadata: Record<string, SqlChartTileMetadata>;
+    chartSortsByTileUuid: Record<string, SortField[]>;
+    /** What the provider loaded: the dashboard, its project, available filters, comments */
+    source: Partial<DashboardSourceState>;
 }>;
 
 /** A real dashboard store seeded with the given state, for component tests */
@@ -107,6 +116,7 @@ export const createDashboardTestStore = (
             values.chartZoomableFieldsByTileUuid;
     }
     return createDashboardStore({
+        source: { ...state.source, ...values.source },
         filters,
         parameters,
         dateZoom,
@@ -116,5 +126,116 @@ export const createDashboardTestStore = (
                   sqlChartTilesMetadata: values.sqlChartTilesMetadata,
               }
             : state.tileStatus,
+        edit: state.edit,
+        chartSort: values.chartSortsByTileUuid
+            ? { sortsByTileUuid: values.chartSortsByTileUuid }
+            : state.chartSort,
     });
+};
+
+/** Edit state as component tests used to pass it on the dashboard context */
+export type DashboardEditTestValues = Partial<{
+    dashboard: Pick<Dashboard, 'config'> | undefined;
+    dashboardTiles: Dashboard['tiles'] | undefined;
+    dashboardTabs: Dashboard['tabs'];
+    activeTab: Dashboard['tabs'][number] | undefined;
+    haveTilesChanged: boolean;
+    haveTabsChanged: boolean;
+    isDateZoomDisabled: boolean;
+    isAddFilterDisabled: boolean;
+    requiredFiltersNote: string;
+    dateZoomConfig: DateZoomConfig;
+    dateZoomGranularities: (DateGranularity | string)[];
+    defaultDateZoomGranularity: DateGranularity | string;
+}>;
+
+/**
+ * Writes the edit state of a context fixture into a real store through its
+ * actions, so a test keeps one fixture for both and can re-seed on rerender.
+ */
+export const seedDashboardEditState = (
+    store: DashboardStore,
+    values: DashboardEditTestValues,
+) => {
+    const saved = getSavedDateZoomSettings(values.dashboard?.config);
+    const { dispatch } = store;
+    if (values.dashboard?.config?.controlSections) {
+        dispatch(
+            dashboardEditActions.syncControlSections(
+                values.dashboard.config.controlSections,
+            ),
+        );
+    }
+    if ('dashboardTiles' in values) {
+        dispatch(dashboardEditActions.setTiles(values.dashboardTiles));
+    }
+    if (values.dashboardTabs) {
+        dispatch(dashboardEditActions.setTabs(values.dashboardTabs));
+    }
+    if ('activeTab' in values) {
+        dispatch(dashboardEditActions.setActiveTab(values.activeTab));
+    }
+    if (values.haveTilesChanged !== undefined) {
+        dispatch(
+            dashboardEditActions.setHaveTilesChanged(values.haveTilesChanged),
+        );
+    }
+    if (values.haveTabsChanged !== undefined) {
+        dispatch(
+            dashboardEditActions.setHaveTabsChanged(values.haveTabsChanged),
+        );
+    }
+    if (values.isDateZoomDisabled !== undefined) {
+        dispatch(
+            dashboardEditActions.setIsDateZoomDisabled(
+                values.isDateZoomDisabled,
+            ),
+        );
+    }
+    if (values.isAddFilterDisabled !== undefined) {
+        dispatch(
+            dashboardEditActions.setIsAddFilterDisabled(
+                values.isAddFilterDisabled,
+            ),
+        );
+    }
+    if (values.requiredFiltersNote !== undefined) {
+        dispatch(
+            dashboardEditActions.setRequiredFiltersNote(
+                values.requiredFiltersNote,
+            ),
+        );
+    }
+    if (values.dateZoomConfig) {
+        dispatch(
+            dashboardEditActions.setDateZoomConfig({
+                value: values.dateZoomConfig,
+                changed: false,
+                saved: saved.dateZoomConfig,
+            }),
+        );
+    }
+    if (values.dateZoomGranularities) {
+        dispatch(
+            dashboardEditActions.setDateZoomGranularities({
+                value: values.dateZoomGranularities,
+                saved: saved.dateZoomGranularities,
+            }),
+        );
+        dispatch(
+            dashboardEditActions.setHaveDateZoomGranularitiesChanged(false),
+        );
+    }
+    if ('defaultDateZoomGranularity' in values) {
+        dispatch(
+            dashboardEditActions.setDefaultDateZoomGranularity({
+                value: values.defaultDateZoomGranularity,
+                saved: saved.defaultDateZoomGranularity,
+            }),
+        );
+        dispatch(
+            dashboardEditActions.setHasDefaultDateZoomGranularityChanged(false),
+        );
+    }
+    return store;
 };

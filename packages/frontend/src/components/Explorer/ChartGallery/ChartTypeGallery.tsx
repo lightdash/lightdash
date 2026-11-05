@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     isOfficialChartType,
     type ApiError,
     type DataAppViz,
@@ -35,6 +34,7 @@ import useIsEmbedded from '../../../ee/providers/Embed/useIsEmbedded';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
 import { useCanEditDataAppChecker } from '../../../features/apps/hooks/useCanEditDataApp';
 import ChartTypeForkModal from '../../../features/chartTypes/components/ChartTypeForkModal';
+import { useChartStudioAvailable } from '../../../features/chartTypes/hooks/useChartStudioAvailable';
 import { useChartTypesEnabled } from '../../../features/chartTypes/hooks/useChartTypesEnabled';
 import { useDataAppVisualizations } from '../../../features/chartTypes/hooks/useDataAppVisualizations';
 import {
@@ -42,14 +42,16 @@ import {
     useExplorerDispatch,
 } from '../../../features/explorer/store';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { CHART_GALLERY_SEARCH_ID } from '../../common/ChartGallery/ChartGalleryContext';
 import InlineErrorState from '../../common/InlineErrorState';
 import MantineIcon from '../../common/MantineIcon';
 import { isDataAppVizVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
+import {
+    useVisualizationConfig,
+    useVisualizationInputs,
+} from '../../LightdashVisualization/useVisualizationContext';
 import { useIsVegaEditorAvailable } from '../../VisualizationConfigs/ChartConfigPanel/CustomVis/useIsVegaEditorAvailable';
 import { useSelectProjectChartType } from '../../VisualizationConfigs/CustomChartType/useSelectProjectChartType';
 import classes from './ChartTypeGallery.module.css';
@@ -516,9 +518,7 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
     const dispatch = useExplorerDispatch();
     const [search, setSearch] = useState('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
-    const dataAppsEnabled =
-        useServerFeatureFlag(FeatureFlags.EnableDataApps).data?.enabled ===
-        true;
+    const chartStudioAvailable = useChartStudioAvailable();
     const { enabled: chartTypesEnabled } = useChartTypesEnabled();
     const {
         data,
@@ -537,7 +537,8 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
     const canEditChartType = useCanEditDataAppChecker(projectUuid);
     const canFork = useCanCreateDataApp(projectUuid);
     const { track } = useTracking();
-    const { visualizationConfig, itemsMap } = useVisualizationContext();
+    const visualizationConfig = useVisualizationConfig();
+    const { itemsMap } = useVisualizationInputs();
     const selectProjectChartType = useSelectProjectChartType();
     const { disabled, options, vegaOption } = useChartTypeOptions();
     const isVegaEditorAvailable = useIsVegaEditorAvailable();
@@ -606,7 +607,9 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
                     ? onConfigure
                     : null,
             onEdit:
-                dataAppsEnabled && canEditChartType(dataAppViz) && !isOfficial
+                chartStudioAvailable &&
+                canEditChartType(dataAppViz) &&
+                !isOfficial
                     ? () =>
                           dispatch(
                               explorerActions.startChartTypeAuthoring({
@@ -614,9 +617,9 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
                               }),
                           )
                     : null,
-            // Forking is authoring, so it needs data apps on, like editing.
+            // Forking is authoring, so it needs Chart Studio, like editing.
             onFork:
-                dataAppsEnabled &&
+                chartStudioAvailable &&
                 isOfficial &&
                 canFork &&
                 projectUuid !== undefined

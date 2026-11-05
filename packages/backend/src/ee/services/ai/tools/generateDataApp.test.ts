@@ -73,7 +73,7 @@ describe('getGenerateDataApp', () => {
             toolCallId: 'tool-call-1',
         });
         expect(output).toEqual({
-            result: 'Started the data app build. Tell the user it has started and will take a few minutes, then end your turn.\nWarnings:\n- Brief mentions "Stripe"',
+            result: 'Started the data app build. Tell the user it has started and will take a few minutes, then end your turn.\nWarnings to relay to the user:\n- Brief mentions "Stripe"',
             metadata: {
                 status: 'pending',
                 appUuid: 'app-1',

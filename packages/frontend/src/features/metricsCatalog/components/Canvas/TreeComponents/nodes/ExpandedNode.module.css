@@ -1,0 +1,9 @@
+.expandedNode {
+    border-color: var(--mantine-color-ldGray-3);
+    /* Re-enable pointer events so tooltips work even when ReactFlow sets pointer-events:none on node wrappers (viewOnly mode) */
+    pointer-events: all;
+
+    &[data-selected] {
+        border-color: var(--mantine-color-blue-5);
+    }
+}

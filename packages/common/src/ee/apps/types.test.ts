@@ -747,6 +747,10 @@ describe('dataAppVizJsonSchema', () => {
         expect(jsonSchema.properties?.colorPalette.description).toBeTruthy();
     });
 
+    it('uses anyOf, never oneOf, since OpenAI strict mode rejects oneOf', () => {
+        expect(JSON.stringify(dataAppVizJsonSchema)).not.toContain('"oneOf"');
+    });
+
     it('uses strict object schemas compatible with Codex structured output', () => {
         const findMissingRequiredProperties = (
             value: unknown,

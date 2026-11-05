@@ -98,6 +98,8 @@ To add or retarget a dashboard filter, take each tile's explore and field ids fr
 4. Call `runContentQuery` with `source.type: "metricQuery"` and the chart's `tableName`/`metricQuery`.
 5. Call `createContent` with the verified chart JSON.
 
+For a weekly chart of "the last 12 weeks up to today" where every week starts on its first day, put the `inThePast` filter on the week dimension (e.g. `orders_order_date_week`, `completed: false`, `unitOfTime: weeks`, `values: [12]`), not on the day or raw date. That gives 12 weekly rows: 11 full weeks plus the current week to date. The same filter on a day field starts mid-week, so the first week is partial.
+
 ### Create Dashboards
 
 1. Always read the `dashboard-reference` and `dashboard-best-practices` resources.
@@ -108,9 +110,9 @@ To add or retarget a dashboard filter, take each tile's explore and field ids fr
 
 ### Create and Edit SQL Charts
 
-Use SQL charts only when the semantic layer cannot express the question. Always read `sql-chart-reference` first: saving a SQL chart needs SQL mode and the SQL chart save permission, and the user approves its SQL before it is saved. For a dashboard of SQL charts, create every SQL chart first, then reference their persisted slugs in `sql_chart` tiles.
+Use SQL charts only when the semantic layer cannot express the question. Always read `sql-chart-reference` first. A dashboard of SQL charts references their persisted slugs in `sql_chart` tiles.
 
-To edit a SQL chart, read it, then patch it with `editContent` (`type: sql_chart`). Edits that change its `sql` wait for the user to approve the new SQL; other edits save straight away.
+To edit a SQL chart, read it, then patch it with `editContent` (`type: sql_chart`).
 
 ## Editing Charts
 

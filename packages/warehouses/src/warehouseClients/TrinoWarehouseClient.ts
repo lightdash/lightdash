@@ -87,6 +87,47 @@ interface TrinoHttpErrorCause {
     status: number;
 }
 
+interface TrinoTransportErrorCause {
+    code: string;
+    connectionErrorCodes: string[];
+}
+
+const transportErrorCodes = new Set([
+    'ECONNABORTED',
+    'ECONNREFUSED',
+    'ECONNRESET',
+    'EHOSTUNREACH',
+    'ENETUNREACH',
+    'ENOTFOUND',
+    'EAI_AGAIN',
+    'ETIMEDOUT',
+    'EPIPE',
+]);
+
+const getTransportErrorCode = (error: unknown): string | undefined =>
+    error instanceof Error &&
+    'code' in error &&
+    typeof error.code === 'string' &&
+    transportErrorCodes.has(error.code)
+        ? error.code
+        : undefined;
+
+const getSanitizedTransportCause = (
+    error: unknown,
+): TrinoTransportErrorCause | undefined => {
+    const code = getTransportErrorCode(error);
+    if (!code || !(error instanceof Error)) return undefined;
+    const aggregate =
+        error.cause instanceof AggregateError ? error.cause : error;
+    const connectionErrorCodes =
+        'errors' in aggregate && Array.isArray(aggregate.errors)
+            ? aggregate.errors
+                  .map(getTransportErrorCode)
+                  .filter((value): value is string => value !== undefined)
+            : [];
+    return { code, connectionErrorCodes: [...new Set(connectionErrorCodes)] };
+};
+
 const getSanitizedHttpCause = (
     error: unknown,
 ): TrinoHttpErrorCause | undefined => {
@@ -118,7 +159,11 @@ interface TrinoQueryErrorCause {
 
 const sanitizeTrinoCause = (
     cause: unknown,
-): TrinoHttpErrorCause | TrinoQueryErrorCause | undefined => {
+):
+    | TrinoHttpErrorCause
+    | TrinoQueryErrorCause
+    | TrinoTransportErrorCause
+    | undefined => {
     if (typeof cause !== 'object' || cause === null) return undefined;
     if ('status' in cause && typeof cause.status === 'number')
         return { status: cause.status };
@@ -135,7 +180,7 @@ const sanitizeTrinoCause = (
             errorCode: cause.errorCode,
             errorType: cause.errorType,
         };
-    return getSanitizedHttpCause(cause);
+    return getSanitizedHttpCause(cause) ?? getSanitizedTransportCause(cause);
 };
 
 const getErrorMessage = (e: QueryError) => {
@@ -143,6 +188,13 @@ const getErrorMessage = (e: QueryError) => {
     if (e.message) {
         // Convert Object to Error
         return originalGetErrorMessage(new Error(e.message, { cause: e }));
+    }
+    const transport = getSanitizedTransportCause(e);
+    if (transport) {
+        const codes = [
+            ...new Set([transport.code, ...transport.connectionErrorCodes]),
+        ];
+        return `Trino connection failed (${codes.join(', ')})`;
     }
     return originalGetErrorMessage(e);
 };

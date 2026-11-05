@@ -52,7 +52,7 @@ add-connection dialog.
   settings (`extraConnectionSettings.ts`) instead of ignoring them. With the
   flag off, they are stored and ignored, as before.
 - **Secrets.** Connection details pass through
-  `OrganizationWarehouseCredentialsModel.stripSensitiveCredentials`, which also
+  `stripSensitiveWarehouseCredentials`, which also
   removes DuckLake catalog passwords and storage keys. The switch plan, the
   explore connection metadata and the agent project info return explicit
   non-secret fields only.
@@ -67,16 +67,16 @@ with that connection's warehouse client.
 
 Places that used to read the primary's type now read the explore's connection:
 
-| Area | Code |
-| --- | --- |
-| AI table calculation and custom dimension generators | `AiService` resolves by the canonical `exploreName` in the request. Requests without it fall back to the primary's dialect |
-| AI dbt writeback | `AiWritebackService` uses the selected dbt source's bound connection (`ProjectModel.getDbtSourceWarehouseType`) |
-| dbt YAML writeback | `GitIntegrationService` builds the SQL builder from the explore's binding |
-| dbt source location check | `ProjectDbtSourcesService` validates against the source's bound connection |
-| Pre-aggregate week start at deploy | `ProjectService.getDeployStartOfWeekByExplore` uses the week start of an extra connection for its explores when the flag is on; explores on the primary, and every explore with the flag off, keep the project value |
-| AI agent | `getProjectInfo` lists every connection with its type, and the run-SQL prompt states each dialect. Raw SQL still runs on the primary |
-| Explore API | `ApiExploreResults.warehouseConnection` returns `{ warehouseConnectionUuid, warehouseType, startOfWeek }` |
-| Frontend | `useExploreWarehouseConnection` feeds SQL display, the formula editor gate, editor dialect labels, explorer filters, merge-query source filters, reference lines and scheduler chart overrides. The explore's week start applies only with the flag on; with it off, these use the project week start |
+| Area                                                 | Code                                                                                                                                                                                                                                                                                                  |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AI table calculation and custom dimension generators | `AiService` resolves by the canonical `exploreName` in the request. Requests without it fall back to the primary's dialect                                                                                                                                                                            |
+| AI dbt writeback                                     | `AiWritebackService` uses the selected dbt source's bound connection (`ProjectModel.getDbtSourceWarehouseType`)                                                                                                                                                                                       |
+| dbt YAML writeback                                   | `GitIntegrationService` builds the SQL builder from the explore's binding                                                                                                                                                                                                                             |
+| dbt source location check                            | `ProjectDbtSourcesService` validates against the source's bound connection                                                                                                                                                                                                                            |
+| Pre-aggregate week start at deploy                   | `ProjectService.getDeployStartOfWeekByExplore` uses the week start of an extra connection for its explores when the flag is on; explores on the primary, and every explore with the flag off, keep the project value                                                                                  |
+| AI agent                                             | `getProjectInfo` lists every connection with its type, and the run-SQL prompt states each dialect. Raw SQL still runs on the primary                                                                                                                                                                  |
+| Explore API                                          | `ApiExploreResults.warehouseConnection` returns `{ warehouseConnectionUuid, warehouseType, startOfWeek }`                                                                                                                                                                                             |
+| Frontend                                             | `useExploreWarehouseConnection` feeds SQL display, the formula editor gate, editor dialect labels, explorer filters, merge-query source filters, reference lines and scheduler chart overrides. The explore's week start applies only with the flag on; with it off, these use the project week start |
 
 ## Joins and dbt refs across connections
 
@@ -86,13 +86,6 @@ models compiled on the same connection.
 - A join to a model on another connection is skipped by partial compilation.
   `MultiConnectionCompiler` rewrites the warning to name the model and both
   connections. With the mixed flag off, the warning is unchanged.
-- With [cross-source dbt refs](../examples/cross-source-dbt-refs/README.md)
-  on, refs resolve inside one group. When a group fails because it refs a dbt
-  project that an earlier, successful group compiled, and both
-  `mixed-warehouse-connections` and `cross-source-dbt-refs` are on, the
-  compile warning names the project, its dbt source and both connections. The
-  failed connection keeps its previous explores. With the mixed flag off, the
-  message is unchanged.
 - Merge queries run each source on its own warehouse and join the results in
   DuckDB, so they are the supported way to combine data across warehouses.
 
@@ -129,7 +122,7 @@ models compiled on the same connection.
 - [`scripts/mixed-warehouse-scale-test`](../scripts/mixed-warehouse-scale-test/README.md)
   drives a local instance through the API across 20 or more projects: every
   available warehouse as the original with every other as an extra, live
-  connection changes, failure cases, cross-source refs, dashboards with a
+  connection changes, failure cases, dashboards with a
   scheduled delivery, previews, CLI deploy, and a flag-off pass.
 - Local fixtures: [Trino](../examples/trino-dev/README.md), and
   [Postgres, DuckLake, ClickHouse, BigQuery, Snowflake, Athena and a Redshift

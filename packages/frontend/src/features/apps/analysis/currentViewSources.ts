@@ -68,8 +68,4 @@ export const hasInFlightQueries = (queries: QueryEvent[]): boolean =>
         (event) => event.status === 'pending' || event.status === 'running',
     );
 
-export const sourcesSignature = (sources: DataAppAnalysisSource[]): string =>
-    sources
-        .map((s) => s.queryUuid)
-        .sort()
-        .join('|');
+export { sourcesSignature } from '../../analysis/sourcesSignature';

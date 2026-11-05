@@ -25,7 +25,7 @@ const LandingPanel: FC<Props> = ({
                     {`Welcome${userName ? ', ' + userName : ' to Lightdash'}!`}{' '}
                     ⚡️
                 </Title>
-                <Text c="ldGray.7">
+                <Text c="dimmed">
                     Run a query to ask a business question or browse your data
                     below:
                 </Text>

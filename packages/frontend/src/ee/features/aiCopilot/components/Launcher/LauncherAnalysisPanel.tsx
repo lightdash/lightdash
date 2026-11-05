@@ -151,7 +151,9 @@ const CompactAnomalyCard: FC<{
                     <Stack gap="xs">
                         <Box
                             className={
-                                expanded ? undefined : styles.clampedMarkdown
+                                expanded
+                                    ? styles.investigationMarkdown
+                                    : `${styles.investigationMarkdown} ${styles.clampedMarkdown}`
                             }
                         >
                             <MDEditor.Markdown
@@ -193,12 +195,15 @@ const CompactAnomalyCard: FC<{
 
 type Props = {
     adapter: LauncherAnalysisAdapter;
-    style?: CSSProperties;
+    transitionStyle?: CSSProperties;
 };
 
-export const LauncherAnalysisPanel: FC<Props> = ({ adapter, style }) => {
+export const LauncherAnalysisPanel: FC<Props> = ({
+    adapter,
+    transitionStyle,
+}) => {
     const dispatch = useAiAgentStoreDispatch();
-    const { availability, controller, targetName } = adapter;
+    const { availability, controller, targetName, targetKind } = adapter;
     const {
         sources,
         inFlight,
@@ -220,7 +225,7 @@ export const LauncherAnalysisPanel: FC<Props> = ({ adapter, style }) => {
         availability.status === 'available' && sources.length > 0 && !inFlight;
 
     return (
-        <LauncherPanelFrame style={style}>
+        <LauncherPanelFrame transitionStyle={transitionStyle}>
             <div className={launcherStyles.panelHeader}>
                 <Group
                     gap="xs"
@@ -274,7 +279,9 @@ export const LauncherAnalysisPanel: FC<Props> = ({ adapter, style }) => {
                                     {sources.length > 0
                                         ? ` (${sources.length})`
                                         : ''}
-                                    ; hidden tabs may be included.
+                                    {targetKind === 'app'
+                                        ? '; hidden tabs may be included.'
+                                        : '; charts on the active tab only.'}
                                     {inFlight
                                         ? ' Waiting for queries to finish.'
                                         : ''}

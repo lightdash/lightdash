@@ -104,83 +104,86 @@ const pythonComposerArgs = {
     ],
 };
 
-describe('runComposerQueries with python nodes', () => {
-    it('keeps a complete python pipeline call', () => {
-        expect(
-            parseStreamRawToolCall({
-                toolName: 'runComposerQueries',
-                toolArgs: pythonComposerArgs,
-            }),
-        ).toMatchObject({
-            toolName: 'runComposerQueries',
-            toolArgs: {
-                queries: [
-                    { sourceType: 'sql' },
-                    { sourceType: 'python', code: expect.any(String) },
-                ],
-            },
-        });
-    });
-
-    it('keeps a call whose semanticLayer node carries legacy free-form filters', () => {
-        const legacyNode = {
-            sourceType: 'semanticLayer',
-            nodeId: 'orders',
-            title: 'Orders',
-            description: null,
-            exploreName: 'orders',
-            dimensions: ['orders_status'],
-            metrics: ['orders_count'],
-            filters: {
-                dimensions: {
-                    id: 'g1',
-                    and: [
-                        {
-                            id: 'r1',
-                            target: { fieldId: 'orders_status' },
-                            operator: 'equals',
-                            values: ['completed'],
-                        },
+describe.each(['query', 'runComposerQueries'] as const)(
+    '%s with python nodes',
+    (toolName) => {
+        it('keeps a complete python pipeline call', () => {
+            expect(
+                parseStreamRawToolCall({
+                    toolName,
+                    toolArgs: pythonComposerArgs,
+                }),
+            ).toMatchObject({
+                toolName,
+                toolArgs: {
+                    queries: [
+                        { sourceType: 'sql' },
+                        { sourceType: 'python', code: expect.any(String) },
                     ],
                 },
-            },
-            sorts: null,
-            limit: 500,
-        };
-        expect(
-            parseStreamRawToolCall({
-                toolName: 'runComposerQueries',
-                toolArgs: {
-                    title: null,
-                    description: null,
-                    terminalNodeId: null,
-                    queries: [legacyNode],
-                },
-            }),
-        ).toMatchObject({
-            toolName: 'runComposerQueries',
-            toolArgs: { queries: [{ nodeId: 'orders', filters: null }] },
+            });
         });
-    });
 
-    it('keeps the failed result of a python pipeline', () => {
-        const error = 'Composer query failed on node(s): "sim"';
-        expect(
-            parseStreamRawToolResult({
-                toolName: 'runComposerQueries',
-                toolArgs: pythonComposerArgs,
-                toolOutput: {
-                    result: error,
-                    metadata: { status: 'error' },
-                    structuredContent: { error },
+        it('keeps a call whose semanticLayer node carries legacy free-form filters', () => {
+            const legacyNode = {
+                sourceType: 'semanticLayer',
+                nodeId: 'orders',
+                title: 'Orders',
+                description: null,
+                exploreName: 'orders',
+                dimensions: ['orders_status'],
+                metrics: ['orders_count'],
+                filters: {
+                    dimensions: {
+                        id: 'g1',
+                        and: [
+                            {
+                                id: 'r1',
+                                target: { fieldId: 'orders_status' },
+                                operator: 'equals',
+                                values: ['completed'],
+                            },
+                        ],
+                    },
                 },
-            }),
-        ).toMatchObject({
-            toolName: 'runComposerQueries',
-            toolResult: { metadata: { status: 'error' } },
+                sorts: null,
+                limit: 500,
+            };
+            expect(
+                parseStreamRawToolCall({
+                    toolName,
+                    toolArgs: {
+                        title: null,
+                        description: null,
+                        terminalNodeId: null,
+                        queries: [legacyNode],
+                    },
+                }),
+            ).toMatchObject({
+                toolName,
+                toolArgs: { queries: [{ nodeId: 'orders', filters: null }] },
+            });
         });
-    });
-});
+
+        it('keeps the failed result of a python pipeline', () => {
+            const error = 'Composer query failed on node(s): "sim"';
+            expect(
+                parseStreamRawToolResult({
+                    toolName,
+                    toolArgs: pythonComposerArgs,
+                    toolOutput: {
+                        result: error,
+                        metadata: { status: 'error' },
+                        structuredContent: { error },
+                    },
+                }),
+            ).toMatchObject({
+                toolName,
+                toolResult: { metadata: { status: 'error' } },
+            });
+        });
+    },
+);
 
 describe('parseStreamRawToolResult', () => {
     it('keeps a Document edit so the open Document can refresh', () => {
@@ -243,5 +246,50 @@ describe('AI access tool refusals', () => {
                 },
             }),
         ).toMatchObject({ toolResult: { structuredContent: { refusal } } });
+    });
+});
+
+describe('retired repository tool streams', () => {
+    it('renders an old pod result without an active tool definition', () => {
+        const toolOutput = {
+            result: 'Opened a pull request',
+            metadata: {
+                status: 'success',
+                prUrl: 'https://github.com/acme/repo/pull/1',
+            },
+            structuredContent: {
+                repository: 'acme/repo',
+                pullRequestAction: 'opened',
+                agentSummary: 'Updated the repository',
+            },
+        };
+        expect(
+            parseStreamRawToolResult({
+                toolName: 'editRepo',
+                toolArgs: { repoTarget: 'acme/repo' },
+                toolOutput,
+            }),
+        ).toMatchObject({ toolName: 'editRepo', toolResult: toolOutput });
+    });
+});
+
+it('preserves personal Snowflake recovery in a streamed visualization result', () => {
+    expect(
+        parseStreamRawToolResult({
+            toolName: 'generateVisualization',
+            toolArgs: expressionToolArgs,
+            toolOutput: {
+                result: 'Your Snowflake sign-in has expired.',
+                metadata: {
+                    status: 'error',
+                    requiresSnowflakeReauthentication: true,
+                },
+                structuredContent: {
+                    error: 'Your Snowflake sign-in has expired.',
+                },
+            },
+        }),
+    ).toMatchObject({
+        toolResult: { metadata: { requiresSnowflakeReauthentication: true } },
     });
 });

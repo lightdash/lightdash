@@ -7,7 +7,10 @@ import {
 import { LightdashAnalytics } from '../analytics/analytics';
 import { runWithAgentConnectionSelection } from '../credentials';
 import GlobalState from '../globalState';
-import { readAndLoadLightdashProjectConfig } from '../lightdash-config';
+import {
+    readAndLoadLightdashProjectConfig,
+    readProjectContextFile,
+} from '../lightdash-config';
 import { lightdashApi } from './dbt/apiClient';
 import { deploy } from './deploy';
 
@@ -63,6 +66,156 @@ describe('deploy completeness transport', () => {
         });
         vi.mocked(LightdashAnalytics.track).mockResolvedValue(undefined);
     });
+
+    describe.each(['full', 'absent'] as const)(
+        'rejected deploy with %s configuration',
+        (config) => {
+            test.each(['batched', 'inventory', 'legacy'] as const)(
+                'preserves project configuration and explores through %s transport',
+                async (transport) => {
+                    vi.mocked(
+                        readAndLoadLightdashProjectConfig,
+                    ).mockResolvedValue({
+                        spotlight: {
+                            default_visibility: 'show',
+                            ...(config === 'full'
+                                ? {
+                                      categories: {
+                                          payments: {
+                                              label: 'Payments',
+                                              color: 'blue',
+                                          },
+                                      },
+                                  }
+                                : {}),
+                        },
+                        ...(config === 'full'
+                            ? {
+                                  parameters: {
+                                      minimum_amount: {
+                                          label: 'Minimum amount',
+                                          type: 'number',
+                                          default: 0,
+                                      },
+                                  },
+                                  defaults: { case_sensitive: false },
+                                  table_groups: {
+                                      commerce: { label: 'Commerce' },
+                                  },
+                              }
+                            : {}),
+                    });
+                    const project = new Map([
+                        ['tags/yaml', '[{"name":"Existing tag"}]'],
+                        ['parameters', '{"existing":{"default":1}}'],
+                        ['defaults', '{"case_sensitive":true}'],
+                        ['table-groups', '{"existing":{"label":"Existing"}}'],
+                        ['explores', JSON.stringify([compiledExplore])],
+                    ]);
+                    const before = new Map(project);
+                    const failure = new LightdashError({
+                        name: 'ConflictError',
+                        statusCode: 409,
+                        message:
+                            'This deploy was not saved and nothing in the project changed.',
+                        data: {},
+                    });
+                    vi.mocked(lightdashApi).mockImplementation(
+                        async ({ url, method, body }) => {
+                            for (const key of project.keys()) {
+                                if (
+                                    url.endsWith(`/${key}`) &&
+                                    typeof body === 'string'
+                                ) {
+                                    project.set(key, body);
+                                    return null as never;
+                                }
+                            }
+                            if (url.endsWith('/finalize') || method === 'PUT')
+                                throw failure;
+                            if (url.endsWith('/deploy'))
+                                return {
+                                    deploySessionUuid: 'deploy-session-uuid',
+                                } as never;
+                            return {
+                                batchNumber: 0,
+                                exploreCount: 1,
+                            } as never;
+                        },
+                    );
+
+                    await expect(
+                        deploy([compiledExplore], {
+                            ...deployOptions,
+                            complete: true,
+                            batchedDeploy: transport === 'batched',
+                            dbtModelNames:
+                                transport === 'legacy'
+                                    ? undefined
+                                    : ['analytics__orders'],
+                        }),
+                    ).rejects.toBe(failure);
+
+                    expect(project).toEqual(before);
+                    expect(lightdashApi).not.toHaveBeenCalledWith(
+                        expect.objectContaining({
+                            url: expect.stringMatching(
+                                /\/(tags\/yaml|parameters|defaults|table-groups)$/,
+                            ),
+                        }),
+                    );
+                },
+            );
+        },
+    );
+
+    test.each(['batched', 'inventory', 'legacy'] as const)(
+        'saves configuration after the %s deploy succeeds',
+        async (transport) => {
+            vi.mocked(readAndLoadLightdashProjectConfig).mockResolvedValue({
+                spotlight: { default_visibility: 'show' },
+                parameters: {},
+                defaults: { case_sensitive: false },
+                table_groups: {},
+            });
+            const requests: string[] = [];
+            vi.mocked(lightdashApi).mockImplementation(async ({ url }) => {
+                requests.push(url);
+                if (url.endsWith('/deploy') && transport === 'batched')
+                    return {
+                        deploySessionUuid: 'deploy-session-uuid',
+                    } as never;
+                return {
+                    batchNumber: 0,
+                    exploreCount: 1,
+                    warnings: { warningCount: 0, exploresWithWarnings: [] },
+                    status: DeploySessionStatus.COMPLETED,
+                } as never;
+            });
+
+            await deploy([compiledExplore], {
+                ...deployOptions,
+                complete: true,
+                batchedDeploy: transport === 'batched',
+                dbtModelNames:
+                    transport === 'legacy' ? undefined : ['analytics__orders'],
+            });
+
+            expect(requests.slice(-4)).toEqual([
+                '/api/v1/projects/project-uuid/tags/yaml',
+                '/api/v2/projects/project-uuid/parameters',
+                '/api/v2/projects/project-uuid/defaults',
+                '/api/v1/projects/project-uuid/table-groups',
+            ]);
+            const deployUrls = {
+                batched:
+                    '/api/v2/projects/project-uuid/deploy/deploy-session-uuid/finalize',
+                inventory: '/api/v2/projects/project-uuid/deploy',
+                legacy: '/api/v1/projects/project-uuid/explores?complete=true',
+            };
+            expect(requests.at(-5)).toBe(deployUrls[transport]);
+        },
+    );
 
     it.each([
         { complete: true, expected: 'true' },
@@ -142,7 +295,7 @@ describe('deploy completeness transport', () => {
             dbtModelNames: ['orders', 'customers'],
         });
 
-        expect(lightdashApi).toHaveBeenLastCalledWith({
+        expect(lightdashApi).toHaveBeenCalledWith({
             method: 'PUT',
             url: '/api/v1/projects/project-uuid/explores?complete=false',
             body: JSON.stringify([compiledExplore]),
@@ -233,6 +386,43 @@ describe('deploy completeness transport', () => {
             url: '/api/v2/projects/project-uuid/deploy/deploy-session-uuid/finalize',
             body: JSON.stringify({ dbtModelNames: ['orders', 'customers'] }),
         });
+    });
+
+    test('propagates a 409 from finalize without retrying or falling back', async () => {
+        const failure = new LightdashError({
+            name: 'ConflictError',
+            statusCode: 409,
+            message:
+                'This deploy was not saved and nothing in the project changed.\nGive each dbt project a distinct name in dbt_project.yml.',
+            data: {},
+        });
+        vi.mocked(lightdashApi).mockImplementation(async ({ url }) => {
+            if (url.endsWith('/deploy'))
+                return { deploySessionUuid: 'deploy-session-uuid' } as never;
+            if (url.endsWith('/batch'))
+                return { batchNumber: 0, exploreCount: 1 } as never;
+            if (url.endsWith('/finalize')) throw failure;
+            return null as never;
+        });
+        await expect(
+            deploy([compiledExplore], { ...deployOptions, complete: true }),
+        ).rejects.toBe(failure);
+        expect(
+            vi
+                .mocked(lightdashApi)
+                .mock.calls.filter(([request]) =>
+                    request.url.endsWith('/finalize'),
+                ),
+        ).toHaveLength(1);
+        expect(
+            vi
+                .mocked(lightdashApi)
+                .mock.calls.filter(
+                    ([request]) =>
+                        request.method === 'PUT' &&
+                        request.url.includes('/explores'),
+                ),
+        ).toHaveLength(0);
     });
 
     test('falls back to the legacy deploy when session creation returns 404', async () => {
@@ -505,4 +695,108 @@ it('prints fixed guidance for server deploy warnings on connection requests', as
     } finally {
         output.mockRestore();
     }
+});
+
+describe('deploy project context transport', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.mocked(readAndLoadLightdashProjectConfig).mockResolvedValue({
+            spotlight: { default_visibility: 'show' },
+        });
+        vi.mocked(LightdashAnalytics.track).mockResolvedValue(undefined);
+    });
+
+    test('uploads lightdash.project_context.yml after the explores', async () => {
+        const yaml =
+            'version: 2\nentries:\n  - kind: definition\n    content: ARR means annual recurring revenue.\n    terms: [ARR]\n';
+        vi.mocked(readProjectContextFile).mockResolvedValue(yaml);
+        vi.mocked(lightdashApi).mockImplementation(async ({ url }) => {
+            if (url.endsWith('/project-context')) {
+                return { ingested: true, entryCount: 1 } as never;
+            }
+            return null as never;
+        });
+
+        await deploy([compiledExplore], {
+            ...deployOptions,
+            batchedDeploy: false,
+        });
+
+        expect(lightdashApi).toHaveBeenCalledWith({
+            method: 'PUT',
+            url: '/api/v1/projects/project-uuid/project-context',
+            body: JSON.stringify({ yaml }),
+        });
+    });
+
+    test('leaves the stored project context alone when the file is absent', async () => {
+        vi.mocked(readProjectContextFile).mockResolvedValue(undefined);
+        vi.mocked(lightdashApi).mockResolvedValue(null as never);
+
+        await deploy([compiledExplore], {
+            ...deployOptions,
+            batchedDeploy: false,
+        });
+
+        expect(
+            vi
+                .mocked(lightdashApi)
+                .mock.calls.some(([{ url }]) =>
+                    url.endsWith('/project-context'),
+                ),
+        ).toBe(false);
+    });
+
+    test('warns and still deploys when the file is invalid', async () => {
+        vi.mocked(readProjectContextFile).mockRejectedValue(
+            new Error('Invalid lightdash.project_context.yml'),
+        );
+        vi.mocked(lightdashApi).mockResolvedValue(null as never);
+        const output = vi.spyOn(console, 'error').mockImplementation(() => {});
+        try {
+            await deploy([compiledExplore], {
+                ...deployOptions,
+                batchedDeploy: false,
+            });
+            expect(lightdashApi).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    url: expect.stringContaining(
+                        '/api/v1/projects/project-uuid/explores',
+                    ),
+                }),
+            );
+            expect(output.mock.calls.flat().join('\n')).toContain(
+                'Invalid lightdash.project_context.yml',
+            );
+        } finally {
+            output.mockRestore();
+        }
+    });
+
+    test('warns instead of failing the deploy when the server ignores the file', async () => {
+        vi.mocked(readProjectContextFile).mockResolvedValue(
+            'version: 2\nentries: []\n',
+        );
+        vi.mocked(lightdashApi).mockImplementation(async ({ url }) => {
+            if (url.endsWith('/project-context')) {
+                return {
+                    ingested: false,
+                    reason: 'ai_agent_reviews_disabled',
+                } as never;
+            }
+            return null as never;
+        });
+        const output = vi.spyOn(console, 'error').mockImplementation(() => {});
+        try {
+            await deploy([compiledExplore], {
+                ...deployOptions,
+                batchedDeploy: false,
+            });
+            expect(output.mock.calls.flat().join('\n')).toContain(
+                'Review AI agent turns',
+            );
+        } finally {
+            output.mockRestore();
+        }
+    });
 });

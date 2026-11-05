@@ -3,6 +3,7 @@ import {
     CreateEmbedJwt,
     EmbedJwtSchema,
     EmbedSourceSpaceUuidsSchema,
+    EmbedWriteSpaceUuidsSchema,
     ForbiddenError,
     getErrorMessage,
     isDashboardUuidContent,
@@ -66,6 +67,17 @@ export function decodeLightdashJwt(
         EmbedSourceSpaceUuidsSchema.optional().parse(
             decodedToken.writeActions?.sourceSpaceUuids,
         );
+        EmbedWriteSpaceUuidsSchema.optional().parse(
+            decodedToken.writeActions?.writeSpaceUuids,
+        );
+        if (
+            decodedToken.writeActions?.spaceUuid !== undefined &&
+            decodedToken.writeActions.writeSpaceUuids !== undefined
+        ) {
+            throw new ForbiddenError(
+                'Use either writeSpaceUuids or the deprecated spaceUuid, not both',
+            );
+        }
 
         // Alert if the token is not in the expected format so we can inform the org before enforcing validation
         try {

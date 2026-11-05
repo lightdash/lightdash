@@ -565,6 +565,25 @@ async function main() {
                       { expiresIn: '24h' },
                   )}`
                 : null;
+        const { spaceUuid: _defaultSpaceUuid, ...dashboardWriteActor } =
+            dashboardPayload.writeActions;
+        const multiWriteSpacesEmbedUrl =
+            sourceSpaces.length > 0
+                ? `${LIGHTDASH_URL}/embed/${projectUuid}#${jwt.sign(
+                      {
+                          ...dashboardPayload,
+                          writeActions: {
+                              ...dashboardWriteActor,
+                              writeSpaceUuids: [
+                                  spaceUuid,
+                                  sourceSpaces[0].space_uuid,
+                              ],
+                          },
+                      },
+                      rawSecret,
+                      { expiresIn: '24h' },
+                  )}`
+                : null;
 
         console.log(
             JSON.stringify(
@@ -582,6 +601,7 @@ async function main() {
                     chartEmbedUrl,
                     chartNoSqlEmbedUrl,
                     sourceSpacesEmbedUrl,
+                    multiWriteSpacesEmbedUrl,
                     aiAgentPermissionEmbedUrls,
                 },
                 null,

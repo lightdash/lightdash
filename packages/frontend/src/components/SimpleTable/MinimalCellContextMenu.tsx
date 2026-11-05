@@ -1,4 +1,5 @@
 import {
+    getCellUrls,
     createDashboardFilterRuleFromField,
     isDimension,
     isDimensionValueInvalidDate,
@@ -10,7 +11,7 @@ import {
 import { Menu } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy } from '@tabler/icons-react';
-import mapValues from 'lodash/mapValues';
+import { mapValues } from 'es-toolkit/compat';
 import { useCallback, useMemo, type FC } from 'react';
 import { FilterDashboardTo } from '../../features/dashboardFilters/FilterDashboardTo';
 import useToaster from '../../hooks/toaster/useToaster';
@@ -20,7 +21,7 @@ import MantineIcon from '../common/MantineIcon';
 import { type CellContextMenuProps } from '../common/Table/types';
 import { UnderlyingDataMenuItem } from '../DashboardTiles/UnderlyingDataMenuItem';
 import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
-import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import { useVisualizationInputs } from '../LightdashVisualization/useVisualizationContext';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
 import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
 
@@ -28,7 +29,7 @@ const MinimalDashboardCellInteractions: FC<
     Pick<CellContextMenuProps, 'cell'>
 > = ({ cell }) => {
     const { embeddedDashboardInteractivity, itemsMap } =
-        useVisualizationContext();
+        useVisualizationInputs();
     const addDimensionDashboardFilter = useDashboardContext(
         (c) => c.addDimensionDashboardFilter,
     );
@@ -114,7 +115,7 @@ const MinimalCellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({
     const { showToastSuccess } = useToaster();
     const { openUnderlyingDataModal, metricQuery } =
         useMetricQueryDataContext();
-    const { embeddedDashboardInteractivity } = useVisualizationContext();
+    const { embeddedDashboardInteractivity } = useVisualizationInputs();
 
     const meta = cell.column.columnDef.meta;
     const item = meta?.item;
@@ -122,6 +123,11 @@ const MinimalCellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({
     const value: ResultValue = useMemo(
         () => cell.getValue()?.value || {},
         [cell],
+    );
+
+    const urls = useMemo(
+        () => getCellUrls(isField(item) ? item.urls : undefined, value.raw),
+        [item, value],
     );
 
     const fieldValues = useMemo(
@@ -149,14 +155,12 @@ const MinimalCellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({
 
     return (
         <>
-            {item &&
-            value.raw !== undefined &&
-            value.raw !== null &&
-            isField(item) ? (
-                <UrlMenuItems urls={item.urls} cell={cell} showErrors={false} />
-            ) : null}
-
-            {isField(item) && (item.urls || []).length > 0 && <Menu.Divider />}
+            {urls.length > 0 && (
+                <>
+                    <UrlMenuItems urls={urls} cell={cell} showErrors={false} />
+                    <Menu.Divider />
+                </>
+            )}
 
             <Menu.Item
                 leftSection={

@@ -11,14 +11,22 @@ import {
     type Metric,
     type ResultColumn,
 } from '@lightdash/common';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { Box } from '@mantine/core';
+import { useQuery } from '@tanstack/react-query';
+import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type SqlChartTileMetadata } from '../../providers/Dashboard/types';
-import { createDashboardTestStore } from '../../testing/dashboardStore';
+import {
+    createDashboardTestStore,
+    type DashboardEditTestValues,
+    seedDashboardEditState,
+} from '../../testing/dashboardStore';
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
+import { dashboardTileStatusActions } from '../dashboard/store';
+import { AddMenuBackContext } from './addMenuBack';
 import { FieldsAndTiles } from './FieldsAndTiles';
 import { useEditorDismiss } from './useEditorDismiss';
 
@@ -47,12 +55,6 @@ vi.mock('./useSqlColumnsByTile', () => ({
 const mockTileStatus = vi.hoisted(() => ({
     current: { sqlChartTilesMetadata: {} } as Record<string, unknown>,
 }));
-const mockMetricFiltersFlag = vi.hoisted(() => ({ current: false }));
-vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: () => ({
-        data: { enabled: mockMetricFiltersFlag.current },
-    }),
-}));
 
 const dimension = (
     name: string,
@@ -72,15 +74,6 @@ const dimension = (
 
 const status = dimension('status', 'Status');
 const region = dimension('region', 'Region');
-const city = dimension('city', 'City', {
-    table: 'customers',
-    tableLabel: 'Customers',
-});
-const amount = dimension('amount', 'Amount', {
-    table: 'payments',
-    tableLabel: 'Payments',
-    type: DimensionType.NUMBER,
-});
 
 const grain = (name: string, label: string, timeInterval: TimeFrames) =>
     dimension(name, label, {
@@ -102,7 +95,6 @@ const metric = (name: string, label: string): Metric => ({
     hidden: false,
 });
 const revenue = metric('revenue', 'Revenue');
-const profit = metric('profit', 'Profit');
 
 const country: ResultColumn = {
     reference: 'country',
@@ -110,12 +102,13 @@ const country: ResultColumn = {
 };
 const total: ResultColumn = { reference: 'total', type: DimensionType.NUMBER };
 
-const REGION = { fieldId: 'orders_region', tableName: 'orders' };
-
 const FIELD_SEARCH = 'FilterConfiguration/FieldSelect';
 const fieldSearch = () => screen.queryByTestId(FIELD_SEARCH);
+// Each row's name, without its tile count hint
 const optionNames = () =>
-    screen.getAllByRole('option').map((option) => option.textContent);
+    screen
+        .getAllByRole('option')
+        .map((option) => option.textContent?.replace(/\d+ tiles?$/, ''));
 
 const tile = (uuid: string) =>
     ({ uuid, type: DashboardTileTypes.SAVED_CHART }) as DashboardTile;
@@ -150,6 +143,7 @@ const setSidebar = (
     mockSidebar.current = {
         editingRule,
         isPlaceholder: false,
+        editorFilters: { dimensions: [], metrics: [], tableCalculations: [] },
         addFirstField,
         addFirstSqlColumn,
         isNew: false,
@@ -173,22 +167,20 @@ const Editor = () => {
     useEditorDismiss({
         isOpen: true,
         isFieldClicked: false,
+        isAsking: false,
+        isPristineNew: false,
         clearField: clearHighlightedField,
-        close,
+        dismiss: close,
+        dismissOutside: () => {
+            close();
+            return false;
+        },
     });
     return (
-        <div data-controls-editor>
+        <Box data-controls-editor>
             <FieldsAndTiles />
-        </div>
+        </Box>
     );
-};
-
-const removeButtonOf = (label: string) =>
-    screen.getByLabelText(`Remove field ${label}`);
-
-const getUpdatedRule = (): DashboardFilterRule => {
-    expect(updateFilter).toHaveBeenCalledTimes(1);
-    return updateFilter.mock.calls[0][0];
 };
 
 // Seeds the store's SQL chart metadata from `mockTileStatus` at render time
@@ -197,6 +189,10 @@ const renderWithProviders = (ui: ReactElement) => {
         sqlChartTilesMetadata: mockTileStatus.current
             .sqlChartTilesMetadata as Record<string, SqlChartTileMetadata>,
     });
+    seedDashboardEditState(
+        store,
+        mockDashboardContext.current as DashboardEditTestValues,
+    );
     const wrap = (node: ReactElement) => (
         <DashboardStoreTestProvider store={store}>
             {node}
@@ -205,7 +201,16 @@ const renderWithProviders = (ui: ReactElement) => {
     const result = renderWithAppProviders(wrap(ui));
     return {
         ...result,
-        rerender: (node: ReactElement) => result.rerender(wrap(node)),
+        store,
+        rerender: (node: ReactElement) => {
+            act(() => {
+                seedDashboardEditState(
+                    store,
+                    mockDashboardContext.current as DashboardEditTestValues,
+                );
+            });
+            result.rerender(wrap(node));
+        },
     };
 };
 
@@ -219,7 +224,6 @@ describe('FieldsAndTiles', () => {
         vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(
             400,
         );
-        mockMetricFiltersFlag.current = false;
         mockSqlColumnsByTile.current = {};
         mockTileStatus.current = { sqlChartTilesMetadata: {} };
         mockDashboardContext.current = {
@@ -243,35 +247,36 @@ describe('FieldsAndTiles', () => {
     afterEach(() => vi.restoreAllMocks());
 
     describe('a new control', () => {
-        it('picks its first field in the shipped field search', async () => {
+        it('picks its first field in the shipped field search, opened, with nothing else', async () => {
             setSidebar(rule(''), { isPlaceholder: true });
-            renderWithProviders(
-                <>
-                    <input data-controls-label aria-label="Label" />
-                    <FieldsAndTiles />
-                </>,
-            );
+            renderWithProviders(<FieldsAndTiles />);
 
-            expect(screen.getByText('Select a field to filter')).toBeVisible();
             expect(
-                screen.queryByText('Tiles are filtered by'),
+                screen.queryByText('Select a field to filter'),
+            ).not.toBeInTheDocument();
+            expect(screen.getByPlaceholderText('Search fields')).toBeVisible();
+            expect(
+                screen.queryByText("Change a tile's field on the tile itself."),
             ).not.toBeInTheDocument();
             expect(
-                screen.getByText('Select the field to filter tiles by.'),
-            ).toBeVisible();
+                screen.queryByText(/Select the field to filter tiles by/),
+            ).not.toBeInTheDocument();
 
-            await userEvent.click(screen.getByTestId(FIELD_SEARCH));
-            // Grouped by table, as in "Add filter"
+            // Open without a click, grouped by table as in "Add filter"
             expect(await screen.findByText('Orders')).toBeVisible();
             expect(optionNames()).toEqual(['Region', 'Status']);
+            // Each row counts the tiles its field can filter
+            expect(
+                screen
+                    .getAllByRole('option')
+                    .map((option) => option.getAttribute('aria-label')),
+            ).toEqual(['Region, Orders, 1 tile', 'Status, Orders, 2 tiles']);
 
             await userEvent.click(
-                screen.getByRole('option', { name: 'Status' }),
+                screen.getByRole('option', { name: /^Status,/ }),
             );
             expect(addFirstField).toHaveBeenCalledTimes(1);
             expect(addFirstField).toHaveBeenCalledWith(status);
-            // Naming it comes next
-            expect(screen.getByLabelText('Label')).toHaveFocus();
         });
 
         it('keeps Escape for the open list, then hands it to the editor', async () => {
@@ -279,9 +284,9 @@ describe('FieldsAndTiles', () => {
             renderWithProviders(<Editor />);
 
             const search = screen.getByTestId(FIELD_SEARCH);
-            expect(search).not.toHaveAttribute('data-expanded');
-            await userEvent.click(search);
             await screen.findByText('Orders');
+            // As the editor focuses it on mount
+            act(() => search.focus());
             // What the editor's Escape handling reads to leave the list alone
             expect(search).toHaveAttribute('data-expanded');
             await userEvent.keyboard('{Escape}');
@@ -309,31 +314,24 @@ describe('FieldsAndTiles', () => {
             ]);
 
             await userEvent.click(
-                screen.getByRole('option', { name: 'Created month' }),
+                screen.getByRole('option', { name: /^Created month,/ }),
             );
             expect(addFirstField).toHaveBeenCalledWith(createdMonth);
         });
 
-        it('lists metrics only where metric filters can be created', async () => {
+        it('lists metrics alongside dimensions', async () => {
             mockDashboardContext.current = {
                 ...mockDashboardContext.current,
                 allFilterableMetrics: [revenue],
             };
             setSidebar(rule(''), { isPlaceholder: true });
-            const { unmount } = renderWithProviders(<FieldsAndTiles />);
-            await userEvent.click(screen.getByTestId(FIELD_SEARCH));
-            await screen.findByText('Orders');
-            expect(optionNames()).toEqual(['Region', 'Status']);
-            unmount();
-
-            mockMetricFiltersFlag.current = true;
             renderWithProviders(<FieldsAndTiles />);
             await userEvent.click(screen.getByTestId(FIELD_SEARCH));
             await screen.findByText('Orders');
             expect(optionNames()).toEqual(['Region', 'Status', 'Revenue']);
 
             await userEvent.click(
-                screen.getByRole('option', { name: 'Revenue' }),
+                screen.getByRole('option', { name: /^Revenue,/ }),
             );
             expect(addFirstField).toHaveBeenCalledWith(revenue);
         });
@@ -364,6 +362,21 @@ describe('FieldsAndTiles', () => {
             expect(optionNames()).toEqual(['Status', 'Region']);
         });
 
+        it('keeps the viewer field picker without tile hints or automatic selection', async () => {
+            setSidebar(rule(''), { isPlaceholder: true, isViewer: true });
+            renderWithProviders(<FieldsAndTiles />);
+            const options = await screen.findAllByRole('option');
+            expect(
+                options.map((option) => option.getAttribute('aria-label')),
+            ).toEqual([null, null]);
+            await userEvent.type(
+                screen.getByPlaceholderText('Search fields'),
+                'Status',
+            );
+            await userEvent.keyboard('{Enter}');
+            expect(addFirstField).not.toHaveBeenCalled();
+        });
+
         it('offers SQL columns when no tile has fields', async () => {
             mockDashboardContext.current = {
                 ...mockDashboardContext.current,
@@ -379,17 +392,9 @@ describe('FieldsAndTiles', () => {
                 },
             };
             setSidebar(rule(''), { isPlaceholder: true });
-            renderWithProviders(
-                <>
-                    <input data-controls-label aria-label="Label" />
-                    <FieldsAndTiles />
-                </>,
-            );
+            renderWithProviders(<FieldsAndTiles />);
 
             expect(fieldSearch()).not.toBeInTheDocument();
-            expect(
-                screen.getByText('Select the column to filter tiles by.'),
-            ).toBeVisible();
             expect(screen.getByText('Select a column to filter')).toBeVisible();
             await userEvent.click(
                 screen.getByPlaceholderText('Search column...'),
@@ -407,615 +412,187 @@ describe('FieldsAndTiles', () => {
                 'tile-2': [country],
             });
             expect(addFirstField).not.toHaveBeenCalled();
-            expect(screen.getByLabelText('Label')).toHaveFocus();
         });
     });
 
-    it('lists the fields of a filter with their tile counts', () => {
-        setSidebar(rule('orders_status', { 'tile-1': REGION }));
-        renderWithProviders(<FieldsAndTiles />);
-
-        expect(screen.getByText('Tiles are filtered by')).toBeVisible();
-        expect(
-            screen.getByText('Select a field to see and change its tiles.'),
-        ).toBeVisible();
-        expect(screen.getByRole('button', { name: 'Status' })).toBeVisible();
-        expect(screen.getByText('Orders · 1 of 2 tiles')).toBeVisible();
-        expect(screen.getByRole('button', { name: 'Region' })).toBeVisible();
-        expect(screen.getByText('Orders · 1 of 1 tile')).toBeVisible();
-        expect(removeButtonOf('Status')).toBeInTheDocument();
-        expect(removeButtonOf('Region')).toBeInTheDocument();
-        expect(fieldSearch()).not.toBeInTheDocument();
-    });
-
-    it('names a time grain by its own label', () => {
-        mockDashboardContext.current = {
-            ...mockDashboardContext.current,
-            allFilterableFields: [createdDay, createdMonth],
-            allFilterableFieldsMap: {
-                orders_created_day: createdDay,
-                orders_created_month: createdMonth,
-            },
-            filterableFieldsByTileUuid: {
-                'tile-1': [createdDay, createdMonth],
-            },
-        };
-        setSidebar(rule('orders_created_month'));
-        renderWithProviders(<FieldsAndTiles />);
-
-        expect(
-            screen.getByRole('button', { name: 'Created month' }),
-        ).toBeVisible();
-    });
-
-    describe('a metric filter', () => {
-        beforeEach(() => {
-            mockDashboardContext.current = {
-                ...mockDashboardContext.current,
-                allFilterableMetrics: [revenue, profit],
-                allFilterableMetricsMap: {
-                    orders_revenue: revenue,
-                    orders_profit: profit,
-                },
-                filterableFieldsByTileUuid: {
-                    'tile-1': [status, revenue, profit],
-                    'tile-2': [status, revenue],
-                },
-            };
-        });
-
-        it('lists its metric with the tiles that offer it', () => {
-            setSidebar(rule('orders_revenue'));
-            renderWithProviders(<FieldsAndTiles />);
-
-            expect(
-                screen.getByRole('button', { name: 'Revenue' }),
-            ).toBeVisible();
-            expect(screen.getByText('Orders · 2 of 2 tiles')).toBeVisible();
-        });
-
-        it('adds metrics of its type, and no dimension', async () => {
-            setSidebar(rule('orders_revenue'));
-            renderWithProviders(<FieldsAndTiles />);
-
-            await userEvent.click(
-                screen.getByRole('button', { name: 'Add another field' }),
-            );
-            await screen.findByText('Orders');
-            expect(optionNames()).toEqual(['Profit']);
-
-            await userEvent.click(
-                screen.getByRole('option', { name: 'Profit' }),
-            );
-            // tile-1 keeps Revenue, so Profit waits for a tile
-            expect(addWaitingField).toHaveBeenCalledWith('orders_profit');
-        });
-    });
-
-    describe('a SQL column filter', () => {
+    describe('a new control on SQL chart tiles only', () => {
         const sqlTile = (uuid: string) =>
-            ({ uuid, type: DashboardTileTypes.SQL_CHART }) as DashboardTile;
-        const COUNTRY = {
-            fieldId: 'country',
-            tableName: 'sql_chart',
-            isSqlColumn: true,
-            fallbackType: DimensionType.STRING,
-        };
-        const sqlRule = (
-            tileTargets: DashboardFilterRule['tileTargets'],
-        ): DashboardFilterRule => ({
-            ...rule('country', tileTargets),
-            target: COUNTRY,
-        });
+            ({
+                uuid,
+                type: DashboardTileTypes.SQL_CHART,
+                properties: { savedSqlUuid: `chart-${uuid}` },
+            }) as DashboardTile;
+        const columnInput = () =>
+            screen.getByPlaceholderText('Search column...');
 
         beforeEach(() => {
             mockDashboardContext.current = {
                 ...mockDashboardContext.current,
-                dashboardTiles: [
-                    sqlTile('sql-1'),
-                    sqlTile('sql-2'),
-                    sqlTile('sql-3'),
-                ],
+                dashboardTiles: [sqlTile('sql-1'), sqlTile('sql-2')],
                 allFilterableFields: undefined,
+                allFilterableMetrics: undefined,
                 allFilterableFieldsMap: {},
                 filterableFieldsByTileUuid: undefined,
             };
-            mockSqlColumnsByTile.current = {
-                'sql-1': [{ reference: 'country', type: 'string' }],
-                'sql-2': [{ reference: 'country', type: 'string' }],
-                'sql-3': [{ reference: 'city', type: 'string' }],
-            };
-        });
-
-        it('lists the column with the SQL chart tiles that have it', () => {
-            setSidebar(sqlRule({ 'sql-1': COUNTRY }));
-            renderWithProviders(<FieldsAndTiles />);
-
-            expect(
-                screen.getByRole('button', { name: 'country' }),
-            ).toBeVisible();
-            expect(screen.getByText('SQL column · 1 of 2 tiles')).toBeVisible();
-        });
-
-        it('removes the column, its only field', async () => {
-            setSidebar(sqlRule({ 'sql-1': COUNTRY }));
-            renderWithProviders(<FieldsAndTiles />);
-
-            await userEvent.click(removeButtonOf('country'));
-            expect(removeLastField).toHaveBeenCalledTimes(1);
-            expect(updateFilter).not.toHaveBeenCalled();
-        });
-
-        it('has no other field to add', () => {
-            setSidebar(sqlRule({ 'sql-1': COUNTRY }));
-            renderWithProviders(<FieldsAndTiles />);
-
-            expect(
-                screen.getByRole('button', { name: 'Add another field' }),
-            ).toHaveAttribute('data-disabled', 'true');
-        });
-    });
-
-    it('falls back to the field id when the field is unknown', () => {
-        setSidebar(rule('orders_gone'));
-        renderWithProviders(<FieldsAndTiles />);
-
-        expect(screen.getByText('orders_gone')).toBeVisible();
-        expect(screen.getByText('orders · 0 of 0 tiles')).toBeVisible();
-        expect(removeButtonOf('orders_gone')).toBeInTheDocument();
-    });
-
-    it('highlights a field on click and on hover', async () => {
-        setSidebar(rule('orders_status'));
-        const { rerender } = renderWithProviders(<FieldsAndTiles />);
-        const label = screen.getByRole('button', { name: 'Status' });
-
-        await userEvent.hover(label);
-        expect(setHoveredFieldId).toHaveBeenLastCalledWith('orders_status');
-        await userEvent.click(label);
-        expect(setHighlightedFieldId).toHaveBeenLastCalledWith('orders_status');
-
-        setSidebar(rule('orders_status'), {
-            highlightedFieldId: 'orders_status',
-            hoveredFieldId: 'orders_status',
-        });
-        rerender(<FieldsAndTiles />);
-        const pressed = screen.getByRole('button', { name: 'Status' });
-        expect(pressed).toHaveAttribute('aria-pressed', 'true');
-        await userEvent.click(pressed);
-        expect(clearHighlightedField).toHaveBeenCalledTimes(1);
-        await userEvent.unhover(pressed);
-        expect(setHoveredFieldId).toHaveBeenLastCalledWith(null);
-    });
-
-    it('has a trash can on each card, and no eye or menu', async () => {
-        setSidebar(rule('orders_status', { 'tile-1': REGION }));
-        renderWithProviders(<FieldsAndTiles />);
-
-        expect(
-            screen.queryByRole('button', { name: /^Show only tiles/ }),
-        ).not.toBeInTheDocument();
-        expect(
-            screen.queryByRole('button', { name: /^Apply to/ }),
-        ).not.toBeInTheDocument();
-        expect(screen.queryByRole('menu')).not.toBeInTheDocument();
-
-        await userEvent.hover(removeButtonOf('Region'));
-        expect(await screen.findByText('Remove field')).toBeInTheDocument();
-        // The trash can never toggles the card
-        await userEvent.click(removeButtonOf('Region'));
-        expect(setHighlightedFieldId).not.toHaveBeenCalled();
-        expect(clearHighlightedField).not.toHaveBeenCalled();
-    });
-
-    it('has no "Show all tiles" button and no scope switch', () => {
-        setSidebar(rule('orders_status'), {
-            highlightedFieldId: 'orders_status',
-        });
-        renderWithProviders(<FieldsAndTiles />);
-
-        expect(screen.queryByText('Show all tiles')).not.toBeInTheDocument();
-        expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
-        expect(
-            screen.queryByLabelText('More actions for Status'),
-        ).not.toBeInTheDocument();
-    });
-
-    it('highlights a field when any part of its card is hovered', async () => {
-        setSidebar(rule('orders_status'));
-        renderWithProviders(<FieldsAndTiles />);
-
-        await userEvent.hover(screen.getByText(/^Orders · /));
-        expect(setHoveredFieldId).toHaveBeenLastCalledWith('orders_status');
-    });
-
-    describe('on a dashboard with tabs', () => {
-        const TAB_1 = { uuid: 'tab-1', name: 'One', order: 0 };
-        const TAB_2 = { uuid: 'tab-2', name: 'Two', order: 1 };
-        const setTabs = (activeTab: typeof TAB_1) => {
-            mockDashboardContext.current = {
-                ...mockDashboardContext.current,
-                dashboardTiles: [
-                    { ...tile('tile-1'), tabUuid: 'tab-1' },
-                    { ...tile('tile-2'), tabUuid: 'tab-1' },
-                    { ...tile('tile-3'), tabUuid: 'tab-2' },
-                ],
-                dashboardTabs: [TAB_1, TAB_2],
-                activeTab,
-                filterableFieldsByTileUuid: {
-                    'tile-1': [status, region],
-                    'tile-2': [status],
-                    'tile-3': [status],
-                },
-            };
-        };
-
-        beforeEach(() => setTabs(TAB_1));
-
-        it('counts every tab on the card, whatever the active tab', () => {
-            setSidebar(rule('orders_status', { 'tile-1': false }));
-            const { rerender } = renderWithProviders(<FieldsAndTiles />);
-            expect(screen.getByText('Orders · 2 of 3 tiles')).toBeVisible();
-
-            setTabs(TAB_2);
-            rerender(<FieldsAndTiles />);
-            expect(screen.getByText('Orders · 2 of 3 tiles')).toBeVisible();
-        });
-    });
-
-    it('removes one of several fields', async () => {
-        setSidebar(rule('orders_status', { 'tile-1': REGION }), {
-            highlightedFieldId: 'orders_region',
-        });
-        renderWithProviders(<FieldsAndTiles />);
-
-        fireEvent.click(removeButtonOf('Region'));
-        const next = getUpdatedRule();
-        expect(next.target.fieldId).toBe('orders_status');
-        expect(next.tileTargets).toBeUndefined();
-        expect(setHighlightedFieldId).toHaveBeenCalledWith(null);
-    });
-
-    describe('focus after a field is removed', () => {
-        const nameOf = (label: string) =>
-            screen.getByRole('button', { name: label });
-        const three = () => {
-            mockDashboardContext.current = {
-                ...mockDashboardContext.current,
-                allFilterableFields: [status, region, city],
-                allFilterableFieldsMap: {
-                    orders_status: status,
-                    orders_region: region,
-                    customers_city: city,
-                },
-                filterableFieldsByTileUuid: {
-                    'tile-1': [status, region],
-                    'tile-2': [status, city],
-                },
-            };
-            return rule('orders_status', {
-                'tile-1': REGION,
-                'tile-2': { fieldId: 'customers_city', tableName: 'customers' },
-            });
-        };
-
-        it('goes to the next card, or the previous one for the last card', async () => {
-            // Status, Region and City, each on a tile
-            mockDashboardContext.current = {
-                ...mockDashboardContext.current,
-                dashboardTiles: [
-                    tile('tile-1'),
-                    tile('tile-2'),
-                    tile('tile-3'),
-                ],
-            };
-            const fields = three();
-            mockDashboardContext.current = {
-                ...mockDashboardContext.current,
-                filterableFieldsByTileUuid: {
-                    'tile-1': [status, region],
-                    'tile-2': [status, city],
-                    'tile-3': [status],
-                },
-            };
-            setSidebar(fields);
-            const { rerender } = renderWithProviders(<FieldsAndTiles />);
-
-            await userEvent.click(removeButtonOf('Region'));
-            setSidebar(getUpdatedRule());
-            rerender(<FieldsAndTiles />);
-            // City took Region's place
-            expect(nameOf('City')).toHaveFocus();
-
-            updateFilter.mockClear();
-            await userEvent.click(removeButtonOf('City'));
-            setSidebar(getUpdatedRule());
-            rerender(<FieldsAndTiles />);
-            expect(nameOf('Status')).toHaveFocus();
-        });
-
-        it('goes to the field search when the last field is removed', async () => {
-            setSidebar(rule('orders_status'));
-            const { rerender } = renderWithProviders(<FieldsAndTiles />);
-
-            await userEvent.click(removeButtonOf('Status'));
-            expect(removeLastField).toHaveBeenCalledWith('Status');
             setSidebar(rule(''), { isPlaceholder: true });
-            rerender(<FieldsAndTiles />);
-
-            expect(screen.getByTestId(FIELD_SEARCH)).toHaveFocus();
         });
 
-        it('leaves focus alone while nothing was removed', () => {
-            setSidebar(rule('orders_status', { 'tile-1': REGION }));
-            const { rerender } = renderWithProviders(<FieldsAndTiles />);
-            setSidebar(rule('orders_status'));
-            rerender(<FieldsAndTiles />);
-
-            expect(document.body).toHaveFocus();
-        });
-    });
-
-    it('promotes another field when the first one is removed', async () => {
-        setSidebar(rule('orders_status', { 'tile-1': REGION }));
-        renderWithProviders(<FieldsAndTiles />);
-
-        fireEvent.click(removeButtonOf('Status'));
-        const next = getUpdatedRule();
-        expect(next.target).toEqual(REGION);
-        expect(next.tileTargets).toBeUndefined();
-    });
-
-    it.each([false, true])(
-        'removes the only field of a filter, leaving the control empty (new: %s)',
-        async (isNew) => {
-            setSidebar(rule('orders_status'), {
-                isNew,
-                highlightedFieldId: 'orders_status',
-            });
+        it('searches the columns already returned', async () => {
+            mockTileStatus.current = {
+                sqlChartTilesMetadata: {
+                    'sql-1': { columns: [country, total] },
+                },
+            };
             renderWithProviders(<FieldsAndTiles />);
 
-            expect(removeButtonOf('Status')).toBeEnabled();
-            await userEvent.click(removeButtonOf('Status'));
-            expect(removeLastField).toHaveBeenCalledTimes(1);
-            expect(updateFilter).not.toHaveBeenCalled();
-            expect(removeWaitingField).not.toHaveBeenCalled();
-            expect(setHighlightedFieldId).toHaveBeenCalledWith(null);
-        },
-    );
+            await userEvent.type(columnInput(), 'tot');
+            expect(
+                screen
+                    .getAllByRole('option', { hidden: true })
+                    .map((option) => option.textContent),
+            ).toEqual(['total']);
+        });
 
-    it('empties the control when its last field goes while another waits', async () => {
-        setSidebar(rule('orders_status'), {
-            waitingFieldIds: ['orders_region'],
+        it('keeps the typed search when another SQL chart tile returns', async () => {
+            mockTileStatus.current = {
+                sqlChartTilesMetadata: {
+                    'sql-1': { columns: [country, total] },
+                },
+            };
+            const { store } = renderWithProviders(<FieldsAndTiles />);
+
+            await userEvent.type(columnInput(), 'tot');
+            act(() => {
+                store.dispatch(
+                    dashboardTileStatusActions.updateSqlChartTilesMetadata({
+                        tileUuid: 'sql-2',
+                        metadata: { columns: [country] },
+                    }),
+                );
+            });
+            expect(columnInput()).toHaveValue('tot');
+            expect(
+                screen
+                    .getAllByRole('option', { hidden: true })
+                    .map((option) => option.textContent),
+            ).toEqual(['total']);
+        });
+
+        it('shows the columns load while a SQL chart tile runs its query', async () => {
+            let finish: () => void = () => {};
+            // A mounted SQL chart tile, as its results query registers
+            const RunningTile = () => {
+                useQuery(
+                    ['savedSqlChartResults', 'chart', { tileUuid: 'sql-2' }],
+                    () =>
+                        new Promise<null>((resolve) => {
+                            finish = () => resolve(null);
+                        }),
+                );
+                return null;
+            };
+            renderWithProviders(
+                <>
+                    <RunningTile />
+                    <FieldsAndTiles />
+                </>,
+            );
+            await waitFor(() =>
+                expect(columnInput()).toHaveAttribute('aria-busy', 'true'),
+            );
+
+            act(() => finish());
+            await waitFor(() =>
+                expect(columnInput()).toHaveAttribute('aria-busy', 'false'),
+            );
+        });
+
+        it('does not wait for a tile that has its columns and queries again', async () => {
+            mockTileStatus.current = {
+                sqlChartTilesMetadata: {
+                    'sql-1': { columns: [country] },
+                    'sql-2': { columns: [total] },
+                },
+            };
+            // A refresh, or a filter or parameter change, recreates the query
+            const RefreshedTile = () => {
+                useQuery(
+                    ['savedSqlChartResults', 'chart', { tileUuid: 'sql-2' }],
+                    () => new Promise<null>(() => {}),
+                );
+                return null;
+            };
+            renderWithProviders(
+                <>
+                    <RefreshedTile />
+                    <FieldsAndTiles />
+                </>,
+            );
+            await act(async () => {});
+            expect(columnInput()).toHaveAttribute('aria-busy', 'false');
+        });
+
+        it('does not wait for a SQL chart tile whose results query never runs', async () => {
+            // Its chart failed or is gone: the results query stays disabled
+            const StuckTile = () => {
+                useQuery(
+                    ['savedSqlChartResults', 'chart', { tileUuid: 'sql-2' }],
+                    () => null,
+                    { enabled: false },
+                );
+                return null;
+            };
+            renderWithProviders(
+                <>
+                    <StuckTile />
+                    <FieldsAndTiles />
+                </>,
+            );
+            await act(async () => {});
+            expect(columnInput()).toHaveAttribute('aria-busy', 'false');
+        });
+    });
+
+    it('keeps a field a filter already uses pickable, with only its tiles', async () => {
+        setSidebar(rule(''), {
+            isPlaceholder: true,
+            editorFilters: {
+                dimensions: [rule('orders_status')],
+                metrics: [],
+                tableCalculations: [],
+            },
         });
         renderWithProviders(<FieldsAndTiles />);
 
-        await userEvent.click(removeButtonOf('Status'));
-        expect(removeLastField).toHaveBeenCalledTimes(1);
-        expect(updateFilter).not.toHaveBeenCalled();
+        const onBar = await screen.findByRole('option', {
+            name: 'Status, Orders, 2 tiles',
+        });
+        await userEvent.click(onBar);
+        expect(addFirstField).toHaveBeenCalledWith(status);
     });
 
-    it('puts "Add another field" away on Escape and when focus leaves it', async () => {
-        setSidebar(rule('orders_status'));
-        renderWithProviders(<Editor />);
-        const add = screen.getByRole('button', { name: 'Add another field' });
+    it('goes back to the Add choice only when "Add" gives it a way back', async () => {
+        setSidebar(rule(''), { isPlaceholder: true });
+        const { unmount } = renderWithProviders(<FieldsAndTiles />);
+        expect(
+            screen.queryByRole('button', { name: 'Back' }),
+        ).not.toBeInTheDocument();
+        unmount();
 
-        await userEvent.click(add);
-        // Focused with its list open
-        expect(fieldSearch()).toHaveFocus();
-        expect(await screen.findByText('Orders')).toBeVisible();
-        expect(fieldSearch()).toHaveAttribute('data-expanded');
-        await userEvent.keyboard('{Escape}');
-        expect(fieldSearch()).not.toBeInTheDocument();
-        expect(add).toHaveFocus();
-        // The press belonged to the list, not to the editor
-        expect(close).not.toHaveBeenCalled();
-
-        await userEvent.click(add);
-        await userEvent.keyboard('zz{Escape}');
-        expect(fieldSearch()).not.toBeInTheDocument();
-        expect(add).toHaveFocus();
-
-        await userEvent.click(add);
-        await userEvent.click(screen.getByText('Tiles are filtered by'));
-        expect(fieldSearch()).not.toBeInTheDocument();
-    });
-
-    it('picks a searched field from the keyboard', async () => {
-        setSidebar(rule('orders_status'));
-        renderWithProviders(<FieldsAndTiles />);
-
-        await userEvent.click(
-            screen.getByRole('button', { name: 'Add another field' }),
+        const onBack = vi.fn();
+        renderWithProviders(
+            <AddMenuBackContext.Provider value={onBack}>
+                <FieldsAndTiles />
+            </AddMenuBackContext.Provider>,
         );
-        await userEvent.keyboard('reg');
-        await waitFor(() => expect(optionNames()).toEqual(['Region']));
-        await userEvent.keyboard('{ArrowDown}{Enter}');
-        expect(addWaitingField).toHaveBeenCalledWith('orders_region');
-        expect(fieldSearch()).not.toBeInTheDocument();
-    });
-
-    describe('Add another field', () => {
-        beforeEach(() => {
-            mockDashboardContext.current = {
-                ...mockDashboardContext.current,
-                dashboardTiles: [
-                    tile('tile-1'),
-                    tile('tile-2'),
-                    tile('tile-3'),
-                    tile('tile-4'),
-                ],
-                allFilterableFields: [status, region, city, amount],
-                allFilterableFieldsMap: {
-                    orders_status: status,
-                    orders_region: region,
-                    customers_city: city,
-                    payments_amount: amount,
-                },
-                filterableFieldsByTileUuid: {
-                    'tile-1': [status, region],
-                    'tile-2': [status],
-                    'tile-3': [city],
-                    'tile-4': [amount],
-                },
-            };
-        });
-
-        it('offers every other field of the same kind that a tile offers', async () => {
-            setSidebar(rule('orders_status'));
-            renderWithProviders(<FieldsAndTiles />);
-
-            const button = screen.getByRole('button', {
-                name: 'Add another field',
-            });
-            expect(button).not.toHaveAttribute('data-disabled');
-            await userEvent.click(button);
-
-            expect(await screen.findByText('Customers')).toBeVisible();
-            expect(screen.getByText('Orders')).toBeVisible();
-            expect(optionNames()).toEqual(['City', 'Region']);
-
-            await userEvent.click(screen.getByRole('option', { name: 'City' }));
-            expect(getUpdatedRule().tileTargets).toEqual({
-                'tile-3': { fieldId: 'customers_city', tableName: 'customers' },
-            });
-            expect(addWaitingField).not.toHaveBeenCalled();
-            expect(setHighlightedFieldId).toHaveBeenLastCalledWith(
-                'customers_city',
-            );
-            expect(fieldSearch()).not.toBeInTheDocument();
-            expect(button).toHaveFocus();
-        });
-
-        it('offers the other grains of a date the filter is on', async () => {
-            mockDashboardContext.current = {
-                ...mockDashboardContext.current,
-                allFilterableFields: [status, createdDay, createdMonth],
-                allFilterableFieldsMap: {
-                    orders_status: status,
-                    orders_created_day: createdDay,
-                    orders_created_month: createdMonth,
-                },
-                filterableFieldsByTileUuid: {
-                    'tile-1': [createdMonth],
-                    'tile-2': [createdDay],
-                },
-            };
-            setSidebar(rule('orders_created_month'));
-            renderWithProviders(<FieldsAndTiles />);
-
-            await userEvent.click(
-                screen.getByRole('button', { name: 'Add another field' }),
-            );
-            await screen.findByText('Orders');
-            expect(optionNames()).toEqual(['Created day']);
-
-            await userEvent.click(
-                screen.getByRole('option', { name: 'Created day' }),
-            );
-            expect(getUpdatedRule().tileTargets).toEqual({
-                'tile-2': {
-                    fieldId: 'orders_created_day',
-                    tableName: 'orders',
-                },
-            });
-        });
-
-        it('keeps a field waiting when every tile it fits already has one', async () => {
-            setSidebar(rule('orders_status'));
-            renderWithProviders(<FieldsAndTiles />);
-
-            await userEvent.click(
-                screen.getByRole('button', { name: 'Add another field' }),
-            );
-            await userEvent.click(
-                await screen.findByRole('option', { name: 'Region' }),
-            );
-
-            // tile-1 keeps Status: nothing is taken away from it
-            expect(getUpdatedRule().tileTargets).toBeUndefined();
-            expect(addWaitingField).toHaveBeenCalledWith('orders_region');
-            // On no tile, so there is nothing to show for a click
-            expect(setHighlightedFieldId).not.toHaveBeenCalled();
-        });
-
-        it('lists a waiting field on no tile and removes it on its own', async () => {
-            setSidebar(rule('orders_status'), {
-                waitingFieldIds: ['orders_region'],
-            });
-            renderWithProviders(<FieldsAndTiles />);
-
-            expect(screen.getByText('Orders · 0 of 1 tile')).toBeVisible();
-            expect(
-                screen
-                    .getByRole('button', { name: 'Region' })
-                    .closest('[data-waiting="true"]'),
-            ).not.toBeNull();
-            expect(
-                screen
-                    .getByRole('button', { name: 'Status' })
-                    .closest('[data-waiting]'),
-            ).toBeNull();
-
-            await userEvent.click(removeButtonOf('Region'));
-            expect(removeWaitingField).toHaveBeenCalledWith('orders_region');
-            expect(updateFilter).not.toHaveBeenCalled();
-            expect(removeLastField).not.toHaveBeenCalled();
-        });
-
-        it('offers a field again once one of its tiles is left out', async () => {
-            setSidebar(rule('orders_status', { 'tile-1': false }));
-            renderWithProviders(<FieldsAndTiles />);
-
-            await userEvent.click(
-                screen.getByRole('button', { name: 'Add another field' }),
-            );
-            await screen.findByText('Customers');
-            expect(optionNames()).toEqual(['City', 'Region']);
-
-            await userEvent.click(
-                screen.getByRole('option', { name: 'Region' }),
-            );
-            expect(getUpdatedRule().tileTargets).toEqual({
-                'tile-1': REGION,
-            });
-        });
-
-        it('is disabled when no tile offers another field of the kind', async () => {
-            mockDashboardContext.current = {
-                ...mockDashboardContext.current,
-                dashboardTiles: [tile('tile-2'), tile('tile-4')],
-                filterableFieldsByTileUuid: {
-                    'tile-2': [status],
-                    'tile-4': [amount],
-                },
-            };
-            setSidebar(rule('orders_status'));
-            renderWithProviders(<FieldsAndTiles />);
-
-            const button = screen.getByRole('button', {
-                name: 'Add another field',
-            });
-            expect(button).toHaveAttribute('data-disabled', 'true');
-            await userEvent.click(button);
-            expect(fieldSearch()).not.toBeInTheDocument();
-
-            await userEvent.hover(button);
-            expect(
-                await screen.findByText(
-                    'No tile has another field this filter could use',
-                ),
-            ).toBeInTheDocument();
-        });
+        await userEvent.click(screen.getByRole('button', { name: 'Back' }));
+        expect(onBack).toHaveBeenCalledTimes(1);
     });
 
     it('renders nothing when no control is edited', () => {
         mockSidebar.current = { ...mockSidebar.current, editingRule: null };
         renderWithProviders(<FieldsAndTiles />);
 
-        expect(
-            screen.queryByText('Tiles are filtered by'),
-        ).not.toBeInTheDocument();
         expect(fieldSearch()).not.toBeInTheDocument();
     });
 });

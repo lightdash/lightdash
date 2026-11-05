@@ -43,6 +43,17 @@ const isSkippableActionKey = (key: HomepageRecommendedActionKey): boolean =>
         SKIPPABLE_HOMEPAGE_RECOMMENDED_ACTION_KEYS as readonly HomepageRecommendedActionKey[]
     ).includes(key);
 
+const checklistProperties = (
+    actionKey: HomepageRecommendedActionKey,
+    projectUuid: string,
+) => ({
+    surface: 'checklist' as const,
+    projectId: projectUuid,
+    rowId: null,
+    actionKey,
+    choice: null,
+});
+
 type ActionDefinition = {
     icon: Icon;
     title: string;
@@ -93,6 +104,7 @@ const stackHeightClass = (count: number) =>
 
 const ActionRow: FC<{
     actionKey: HomepageRecommendedActionKey;
+    projectUuid: string;
     status: ActionStatus;
     isSkipped: boolean;
     onSkip: (actionKey: HomepageRecommendedActionKey) => void;
@@ -101,6 +113,7 @@ const ActionRow: FC<{
     isBehind: boolean;
 }> = ({
     actionKey,
+    projectUuid,
     status,
     isSkipped,
     onSkip,
@@ -185,7 +198,10 @@ const ActionRow: FC<{
                             track({
                                 name: EventName.HOMEPAGE_RECOMMENDED_ACTION_CLICKED,
                                 properties: {
-                                    actionKey,
+                                    ...checklistProperties(
+                                        actionKey,
+                                        projectUuid,
+                                    ),
                                     destination: status.url,
                                 },
                             })
@@ -236,8 +252,9 @@ export const RecommendedActionsChecklistPlaceholder: FC<{
 };
 
 export const RecommendedActionsChecklist: FC<{
+    projectUuid: string;
     actions: RecommendedActionsState;
-}> = ({ actions }) => {
+}> = ({ projectUuid, actions }) => {
     const { track, data: trackingData } = useTracking();
     const isTrackingReady = !!trackingData.rudder;
     const {
@@ -271,10 +288,10 @@ export const RecommendedActionsChecklist: FC<{
             skipAction(actionKey);
             track({
                 name: EventName.HOMEPAGE_RECOMMENDED_ACTION_SKIPPED,
-                properties: { actionKey },
+                properties: checklistProperties(actionKey, projectUuid),
             });
         },
-        [skipAction, skippedActions, statuses, track],
+        [skipAction, skippedActions, statuses, track, projectUuid],
     );
 
     const handleRestore = useCallback(
@@ -291,10 +308,10 @@ export const RecommendedActionsChecklist: FC<{
             restoreAction(actionKey);
             track({
                 name: EventName.HOMEPAGE_RECOMMENDED_ACTION_RESTORED,
-                properties: { actionKey },
+                properties: checklistProperties(actionKey, projectUuid),
             });
         },
-        [restoreAction, skippedActions, statuses, track],
+        [restoreAction, skippedActions, statuses, track, projectUuid],
     );
 
     const isSkipped = (key: HomepageRecommendedActionKey) =>
@@ -347,13 +364,13 @@ export const RecommendedActionsChecklist: FC<{
         track({
             name: EventName.HOMEPAGE_RECOMMENDED_ACTION_IMPRESSION,
             properties: {
-                actionKey: frontActionKey,
+                ...checklistProperties(frontActionKey, projectUuid),
                 position: activeIndex,
                 trigger: impressionTriggerRef.current,
             },
         });
         impressionTriggerRef.current = 'initial';
-    }, [isTrackingReady, frontActionKey, activeIndex, track]);
+    }, [isTrackingReady, frontActionKey, activeIndex, track, projectUuid]);
 
     if (visibleActions.length === 0) return null;
 
@@ -407,6 +424,7 @@ export const RecommendedActionsChecklist: FC<{
                         <ActionRow
                             key={key}
                             actionKey={key}
+                            projectUuid={projectUuid}
                             status={statuses[key]}
                             isSkipped={isSkipped(key)}
                             onSkip={handleSkip}

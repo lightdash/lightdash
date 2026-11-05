@@ -43,18 +43,4 @@ describe('Documents in the global search type filter', () => {
             verifiedOnly: undefined,
         });
     });
-
-    it.each([
-        { data: { enabled: false }, isError: false },
-        { data: undefined, isError: false },
-        { data: { enabled: true }, isError: true },
-    ])('hides Documents when unavailable: %j', ({ data, isError }) => {
-        flag.data = data;
-        flag.isError = isError;
-        openFilter();
-        expect(
-            screen.queryByRole('menuitem', { name: 'Documents' }),
-        ).not.toBeInTheDocument();
-        expect(screen.getByRole('menuitem', { name: 'Charts' })).toBeVisible();
-    });
 });

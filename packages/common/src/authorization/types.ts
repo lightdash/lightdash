@@ -59,6 +59,7 @@ export type CaslSubjectNames =
     | 'AiAgentDocument'
     | 'AiAgentSkill'
     | 'AiAgentThread'
+    | 'AiAgentThreadContext'
     | 'AiDeepResearch'
     | 'Analytics'
     | 'SystemAnalytics'

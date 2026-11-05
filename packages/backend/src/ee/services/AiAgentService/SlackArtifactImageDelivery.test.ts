@@ -9,7 +9,7 @@ import {
 } from '../../../services/AgentPermissionService/agentWorkAuthority';
 import {
     type DbAiSlackArtifactDelivery,
-    type SlackArtifactRenderInput,
+    type SlackRunQueryRenderInput,
 } from '../../database/entities/aiSlackArtifactDeliveries';
 import { type AiSlackArtifactDeliveryModel } from '../../models/AiSlackArtifactDeliveryModel';
 import { getSlackArtifactCardBlockId } from '../ai/utils/slackArtifactImages';
@@ -19,7 +19,8 @@ import {
     type SlackArtifactDeliveryRuntime,
 } from './SlackArtifactImageDelivery';
 
-const renderInput = (versionUuid: string): SlackArtifactRenderInput => ({
+const renderInput = (versionUuid: string): SlackRunQueryRenderInput => ({
+    source: 'runQuery',
     artifactUuid: 'artifact',
     versionUuid,
     queryUuid: `query-${versionUuid}`,
@@ -96,7 +97,7 @@ const setup = (blocks: SlackArtifactDeliveryMessage['blocks']) => {
             .mockImplementation(async () => message),
         authorize: vi
             .fn<SlackArtifactDeliveryRuntime['authorize']>()
-            .mockResolvedValue(undefined),
+            .mockResolvedValue(true),
         render: vi
             .fn<SlackArtifactDeliveryRuntime['render']>()
             .mockResolvedValue('https://lightdash.test/image/selected'),
@@ -183,6 +184,50 @@ describe('Slack artifact image selection', () => {
         expect(harness.model.finish).toHaveBeenCalledExactlyOnceWith(
             harness.promptUuid,
             'delivered',
+            1,
+        );
+    });
+
+    it('renders a row stored before composer inputs as a runQuery input', async () => {
+        const harness = setup([
+            {
+                type: 'card',
+                block_id: getSlackArtifactCardBlockId('selected'),
+            },
+        ]);
+        const { source: _source, ...legacy } = harness.selected;
+        harness.model.claim.mockResolvedValue({
+            ...(await harness.model.get(harness.promptUuid))!,
+            render_inputs: { selected: legacy },
+        });
+
+        await deliverSlackArtifactImages(harness);
+
+        expect(harness.runtime.render).toHaveBeenCalledExactlyOnceWith(
+            harness.selected,
+        );
+    });
+
+    it('delivers the other images when one version cannot render its input', async () => {
+        const harness = setup(
+            ['selected', 'diagnostic'].map((version) => ({
+                type: 'card',
+                block_id: getSlackArtifactCardBlockId(version),
+            })),
+        );
+        harness.runtime.authorize.mockImplementation(
+            async (input) => input.versionUuid !== 'diagnostic',
+        );
+
+        await deliverSlackArtifactImages(harness);
+
+        expect(harness.runtime.render).toHaveBeenCalledExactlyOnceWith(
+            harness.selected,
+        );
+        expect(harness.runtime.updateMessage).toHaveBeenCalledOnce();
+        expect(harness.model.finish).toHaveBeenCalledExactlyOnceWith(
+            harness.promptUuid,
+            'unavailable',
             1,
         );
     });

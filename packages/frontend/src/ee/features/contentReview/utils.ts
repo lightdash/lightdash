@@ -5,6 +5,7 @@ import {
     type ContentReviewContentSummary,
     type ContentReviewUser,
     type ContentReviewSimilarContentItem,
+    type SpaceSummary,
 } from '@lightdash/common';
 import {
     IconChartBar,
@@ -132,4 +133,26 @@ export const getSimilarityMatchLabel = (
         default:
             return 'Similar name';
     }
+};
+
+// The root spaces plus every space nested under them; stops growing on a
+// malformed parent cycle instead of looping
+export const getSpaceTreeUuids = (
+    spaces: Pick<SpaceSummary, 'uuid' | 'parentSpaceUuid'>[],
+    rootSpaceUuids: string[],
+): Set<string> => {
+    const expand = (treeUuids: Set<string>): Set<string> => {
+        const expanded = new Set([
+            ...treeUuids,
+            ...spaces
+                .filter(
+                    (space) =>
+                        space.parentSpaceUuid !== null &&
+                        treeUuids.has(space.parentSpaceUuid),
+                )
+                .map((space) => space.uuid),
+        ]);
+        return expanded.size === treeUuids.size ? treeUuids : expand(expanded);
+    };
+    return expand(new Set(rootSpaceUuids));
 };

@@ -1,7 +1,12 @@
-import { type DashboardFilterRule } from '@lightdash/common';
+import { type DashboardFilterRule, type UiStringKey } from '@lightdash/common';
 import { useCallback, useMemo } from 'react';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import {
+    selectDashboardTabs,
+    selectDashboardTiles,
+    useDashboardSelector,
+} from '../../dashboard/store';
 import {
     doesFilterApplyToAnyTile,
     getTabsForFilterRule,
@@ -20,10 +25,16 @@ export const isFilterHiddenOnTab = (
     return !appliedToCurrentTab && !isOrphanedFilter;
 };
 
+type OrphanedStrings = { noTabs: UiStringKey; noTiles: UiStringKey };
+const FILTER_ORPHANED_STRINGS: OrphanedStrings = {
+    noTabs: 'filters.notAppliedToAnyTabs',
+    noTiles: 'filters.notAppliedToAnyTiles',
+};
+
 export const useFilterTabPlacement = () => {
     const getUiString = useUiStrings();
-    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
-    const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
+    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
+    const dashboardTabs = useDashboardSelector(selectDashboardTabs);
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );
@@ -50,6 +61,14 @@ export const useFilterTabPlacement = () => {
         [dashboardTiles, sortedTabUuids, filterableFieldsByTileUuid],
     );
 
+    // Why an orphaned control is not in effect: no tab, or no tile, it
+    // reaches; a parameter control passes its own words
+    const getOrphanedTooltip = useCallback(
+        (strings: OrphanedStrings = FILTER_ORPHANED_STRINGS) =>
+            getUiString(tabsEnabled ? strings.noTabs : strings.noTiles),
+        [tabsEnabled, getUiString],
+    );
+
     // Compute orphaned state for a filter
     // - With multiple tabs: orphaned if filter applies to no tabs
     // - With single/no tabs: orphaned if filter applies to no tiles
@@ -61,7 +80,7 @@ export const useFilterTabPlacement = () => {
             if (tabsEnabled) {
                 return {
                     isOrphaned: appliesToTabs.length === 0,
-                    orphanedTooltip: getUiString('filters.notAppliedToAnyTabs'),
+                    orphanedTooltip: getOrphanedTooltip(),
                 };
             }
             // Single tab or no tabs - check if filter applies to any tile
@@ -72,11 +91,16 @@ export const useFilterTabPlacement = () => {
             );
             return {
                 isOrphaned: !appliesToAnyTile,
-                orphanedTooltip: getUiString('filters.notAppliedToAnyTiles'),
+                orphanedTooltip: getOrphanedTooltip(),
             };
         },
-        [tabsEnabled, dashboardTiles, filterableFieldsByTileUuid, getUiString],
+        [
+            tabsEnabled,
+            dashboardTiles,
+            filterableFieldsByTileUuid,
+            getOrphanedTooltip,
+        ],
     );
 
-    return { getTabsUsingFilter, getOrphanedState };
+    return { getTabsUsingFilter, getOrphanedState, getOrphanedTooltip };
 };

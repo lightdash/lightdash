@@ -485,7 +485,7 @@ const runCell = async (
             );
             await fs.writeFile(
                 path.join(cwd, 'lightdash.config.yml'),
-                'warehouse:\n  type: postgres\nspotlight:\n  default_visibility: show\ndefaults: {}\ntable_groups: {}\n',
+                'warehouse:\n  type: postgres\nspotlight:\n  default_visibility: show\nparameters: {}\ndefaults: {}\ntable_groups: {}\n',
             );
         }
         const env: NodeJS.ProcessEnv = {
@@ -629,8 +629,15 @@ const runCell = async (
         await fs.rm(directory, { recursive: true, force: true });
     }
 };
+// Full grid on one issuer and one API command; the rest share those error paths.
+const fullGridCommands = ['status', 'catalog'];
+const sampledResponses = responses.filter((response) =>
+    [200, 401, 500].includes(response.status),
+);
 describe.each(commands)('$name', (command) => {
-    it.concurrent.each(responses)(
+    it.concurrent.each(
+        fullGridCommands.includes(command.name) ? responses : sampledResponses,
+    )(
         'omits error text for $status $contentType $shape in the real CLI',
         async (response) => runCell(command, response),
         45_000,

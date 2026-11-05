@@ -56,7 +56,7 @@ type EePreAggregateStrategyArgs = {
     preAggregationExternalResolver: PreAggregationExternalResolver;
     preAggregateDailyStatsModel: PreAggregateDailyStatsModel;
     preAggregateResultsStorageClient: S3ResultsFileStorageClient;
-    isEnabled: () => boolean;
+    isEnabled: (organizationUuid: string) => Promise<boolean>;
     dashboardModel: Pick<DashboardModel, 'getByIdOrSlug'>;
     savedChartModel: Pick<SavedChartModel, 'get'>;
     projectService: Pick<ProjectService, 'getExplore'>;
@@ -71,7 +71,7 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
 
     private readonly resultsStorageClient: S3ResultsFileStorageClient;
 
-    private readonly isEnabled: () => boolean;
+    private readonly isEnabled: (organizationUuid: string) => Promise<boolean>;
 
     private readonly dashboardModel: Pick<DashboardModel, 'getByIdOrSlug'>;
 
@@ -90,16 +90,18 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
         this.projectService = args.projectService;
     }
 
-    getRoutingDecision({
+    async getRoutingDecision({
+        organizationUuid,
         metricQuery,
         explore,
         context,
     }: {
+        organizationUuid: string;
         metricQuery: MetricQuery;
         explore: Explore;
         context: QueryExecutionContext;
-    }): PreAggregationRoutingDecision {
-        if (!this.isEnabled()) {
+    }): Promise<PreAggregationRoutingDecision> {
+        if (!(await this.isEnabled(organizationUuid))) {
             return { target: 'warehouse' };
         }
 

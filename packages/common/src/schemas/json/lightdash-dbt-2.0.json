@@ -493,7 +493,8 @@
                                 "type": "array",
                                 "items": {
                                     "type": "string"
-                                }
+                                },
+                                "description": "Fields to include from the joined model. Use set references (ending with *) to include sets and a - prefix to exclude fields or sets. A list containing only exclusions includes every field except those excluded."
                             },
                             "relationship": {
                                 "type": "string",
@@ -964,7 +965,13 @@
                                 "type": "object",
                                 "properties": {
                                     "cron": {
-                                        "type": "string"
+                                        "type": "string",
+                                        "description": "Cron expression for scheduled materialization"
+                                    },
+                                    "on_change": {
+                                        "type": "boolean",
+                                        "description": "Whether the project compile that changes this pre-aggregate's definition, or the fields it reads, rebuilds it. Defaults to true. Set to false to leave the rebuild to the cron schedule or a manual refresh; the old materialization stops serving either way. Compiles that leave the definition unchanged never rebuild it.",
+                                        "default": true
                                     }
                                 }
                             },

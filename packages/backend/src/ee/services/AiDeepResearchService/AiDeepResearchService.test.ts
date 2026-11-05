@@ -458,7 +458,7 @@ const buildService = (
         get: vi.fn(
             async ({ featureFlagId }: { featureFlagId: FeatureFlags }) => ({
                 id: featureFlagId,
-                enabled: featureFlagId === FeatureFlags.Documents,
+                enabled: false,
             }),
         ),
         ...overrides.featureFlagService,
@@ -882,27 +882,6 @@ describe('AiDeepResearchService', () => {
                     ...validCreateRunArgs(),
                 }),
             ).rejects.toBeInstanceOf(ForbiddenError);
-            expect(model.create).not.toHaveBeenCalled();
-        });
-
-        it('rejects run creation when Documents are not enabled', async () => {
-            const { service, model, featureFlagService } = buildService({
-                featureFlagService: {
-                    get: vi
-                        .fn()
-                        .mockResolvedValue({ id: 'documents', enabled: false }),
-                },
-            });
-
-            await expect(
-                service.createRun({
-                    ...validCreateRunArgs(),
-                }),
-            ).rejects.toThrow('Documents are not enabled');
-            expect(featureFlagService.get).toHaveBeenCalledWith({
-                user: expect.objectContaining({ userUuid: 'user-1' }),
-                featureFlagId: FeatureFlags.Documents,
-            });
             expect(model.create).not.toHaveBeenCalled();
         });
 

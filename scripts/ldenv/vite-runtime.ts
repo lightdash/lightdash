@@ -2,7 +2,11 @@ import { glob, readFile, realpath } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import type { ResolvedConfig } from '../../packages/frontend/node_modules/vite/dist/node/index.js' with {
+import type {
+    AliasOptions,
+    ResolvedConfig,
+    UserConfig,
+} from '../../packages/frontend/node_modules/vite/dist/node/index.js' with {
     'resolution-mode': 'import',
 };
 import {
@@ -37,6 +41,25 @@ export async function loadVite(root: string): Promise<ViteApi> {
     ) as Promise<ViteApi>;
 }
 
+export function bareAliasPackages(alias: AliasOptions | undefined): string[] {
+    const replacements = Array.isArray(alias)
+        ? alias.map((entry: { replacement: unknown }) => entry.replacement)
+        : Object.values(alias ?? {});
+    return [
+        ...new Set(
+            replacements.flatMap((replacement) => {
+                const match =
+                    typeof replacement === 'string'
+                        ? /^((?:@[a-z0-9][\w.~-]*\/)?[a-z0-9][\w.~-]*)(?:\/|$)/i.exec(
+                              replacement,
+                          )
+                        : null;
+                return match ? [match[1]] : [];
+            }),
+        ),
+    ];
+}
+
 export function frontendOptions(root: string) {
     const port = process.env.FE_PORT ? Number(process.env.FE_PORT) : null;
     if (port !== null && (!Number.isInteger(port) || port < 1 || port > 65535))
@@ -45,6 +68,13 @@ export function frontendOptions(root: string) {
         root: path.join(root, 'packages/frontend'),
         mode: 'development',
         plugins: [
+            {
+                name: 'ldenv-alias-targets-from-root',
+                config(config: UserConfig) {
+                    const dedupe = bareAliasPackages(config.resolve?.alias);
+                    return dedupe.length ? { resolve: { dedupe } } : null;
+                },
+            },
             {
                 name: 'ldenv-static-entry-warmup',
                 enforce: 'post' as const,

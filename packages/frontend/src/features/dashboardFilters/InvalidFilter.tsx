@@ -31,7 +31,7 @@ const InvalidFilter: FC<Props> = ({ isEditMode, filterRule, onRemove }) => {
                 data-dashboard-filter-control
                 size="xs"
                 data-disabled
-                style={{ borderRadius: '100px' }}
+                radius="xl"
                 leftSection={
                     <MantineIcon icon={IconAlertTriangle} color="red.6" />
                 }

@@ -63,11 +63,10 @@ import DeletedContentActionMenu from './DeletedContentActionMenu';
 function getDeletedContentDescription(
     item: DeletedContentWithDescendants,
     dataAppsEnabled: boolean,
-    documentsEnabled: boolean,
 ): string | null {
     const parts: string[] = [];
     if (item.contentType === ContentType.SPACE) {
-        if (documentsEnabled && item.documentCount > 0) {
+        if (item.documentCount > 0) {
             parts.push(
                 `${item.documentCount} document${item.documentCount !== 1 ? 's' : ''}`,
             );
@@ -145,9 +144,6 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
     const retentionDays = health.data?.softDelete.retentionDays;
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const dataAppsEnabled = dataAppsFlag.data?.enabled ?? false;
-    const documentsFlag = useServerFeatureFlag(FeatureFlags.Documents);
-    const documentsEnabled =
-        !documentsFlag.isError && (documentsFlag.data?.enabled ?? false);
 
     const [selectedContentType, setSelectedContentType] =
         useState<DeletedContentTypeFilter>('all');
@@ -206,15 +202,8 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
         });
 
     const flatData = useMemo<DeletedContentWithDescendants[]>(
-        () =>
-            data?.pages?.flatMap((page) =>
-                page.data.filter(
-                    (item) =>
-                        documentsEnabled ||
-                        item.contentType !== ContentType.DOCUMENT,
-                ),
-            ) ?? [],
-        [data, documentsEnabled],
+        () => data?.pages?.flatMap((page) => page.data) ?? [],
+        [data],
     );
 
     const totalDBRowCount = data?.pages?.[0]?.pagination?.totalResults ?? 0;
@@ -314,7 +303,6 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                     const description = getDeletedContentDescription(
                         row.original,
                         dataAppsEnabled,
-                        documentsEnabled,
                     );
                     return (
                         <Group gap="sm" wrap="nowrap">
@@ -510,7 +498,6 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
             isRestoring,
             isDeleting,
             dataAppsEnabled,
-            documentsEnabled,
         ],
     );
 
@@ -525,66 +512,15 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
         enableBottomToolbar: false,
         mantineTableContainerProps: {
             ref: tableContainerRef,
-            style: { maxHeight: 'calc(100dvh - 420px)' },
+            mah: 'calc(100dvh - 420px)',
             onScroll,
         },
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: Boolean(flatData.length),
         },
-        mantineTableHeadCellProps: (props) => {
-            const isLastColumn =
-                props.table.getAllColumns().indexOf(props.column) ===
-                props.table.getAllColumns().length - 1;
-
-            const isAnyColumnResizing = props.table
-                .getAllColumns()
-                .some((c) => c.getIsResizing());
-            const canResize = props.column.getCanResize();
-
-            return {
-                bg: 'ldGray.0',
-                h: '3xl',
-                pos: 'relative',
-                style: {
-                    userSelect: 'none',
-                    justifyContent: 'center',
-                    padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
-                    borderTop: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderRight: props.column.getIsResizing()
-                        ? `2px solid ${theme.colors.blue[3]}`
-                        : `1px solid ${
-                              isLastColumn
-                                  ? 'transparent'
-                                  : theme.colors.ldGray[2]
-                          }`,
-                    borderLeft: 'none',
-                },
-                sx: {
-                    '&:hover': canResize
-                        ? {
-                              borderRight: !isAnyColumnResizing
-                                  ? `2px solid ${theme.colors.blue[3]} !important`
-                                  : undefined,
-                              transition: `border-right ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
-                          }
-                        : {},
-                },
-            };
-        },
-        mantineTableBodyCellProps: () => {
-            return {
-                h: 72,
-                style: {
-                    padding: `${theme.spacing.md} ${theme.spacing.xl}`,
-                    borderRight: 'none',
-                    borderLeft: 'none',
-                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderTop: 'none',
-                },
-            };
-        },
+        mantineTableHeadCellProps: { px: 'xl' },
+        mantineTableBodyCellProps: { h: 72, py: 'md', px: 'xl' },
         renderTopToolbar: () => (
             <Group
                 justify="space-between"
@@ -621,11 +557,8 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                                     </ActionIcon>
                                 )
                             }
-                            style={{
-                                minWidth: 200,
-                                maxWidth: 350,
-                                flexShrink: 1,
-                            }}
+                            miw={200}
+                            maw={350}
                         />
                     </Tooltip>
 

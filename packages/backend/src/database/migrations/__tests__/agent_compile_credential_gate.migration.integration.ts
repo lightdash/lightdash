@@ -593,6 +593,7 @@ const recordMethods = (target: object, name: string, calls: string[]) => {
                 });
             }
             const check = vi.spyOn(f.service, 'assertAgentConnectionEffect');
+            const parameters = vi.spyOn(f.service, 'replaceProjectParameters');
             migrated.database.on('query', recordSql);
             try {
                 await (operation === 'deploy' ? f.deploy() : f.run());
@@ -603,6 +604,7 @@ const recordMethods = (target: object, name: string, calls: string[]) => {
                 JobStatusType.DONE,
             );
             expect(check).not.toHaveBeenCalled();
+            expect(parameters).not.toHaveBeenCalled();
             expect(calls).toContain('factory.acquireUnscoped');
             expect(sql.length).toBeGreaterThan(10);
             expect({ calls, sql }).toMatchSnapshot();

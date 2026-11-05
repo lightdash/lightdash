@@ -5,6 +5,7 @@ models:
     config:
       tags: ["core"]
       meta:
+        groups: ["facilities", "field_service"]
         primary_key: work_order_id
         joins:
           - join: fm_buildings

@@ -9,7 +9,10 @@ import { createMemoryRouter, RouterProvider, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { type LightdashApi } from '../api';
 import { AbilityContext } from '../providers/Ability/context';
-import { createDashboardTestStore } from '../testing/dashboardStore';
+import {
+    createDashboardTestStore,
+    seedDashboardEditState,
+} from '../testing/dashboardStore';
 import { DashboardStoreTestProvider } from '../testing/DashboardStoreTestProvider';
 import { manageChartRule } from '../testing/savedChartResponse.mock';
 import { renderWithProviders } from '../testing/testUtils';
@@ -322,10 +325,13 @@ const renderDashboard = (mode: 'view' | 'edit') => {
     );
     renderWithProviders(
         <DashboardStoreTestProvider
-            store={createDashboardTestStore({
-                dashboardFilters: savedFilters,
-                dashboardTemporaryFilters: fixtures.temporaryFilters,
-            })}
+            store={seedDashboardEditState(
+                createDashboardTestStore({
+                    dashboardFilters: savedFilters,
+                    dashboardTemporaryFilters: fixtures.temporaryFilters,
+                }),
+                { dashboardTiles: [fixtures.savedTile] },
+            )}
         >
             <AbilityContext.Provider value={ability}>
                 <RouterProvider router={router} />

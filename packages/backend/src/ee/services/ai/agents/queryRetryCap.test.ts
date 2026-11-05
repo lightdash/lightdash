@@ -17,7 +17,7 @@ const ALL_TOOLS = [...QUERY_TOOLS, NON_QUERY_TOOL];
 /**
  * Simulates a turn the way the agent loop sees it: tool results accumulate in
  * the model messages, and invalid tool calls are recorded by id (as
- * agentV2's onStepFinish/onChunk handlers do) — never derived from the error
+ * agentV2's onStepEnd/onChunk handlers do) — never derived from the error
  * text.
  */
 const makeTurn = () => {

@@ -44,7 +44,6 @@ const DUMP_TOOL_RESULT_POLICIES = {
     discoverRepos: 'keep',
     listWorkstreams: 'keep',
     closePullRequest: 'keep',
-    setupPreviewDeploy: 'keep',
     // agent-authored prose, same posture as assistant messages
     submitResearchReport: 'keep',
     delegateResearchTask: 'keep',
@@ -55,7 +54,9 @@ const DUMP_TOOL_RESULT_POLICIES = {
     runSavedChart: 'strip_rows',
     runContentQuery: 'strip_rows',
     runSql: 'strip_rows',
+    query: 'strip_rows',
     runComposerQueries: 'strip_rows',
+    visualize: 'keep',
     generateVisualization: 'strip_rows',
     getDashboardCharts: 'strip_rows',
     generateDashboard: 'strip_rows',

@@ -47,7 +47,7 @@ export const ContentMentionNodeView = ({ node }: NodeViewProps) => {
                 fw="inherit"
                 inline
                 maxWidth={260}
-                style={{ flex: 1, minWidth: 0 }}
+                flex={1}
             >
                 {label}
             </TruncatedText>

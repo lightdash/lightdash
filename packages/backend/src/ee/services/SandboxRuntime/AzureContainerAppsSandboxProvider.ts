@@ -356,7 +356,13 @@ export class AzureContainerAppsSandboxProvider implements SandboxProvider {
             memory,
             autoSuspendIdleSeconds: this.config.autoSuspendIdleSeconds,
         });
-        await this.waitForRunning(sandboxId, state);
+        try {
+            await this.waitForRunning(sandboxId, state);
+        } catch (error) {
+            // The caller never gets a handle, so reclaim the allocation here.
+            await this.controlPlane.deleteSandbox(sandboxId).catch(() => {});
+            throw error;
+        }
         return this.buildHandle(sandboxId);
     }
 

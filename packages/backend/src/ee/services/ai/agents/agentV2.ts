@@ -12,11 +12,12 @@ import {
     type CustomChartTypeLibrary,
     type ParameterDefinitions,
 } from '@lightdash/common';
+import { trace } from '@opentelemetry/api';
 import * as Sentry from '@sentry/node';
 import {
     generateText,
+    isStepCount,
     smoothStream,
-    stepCountIs,
     streamText,
     StreamTextResult,
     type LanguageModelUsage,
@@ -25,6 +26,7 @@ import {
     type Output,
     type ProviderMetadata,
     type TextStreamPart,
+    type Tool,
     type ToolCallPart,
     type ToolSet,
 } from 'ai';
@@ -63,12 +65,20 @@ import {
 } from '../decisions/prepareContext';
 import { queryErrorOverride } from '../decisions/queryErrors';
 import { createQueryReviewer } from '../decisions/queryReview';
+import {
+    getAvailableSkills,
+    hasDecisionsInStandardMode,
+    resolveLoadout,
+    type AgentToolName,
+    type DeferredPromptSection,
+    type Loadout,
+} from '../loadout';
+import { loadoutSpanAttributes } from '../loadout/telemetry';
 import { AI_DEEP_RESEARCH_INSTRUCTIONS } from '../prompts/deepResearch';
 import {
     getDeferredToolInstructions,
     getSystemPromptV2,
     type CapabilitySectionArgs,
-    type DeferredPromptSection,
 } from '../prompts/systemV2';
 import { DOCUMENT_OFFER_LINE } from '../prompts/systemV2ContentTools';
 import {
@@ -76,6 +86,7 @@ import {
     completedPromptTokenUsage,
     initialPromptTokenUsage,
 } from '../promptTokenUsage';
+import type { AiAgentSkillReference } from '../skills/types';
 import { getAnalyzeFieldImpact } from '../tools/analyzeFieldImpact';
 import { getClosePullRequest } from '../tools/closePullRequest';
 import { getCreateContent } from '../tools/createContent';
@@ -86,7 +97,6 @@ import { getDiscoverRepos } from '../tools/discoverRepos';
 import { getEditContent } from '../tools/editContent';
 import { getEditDbtProject } from '../tools/editDbtProject';
 import { getEditProjectContext } from '../tools/editProjectContext';
-import { getEditRepo } from '../tools/editRepo';
 import { getExploreRepo } from '../tools/exploreRepo';
 import { getExportChartAsCode } from '../tools/exportChartAsCode';
 import { getFindContent } from '../tools/findContent';
@@ -118,7 +128,7 @@ import { getListWorkstreams } from '../tools/listWorkstreams';
 import { getLoadAgentTools } from '../tools/loadAgentTools';
 import { getLoadMcpTools } from '../tools/loadMcpTools';
 import { getLoadProjectContext } from '../tools/loadProjectContext';
-import { getLoadSkill } from '../tools/loadSkill';
+import { getLoadedSkillKeys, getLoadSkill } from '../tools/loadSkill';
 import { getProjectContextSearchEntries } from '../tools/memoryProjectContext';
 import { getReadAttachments } from '../tools/readAttachments';
 import { getReadContent } from '../tools/readContent';
@@ -134,7 +144,6 @@ import { getRunSavedChart } from '../tools/runSavedChart';
 import { getRunSql } from '../tools/runSql';
 import { getSearchFieldValues } from '../tools/searchFieldValues';
 import { getSearchSemanticLayer } from '../tools/searchSemanticLayer';
-import { getSetupPreviewDeploy } from '../tools/setupPreviewDeploy';
 import { type SqlApprovalDependencies } from '../tools/sqlApprovalGate';
 import {
     buildSqlApprovalDecidedEvent,
@@ -144,12 +153,14 @@ import { type SqlChartSaving } from '../tools/sqlChartApproval';
 import { getSubmitWorkerFindings } from '../tools/submitWorkerFindings';
 import { getSyncDbtProject } from '../tools/syncDbtProject';
 import { getUpdateUserName } from '../tools/updateUserName';
+import { getVisualize } from '../tools/visualize';
 import type {
     AiAgentArgs,
     AiAgentDependencies,
     AiStreamAgentResponseArgs,
     UnavailableMcpServer,
 } from '../types/aiAgent';
+import { toAbsoluteHref } from '../utils/absoluteHref';
 import { AgentContext } from '../utils/AgentContext';
 import {
     AiAgentEmptyResponseError,
@@ -254,14 +265,21 @@ const createAgentStepUsageRecorder = ({
     preloadedMcpToolNames,
     functionId,
     feature,
+    loadout,
 }: {
     args: AiAgentArgs;
     turnIntent: TurnIntent | null | undefined;
     preloadedMcpToolNames?: string[];
     functionId: string;
     feature?: Parameters<typeof getAgentTelemetryConfig>[2];
+    loadout: Loadout;
 }) => {
-    const telemetry = getAgentTelemetryConfig(functionId, args, feature);
+    const telemetry = getAgentTelemetryConfig(
+        functionId,
+        args,
+        feature,
+        loadout,
+    );
     const fastToolTelemetry = args.toolCallModel
         ? getAgentTelemetryConfig(
               `${functionId}.fastToolStep`,
@@ -271,6 +289,7 @@ const createAgentStepUsageRecorder = ({
                   keyManagement: args.toolCallModel.keyManagement,
               },
               'agent',
+              loadout,
           )
         : null;
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
@@ -368,11 +387,6 @@ export const AGENT_FINAL_STEP_INSTRUCTION =
     'This is your final step. Do not call any tools. Respond to the user now with the best answer you can, including any limitations or reasons the request could not be fully completed.';
 
 /**
- * A deep-research worker only ever answers one narrow data question, so it gets
- * field discovery and query execution and nothing else — no content, repo,
- * memory, delegation, or reporting tools.
- */
-/**
  * Read-only tools a data-app investigation may use: semantic-layer lookups
  * and queries, saved content reads, and project knowledge. No raw SQL, no
  * writes, no external actions.
@@ -391,42 +405,6 @@ export const DATA_APP_INVESTIGATE_TOOL_NAMES: ReadonlySet<string> = new Set([
     'readContent',
     'runContentQuery',
     'runSavedChart',
-    'searchFieldValues',
-    'searchSemanticLayer',
-]);
-
-export const DEEP_RESEARCH_WORKER_TOOL_NAMES = new Set([
-    'describeWarehouseTable',
-    'generateVisualization',
-    'getMetadata',
-    'grepFields',
-    'listWarehouseTables',
-    'runSql',
-    'searchFieldValues',
-    'searchSemanticLayer',
-]);
-
-export const DEEP_RESEARCH_COORDINATOR_TOOL_NAMES = new Set([
-    'analyzeFieldImpact',
-    'describeWarehouseTable',
-    'findContent',
-    'generateVisualization',
-    'getDashboardCharts',
-    'getKnowledgeDocumentContent',
-    'getMetadata',
-    'getProjectInfo',
-    'grepFields',
-    'listContent',
-    'listKnowledgeDocuments',
-    'listProjects',
-    'listWarehouseTables',
-    'loadProjectContext',
-    'readContent',
-    'readPinnedThread',
-    'resolveUrl',
-    'runContentQuery',
-    'runSavedChart',
-    'runSql',
     'searchFieldValues',
     'searchSemanticLayer',
 ]);
@@ -537,7 +515,6 @@ const DOCUMENT_SAVE_TOOLS = new Set(['createContent', 'editContent']);
 const areDocumentNudgesEnabled = (args: AiAgentArgs): boolean =>
     args.enableDocuments &&
     args.enableDataAccess &&
-    args.enableContentTools &&
     args.execution.mode === 'standard';
 
 const isDocumentInput = (input: unknown): boolean =>
@@ -740,6 +717,8 @@ const withPreGrepCandidates = (
 const QUERY_TOOL_NAMES = new Set([
     'runQuery',
     'generateVisualization',
+    'query',
+    'runComposerQueries',
     'runMetricQuery',
     'runSavedChart',
     'runContentQuery',
@@ -832,6 +811,7 @@ const getChartMutationFieldIds = (args: AiAgentArgs): string[] => {
 
 const prepareCandidateSeed = async (
     args: AiAgentArgs,
+    loadout: Loadout,
     explores: Explore[],
     verifiedFieldUsage: Map<string, number>,
     projectParameterDefinitions: ParameterDefinitions,
@@ -869,7 +849,7 @@ const prepareCandidateSeed = async (
     );
     let carriedFieldContext: string | null = null;
     if (args.chartMutationContext) {
-        carriedFieldContext = `The active chart below is authoritative. Mutate its query and visualization, preserving everything the user did not ask to change. A response claiming a change is only valid after generateVisualization succeeds.\n${JSON.stringify(args.chartMutationContext.config)}`;
+        carriedFieldContext = `The active chart below is authoritative. Mutate its query and visualization, preserving everything the user did not ask to change. A response claiming a change is only valid after ${loadout.toolNames.has('query') ? 'query' : 'generateVisualization'} succeeds.\n${JSON.stringify(args.chartMutationContext.config)}`;
     } else if (carriedFields.length > 0) {
         carriedFieldContext = `The preceding successful query already established these field IDs: ${recentQueryFields.join(', ')}. For a follow-up, reuse its tool input and preserve its measure, filters and scope. Change only the requested grain or presentation; skip field discovery when the candidates below cover it.`;
     }
@@ -912,6 +892,7 @@ export type AgentMcpToolSetup = {
 
 export const buildDeepResearchExecutionContextSnapshot = (
     args: AiAgentArgs,
+    availableSkills: readonly AiAgentSkillReference[],
     tools: ToolSet,
     mcpToolSetup: AgentMcpToolSetup,
 ): AiDeepResearchExecutionContextSnapshot => ({
@@ -962,14 +943,12 @@ export const buildDeepResearchExecutionContextSnapshot = (
     repository: {
         projectContextEnabled: args.projectContextEnabled,
         aiWritebackEnabled: args.enableAiWriteback,
-        codingAgentEnabled: args.enableCodingAgent,
-        previewDeploySetupEnabled: args.enablePreviewDeploySetup,
+        codingAgentEnabled: null,
+        previewDeploySetupEnabled: null,
         repoDiscoveryEnabled: args.enableRepoDiscovery,
         repoFsRoot: args.repoFsRoot,
         repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
-        availableSkillNames: args.availableSkills
-            .map((skill) => skill.name)
-            .sort(),
+        availableSkillNames: availableSkills.map((skill) => skill.name).sort(),
     },
     effectivePermissions: {
         canManageAgent: args.canManageAgent,
@@ -986,6 +965,7 @@ export const buildDeepResearchExecutionContextSnapshot = (
 
 const persistDeepResearchExecutionContext = async (
     args: AiAgentArgs,
+    loadout: Loadout,
     tools: ToolSet,
     mcpToolSetup: AgentMcpToolSetup,
 ): Promise<void> => {
@@ -993,7 +973,12 @@ const persistDeepResearchExecutionContext = async (
         return;
     }
     await args.execution.onExecutionContextResolved?.(
-        buildDeepResearchExecutionContextSnapshot(args, tools, mcpToolSetup),
+        buildDeepResearchExecutionContextSnapshot(
+            args,
+            getAvailableSkills(args, loadout),
+            tools,
+            mcpToolSetup,
+        ),
     );
 };
 
@@ -1265,6 +1250,7 @@ export const getDataAnswerFastResponse = (
 /** Ends a document write-up once the document saved without warnings. */
 export const getDocumentWriteFastResponse = (
     steps: ReadonlyArray<FastChartStep>,
+    siteUrl: string,
 ): string | null => {
     const documentCallIds = new Set(
         steps
@@ -1305,13 +1291,14 @@ export const getDocumentWriteFastResponse = (
     )
         return null;
     const name = metadata.name.replace(/[[\]\\]/g, '\\$&').trim();
-    return `Saved [${name || 'the document'}](${metadata.href}).`;
+    return `Saved [${name || 'the document'}](${toAbsoluteHref(siteUrl, metadata.href)}).`;
 };
 
 const getTurnFastResponse = (
     enableDataAnswerFastResponse: boolean,
     turnIntent: TurnIntent | null | undefined,
     steps: ReadonlyArray<FastChartStep>,
+    siteUrl: string,
 ) => {
     if (enableDataAnswerFastResponse && turnIntent === 'data_answer')
         return getDataAnswerFastResponse(steps);
@@ -1321,9 +1308,16 @@ const getTurnFastResponse = (
     if (turnIntent === 'data_app_create' || turnIntent === 'data_app_iterate')
         return getDataAppBuildFastResponse(steps);
     if (turnIntent === 'document_write')
-        return getDocumentWriteFastResponse(steps);
+        return getDocumentWriteFastResponse(steps, siteUrl);
     return null;
 };
+
+// The SDK returns invalid tool calls to the model; group per tool so one noisy tool doesn't hide others.
+const captureInvalidToolCall = (error: unknown, toolName: string) =>
+    Sentry.captureException(error, {
+        tags: { errorType: 'AiAgentToolCallInvalid', 'ai.tool': toolName },
+        fingerprint: ['ai-tool-call-invalid', toolName],
+    });
 
 // Raw args of an invalid tool call: may be a parsed object or, when JSON
 // parsing itself failed, the raw string the model produced.
@@ -1400,7 +1394,7 @@ const CONTENT_STREAM_CHUNK_TYPES = new Set<TextStreamPart<ToolSet>['type']>([
 
 export const defaultAgentOptions = {
     toolChoice: 'auto' as const,
-    stopWhen: stepCountIs(DEFAULT_AGENT_MAX_STEPS),
+    stopWhen: isStepCount(DEFAULT_AGENT_MAX_STEPS),
     maxRetries: 6, // Increased for Bedrock rate limits
 };
 
@@ -1503,7 +1497,7 @@ export const buildPrepareStep = ({
     intentToolGate?: IntentToolGate;
     logger: ReturnType<typeof createAiAgentLogger>;
     // Ids of tool calls the AI SDK dropped for invalid input, recorded by
-    // onStepFinish/onChunk as the turn progresses (shared mutable set).
+    // onStepEnd/onChunk as the turn progresses (shared mutable set).
     invalidToolCallIds: ReadonlySet<string>;
     agentContext?: AgentContext;
 }) => {
@@ -1710,11 +1704,6 @@ export const buildPrepareStep = ({
     };
 };
 
-const isChartExportEnabled = (args: AiAgentArgs) =>
-    !!args.decisions &&
-    args.enableDataAccess &&
-    args.execution.mode === 'standard';
-
 export const withAgentToolPermissions = (
     tools: ToolSet,
     dependencies: Pick<AiAgentDependencies, 'assertToolOperation'>,
@@ -1768,14 +1757,45 @@ export const withAgentToolPermissions = (
         }),
     );
 
+/** MCP server tools this run may call; deep research drops raw SQL tools without the grant. */
+const getRunnableMcpTools = (
+    args: AiAgentArgs,
+    mcpToolSetup: AgentMcpToolSetup,
+): ToolSet =>
+    Object.fromEntries(
+        Object.entries(mcpToolSetup.tools).filter(
+            ([toolName]) =>
+                args.execution.mode !== 'deep_research' ||
+                args.execution.canUseRawSql ||
+                !isDeepResearchRawSqlMcpTool(toolName),
+        ),
+    );
+
+export const resolveAgentLoadout = (
+    args: AiAgentArgs,
+    mcpToolSetup: AgentMcpToolSetup,
+    customChartTypeLibrary: CustomChartTypeLibrary,
+): Loadout =>
+    resolveLoadout({
+        ...args,
+        mcpToolNames: Object.keys(getRunnableMcpTools(args, mcpToolSetup)),
+        attachedMcpServerCount: args.mcpServers.length,
+        customChartTypeCount: customChartTypeLibrary.totalCount,
+    });
+
+type NativeAgentToolName = Exclude<
+    AgentToolName,
+    'delegateResearchTask' | 'submitWorkerFindings'
+>;
+
 export const getAgentTools = (
     args: AiAgentArgs,
+    loadout: Loadout,
     dependencies: AiAgentDependencies,
     availableExplores: Explore[],
     mcpToolSetup: AgentMcpToolSetup,
     verifiedFieldUsage: Map<string, number>,
     projectParameterDefinitions: ParameterDefinitions,
-    customChartTypeLibrary: CustomChartTypeLibrary,
     agentContext: AgentContext,
 ): ToolSet => {
     const queryDependencies = withAnswerEvidence(
@@ -1789,12 +1809,10 @@ export const getAgentTools = (
         `Getting agent tools for agent: ${args.agentSettings.name}`,
     );
 
-    const enableContentTools = args.enableDataAccess && args.enableContentTools;
-    const documentsEnabled = enableContentTools && args.enableDocuments;
-    const decisionContext =
-        args.decisions && args.execution.mode === 'standard'
-            ? getAgentDecisionContext(args)
-            : undefined;
+    const documentsEnabled = loadout.promptSections.has('documents');
+    const decisionContext = hasDecisionsInStandardMode(args)
+        ? getAgentDecisionContext(args)
+        : undefined;
     const reviewQuery =
         args.decisions &&
         args.enableDataAccess &&
@@ -1806,157 +1824,6 @@ export const getAgentTools = (
                   explores: availableExplores,
               })
             : undefined;
-
-    const grepFields = getGrepFields({
-        availableExplores,
-        decisions:
-            args.execution.mode === 'standard' ? args.decisions : undefined,
-        userQuestion: getAgentQuestion(args),
-        conversation: decisionContext,
-        projectParameterDefinitions,
-        findExplores: dependencies.findExplores,
-        verifiedFieldUsage,
-    });
-
-    // Companion to grepFields: rich detail for the explores/fields the agent
-    // selected (joined tables, required filters, filter types, hints).
-    const getMetadata = getGetMetadata({
-        includeSourceDetails: !!args.decisions,
-        availableExplores,
-        projectParameterDefinitions,
-    });
-
-    const findContent = getFindContent({
-        decisions: args.decisions,
-        findContent: dependencies.findContent,
-        siteUrl: args.siteUrl,
-        toolDescriptionMaxChars: args.toolDescriptionMaxChars,
-        dashboardDetailsToolName: enableContentTools
-            ? 'readContent'
-            : 'getDashboardCharts',
-        trackCoverage: (coverage) => {
-            dependencies.trackEvent({
-                event: 'ai_agent.find_content_coverage',
-                userId: args.userId,
-                properties: {
-                    organizationId: args.organizationId,
-                    projectId: args.agentSettings.projectUuid,
-                    aiAgentId: args.agentSettings.uuid,
-                    agentName: args.agentSettings.name,
-                    threadId: args.threadUuid,
-                    promptId: args.promptUuid,
-                    ...coverage,
-                },
-            });
-        },
-    });
-
-    const listContent = getListContent({
-        listContent: dependencies.listContent,
-    });
-
-    // Only offered when the project has a custom chart type library — an
-    // empty library keeps zero prompt and tool overhead.
-    const findCustomChartTypes =
-        customChartTypeLibrary.totalCount > 0
-            ? getFindCustomChartTypes({
-                  findCustomChartTypes: dependencies.findCustomChartTypes,
-                  updateProgress: dependencies.updateProgress,
-              })
-            : null;
-
-    const getDashboardCharts = getGetDashboardCharts({
-        getDashboardCharts: dependencies.getDashboardCharts,
-        siteUrl: args.siteUrl,
-        pageSize: args.getDashboardChartsPageSize,
-    });
-
-    const readContent = getReadContent({
-        readContent: dependencies.readContent,
-        documentsEnabled,
-    });
-
-    const resolveUrl = getResolveUrl({
-        resolveUrl: dependencies.resolveUrl,
-    });
-
-    const generateVisualization = getRunQuery({
-        purpose: 'visualization',
-        documentsEnabled,
-        agentContext,
-        decisions: args.decisions,
-        question: getAgentQuestion(args),
-        conversation: decisionContext,
-        presentationInstructions: args.agentSettings.instruction,
-        allowPresentationCorrection:
-            args.messageHistory.filter((message) => message.role === 'user')
-                .length <= 1,
-        searchFieldValues: dependencies.searchFieldValues,
-        updateProgress: dependencies.updateProgress,
-        runAsyncQuery: queryDependencies.runAsyncQuery,
-        getPrompt: dependencies.getPrompt,
-        sendFile: dependencies.sendFile,
-        deferSlackVisualization:
-            args.execution.mode === 'standard'
-                ? dependencies.deferSlackVisualization
-                : undefined,
-        createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
-        maxLimit: args.maxQueryLimit,
-        maxContextRows: args.maxContextRows,
-        exposeQueryUuid: args.execution.mode === 'deep_research',
-        enableChartExport:
-            !!args.decisions && args.execution.mode === 'standard',
-        enableDataAccess: args.enableDataAccess,
-        projectParameterDefinitions,
-        slackLinksOnly: args.slackLinksOnly,
-        enableFilterExpressions: args.enableFilterExpressions,
-        resolveCustomChartType: dependencies.resolveCustomChartType,
-        exportCustomChartTypeImage: dependencies.exportCustomChartTypeImage,
-    });
-
-    const runQuery =
-        args.decisions &&
-        args.enableDataAccess &&
-        args.execution.mode === 'standard'
-            ? getRunQuery({
-                  purpose: 'answer',
-                  documentsEnabled,
-                  enableFastResponse: args.enableDataAnswerFastResponse,
-                  agentContext,
-                  decisions: args.decisions,
-                  question: getAgentQuestion(args),
-                  conversation: decisionContext,
-                  presentationInstructions: args.agentSettings.instruction,
-                  allowPresentationCorrection: false,
-                  searchFieldValues: dependencies.searchFieldValues,
-                  updateProgress: dependencies.updateProgress,
-                  runAsyncQuery: queryDependencies.runAsyncQuery,
-                  getPrompt: dependencies.getPrompt,
-                  sendFile: dependencies.sendFile,
-                  createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
-                  maxLimit: args.maxQueryLimit,
-                  maxContextRows: args.maxContextRows,
-                  exposeQueryUuid: false,
-                  enableChartExport: false,
-                  enableDataAccess: true,
-                  projectParameterDefinitions,
-                  slackLinksOnly: args.slackLinksOnly,
-                  enableFilterExpressions: args.enableFilterExpressions,
-                  resolveCustomChartType: dependencies.resolveCustomChartType,
-                  exportCustomChartTypeImage:
-                      dependencies.exportCustomChartTypeImage,
-              })
-            : null;
-
-    const runSavedChart = getRunSavedChart({
-        reviewQuery,
-        updateProgress: dependencies.updateProgress,
-        runAsyncQuery: queryDependencies.runAsyncQuery,
-        getSavedChart: dependencies.getSavedChart,
-        maxLimit: args.maxQueryLimit,
-        maxContextRows: args.maxContextRows,
-        enableDataAccess: args.enableDataAccess,
-    });
 
     const trackSqlApprovalTimeout: TrackSqlApprovalTimeoutFn = ({
         toolCallId,
@@ -1979,97 +1846,6 @@ export const getAgentTools = (
         );
     };
 
-    // Composer queries supersede the standalone runSql tool: a single `sql`
-    // node is the direct equivalent, and exposing both lets the model shadow
-    // the composer path with raw runSql calls.
-    const runSql =
-        args.canRunSql && !args.enableComposerQueries
-            ? getRunSql({
-                  reviewQuery,
-                  updateProgress: dependencies.updateProgress,
-                  runSqlJob: queryDependencies.runSqlJob,
-                  getPrompt: dependencies.getPrompt,
-                  sendFile: dependencies.sendFile,
-                  updateSlackMessage: dependencies.updateSlackMessage,
-                  siteUrl: args.siteUrl,
-                  waitForSqlApproval: dependencies.waitForSqlApproval,
-                  recordSqlApproval: dependencies.recordSqlApproval,
-                  isThreadSqlAutoApproved: dependencies.isThreadSqlAutoApproved,
-                  listSqlApprovalDecisions:
-                      dependencies.listSqlApprovalDecisions,
-                  trackSqlApprovalTimeout,
-                  storeToolResults: dependencies.storeToolResults,
-                  createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
-                  maxQueryLimit: args.runSqlMaxLimit,
-                  enableDataAccess: args.enableDataAccess,
-                  slackLinksOnly: args.slackLinksOnly,
-                  sqlScope: args.sqlScope,
-                  hyphenatedIdentifiers: args.hyphenatedIdentifiers,
-                  autoApproveSql: args.autoApproveSql,
-                  autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
-                  useSlackStreamCard: args.useSlackStreamCard,
-              })
-            : null;
-
-    const runComposerQueries = args.enableComposerQueries
-        ? getRunComposerQueries({
-              agentContext,
-              reviewQuery,
-              updateProgress: dependencies.updateProgress,
-              runComposerQueries: queryDependencies.runComposerQueries,
-              getPrompt: dependencies.getPrompt,
-              updateSlackMessage: dependencies.updateSlackMessage,
-              siteUrl: args.siteUrl,
-              waitForSqlApproval: dependencies.waitForSqlApproval,
-              recordSqlApproval: dependencies.recordSqlApproval,
-              isThreadSqlAutoApproved: dependencies.isThreadSqlAutoApproved,
-              listSqlApprovalDecisions: dependencies.listSqlApprovalDecisions,
-              trackSqlApprovalTimeout,
-              storeToolResults: dependencies.storeToolResults,
-              listThreadComposerQueryNodes:
-                  dependencies.listThreadComposerQueryNodes,
-              registerThreadComposerQueryNodes:
-                  dependencies.registerThreadComposerQueryNodes,
-              maxQueryLimit: args.runSqlMaxLimit,
-              enableDataAccess: args.enableDataAccess,
-              canRunSql: args.canRunSql,
-              enablePythonNodes: args.enableComposerPythonNodes,
-              autoApproveSql: args.autoApproveSql,
-              autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
-              useSlackStreamCard: args.useSlackStreamCard,
-          })
-        : null;
-
-    const listWarehouseTables = args.canRunSql
-        ? getListWarehouseTables({
-              decisions:
-                  args.execution.mode === 'standard'
-                      ? args.decisions
-                      : undefined,
-              userQuestion: getAgentQuestion(args),
-              listWarehouseTables: dependencies.listWarehouseTables,
-          })
-        : null;
-
-    const describeWarehouseTable = args.canRunSql
-        ? getDescribeWarehouseTable({
-              describeWarehouseTable: dependencies.describeWarehouseTable,
-          })
-        : null;
-
-    const generateDashboard = args.canCreateDashboards
-        ? getGenerateDashboardV2({
-              agentContext,
-              decisions:
-                  args.execution.mode === 'standard'
-                      ? args.decisions
-                      : undefined,
-              userQuestion: getAgentQuestion(args),
-              getPrompt: dependencies.getPrompt,
-              createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
-          })
-        : null;
-
     const sqlApproval: SqlApprovalDependencies = {
         getPrompt: dependencies.getPrompt,
         updateProgress: dependencies.updateProgress,
@@ -2085,383 +1861,514 @@ export const getAgentTools = (
         autoApproveSqlUserUuid: args.autoApproveSqlUserUuid ?? null,
         useSlackStreamCard: args.useSlackStreamCard,
     };
-    const sqlChartSaving: SqlChartSaving = args.canRunSql
-        ? { mode: 'thread_approval', approval: sqlApproval }
-        : { mode: 'disabled' };
-    sqlChartSaving.recordRefusal = dependencies.recordSqlChartRefusal;
-    const editContent = getEditContent({
-        editContent: dependencies.editContent,
-        documentsEnabled,
-        artifacts: dependencies.chartExportArtifacts,
-        sqlChartSaving,
-    });
-    const createContent = getCreateContent({
-        createContent: dependencies.createContent,
-        documentsEnabled,
-        artifacts: dependencies.chartExportArtifacts,
-        sqlChartSaving,
-    });
-    const createScheduledDelivery = getCreateScheduledDelivery({
-        createScheduledDelivery: dependencies.createScheduledDelivery,
-    });
-    const canRunContentSql = canRunContentQuerySql({
-        canRunSql: args.canRunSql,
-        toolAllowlist:
-            args.execution.mode === 'standard'
-                ? (args.execution.toolAllowlist ?? null)
-                : null,
-    });
-    const runContentQuery = getRunContentQuery({
-        reviewQuery,
-        updateProgress: dependencies.updateProgress,
-        runAsyncQuery: queryDependencies.runAsyncQuery,
-        runSavedChartQuery: queryDependencies.runSavedChartQuery,
-        getSavedChart: dependencies.getSavedChart,
-        runSqlChartQuery: queryDependencies.runSqlChartQuery,
-        getSqlChart: dependencies.getSqlChart,
-        validateContent: dependencies.validateContent,
-        maxLimit: args.maxQueryLimit,
-        maxContextRows: args.maxContextRows,
-        enableDataAccess: args.enableDataAccess,
-        sqlQuerying: canRunContentSql
-            ? {
-                  runSqlJob: queryDependencies.runSqlJob,
-                  approval: sqlApproval,
-                  maxLimit: args.runSqlMaxLimit,
-                  sqlScope: args.sqlScope ?? null,
-                  hyphenatedIdentifiers: args.hyphenatedIdentifiers,
-              }
-            : null,
-    });
+    const getSqlChartSaving = (): SqlChartSaving => {
+        const sqlChartSaving: SqlChartSaving = args.canRunSql
+            ? { mode: 'thread_approval', approval: sqlApproval }
+            : { mode: 'disabled' };
+        sqlChartSaving.recordRefusal = dependencies.recordSqlChartRefusal;
+        return sqlChartSaving;
+    };
+    const decisionsInStandardMode =
+        args.execution.mode === 'standard' ? args.decisions : undefined;
 
-    const generateDataApp = args.enableGenerateDataApp
-        ? getGenerateDataApp({
-              generateDataApp: dependencies.generateDataApp,
-          })
-        : null;
-
-    const iterateDataApp = args.enableGenerateDataApp
-        ? getIterateDataApp({
-              iterateDataApp: dependencies.iterateDataApp,
-          })
-        : null;
-
-    const listDataAppThemes = args.enableGenerateDataApp
-        ? getListDataAppThemes({
-              listDataAppThemes: dependencies.listDataAppThemes,
-          })
-        : null;
-
-    const listDataAppConnections = args.enableGenerateDataApp
-        ? getListDataAppConnections({
-              listDataAppConnections: dependencies.listDataAppConnections,
-          })
-        : null;
-
-    const editDbtProject = args.enableAiWriteback
-        ? getEditDbtProject({
-              editDbtProject: dependencies.editDbtProject,
-          })
-        : null;
-
-    // Only present in review-remediation work threads, where the user can
-    // rebuild/change the project_context PR conversationally.
-    const editProjectContext = args.enableEditProjectContext
-        ? getEditProjectContext({
-              editProjectContext: dependencies.editProjectContext,
-          })
-        : null;
-
-    const editRepo = args.enableCodingAgent
-        ? getEditRepo({
-              editRepo: dependencies.editRepo,
-          })
-        : null;
-
-    const syncDbtProject = args.enableAiWriteback
-        ? getSyncDbtProject({
-              syncDbtProject: dependencies.syncDbtProject,
-              updateProgress: dependencies.updateProgress,
-          })
-        : null;
-
-    const setupPreviewDeploy = args.enablePreviewDeploySetup
-        ? getSetupPreviewDeploy({
-              setupPreviewDeploy: dependencies.setupPreviewDeploy,
-          })
-        : null;
-
-    const exploreRepo = args.enableRepoDiscovery
-        ? getExploreRepo({
-              exploreRepo: dependencies.exploreRepo,
-          })
-        : null;
-
-    const discoverRepos = args.enableRepoDiscovery
-        ? getDiscoverRepos({
-              discoverRepos: dependencies.discoverRepos,
-          })
-        : null;
-
-    // Workstream tools are shared by the general coding agent (editRepo) and the
-    // dbt-writeback agent (editDbtProject) — both can now drive several PRs per
-    // thread, so both need to enumerate and close them.
-    const listWorkstreams =
-        args.enableCodingAgent || args.enableAiWriteback
-            ? getListWorkstreams({
-                  listWorkstreams: dependencies.listWorkstreams,
-              })
-            : null;
-
-    const closePullRequest =
-        args.enableCodingAgent || args.enableAiWriteback
-            ? getClosePullRequest({
-                  closePullRequest: dependencies.closePullRequest,
-              })
-            : null;
-
-    // Read-only companion to the workstream tools: lets the agent inspect a
-    // pull request's actual diff before deciding how to split or consolidate
-    // changes across pull requests. Same gate as list/close.
-    const getPullRequestDiff =
-        args.enableCodingAgent || args.enableAiWriteback
-            ? getGetPullRequestDiff({
-                  getPullRequestDiff: dependencies.getPullRequestDiff,
-              })
-            : null;
-
-    const searchFieldValues = getSearchFieldValues({
-        decisions: args.decisions,
-        searchFieldValues: dependencies.searchFieldValues,
-        getExplore: dependencies.getExplore,
-        enableFilterExpressions: args.enableFilterExpressions,
-    });
-
-    const analyzeFieldImpact = getAnalyzeFieldImpact({
-        analyzeFieldImpact: dependencies.analyzeFieldImpact,
-        updateProgress: dependencies.updateProgress,
-    });
-
-    const searchSemanticLayer = getSearchSemanticLayer({
-        searchSemanticLayer: dependencies.searchSemanticLayer,
-        updateProgress: dependencies.updateProgress,
-        // The agent chooses pageSize per task; cap it so one call can't pull an
-        // unbounded payload while still letting an audit grab the inventory in
-        // one or two round-trips.
-        maxPageSize: 500,
-        toolDescriptionMaxChars: args.toolDescriptionMaxChars,
-    });
-
-    const listKnowledgeDocuments = getListKnowledgeDocuments({
-        listKnowledgeDocuments: dependencies.listKnowledgeDocuments,
-    });
-
-    const getKnowledgeDocumentContent = getGetKnowledgeDocumentContent({
-        getKnowledgeDocumentContent: dependencies.getKnowledgeDocumentContent,
-    });
-
-    const readPinnedThread = getReadPinnedThread({
-        readPinnedThread: dependencies.readPinnedThread,
-    });
-
-    const readAttachments = args.enableReadAttachments
-        ? getReadAttachments({
-              readAttachments: dependencies.readAttachments,
-          })
-        : null;
-
-    const loadSkill =
-        args.availableSkills.length > 0
-            ? getLoadSkill({
-                  loadSkill: dependencies.loadSkill,
-              })
-            : null;
-    const generateHashes = getGenerateHashes();
-    const generateUuids = getGenerateUuids();
-
-    const listProjects = getListProjects({
-        listProjects: dependencies.listProjects,
-    });
-
-    const getProjectInfo = getGetProjectInfo({
-        getProjectInfo: dependencies.getProjectInfo,
-    });
-
-    const loadProjectContext =
-        args.projectContextEnabled || args.aiAgentMemoryEnabled
-            ? getLoadProjectContext({
-                  getDocument: async () => {
-                      const [projectContext, memories] = await Promise.all([
-                          args.projectContextEnabled
-                              ? dependencies.getProjectContextDocument()
-                              : Promise.resolve([]),
-                          args.aiAgentMemoryEnabled
-                              ? dependencies.getAiAgentMemoryContextEntries()
-                              : Promise.resolve([]),
-                      ]);
-                      return getProjectContextSearchEntries({
-                          projectContext,
-                          memories,
-                          memoryEnabled: args.aiAgentMemoryEnabled,
-                      });
-                  },
-                  includeMemories: args.aiAgentMemoryEnabled,
-                  onEntriesLoaded: args.aiAgentMemoryEnabled
-                      ? dependencies.incrementAiAgentMemoryPulls
-                      : undefined,
-              })
-            : null;
-
-    const mcpTools = Object.fromEntries(
-        Object.entries(mcpToolSetup.tools).filter(
-            ([toolName]) =>
-                args.execution.mode !== 'deep_research' ||
-                args.execution.canUseRawSql ||
-                !isDeepResearchRawSqlMcpTool(toolName),
-        ),
-    );
-    const mcpToolNames = Object.keys(mcpTools);
-    const loadMcpTools =
-        mcpToolNames.length > 0 ? getLoadMcpTools(mcpToolNames) : null;
-
-    const tools: ToolSet = {
-        findContent,
-        grepFields,
-        getMetadata,
-        analyzeFieldImpact,
-        searchSemanticLayer,
-        listProjects,
-        getProjectInfo,
-        listKnowledgeDocuments,
-        getKnowledgeDocumentContent,
-        readPinnedThread,
-        resolveUrl,
-        ...(args.requestingUser
-            ? {
-                  updateUserName: getUpdateUserName({
-                      updateUserName: dependencies.updateUserName,
-                  }),
-              }
-            : {}),
-        ...(enableContentTools
-            ? {
-                  readContent,
-                  editContent,
-                  listContent,
-                  createContent,
-                  createScheduledDelivery,
-                  runContentQuery,
-              }
-            : {
-                  getDashboardCharts,
-                  ...(generateDashboard ? { generateDashboard } : {}),
-              }),
-        generateVisualization,
-        ...(runQuery ? { runQuery } : {}),
-        ...(isChartExportEnabled(args)
-            ? {
-                  exportChartAsCode: getExportChartAsCode(
-                      agentContext,
-                      dependencies.chartExportArtifacts,
-                  ),
-              }
-            : {}),
-        runSavedChart,
-        generateHashes,
-        generateUuids,
-        ...(generateDataApp ? { generateDataApp } : {}),
-        ...(iterateDataApp ? { iterateDataApp } : {}),
-        ...(listDataAppThemes ? { listDataAppThemes } : {}),
-        ...(listDataAppConnections ? { listDataAppConnections } : {}),
-        ...(editDbtProject ? { editDbtProject } : {}),
-        ...(editProjectContext ? { editProjectContext } : {}),
-        ...(editRepo ? { editRepo } : {}),
-        ...(syncDbtProject ? { syncDbtProject } : {}),
-        ...(setupPreviewDeploy ? { setupPreviewDeploy } : {}),
-        ...(exploreRepo ? { exploreRepo } : {}),
-        ...(readAttachments ? { readAttachments } : {}),
-        ...(discoverRepos ? { discoverRepos } : {}),
-        ...(listWorkstreams ? { listWorkstreams } : {}),
-        ...(closePullRequest ? { closePullRequest } : {}),
-        ...(getPullRequestDiff ? { getPullRequestDiff } : {}),
-        ...(args.enableDataAccess ? { searchFieldValues } : {}),
-        ...(findCustomChartTypes ? { findCustomChartTypes } : {}),
-        ...(runSql ? { runSql } : {}),
-        ...(runComposerQueries ? { runComposerQueries } : {}),
-        ...(listWarehouseTables ? { listWarehouseTables } : {}),
-        ...(describeWarehouseTable ? { describeWarehouseTable } : {}),
-        ...(loadSkill ? { loadSkill } : {}),
-        ...(loadProjectContext ? { loadProjectContext } : {}),
-        ...(loadMcpTools ? { loadMcpTools } : {}),
-        ...(args.decisions && args.execution.mode === 'standard'
-            ? { loadAgentTools: getLoadAgentTools() }
-            : {}),
+    const runnableMcpTools = getRunnableMcpTools(args, mcpToolSetup);
+    const mcpToolNames = Object.keys(runnableMcpTools);
+    // Ordered as tools are offered to the model.
+    const toolBuilders: Record<NativeAgentToolName, () => Tool> = {
+        findContent: () =>
+            getFindContent({
+                decisions: args.decisions,
+                findContent: dependencies.findContent,
+                siteUrl: args.siteUrl,
+                toolDescriptionMaxChars: args.toolDescriptionMaxChars,
+                dashboardDetailsToolName: loadout.toolNames.has('readContent')
+                    ? 'readContent'
+                    : 'getDashboardCharts',
+                trackCoverage: (coverage) => {
+                    dependencies.trackEvent({
+                        event: 'ai_agent.find_content_coverage',
+                        userId: args.userId,
+                        properties: {
+                            organizationId: args.organizationId,
+                            projectId: args.agentSettings.projectUuid,
+                            aiAgentId: args.agentSettings.uuid,
+                            agentName: args.agentSettings.name,
+                            threadId: args.threadUuid,
+                            promptId: args.promptUuid,
+                            ...coverage,
+                        },
+                    });
+                },
+            }),
+        grepFields: () =>
+            getGrepFields({
+                availableExplores,
+                decisions: decisionsInStandardMode,
+                userQuestion: getAgentQuestion(args),
+                conversation: decisionContext,
+                projectParameterDefinitions,
+                findExplores: dependencies.findExplores,
+                verifiedFieldUsage,
+            }),
+        // Companion to grepFields: rich detail for the explores/fields the agent
+        // selected (joined tables, required filters, filter types, hints).
+        getMetadata: () =>
+            getGetMetadata({
+                includeSourceDetails: !!args.decisions,
+                availableExplores,
+                projectParameterDefinitions,
+            }),
+        analyzeFieldImpact: () =>
+            getAnalyzeFieldImpact({
+                analyzeFieldImpact: dependencies.analyzeFieldImpact,
+                updateProgress: dependencies.updateProgress,
+            }),
+        searchSemanticLayer: () =>
+            getSearchSemanticLayer({
+                searchSemanticLayer: dependencies.searchSemanticLayer,
+                updateProgress: dependencies.updateProgress,
+                // The agent chooses pageSize per task; cap it so one call can't pull an
+                // unbounded payload while still letting an audit grab the inventory in
+                // one or two round-trips.
+                maxPageSize: 500,
+                toolDescriptionMaxChars: args.toolDescriptionMaxChars,
+            }),
+        listProjects: () =>
+            getListProjects({ listProjects: dependencies.listProjects }),
+        getProjectInfo: () =>
+            getGetProjectInfo({ getProjectInfo: dependencies.getProjectInfo }),
+        listKnowledgeDocuments: () =>
+            getListKnowledgeDocuments({
+                listKnowledgeDocuments: dependencies.listKnowledgeDocuments,
+            }),
+        getKnowledgeDocumentContent: () =>
+            getGetKnowledgeDocumentContent({
+                getKnowledgeDocumentContent:
+                    dependencies.getKnowledgeDocumentContent,
+            }),
+        readPinnedThread: () =>
+            getReadPinnedThread({
+                readPinnedThread: dependencies.readPinnedThread,
+            }),
+        resolveUrl: () =>
+            getResolveUrl({ resolveUrl: dependencies.resolveUrl }),
+        updateUserName: () =>
+            getUpdateUserName({ updateUserName: dependencies.updateUserName }),
+        readContent: () =>
+            getReadContent({
+                readContent: dependencies.readContent,
+                siteUrl: args.siteUrl,
+                documentsEnabled,
+            }),
+        editContent: () =>
+            getEditContent({
+                editContent: dependencies.editContent,
+                siteUrl: args.siteUrl,
+                documentsEnabled,
+                chartsEnabled: args.enableContentTools,
+                artifacts: dependencies.chartExportArtifacts,
+                sqlChartSaving: getSqlChartSaving(),
+            }),
+        listContent: () =>
+            getListContent({
+                listContent: dependencies.listContent,
+                siteUrl: args.siteUrl,
+            }),
+        createContent: () =>
+            getCreateContent({
+                createContent: dependencies.createContent,
+                siteUrl: args.siteUrl,
+                documentsEnabled,
+                chartsEnabled: args.enableContentTools,
+                artifacts: dependencies.chartExportArtifacts,
+                sqlChartSaving: getSqlChartSaving(),
+            }),
+        createScheduledDelivery: () =>
+            getCreateScheduledDelivery({
+                createScheduledDelivery: dependencies.createScheduledDelivery,
+                siteUrl: args.siteUrl,
+            }),
+        runContentQuery: () =>
+            getRunContentQuery({
+                reviewQuery,
+                updateProgress: dependencies.updateProgress,
+                runAsyncQuery: queryDependencies.runAsyncQuery,
+                runSavedChartQuery: queryDependencies.runSavedChartQuery,
+                getSavedChart: dependencies.getSavedChart,
+                runSqlChartQuery: queryDependencies.runSqlChartQuery,
+                getSqlChart: dependencies.getSqlChart,
+                validateContent: dependencies.validateContent,
+                maxLimit: args.maxQueryLimit,
+                maxContextRows: args.maxContextRows,
+                enableDataAccess: args.enableDataAccess,
+                sqlQuerying: canRunContentQuerySql({
+                    canRunSql: args.canRunSql,
+                    toolAllowlist:
+                        args.execution.mode === 'standard'
+                            ? (args.execution.toolAllowlist ?? null)
+                            : null,
+                })
+                    ? {
+                          runSqlJob: queryDependencies.runSqlJob,
+                          approval: sqlApproval,
+                          maxLimit: args.runSqlMaxLimit,
+                          sqlScope: args.sqlScope ?? null,
+                      }
+                    : null,
+            }),
+        getDashboardCharts: () =>
+            getGetDashboardCharts({
+                getDashboardCharts: dependencies.getDashboardCharts,
+                siteUrl: args.siteUrl,
+                pageSize: args.getDashboardChartsPageSize,
+            }),
+        generateDashboard: () =>
+            getGenerateDashboardV2({
+                agentContext,
+                decisions: decisionsInStandardMode,
+                userQuestion: getAgentQuestion(args),
+                getPrompt: dependencies.getPrompt,
+                createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
+            }),
+        generateVisualization: () =>
+            getRunQuery({
+                purpose: 'visualization',
+                documentsEnabled,
+                agentContext,
+                decisions: args.decisions,
+                question: getAgentQuestion(args),
+                conversation: decisionContext,
+                presentationInstructions: args.agentSettings.instruction,
+                allowPresentationCorrection:
+                    args.messageHistory.filter(
+                        (message) => message.role === 'user',
+                    ).length <= 1,
+                searchFieldValues: dependencies.searchFieldValues,
+                updateProgress: dependencies.updateProgress,
+                runAsyncQuery: queryDependencies.runAsyncQuery,
+                getPrompt: dependencies.getPrompt,
+                sendFile: dependencies.sendFile,
+                deferSlackVisualization:
+                    args.execution.mode === 'standard'
+                        ? dependencies.deferSlackVisualization
+                        : undefined,
+                createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
+                maxLimit: args.maxQueryLimit,
+                maxContextRows: args.maxContextRows,
+                exposeQueryUuid: args.execution.mode === 'deep_research',
+                enableChartExport: loadout.toolNames.has('exportChartAsCode'),
+                enableDataAccess: args.enableDataAccess,
+                projectParameterDefinitions,
+                slackLinksOnly: args.slackLinksOnly,
+                enableFilterExpressions: args.enableFilterExpressions,
+                resolveCustomChartType: dependencies.resolveCustomChartType,
+                exportCustomChartTypeImage:
+                    dependencies.exportCustomChartTypeImage,
+            }),
+        runQuery: () =>
+            getRunQuery({
+                purpose: 'answer',
+                inSlack: args.slackChannelId !== null,
+                documentsEnabled,
+                enableFastResponse: args.enableDataAnswerFastResponse,
+                agentContext,
+                decisions: args.decisions,
+                question: getAgentQuestion(args),
+                conversation: decisionContext,
+                presentationInstructions: args.agentSettings.instruction,
+                allowPresentationCorrection: false,
+                searchFieldValues: dependencies.searchFieldValues,
+                updateProgress: dependencies.updateProgress,
+                runAsyncQuery: queryDependencies.runAsyncQuery,
+                getPrompt: dependencies.getPrompt,
+                sendFile: dependencies.sendFile,
+                createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
+                maxLimit: args.maxQueryLimit,
+                maxContextRows: args.maxContextRows,
+                exposeQueryUuid: false,
+                enableChartExport: false,
+                enableDataAccess: true,
+                projectParameterDefinitions,
+                slackLinksOnly: args.slackLinksOnly,
+                enableFilterExpressions: args.enableFilterExpressions,
+                resolveCustomChartType: dependencies.resolveCustomChartType,
+                exportCustomChartTypeImage:
+                    dependencies.exportCustomChartTypeImage,
+            }),
+        exportChartAsCode: () =>
+            getExportChartAsCode(
+                agentContext,
+                dependencies.chartExportArtifacts,
+            ),
+        runSavedChart: () =>
+            getRunSavedChart({
+                reviewQuery,
+                updateProgress: dependencies.updateProgress,
+                runAsyncQuery: queryDependencies.runAsyncQuery,
+                getSavedChart: dependencies.getSavedChart,
+                maxLimit: args.maxQueryLimit,
+                maxContextRows: args.maxContextRows,
+                enableDataAccess: args.enableDataAccess,
+            }),
+        generateHashes: () => getGenerateHashes(),
+        generateUuids: () => getGenerateUuids(),
+        generateDataApp: () =>
+            getGenerateDataApp({
+                generateDataApp: dependencies.generateDataApp,
+            }),
+        iterateDataApp: () =>
+            getIterateDataApp({ iterateDataApp: dependencies.iterateDataApp }),
+        listDataAppThemes: () =>
+            getListDataAppThemes({
+                listDataAppThemes: dependencies.listDataAppThemes,
+            }),
+        listDataAppConnections: () =>
+            getListDataAppConnections({
+                listDataAppConnections: dependencies.listDataAppConnections,
+            }),
+        editDbtProject: () =>
+            getEditDbtProject({ editDbtProject: dependencies.editDbtProject }),
+        editProjectContext: () =>
+            getEditProjectContext({
+                editProjectContext: dependencies.editProjectContext,
+            }),
+        syncDbtProject: () =>
+            getSyncDbtProject({
+                syncDbtProject: dependencies.syncDbtProject,
+                updateProgress: dependencies.updateProgress,
+            }),
+        exploreRepo: () =>
+            getExploreRepo({ exploreRepo: dependencies.exploreRepo }),
+        readAttachments: () =>
+            getReadAttachments({
+                readAttachments: dependencies.readAttachments,
+            }),
+        discoverRepos: () =>
+            getDiscoverRepos({ discoverRepos: dependencies.discoverRepos }),
+        listWorkstreams: () =>
+            getListWorkstreams({
+                listWorkstreams: dependencies.listWorkstreams,
+            }),
+        closePullRequest: () =>
+            getClosePullRequest({
+                closePullRequest: dependencies.closePullRequest,
+            }),
+        // Read-only companion to the workstream tools: lets the agent inspect a
+        // pull request's diff before splitting or consolidating changes.
+        getPullRequestDiff: () =>
+            getGetPullRequestDiff({
+                getPullRequestDiff: dependencies.getPullRequestDiff,
+            }),
+        searchFieldValues: () =>
+            getSearchFieldValues({
+                decisions: args.decisions,
+                searchFieldValues: dependencies.searchFieldValues,
+                getExplore: dependencies.getExplore,
+                enableFilterExpressions: args.enableFilterExpressions,
+            }),
+        findCustomChartTypes: () =>
+            getFindCustomChartTypes({
+                findCustomChartTypes: dependencies.findCustomChartTypes,
+                updateProgress: dependencies.updateProgress,
+            }),
+        runSql: () =>
+            getRunSql({
+                reviewQuery,
+                updateProgress: dependencies.updateProgress,
+                runSqlJob: queryDependencies.runSqlJob,
+                getPrompt: dependencies.getPrompt,
+                sendFile: dependencies.sendFile,
+                updateSlackMessage: dependencies.updateSlackMessage,
+                siteUrl: args.siteUrl,
+                waitForSqlApproval: dependencies.waitForSqlApproval,
+                recordSqlApproval: dependencies.recordSqlApproval,
+                isThreadSqlAutoApproved: dependencies.isThreadSqlAutoApproved,
+                listSqlApprovalDecisions: dependencies.listSqlApprovalDecisions,
+                trackSqlApprovalTimeout,
+                storeToolResults: dependencies.storeToolResults,
+                createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
+                maxQueryLimit: args.runSqlMaxLimit,
+                enableDataAccess: args.enableDataAccess,
+                slackLinksOnly: args.slackLinksOnly,
+                sqlScope: args.sqlScope,
+                autoApproveSql: args.autoApproveSql,
+                autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
+                useSlackStreamCard: args.useSlackStreamCard,
+            }),
+        query: () =>
+            getRunComposerQueries({
+                agentContext,
+                reviewQuery,
+                filterValueHints: args.decisions
+                    ? {
+                          decisions: args.decisions,
+                          searchFieldValues: dependencies.searchFieldValues,
+                      }
+                    : null,
+                updateProgress: dependencies.updateProgress,
+                runComposerQueries: queryDependencies.runComposerQueries,
+                getPrompt: dependencies.getPrompt,
+                updateSlackMessage: dependencies.updateSlackMessage,
+                siteUrl: args.siteUrl,
+                waitForSqlApproval: dependencies.waitForSqlApproval,
+                recordSqlApproval: dependencies.recordSqlApproval,
+                isThreadSqlAutoApproved: dependencies.isThreadSqlAutoApproved,
+                listSqlApprovalDecisions: dependencies.listSqlApprovalDecisions,
+                trackSqlApprovalTimeout,
+                storeToolResults: dependencies.storeToolResults,
+                listThreadComposerQueryNodes:
+                    dependencies.listThreadComposerQueryNodes,
+                registerThreadComposerQueryNodes:
+                    dependencies.registerThreadComposerQueryNodes,
+                maxQueryLimit: args.runSqlMaxLimit,
+                enableDataAccess: args.enableDataAccess,
+                canRunSql: args.canRunSql,
+                enablePythonNodes: args.enableComposerQueries,
+                autoApproveSql: args.autoApproveSql,
+                autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
+                useSlackStreamCard: args.useSlackStreamCard,
+                projectParameterDefinitions,
+            }),
+        visualize: () =>
+            getVisualize({
+                getPrompt: dependencies.getPrompt,
+                getExplore: (exploreName) =>
+                    agentContext
+                        .getAvailableExplores()
+                        .find(({ name }) => name === exploreName) ?? null,
+                listThreadComposerQueryNodes:
+                    dependencies.listThreadComposerQueryNodes,
+                getThreadComposerNodeColumns:
+                    dependencies.getThreadComposerNodeColumns,
+                runComposerQueries: queryDependencies.runComposerQueries,
+                resolveCustomChartType: dependencies.resolveCustomChartType,
+                createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
+                updateProgress: dependencies.updateProgress,
+                deferSlackVisualization:
+                    args.execution.mode === 'standard'
+                        ? dependencies.deferSlackVisualization
+                        : undefined,
+                slackLinksOnly: args.slackLinksOnly,
+                maxQueryLimit: args.maxQueryLimit,
+            }),
+        listWarehouseTables: () =>
+            getListWarehouseTables({
+                decisions: decisionsInStandardMode,
+                userQuestion: getAgentQuestion(args),
+                listWarehouseTables: dependencies.listWarehouseTables,
+            }),
+        describeWarehouseTable: () =>
+            getDescribeWarehouseTable({
+                describeWarehouseTable: dependencies.describeWarehouseTable,
+            }),
+        loadSkill: () => {
+            const listed = new Set(
+                getAvailableSkills(args, loadout).map(({ name }) =>
+                    name.toLowerCase(),
+                ),
+            );
+            // A built-in skill outside the loadout stays unloadable even by name.
+            return getLoadSkill({
+                loadSkill: async (name, options) =>
+                    listed.has(name.trim().toLowerCase())
+                        ? dependencies.loadSkill(name, options)
+                        : undefined,
+                loadedSkillKeys: getLoadedSkillKeys(args.messageHistory),
+            });
+        },
+        loadProjectContext: () =>
+            getLoadProjectContext({
+                getDocument: async () => {
+                    const [projectContext, memories] = await Promise.all([
+                        args.projectContextEnabled
+                            ? dependencies.getProjectContextDocument()
+                            : Promise.resolve([]),
+                        args.aiAgentMemoryEnabled
+                            ? dependencies.getAiAgentMemoryContextEntries()
+                            : Promise.resolve([]),
+                    ]);
+                    return getProjectContextSearchEntries({
+                        projectContext,
+                        memories,
+                        memoryEnabled: args.aiAgentMemoryEnabled,
+                    });
+                },
+                includeMemories: args.aiAgentMemoryEnabled,
+                onEntriesLoaded: args.aiAgentMemoryEnabled
+                    ? dependencies.incrementAiAgentMemoryPulls
+                    : undefined,
+            }),
+        loadMcpTools: () => getLoadMcpTools(mcpToolNames),
+        loadAgentTools: () => getLoadAgentTools(),
     };
 
-    const mergedTools = { ...tools, ...mcpTools };
+    const tools: ToolSet = Object.fromEntries(
+        (Object.keys(toolBuilders) as NativeAgentToolName[])
+            .filter((toolName) => loadout.toolNames.has(toolName))
+            .map((toolName) => [toolName, toolBuilders[toolName]()]),
+    );
 
-    // Deep-research roles reshape the toolset: the coordinator gains delegation,
-    // and a worker is cut down to the warehouse tools its one task needs so the
-    // agent's full context is not reloaded per worker.
+    // Deep research offers only MCP tools from the project's own Lightdash
+    // server; a standard allowlist run gets no MCP tools at all.
     const research =
         args.execution.mode === 'deep_research'
             ? args.execution.research
             : undefined;
-    const trustedDeepResearchMcpToolNames = research
-        ? getTrustedDeepResearchMcpToolNames(args, mcpToolSetup)
-        : new Set<string>();
-    const getResearchTools = (): ToolSet | null => {
-        switch (research?.role) {
-            case 'coordinator':
-                return {
-                    ...Object.fromEntries(
-                        Object.entries(mergedTools).filter(
-                            ([toolName]) =>
-                                DEEP_RESEARCH_COORDINATOR_TOOL_NAMES.has(
-                                    toolName,
-                                ) ||
-                                trustedDeepResearchMcpToolNames.has(toolName),
-                        ),
-                    ),
-                    delegateResearchTask: getDelegateResearchTask({
-                        runTask: research.runTask,
-                    }),
-                };
-            case 'worker':
-                return {
-                    ...Object.fromEntries(
-                        Object.entries(mergedTools).filter(
-                            ([toolName]) =>
-                                DEEP_RESEARCH_WORKER_TOOL_NAMES.has(toolName) ||
-                                trustedDeepResearchMcpToolNames.has(toolName),
-                        ),
-                    ),
-                    submitWorkerFindings: getSubmitWorkerFindings({
-                        onFindings: research.onFindings,
-                    }),
-                };
-            case undefined:
-                return null;
-            default:
-                return assertUnreachable(research, 'Unknown research role');
-        }
-    };
-    const researchTools = getResearchTools();
     const allowlist =
         args.execution.mode === 'standard'
             ? args.execution.toolAllowlist
             : undefined;
-    // A standard run can pin itself to a read-only subset (data-app
-    // investigations); MCP tools are excluded from such runs entirely.
-    const finalTools =
-        researchTools ??
-        (allowlist
-            ? Object.fromEntries(
-                  Object.entries(tools).filter(([toolName]) =>
-                      allowlist.has(toolName),
-                  ),
-              )
-            : mergedTools);
+    const getMcpTools = (): ToolSet => {
+        if (research) {
+            const trusted = getTrustedDeepResearchMcpToolNames(
+                args,
+                mcpToolSetup,
+            );
+            return Object.fromEntries(
+                Object.entries(runnableMcpTools).filter(([toolName]) =>
+                    trusted.has(toolName),
+                ),
+            );
+        }
+        return allowlist ? {} : runnableMcpTools;
+    };
+    const getResearchTools = (): ToolSet => {
+        switch (research?.role) {
+            case 'coordinator':
+                return loadout.toolNames.has('delegateResearchTask')
+                    ? {
+                          delegateResearchTask: getDelegateResearchTask({
+                              runTask: research.runTask,
+                          }),
+                      }
+                    : {};
+            case 'worker':
+                return loadout.toolNames.has('submitWorkerFindings')
+                    ? {
+                          submitWorkerFindings: getSubmitWorkerFindings({
+                              onFindings: research.onFindings,
+                          }),
+                      }
+                    : {};
+            case undefined:
+                return {};
+            default:
+                return assertUnreachable(research, 'Unknown research role');
+        }
+    };
+    // A standard run can pin itself to a read-only subset (data-app investigations).
+    const nativeTools = allowlist
+        ? Object.fromEntries(
+              Object.entries(tools).filter(([toolName]) =>
+                  allowlist.has(toolName),
+              ),
+          )
+        : tools;
+    const finalTools = {
+        ...nativeTools,
+        ...getMcpTools(),
+        ...getResearchTools(),
+    };
 
     logger(
         'Agent Tools',
@@ -2477,7 +2384,7 @@ export const getAgentTools = (
 
 // Fires an `in_progress` task update the moment a tool's execute() runs — i.e. as
 // soon as the model emits the call, before the (possibly slow) tool finishes.
-// generateText() only surfaces tool progress in onStepFinish, which lands after
+// generateText() only surfaces tool progress in onStepEnd, which lands after
 // the tool already returned, so without this the Slack/UI card stays empty until
 // the first tool completes. The streaming path emits this from its 'tool-call'
 // chunk instead, so this wrap is only applied in the non-streaming path.
@@ -2625,33 +2532,30 @@ export const getPromptMcpServers = (
 
 const getCapabilitySectionArgs = (
     args: AiAgentArgs,
+    loadout: Loadout,
     customChartTypeLibrary: CustomChartTypeLibrary,
 ): CapabilitySectionArgs => ({
-    availableSkills: args.availableSkills,
-    enableFastMetadata: !!args.decisions && args.execution.mode === 'standard',
-    enableContentTools: args.enableDataAccess && args.enableContentTools,
-    enableDocuments:
-        args.enableDataAccess &&
-        args.enableContentTools &&
-        args.enableDocuments,
+    promptSections: loadout.promptSections,
+    availableSkills: getAvailableSkills(args, loadout),
+    // The content tools also load for Documents alone; chart guidance needs chart saves.
+    canSaveCharts: args.enableContentTools,
     enableDocumentNudges: areDocumentNudgesEnabled(args),
     // Custom charts reach Documents through findCustomChartTypes and
     // exportChartAsCode, so the guidance needs both tools.
     enableDocumentCustomCharts:
-        customChartTypeLibrary.totalCount > 0 && isChartExportEnabled(args),
-    enableGenerateDataApp: args.enableGenerateDataApp,
+        customChartTypeLibrary.totalCount > 0 &&
+        loadout.toolNames.has('exportChartAsCode'),
     slackChannelId: args.slackChannelId,
-    canRunSql: args.canRunSql,
-    enableComposerQueries: args.enableComposerQueries,
     warehouseType: args.warehouseType,
     warehouseSchema: args.warehouseSchema,
     warehouseConnections: args.warehouseConnections ?? [],
     sqlScope: args.sqlScope,
-    runSqlMaxLimit: args.runSqlMaxLimit,
+    canRunQuery: loadout.toolNames.has('runQuery'),
 });
 
 export const getAgentMessages = (
     args: AiAgentArgs,
+    loadout: Loadout,
     availableExplores: Explore[],
     mcpToolSetup: AgentMcpToolSetup,
     tools: ToolSet,
@@ -2731,9 +2635,8 @@ export const getAgentMessages = (
         ...getDeepResearchInstructions(),
     ].filter((instruction): instruction is string => !!instruction);
     const systemPrompt = getSystemPromptV2({
-        ...getCapabilitySectionArgs(args, customChartTypeLibrary),
+        ...getCapabilitySectionArgs(args, loadout, customChartTypeLibrary),
         deferredSections,
-        enableChartExport: isChartExportEnabled(args),
         agentName: args.agentSettings.name,
         instructions:
             instructions.length > 0 ? instructions.join('\n\n') : undefined,
@@ -2746,18 +2649,16 @@ export const getAgentMessages = (
         deepResearchRuns: args.deepResearchRuns,
         hasProjectContext,
         projectContextPreloaded,
-        enableAiAgentMemory: args.aiAgentMemoryEnabled,
         enableDataAccess: args.enableDataAccess,
         enableFilterExpressions: args.enableFilterExpressions,
-        enableAiWriteback: args.enableAiWriteback,
         writebackAttribution: args.writebackAttribution,
-        enableCodingAgent: args.enableCodingAgent,
         siteUrl: args.siteUrl,
-        enableRepoDiscovery: args.enableRepoDiscovery,
+        canRunSql: args.canRunSql,
         repoFsRoot: args.repoFsRoot,
         repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
         slackLinksOnly: args.slackLinksOnly,
-        enableComposerPythonNodes: args.enableComposerPythonNodes,
+        enableComposerPythonNodes: args.enableComposerQueries,
+        liveSources: args.liveSources,
         unauthenticatedMcpServerNames: getUnauthenticatedMcpServerNames(
             args,
             mcpToolSetup,
@@ -2868,9 +2769,8 @@ const prepareAgentTurn = async ({
     const agentContext = new AgentContext(
         availableExplores,
         verifyAnswers &&
-            !!args.decisions &&
-            args.enableDataAccess &&
-            args.execution.mode === 'standard',
+            hasDecisionsInStandardMode(args) &&
+            args.enableDataAccess,
         (stage, startedAt, durationMs) =>
             timing.recordStageSpan(stage, startedAt, durationMs),
     );
@@ -2882,17 +2782,46 @@ const prepareAgentTurn = async ({
                   getAgentQuestion(args),
               )
             : undefined;
+    const loadout = resolveAgentLoadout(
+        args,
+        mcpToolSetup,
+        customChartTypeLibrary,
+    );
+    Logger.info(
+        `AI agent loadout ${loadout.base} [${[...loadout.addOns].sort().join(', ')}]`,
+        {
+            event: 'ai_agent.loadout_resolved',
+            promptId: args.promptUuid,
+            threadId: args.threadUuid,
+            organizationId: args.organizationId,
+            projectId: args.agentSettings.projectUuid,
+            base: loadout.base,
+            addOns: [...loadout.addOns].sort(),
+            toolNames: [...loadout.toolNames].sort(),
+            skills: [...loadout.skills].sort(),
+        },
+    );
+    trace.getActiveSpan()?.setAttributes(loadoutSpanAttributes(loadout));
+    // Workers share the coordinator's prompt; the prompt records the coordinator's loadout.
+    if (loadout.base !== 'deep_research_worker') {
+        void dependencies.storeLoadout(args.promptUuid, { base: loadout.base });
+    }
     let tools = getAgentTools(
         args,
+        loadout,
         dependencies,
         availableExplores,
         mcpToolSetup,
         verifiedFieldUsage,
         projectParameterDefinitions,
-        customChartTypeLibrary,
         agentContext,
     );
-    await persistDeepResearchExecutionContext(args, tools, mcpToolSetup);
+    await persistDeepResearchExecutionContext(
+        args,
+        loadout,
+        tools,
+        mcpToolSetup,
+    );
     // model-routing already classified this first turn as a simple data answer
     // with >=99% confidence. Reuse that decision instead of serially asking
     // JEV for the same intent plus catalog ranking before a fast model can
@@ -2904,6 +2833,7 @@ const prepareAgentTurn = async ({
             ? Promise.resolve(undefined)
             : prepareCandidateSeed(
                   args,
+                  loadout,
                   availableExplores,
                   verifiedFieldUsage,
                   projectParameterDefinitions,
@@ -2911,7 +2841,10 @@ const prepareAgentTurn = async ({
         fastDataAnswerContext
             ? Promise.resolve(fastDataAnswerContext)
             : prepareRelevantContext(
-                  args,
+                  {
+                      ...args,
+                      availableSkills: getAvailableSkills(args, loadout),
+                  },
                   dependencies,
                   tools,
                   Object.keys(mcpToolSetup.tools),
@@ -2925,8 +2858,7 @@ const prepareAgentTurn = async ({
         preparedContext.turnIntent = 'chart';
     }
     if (
-        args.decisions &&
-        args.execution.mode === 'standard' &&
+        hasDecisionsInStandardMode(args) &&
         preparedContext?.turnIntent === 'chart_from_previous'
     ) {
         agentContext.previousQueryUuid = getPreviousQueryUuid(
@@ -2943,7 +2875,7 @@ const prepareAgentTurn = async ({
         turnIntent,
         toolIntents,
         getDeferredToolInstructions(
-            getCapabilitySectionArgs(args, customChartTypeLibrary),
+            getCapabilitySectionArgs(args, loadout, customChartTypeLibrary),
             deferredSections,
         ),
     );
@@ -2966,6 +2898,7 @@ const prepareAgentTurn = async ({
         : intentToolGate.tools;
     const messages = getAgentMessages(
         args,
+        loadout,
         availableExplores,
         mcpToolSetup,
         tools,
@@ -3003,6 +2936,7 @@ const prepareAgentTurn = async ({
     return {
         agentContext,
         answerVerifier,
+        loadout,
         tools,
         messages,
         preparedContext,
@@ -3022,7 +2956,17 @@ const prepareAgentTurn = async ({
     };
 };
 
-export const generateAgentResponse = async ({
+// Forked scope so every capture in the turn, including from tool execute, carries the model.
+const withAgentModelScope = <T>(
+    model: AiAgentArgs['model'],
+    run: () => Promise<T>,
+): Promise<T> =>
+    Sentry.withScope((scope) => {
+        scope.setTag('ai.model', getAiAgentModelName(model));
+        return run();
+    });
+
+const runGenerateAgentResponse = async ({
     args,
     dependencies,
     mcpToolSetup,
@@ -3060,6 +3004,7 @@ export const generateAgentResponse = async ({
         const {
             agentContext,
             answerVerifier,
+            loadout,
             tools,
             messages,
             preparedContext,
@@ -3086,6 +3031,7 @@ export const generateAgentResponse = async ({
                 turnIntent: preparedContext?.turnIntent,
                 preloadedMcpToolNames: preparedContext?.mcpToolNames,
                 functionId: 'generateAgentResponse',
+                loadout,
                 feature:
                     args.execution.mode === 'deep_research'
                         ? 'deep-research'
@@ -3107,13 +3053,14 @@ export const generateAgentResponse = async ({
                 };
             },
             stopWhen: [
-                stepCountIs(args.execution.maxSteps),
+                isStepCount(args.execution.maxSteps),
                 stopWhenPromptInterrupted,
                 ({ steps }) =>
                     getTurnFastResponse(
                         args.enableDataAnswerFastResponse,
                         preparedContext?.turnIntent,
                         steps,
+                        args.siteUrl,
                     ) !== null,
             ],
             abortSignal,
@@ -3123,13 +3070,13 @@ export const generateAgentResponse = async ({
             tools,
             allowSystemInMessages: true,
             messages,
-            experimental_onToolCallStart: ({ toolCall }) => {
+            onToolExecutionStart: ({ toolCall }) => {
                 timing.recordToolCallStart(
                     toolCall.toolCallId,
                     toolCall.toolName,
                 );
             },
-            experimental_onToolCallFinish: (event) => {
+            onToolExecutionEnd: (event) => {
                 notifyAiAccessRefusal(dependencies, event);
                 recordExternalMcpToolCall(dependencies, mcpToolSetup, event);
                 const toolTiming = timing.recordToolCallEnd(
@@ -3165,7 +3112,7 @@ export const generateAgentResponse = async ({
                     });
                 }
             },
-            onStepFinish: async (step) => {
+            onStepEnd: async (step) => {
                 const stepUsage = await recordStepUsage(step);
                 // completeStep opens the next step; these calls belong to this one.
                 const stepIndex = timing.getCurrentStepIndex();
@@ -3227,12 +3174,10 @@ export const generateAgentResponse = async ({
                                 // in the error table instead.
                                 if (toolCall.invalid) {
                                     invalidToolCallIds.add(toolCall.toolCallId);
-                                    Sentry.captureException(toolCall.error, {
-                                        tags: {
-                                            errorType: 'AiAgentToolCallInvalid',
-                                            'ai.model': modelName,
-                                        },
-                                    });
+                                    captureInvalidToolCall(
+                                        toolCall.error,
+                                        toolCall.toolName,
+                                    );
                                     await storeInvalidAgentToolCall({
                                         storeToolCallError:
                                             dependencies.storeToolCallError,
@@ -3356,6 +3301,7 @@ export const generateAgentResponse = async ({
                   args.enableDataAnswerFastResponse,
                   preparedContext?.turnIntent,
                   result.steps,
+                  args.siteUrl,
               ) ?? result.text);
 
         logger(
@@ -3457,7 +3403,14 @@ export const generateAgentResponse = async ({
     }
 };
 
-export const streamAgentResponse = async ({
+export const generateAgentResponse = (
+    params: Parameters<typeof runGenerateAgentResponse>[0],
+): Promise<string> =>
+    withAgentModelScope(params.args.model, () =>
+        runGenerateAgentResponse(params),
+    );
+
+const runStreamAgentResponse = async ({
     args,
     dependencies,
     mcpToolSetup,
@@ -3501,6 +3454,7 @@ export const streamAgentResponse = async ({
     try {
         const {
             agentContext,
+            loadout,
             tools,
             messages,
             preparedContext,
@@ -3529,6 +3483,7 @@ export const streamAgentResponse = async ({
                 turnIntent: preparedContext?.turnIntent,
                 preloadedMcpToolNames: preparedContext?.mcpToolNames,
                 functionId: 'streamAgentResponse',
+                loadout,
             });
         const fastToolCalls = new Map<
             string,
@@ -3542,13 +3497,14 @@ export const streamAgentResponse = async ({
             ...args.callOptions,
             prepareStep,
             stopWhen: [
-                stepCountIs(args.execution.maxSteps),
+                isStepCount(args.execution.maxSteps),
                 stopWhenPromptInterrupted,
                 ({ steps }) =>
                     getTurnFastResponse(
                         args.enableDataAnswerFastResponse,
                         preparedContext?.turnIntent,
                         steps,
+                        args.siteUrl,
                     ) !== null,
             ],
             providerOptions: args.providerOptions,
@@ -3557,7 +3513,7 @@ export const streamAgentResponse = async ({
             tools,
             allowSystemInMessages: true,
             messages,
-            experimental_onToolCallFinish: (event) => {
+            onToolExecutionEnd: (event) => {
                 notifyAiAccessRefusal(dependencies, event);
                 recordExternalMcpToolCall(dependencies, mcpToolSetup, event);
             },
@@ -3610,12 +3566,10 @@ export const streamAgentResponse = async ({
 
                         if (event.chunk.invalid) {
                             invalidToolCallIds.add(event.chunk.toolCallId);
-                            Sentry.captureException(event.chunk.error, {
-                                tags: {
-                                    errorType: 'AiAgentToolCallInvalid',
-                                    'ai.model': modelName,
-                                },
-                            });
+                            captureInvalidToolCall(
+                                event.chunk.error,
+                                event.chunk.toolName,
+                            );
 
                             // Invalid calls are excluded from
                             // ai_agent_tool_call (those rows are replayed into
@@ -3717,6 +3671,7 @@ export const streamAgentResponse = async ({
                                         toolResults: fastToolResults,
                                     },
                                 ],
+                                args.siteUrl,
                             );
                         }
                         logger(
@@ -3855,7 +3810,7 @@ export const streamAgentResponse = async ({
                         assertUnreachable(event.chunk, 'Unknown chunk type');
                 }
             },
-            onStepFinish: async (step) => {
+            onStepEnd: async (step) => {
                 await recordStepUsage(step);
                 trackAgentStep(
                     args,
@@ -3889,12 +3844,7 @@ export const streamAgentResponse = async ({
                         });
                 }
             },
-            onFinish: async ({
-                totalUsage,
-                steps,
-                finishReason,
-                finalStep,
-            }) => {
+            onEnd: async ({ totalUsage, steps, finishReason, finalStep }) => {
                 logger(
                     'On Finish',
                     `Stream finished. Updating prompt with response. finishReason: ${finishReason}, steps: ${steps.length}`,
@@ -3910,6 +3860,7 @@ export const streamAgentResponse = async ({
                           args.enableDataAnswerFastResponse,
                           preparedContext?.turnIntent,
                           steps,
+                          args.siteUrl,
                       ) ?? modelResponse);
                 const completeResponse =
                     agentContext.responseBlocks.render(responseText);
@@ -4117,3 +4068,10 @@ export const streamAgentResponse = async ({
         throw error;
     }
 };
+
+export const streamAgentResponse = (
+    params: Parameters<typeof runStreamAgentResponse>[0],
+): Promise<AgentStreamTextResult> =>
+    withAgentModelScope(params.args.model, () =>
+        runStreamAgentResponse(params),
+    );

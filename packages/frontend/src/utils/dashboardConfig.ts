@@ -1,11 +1,20 @@
 import {
+    getParameterMirror,
     isEmptyDateZoomConfig,
     pruneDateZoomConfig,
     type AdditionalMetric,
     type DashboardConfig,
+    type DashboardControlSection,
+    type DashboardParameterControl,
+    type DashboardParameters,
     type DateGranularity,
     type DateZoomConfig,
 } from '@lightdash/common';
+import { isEqual } from 'es-toolkit/compat';
+import {
+    applyParameterPicks,
+    type ParameterPicks,
+} from '../features/dashboard/store/parameterControls';
 
 type BuildDashboardConfigArgs = {
     existingConfig: DashboardConfig | undefined;
@@ -22,6 +31,10 @@ type BuildDashboardConfigArgs = {
     hasDateZoomConfigChanged: boolean;
     requiredFiltersNote: string | undefined;
     stagedCustomMetrics?: AdditionalMetric[];
+    controlSections: DashboardControlSection[];
+    haveControlSectionsChanged: boolean;
+    /** Null carries the saved list forward, keeping an absent list absent */
+    parameterControlsToSave: DashboardParameterControl[] | null;
 };
 
 /**
@@ -43,6 +56,9 @@ export const buildDashboardConfig = ({
     hasDateZoomConfigChanged,
     requiredFiltersNote,
     stagedCustomMetrics,
+    controlSections,
+    haveControlSectionsChanged,
+    parameterControlsToSave,
 }: BuildDashboardConfigArgs): DashboardConfig => {
     // Prune empty controls + dangling targets on save; omit the field
     // entirely when no controls remain so untouched dashboards don't churn.
@@ -70,5 +86,53 @@ export const buildDashboardConfig = ({
         requiredFiltersNote: requiredFiltersNote || undefined,
         // Staged edits win; otherwise carry the persisted registry forward.
         customMetrics: stagedCustomMetrics ?? existingConfig?.customMetrics,
+        controlSections: haveControlSectionsChanged
+            ? controlSections
+            : existingConfig?.controlSections,
+        // No editor yet: carried forward as loaded
+        parameterSections: existingConfig?.parameterSections,
+        parameterControls:
+            parameterControlsToSave ?? existingConfig?.parameterControls,
+    };
+};
+
+/**
+ * What a save writes for parameters. With controls (flag on), the controls are
+ * written once changed, or when picks changed a saved list's values; the
+ * parameters mirror the saved controls.
+ * Otherwise the applied parameters are saved and existing controls are carried forward.
+ */
+export const getParametersToSave = ({
+    parameterControls,
+    areParameterControlsSaved,
+    haveParameterControlsChanged,
+    parameterPicks,
+    appliedParameters,
+}: {
+    parameterControls: DashboardParameterControl[] | null;
+    areParameterControlsSaved: boolean;
+    haveParameterControlsChanged: boolean;
+    existingParameterControls: DashboardParameterControl[] | null;
+    parameterPicks: ParameterPicks;
+    appliedParameters: DashboardParameters;
+    savedParameters: DashboardParameters;
+}): {
+    parameterControlsToSave: DashboardParameterControl[] | null;
+    parameters: DashboardParameters;
+} => {
+    if (
+        parameterControls === null ||
+        (!areParameterControlsSaved && !haveParameterControlsChanged)
+    ) {
+        return { parameterControlsToSave: null, parameters: appliedParameters };
+    }
+    const controls = applyParameterPicks(parameterControls, parameterPicks);
+    return {
+        parameterControlsToSave:
+            haveParameterControlsChanged ||
+            !isEqual(controls, parameterControls)
+                ? controls
+                : null,
+        parameters: getParameterMirror(controls),
     };
 };

@@ -131,6 +131,7 @@ export type AiAgentThreadDumpAgent = Pick<
     | 'enableUserContext'
     | 'enableSqlMode'
     | 'enableSqlAutoApproval'
+    | 'enableComposerQueries'
     | 'adminOnly'
     | 'version'
 >;
@@ -536,6 +537,13 @@ export type CreateAiProviderCredential = {
     apiKey: string;
     // Omit for the region's default (narrowest) geography.
     inferenceGeography?: BedrockInferenceGeography;
+    /**
+     * Whether this credential becomes the organization default on creation.
+     * Omitted: the first credential becomes the default, later ones do not
+     * (legacy behavior). `true`: takes over as the default. `false`: stored
+     * without serving any AI traffic until explicitly made the default.
+     */
+    setAsDefault?: boolean;
 };
 
 /** A credential row whose ciphertext could not be read with the current secret. */
@@ -606,6 +614,10 @@ export type AiOrgModelVisibility = Partial<
     Record<ByoAiProvider, AiOrgProviderModelVisibility>
 >;
 
+export type McpProjectAccess =
+    | { mode: 'all' }
+    | { mode: 'selected'; projectUuids: string[] };
+
 export type AiOrganizationSettings = {
     organizationUuid: string;
     aiAgentsVisible: boolean;
@@ -613,6 +625,9 @@ export type AiOrganizationSettings = {
     aiAgentMemoryEnabled: boolean;
     deepResearchLimits: AiDeepResearchLimits;
     deepResearchRawSqlEnabled: boolean;
+    // Optional for clients talking to an older server; defaults to true.
+    mcpEnabled?: boolean;
+    mcpProjectAccess?: McpProjectAccess;
     mcpContentWritesEnabled: boolean;
     mcpAgentsEnabled: boolean;
     // Customer consent for data apps to call AI at runtime (analysis, insights).
@@ -620,10 +635,11 @@ export type AiOrganizationSettings = {
     dataAppRuntimeAiEnabled?: boolean;
     // Whether viewers may carry a data-app investigation on in Ask AI.
     dataAppContinueInAskAiEnabled?: boolean;
-    // Org default for running AI analysis when a data app loads.
-    dataAppAutoAnalysisEnabled?: boolean;
     // Per-run ceilings and daily caps for AI analysis in data apps.
     dataAppAnalysisLimits?: DataAppAnalysisLimits;
+    // Org-wide guidance prepended to every AI analysis summary; app-level
+    // instructions are appended to it. Optional for old clients.
+    dataAppAnalysisDefaultInstructions?: string | null;
     requireExplicitSlackChannelLinking?: boolean;
     defaultAiAgentModelConfig: AiAgentModelConfig | null;
     // Optional to keep the response schema backwards-compatible for old clients.
@@ -655,12 +671,14 @@ export type UpdateAiOrganizationSettings = {
     aiAgentReviewsEnabled?: boolean;
     deepResearchLimits?: AiDeepResearchLimits;
     deepResearchRawSqlEnabled?: boolean;
+    mcpEnabled?: boolean;
+    mcpProjectAccess?: McpProjectAccess;
     mcpContentWritesEnabled?: boolean;
     mcpAgentsEnabled?: boolean;
     dataAppRuntimeAiEnabled?: boolean;
     dataAppContinueInAskAiEnabled?: boolean;
-    dataAppAutoAnalysisEnabled?: boolean;
     dataAppAnalysisLimits?: DataAppAnalysisLimits;
+    dataAppAnalysisDefaultInstructions?: string | null;
     requireExplicitSlackChannelLinking?: boolean;
     defaultAiAgentModelConfig?: AiAgentModelConfig | null;
     modelVisibility?: AiOrgModelVisibility | null;
@@ -676,6 +694,8 @@ export type ApiAiOrganizationSettingsResponse = ApiSuccess<
 export type AiOrganizationRuntimeSettings = {
     isCopilotEnabled: boolean;
     isTrial: boolean;
+    // Available to all members so client setup reflects organization consent.
+    mcpEnabled?: boolean;
     aiAgentsVisible: boolean;
     aiAgentMemoryEnabled: boolean;
     aiAgentReviewsEnabled: boolean;
@@ -688,8 +708,6 @@ export type AiOrganizationRuntimeSettings = {
     dataAppRuntimeAiEnabled?: boolean;
     // Whether viewers may continue a data-app investigation in Ask AI.
     dataAppContinueInAskAiEnabled?: boolean;
-    // Org default for running AI analysis when a data app loads.
-    dataAppAutoAnalysisEnabled?: boolean;
     // Org retention ceiling, surfaced so agent editors can see what caps
     // their agent-level window. Optional for backwards compatibility.
     threadRetentionHours?: number | null;

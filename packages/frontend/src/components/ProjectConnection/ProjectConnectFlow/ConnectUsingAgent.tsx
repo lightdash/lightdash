@@ -21,6 +21,7 @@ import { warehouseDefaultValues } from '../WarehouseForms/defaultValues';
 import { createWarehouseValueValidators } from '../WarehouseForms/validators';
 import WarehouseSettingsForm from '../WarehouseSettingsForm';
 import { OnboardingTitle } from './common/OnboardingTitle';
+import classes from './ConnectUsingAgent.module.css';
 import { getWarehouseIcon, getWarehouseLabel } from './utils';
 
 type PreparedProject = Pick<Project, 'projectUuid' | 'warehouseConnection'>;
@@ -167,7 +168,7 @@ const ConnectUsingAgent: FC<ConnectUsingAgentProps> = ({
                             type="submit"
                             loading={createProjectMutation.isLoading}
                             disabled={createProjectMutation.isLoading}
-                            style={{ alignSelf: 'end' }}
+                            className={classes.submitButton}
                         >
                             Next
                         </Button>

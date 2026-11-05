@@ -18,12 +18,15 @@ import {
     isDimension,
     isFilterExpressionCurrentDateOperator,
     isFilterExpressionRelativeDateOperator,
+    isoDateTimeStringSchema,
+    MetricType,
     parseFilterExpression,
     TableCalculationType,
     toolRunQueryExpressionResolvedArgsSchema,
     toolRunQueryExpressionResolvedArgsSchemaTransformed,
     UnitOfTime,
     unitOfTimeSupportsToDate,
+    type AdditionalMetric,
     type Explore,
     type FilterExpressionArgumentCount,
     type FilterExpressionAst,
@@ -117,8 +120,43 @@ const failure = <T = never>(
 
 const dateOrDateTimeSchema = z.union([
     z.string().date(),
-    z.string().datetime(),
+    isoDateTimeStringSchema,
 ]);
+
+const isTimestampField = (field: ResolvedField): boolean =>
+    field.fieldType === DimensionType.TIMESTAMP ||
+    field.fieldType === MetricType.TIMESTAMP;
+
+const isInclusiveUpperBoundArgument = (
+    rule: FilterExpressionRule,
+    index: number,
+): boolean =>
+    (rule.operator.value === FilterOperator.LESS_THAN_OR_EQUAL &&
+        index === 0) ||
+    (rule.operator.value === FilterOperator.IN_BETWEEN && index === 1);
+
+// A bare date as an inclusive upper bound on a timestamp compiles to midnight
+// and drops the whole last day.
+const widenInclusiveUpperBound = ({
+    rule,
+    field,
+    scalar,
+    index,
+}: {
+    rule: FilterExpressionRule;
+    field: ResolvedField;
+    scalar: FilterExpressionScalar;
+    index: number;
+}): string => {
+    if (
+        !isInclusiveUpperBoundArgument(rule, index) ||
+        !isTimestampField(field) ||
+        !z.string().date().safeParse(scalar.value).success
+    ) {
+        return scalar.value;
+    }
+    return `${scalar.value}T23:59:59.999Z`;
+};
 
 const strictNumberPattern = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
 
@@ -284,21 +322,11 @@ const makeTableCalculationFields = (
         },
     );
 
-const makeQueryFields = ({
-    explore,
-    transformedCustomMetrics,
-    tableCalculations,
-}: {
-    explore: Parameters<typeof getFields>[0];
-    transformedCustomMetrics: ReturnType<
-        typeof customMetricsSchemaTransformed.parse
-    >;
-    tableCalculations: ExpressionQueryConfig['tableCalculations'];
-}): ResolvedField[] => {
-    const customMetricFields = populateCustomMetricsSQL(
-        filterAggregationCustomMetrics(transformedCustomMetrics),
-        explore,
-    ).flatMap((additionalMetric) => {
+const makeAdditionalMetricFields = (
+    explore: Parameters<typeof getFields>[0],
+    additionalMetrics: AdditionalMetric[],
+): ResolvedField[] =>
+    additionalMetrics.flatMap((additionalMetric) => {
         const table = explore.tables[additionalMetric.table];
         if (!table) return [];
         const metric = convertAdditionalMetric({ additionalMetric, table });
@@ -313,12 +341,27 @@ const makeQueryFields = ({
         ];
     });
 
-    return [
-        ...makeExploreFields(explore),
-        ...customMetricFields,
-        ...makeTableCalculationFields(tableCalculations),
-    ];
-};
+const makeQueryFields = ({
+    explore,
+    transformedCustomMetrics,
+    tableCalculations,
+}: {
+    explore: Parameters<typeof getFields>[0];
+    transformedCustomMetrics: ReturnType<
+        typeof customMetricsSchemaTransformed.parse
+    >;
+    tableCalculations: ExpressionQueryConfig['tableCalculations'];
+}): ResolvedField[] => [
+    ...makeExploreFields(explore),
+    ...makeAdditionalMetricFields(
+        explore,
+        populateCustomMetricsSQL(
+            filterAggregationCustomMetrics(transformedCustomMetrics),
+            explore,
+        ),
+    ),
+    ...makeTableCalculationFields(tableCalculations),
+];
 
 const getFieldMatches = (
     fields: ResolvedField[],
@@ -697,7 +740,7 @@ const convertStandardValues = ({
     source: FilterExpressionSource;
 }): ResolutionResult<RawFilterValue[]> => {
     const values: RawFilterValue[] = [];
-    for (const scalar of rule.arguments) {
+    for (const [index, scalar] of rule.arguments.entries()) {
         switch (field.filterType) {
             case FilterType.STRING:
                 values.push(scalar.value);
@@ -757,7 +800,9 @@ const convertStandardValues = ({
                         }),
                     );
                 }
-                values.push(scalar.value);
+                values.push(
+                    widenInclusiveUpperBound({ rule, field, scalar, index }),
+                );
                 break;
             default:
                 return assertUnreachable(
@@ -2121,17 +2166,22 @@ const resolveQueryFilters = ({
 export const resolveExploreFilterExpressions = ({
     filters,
     explore,
+    additionalMetrics,
 }: {
     filters: Omit<
         NonNullable<ExpressionQueryConfig['filters']>,
         'tableCalculations'
     > | null;
     explore: Explore;
+    additionalMetrics: AdditionalMetric[];
 }): ResolutionResult<Filters | null> => {
     const result = resolveQueryFilters({
         filters:
             filters === null ? null : { ...filters, tableCalculations: null },
-        fields: makeExploreFields(explore),
+        fields: [
+            ...makeExploreFields(explore),
+            ...makeAdditionalMetricFields(explore, additionalMetrics),
+        ],
         exploreName: explore.name,
     });
     if (!result.success) return result;

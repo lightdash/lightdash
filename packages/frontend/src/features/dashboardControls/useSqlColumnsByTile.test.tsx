@@ -11,7 +11,11 @@ import { renderHook } from '@testing-library/react';
 import { type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { type SqlChartTileMetadata } from '../../providers/Dashboard/types';
-import { createDashboardTestStore } from '../../testing/dashboardStore';
+import {
+    createDashboardTestStore,
+    type DashboardEditTestValues,
+    seedDashboardEditState,
+} from '../../testing/dashboardStore';
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { useSqlColumnsByTile } from './useSqlColumnsByTile';
 
@@ -84,13 +88,16 @@ describe('useSqlColumnsByTile', () => {
             {
                 wrapper: ({ children }: { children: ReactNode }) => (
                     <DashboardStoreTestProvider
-                        store={createDashboardTestStore({
-                            sqlChartTilesMetadata: mockTileStatus.current
-                                .sqlChartTilesMetadata as Record<
-                                string,
-                                SqlChartTileMetadata
-                            >,
-                        })}
+                        store={seedDashboardEditState(
+                            createDashboardTestStore({
+                                sqlChartTilesMetadata: mockTileStatus.current
+                                    .sqlChartTilesMetadata as Record<
+                                    string,
+                                    SqlChartTileMetadata
+                                >,
+                            }),
+                            mockDashboardContext.current as DashboardEditTestValues,
+                        )}
                     >
                         {children}
                     </DashboardStoreTestProvider>

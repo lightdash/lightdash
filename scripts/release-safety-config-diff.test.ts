@@ -160,6 +160,68 @@ test('syntax degradation throws from the pure extractor', () => {
     );
 });
 
+test('a retired removal is not breaking; an unlisted one still is', () => {
+    const oldSurface = extractConfigSurface({
+        'config.ts': `
+            const gone = process.env.RETIRED_NAME;
+            const alsoGone = process.env.UNLISTED_NAME;
+            const kept = process.env.KEPT_NAME;
+        `,
+    });
+    const newSurface = extractConfigSurface({
+        'config.ts': 'const kept = process.env.KEPT_NAME;',
+    });
+    const retired = { RETIRED_NAME: 'internal experiment, never documented' };
+
+    assert.deepStrictEqual(
+        diffConfigSurfaces(oldSurface, newSurface, retired),
+        {
+            checked: true,
+            breaking: true,
+            changes: [
+                {
+                    type: 'removed',
+                    name: 'UNLISTED_NAME',
+                    previousDefault: null,
+                },
+            ],
+        },
+    );
+    assert.deepStrictEqual(
+        diffConfigSurfaces(oldSurface, newSurface, {
+            ...retired,
+            UNLISTED_NAME: 'also retired',
+        }),
+        { checked: true, breaking: false, changes: [] },
+    );
+});
+
+test('a retired name that is still read is reported like any other change', () => {
+    const oldSurface = extractConfigSurface({
+        'config.ts': "const value = process.env.STILL_READ ?? 'old';",
+    });
+    const newSurface = extractConfigSurface({
+        'config.ts': "const value = process.env.STILL_READ ?? 'new';",
+    });
+    assert.deepStrictEqual(
+        diffConfigSurfaces(oldSurface, newSurface, {
+            STILL_READ: 'stale entry',
+        }),
+        {
+            checked: true,
+            breaking: true,
+            changes: [
+                {
+                    type: 'defaultChanged',
+                    name: 'STILL_READ',
+                    previousDefault: 'old',
+                    defaultValue: 'new',
+                },
+            ],
+        },
+    );
+});
+
 test('invalid git refs degrade to an unknown unchecked surface', () => {
     const messages: string[] = [];
     const result = diffConfigBetweenRefs({

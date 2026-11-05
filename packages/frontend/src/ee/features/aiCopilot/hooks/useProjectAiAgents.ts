@@ -1062,6 +1062,8 @@ const toOptimisticContextItem = (
                 appSlug: null,
                 displayName: null,
             };
+        case 'composer_node':
+            return { ...item, title: item.nodeId };
         case 'data_app':
             return {
                 type: 'data_app',
@@ -1185,6 +1187,7 @@ const createOptimisticMessages = (
             tokenUsage: null,
             responseTiming: null,
             jevDecision: null,
+            loadout: null,
         },
     ];
 };

@@ -123,17 +123,20 @@ const makeMcpService = (
     featureFlagService = {
         get: vi.fn().mockResolvedValue({ enabled: false }),
     },
+    canAuthorContent = true,
 ): McpService =>
     new McpService({
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         aiAgentService: {},
         aiAgentToolsService: {
+            canAuthorContent: vi.fn().mockResolvedValue(canAuthorContent),
             createRuntime: vi.fn(),
             listMcpSkillResources: () => BuiltInSkills.listMcpResources(),
             getMcpSkillResourceBody: (uri: string) =>
                 BuiltInSkills.getMcpResourceBody(uri),
         },
         aiOrganizationSettingsService: {
+            getMcpProjectAccess: vi.fn().mockResolvedValue({ mode: 'all' }),
             isMcpContentWritesEnabled: vi
                 .fn()
                 .mockResolvedValue(mcpContentWritesEnabled),
@@ -199,7 +202,9 @@ const registrationOnlyFeatures = {
     mcpContentWritesEnabled: true,
     scheduledDeliveryEnabled: true,
     dataAppBuildsEnabled: true,
+    chartTypeBuildsEnabled: true,
     customChartTypesEnabled: true,
+    queryEnabled: true,
 } satisfies Omit<
     McpServerToolOptions['featureAvailability'],
     keyof typeof defaultMcpAnalystPromptOptions
@@ -336,18 +341,6 @@ describe('MCP tool contracts', () => {
         });
     });
 
-    it('resolves the Documents flag for the request user', async () => {
-        const get = vi.fn().mockResolvedValue({ enabled: true });
-        const service = makeMcpService(true, { get });
-        await expect(
-            service.isDocumentsEnabled(defaultSessionUser),
-        ).resolves.toBe(true);
-        expect(get).toHaveBeenCalledWith({
-            user: defaultSessionUser,
-            featureFlagId: FeatureFlags.Documents,
-        });
-    });
-
     it('gates Document schemas per request without leaking between callers', async () => {
         const service = makeMcpService();
         for (const documentsEnabled of [false, true, false]) {
@@ -378,10 +371,7 @@ describe('MCP tool contracts', () => {
                     ).toBe(documentsEnabled);
                     if (documentsEnabled) {
                         expect(tool.config.description).toContain(
-                            'Explicit user scope and format instructions take precedence',
-                        );
-                        expect(tool.config.description).toContain(
-                            'do not invent findings or research steps',
+                            'rather than inventing findings or steps',
                         );
                     }
                 }
@@ -648,7 +638,7 @@ describe('MCP tool contracts', () => {
                 {
                     name: McpToolName.GREP_FIELDS,
                     details: [
-                        '1–5 patterns in a SINGLE call',
+                        'cover every angle of the question in one call',
                         'long natural-language phrases',
                         'right grain',
                     ],
@@ -658,7 +648,7 @@ describe('MCP tool contracts', () => {
                     details: [
                         'required filters',
                         'filter type, case-sensitivity',
-                        'batch everything you need at once',
+                        'Batch every explore and field you need into one call',
                     ],
                 },
                 {
@@ -666,14 +656,14 @@ describe('MCP tool contracts', () => {
                     details: [
                         'use route_agent',
                         'returned agentUuid explicitly',
-                        'omit agentUuid; use set_agent for manual selection',
+                        'pass its agentUuid explicitly',
                     ],
                 },
                 {
                     name: McpToolName.SEARCH_FIELD_VALUES,
                     details: [
-                        'dimension before building a filter',
-                        'use it directly instead of searching',
+                        'dimension (e.g. a product name or status) before filtering on it',
+                        'already gives the exact value, filter on it directly',
                     ],
                 },
                 {
@@ -694,7 +684,7 @@ describe('MCP tool contracts', () => {
                 },
                 {
                     name: McpToolName.LIST_CONTENT,
-                    details: ['direct children and content inside that space'],
+                    details: ['child spaces and content inside one space'],
                 },
                 {
                     name: McpToolName.FIND_CONTENT,
@@ -706,8 +696,11 @@ describe('MCP tool contracts', () => {
                     (registered) => registered.name === name,
                 );
                 expect(tool).toBeDefined();
+                const text = `${tool?.config.description}\n${JSON.stringify(
+                    schemaToJson(tool?.config.inputSchema, 'input'),
+                )}`;
                 for (const detail of details) {
-                    expect(tool?.config.description).toContain(detail);
+                    expect(text).toContain(detail);
                 }
             }
         },
@@ -848,7 +841,9 @@ describe('MCP tool contracts', () => {
             makeMcpServerOptions({
                 runSqlEnabled: true,
                 runMetricQueryEnabled: true,
+                queryEnabled: true,
                 dataAppBuildsEnabled: true,
+                chartTypeBuildsEnabled: true,
                 customChartTypesEnabled: true,
             }),
         );
@@ -1024,9 +1019,6 @@ describe('MCP tool contracts', () => {
             );
             const names = mockRegisteredMcpTools.map(({ name }) => name);
             expect(names.includes(McpToolName.LIST_PROJECTS)).toBe(
-                pinnedProjectUuid === undefined,
-            );
-            expect(names.includes(McpToolName.SET_PROJECT)).toBe(
                 pinnedProjectUuid === undefined,
             );
         },
@@ -1342,41 +1334,42 @@ describe('MCP tool contracts', () => {
 
     it.each<{
         settingEnabled: boolean;
-        rules: ConstructorParameters<typeof Ability<PossibleAbilities>>[0];
+        canAuthorContent: boolean;
         expected: boolean;
     }>([
-        {
-            settingEnabled: false,
-            rules: [{ action: 'create', subject: 'ContentAsCode' }],
-            expected: false,
-        },
-        {
-            settingEnabled: true,
-            rules: [],
-            expected: false,
-        },
-        {
-            settingEnabled: true,
-            rules: [{ action: 'create', subject: 'ContentAsCode' }],
-            expected: true,
-        },
-        {
-            settingEnabled: true,
-            rules: [{ action: 'manage', subject: 'ContentAsCode' }],
-            expected: true,
-        },
+        { settingEnabled: false, canAuthorContent: true, expected: false },
+        { settingEnabled: true, canAuthorContent: false, expected: false },
+        { settingEnabled: true, canAuthorContent: true, expected: true },
     ])(
-        'gates MCP content tools by setting and permission',
-        async ({ settingEnabled, rules, expected }) => {
-            const mcpService = makeMcpService(settingEnabled);
-            const user: SessionUser = {
-                ...defaultSessionUser,
-                ability: new Ability<PossibleAbilities>(rules),
-            };
-
-            await expect(mcpService.isContentToolsEnabled(user)).resolves.toBe(
-                expected,
+        'gates MCP content tools by the setting and whether the user can save content',
+        async ({ settingEnabled, canAuthorContent, expected }) => {
+            const mcpService = makeMcpService(
+                settingEnabled,
+                undefined,
+                canAuthorContent,
             );
+
+            await expect(
+                mcpService.isContentToolsEnabled(
+                    defaultSessionUser,
+                    'project-uuid',
+                ),
+            ).resolves.toBe(expected);
         },
     );
+
+    it('checks the pinned project when deciding whether content tools are offered', async () => {
+        const mcpService = makeMcpService();
+        await mcpService.isContentToolsEnabled(
+            defaultSessionUser,
+            'project-uuid',
+        );
+        expect(
+            mcpService['aiAgentToolsService'].canAuthorContent,
+        ).toHaveBeenCalledWith({
+            user: defaultSessionUser,
+            projectUuid: 'project-uuid',
+            spaceUuids: null,
+        });
+    });
 });

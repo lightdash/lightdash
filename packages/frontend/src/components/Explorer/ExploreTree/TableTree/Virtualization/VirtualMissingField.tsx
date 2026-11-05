@@ -44,7 +44,7 @@ const VirtualMissingFieldComponent: FC<VirtualMissingFieldProps> = ({
 
             <Tooltip
                 label={
-                    <Text size="xs" style={{ wordBreak: 'break-all' }}>
+                    <Text size="xs" className={classes.tooltipLabel}>
                         Remove missing field "{fieldId}".
                     </Text>
                 }

@@ -2,4 +2,4 @@
 export const withBuildWarnings = (text: string, warnings: string[]): string =>
     warnings.length === 0
         ? text
-        : `${text}\nWarnings:\n${warnings.map((w) => `- ${w}`).join('\n')}`;
+        : `${text}\nWarnings to relay to the user:\n${warnings.map((w) => `- ${w}`).join('\n')}`;

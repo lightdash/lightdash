@@ -1,34 +1,43 @@
-import { Combobox, Group, Input, InputBase, Select, Text } from '@mantine/core';
-import { IconCheck } from '@tabler/icons-react';
+import { getItemId, type DashboardFilterableField } from '@lightdash/common';
+import { Combobox, Input, InputBase, Select, Text } from '@mantine/core';
 import {
     useEffect,
     useRef,
     useState,
     type FC,
+    type FocusEvent,
     type KeyboardEvent,
     type MouseEvent,
     type ReactNode,
 } from 'react';
-import MantineIcon from '../../components/common/MantineIcon';
+import FieldSelect from '../../components/common/FieldSelect';
+import { getFieldSelectLabel } from '../../components/common/FieldSelect/fieldSelectLabel';
 
-type Option = { value: string; label: string };
-export type OptionGroup = { label: string; items: Option[] };
+// Past this many columns the dropdown is searchable
+const SEARCH_THRESHOLD = 8;
+
+// A field tile's fields go through the shipped field select, as the shipped
+// tile select lists them; a SQL tile's columns through a plain select
+type SelectOptions =
+    | { kind: 'fields'; fields: DashboardFilterableField[] }
+    | { kind: 'columns'; columns: string[] }
+    | {
+          kind: 'options';
+          options: { value: string; label: string; disabled: boolean }[];
+      };
 
 type Props = {
     'aria-label': string;
     leftSection: ReactNode;
-    // Listed in order. Labels show only when two or more groups have entries
-    groups: OptionGroup[];
-    searchable: boolean;
+    options: SelectOptions;
     nothingFoundMessage: string;
     // Null shows the placeholder; a value can be cleared back to null
     value: string | null;
     placeholder: string;
     // Accessible name of the clear button
     clearLabel: string;
-    // The symbol shown before an option, or null for none. Keep it stable
-    renderOptionIcon: ((value: string) => ReactNode) | null;
     onChange: (value: string | null) => void;
+    onReselect?: (value: string) => void;
 };
 
 // A closed select costs a combobox, a popover and every option in the DOM,
@@ -37,14 +46,13 @@ type Props = {
 export const LazySelect: FC<Props> = ({
     'aria-label': ariaLabel,
     leftSection,
-    groups,
-    searchable,
+    options,
     nothingFoundMessage,
     value,
     placeholder,
     clearLabel,
-    renderOptionIcon,
     onChange,
+    onReselect,
 }) => {
     const [isActivated, setIsActivated] = useState(false);
     const [isListOpen, setIsListOpen] = useState(true);
@@ -64,7 +72,15 @@ export const LazySelect: FC<Props> = ({
         },
     };
 
-    const filled = groups.filter((group) => group.items.length > 0);
+    const searchable =
+        options.kind === 'fields' ||
+        (options.kind === 'columns'
+            ? options.columns.length
+            : options.options.length) > SEARCH_THRESHOLD;
+    const valueField =
+        options.kind === 'fields' && value !== null
+            ? options.fields.find((field) => getItemId(field) === value)
+            : undefined;
 
     // The page scrolls as a whole, so a tile slides under the pinned bar
     // without being clipped. The list closes once its select is covered
@@ -98,9 +114,15 @@ export const LazySelect: FC<Props> = ({
             event.preventDefault();
             activate();
         };
-        const label = filled
-            .flatMap((group) => group.items)
-            .find((option) => option.value === value)?.label;
+        // The label the shipped field select gives the value
+        const label =
+            options.kind === 'fields'
+                ? valueField && getFieldSelectLabel(valueField, false)
+                : options.kind === 'columns'
+                  ? (options.columns.find((column) => column === value) ??
+                    undefined)
+                  : options.options.find((option) => option.value === value)
+                        ?.label;
         return (
             <InputBase
                 ref={triggerRef}
@@ -136,59 +158,57 @@ export const LazySelect: FC<Props> = ({
         );
     }
 
+    const sharedProps = {
+        size: 'xs',
+        'aria-label': ariaLabel,
+        clearable: true,
+        clearButtonProps,
+        placeholder,
+        autoFocus: true,
+        dropdownOpened: isListOpen,
+        onDropdownOpen: () => setIsListOpen(true),
+        onDropdownClose: () => setIsListOpen(false),
+        // Focus alone never opens the list: clearing puts focus back here
+        openOnFocus: false,
+        comboboxProps: { withinPortal: true },
+        leftSection,
+        searchable,
+        // Typing replaces the current choice instead of appending to it
+        onFocus: (event: FocusEvent<HTMLInputElement>) => {
+            if (searchable) event.currentTarget.select();
+        },
+        nothingFoundMessage,
+    } as const;
+
+    if (options.kind === 'fields')
+        return (
+            <FieldSelect
+                {...sharedProps}
+                ref={inputRef}
+                miw={0}
+                item={valueField}
+                items={options.fields}
+                onChange={(field) => onChange(field ? getItemId(field) : null)}
+            />
+        );
+
     return (
         <Select
+            {...sharedProps}
             ref={inputRef}
-            size="xs"
-            aria-label={ariaLabel}
             allowDeselect={false}
-            clearable
-            clearButtonProps={clearButtonProps}
-            placeholder={placeholder}
-            autoFocus
-            dropdownOpened={isListOpen}
-            onDropdownOpen={() => setIsListOpen(true)}
-            onDropdownClose={() => setIsListOpen(false)}
-            // Focus alone never opens the list: clearing puts focus back here
-            openOnFocus={false}
-            comboboxProps={{ withinPortal: true }}
-            leftSection={leftSection}
-            searchable={searchable}
-            // Typing replaces the current choice instead of appending to it
-            onFocus={(event) => {
-                if (searchable) event.currentTarget.select();
-            }}
-            nothingFoundMessage={nothingFoundMessage}
-            // Mantine labels a lone group too; one group is a plain list here
             data={
-                filled.length > 1
-                    ? filled.map((group) => ({
-                          group: group.label,
-                          items: group.items,
-                      }))
-                    : filled.flatMap((group) => group.items)
-            }
-            renderOption={
-                renderOptionIcon === null
-                    ? undefined
-                    : ({ option, checked }) => (
-                          <Group gap="xs" wrap="nowrap" w="100%">
-                              {renderOptionIcon(option.value)}
-                              <Text inherit truncate flex={1}>
-                                  {option.label}
-                              </Text>
-                              {checked && (
-                                  <MantineIcon
-                                      icon={IconCheck}
-                                      size={14}
-                                      color="dimmed"
-                                  />
-                              )}
-                          </Group>
-                      )
+                options.kind === 'columns' ? options.columns : options.options
             }
             value={value}
             onChange={onChange}
+            onOptionSubmit={
+                onReselect
+                    ? (selected) => {
+                          if (selected === value) onReselect(selected);
+                      }
+                    : undefined
+            }
         />
     );
 };

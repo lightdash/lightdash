@@ -1,5 +1,6 @@
 import { Text, Tooltip } from '@mantine/core';
 import { type FC } from 'react';
+import classes from './TotalCells.module.css';
 
 /**
  * A footer cell whose total is the column's own query collapsed to one row,
@@ -17,11 +18,7 @@ const TotalFromSourceCell: FC<{ value: string; sourceLabel: string }> = ({
                 fz="inherit"
                 fw="inherit"
                 aria-label={`${value}, ${explanation}`}
-                style={{
-                    textDecoration: 'underline dotted',
-                    textUnderlineOffset: 3,
-                    cursor: 'help',
-                }}
+                className={classes.fromSource}
             >
                 {value}
             </Text>

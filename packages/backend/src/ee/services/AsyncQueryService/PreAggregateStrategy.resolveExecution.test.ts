@@ -6,11 +6,13 @@ import {
     type Explore,
     type MetricQuery,
 } from '@lightdash/common';
+import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
+import { isPreAggregatesEnabled } from '../../preAggregates/isPreAggregatesEnabled';
 import { PreAggregateStrategy } from './PreAggregateStrategy';
 import { type PreAggregationDuckDbClient } from './PreAggregationDuckDbClient';
 import { type PreAggregationExternalResolver } from './PreAggregationExternalResolver';
 
-const makeStrategy = () => {
+const makeStrategy = ({ preAggregatesEnabled = true } = {}) => {
     const duckDbClient = {
         resolve: vi.fn().mockResolvedValue({
             resolved: true,
@@ -30,7 +32,13 @@ const makeStrategy = () => {
             externalResolver as unknown as PreAggregationExternalResolver,
         preAggregateDailyStatsModel: {} as never,
         preAggregateResultsStorageClient: {} as never,
-        isEnabled: () => true,
+        isEnabled: async () =>
+            isPreAggregatesEnabled({
+                preAggregates: {
+                    ...lightdashConfigMock.preAggregates,
+                    enabled: preAggregatesEnabled,
+                },
+            }),
         dashboardModel: {} as never,
         savedChartModel: {} as never,
         projectService: {} as never,
@@ -150,7 +158,26 @@ describe('PreAggregateStrategy.resolveExecution', () => {
 });
 
 describe('PreAggregateStrategy.getRoutingDecision', () => {
-    test('carries the external table onto the route for matched external defs', () => {
+    test('routes to the warehouse when the instance has no pre-aggregate infra', async () => {
+        const { strategy } = makeStrategy({ preAggregatesEnabled: false });
+        const decision = await strategy.getRoutingDecision({
+            organizationUuid: 'org-uuid',
+            metricQuery: {} as MetricQuery,
+            explore: {
+                name: '__preagg__orders__rollup',
+                type: ExploreType.PRE_AGGREGATE,
+                preAggregateSource: {
+                    sourceExploreName: 'orders',
+                    preAggregateName: 'rollup',
+                },
+            } as unknown as Explore,
+            context: QueryExecutionContext.EXPLORE,
+        });
+
+        expect(decision).toEqual({ target: 'warehouse' });
+    });
+
+    test('carries the external table onto the route for matched external defs', async () => {
         const { strategy } = makeStrategy();
         const explore = {
             name: 'orders',
@@ -179,7 +206,8 @@ describe('PreAggregateStrategy.getRoutingDecision', () => {
             ],
         } as unknown as Explore;
 
-        const decision = strategy.getRoutingDecision({
+        const decision = await strategy.getRoutingDecision({
+            organizationUuid: 'org-uuid',
             metricQuery: {
                 exploreName: 'orders',
                 dimensions: ['orders_status'],
@@ -206,9 +234,10 @@ describe('PreAggregateStrategy.getRoutingDecision', () => {
         );
     });
 
-    test('carries the external table onto required routes for direct pre-aggregate explores', () => {
+    test('carries the external table onto required routes for direct pre-aggregate explores', async () => {
         const { strategy } = makeStrategy();
-        const decision = strategy.getRoutingDecision({
+        const decision = await strategy.getRoutingDecision({
+            organizationUuid: 'org-uuid',
             metricQuery: {} as MetricQuery,
             explore: {
                 name: '__preagg__orders__rollup',

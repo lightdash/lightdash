@@ -180,6 +180,7 @@ const buildScenario = () => {
         chartRegistryClient: {} as never,
         contentVerificationModel: {} as never,
     });
+    vi.spyOn(service, 'isChartStudioAvailable').mockReturnValue(true);
 
     const upload = (user: SessionUser, appUuid: string, image: Buffer) =>
         service.uploadThumbnail(

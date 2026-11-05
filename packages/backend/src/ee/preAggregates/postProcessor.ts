@@ -4,8 +4,8 @@ import {
     type ExploreError,
     type ExplorePostProcessor,
 } from '@lightdash/common';
-import attempt from 'lodash/attempt';
-import isError from 'lodash/isError';
+import { attempt, isError } from 'es-toolkit/compat';
+import { lightdashConfig } from '../../config/lightdashConfig';
 import { generatePreAggregateExplores } from './generatePreAggregateExplores';
 
 export const preAggregatePostProcessor: ExplorePostProcessor = (
@@ -47,7 +47,12 @@ export const preAggregatePostProcessor: ExplorePostProcessor = (
             : explore,
     );
 
-    // Generate virtual pre-aggregate explores
+    // Virtual pre-aggregate explores need the instance infra (licence and
+    // storage). The per-organization switch is applied where the org is known.
+    if (!lightdashConfig.preAggregates.enabled) {
+        return exploresWithPreAggregates;
+    }
+
     return generatePreAggregateExplores({
         compiledExplores: exploresWithPreAggregates,
         parsedPreAggregates,

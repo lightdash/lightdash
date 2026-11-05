@@ -1,16 +1,17 @@
 import {
     agentToolDefinitionsByName,
-    composerSemanticLayerFiltersSchema,
-    createToolComposerQueriesArgsSchema,
     isAiAgentMcpToolName,
+    isComposerQueryToolName,
     mcpCreateContentArgsSchema,
     mcpEditContentArgsSchema,
     parsePartialToolComposerQueriesArgs,
-    QuerySourceType,
+    toolComposerQueriesArgsSchemaPersisted,
+    toolEditRepoOutputSchema,
     toolDashboardV2ArgsSchemaPersisted,
     toolRunQueryArgsSchemaPersisted,
     toolRunQueryExpressionArgsSchema,
     toolRunQueryExpressionArgsSchemaV2,
+    toolVisualizeArgsSchemaPersisted,
     type ToolDefinition,
     type ToolName,
 } from '@lightdash/common';
@@ -20,34 +21,12 @@ import { getAiAccessRefusal } from '../components/ChatElements/aiAccessRefusal';
 type ParsedToolName = ToolName;
 type McpStreamToolName = `mcp_${string}`;
 
-// Calls persisted before node filters became expressions carry free-form
-// filters; render those nodes unfiltered rather than dropping the call.
-const dropLegacyComposerNodeFilters = (input: unknown): unknown => {
-    if (!input || typeof input !== 'object' || Array.isArray(input)) {
-        return input;
-    }
-    const { queries } = input as { queries?: unknown };
-    if (!Array.isArray(queries)) return input;
-    return {
-        ...input,
-        queries: queries.map((node: unknown) =>
-            node &&
-            typeof node === 'object' &&
-            'sourceType' in node &&
-            node.sourceType === QuerySourceType.SEMANTIC_LAYER &&
-            'filters' in node &&
-            !composerSemanticLayerFiltersSchema.safeParse(node.filters).success
-                ? { ...node, filters: null }
-                : node,
-        ),
-    };
-};
-
 // Streamed args can be wider than the advertised (formula-only) contract:
 // merge-disabled runtimes advertise the wide V2 query contract and models
 // resuming old threads may echo legacy template table calcs the backend still
 // executes. Parse those tools with the wide persisted schemas so they render.
 const wideInputSchemaOverrides = {
+    editRepo: z.looseObject({}),
     generateVisualization: toolRunQueryArgsSchemaPersisted
         .or(toolRunQueryExpressionArgsSchema)
         .or(toolRunQueryExpressionArgsSchemaV2),
@@ -56,29 +35,29 @@ const wideInputSchemaOverrides = {
     // content tools, whose args also accept type "document".
     createContent: mcpCreateContentArgsSchema,
     editContent: mcpEditContentArgsSchema,
-    // Python nodes and the runtime row limit are runtime-selected, so parse the widest pipeline.
-    runComposerQueries: z.preprocess(
-        dropLegacyComposerNodeFilters,
-        createToolComposerQueriesArgsSchema({
-            enablePythonNodes: true,
-            maxLimit: Number.MAX_SAFE_INTEGER,
-        }),
-    ),
+    query: toolComposerQueriesArgsSchemaPersisted,
+    runComposerQueries: toolComposerQueriesArgsSchemaPersisted,
+    visualize: toolVisualizeArgsSchemaPersisted,
 } as const;
 
 type ToolArgs<TName extends ToolName> =
     TName extends keyof typeof wideInputSchemaOverrides
         ? z.infer<(typeof wideInputSchemaOverrides)[TName]>
-        : z.infer<(typeof agentToolDefinitionsByName)[TName]['inputSchema']>;
-type ToolOutputSchema<TName extends ToolName> =
-    (typeof agentToolDefinitionsByName)[TName] extends ToolDefinition<
-        string,
-        z.ZodObject<z.ZodRawShape>,
-        z.ZodType,
-        infer TOutputSchema
-    >
-        ? TOutputSchema
-        : never;
+        : TName extends keyof typeof agentToolDefinitionsByName
+          ? z.infer<(typeof agentToolDefinitionsByName)[TName]['inputSchema']>
+          : never;
+type ToolOutputSchema<TName extends ToolName> = TName extends 'editRepo'
+    ? typeof toolEditRepoOutputSchema
+    : TName extends keyof typeof agentToolDefinitionsByName
+      ? (typeof agentToolDefinitionsByName)[TName] extends ToolDefinition<
+            string,
+            z.ZodObject<z.ZodRawShape>,
+            z.ZodType,
+            infer TOutputSchema
+        >
+          ? TOutputSchema
+          : never
+      : never;
 type ToolResult<TName extends ParsedToolName> = z.infer<
     NonNullable<ToolOutputSchema<TName>>
 >;
@@ -142,7 +121,7 @@ export type StreamRawToolResult = StreamRawToolCall & {
 };
 
 const isParsedToolName = (toolName: string): toolName is ParsedToolName =>
-    toolName in agentToolDefinitionsByName;
+    toolName === 'editRepo' || toolName in agentToolDefinitionsByName;
 
 const isMcpStreamToolName = (toolName: string): toolName is McpStreamToolName =>
     isAiAgentMcpToolName(toolName);
@@ -165,7 +144,9 @@ const parseToolArgs = (toolName: ParsedToolName, toolArgs: unknown) =>
 
 const parseToolOutput = (toolName: ParsedToolName, toolOutput: unknown) => {
     const outputSchema =
-        agentToolDefinitionsByName[toolName].for('agent').outputSchema;
+        toolName === 'editRepo'
+            ? toolEditRepoOutputSchema
+            : agentToolDefinitionsByName[toolName].for('agent').outputSchema;
 
     return outputSchema?.safeParse(toolOutput) ?? null;
 };
@@ -195,14 +176,14 @@ export const parseStreamRawToolCall = (
 /**
  * Parse a tool call whose input is still streaming. Strict parsing usually
  * fails on partial JSON, so tools with a lenient partial parser (today only
- * runComposerQueries) fall back to it — letting the pipeline render node by
+ * the composer query tool) fall back to it — letting the pipeline render node by
  * node while the model writes it. Returns null for tools without partial
  * support whose partial args don't yet satisfy the strict schema.
  */
 export const parseStreamRawPartialToolCall = (
     toolCall: StreamRawToolCall,
 ): AiAgentToolCall | null => {
-    if (toolCall.toolName !== 'runComposerQueries') return null;
+    if (!isComposerQueryToolName(toolCall.toolName)) return null;
 
     const strict = parseStreamRawToolCall(toolCall);
     if (strict) return { ...strict, isArgsPartial: true };
@@ -210,7 +191,7 @@ export const parseStreamRawPartialToolCall = (
     const partialArgs = parsePartialToolComposerQueriesArgs(toolCall.toolArgs);
     if (!partialArgs) return null;
     return {
-        toolName: 'runComposerQueries',
+        toolName: toolCall.toolName,
         toolArgs: partialArgs,
         isPreliminary: toolCall.isPreliminary,
         isArgsPartial: true,

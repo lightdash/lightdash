@@ -1,0 +1,27 @@
+{
+    "base": "composer",
+    "addOns": [],
+    "toolNames": [
+        "analyzeFieldImpact",
+        "findContent",
+        "generateHashes",
+        "generateUuids",
+        "getKnowledgeDocumentContent",
+        "getMetadata",
+        "getProjectInfo",
+        "grepFields",
+        "listKnowledgeDocuments",
+        "listProjects",
+        "query",
+        "readPinnedThread",
+        "resolveUrl",
+        "runSavedChart",
+        "searchFieldValues",
+        "searchSemanticLayer",
+        "visualize"
+    ],
+    "promptSections": [
+        "queryingComposer"
+    ],
+    "skills": []
+}

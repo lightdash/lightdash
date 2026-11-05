@@ -10,7 +10,9 @@ import {
     setDefaultUser,
 } from '../config';
 import { refuseAgentConnection } from '../credentials';
+import { CLI_VERSION } from '../env';
 import GlobalState from '../globalState';
+import { PersonalLoginStore } from '../personalLogin/store';
 import * as styles from '../styles';
 import { checkLightdashVersion } from './dbt/apiClient';
 import { loginWithOauth } from './oauthLogin';
@@ -165,6 +167,7 @@ const loginWithEmailPassword = async (
         headers: {
             'Content-Type': 'application/json',
             Cookie: cookies,
+            'User-Agent': `lightdash-cli/${CLI_VERSION}`,
         },
         body: JSON.stringify({
             description: 'Lightdash CLI',
@@ -318,7 +321,9 @@ export const login = async (
         loginResult = await loginWithOauth(url, options.oauthPort);
     }
 
-    const { userUuid, token, organizationUuid } = loginResult;
+    const { userUuid, organizationUuid } = loginResult;
+    const token = 'token' in loginResult ? loginResult.token : undefined;
+    if (token !== undefined) await new PersonalLoginStore().remove(url);
 
     GlobalState.debug(`> Logged in with userUuid: ${userUuid}`);
 
@@ -333,7 +338,7 @@ export const login = async (
     });
     await setContext({
         serverUrl: url,
-        apiKey: token,
+        ...(token === undefined ? {} : { apiKey: token }),
     });
     await LightdashAnalytics.identify({ organizationId: organizationUuid });
 

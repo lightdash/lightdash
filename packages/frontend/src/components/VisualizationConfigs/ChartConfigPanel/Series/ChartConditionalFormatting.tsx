@@ -372,6 +372,10 @@ export const ChartConditionalFormatting: FC<Props> = ({
                 value={openItems}
                 onChange={handleAccordionChange}
                 className={accordionClasses.containedList}
+                classNames={{
+                    control: accordionClasses.containedControl,
+                    label: accordionClasses.containedLabel,
+                }}
                 transparentActiveItem
             >
                 {supportedConfigs.map((config, index) => (

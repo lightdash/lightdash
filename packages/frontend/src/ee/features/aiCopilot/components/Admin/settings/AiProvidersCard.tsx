@@ -16,7 +16,6 @@ import {
 } from '@lightdash/common';
 import {
     Badge,
-    Box,
     Button,
     Divider,
     Group,
@@ -409,21 +408,6 @@ export const AiProvidersCard: FC<AiProvidersCardProps> = ({
     return (
         <SettingsCard>
             <Stack gap="md">
-                <Box maw={620}>
-                    <Title order={5} mb={4}>
-                        AI providers &amp; models
-                    </Title>
-                    <Text c="dimmed" fz="xs">
-                        Use your organization&apos;s own Anthropic, Google
-                        Gemini, or OpenAI API key for AI features, and control
-                        which models users can pick. Keys are stored encrypted
-                        and never shown again after saving; when set, they take
-                        precedence over the instance-level keys. Agents already
-                        using a hidden model keep working — it just can&apos;t
-                        be selected again.
-                    </Text>
-                </Box>
-
                 {allAiOnOrgKeys && (
                     <Callout
                         variant="success"
@@ -438,7 +422,7 @@ export const AiProvidersCard: FC<AiProvidersCardProps> = ({
                         never the instance&apos;s default keys.
                     </Callout>
                 )}
-                <Text fz="sm" c="dimmed">
+                <Text fz="xs" c="dimmed">
                     Autopilot setup shows which provider, model, and key it
                     uses. Scheduled runs can make multiple model calls and incur
                     usage on that key.

@@ -280,6 +280,7 @@ The full operator reference is on the public docs site. The values are parsed in
 | `LAMBDA_MICROVM_*` (region, role, connectors, image ARNs) | lambda-microvm | Image ARNs are separate per feature |
 | `AZURE_SANDBOXES_SUBSCRIPTION_ID`, `AZURE_SANDBOXES_RESOURCE_GROUP`, `AZURE_SANDBOXES_REGION` | azure-sandboxes | Locate the sandbox groups (ADC data plane is regional) |
 | `AZURE_SANDBOXES_{DATA_APP,AI_WRITEBACK}_GROUP`, `AZURE_SANDBOXES_{DATA_APP,AI_WRITEBACK}_DISK_IMAGE` | azure-sandboxes | One sandbox group + disk image per feature |
+| `AZURE_SANDBOXES_PYTHON_GROUP`, `AZURE_SANDBOXES_PYTHON_DISK_IMAGE` | azure-sandboxes | Sandbox group + disk image for python query nodes (python-runner image) |
 | `AZURE_SANDBOXES_API_VERSION`, `AZURE_SANDBOXES_TOKEN_SCOPE`, `AZURE_SANDBOXES_RESOURCE_TIER` | azure-sandboxes | Data-plane API version, Entra token scope, tier (`M` default) — sensible defaults |
 | `GCP_CLOUD_RUN_SANDBOX_URL`, `GCP_CLOUD_RUN_SANDBOX_SECRET` | gcp-cloud-run | Data-app gateway service (data-app image baked in) |
 | `GCP_CLOUD_RUN_PYTHON_SANDBOX_URL`, `GCP_CLOUD_RUN_PYTHON_SANDBOX_SECRET` | gcp-cloud-run | Separate gateway for python query nodes (python-runner image baked in) |

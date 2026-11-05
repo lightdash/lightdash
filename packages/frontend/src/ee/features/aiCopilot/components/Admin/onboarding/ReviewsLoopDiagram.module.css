@@ -3,16 +3,13 @@
    Canonical reference: docs/superpowers reviews-loop-diagram mockup (v5). */
 .diagram {
     --rld-surface: var(--mantine-color-body);
-    --rld-muted: light-dark(
-        var(--mantine-color-ldGray-0),
-        var(--mantine-color-ldDark-6)
-    );
+    --rld-muted: var(--mantine-color-ldGray-0);
     --rld-border: var(--mantine-color-default-border);
     --rld-fg: var(--mantine-color-text);
     --rld-dimmed: var(--mantine-color-dimmed);
     --rld-icon: var(--mantine-color-ldGray-7);
     --rld-primary: var(--mantine-color-text);
-    --rld-primary-fg: light-dark(#fafafa, #18181b);
+    --rld-primary-fg: var(--mantine-color-body);
 }
 
 .rail {

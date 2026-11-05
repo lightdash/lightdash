@@ -138,6 +138,21 @@ describe('Filter pill requirement state', () => {
         expect(getPill()).not.toHaveAttribute('data-filter-active');
     });
 
+    it('keeps the dashed requirement icon on the left, none on the right', () => {
+        renderFilter(buildRule({ required: true, disabled: true, values: [] }));
+
+        expect(
+            getPill().querySelector(
+                '[data-position="left"] [data-requirement-icon]',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            getPill().querySelector(
+                '[data-position="right"] [data-requirement-icon]',
+            ),
+        ).toBeNull();
+    });
+
     it('shows a required filter with a value as active and met', () => {
         renderFilter(buildRule({ required: true, values: ['completed'] }));
 

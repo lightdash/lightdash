@@ -4,7 +4,10 @@ import {
     type AgentDeliveryGuard,
     type ParsedAgentWorkMarker,
 } from '../../../services/AgentPermissionService/agentWorkAuthority';
-import { type SlackArtifactRenderInput } from '../../database/entities/aiSlackArtifactDeliveries';
+import {
+    toSlackArtifactRenderInput,
+    type SlackArtifactRenderInput,
+} from '../../database/entities/aiSlackArtifactDeliveries';
 import {
     SLACK_ARTIFACT_DELIVERY_MAX_ATTEMPTS,
     type AiSlackArtifactDeliveryModel,
@@ -25,7 +28,8 @@ export type SlackArtifactDeliveryRuntime = {
         messageTs: string | null,
         versions: string[],
     ) => Promise<SlackArtifactDeliveryMessage | null>;
-    authorize: (input: SlackArtifactRenderInput) => Promise<void>;
+    /** False when the artifact version cannot render this input; throws when access is refused. */
+    authorize: (input: SlackArtifactRenderInput) => Promise<boolean>;
     render: (input: SlackArtifactRenderInput) => Promise<string | null>;
     isImageReachable: (url: string) => Promise<boolean>;
     updateMessage: (message: SlackArtifactDeliveryMessage) => Promise<void>;
@@ -79,11 +83,14 @@ export const deliverSlackArtifactImages = async (
         let unavailable = false;
         for (const version of versions) {
             signal?.throwIfAborted();
-            const input = delivery.render_inputs[version];
+            const input = toSlackArtifactRenderInput(
+                delivery.render_inputs[version],
+            );
             // Authorization also applies to images persisted by an older job.
             // eslint-disable-next-line no-await-in-loop
-            await runtime.authorize(input);
-            if (!delivery.rendered_images[version]) {
+            if (!(await runtime.authorize(input))) {
+                unavailable = true;
+            } else if (!delivery.rendered_images[version]) {
                 try {
                     // eslint-disable-next-line no-await-in-loop
                     const url = await runtime.render(input);
@@ -126,9 +133,13 @@ export const deliverSlackArtifactImages = async (
         const images: Record<string, { url: string; reachable: boolean }> = {};
         for (const version of versions) {
             const url = current.rendered_images[version];
-            if (url) {
+            if (
+                url &&
                 // eslint-disable-next-line no-await-in-loop
-                await currentRuntime.authorize(delivery.render_inputs[version]);
+                (await currentRuntime.authorize(
+                    toSlackArtifactRenderInput(delivery.render_inputs[version]),
+                ))
+            ) {
                 images[version] = {
                     url,
                     // eslint-disable-next-line no-await-in-loop

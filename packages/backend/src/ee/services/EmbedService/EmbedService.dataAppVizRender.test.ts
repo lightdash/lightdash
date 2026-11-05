@@ -10,7 +10,10 @@ import {
 } from '@lightdash/common';
 import { verifyPreviewToken } from '../../../routers/appPreviewToken';
 import { EmbedService } from './EmbedService';
-import { EmbedServiceArgumentsMock } from './EmbedService.mock';
+import {
+    embedLightdashConfigMock,
+    EmbedServiceArgumentsMock,
+} from './EmbedService.mock';
 
 const PROJECT_UUID = 'project-1';
 const ORGANIZATION_UUID = 'org-1';
@@ -112,16 +115,18 @@ const buildService = ({
     featureFlagModel = {
         get: vi.fn().mockResolvedValue({ enabled: true }),
     },
+    chartStudioAvailable = false,
 }: {
     appModel?: Record<string, unknown>;
     savedChartModel?: Record<string, unknown>;
     dashboardModel?: Record<string, unknown>;
     featureFlagModel?: Record<string, unknown>;
+    chartStudioAvailable?: boolean;
 }) =>
     new EmbedService({
         ...EmbedServiceArgumentsMock,
         lightdashConfig: {
-            ...EmbedServiceArgumentsMock.lightdashConfig,
+            ...embedLightdashConfigMock(chartStudioAvailable),
             lightdashSecret: 'test-secret',
             lightdashSecrets: testLightdashSecrets,
         },
@@ -485,70 +490,69 @@ describe('EmbedService data app viz rendering', () => {
     });
 
     it.each([
-        [false, false],
-        [false, true],
-        [true, false],
-        [true, true],
-    ])('renders with data apps=%s, library=%s', async (dataApps, library) => {
-        const savedChartModel = {
-            get: vi.fn().mockResolvedValue(makeSavedChart()),
-        };
-        const featureFlagModel = {
-            get: vi.fn().mockImplementation(async ({ featureFlagId }) => ({
-                enabled:
-                    featureFlagId === FeatureFlags.EnableDataApps
-                        ? dataApps
-                        : library,
-            })),
-        };
-        const service = buildService({
-            appModel: {
-                findVisualizationApp: vi
-                    .fn()
-                    .mockResolvedValue(makeDataAppVizRow()),
-                getLatestVersion: vi
-                    .fn()
-                    .mockResolvedValue(makeVersion({ version: 1 })),
-                getLatestRenderableDataAppVizVersion: vi
-                    .fn()
-                    .mockResolvedValue(makeVersion()),
-            },
-            featureFlagModel,
-            savedChartModel,
-        });
-        const result = service.getEmbedDataAppVizRenderMetadata(
-            chartAccount(),
-            PROJECT_UUID,
-            SAVED_CHART_UUID,
-            DATA_APP_VIZ_UUID,
-        );
-        if (dataApps || library) {
-            await expect(result).resolves.toMatchObject({
-                state: 'ready',
-                version: 1,
-            });
-        } else {
-            await expect(result).rejects.toThrow('Chart types are not enabled');
-            expect(savedChartModel.get).not.toHaveBeenCalled();
-        }
-        expect(featureFlagModel.get).toHaveBeenCalledWith({
-            user: {
-                userUuid: 'embed-user-1',
-                organizationUuid: ORGANIZATION_UUID,
-            },
-            featureFlagId: FeatureFlags.EnableDataApps,
-        });
-        expect(featureFlagModel.get).toHaveBeenCalledTimes(dataApps ? 1 : 2);
-        if (!dataApps) {
-            expect(featureFlagModel.get).toHaveBeenLastCalledWith({
-                user: {
-                    userUuid: 'embed-user-1',
-                    organizationUuid: ORGANIZATION_UUID,
+        [true, false, false],
+        [false, false, false],
+    ])(
+        'renders with Chart Studio=%s, library=%s, data apps=%s',
+        async (chartStudio, library, dataApps) => {
+            const savedChartModel = {
+                get: vi.fn().mockResolvedValue(makeSavedChart()),
+            };
+            const featureFlagModel = {
+                get: vi.fn().mockImplementation(async ({ featureFlagId }) => ({
+                    enabled:
+                        (featureFlagId === FeatureFlags.ChartTypeRegistry &&
+                            library) ||
+                        (featureFlagId === FeatureFlags.EnableDataApps &&
+                            dataApps),
+                })),
+            };
+            const service = buildService({
+                appModel: {
+                    findVisualizationApp: vi
+                        .fn()
+                        .mockResolvedValue(makeDataAppVizRow()),
+                    getLatestVersion: vi
+                        .fn()
+                        .mockResolvedValue(makeVersion({ version: 1 })),
+                    getLatestRenderableDataAppVizVersion: vi
+                        .fn()
+                        .mockResolvedValue(makeVersion()),
                 },
-                featureFlagId: FeatureFlags.ChartTypeRegistry,
+                featureFlagModel,
+                savedChartModel,
+                chartStudioAvailable: chartStudio,
             });
-        }
-    });
+            const result = service.getEmbedDataAppVizRenderMetadata(
+                chartAccount(),
+                PROJECT_UUID,
+                SAVED_CHART_UUID,
+                DATA_APP_VIZ_UUID,
+            );
+            if (chartStudio || library || dataApps) {
+                await expect(result).resolves.toMatchObject({
+                    state: 'ready',
+                    version: 1,
+                });
+            } else {
+                await expect(result).rejects.toThrow(
+                    'Chart types are not enabled',
+                );
+                expect(savedChartModel.get).not.toHaveBeenCalled();
+            }
+            if (chartStudio) {
+                expect(featureFlagModel.get).not.toHaveBeenCalled();
+            } else {
+                expect(featureFlagModel.get).toHaveBeenCalledWith({
+                    user: {
+                        userUuid: 'embed-user-1',
+                        organizationUuid: ORGANIZATION_UUID,
+                    },
+                    featureFlagId: FeatureFlags.ChartTypeRegistry,
+                });
+            }
+        },
+    );
 
     it.each(['dataApp', 'aiAgent', 'metricsCatalog', 'apiAccess'] as const)(
         'rejects %s embed JWTs',

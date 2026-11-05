@@ -30,7 +30,7 @@ const ResourceLastEdited: FC<ResourceLastEditedProps> = ({
                 position="top-start"
                 label={dayjs(updatedAt).format('YYYY-MM-DD HH:mm:ss')}
             >
-                <Text fz="xs" fw={500} c="ldGray.7">
+                <Text fz="xs" fw={500} c="dimmed">
                     {timeAgo}
                 </Text>
             </Tooltip>

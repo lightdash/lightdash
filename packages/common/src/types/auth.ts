@@ -188,6 +188,8 @@ export type SessionAccount = BaseAccountWithHelpers & {
     user: LightdashSessionUser;
 };
 
+export type EmbedWritableSpace = { uuid: string; name: string };
+
 /**
  * Account for anonymous users with JWT authentication (embeds)
  */
@@ -199,6 +201,8 @@ export type AnonymousAccount = BaseAccountWithHelpers & {
         canUpdateDashboard: boolean;
         canUpdateSavedChart: boolean;
         canCreateSavedChart: boolean;
+        /** Write spaces the actor can create saved charts in, in token order. */
+        writableSpaces: EmbedWritableSpace[];
         canUseAiAgent: boolean;
         aiAgentErrorMessage?: string;
     };

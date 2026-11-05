@@ -141,6 +141,12 @@ export type QueryHistory = {
             artifactUuid: string;
             versionUuid: string;
         };
+        /** Binds a run of a message's `query` pipeline, as resultArtifact does for artifacts. */
+        resultMessageQuery?: {
+            agentUuid: string;
+            promptUuid: string;
+            queryUuid: string;
+        };
         resultEntitlementFingerprint?: string | null;
         resultEffectiveParameters?: ParametersValuesMap;
         resultSource?: {

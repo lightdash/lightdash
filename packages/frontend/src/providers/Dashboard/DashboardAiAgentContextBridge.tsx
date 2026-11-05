@@ -25,10 +25,14 @@ import {
 import { getHandledAgentToolCallIds } from '../../ee/features/aiCopilot/streaming/handledAgentToolCalls';
 import { useAiAgentProjectStreamParts } from '../../ee/features/aiCopilot/streaming/useAiAgentThreadStreamQuery';
 import {
+    selectActiveTab,
+    selectDashboardTiles,
     selectDateZoomGranularity,
+    selectIsDateZoomDisabled,
     selectParameterValues,
     useDashboardAllFilters,
     useDashboardSelector,
+    useDefaultDateZoomGranularity,
 } from '../../features/dashboard/store';
 import { getDashboard } from '../../hooks/dashboard/useDashboard';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
@@ -76,16 +80,14 @@ const DashboardAiAgentContextBridge = () => {
     const includeUnpublishedDraft = useDashboardContext(
         (c) => c.includeUnpublishedDraft,
     );
-    const activeTab = useDashboardContext((c) => c.activeTab);
+    const activeTab = useDashboardSelector(selectActiveTab);
     const allFilters = useDashboardAllFilters();
     const originalDashboardFilters = dashboard?.filters ?? emptyFilters;
     const parameterValues = useDashboardSelector(selectParameterValues);
     const dateZoomGranularity = useDashboardSelector(selectDateZoomGranularity);
-    const defaultDateZoomGranularity = useDashboardContext(
-        (c) => c.defaultDateZoomGranularity,
-    );
-    const isDateZoomDisabled = useDashboardContext((c) => c.isDateZoomDisabled);
-    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
+    const defaultDateZoomGranularity = useDefaultDateZoomGranularity();
+    const isDateZoomDisabled = useDashboardSelector(selectIsDateZoomDisabled);
+    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
     const setDashboardTabs = useDashboardContext((c) => c.setDashboardTabs);
     const setDashboardFilters = useDashboardContext(

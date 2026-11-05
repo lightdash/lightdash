@@ -1,5 +1,4 @@
 import {
-    DbtExternalModelNode,
     DbtPackages,
     DbtRpcGetManifestResults,
     Explore,
@@ -17,7 +16,6 @@ export type TrackingParams = {
 };
 
 export type DbtManifestFetchOptions = {
-    externalNodes: DbtExternalModelNode[];
     signal?: AbortSignal;
 };
 
@@ -57,6 +55,7 @@ export interface ProjectAdapter {
         trackingParams: TrackingParams | undefined,
         loadSources?: boolean,
         allowPartialCompilation?: boolean,
+        deferExploreNaming?: boolean,
     ): Promise<AsyncIterable<Explore | ExploreError>>;
 
     getDbtPackages(): Promise<DbtPackages | undefined>;

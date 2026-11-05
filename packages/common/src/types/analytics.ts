@@ -164,6 +164,7 @@ export enum QueryExecutionContext {
     MCP_RUN_METRIC_QUERY = 'mcp.run_metric_query',
     MCP_RUN_SQL = 'mcp.run_sql',
     MCP_SEARCH_FIELD_VALUES = 'mcp.search_field_values',
+    MCP_QUERY = 'mcp.query',
     API = 'api',
     CLI = 'cli',
     METRICS_EXPLORER = 'metricsExplorer',
@@ -180,7 +181,8 @@ export type AiAccessQueryContext =
     | QueryExecutionContext.AI
     | QueryExecutionContext.MCP_RUN_METRIC_QUERY
     | QueryExecutionContext.MCP_RUN_SQL
-    | QueryExecutionContext.MCP_SEARCH_FIELD_VALUES;
+    | QueryExecutionContext.MCP_SEARCH_FIELD_VALUES
+    | QueryExecutionContext.MCP_QUERY;
 
 export const isAiAccessQueryContext = (
     context: QueryExecutionContext,
@@ -189,7 +191,8 @@ export const isAiAccessQueryContext = (
     context === QueryExecutionContext.AI ||
     context === QueryExecutionContext.MCP_RUN_METRIC_QUERY ||
     context === QueryExecutionContext.MCP_RUN_SQL ||
-    context === QueryExecutionContext.MCP_SEARCH_FIELD_VALUES;
+    context === QueryExecutionContext.MCP_SEARCH_FIELD_VALUES ||
+    context === QueryExecutionContext.MCP_QUERY;
 
 export const withAgentMarkerTag = <
     T extends { query_context: QueryExecutionContext },

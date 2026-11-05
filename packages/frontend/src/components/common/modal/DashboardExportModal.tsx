@@ -24,13 +24,16 @@ import {
     IconLayoutDashboard,
     IconScreenshot,
 } from '@tabler/icons-react';
-import { useCallback, useState, type FC } from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import {
     selectDateZoomGranularity,
-    selectParameterValues,
+    selectDashboardWideParameterValues,
+    selectParameterControlInputs,
+    selectTileParameterReferences,
     useDashboardAllFilters,
     useDashboardSelector,
 } from '../../../features/dashboard/store';
+import { getDashboardExportTileParameters } from '../../../features/dashboard/store/parameterControls';
 import { PreviewAndCustomizeScreenshot } from '../../../features/preview';
 import { CsvFormattingOptions } from '../../../features/scheduler/components/CsvFormattingOptions';
 import { Limit, Values } from '../../../features/scheduler/components/types';
@@ -65,8 +68,23 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
         exportType === SchedulerFormat.XLSX;
     const exportDashboardContentMutation = useExportDashboardContent();
     const dashboardFilters = useDashboardAllFilters();
+    const controlInputs = useDashboardSelector(selectParameterControlInputs);
+    const tileParameterReferences = useDashboardSelector(
+        selectTileParameterReferences,
+    );
+    const tileParameters = useMemo(
+        () =>
+            getDashboardExportTileParameters({
+                controlInputs,
+                tileUuids: dashboard.tiles.map(({ uuid }) => uuid),
+                tileParameterReferences,
+            }),
+        [controlInputs, dashboard.tiles, tileParameterReferences],
+    );
     const dateZoomGranularity = useDashboardSelector(selectDateZoomGranularity);
-    const parameterValues = useDashboardSelector(selectParameterValues);
+    const parameterValues = useDashboardSelector(
+        selectDashboardWideParameterValues,
+    );
 
     const [previews, setPreviews] = useState<Record<string, string>>({});
     const [previewChoice, setPreviewChoice] = useState<
@@ -107,9 +125,9 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
         (width: string) => {
             return `${width}-${selectedTabs.join('-')}-${JSON.stringify(
                 dashboardFilters,
-            )}-${JSON.stringify(parameterValues)}`;
+            )}-${JSON.stringify(parameterValues)}-${JSON.stringify(tileParameters)}`;
         },
-        [selectedTabs, dashboardFilters, parameterValues],
+        [selectedTabs, dashboardFilters, parameterValues, tileParameters],
     );
 
     const currentPreview = previewChoice
@@ -145,6 +163,7 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
             dashboardFilters,
             dateZoomGranularity,
             parameters: parameterValues,
+            ...(tileParameters !== undefined && { tileParameters }),
             customViewportWidth:
                 exportType === SchedulerFormat.IMAGE && previewChoice
                     ? parseInt(previewChoice)
@@ -164,6 +183,7 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
         onClose,
         parameterValues,
         previewChoice,
+        tileParameters,
     ]);
 
     const handleImageExport = useCallback(() => {
@@ -188,6 +208,7 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
             dashboardFilters,
             dateZoomGranularity,
             parameters: parameterValues,
+            ...(tileParameters !== undefined && { tileParameters }),
             selectedTabs: exportSelectedTabs,
         });
 
@@ -207,6 +228,7 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
         getPreviewKey,
         parameterValues,
         previewChoice,
+        tileParameters,
     ]);
 
     const renderActions = () => {
@@ -377,14 +399,6 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
                                     value: tab.uuid,
                                     label: tab.name,
                                 }))}
-                                clearButtonProps={{
-                                    style: {
-                                        display:
-                                            selectedTabs.length > 1
-                                                ? 'block'
-                                                : 'none',
-                                    },
-                                }}
                                 clearable={selectedTabs.length > 1}
                                 searchable
                                 onChange={setSelectedTabs}

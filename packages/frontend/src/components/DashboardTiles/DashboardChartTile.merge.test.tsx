@@ -101,10 +101,9 @@ vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
             tilesWithDateZoomApplied: new Set<string>(),
             dateZoomGranularity: undefined,
             dateZoomConfig: undefined,
-            chartSort: {},
             addDimensionDashboardFilter: () => {},
             setDashboardTiles: () => {},
-            setChartSort: () => {},
+            setTileChartSorts: () => {},
             haveTilesChanged: false,
         }),
     ),
@@ -613,6 +612,20 @@ describe('DashboardChartTile embedded "Explore from here"', () => {
         const explored = await exploreFromMinimalTile(dashboardChartReadyQuery);
 
         expect(explored).toBe(chart);
+    });
+
+    it('opens the Explore with the parameter values the tile ran with', async () => {
+        const explored = await exploreFromMinimalTile({
+            ...plainChartQuery,
+            chart: { ...plainChartQuery.chart, parameters: { region: 'EU' } },
+            executeQueryResponse: {
+                ...plainChartQuery.executeQueryResponse,
+                usedParametersValues: { region: 'UK' },
+                parameterReferences: ['region'],
+            },
+        });
+
+        expect(explored.parameters).toEqual({ region: 'UK' });
     });
 });
 

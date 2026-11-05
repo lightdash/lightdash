@@ -133,7 +133,7 @@ const DesignListPage: FC = () => {
     return (
         <SettingsPage
             title="Themes"
-            description="Manage shared brand assets and instructions used when building data apps."
+            description="Manage shared brand assets and instructions used when building data apps and custom chart types."
             actions={
                 canManage ? (
                     <Button
@@ -158,7 +158,7 @@ const DesignListPage: FC = () => {
                 <SettingsEmptyState
                     icon={IconPalette}
                     title="No themes"
-                    description="Create a theme to share brand assets and instructions across data apps."
+                    description="Create a theme to share brand assets and instructions across data apps and custom chart types."
                 />
             ) : (
                 <SettingsCard>

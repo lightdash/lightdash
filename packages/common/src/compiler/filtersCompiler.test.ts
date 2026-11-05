@@ -4171,3 +4171,106 @@ describe('resolveTimestampFilterContext', () => {
         );
     });
 });
+
+describe('blank date and timestamp filter values', () => {
+    const valueOperators = [
+        FilterOperator.EQUALS,
+        FilterOperator.NOT_EQUALS,
+        FilterOperator.GREATER_THAN,
+        FilterOperator.GREATER_THAN_OR_EQUAL,
+        FilterOperator.LESS_THAN,
+        FilterOperator.LESS_THAN_OR_EQUAL,
+        FilterOperator.IN_BETWEEN,
+    ];
+    const blankValues: Record<string, unknown[] | undefined> = {
+        'missing values': undefined,
+        'empty array': [],
+        'null value': [null],
+        'empty string': [''],
+    };
+    const cases = valueOperators.flatMap((operator) =>
+        Object.entries(blankValues).map(([label, values]) => ({
+            operator,
+            label,
+            values,
+        })),
+    );
+
+    test.each(cases)(
+        'date $operator with $label does not filter rows',
+        ({ operator, values }) => {
+            expect(
+                renderDateFilterSql({
+                    dimensionSql: DimensionSqlMock,
+                    filter: { id: 'id', target: {}, operator, values },
+                    adapterType: adapterType.default,
+                    timezone: 'UTC',
+                }),
+            ).toBe('true');
+        },
+    );
+
+    test.each(cases)(
+        'timestamp $operator with $label does not filter rows',
+        ({ operator, values }) => {
+            expect(
+                renderTimestampFilterSql({
+                    dimensionSql: DimensionSqlMock,
+                    filter: { id: 'id', target: {}, operator, values },
+                    adapterType: adapterType.default,
+                    timezone: 'UTC',
+                    timestampFormatter: formatTimestamp,
+                }),
+            ).toBe('true');
+        },
+    );
+
+    test('selected period equals with a blank value does not filter rows', () => {
+        expect(
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: {
+                    id: 'id',
+                    target: {},
+                    operator: FilterOperator.EQUALS,
+                    values: [],
+                    settings: { selectedPeriod: UnitOfTime.months },
+                },
+                adapterType: adapterType.default,
+                timezone: 'UTC',
+            }),
+        ).toBe('true');
+    });
+
+    test('blank entries in a multi-value equals are ignored', () => {
+        expect(
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: {
+                    id: 'id',
+                    target: {},
+                    operator: FilterOperator.EQUALS,
+                    values: ['2020-04-03', null, ''],
+                },
+                adapterType: adapterType.default,
+                timezone: 'UTC',
+            }),
+        ).toBe(`(${DimensionSqlMock}) = ('2020-04-03')`);
+    });
+
+    test('in between with only one bound does not filter rows', () => {
+        expect(
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: {
+                    id: 'id',
+                    target: {},
+                    operator: FilterOperator.IN_BETWEEN,
+                    values: ['2020-04-03'],
+                },
+                adapterType: adapterType.default,
+                timezone: 'UTC',
+            }),
+        ).toBe('true');
+    });
+});

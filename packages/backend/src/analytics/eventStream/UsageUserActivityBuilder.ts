@@ -11,12 +11,15 @@ import Logger from '../../logging/logger';
 import { getDuckdbRuntimeConfig } from '../../utils/duckdb/getDuckdbRuntimeConfig';
 import type { StreamName } from './projection';
 import { compactedStreamSchemas } from './registry';
+import {
+    MAX_HISTORY_PARTITIONS_PER_RUN,
+    MAX_PARTITIONS_PER_RUN,
+} from './usageProcessingLimits';
 import { usageProcessingStartDate } from './usageProcessingWindow';
 import { analyticsStreams, userActivityKey } from './userActivity';
 
 const literal = (value: string) => `'${value.replace(/'/g, "''")}'`;
 const MAX_FILES_PER_DAY = 10_000;
-const MAX_CHANGED_PARTITIONS = 500;
 const DAY_MS = 86_400_000;
 const MODEL_VERSION = '1';
 export type UserActivitySummary = {
@@ -162,33 +165,70 @@ export class UsageUserActivityBuilder extends S3BaseClient {
     }
 
     /** Discover stored partitions directly; empty organizations require no requests. */
-    async runAll(now: Date, orgIds: string[]): Promise<UserActivitySummary> {
+    async runAll(
+        now: Date,
+        orgIds: string[],
+        onOrganizationFinished?: (
+            organizationUuid: string,
+            summary: UserActivitySummary,
+            completed: boolean,
+        ) => void,
+        includeHistory = false,
+    ): Promise<UserActivitySummary> {
         const summary = emptySummary();
+        const limit = includeHistory
+            ? MAX_HISTORY_PARTITIONS_PER_RUN
+            : MAX_PARTITIONS_PER_RUN;
         try {
-            // eslint-disable-next-line no-restricted-syntax
-            for await (const { orgId, stream, date } of this.closedPartitions(
-                now,
-                orgIds,
-            )) {
-                if (
-                    summary.published + summary.failed >=
-                    MAX_CHANGED_PARTITIONS
-                ) {
-                    Logger.warn(
-                        'User activity refresh reached its 500-partition work limit; remaining partitions will be retried on the next run',
-                    );
-                    summary.limitReached = true;
-                    break;
-                }
+            for (const orgId of orgIds) {
+                const organizationSummary = emptySummary();
+                let completed = false;
                 try {
-                    // eslint-disable-next-line no-await-in-loop
-                    const outcome = await this.refresh(orgId, stream, date);
-                    summary[outcome] += 1;
-                } catch {
-                    summary.failed += 1;
-                    // Native/SDK error messages can include credentials or SQL data.
-                    Logger.error(
-                        `User activity failed for org_id=${orgId}/stream=${stream}/dt=${date}; previous output retained`,
+                    if (summary.limitReached) {
+                        organizationSummary.limitReached = true;
+                    } else {
+                        // eslint-disable-next-line no-restricted-syntax, no-await-in-loop
+                        for await (const {
+                            stream,
+                            date,
+                        } of this.closedPartitions(
+                            now,
+                            [orgId],
+                            includeHistory,
+                        )) {
+                            if (summary.published + summary.failed >= limit) {
+                                Logger.warn(
+                                    `User activity refresh reached its ${limit}-partition work limit; remaining partitions will be retried on the next run`,
+                                );
+                                summary.limitReached = true;
+                                organizationSummary.limitReached = true;
+                                break;
+                            }
+                            try {
+                                // eslint-disable-next-line no-await-in-loop
+                                const outcome = await this.refresh(
+                                    orgId,
+                                    stream,
+                                    date,
+                                );
+                                summary[outcome] += 1;
+                                organizationSummary[outcome] += 1;
+                            } catch {
+                                summary.failed += 1;
+                                organizationSummary.failed += 1;
+                                // Native/SDK errors can include credentials or SQL data.
+                                Logger.error(
+                                    `User activity failed for org_id=${orgId}/stream=${stream}/dt=${date}; previous output retained`,
+                                );
+                            }
+                        }
+                        completed = true;
+                    }
+                } finally {
+                    onOrganizationFinished?.(
+                        orgId,
+                        organizationSummary,
+                        completed,
                     );
                 }
             }
@@ -199,7 +239,11 @@ export class UsageUserActivityBuilder extends S3BaseClient {
         }
     }
 
-    private async *closedPartitions(now: Date, orgIds: string[]) {
+    private async *closedPartitions(
+        now: Date,
+        orgIds: string[],
+        includeHistory: boolean,
+    ) {
         const today = now.toISOString().slice(0, 10);
         const start = usageProcessingStartDate(now);
         for (const orgId of orgIds) {
@@ -214,7 +258,9 @@ export class UsageUserActivityBuilder extends S3BaseClient {
                     const page = await this.s3!.listObjectsV2({
                         Bucket: this.storage.bucket,
                         Prefix: prefix,
-                        StartAfter: `${prefix}dt=${start}/`,
+                        StartAfter: includeHistory
+                            ? undefined
+                            : `${prefix}dt=${start}/`,
                         MaxKeys: 1000,
                         ContinuationToken: token,
                     });
@@ -229,7 +275,7 @@ export class UsageUserActivityBuilder extends S3BaseClient {
                             );
                         if (
                             match &&
-                            match[1] >= start &&
+                            (includeHistory || match[1] >= start) &&
                             match[1] < today &&
                             match[1] !== previousDate
                         ) {

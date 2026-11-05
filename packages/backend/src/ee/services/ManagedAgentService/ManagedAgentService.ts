@@ -3,6 +3,7 @@ import {
     AGENT_SUGGESTIONS_SPACE_SLUG,
     AgentActorSurface,
     AiAccessRefusedError,
+    applyNewChartDefaults,
     assertUnreachable,
     computeAutopilotExcludedSpaceUuids,
     ConflictError,
@@ -71,7 +72,7 @@ import { BaseService } from '../../../services/BaseService';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import { ValidationService } from '../../../services/ValidationService/ValidationService';
 import { ManagedAgentModel } from '../../models/ManagedAgentModel';
-import { resolveAiDecisionClient } from '../ai/decisions/AiDecisionClient';
+import { isPreAggregatesEnabled } from '../../preAggregates/isPreAggregatesEnabled';
 import {
     filterModelsForOrg,
     getAvailableModels,
@@ -1927,7 +1928,7 @@ export class ManagedAgentService extends BaseService {
         const agent = renderAutopilotAgent({
             toolSettings,
             policy: { ...policy, aggression: runtimeInfo.effectiveCleanupMode },
-            preAggregatesEnabled: this.lightdashConfig.preAggregates.enabled,
+            preAggregatesEnabled: isPreAggregatesEnabled(this.lightdashConfig),
         });
         const {
             copilotConfig,
@@ -2057,6 +2058,7 @@ export class ManagedAgentService extends BaseService {
             defaultQueryExecutionContext: QueryExecutionContext.AI,
             tags: null,
             spaceAccess: allowedSpaceUuids,
+            readOnlySpaceUuids: [],
             threadBinding: null,
         });
         const reportRefusal = (error: unknown) => {
@@ -2071,11 +2073,9 @@ export class ManagedAgentService extends BaseService {
             await Promise.all([
                 exploresRead,
                 parametersRead,
-                resolveAiDecisionClient(this.lightdashConfig.ai.decisions, () =>
-                    this.featureFlagModel.get({
-                        user: { organizationUuid },
-                        featureFlagId: FeatureFlags.AiAgentFastDecisions,
-                    }),
+                this.orgAiCopilotConfigResolver.getDecisionClient(
+                    organizationUuid,
+                    projectUuid,
                 ),
             ]);
         const verifiedFieldUsage = await runtime
@@ -3452,8 +3452,9 @@ chartConfig:
             description: description ?? null,
             tableName: chartAsCode.tableName as string,
             metricQuery: chartAsCode.metricQuery as MetricQuery,
-            chartConfig: (chartConfig ??
-                chartAsCode.chartConfig) as ChartConfig,
+            chartConfig: applyNewChartDefaults(
+                (chartConfig ?? chartAsCode.chartConfig) as ChartConfig,
+            ),
             tableConfig: (chartAsCode.tableConfig as {
                 columnOrder: string[];
             }) ?? {
@@ -4492,7 +4493,7 @@ chartConfig:
         projectUuid: string,
         input: AutopilotToolInput<'get_preagg_candidates'>,
     ): Promise<string> {
-        if (!this.lightdashConfig.preAggregates.enabled) {
+        if (!isPreAggregatesEnabled(this.lightdashConfig)) {
             return JSON.stringify({
                 enabled: false,
                 message:

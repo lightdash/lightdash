@@ -22,6 +22,7 @@ import {
     getContentTypeColor,
     getContentTypeIcon,
     getContentTypeNoun,
+    getSpaceTreeUuids,
 } from '../utils';
 import classes from './RequestReviewModal.module.css';
 import SimilarContentPanel from './SimilarContentPanel';
@@ -42,25 +43,22 @@ type TargetSpaceOption = Pick<
     'uuid' | 'name' | 'parentSpaceUuid'
 >;
 
-// Personal spaces, and the folder that holds them, are never review targets
+// Personal spaces, the folder that holds them, and anything nested under
+// either are never review targets
 const getTargetSpaces = <T extends TargetSpaceOption>(
     spaces: T[],
     personalSpaceUuid: string | undefined,
 ): T[] => {
-    const personalRoots = new Set(
-        spaces
-            .filter((space) => space.name === DEFAULT_USER_SPACES_PARENT_NAME)
-            .map((space) => space.uuid),
+    const personalRoots = spaces
+        .filter((space) => space.name === DEFAULT_USER_SPACES_PARENT_NAME)
+        .map((space) => space.uuid);
+    const personalSpaceUuids = getSpaceTreeUuids(
+        spaces,
+        personalSpaceUuid
+            ? [personalSpaceUuid, ...personalRoots]
+            : personalRoots,
     );
-    return spaces.filter(
-        (space) =>
-            space.uuid !== personalSpaceUuid &&
-            !personalRoots.has(space.uuid) &&
-            !(
-                space.parentSpaceUuid &&
-                personalRoots.has(space.parentSpaceUuid)
-            ),
-    );
+    return spaces.filter((space) => !personalSpaceUuids.has(space.uuid));
 };
 
 const RequestReviewModal: FC<Props> = ({

@@ -5,7 +5,9 @@ import { type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     createDashboardTestStore,
+    type DashboardEditTestValues,
     type DashboardStoreTestValues,
+    seedDashboardEditState,
 } from '../../../testing/dashboardStore';
 import { DashboardStoreTestProvider } from '../../../testing/DashboardStoreTestProvider';
 import { renderWithProviders as renderWithAppProviders } from '../../../testing/testUtils';
@@ -94,7 +96,10 @@ let storeValues: DashboardStoreTestValues = {};
 const renderWithProviders = (ui: ReactElement) =>
     renderWithAppProviders(
         <DashboardStoreTestProvider
-            store={createDashboardTestStore(storeValues)}
+            store={seedDashboardEditState(
+                createDashboardTestStore(storeValues),
+                mockDashboardContext.current as DashboardEditTestValues,
+            )}
         >
             {ui}
         </DashboardStoreTestProvider>,

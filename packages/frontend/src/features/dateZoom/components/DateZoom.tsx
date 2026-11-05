@@ -31,7 +31,11 @@ import {
     selectAvailableCustomGranularities,
     selectChartZoomableFieldsByTileUuid,
     selectDateZoomGranularity,
+    selectIsDateZoomDisabled,
+    useDashboardDateZoomConfig,
+    useDashboardDateZoomGranularities,
     useDashboardSelector,
+    useDefaultDateZoomGranularity,
 } from '../../dashboard/store';
 import { getGranularityLabel } from '../utils';
 import styles from './DateZoom.module.css';
@@ -139,16 +143,12 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
     const setDateZoomGranularity = useDashboardContext(
         (c) => c.setDateZoomGranularity,
     );
-    const isDateZoomDisabled = useDashboardContext((c) => c.isDateZoomDisabled);
-    const dateZoomGranularities = useDashboardContext(
-        (c) => c.dateZoomGranularities,
-    );
+    const isDateZoomDisabled = useDashboardSelector(selectIsDateZoomDisabled);
+    const dateZoomGranularities = useDashboardDateZoomGranularities();
     const setDateZoomGranularities = useDashboardContext(
         (c) => c.setDateZoomGranularities,
     );
-    const defaultDateZoomGranularity = useDashboardContext(
-        (c) => c.defaultDateZoomGranularity,
-    );
+    const defaultDateZoomGranularity = useDefaultDateZoomGranularity();
     const setDefaultDateZoomGranularity = useDashboardContext(
         (c) => c.setDefaultDateZoomGranularity,
     );
@@ -156,7 +156,7 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
         selectAvailableCustomGranularities,
     );
     const { track } = useTracking();
-    const dateZoomConfig = useDashboardContext((c) => c.dateZoomConfig);
+    const dateZoomConfig = useDashboardDateZoomConfig();
     const chartZoomableFieldsByTileUuid = useDashboardSelector(
         selectChartZoomableFieldsByTileUuid,
     );

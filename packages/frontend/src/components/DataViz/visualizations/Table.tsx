@@ -6,30 +6,17 @@ import {
     type VizColumnsConfig,
     type VizTableHeaderSortConfig,
 } from '@lightdash/common';
-import {
-    Flex,
-    Group,
-    Menu,
-    type FlexProps,
-    Badge,
-    useMantineTheme,
-} from '@mantine/core';
-import { IconArrowDown, IconArrowUp, IconCopy } from '@tabler/icons-react';
+import { Flex, Group, type FlexProps, Badge } from '@mantine/core';
+import { IconArrowDown, IconArrowUp } from '@tabler/icons-react';
 import { flexRender } from '@tanstack/react-table';
 import { clsx } from 'clsx';
-import useToaster from '../../../hooks/toaster/useToaster';
-import { JsonCellMenuItem } from '../../common/JsonViewer/JsonCellViewer';
-import {
-    getJsonCellValue,
-    getJsonLikeString,
-} from '../../common/JsonViewer/utils';
 import { SMALL_TEXT_LENGTH } from '../../common/LightTable/constants';
 import MantineIcon from '../../common/MantineIcon';
 import BodyCell from '../../common/Table/ScrollableTable/BodyCell';
 import { VirtualizedArea } from '../../common/Table/ScrollableTable/TableBody';
 import { Table as TableStyled, Tr } from '../../common/Table/Table.styles';
-import { type CellContextMenuProps } from '../../common/Table/types';
 import { useTableDataModel } from '../hooks/useTableDataModel';
+import { RawResultCellContextMenu } from './RawResultCellContextMenu';
 import styles from './Table.module.css';
 
 const COMPACT_ROW_HEIGHT_PX = 28;
@@ -50,33 +37,6 @@ type TableProps<T extends IResultsRunner> = {
     columnTypes?: Record<string, DimensionType>;
 };
 
-const SqlRunnerCellContextMenu = ({
-    cell,
-    onViewJsonCell,
-}: CellContextMenuProps) => {
-    const { showToastSuccess } = useToaster();
-    const value = cell.getValue();
-    const jsonValue = getJsonCellValue(value) ?? getJsonLikeString(value);
-
-    return (
-        <>
-            <Menu.Item
-                leftSection={<MantineIcon icon={IconCopy} />}
-                onClick={() => {
-                    void navigator.clipboard?.writeText(String(value ?? ''));
-                    showToastSuccess({ title: 'Copied to clipboard!' });
-                }}
-            >
-                Copy value
-            </Menu.Item>
-
-            {jsonValue && onViewJsonCell ? (
-                <JsonCellMenuItem onClick={() => onViewJsonCell(jsonValue)} />
-            ) : null}
-        </>
-    );
-};
-
 export const Table = <T extends IResultsRunner>({
     resultsRunner,
     columnsConfig,
@@ -87,7 +47,6 @@ export const Table = <T extends IResultsRunner>({
     density = 'default',
     columnTypes = {},
 }: TableProps<T>) => {
-    const theme = useMantineTheme();
     const isCompact = density === 'compact';
     const {
         tableWrapperRef,
@@ -114,26 +73,17 @@ export const Table = <T extends IResultsRunner>({
             direction="column"
             miw="100%"
             {...flexProps}
-            style={{
-                overflow: 'auto',
-                fontFeatureSettings: "'tnum'",
-                flexGrow: 1,
-                ...(typeof flexProps?.style === 'object' &&
-                !Array.isArray(flexProps.style)
-                    ? flexProps.style
-                    : {}),
-            }}
-            className="sentry-block ph-no-capture"
+            className={clsx('sentry-block ph-no-capture', styles.wrapper)}
         >
             <TableStyled className={clsx(isCompact && styles.compact)}>
                 <thead>
                     <tr>
                         {isCompact && (
                             <th
-                                className={styles.rowIndex}
-                                style={{
-                                    backgroundColor: theme.colors.ldGray[0],
-                                }}
+                                className={clsx(
+                                    styles.rowIndex,
+                                    styles.headerCell,
+                                )}
                             >
                                 #
                             </th>
@@ -150,19 +100,9 @@ export const Table = <T extends IResultsRunner>({
                                     <th
                                         key={header.id}
                                         onClick={onClick}
-                                        style={
-                                            onClick
-                                                ? {
-                                                      cursor: 'pointer',
-                                                      backgroundColor:
-                                                          theme.colors
-                                                              .ldGray[0],
-                                                  }
-                                                : {
-                                                      backgroundColor:
-                                                          theme.colors
-                                                              .ldGray[0],
-                                                  }
+                                        className={styles.headerCell}
+                                        data-sortable={
+                                            onClick ? true : undefined
                                         }
                                     >
                                         <Group gap="two" fz="sm">
@@ -275,9 +215,7 @@ export const Table = <T extends IResultsRunner>({
                                                     ).length > SMALL_TEXT_LENGTH
                                                 }
                                                 cellContextMenu={
-                                                    enableJsonViewer
-                                                        ? SqlRunnerCellContextMenu
-                                                        : undefined
+                                                    RawResultCellContextMenu
                                                 }
                                             >
                                                 {cell.getIsPlaceholder() ? null : isCompact &&

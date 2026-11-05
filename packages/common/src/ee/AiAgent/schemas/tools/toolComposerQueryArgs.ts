@@ -1,12 +1,15 @@
 import { z } from 'zod';
-import { DimensionType } from '../../../../types/field';
+import { DimensionType, MetricType } from '../../../../types/field';
 import { type Filters } from '../../../../types/filter';
 import {
+    type AdditionalMetric,
     type MetricQueryRequest,
     type SortField,
 } from '../../../../types/metricQuery';
+import { type ParametersValuesMap } from '../../../../types/parameters';
 import {
     QuerySourceType,
+    type ApiSourceQuery,
     type DuckdbSourceQuery,
     type ExternalSourceQuery,
     type PythonSourceQuery,
@@ -15,42 +18,118 @@ import {
     type SqlSourceQuery,
 } from '../../../../types/querySources';
 import assertUnreachable from '../../../../utils/assertUnreachable';
-import { filterExpressionsSchema } from '../filterExpressions/expressionSchemas';
+import {
+    filterExpressionInputSchema,
+    filterExpressionsSchema,
+} from '../filterExpressions/expressionSchemas';
 import { structuredToolOutputSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
+import {
+    appliedParametersSchema,
+    parameterValueSchema,
+} from './toolRunQueryArgs';
+
+/** The composer query tool's name, and the name calls persisted before the rename carry. */
+export const COMPOSER_QUERY_TOOL_NAMES = [
+    'query',
+    'runComposerQueries',
+] as const;
+
+export type ComposerQueryToolName = (typeof COMPOSER_QUERY_TOOL_NAMES)[number];
+
+export const isComposerQueryToolName = (
+    toolName: string,
+): toolName is ComposerQueryToolName =>
+    (COMPOSER_QUERY_TOOL_NAMES as readonly string[]).includes(toolName);
 
 export const DEFAULT_COMPOSER_QUERY_LIMIT = 500;
 export const DEFAULT_COMPOSER_QUERY_MAX_LIMIT = 5000;
+export const COMPOSER_QUERY_PREVIEW_ROW_LIMIT = 50;
+export const COMPOSER_NODE_SAMPLE_ROW_LIMIT = 5;
+
+/** Libraries preinstalled in the python sandbox, pinned in sandboxes/python-runner/e2b.Dockerfile. */
+export const PYTHON_SANDBOX_LIBRARIES = [
+    { name: 'pandas', version: '2.2.3' },
+    { name: 'numpy', version: '2.2.4' },
+    { name: 'scipy', version: '1.15.2' },
+    { name: 'pyarrow', version: '19.0.1' },
+    { name: 'scikit-learn', version: '1.9.1' },
+    { name: 'polars', version: '1.44.2' },
+] as const;
+
+const PYTHON_SANDBOX_LIBRARIES_DESCRIPTION = PYTHON_SANDBOX_LIBRARIES.map(
+    ({ name, version }) =>
+        `${name} ${version.split('.').slice(0, 2).join('.')}`,
+).join(', ');
+
+const PYTHON_CODE_DESCRIPTION = `Python defining run(inputs, params) -> pandas.DataFrame. Shape every node like this:
+
+import pandas as pd
+
+def run(inputs, params):
+    df = inputs["orders"]                           # one DataFrame per reference, columns already typed
+    cutoff = pd.Timestamp("2026-01-01")             # all datetimes are tz-naive UTC wall clock; never tz_localize/tz_convert
+    out = df[df["created_at"] >= cutoff].groupby("customer_id", as_index=False)["revenue"].sum()
+    return out                                      # unique [A-Za-z_][A-Za-z0-9_]* column names, index dropped
+
+Imports aside, all code inside run(). Read columns as df["col"], never df.col. Check df.dtypes before sum/astype.
+Rows past "limit" are dropped, so aggregate here. Libraries: ${PYTHON_SANDBOX_LIBRARIES_DESCRIPTION}. No network, no installs.`;
 
 type ComposerQueriesDescriptionOptions = {
     enablePythonNodes: boolean;
 };
 
-export const getToolComposerQueriesDescription = ({
-    enablePythonNodes,
-}: ComposerQueriesDescriptionOptions) => `Run a pipeline: one or more queries submitted together, where ${
-    enablePythonNodes ? 'duckdb and python' : 'duckdb'
-} queries join or transform the others' results. The terminal node's rows are returned to you.
+const DUCKDB_ALIAS_GUIDANCE =
+    'Write each column alias with AS, because DuckDB rejects many keywords as bare aliases: `SUM(v) AS value`, `d AS day` and `fam AS label` work, `SUM(v) value` does not. Double-quote a column named after a reserved word, such as `"order"`.';
 
-Node kinds:
+const getComposerNodeKindsDescription = ({
+    enablePythonNodes,
+    sqlNote,
+}: ComposerQueriesDescriptionOptions & { sqlNote: string }) => `Node kinds:
 - "semanticLayer": a metric query against an explore. Result columns are the requested field ids.
-- "sql": raw SQL against the project warehouse; may need user approval. A lone sql node is how raw SQL runs when there is no runSql tool.
+- "sql": raw SQL against the project warehouse; ${sqlNote}.
 - "external": DuckDB SQL over uploaded or connected tables declared in "tables".
 - "duckdb": DuckDB SQL over other results declared in "references".${
     enablePythonNodes
         ? `
-- "python": pandas code over other results declared in "references", for what SQL expresses poorly (statistics, forecasting, reshaping). A python node may read duckdb nodes and duckdb nodes may read it. When it fails, the error carries the Python traceback: fix the code and resubmit.`
+- "python": pandas code over other results declared in "references".`
         : ''
 }
 
-Every node has a "nodeId" (for references) and a "title" (what users see). The terminal node is the unique sink by default, or "terminalNodeId".
+A node reads only the rows its references returned, so a referenced result that reached its limit is incomplete: before totalling, averaging or ranking over it, give that node a limit that holds its whole population, or aggregate there.`;
 
-Reuse across calls: a node id names one node for the whole thread. To build on a node from an earlier call, read its node id in "references" without resubmitting it; it is copied into this pipeline with everything it reads and served from cache when possible. Resubmitting a node id with a different definition is an error, so give a changed node a new node id. Every call lists its nodes' ids and titles.
+export const getToolComposerQueriesDescription = ({
+    enablePythonNodes,
+}: ComposerQueriesDescriptionOptions) => `Run a pipeline: one or more nodes submitted together, where ${
+    enablePythonNodes ? 'duckdb and python' : 'duckdb'
+} nodes join or transform other nodes' results. One call returns one node's rows, the terminal node's, so exactly one submitted node may go unread by the others: to get several results, combine them in one duckdb node (UNION ALL or JOIN) or submit them in separate calls. Every other submitted node is listed with its columns and first rows.
 
-Results stay hidden until you present one; each successful result says how.`;
+${getComposerNodeKindsDescription({
+    enablePythonNodes,
+    sqlNote: 'may need user approval',
+})}
+
+Reuse across calls: a node id names one node for the whole thread. To build on a node from an earlier call, read its node id in "references" without resubmitting it; it is copied into this pipeline with everything it reads and served from cache when possible. Resubmitting a node id with a different definition is an error, so give a changed node a new node id.`;
+
+export const MCP_TOOL_QUERY_DESCRIPTION = `Run a pipeline: one or more nodes submitted together, where duckdb and python nodes join or transform other nodes' results. A pipeline of one node runs a single semantic-layer or SQL query.
+
+One call returns one node's rows, so exactly one submitted node may go unread by the others: combine several results in one duckdb node (UNION ALL or JOIN), or submit them in separate calls reusing earlier nodes.
+
+${getComposerNodeKindsDescription({
+    enablePythonNodes: true,
+    sqlNote: 'available only when run_sql is',
+})}
+
+A python node's "code" defines \`def run(inputs, params)\`, and semanticLayer "filters" are flat expression strings; each field documents its contract.
+
+Reuse earlier nodes: a result returns a sessionId once a node has finished; finished nodes are saved in it. On a follow-up, pass that sessionId and read saved nodes by node id in "references", submitting only the new nodes. Reused nodes bring everything they read and are served from cache when possible. A saved node id names one node for the whole session, so give a changed node a new node id; a failed or unfinished node is not saved, so resubmit it under the same id. Omit sessionId to start a new session.
+
+Returns the terminal node's first rows, other submitted nodes' columns and first rows, and every node's queryUuid. If the result is running, follow up with get_query_result on the terminal node's queryUuid; it also fetches the first page of any node's result by its queryUuid. query computes data only; it saves and charts nothing.`;
 
 export const TOOL_COMPOSER_QUERIES_DESCRIPTION =
-    getToolComposerQueriesDescription({ enablePythonNodes: false });
+    getToolComposerQueriesDescription({
+        enablePythonNodes: false,
+    });
 
 const nodeIdSchema = z
     .string()
@@ -58,9 +137,7 @@ const nodeIdSchema = z
         /^[a-zA-Z_][a-zA-Z0-9_]{0,62}$/,
         'Node ids use letters, digits and underscores, starting with a letter or underscore',
     )
-    .describe(
-        'Names this node so other nodes, in this call or later calls in the thread, can read its result. Also the DuckDB table name its result is exposed as.',
-    );
+    .describe('Names this node so other nodes can read its result.');
 
 const nodeTitleSchema = z
     .string()
@@ -70,25 +147,102 @@ const nodeTitleSchema = z
 
 const nodeDescriptionSchema = z
     .string()
-    .nullable()
     .describe(
-        'One sentence on what this query does, only when the title is not enough. Null otherwise.',
+        'One sentence for a business user on what this node does to the data, adding to the title rather than repeating it, e.g. "Sums completed order revenue per month over the last year." Shown as the node\'s heading in the pipeline list.',
     );
 
-const nodeMetaSchema = {
-    title: nodeTitleSchema,
-    description: nodeDescriptionSchema,
-};
+// Calls persisted before the description was required may carry null or none.
+const persistedNodeDescriptionSchema = z.string().nullish().default(null);
 
 // runQuery's filter-expression contract, minus table calculations: a node has
 // none, DuckDB nodes do that work downstream.
 export const composerSemanticLayerFiltersSchema = filterExpressionsSchema
     .omit({ tableCalculations: true })
     .strict()
-    .nullable()
+    .nullish()
+    .default(null)
     .describe(
         "Filters on this node's explore as flat expression strings, never structured rule objects: one for dimension fields and one for metric fields, each choosing AND or OR independently and combined with AND. Null when unfiltered, or null for an unused kind.",
     );
+
+const composerCustomMetricSchema = z.object({
+    table: z
+        .string()
+        .describe('Table of the base dimension; the metric belongs to it.'),
+    name: z
+        .string()
+        .regex(
+            /^[a-z][a-z0-9_]*$/,
+            'Custom metric names use lowercase snake_case',
+        )
+        .describe(
+            'snake_case name. The metric\'s field id is "<table>_<name>": list it in "metrics" to select it, and use it in sorts, metric filters and periodComparisons.',
+        ),
+    label: z.string().describe('Column label shown to users.'),
+    description: z
+        .string()
+        .nullish()
+        .describe(
+            "Shown to users as the metric's description. Null when the label is enough.",
+        ),
+    aggregation: z
+        .enum([
+            MetricType.SUM,
+            MetricType.AVERAGE,
+            MetricType.COUNT,
+            MetricType.COUNT_DISTINCT,
+            MetricType.MIN,
+            MetricType.MAX,
+            MetricType.MEDIAN,
+            MetricType.PERCENTILE,
+        ])
+        .describe(
+            'Aggregation over the base dimension. Number dimensions take any; string, date and timestamp dimensions take count, count_distinct, min or max; boolean dimensions take count or count_distinct.',
+        ),
+    dimensionFieldId: z
+        .string()
+        .describe(
+            'Field id of the dimension to aggregate, a dimension of "table".',
+        ),
+    percentile: z
+        .number()
+        .min(0)
+        .max(100)
+        .nullish()
+        .describe('0–100, set only for the percentile aggregation.'),
+    filter: filterExpressionInputSchema
+        .nullish()
+        .describe(
+            'Aggregates only the rows this flat AND expression over dimensions matches, in the node filter grammar, e.g. "orders_status equals=completed". Null aggregates every row.',
+        ),
+});
+
+const composerPeriodComparisonSchema = z.object({
+    metricFieldId: z
+        .string()
+        .describe(
+            'Metric to compare: a field id in "metrics", explore or custom.',
+        ),
+    timeDimensionFieldId: z
+        .string()
+        .describe(
+            'Time dimension in "dimensions" with a day, week, month, quarter or year grain; the offset counts in that grain.',
+        ),
+    periodOffset: z.coerce
+        .number()
+        .int()
+        .min(1)
+        .describe(
+            'Periods to look back: 1 for the previous period, 12 on a month grain for the same month last year.',
+        ),
+});
+
+export type ToolComposerCustomMetric = z.infer<
+    typeof composerCustomMetricSchema
+>;
+export type ToolComposerPeriodComparison = z.infer<
+    typeof composerPeriodComparisonSchema
+>;
 
 const sortFieldSchema = z.object({
     fieldId: z.string().describe('Field id to sort by.'),
@@ -114,13 +268,25 @@ type CreateToolComposerQueriesArgsSchemaOptions = {
     defaultLimit?: number;
     /** Offers the python node; only when python queries are enabled for the org. */
     enablePythonNodes?: boolean;
+    /** Persisted calls predate the required description; only new input requires it. */
+    persisted?: boolean;
+    /** Parses api nodes, which only threads from before live data source explores hold. */
+    enableApiNodes?: boolean;
 };
 
-export const createToolComposerQueriesArgsSchema = ({
+export const createToolComposerQueriesArgsSchemaV1 = ({
     maxLimit = DEFAULT_COMPOSER_QUERY_MAX_LIMIT,
     defaultLimit = DEFAULT_COMPOSER_QUERY_LIMIT,
     enablePythonNodes = false,
+    persisted = false,
+    enableApiNodes = false,
 }: CreateToolComposerQueriesArgsSchemaOptions = {}) => {
+    const nodeMetaSchema = {
+        title: nodeTitleSchema,
+        description: persisted
+            ? persistedNodeDescriptionSchema
+            : nodeDescriptionSchema,
+    };
     const limitSchema = z.coerce
         .number()
         .int()
@@ -151,9 +317,28 @@ export const createToolComposerQueriesArgsSchema = ({
         filters: composerSemanticLayerFiltersSchema,
         sorts: z
             .array(sortFieldSchema)
-            .nullable()
+            .nullish()
+            .default(null)
             .describe(
-                'Sorts to apply, e.g. [{"fieldId": "orders_order_date", "descending": true}].',
+                'Sorts by fields this node also selects in dimensions or metrics, e.g. [{"fieldId": "orders_order_date", "descending": true}].',
+            ),
+        customMetrics: z
+            .array(composerCustomMetricSchema)
+            .nullish()
+            .describe(
+                'Metrics the explore lacks, each an aggregation over one of its dimensions, computed in this query.',
+            ),
+        periodComparisons: z
+            .array(composerPeriodComparisonSchema)
+            .nullish()
+            .describe(
+                'Each adds a column holding a metric shifted back in time, next to that metric, e.g. revenue the same month last year. The warehouse reads the earlier period even when the filters exclude it. The column id is generated; read it from the result columns.',
+            ),
+        parameters: z
+            .record(z.string(), parameterValueSchema)
+            .nullish()
+            .describe(
+                'Parameter values for this node, keyed by parameter name exactly as shown in the explore metadata (e.g. {"orders.metric": "active_users"}). Set them whenever a selected field is marked "requires parameters" and the default does not match what the user asked for: an unset parameter silently resolves to its default, which can return the wrong data. null when the explore has no parameters or the defaults are correct.',
             ),
         limit: limitSchema,
     });
@@ -165,7 +350,7 @@ export const createToolComposerQueriesArgsSchema = ({
         sql: z
             .string()
             .describe(
-                "The SQL to execute against the project's data warehouse, in the warehouse's SQL dialect. Must be a SELECT (or WITH) statement.",
+                "A SELECT or WITH statement in the warehouse's SQL dialect.",
             ),
         limit: limitSchema,
     });
@@ -177,10 +362,10 @@ export const createToolComposerQueriesArgsSchema = ({
         sql: z
             .string()
             .describe(
-                'DuckDB SQL over the referenced results. Each reference is exposed as a table; its columns are the upstream result columns.',
+                `DuckDB SQL over the tables "references" exposes. ${DUCKDB_ALIAS_GUIDANCE}`,
             ),
         references: referencesSchema.describe(
-            'Which nodes the SQL reads, by node id, from this call or an earlier call in the thread. Shorthand array of node ids (each exposed as a table named by its node id), or a map of {tableName: nodeId} to alias them.',
+            'Which nodes the SQL reads, by node id: an array (each exposed as a table named by its node id), or a map of {tableName: nodeId} to alias them.',
         ),
         limit: limitSchema,
     });
@@ -192,12 +377,12 @@ export const createToolComposerQueriesArgsSchema = ({
         sql: z
             .string()
             .describe(
-                'DuckDB SQL over the declared external source tables. Each table is exposed under its name or map alias.',
+                `DuckDB SQL over the tables "tables" declares. ${DUCKDB_ALIAS_GUIDANCE}`,
             ),
         tables: z
             .union([z.array(z.string()), z.record(z.string(), z.string())])
             .describe(
-                'External tables read by this query: an array of table names, or a map of {sqlAlias: tableNameOrTableUuid}. Prefer table UUIDs from attached-source context so renames cannot break the query.',
+                'External tables this node reads: an array of table names (each exposed under its name), or a map of {sqlAlias: tableNameOrTableUuid}. Prefer table UUIDs from attached-source context so renames cannot break the query.',
             ),
         limit: limitSchema,
     });
@@ -206,14 +391,32 @@ export const createToolComposerQueriesArgsSchema = ({
         sourceType: z.literal(QuerySourceType.PYTHON),
         nodeId: nodeIdSchema,
         ...nodeMetaSchema,
-        code: z
+        code: z.string().describe(PYTHON_CODE_DESCRIPTION),
+        references: referencesSchema.describe(
+            'Which nodes the code reads, at least one, by node id: an array (each exposed as inputs[nodeId]), or a map of {inputName: nodeId} to alias them.',
+        ),
+        limit: limitSchema,
+    });
+
+    const apiNodeSchema = z.object({
+        sourceType: z.literal(QuerySourceType.API),
+        nodeId: nodeIdSchema,
+        ...nodeMetaSchema,
+        connectionUuid: z
             .string()
             .describe(
-                `Python defining \`def run(inputs: dict[str, pandas.DataFrame], params: dict) -> pandas.DataFrame\`. inputs[name] is one DataFrame per reference, keyed by its name in "references"; params is empty. Available libraries: pandas, numpy, scipy, pyarrow, scikit-learn, polars. No network access and no package installs. Polars results must be converted back with .to_pandas(). Return one DataFrame whose column names match ^[A-Za-z_][A-Za-z0-9_]{0,62}$. Rows past "limit" are dropped, so aggregate in Python when the output would be large.`,
+                'The project connection the query is sent to, from the list in the tool description.',
             ),
-        references: referencesSchema.describe(
-            'Which nodes the code reads, at least one, by node id, from this call or an earlier call in the thread. Shorthand array of node ids (each exposed as inputs[nodeId]), or a map of {inputName: nodeId} to alias them.',
-        ),
+        payload: z
+            .object({
+                kind: z.literal('query'),
+                query: z
+                    .string()
+                    .describe(
+                        'For "posthog": one HogQL SELECT, the ClickHouse SQL dialect, over tables such as events (event, timestamp, distinct_id, person_id, properties), persons (id, created_at, properties) and sessions. Read a property as properties.$browser or properties.plan. Alias every column with AS using letters, digits and underscores. PostHog stops a query after 10 seconds, so aggregate in HogQL rather than fetching raw events. List event names first when unsure which exist. For "search_console": one Search Analytics request as a JSON object with startDate and endDate (YYYY-MM-DD, required), dimensions from date, query, page, country, device and searchAppearance, and optionally type (web, image, video, news, discover, googleNews), dimensionFilterGroups and aggregationType. Rows carry the dimensions plus clicks, impressions, ctr and position; ctr and position are averages, so never sum them. Data lags about two days. For "ga4": one runReport request as a JSON object with dateRanges (startDate and endDate as YYYY-MM-DD, today, yesterday or NdaysAgo), metrics (1-10, e.g. activeUsers, sessions, screenPageViews, conversions, totalRevenue) and optionally dimensions (up to 9, e.g. date, country, deviceCategory, sessionSource, pagePath, eventName), dimensionFilter, metricFilter and orderBys in the GA4 Data API shape. Columns are the API names, with any character other than letters, digits and underscores replaced by an underscore; date comes back as YYYY-MM-DD. Rate and average metrics such as bounceRate or averageSessionDuration must not be summed. Each report spends hourly quota on the property, so prefer one aggregated report over many.',
+                    ),
+            })
+            .describe('What the API runs.'),
         limit: limitSchema,
     });
 
@@ -223,24 +426,23 @@ export const createToolComposerQueriesArgsSchema = ({
         duckdbNodeSchema,
         externalNodeSchema,
     ] as const;
-    const sourceQueryNodeSchema = z.discriminatedUnion(
-        'sourceType',
-        enablePythonNodes
-            ? [...baseNodeSchemas, pythonNodeSchema]
-            : [...baseNodeSchemas],
-    );
+    const sourceQueryNodeSchema = z.discriminatedUnion('sourceType', [
+        ...baseNodeSchemas,
+        ...(enablePythonNodes ? [pythonNodeSchema] : []),
+        ...(enableApiNodes ? [apiNodeSchema] : []),
+    ]);
 
     return createToolSchema()
         .extend({
             title: z
                 .string()
-                .nullable()
-                .describe(
-                    'A short title for the result, used when it is presented.',
-                ),
+                .nullish()
+                .default(null)
+                .describe('A short title for the result.'),
             description: z
                 .string()
-                .nullable()
+                .nullish()
+                .default(null)
                 .describe(
                     'A one-line description of what the pipeline computes.',
                 ),
@@ -248,22 +450,63 @@ export const createToolComposerQueriesArgsSchema = ({
                 .array(sourceQueryNodeSchema)
                 .min(1)
                 .describe(
-                    `The nodes to submit: new nodes, plus any earlier node you resubmit unchanged. Order does not matter — reads are resolved from ${
+                    `The nodes to submit, in any order: reads are resolved from ${
                         enablePythonNodes ? 'duckdb and python' : 'duckdb'
                     } references.`,
                 ),
             terminalNodeId: z
                 .string()
-                .nullable()
+                .nullish()
+                .default(null)
                 .describe(
-                    "Which node's result this tool returns and you can present. Pass null to default to the unique sink among the submitted nodes (the one node no other submitted node reads); required when there are multiple sinks.",
+                    'The terminal node. Null picks the one submitted node no other submitted node reads; a node id returns that node of the pipeline instead, including a node from an earlier call.',
                 ),
         })
         .build();
 };
 
+// The advertised contract; python and api nodes and the row limit are runtime-selected.
+export const createToolComposerQueriesArgsSchema =
+    createToolComposerQueriesArgsSchemaV1;
+
 export const toolComposerQueriesArgsSchema =
     createToolComposerQueriesArgsSchema();
+
+// Calls persisted before node filters became expressions carry free-form
+// filters; parse those nodes unfiltered rather than dropping the call.
+const dropLegacyComposerNodeFilters = (input: unknown): unknown => {
+    if (!input || typeof input !== 'object' || Array.isArray(input)) {
+        return input;
+    }
+    const { queries } = input as { queries?: unknown };
+    if (!Array.isArray(queries)) return input;
+    return {
+        ...input,
+        queries: queries.map((node: unknown) =>
+            node &&
+            typeof node === 'object' &&
+            'sourceType' in node &&
+            node.sourceType === QuerySourceType.SEMANTIC_LAYER &&
+            'filters' in node &&
+            !composerSemanticLayerFiltersSchema.safeParse(node.filters).success
+                ? { ...node, filters: null }
+                : node,
+        ),
+    };
+};
+
+// Wide contract for parsing persisted args, never advertised. Same evolution
+// rules as toolRunQueryArgsSchemaPersisted: additive fields are nullish with a
+// default; a restructure adds V(N) and this alias keeps parsing every version.
+export const toolComposerQueriesArgsSchemaPersisted = z.preprocess(
+    dropLegacyComposerNodeFilters,
+    createToolComposerQueriesArgsSchemaV1({
+        enablePythonNodes: true,
+        enableApiNodes: true,
+        maxLimit: Number.MAX_SAFE_INTEGER,
+        persisted: true,
+    }),
+);
 
 export type ToolComposerQueryNode = z.infer<
     ReturnType<typeof createToolComposerQueriesArgsSchema>
@@ -274,12 +517,16 @@ export type ToolComposerSemanticLayerNode = Extract<
     { sourceType: QuerySourceType.SEMANTIC_LAYER }
 >;
 
-// A submitted node with semanticLayer filters already resolved to domain
-// Filters; only this shape converts to a SourceQuery.
+// A submitted node with semanticLayer filters and custom metrics resolved to
+// the metric query's shape; only this shape converts to a SourceQuery.
 export type ResolvedToolComposerQueryNode =
     | Exclude<ToolComposerQueryNode, ToolComposerSemanticLayerNode>
-    | (Omit<ToolComposerSemanticLayerNode, 'filters'> & {
+    | (Omit<
+          ToolComposerSemanticLayerNode,
+          'filters' | 'customMetrics' | 'periodComparisons'
+      > & {
           filters: Filters | null;
+          additionalMetrics: AdditionalMetric[];
       });
 
 const toSourceQueryNodeMeta = (
@@ -301,6 +548,7 @@ export type SubmittedSourceQuery = (
     | DuckdbSourceQuery
     | ExternalSourceQuery
     | PythonSourceQuery
+    | ApiSourceQuery
 ) & { nodeId: QueryNodeId };
 
 export const toolComposerQueryNodeToSourceQuery = (
@@ -311,6 +559,10 @@ export const toolComposerQueryNodeToSourceQuery = (
             const filters: MetricQueryRequest['filters'] | undefined =
                 node.filters ?? undefined;
             const sorts: SortField[] | undefined = node.sorts ?? undefined;
+            const parameters: ParametersValuesMap | undefined =
+                node.parameters && Object.keys(node.parameters).length > 0
+                    ? node.parameters
+                    : undefined;
             return {
                 sourceType: node.sourceType,
                 nodeId: node.nodeId,
@@ -320,6 +572,10 @@ export const toolComposerQueryNodeToSourceQuery = (
                 metrics: node.metrics,
                 filters,
                 sorts,
+                parameters,
+                ...(node.additionalMetrics.length > 0
+                    ? { additionalMetrics: node.additionalMetrics }
+                    : {}),
                 limit: node.limit,
             };
         }
@@ -356,6 +612,15 @@ export const toolComposerQueryNodeToSourceQuery = (
                 ...toSourceQueryNodeMeta(node),
                 code: node.code,
                 references: node.references,
+                limit: node.limit,
+            };
+        case QuerySourceType.API:
+            return {
+                sourceType: node.sourceType,
+                nodeId: node.nodeId,
+                ...toSourceQueryNodeMeta(node),
+                connectionUuid: node.connectionUuid,
+                payload: node.payload,
                 limit: node.limit,
             };
         default:
@@ -428,6 +693,7 @@ export const parsePartialToolComposerQueriesArgs = (
                         metrics: asStringArray(node.metrics),
                         filters: null,
                         sorts: null,
+                        parameters: null,
                         limit: DEFAULT_COMPOSER_QUERY_LIMIT,
                     },
                 ];
@@ -470,6 +736,28 @@ export const parsePartialToolComposerQueriesArgs = (
                         limit: DEFAULT_COMPOSER_QUERY_LIMIT,
                     },
                 ];
+            case QuerySourceType.API: {
+                if (typeof node.connectionUuid !== 'string') return [];
+                const payload =
+                    node.payload && typeof node.payload === 'object'
+                        ? (node.payload as Record<string, unknown>)
+                        : {};
+                return [
+                    {
+                        sourceType: QuerySourceType.API,
+                        ...meta,
+                        connectionUuid: node.connectionUuid,
+                        payload: {
+                            kind: 'query',
+                            query:
+                                typeof payload.query === 'string'
+                                    ? payload.query
+                                    : '',
+                        },
+                        limit: DEFAULT_COMPOSER_QUERY_LIMIT,
+                    },
+                ];
+            }
             default:
                 return [];
         }
@@ -485,21 +773,44 @@ export const parsePartialToolComposerQueriesArgs = (
     };
 };
 
-const composerQueryNodeSummarySchema = z.object({
-    nodeId: nodeIdSchema,
-    title: z.string().nullable().describe('What users see for this node.'),
-    sourceType: z.nativeEnum(QuerySourceType),
-});
-
 const composerQueryColumnSchema = z.object({
     reference: z.string().describe('Column name as it appears in the rows.'),
     type: z.nativeEnum(DimensionType),
 });
 
+const composerQueryNodeSummarySchema = z.object({
+    nodeId: nodeIdSchema,
+    title: z.string().nullable().describe('What users see for this node.'),
+    sourceType: z.nativeEnum(QuerySourceType),
+    rowCount: z
+        .number()
+        .int()
+        .nonnegative()
+        .nullable()
+        .describe('Rows this node returned; null when its query is not ready.'),
+    limit: z
+        .number()
+        .int()
+        .positive()
+        .describe(
+            'Row limit this node ran with. A rowCount equal to it means the node reached its limit, so more rows may exist.',
+        ),
+    columns: z
+        .array(composerQueryColumnSchema)
+        .nullable()
+        .describe(
+            'Columns of a node submitted in this call; null for reused nodes and for the terminal node, whose columns are in columns.',
+        ),
+    sample: z
+        .array(z.record(z.string(), z.unknown()))
+        .nullable()
+        .describe(
+            `First ${COMPOSER_NODE_SAMPLE_ROW_LIMIT} rows of a node submitted in this call other than the terminal node; null otherwise or when data access is disabled.`,
+        ),
+});
+
 export const toolComposerQueriesStructuredContentSchema = z.object({
-    terminalNodeId: nodeIdSchema.describe(
-        'Node whose rows are returned and which a presentation can show.',
-    ),
+    terminalNodeId: nodeIdSchema.describe('Node whose rows are returned.'),
     rowCount: z
         .number()
         .int()
@@ -513,6 +824,11 @@ export const toolComposerQueriesStructuredContentSchema = z.object({
     columns: z
         .array(composerQueryColumnSchema)
         .describe('Terminal result columns, in order.'),
+    parameters: z
+        .array(appliedParametersSchema.extend({ nodeId: nodeIdSchema }))
+        .describe(
+            'The parameter state each semanticLayer node of the pipeline ran with; only nodes whose explore references parameters.',
+        ),
     preview: z
         .object({
             rows: z
@@ -533,10 +849,62 @@ export const toolComposerQueriesStructuredContentSchema = z.object({
     review: z.string().nullable(),
 });
 
+export const mcpQueryStructuredOutputSchema = z.object({
+    sessionId: z
+        .string()
+        .nullable()
+        .describe(
+            'Composer session holding the ready nodes; pass it as sessionId to read them by node id in a later call. Null when no node was saved and no sessionId was passed.',
+        ),
+    status: z
+        .enum(['done', 'running'])
+        .describe(
+            'running when the terminal node outlived the wait; poll get_query_result with its queryUuid.',
+        ),
+    terminalNodeId: nodeIdSchema.describe('Node whose rows are previewed.'),
+    rowCount: z
+        .number()
+        .int()
+        .nonnegative()
+        .nullable()
+        .describe('Total rows in the terminal result; null while running.'),
+    nodes: z
+        .array(
+            composerQueryNodeSummarySchema.extend({
+                queryUuid: z
+                    .string()
+                    .describe('Pass to get_query_result to read this node.'),
+                status: z.enum(['done', 'running', 'failed']),
+                reachedLimit: z
+                    .boolean()
+                    .describe(
+                        'True when rowCount reached limit, so more rows may exist and nodes reading it may be computed on incomplete rows.',
+                    ),
+                columns: z
+                    .array(composerQueryColumnSchema)
+                    .nullable()
+                    .describe(
+                        'Result columns of the terminal node and of nodes submitted in this call; null for reused nodes and until the node is done.',
+                    ),
+                sample: z
+                    .array(z.record(z.string(), z.unknown()))
+                    .nullable()
+                    .describe(
+                        `First ${COMPOSER_NODE_SAMPLE_ROW_LIMIT} rows of a done node submitted in this call other than the terminal node; null for the terminal node and for reused, failed or unfinished nodes.`,
+                    ),
+            }),
+        )
+        .describe('Every node of the pipeline, in dependency order.'),
+});
+
+export type McpQueryStructuredContent = z.infer<
+    typeof mcpQueryStructuredOutputSchema
+>;
+
 const toolComposerQueriesSuccessMetadataSchema = z.object({
     status: z.literal('success'),
     queryUuid: z.string(),
-    terminalNodeId: nodeIdSchema.describe('The node a presentation shows.'),
+    terminalNodeId: nodeIdSchema.describe('Node whose rows are returned.'),
     title: z.string(),
     description: z.string().nullable(),
 });

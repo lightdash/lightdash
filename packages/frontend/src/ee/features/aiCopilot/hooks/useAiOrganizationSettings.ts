@@ -140,6 +140,9 @@ export const useUpdateAiOrganizationSettings = (
             mutationOptions?.onSuccess?.(data, variables, context);
         },
         onError: ({ error }) => {
+            if (error.statusCode === 403) {
+                void invalidateAiOrganizationSettingsQueries(queryClient);
+            }
             showToastApiError({
                 title: 'Failed to update AI organization settings',
                 apiError: error,

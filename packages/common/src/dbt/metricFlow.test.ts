@@ -1431,6 +1431,77 @@ describe('applyMetricFlowMetricsToModels', () => {
         });
     });
 
+    it('uses the supplied model names while keeping metric qualification independent', () => {
+        const { models, semanticModels } = buildMeshMetricFixture(true);
+        models.push({
+            ...models[0],
+            name: 'finance__orders',
+            unique_id: 'model.analytics.finance__orders',
+        });
+        const result = applyMetricFlowMetricsToModels(
+            models,
+            { semantic_models: semanticModels, metrics: {} },
+            new Map([
+                [models[0].unique_id, 'orders'],
+                [models[1].unique_id, 'billing__orders'],
+                [models[2].unique_id, 'finance__orders'],
+            ]),
+        );
+        expect(result.error).toBeNull();
+        expect(result.models[0].meta.metrics).toMatchObject({
+            analytics__revenue: { sql: '${TABLE}.analytics_amount' },
+        });
+        expect(result.models[1].meta.metrics).toMatchObject({
+            finance__revenue: { sql: '${TABLE}.finance_amount' },
+        });
+    });
+
+    it('translates metrics attached to a qualified versioned model', () => {
+        const { models, semanticModels } = buildMeshMetricFixture(true);
+        const versionedModels = models.flatMap((model) =>
+            [1, 2].map((version) => ({
+                ...model,
+                unique_id: `${model.unique_id}.v${version}`,
+                version,
+                latest_version: 2,
+            })),
+        );
+        const result = applyMetricFlowMetricsToModels(versionedModels, {
+            semantic_models: Object.fromEntries(
+                Object.entries(semanticModels).map(([key, semanticModel]) => [
+                    key,
+                    {
+                        ...semanticModel,
+                        depends_on: {
+                            nodes: [
+                                `model.${semanticModel.package_name}.orders.v2`,
+                            ],
+                        },
+                    },
+                ]),
+            ),
+            metrics: {},
+        });
+
+        expect(result.error).toBeNull();
+        expect(result.models[0].meta.metrics).toEqual(
+            result.models[1].meta.metrics,
+        );
+        expect(result.models[2].meta.metrics).toEqual(
+            result.models[3].meta.metrics,
+        );
+        expect(result.models[1].meta.metrics).toEqual({
+            analytics__revenue: expect.objectContaining({
+                sql: '${TABLE}.analytics_amount',
+            }),
+        });
+        expect(result.models[3].meta.metrics).toEqual({
+            finance__revenue: expect.objectContaining({
+                sql: '${TABLE}.finance_amount',
+            }),
+        });
+    });
+
     it('qualifies create_metric measures and resolves derived inputs package-locally', () => {
         const { models, semanticModels } = buildMeshMetricFixture(true);
         const result = applyMetricFlowMetricsToModels(models, {

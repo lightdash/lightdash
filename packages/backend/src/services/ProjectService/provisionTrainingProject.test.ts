@@ -1,6 +1,5 @@
 import { Ability } from '@casl/ability';
 import {
-    FeatureFlags,
     OrganizationMemberRole,
     ProjectMemberRole,
     ProjectType,
@@ -87,14 +86,9 @@ const buildArguments = (
     const seedTrainingMetricsTrees = vi.fn(async () => undefined);
     const validateTrainingDatabase = vi.fn(async () => undefined);
     const track = vi.fn();
-    const getFeatureFlag = vi.fn(async () => ({
-        id: FeatureFlags.EnableLearn,
-        enabled: true,
-    }));
     return {
         args: {
             user,
-            featureFlagModel: { get: getFeatureFlag },
             projectModel: {
                 getAllByOrganizationUuid,
                 delete: deleteProject,
@@ -124,7 +118,6 @@ const buildArguments = (
         seedTrainingContent,
         seedTrainingMetricsTrees,
         track,
-        getFeatureFlag,
     };
 };
 
@@ -141,31 +134,6 @@ describe('provisionTrainingProject', () => {
             mocks.seedTrainingMetricsTrees.mock.invocationCallOrder[0],
         );
         expect(mocks.deleteProject).toHaveBeenCalledWith(projectUuid);
-    });
-
-    it('refuses when Learn is switched off for the organization', async () => {
-        const mocks = buildArguments();
-        mocks.getFeatureFlag.mockResolvedValueOnce({
-            id: FeatureFlags.EnableLearn,
-            enabled: false,
-        });
-        await expect(provisionTrainingProject(mocks.args)).rejects.toThrow(
-            'Learn is not enabled for this organization',
-        );
-        expect(mocks.createWithoutCompile).not.toHaveBeenCalled();
-        expect(mocks.runInTrainingProvisioningLock).not.toHaveBeenCalled();
-        expect(mocks.getFeatureFlag).toHaveBeenCalledExactlyOnceWith({
-            user,
-            featureFlagId: FeatureFlags.EnableLearn,
-        });
-        expect(mocks.track).toHaveBeenCalledExactlyOnceWith(
-            expect.objectContaining({
-                event: 'training_project.skipped',
-                properties: expect.objectContaining({
-                    reason: 'learn_disabled',
-                }),
-            }),
-        );
     });
 
     it('returns the existing training project without creating another', async () => {

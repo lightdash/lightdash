@@ -1,6 +1,5 @@
 import {
     AI_DEEP_RESEARCH_DEFAULT_LIMITS,
-    FeatureFlags,
     ForbiddenError,
     ProjectType,
     type AiAgentReviewClassifierJudgeOutput,
@@ -8,7 +7,10 @@ import {
 } from '@lightdash/common';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
 import { type AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
-import { AiDecisionClient } from './ai/decisions/AiDecisionClient';
+import {
+    AiDecisionClient,
+    resolveAiDecisionClient,
+} from './ai/decisions/AiDecisionClient';
 import { resolveReviewJudgeProvider } from './ai/reviewJudgeModel';
 import { AiAgentReviewClassifierService } from './AiAgentReviewClassifierService';
 
@@ -267,9 +269,16 @@ describe('AiAgentReviewClassifierService', () => {
     const aiOrganizationSettingsModel = {
         findByOrganizationUuid: vi.fn(),
     } as unknown as import('vitest').Mocked<AiOrganizationSettingsModel>;
+    const decisionConfig = {
+        apiKey: null as string | null,
+        model: 'test',
+        timeoutMs: 100,
+    };
     const orgAiCopilotConfigResolver = {
         getReviewJudgeAvailability: vi.fn(),
-        isOrgBedrockRouted: vi.fn().mockResolvedValue(false),
+        getDecisionClient: vi.fn(async () =>
+            resolveAiDecisionClient(decisionConfig),
+        ),
     };
     const catalogModel = {
         getCatalogItemsSummary: vi.fn(),
@@ -286,14 +295,7 @@ describe('AiAgentReviewClassifierService', () => {
     };
     const judgeTurn = vi.fn();
 
-    const featureFlagModel = { get: vi.fn() };
-    const decisionConfig = {
-        apiKey: null as string | null,
-        model: 'test',
-        timeoutMs: 100,
-    };
     const service = new AiAgentReviewClassifierService({
-        featureFlagModel,
         aiAgentReviewClassifierModel: model,
         aiAgentModel: aiAgentModel as never,
         aiAgentDocumentModel,
@@ -312,7 +314,6 @@ describe('AiAgentReviewClassifierService', () => {
     beforeEach(() => {
         vi.resetAllMocks();
         decisionConfig.apiKey = null;
-        featureFlagModel.get.mockResolvedValue({ enabled: false });
         orgAiCopilotConfigResolver.getReviewJudgeAvailability.mockResolvedValue(
             {
                 hasActiveByoKey: false,
@@ -326,6 +327,7 @@ describe('AiAgentReviewClassifierService', () => {
             aiAgentReviewsEnabled: true,
             deepResearchLimits: AI_DEEP_RESEARCH_DEFAULT_LIMITS,
             deepResearchRawSqlEnabled: false,
+            mcpEnabled: true,
             mcpContentWritesEnabled: true,
             mcpAgentsEnabled: true,
             requireExplicitSlackChannelLinking: false,
@@ -404,10 +406,11 @@ describe('AiAgentReviewClassifierService', () => {
         judgeTurn.mockResolvedValue(makeJudgeOutput());
     });
 
-    it('does not rank evidence through the instance provider for a Bedrock org', async () => {
+    it('does not rank evidence when the org gets no instance decision client', async () => {
         decisionConfig.apiKey = 'test';
-        featureFlagModel.get.mockResolvedValue({ enabled: true });
-        orgAiCopilotConfigResolver.isOrgBedrockRouted.mockResolvedValue(true);
+        orgAiCopilotConfigResolver.getDecisionClient.mockResolvedValueOnce(
+            undefined,
+        );
         const candidate = makeCandidate({
             supportingEvidence: [makeWritebackEvidence('Some result')],
         });
@@ -428,15 +431,11 @@ describe('AiAgentReviewClassifierService', () => {
             });
         } finally {
             evaluate.mockRestore();
-            orgAiCopilotConfigResolver.isOrgBedrockRouted.mockResolvedValue(
-                false,
-            );
         }
     });
 
     it('loads a bounded larger evidence pool and preserves a successful writeback through semantic ranking', async () => {
         decisionConfig.apiKey = 'test';
-        featureFlagModel.get.mockResolvedValue({ enabled: true });
         const evidence = Array.from({ length: 8 }, (_, index) => ({
             ...makeWritebackEvidence('Some result'),
             toolCallId: `tool-${index}`,
@@ -458,10 +457,6 @@ describe('AiAgentReviewClassifierService', () => {
                 organizationUuid: ORGANIZATION_UUID,
                 promptUuid: PROMPT_UUID,
             });
-            expect(featureFlagModel.get).toHaveBeenCalledExactlyOnceWith({
-                user: { organizationUuid: ORGANIZATION_UUID },
-                featureFlagId: FeatureFlags.AiAgentFastDecisions,
-            });
             expect(
                 model.listTurnReviewCandidates,
             ).toHaveBeenCalledExactlyOnceWith({
@@ -481,13 +476,10 @@ describe('AiAgentReviewClassifierService', () => {
         }
     });
 
-    it.each(['flag-off', 'reviews-off', 'provider-outage'] as const)(
+    it.each(['no-key', 'reviews-off', 'provider-outage'] as const)(
         'keeps review fallback and opt-in boundaries for %s',
         async (mode) => {
-            decisionConfig.apiKey = 'test';
-            featureFlagModel.get.mockResolvedValue({
-                enabled: mode !== 'flag-off',
-            });
+            decisionConfig.apiKey = mode === 'no-key' ? null : 'test';
             if (mode === 'reviews-off')
                 aiOrganizationSettingsModel.findByOrganizationUuid.mockResolvedValue(
                     { aiAgentReviewsEnabled: false } as never,
@@ -531,6 +523,7 @@ describe('AiAgentReviewClassifierService', () => {
                 aiAgentReviewsEnabled: false,
                 deepResearchLimits: AI_DEEP_RESEARCH_DEFAULT_LIMITS,
                 deepResearchRawSqlEnabled: false,
+                mcpEnabled: true,
                 mcpContentWritesEnabled: true,
                 mcpAgentsEnabled: true,
                 requireExplicitSlackChannelLinking: false,

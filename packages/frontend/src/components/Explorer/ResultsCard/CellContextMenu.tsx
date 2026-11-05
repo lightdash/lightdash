@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    getCellUrls,
     hasCustomBinDimension,
     isCustomDimension,
     isDimension,
@@ -9,11 +10,15 @@ import {
     type ResultValue,
     type TableCalculation,
 } from '@lightdash/common';
-import { Menu } from '@mantine/core';
+import { Menu, Text } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy, IconStack } from '@tabler/icons-react';
-import mapValues from 'lodash/mapValues';
+import { mapValues } from 'es-toolkit/compat';
 import { useCallback, useMemo, type FC } from 'react';
+import {
+    NOT_ON_LIVE_SOURCES,
+    useApiSourceExplore,
+} from '../../../features/externalConnections/liveSources/apiSourceExplore';
 import { useMergeSafe } from '../../../features/mergeQuery/context/useMerge';
 import { useMergeQuickFilter } from '../../../features/mergeQuery/hooks/useMergeQuickFilter';
 import { useMergeSourceCell } from '../../../features/mergeQuery/hooks/useMergeSourceCell';
@@ -47,6 +52,7 @@ const CellContextMenu: FC<
     const mergeQuickFilter = useMergeQuickFilter();
     const { openUnderlyingDataModal, metricQuery, tableName } =
         useMetricQueryDataContext();
+    const isLiveSource = useApiSourceExplore(tableName) !== null;
     const { track } = useTracking();
     const { showToastSuccess } = useToaster();
     const clipboard = useClipboard({ timeout: 2000 });
@@ -75,6 +81,11 @@ const CellContextMenu: FC<
     const value: ResultValue = useMemo(
         () => cell.getValue()?.value || {},
         [cell],
+    );
+
+    const urls = useMemo(
+        () => getCellUrls(isField(item) ? item.urls : undefined, value.raw),
+        [item, value],
     );
 
     const fieldValues = useMemo(
@@ -123,14 +134,12 @@ const CellContextMenu: FC<
 
     return (
         <>
-            {value.raw !== undefined && value.raw !== null && isField(item) && (
-                <UrlMenuItems
-                    urls={item.urls}
-                    cell={cell}
-                    itemsMap={itemsMap}
-                />
+            {urls.length > 0 && (
+                <>
+                    <UrlMenuItems urls={urls} cell={cell} itemsMap={itemsMap} />
+                    <Menu.Divider />
+                </>
             )}
-            {isField(item) && (item.urls || []).length > 0 && <Menu.Divider />}
             <Menu.Item
                 leftSection={<MantineIcon icon={IconCopy} />}
                 onClick={handleCopyToClipboard}
@@ -157,6 +166,7 @@ const CellContextMenu: FC<
                         <Menu.Item
                             leftSection={<MantineIcon icon={IconStack} />}
                             onClick={handleViewUnderlyingData}
+                            disabled={isLiveSource}
                             // Walkthrough action for view:UnderlyingData:
                             // the records behind a number. See
                             // scripts/scope-tours.
@@ -170,6 +180,11 @@ const CellContextMenu: FC<
                             data-tour-docs="explore/dashboards/interact.mdx#view-underlying-data:1"
                         >
                             View underlying data
+                            {isLiveSource && (
+                                <Text fz="xs" c="dimmed">
+                                    {NOT_ON_LIVE_SOURCES}
+                                </Text>
+                            )}
                         </Menu.Item>
                     </Can>
                 )}

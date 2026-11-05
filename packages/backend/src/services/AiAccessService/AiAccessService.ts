@@ -95,7 +95,7 @@ import {
     matchesResultEntitlementFingerprint,
     type ResultEntitlementFingerprintForms,
 } from '../../utils/queryResultProducer';
-import { assertHumanManagedMutation } from '../AgentPermissionService/assertHumanManagedMutation';
+import { assertHumanAgentPolicyMutation } from '../AgentPermissionService/assertHumanManagedMutation';
 import {
     AiServiceAccountSlotResolutionError,
     AiServiceAccountSlotResolver,
@@ -137,8 +137,8 @@ import { AgentSessionCheckError } from './agentSession';
 import { recordAgentRefusal } from './logAgentContentWrite';
 import {
     getQueryIdentityLineage,
-    getQueryResultNodeKind,
     getQuerySourceParameters,
+    queryResultNodeRequiresRawSql,
 } from './queryResultLineage';
 import { SnowflakeAgentClientResolver } from './SnowflakeAgentClientResolver';
 
@@ -221,7 +221,6 @@ export const mapAgentCredentialResolutionError = (
         case 'credential':
             switch (failure.classification) {
                 case 'binding_mismatch':
-                case 'expired':
                     refusal = new AiAccessRefusedError(
                         AiAccessRefusalReason.SIGN_IN_EXPIRED,
                     );
@@ -257,35 +256,19 @@ export const mapAgentCredentialResolutionError = (
                 ),
             );
         case 'refresh': {
-            const legacy =
-                failure.classification === 'legacy_grant_gone' ||
-                failure.classification === 'legacy_failure';
             logger[context.evaluationKind === 'diagnostic' ? 'debug' : 'warn'](
                 'Agent sign-in refresh failed',
                 {
                     userUuid: context.userUuid,
                     organizationUuid: context.organizationUuid,
-                    ...(legacy
-                        ? {
-                              reason:
-                                  failure.classification === 'legacy_grant_gone'
-                                      ? AiAccessRefusalReason.SIGN_IN_EXPIRED
-                                      : AiAccessRefusalReason.NEEDS_SIGN_IN,
-                          }
-                        : { kind: failure.classification }),
+                    kind: failure.classification,
                     ...redactCredentialError(originalCause),
                 },
             );
             switch (failure.classification) {
                 case 'grant_gone':
-                case 'legacy_grant_gone':
                     refusal = new AiAccessRefusedError(
                         AiAccessRefusalReason.SIGN_IN_EXPIRED,
-                    );
-                    break;
-                case 'legacy_failure':
-                    refusal = new AiAccessRefusedError(
-                        AiAccessRefusalReason.NEEDS_SIGN_IN,
                     );
                     break;
                 case 'configuration':
@@ -527,10 +510,9 @@ export class AiAccessService extends BaseService {
             [
                 AgentCapability.ReadDiscover,
                 AgentCapability.Query,
-                ...(getQueryResultNodeKind(query.requestParameters) ===
-                'semantic'
-                    ? []
-                    : [AgentCapability.RawSql]),
+                ...(queryResultNodeRequiresRawSql(query.requestParameters)
+                    ? [AgentCapability.RawSql]
+                    : []),
             ],
             true,
         );
@@ -586,10 +568,11 @@ export class AiAccessService extends BaseService {
                 ...(evaluation.kind === 'query'
                     ? [
                           AgentCapability.Query,
-                          ...(getQueryResultNodeKind(node.requestParameters) ===
-                          'semantic'
-                              ? []
-                              : [AgentCapability.RawSql]),
+                          ...(queryResultNodeRequiresRawSql(
+                              node.requestParameters,
+                          )
+                              ? [AgentCapability.RawSql]
+                              : []),
                       ]
                     : []),
             ],
@@ -645,13 +628,11 @@ export class AiAccessService extends BaseService {
             project.projectUuid,
             { kind: 'connection', warehouseConnectionUuid: null },
         );
-        const inspection = await this.agentSignInCredentialResolver.inspect(
-            { organizationUuid, userUuid, email: user.email ?? '' },
-            await this.isSilentRefreshEnabled(
-                { userUuid, organizationUuid },
-                WarehouseTypes.SNOWFLAKE,
-            ),
-        );
+        const inspection = await this.agentSignInCredentialResolver.inspect({
+            organizationUuid,
+            userUuid,
+            email: user.email ?? '',
+        });
         const reason = inspection
             ? mapAgentCredentialResolutionError(this.logger, inspection, {
                   userUuid,
@@ -796,7 +777,7 @@ export class AiAccessService extends BaseService {
         account: Account,
         body: UpdateOrganizationSnowflakeAgentClient,
     ): Promise<OrganizationAgentIdentitySnowflakeSetup> {
-        await assertHumanManagedMutation({
+        await assertHumanAgentPolicyMutation({
             organizationUuid: account.organization.organizationUuid,
             ability: account.user.ability,
             oauth: account.authentication.type === 'oauth',
@@ -952,7 +933,7 @@ export class AiAccessService extends BaseService {
         account: Account,
         settings: OrganizationAgentIdentitySettings,
     ): Promise<OrganizationAgentIdentityOverview> {
-        await assertHumanManagedMutation({
+        await assertHumanAgentPolicyMutation({
             organizationUuid: account.organization.organizationUuid,
             ability: account.user.ability,
             oauth: account.authentication.type === 'oauth',
@@ -1031,7 +1012,7 @@ export class AiAccessService extends BaseService {
         warehouseType: WarehouseTypes,
         rule: UpdateOrganizationAgentIdentityRule,
     ): Promise<OrganizationAgentIdentityRule> {
-        await assertHumanManagedMutation({
+        await assertHumanAgentPolicyMutation({
             organizationUuid: account.organization.organizationUuid,
             ability: account.user.ability,
             oauth: account.authentication.type === 'oauth',
@@ -1247,19 +1228,26 @@ export class AiAccessService extends BaseService {
                 organizationUuid,
             });
         }
-        const connection =
-            warehouseConnectionUuid === null
-                ? await this.projectModel.getWarehouseCredentialsForBinding(
-                      projectUuid,
-                      { kind: 'connection', warehouseConnectionUuid: null },
-                  )
-                : await this.warehouseConnectionModel.getCredentials(
-                      await this.warehouseConnectionModel.getProject(
-                          projectUuid,
-                      ),
-                      warehouseConnectionUuid,
-                  );
+        const connection = await this.loadCredentials(
+            projectUuid,
+            warehouseConnectionUuid,
+        );
         return { connection, organizationUuid };
+    }
+
+    private async loadCredentials(
+        projectUuid: string,
+        warehouseConnectionUuid: string | null,
+    ): Promise<CreateWarehouseCredentials> {
+        return warehouseConnectionUuid === null
+            ? this.projectModel.getWarehouseCredentialsForBinding(projectUuid, {
+                  kind: 'connection',
+                  warehouseConnectionUuid: null,
+              })
+            : this.warehouseConnectionModel.getCredentials(
+                  await this.warehouseConnectionModel.getProject(projectUuid),
+                  warehouseConnectionUuid,
+              );
     }
 
     async getCapabilities(
@@ -1392,13 +1380,42 @@ export class AiAccessService extends BaseService {
         projectUuid: string,
         warehouseConnectionUuid: string | null,
     ): Promise<AiAccessForUser> {
-        const { connection, organizationUuid } = await this.loadConnection(
+        const organizationUuid = await this.authorizeProject(
             account,
             projectUuid,
-            warehouseConnectionUuid,
             'view',
-            true,
         );
+        await this.assertFeatureEnabled({
+            userUuid: account.user.id,
+            organizationUuid,
+        });
+        const connection = await this.loadCredentials(
+            projectUuid,
+            warehouseConnectionUuid,
+        ).catch((error: unknown) => {
+            // A project with only live sources has no warehouse identity to check
+            if (
+                error instanceof NotFoundError &&
+                warehouseConnectionUuid === null
+            )
+                return null;
+            throw error;
+        });
+        if (connection === null) {
+            return {
+                requirementSource: null,
+                identity: null,
+                source: null,
+                marker: null,
+                projectUuid,
+                warehouseConnectionUuid,
+                enabled: false,
+                principalKind: null,
+                refusal: null,
+                expiresAt: null,
+                principalName: null,
+            };
+        }
         return this.getAiAccessForUser({
             projectUuid,
             warehouseConnectionUuid,
@@ -1461,21 +1478,6 @@ export class AiAccessService extends BaseService {
                 organizationUuid: args.organizationUuid,
             },
             featureFlagId: FeatureFlags.AgentIdentity,
-        });
-        return enabled;
-    }
-
-    private async isSilentRefreshEnabled(
-        args: Pick<AccessArgs, 'userUuid' | 'organizationUuid'>,
-        warehouseType: WarehouseTypes,
-    ): Promise<boolean> {
-        if (warehouseType !== WarehouseTypes.SNOWFLAKE) return false;
-        const { enabled } = await this.featureFlagModel.get({
-            user: {
-                userUuid: args.userUuid,
-                organizationUuid: args.organizationUuid,
-            },
-            featureFlagId: FeatureFlags.AgentIdentitySilentRefresh,
         });
         return enabled;
     }
@@ -1792,6 +1794,7 @@ export class AiAccessService extends BaseService {
                     saved = await this.slotResolver.resolve({
                         projectUuid: args.projectUuid,
                         connection: args.warehouseConnectionUuid,
+                        configuration: args.connection,
                     });
                     inheritedFromProjectUuid = saved?.inherited
                         ? saved.sourceProjectUuid
@@ -1813,7 +1816,7 @@ export class AiAccessService extends BaseService {
                 let credentials;
                 try {
                     credentials = await resolveAiServiceAccountCredentials({
-                        connection: args.connection,
+                        connection: saved.configuration,
                         stored: saved.slot.secrets,
                         owner: {
                             kind: 'aiServiceAccount',
@@ -1891,10 +1894,6 @@ export class AiAccessService extends BaseService {
                             userUuid: args.userUuid,
                             email,
                         },
-                        silentRefresh: await this.isSilentRefreshEnabled(
-                            args,
-                            WarehouseTypes.SNOWFLAKE,
-                        ),
                         onRefresh: (event) =>
                             logAgentSignInRefresh(this.logger, event, {
                                 userUuid: args.userUuid,
@@ -2705,6 +2704,7 @@ export class AiAccessService extends BaseService {
                     const resolved = await this.slotResolver.resolveMetadata({
                         projectUuid: args.projectUuid,
                         connection: args.warehouseConnectionUuid,
+                        configuration: args.connection,
                     });
                     const slot = resolved?.slot ?? null;
                     if (slot === null) {
@@ -2736,17 +2736,11 @@ export class AiAccessService extends BaseService {
                             'Agents need the person to have an email address.',
                         );
                     const missing =
-                        await this.agentSignInCredentialResolver.inspect(
-                            {
-                                organizationUuid: args.organizationUuid,
-                                userUuid: args.userUuid,
-                                email,
-                            },
-                            await this.isSilentRefreshEnabled(
-                                args,
-                                WarehouseTypes.SNOWFLAKE,
-                            ),
-                        );
+                        await this.agentSignInCredentialResolver.inspect({
+                            organizationUuid: args.organizationUuid,
+                            userUuid: args.userUuid,
+                            email,
+                        });
                     if (missing !== null)
                         throw mapAgentCredentialResolutionError(
                             this.logger,

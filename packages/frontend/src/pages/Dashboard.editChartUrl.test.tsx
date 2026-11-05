@@ -12,7 +12,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { sharedLightdashApi } from '../api';
 import { DashboardChartEditorActionsPortalId } from '../components/DashboardTiles/constants';
 import { AbilityContext } from '../providers/Ability/context';
-import { createDashboardTestStore } from '../testing/dashboardStore';
+import {
+    createDashboardTestStore,
+    seedDashboardEditState,
+} from '../testing/dashboardStore';
 import { DashboardStoreTestProvider } from '../testing/DashboardStoreTestProvider';
 import {
     manageChartRule,
@@ -332,7 +335,12 @@ const renderDashboard = (search: string) => {
         },
     );
     renderWithProviders(
-        <DashboardStoreTestProvider store={createDashboardTestStore()}>
+        <DashboardStoreTestProvider
+            store={seedDashboardEditState(createDashboardTestStore(), {
+                dashboardTiles: [copiedTile],
+                haveTilesChanged: state.haveTilesChanged,
+            })}
+        >
             <AbilityContext.Provider value={manageChartAbility}>
                 <RouterProvider router={router} />
             </AbilityContext.Provider>

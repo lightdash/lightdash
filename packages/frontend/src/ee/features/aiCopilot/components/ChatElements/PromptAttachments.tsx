@@ -1,9 +1,10 @@
 import {
+    composerNodeContextKey,
     isTabularThreadFileName,
     type AiPromptContextItem,
 } from '@lightdash/common';
 import { Group, Loader, Pill } from '@mantine/core';
-import { IconFileText, IconTable } from '@tabler/icons-react';
+import { IconFileText, IconSitemap, IconTable } from '@tabler/icons-react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { ElementRefPill } from '../../../../../features/apps/components/ElementRefPill';
 import {
@@ -15,6 +16,7 @@ import {
     type PendingThreadFile,
     type ThreadFileAttachment,
 } from '../../hooks/useThreadFileAttachment';
+import { type ThreadComposerNode } from '../../store/aiAgentThreadComposerNodesSlice';
 
 export type ExternalSourceAttachment = Extract<
     AiPromptContextItem,
@@ -32,6 +34,8 @@ type Props<T extends ElementRef> = {
     /** Called with the same object from `elementRefs`, so hosts that tag
      *  references with extra fields (app, version) get them back intact. */
     onRemoveElementRef: (ref: T) => void;
+    composerNodes: ThreadComposerNode[];
+    onRemoveComposerNode: (node: ThreadComposerNode) => void;
 };
 
 /** The row of context attached to a prompt, shown between editor and toolbar. */
@@ -44,6 +48,8 @@ export const PromptAttachments = <T extends ElementRef>({
     pendingThreadFiles,
     elementRefs,
     onRemoveElementRef,
+    composerNodes,
+    onRemoveComposerNode,
 }: Props<T>) => (
     <Pill.Group>
         {externalSources.map((attachment) => (
@@ -100,6 +106,18 @@ export const PromptAttachments = <T extends ElementRef>({
                 elementRef={ref}
                 onRemove={() => onRemoveElementRef(ref)}
             />
+        ))}
+        {composerNodes.map((node) => (
+            <Pill
+                key={composerNodeContextKey(node)}
+                withRemoveButton
+                onRemove={() => onRemoveComposerNode(node)}
+            >
+                <Group gap={4} wrap="nowrap">
+                    <MantineIcon icon={IconSitemap} size={12} />
+                    {node.title}
+                </Group>
+            </Pill>
         ))}
     </Pill.Group>
 );

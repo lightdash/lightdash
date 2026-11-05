@@ -11,15 +11,18 @@ import {
 import { type Meta, type StoryObj } from '@storybook/react-vite';
 import { IconX } from '@tabler/icons-react';
 import { clsx } from 'clsx';
+import { useState } from 'react';
 import MantineIcon from '../components/common/MantineIcon';
 import panelStyles from '../ee/features/aiCopilot/components/ChatElements/AiArtifactPanel.module.css';
 import { AiComposerResultError } from '../ee/features/aiCopilot/components/ChatElements/AiComposerResultError';
-import {
-    AiComposerPipelinePanel,
-    type PipelineMode,
-} from '../ee/features/aiCopilot/components/ChatElements/composerPipeline/AiComposerPipelinePanel';
+import { AiComposerLineage } from '../ee/features/aiCopilot/components/ChatElements/composerPipeline/AiComposerLineage';
 import { ComposerQueriesToolCallDescription } from '../ee/features/aiCopilot/components/ChatElements/ToolCalls/descriptions/ComposerQueriesToolCallDescription';
 import { type ComposerRunNodeStatus } from '../ee/features/aiCopilot/components/ChatElements/useComposerRunNodeStatuses';
+import {
+    ordersSemanticNode,
+    STORY_PROJECT_UUID,
+} from './fixtures/semanticQueryStoryData';
+import SemanticQueryStoryProviders from './fixtures/SemanticQueryStoryProviders';
 
 /** A fan-in pipeline: three sources, one intermediate join, one final join. */
 const fanInQueries: SourceQuery[] = [
@@ -112,6 +115,27 @@ const duckdbOverPythonQueries: SourceQuery[] = [
     },
 ];
 
+/** Every node type in one pipeline; the warehouse SQL node predates descriptions. */
+const allNodeTypesQueries: SourceQuery[] = [
+    fanInQueries[0],
+    {
+        sourceType: QuerySourceType.SQL,
+        nodeId: 'orders',
+        title: 'Order amounts',
+        sql: 'SELECT order_id, amount FROM jaffle.orders',
+    },
+    simulationNode,
+    fanInQueries[2],
+    {
+        sourceType: QuerySourceType.DUCKDB,
+        nodeId: 'summary',
+        title: 'Simulation vs target',
+        description: 'Simulated revenue next to order counts and targets.',
+        sql: 'SELECT * FROM order_counts JOIN targets USING (status) CROSS JOIN (SELECT median(total_amount) AS p50 FROM simulation)',
+        references: ['order_counts', 'simulation', 'targets'],
+    },
+];
+
 type ResultTable = {
     title: string;
     description: string;
@@ -139,8 +163,15 @@ const fanInResult: ResultTable = {
     ],
 };
 
-const ResultsTable = ({ result }: { result: ResultTable }) => (
-    <Paper radius={0} bg="ldGray.0">
+const ResultsTable = ({
+    result,
+    withBorder = true,
+}: {
+    result: ResultTable;
+    /** Off inside a notebook cell, whose frame already draws the edges. */
+    withBorder?: boolean;
+}) => (
+    <Paper radius={0} bg="ldGray.0" withBorder={withBorder}>
         <Table fz="xs" highlightOnHover>
             <Table.Thead>
                 <Table.Tr>
@@ -176,8 +207,8 @@ type ArtifactProps = {
     queries: SourceQuery[];
     terminalNodeId: string;
     result: ResultTable;
-    defaultExpanded?: boolean;
-    defaultMode?: PipelineMode;
+    /** Shows the lineage instead of the result. */
+    lineage?: boolean;
     nodeStatuses?: Record<string, ComposerRunNodeStatus>;
     /** The displayed node's error, shown in place of the result. */
     resultError?: string;
@@ -188,69 +219,96 @@ const ComposerArtifact = ({
     queries,
     terminalNodeId,
     result,
-    defaultExpanded,
-    defaultMode,
+    lineage,
     nodeStatuses = {},
     resultError,
-}: ArtifactProps) => (
-    <Box w={760} h={900}>
-        <Box className={panelStyles.floatingPanel}>
-            <Box
-                className={clsx(
-                    panelStyles.floatingContent,
-                    panelStyles.flushContent,
-                )}
-            >
-                <AiComposerPipelinePanel
-                    projectUuid="story"
-                    queries={queries}
-                    terminalNodeId={terminalNodeId}
-                    displayedNodeId={terminalNodeId}
-                    displayableNodeIds={new Set(queries.map((q) => q.nodeId!))}
-                    onDisplayNode={() => {}}
-                    nodeStatuses={nodeStatuses}
-                    defaultExpanded={defaultExpanded}
-                    defaultMode={defaultMode}
+}: ArtifactProps) => {
+    const [chatNodeIds, setChatNodeIds] = useState<ReadonlySet<string>>(
+        () => new Set(),
+    );
+    return (
+        <Box w={760} h={900}>
+            <Box className={panelStyles.floatingPanel}>
+                <Box
+                    className={clsx(
+                        panelStyles.floatingContent,
+                        panelStyles.flushContent,
+                    )}
                 >
-                    <Stack gap="md" h="100%" mih={0}>
-                        <Box
-                            className={clsx(
-                                panelStyles.head,
-                                panelStyles.flushHead,
+                    {lineage ? (
+                        <AiComposerLineage
+                            projectUuid={STORY_PROJECT_UUID}
+                            queries={queries}
+                            terminalNodeId={terminalNodeId}
+                            displayableNodeIds={
+                                new Set(queries.map((q) => q.nodeId!))
+                            }
+                            nodeStatuses={nodeStatuses}
+                            renderNodeResult={() => (
+                                <ResultsTable
+                                    result={result}
+                                    withBorder={false}
+                                />
                             )}
-                        >
-                            <Stack gap={0} flex={1} miw={0}>
-                                <Text fz="sm" fw={600}>
-                                    {result.title}
-                                </Text>
-                                <Text fz="xs" c="dimmed">
-                                    {result.description}
-                                </Text>
-                            </Stack>
-                            <Group gap={2} className={panelStyles.headRight}>
-                                <ActionIcon size="sm" aria-label="Close">
-                                    <MantineIcon icon={IconX} />
-                                </ActionIcon>
-                            </Group>
-                        </Box>
-                        {resultError === undefined ? (
-                            <ResultsTable result={result} />
-                        ) : (
-                            <AiComposerResultError
-                                headerContent={null}
-                                message={resultError}
-                            />
-                        )}
-                    </Stack>
-                </AiComposerPipelinePanel>
+                            chatNodeIds={chatNodeIds}
+                            onAddToChat={(node) =>
+                                setChatNodeIds(
+                                    (current) =>
+                                        new Set([...current, node.nodeId]),
+                                )
+                            }
+                        />
+                    ) : (
+                        <Stack gap="md" h="100%" mih={0}>
+                            <Box
+                                className={clsx(
+                                    panelStyles.head,
+                                    panelStyles.flushHead,
+                                )}
+                            >
+                                <Stack gap={0} flex={1} miw={0}>
+                                    <Text fz="sm" fw={600}>
+                                        {result.title}
+                                    </Text>
+                                    <Text fz="xs" c="dimmed">
+                                        {result.description}
+                                    </Text>
+                                </Stack>
+                                <Group
+                                    gap={2}
+                                    className={panelStyles.headRight}
+                                >
+                                    <ActionIcon size="sm" aria-label="Close">
+                                        <MantineIcon icon={IconX} />
+                                    </ActionIcon>
+                                </Group>
+                            </Box>
+                            {resultError === undefined ? (
+                                <ResultsTable result={result} />
+                            ) : (
+                                <AiComposerResultError
+                                    headerContent={null}
+                                    message={resultError}
+                                />
+                            )}
+                        </Stack>
+                    )}
+                </Box>
             </Box>
         </Box>
-    </Box>
-);
+    );
+};
 
 const meta = {
     component: ComposerArtifact,
     title: 'AI Agent/Composer artifact',
+    decorators: [
+        (Story) => (
+            <SemanticQueryStoryProviders>
+                <Story />
+            </SemanticQueryStoryProviders>
+        ),
+    ],
     args: {
         queries: fanInQueries,
         terminalNodeId: 'vs_target',
@@ -261,21 +319,17 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Collapsed: Story = {};
+export const Result: Story = {};
 
-export const Expanded: Story = {
-    args: { defaultExpanded: true },
-};
-
-export const Graph: Story = {
-    args: { defaultExpanded: true, defaultMode: 'graph' },
+export const Lineage: Story = {
+    args: { lineage: true },
 };
 
 export const PythonResult: Story = {
     args: {
         queries: pythonTerminalQueries,
         terminalNodeId: 'simulation',
-        defaultExpanded: true,
+        lineage: true,
         result: {
             title: 'Simulated monthly revenue',
             description: SIMULATION_DESCRIPTION,
@@ -294,7 +348,7 @@ export const DuckdbOverPython: Story = {
     args: {
         queries: duckdbOverPythonQueries,
         terminalNodeId: 'percentiles',
-        defaultExpanded: true,
+        lineage: true,
         result: {
             title: 'Revenue percentiles',
             description: SIMULATION_DESCRIPTION,
@@ -304,8 +358,46 @@ export const DuckdbOverPython: Story = {
     },
 };
 
-export const DuckdbOverPythonGraph: Story = {
-    args: { ...DuckdbOverPython.args, defaultMode: 'graph' },
+export const AllNodeTypes: Story = {
+    args: {
+        queries: allNodeTypesQueries,
+        terminalNodeId: 'summary',
+        lineage: true,
+    },
+};
+
+/** A semantic-layer node with filters, sorts, a limit and parameters. */
+export const SemanticNodeDetails: Story = {
+    args: {
+        queries: [
+            ordersSemanticNode,
+            {
+                sourceType: QuerySourceType.DUCKDB,
+                nodeId: 'weekly_share',
+                title: 'Weekly share of orders',
+                description: 'Each week as a share of all orders.',
+                sql: 'SELECT *, orders_unique_order_count * 100.0 / SUM(orders_unique_order_count) OVER () AS share FROM weekly_orders',
+                references: ['weekly_orders'],
+            },
+        ],
+        terminalNodeId: 'weekly_share',
+        lineage: true,
+        result: {
+            title: 'Weekly share of orders',
+            description: 'Completed orders per week, last 90 days.',
+            columns: ['week', 'status', 'orders', 'share'],
+            rows: [
+                ['2026-10-19', 'completed', 31, '24.6'],
+                ['2026-10-12', 'shipped', 28, '22.2'],
+                ['2026-10-05', 'completed', 35, '27.8'],
+            ],
+        },
+    },
+    play: async ({ canvas, userEvent }) => {
+        await userEvent.click(
+            canvas.getByRole('button', { name: /View metric query/ }),
+        );
+    },
 };
 
 /** A run on open in progress: each node's status on its row. */
@@ -313,9 +405,24 @@ export const Running: Story = {
     args: {
         ...DuckdbOverPython.args,
         nodeStatuses: {
-            orders: { status: 'success', error: null },
-            simulation: { status: 'running', error: null },
-            percentiles: { status: 'pending', error: null },
+            orders: {
+                status: 'success',
+                error: null,
+                totalRowCount: 5,
+                durationMs: 120,
+            },
+            simulation: {
+                status: 'running',
+                error: null,
+                totalRowCount: null,
+                durationMs: null,
+            },
+            percentiles: {
+                status: 'pending',
+                error: null,
+                totalRowCount: null,
+                durationMs: null,
+            },
         },
     },
 };
@@ -325,14 +432,23 @@ export const NodeFailed: Story = {
     args: {
         ...DuckdbOverPython.args,
         nodeStatuses: {
-            orders: { status: 'success', error: null },
+            orders: {
+                status: 'success',
+                error: null,
+                totalRowCount: 5,
+                durationMs: 120,
+            },
             simulation: {
                 status: 'error',
                 error: 'ZeroDivisionError: division by zero',
+                totalRowCount: null,
+                durationMs: null,
             },
             percentiles: {
                 status: 'error',
                 error: 'A query this query reads failed',
+                totalRowCount: null,
+                durationMs: null,
             },
         },
         resultError: 'A query this query reads failed',

@@ -266,6 +266,9 @@ export const CLAUDE_SETTINGS = JSON.stringify({
 export const CLAUDE_MODEL = 'claude-sonnet-5-5';
 export const RUN_TIMEOUT_MS = 45 * 60 * 1000;
 export const SANDBOX_TIMEOUT_MS = 60 * 60 * 1000;
+// The worker heartbeats a running run; this long without an update means the worker died
+export const ABANDONED_RUN_IDLE_MS = 15 * 60 * 1000;
+export const RUN_HEARTBEAT_INTERVAL_MS = 60 * 1000;
 export const PAT_EXPIRY_GRACE_MS = 15 * 60 * 1000;
 export const CANCELLATION_POLL_INTERVAL_MS = 2 * 1000;
 export const FILE_SYNC_INTERVAL_MS = 2 * 1000;

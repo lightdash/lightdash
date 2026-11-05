@@ -157,7 +157,8 @@ function buildService(
         aiCreditService: { assertAiCreditsAvailable: async () => undefined },
         lightdashConfig: {
             softDelete: { enabled: true },
-            appRuntime: {},
+            // No sandbox credentials, so Chart Studio is unavailable.
+            appRuntime: { sandboxProvider: 'e2b', e2bApiKey: null },
         } as never,
         analytics: { track: vi.fn() } as never,
         analyticsModel: {} as never,
@@ -444,6 +445,38 @@ describe('read-only invariant for registry-managed apps', () => {
         await expect(
             service.restoreApp(makeUser(), PROJECT_UUID, APP_UUID),
         ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('permanentDeleteApp purges a registry app with data apps off, library on', async () => {
+        const permanentDelete = vi.fn().mockResolvedValue(undefined);
+        const { service } = buildService({
+            appModel: {
+                getAppIncludingDeleted: vi.fn().mockResolvedValue(registryApp),
+                permanentDelete,
+            },
+            featureFlags: { [FeatureFlags.EnableDataApps]: false },
+        });
+
+        await expect(
+            service.permanentDeleteApp(makeUser(), PROJECT_UUID, APP_UUID),
+        ).resolves.toBeUndefined();
+        expect(permanentDelete).toHaveBeenCalledWith(APP_UUID, PROJECT_UUID);
+    });
+
+    it('permanentDeleteApp still requires data apps for a non-registry app', async () => {
+        const permanentDelete = vi.fn();
+        const { service } = buildService({
+            appModel: {
+                getAppIncludingDeleted: vi.fn().mockResolvedValue(baseApp),
+                permanentDelete,
+            },
+            featureFlags: { [FeatureFlags.EnableDataApps]: false },
+        });
+
+        await expect(
+            service.permanentDeleteApp(makeUser(), PROJECT_UUID, APP_UUID),
+        ).rejects.toThrow(ForbiddenError);
+        expect(permanentDelete).not.toHaveBeenCalled();
     });
 
     it('restoreApp conflicts cleanly when a fresh copy of the slug is installed', async () => {

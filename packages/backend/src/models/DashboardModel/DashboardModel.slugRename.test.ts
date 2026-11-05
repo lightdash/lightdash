@@ -124,6 +124,30 @@ describe('renameSlug', () => {
         expect(tracker.history.delete).toHaveLength(0);
     });
 
+    test('renames a slug too long to alias without recording the previous slug', async () => {
+        const from = `${'quarterly-revenue-'.repeat(15)}by-region`;
+        tracker.on
+            .select(DashboardsTableName)
+            .responseOnce([
+                { dashboard_uuid: dashboardUuid, deleted_at: null },
+            ]);
+        tracker.on.select(DashboardsTableName).responseOnce([{ slug: from }]);
+        tracker.on.select(DashboardsTableName).responseOnce([]);
+        tracker.on.select(DashboardSlugMappingsTableName).responseOnce([]);
+        tracker.on.update(DashboardsTableName).responseOnce(1);
+
+        await model.renameSlug({
+            projectUuid,
+            dashboardUuid,
+            from,
+            to: 'new-orders',
+        });
+
+        expect(from.length).toBeGreaterThan(255);
+        expect(tracker.history.insert).toHaveLength(0);
+        expect(tracker.history.update).toHaveLength(1);
+    });
+
     test('rejects a target slug owned by another dashboard before writing', async () => {
         tracker.on
             .select(DashboardsTableName)

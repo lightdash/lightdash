@@ -28,7 +28,6 @@ import {
     ApiVirtualViewAsCodeListResponse,
     ApiVirtualViewAsCodeUpsertResponse,
     assertUnreachable,
-    AuthorizationError,
     ChartAsCode,
     ChartType,
     computeCustomDependencies,
@@ -53,7 +52,9 @@ import {
     SqlChartAsCode,
     validateDataAppDependencies,
     VirtualViewAsCode,
+    type ApiContentAsCodeSnapshotPruneResponse,
     type ContentAsCodeSettingsStamp,
+    type ContentAsCodeSnapshotPrune,
     type ContentAsCodeUploadAdvisory,
     type DashboardAsCodeUpsertResult,
     type DataAppCode,
@@ -61,10 +62,10 @@ import {
     type LightdashProjectConfig,
     type SpaceAsCode,
 } from '@lightdash/common';
+import { groupBy } from 'es-toolkit/compat';
 import { Dirent, promises as fs, type Stats } from 'fs';
 import inquirer from 'inquirer';
 import * as yaml from 'js-yaml';
-import groupBy from 'lodash/groupBy';
 import pLimit from 'p-limit';
 import * as path from 'path';
 import { validate as isUuid } from 'uuid';
@@ -93,6 +94,11 @@ import {
     type ContentAsCodeOutput,
     type ContentAsCodeOutputVariant,
 } from '../terminal/contentAsCodeOutput';
+import {
+    readAgentKnowledgeDocuments,
+    toAgentAsCodeFile,
+    writeAgentKnowledgeDocuments,
+} from './aiAgentKnowledgeDocuments';
 import {
     applySdkMirrorToTemplateDeps,
     attachDependenciesToCode,
@@ -438,18 +444,54 @@ const sanitizeChartForDownload = (
           }
         : chart;
 
+// NAME_MAX shared by ext4, APFS and NTFS; slugs are ASCII so bytes equal characters
+const MAX_FILE_NAME_LENGTH = 255;
+
+const getSlugTooLongWarning = (
+    contentType: ContentAsCodeType['type'],
+    slug: string,
+): string => {
+    switch (contentType) {
+        case 'chart':
+        case 'dashboard':
+            return `Skipped ${contentType} "${slug}": the slug is too long to use as a file name. Shorten it with: lightdash slug-update --type ${contentType} --from "${slug}" --to <new-slug>`;
+        case 'sqlChart':
+            return `Skipped SQL chart "${slug}": the slug is too long to use as a file name.`;
+        default:
+            return assertUnreachable(contentType, 'getSlugTooLongWarning');
+    }
+};
+
 const writeContent = async (
     contentAsCode: ContentAsCodeType,
     outputDir: string,
     languageMap: boolean,
     stripPivotSeries: boolean = false,
-): Promise<MetadataEntry> => {
+): Promise<MetadataEntry | null> => {
     const content =
         contentAsCode.type === 'chart'
             ? sanitizeChartForDownload(contentAsCode.content, stripPivotSeries)
             : contentAsCode.content;
     const extension = getFileExtension(contentAsCode.type);
-    const itemPath = path.join(outputDir, `${content.slug}${extension}`);
+    const writesTranslationMap =
+        contentAsCode.translationMap !== undefined && languageMap;
+    const fileNames = [
+        `${content.slug}${extension}`,
+        ...(writesTranslationMap ? [`${content.slug}.language.map.yml`] : []),
+    ];
+    if (
+        fileNames.some(
+            (fileName) => Buffer.byteLength(fileName) > MAX_FILE_NAME_LENGTH,
+        )
+    ) {
+        console.info(
+            styles.warning(
+                getSlugTooLongWarning(contentAsCode.type, content.slug),
+            ),
+        );
+        return null;
+    }
+    const itemPath = path.join(outputDir, fileNames[0]);
     // Strip timestamps — they go to .lightdash-metadata.json instead
     const { updatedAt, downloadedAt, ...cleanContent } = content as
         | ChartAsCode
@@ -461,7 +503,7 @@ const writeContent = async (
     });
     await fs.writeFile(itemPath, chartYml);
 
-    if (contentAsCode.translationMap && languageMap) {
+    if (writesTranslationMap) {
         const translationPath = path.join(
             outputDir,
             `${content.slug}.language.map.yml`,
@@ -549,20 +591,29 @@ const isLooseContentFile = (entry: Dirent) => {
     );
 };
 
-// The file's path relative to the project dir, posix; undefined outside it
-const sourceFilePath = (filePath: string): string | undefined => {
-    const relative = path.relative(process.cwd(), filePath);
-    if (
-        path.isAbsolute(relative) ||
-        relative === '..' ||
-        relative.startsWith(`..${path.sep}`)
-    ) {
-        return undefined;
-    }
+const isOutsideDir = (relative: string): boolean =>
+    path.isAbsolute(relative) ||
+    relative === '..' ||
+    relative.startsWith(`..${path.sep}`);
+
+// The file's path relative to the project dir, posix; undefined outside it.
+// A file reached through a symlink records its real location: dbt symlinks
+// local packages into dbt_packages, and write-back should reach the source.
+const sourceFilePath = async (
+    filePath: string,
+): Promise<string | undefined> => {
+    const cwd = process.cwd();
+    if (isOutsideDir(path.relative(cwd, filePath))) return undefined;
+    const [realFile, realCwd] = await Promise.all([
+        fs.realpath(filePath).catch(() => filePath),
+        fs.realpath(cwd).catch(() => cwd),
+    ]);
+    const relative = path.relative(realCwd, realFile);
+    if (path.isAbsolute(relative)) return undefined;
     return relative.split(path.sep).join('/');
 };
 
-const processYamlItem = <
+const processYamlItem = async <
     T extends ChartAsCode | DashboardAsCode | SqlChartAsCode,
 >(
     item: T,
@@ -599,7 +650,7 @@ const processYamlItem = <
         updatedAt: needsUpdating ? stats.mtime : item.updatedAt,
         needsUpdating: needsUpdating ?? true,
         // Sent with the upsert so write-back returns to this file
-        filePath: sourceFilePath(filePath),
+        filePath: await sourceFilePath(filePath),
     };
 };
 
@@ -720,7 +771,7 @@ const readLooseCodeFiles = async (
                         contentType === ContentAsCodeTypeEnum.SQL_CHART
                     ) {
                         charts.push(
-                            processYamlItem<ChartAsCode>(
+                            await processYamlItem<ChartAsCode>(
                                 parsed as ChartAsCode,
                                 file.name,
                                 stats,
@@ -733,7 +784,7 @@ const readLooseCodeFiles = async (
                         contentType === ContentAsCodeTypeEnum.DASHBOARD
                     ) {
                         dashboards.push(
-                            processYamlItem<DashboardAsCode>(
+                            await processYamlItem<DashboardAsCode>(
                                 parsed as DashboardAsCode,
                                 file.name,
                                 stats,
@@ -828,7 +879,7 @@ const writeSpaceContent = async <
             languageMap,
             stripPivotSeries,
         );
-        entries.push(entry);
+        if (entry) entries.push(entry);
     }
     return entries;
 };
@@ -1739,12 +1790,22 @@ const downloadAiAgents = async (
             total = results.total;
         } while (offset < total);
 
+        const basePath = getDownloadFolder(customPath);
         await writeCodeResourceDocuments({
             definition: AI_AGENT_CODE_RESOURCE,
-            basePath: getDownloadFolder(customPath),
-            documents: agents,
+            basePath,
+            documents: agents.map(toAgentAsCodeFile),
             pruneOtherDocuments: ids.length === 0,
         });
+        const agentsFolder = path.join(
+            basePath,
+            AI_AGENT_CODE_RESOURCE.folderName,
+        );
+        await Promise.all(
+            agents.map((agent) =>
+                writeAgentKnowledgeDocuments(agentsFolder, agent),
+            ),
+        );
     } catch (error) {
         if (implicit && isAiAgentsUnavailableError(error)) {
             GlobalState.log(
@@ -1771,7 +1832,11 @@ const readAiAgentFiles = async (
         basePath: getDownloadFolder(customPath),
     });
     assertCodeResourceFilesValid(result);
-    return result.files.map(({ document }) => document);
+    return Promise.all(
+        result.files.map(({ filePath, document }) =>
+            readAgentKnowledgeDocuments(filePath, document),
+        ),
+    );
 };
 
 class AiAgentAsCodeUploadError extends Error {
@@ -2190,13 +2255,7 @@ export const downloadHandler = async (
     const config = await (getAgentConnectionSelection() === null
         ? getConfig()
         : getConfig({ readOnly: true }));
-    if (getAgentConnectionSelection() !== null) {
-        await resolveCredential(config);
-    } else if (!config.context?.apiKey || !config.context.serverUrl) {
-        throw new AuthorizationError(
-            `Not logged in. Run 'lightdash login --help'`,
-        );
-    }
+    await resolveCredential(config);
 
     if (isOrganizationDownload) {
         await downloadOrganizationContent({
@@ -2378,7 +2437,8 @@ export const downloadHandler = async (
                             options.rootSpaces,
                             output.updateActive,
                         ),
-                    detail: ({ total }) => `${total} downloaded`,
+                    detail: ({ metadataEntries }) =>
+                        `${metadataEntries.length} downloaded`,
                 });
                 allMetadataEntries = [
                     ...allMetadataEntries,
@@ -2406,7 +2466,8 @@ export const downloadHandler = async (
                                 options.rootSpaces,
                                 output.updateActive,
                             ),
-                        detail: ({ total }) => `${total} downloaded`,
+                        detail: ({ metadataEntries }) =>
+                            `${metadataEntries.length} downloaded`,
                     });
                 allMetadataEntries = [...allMetadataEntries, ...sqlChartMeta];
 
@@ -2446,7 +2507,8 @@ export const downloadHandler = async (
                             options.rootSpaces,
                             output.updateActive,
                         ),
-                    detail: ({ total }) => `${total} downloaded`,
+                    detail: ({ metadataEntries }) =>
+                        `${metadataEntries.length} downloaded`,
                 }));
                 allMetadataEntries = [...allMetadataEntries, ...dashMeta];
 
@@ -2460,7 +2522,6 @@ export const downloadHandler = async (
                         `${chartSlugs.length} dashboard dependencies`,
                     );
                     const {
-                        total: regularCharts,
                         chartTableNames: linkedChartTableNames,
                         metadataEntries: linkedChartMeta,
                         chartTypeRefs: linkedChartVizRefs,
@@ -2486,7 +2547,7 @@ export const downloadHandler = async (
                         ...linkedChartVizRefs,
                     ];
 
-                    const { total: sqlCharts, metadataEntries: linkedSqlMeta } =
+                    const { metadataEntries: linkedSqlMeta } =
                         await downloadContent(
                             chartSlugs,
                             'sqlCharts',
@@ -2506,7 +2567,7 @@ export const downloadHandler = async (
                     ];
 
                     output.completeItem(
-                        `${regularCharts + sqlCharts} downloaded`,
+                        `${linkedChartMeta.length + linkedSqlMeta.length} downloaded`,
                     );
 
                     // Virtual views the linked charts are built on. Skipped
@@ -3873,6 +3934,60 @@ const readUploadProjectConfig =
         }
     };
 
+// A full upload is the truth for what the repo still manages under the
+// uploaded directory: content whose file is gone is released from Git
+// management on the server. Paths resolve through symlinks the same way the
+// recorded file paths do, so a local dbt package prunes its own source dir.
+const pruneSnapshotsMissingFromUpload = async (
+    projectId: string,
+    customPath: string | undefined,
+    looseFiles: { charts: ChartAsCode[]; dashboards: DashboardAsCode[] },
+    dashboardItems: DashboardAsCode[],
+): Promise<void> => {
+    const dirPath = await sourceFilePath(getDownloadFolder(customPath));
+    if (dirPath === undefined) return;
+    const chartItems = [
+        ...(await readCodeFiles<ChartAsCode>('charts', customPath)),
+        ...looseFiles.charts,
+    ];
+    const body: ContentAsCodeSnapshotPrune = {
+        path: dirPath,
+        charts: chartItems
+            .filter((item) => !isSqlChartContent(item))
+            .map((item) => item.slug),
+        sqlCharts: chartItems
+            .filter((item) => isSqlChartContent(item))
+            .map((item) => item.slug),
+        dashboards: dashboardItems.map((item) => item.slug),
+    };
+    try {
+        const released = await lightdashApi<
+            ApiContentAsCodeSnapshotPruneResponse['results']
+        >({
+            method: 'POST',
+            url: `/api/v1/projects/${projectId}/code/snapshots/prune`,
+            body: JSON.stringify(body),
+        });
+        const slugs = [
+            ...released.charts,
+            ...released.sqlCharts,
+            ...released.dashboards,
+        ];
+        if (slugs.length > 0) {
+            GlobalState.log(
+                styles.warning(
+                    `Released ${slugs.length} item(s) from Git management (no longer in ${dirPath || '.'}): ${slugs.join(', ')}`,
+                ),
+            );
+        }
+    } catch (error) {
+        // Older servers don't have this endpoint; pruning is advisory.
+        GlobalState.debug(
+            `Could not prune content-as-code snapshots: ${getErrorMessage(error)}`,
+        );
+    }
+};
+
 // The stamped path is the uploaded directory relative to the project dir;
 // a directory outside it has no repo path to stamp
 const getStampedContentPath = (uploadRoot: string): string | undefined => {
@@ -3998,11 +4113,9 @@ export const uploadHandler = async (
     const config = await (getAgentConnectionSelection() === null
         ? getConfig()
         : getConfig({ readOnly: true }));
-    if (!config.context?.apiKey || !config.context.serverUrl) {
-        throw new AuthorizationError(
-            `Not logged in. Run 'lightdash login --help'`,
-        );
-    }
+    await resolveCredential(config);
+    if (!config.context?.serverUrl)
+        throw new Error("Not logged in. Run 'lightdash login --help'");
 
     if (isOrganizationUpload) {
         await uploadOrganizationContent({
@@ -4969,6 +5082,20 @@ export const uploadHandler = async (
             },
         });
 
+        if (
+            projectConfig?.content_as_code?.sync === true &&
+            !hasFilters &&
+            !options.skipCharts &&
+            !options.skipDashboards
+        ) {
+            await pruneSnapshotsMissingFromUpload(
+                projectId,
+                contentPathOption,
+                looseFiles,
+                await loadDashboardItems(),
+            );
+        }
+
         // Documents go after custom chart types, which their charts reference.
         if (!options.skipDocuments) {
             const documentSlugs = options.documents ?? [];
@@ -5234,5 +5361,6 @@ export const testHelpers = {
     upsertSpaces,
     upsertVirtualViews,
     validateSpaceIdentity,
+    writeSpaceContent,
     writeSpaceFiles,
 };

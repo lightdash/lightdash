@@ -28,13 +28,18 @@ test.each([
         Object.create(ProjectService.prototype),
         {
             assertAgentConnectionEffect: vi.fn().mockResolvedValue(undefined),
-            syncPreAggregateDefinitionsRegistry: vi.fn(),
+            syncPreAggregateDefinitionsRegistry: vi.fn(async () => ({
+                changedDefinitionUuids: [],
+            })),
             preAggregateModel: {
+                getDefinitionUuidsEverMaterialized: async () =>
+                    new Set<string>(),
                 getPreAggregateDefinitionsForProject: async () => [
                     {
                         preAggregateDefinitionUuid: 'definition',
                         materializationMetricQuery: {},
                         refreshCron: '',
+                        materializeOnChange: false,
                     },
                 ],
             },

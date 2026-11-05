@@ -17,7 +17,6 @@ import { LightdashApiStreamError, type LightdashApi } from '../../../../api';
 import { getAiAccessRefusal } from '../../../../features/aiAccess/errors';
 import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 import { getAiAgentApiBase } from '../hooks/aiAgentRouting';
-import { readAiAgentFastMode } from '../hooks/useAiAgentFastMode';
 import {
     addReasoning,
     addToolCall,
@@ -108,7 +107,6 @@ const getAgentThreadReadableStream = async (
 ) => {
     const request: ApiAiAgentThreadStreamRequest = {
         enableSqlMode,
-        enableFastDecisions: readAiAgentFastMode(),
         autoApproveSql,
         toolHints,
     };
@@ -190,7 +188,7 @@ export const getStreamToolCallPart = (
     }
 
     // While the model is still writing the call's input, tools with a lenient
-    // partial parser (runComposerQueries) render progressively instead of
+    // partial parser (the composer query tool) render progressively instead of
     // waiting for input-available.
     if (toolPart.state === 'input-streaming') {
         const partialToolCall = parseStreamRawPartialToolCall({

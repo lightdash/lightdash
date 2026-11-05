@@ -78,37 +78,27 @@
 }
 
 .row[data-field-kind='metric'] {
-    background-color: var(--ld-field-metric-bg);
+    background-color: light-dark(
+        var(--ld-field-metric-bg),
+        color-mix(in srgb, var(--ld-field-metric-color) 14%, transparent)
+    );
     border-color: color-mix(
         in srgb,
         var(--ld-field-metric-color) 28%,
         transparent
     );
-
-    @mixin dark {
-        background-color: color-mix(
-            in srgb,
-            var(--ld-field-metric-color) 14%,
-            transparent
-        );
-    }
 }
 
 .row[data-field-kind='metric']:hover {
-    background-color: var(--ld-field-metric-bg-hover);
+    background-color: light-dark(
+        var(--ld-field-metric-bg-hover),
+        color-mix(in srgb, var(--ld-field-metric-color) 22%, transparent)
+    );
     border-color: color-mix(
         in srgb,
         var(--ld-field-metric-color) 45%,
         transparent
     );
-
-    @mixin dark {
-        background-color: color-mix(
-            in srgb,
-            var(--ld-field-metric-color) 22%,
-            transparent
-        );
-    }
 }
 
 .row[data-field-kind='default'] {

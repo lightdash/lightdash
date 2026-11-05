@@ -11,6 +11,7 @@ export type CacheHitCacheResult = {
     queryHistory?: QueryHistory;
     resultProducer: QueryResultProducer | null;
     cacheKey: string;
+    cacheGeneration: number;
     cacheHit: true;
     totalRowCount: number;
     fileName: string;

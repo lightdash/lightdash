@@ -13,17 +13,8 @@ import {
     type AiAgentChartTypeOption,
     type AiAgentMessageAssistant,
 } from '@lightdash/common';
-import {
-    ActionIcon,
-    Box,
-    Center,
-    Divider,
-    Group,
-    Loader,
-    Stack,
-    Text,
-} from '@mantine/core';
-import { IconExclamationCircle, IconX } from '@tabler/icons-react';
+import { ActionIcon, Box, Divider, Group, Stack } from '@mantine/core';
+import { IconX } from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import { memo, useMemo, useState, type FC } from 'react';
 import EmptyStateLoader from '../../../../../components/common/EmptyStateLoader';
@@ -37,12 +28,16 @@ import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeat
 import useApp from '../../../../../providers/App/useApp';
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
 import { getAiAgentArtifactResultsUrl } from '../../hooks/aiAgentRouting';
-import { useAiAgentArtifact } from '../../hooks/useAiAgentArtifacts';
+import {
+    useAiAgentArtifact,
+    useUpdateComposerVizConfig,
+} from '../../hooks/useAiAgentArtifacts';
 import { useAiAgentPermission } from '../../hooks/useAiAgentPermission';
 import {
     getAiArtifactChartSource,
     useAiArtifactCompiledSql,
 } from '../../hooks/useAiArtifactChart';
+import { useComposerNodeChatContext } from '../../hooks/useComposerNodeChatContext';
 import {
     useAiAgentArtifactVizQuery,
     useAiAgentThread,
@@ -81,15 +76,8 @@ type AiArtifactPanelProps = {
     variant?: 'floating' | 'inline';
 };
 
-const AiArtifactPanelContent: FC<
-    AiArtifactPanelProps & { fastDecisions: boolean }
-> = memo(
-    ({
-        artifact,
-        showCloseButton = true,
-        variant = 'floating',
-        fastDecisions,
-    }) => {
+const AiArtifactPanelContent: FC<AiArtifactPanelProps> = memo(
+    ({ artifact, showCloseButton = true, variant = 'floating' }) => {
         const dispatch = useAiAgentStoreDispatch();
         const { data: health } = useHealth();
 
@@ -152,6 +140,13 @@ const AiArtifactPanelContent: FC<
             !isEmbed &&
             !!thread &&
             (thread.user.uuid === user.data?.userUuid || !!canManageAgent);
+        const { mutate: saveComposerVizConfig } =
+            useUpdateComposerVizConfig(artifact);
+        const composerNodeChat = useComposerNodeChatContext({
+            threadUuid: artifact.threadUuid,
+            artifactUuid: artifact.artifactUuid,
+            versionUuid: artifact.versionUuid,
+        });
         const artifactChartConfig = artifactData?.chartConfig;
         const composerConfig = isAiComposerChartArtifactConfig(
             artifactChartConfig,
@@ -309,7 +304,7 @@ const AiArtifactPanelContent: FC<
             );
         }
 
-        if (fastDecisions && (artifactError || threadError)) {
+        if (artifactError || threadError) {
             return (
                 <Box className={styles.floatingPanel} p="md">
                     <InlineErrorState
@@ -322,20 +317,8 @@ const AiArtifactPanelContent: FC<
                 </Box>
             );
         }
-        if (isArtifactLoading || (fastDecisions ? isThreadLoading : !message)) {
-            return fastDecisions ? (
-                <EmptyStateLoader title="Loading artifact…" />
-            ) : (
-                <Box {...ChatElementsUtils.centeredElementProps} p="md">
-                    <Center className={styles.loading}>
-                        <Loader
-                            type="dots"
-                            color="gray"
-                            delayedMessage="Loading artifact..."
-                        />
-                    </Center>
-                </Box>
-            );
+        if (isArtifactLoading || isThreadLoading) {
+            return <EmptyStateLoader title="Loading artifact…" />;
         }
         if (
             artifactError ||
@@ -345,21 +328,7 @@ const AiArtifactPanelContent: FC<
                 !artifactData.dashboardConfig) ||
             (artifactData.artifactType === 'chart' && !artifactData.chartConfig)
         ) {
-            return fastDecisions ? (
-                <InlineErrorState message="This artifact is unavailable." />
-            ) : (
-                <Box {...ChatElementsUtils.centeredElementProps} p="md">
-                    <Stack gap="xs" align="center" justify="center">
-                        <MantineIcon
-                            icon={IconExclamationCircle}
-                            color="gray"
-                        />
-                        <Text size="xs" c="dimmed" ta="center">
-                            Failed to load artifact. Please try again.
-                        </Text>
-                    </Stack>
-                </Box>
-            );
+            return <InlineErrorState message="This artifact is unavailable." />;
         }
 
         // Dashboards share the floating panel chrome with chart artifacts
@@ -388,9 +357,18 @@ const AiArtifactPanelContent: FC<
                     key={artifact.versionUuid}
                     projectUuid={artifact.projectUuid}
                     agentUuid={artifact.agentUuid}
-                    artifactUuid={artifact.artifactUuid}
-                    versionUuid={artifact.versionUuid}
-                    canEdit={canEditThread}
+                    source={{
+                        kind: 'artifact',
+                        artifactUuid: artifact.artifactUuid,
+                        versionUuid: artifact.versionUuid,
+                    }}
+                    onSaveVizConfig={
+                        canEditThread ? saveComposerVizConfig : null
+                    }
+                    chatNodeIds={composerNodeChat.chatNodeIds}
+                    onAddToChat={
+                        canEditThread ? composerNodeChat.addToChat : null
+                    }
                     title={artifactData.title ?? 'Composer query results'}
                     description={artifactData.description ?? null}
                     config={composerConfig}
@@ -427,10 +405,7 @@ const AiArtifactPanelContent: FC<
         // Floating chart artifact: chromeless head + chart + floating pill.
         // Wait for the viz query data so the renderer mounts with valid
         // inputs.
-        if (
-            fastDecisions &&
-            (queryExecutionHandle.error || queryResults.error)
-        ) {
+        if (queryExecutionHandle.error || queryResults.error) {
             return (
                 <Box className={styles.floatingPanel} p="md">
                     <InlineErrorState
@@ -448,23 +423,12 @@ const AiArtifactPanelContent: FC<
             queryExecutionHandle.isLoading ||
             (!isSqlArtifact &&
                 queryResults.isFetchingRows &&
-                (!fastDecisions || queryResults.rows.length === 0)) ||
-            !queryExecutionHandle.data ||
-            (!fastDecisions && queryResults.error)
+                queryResults.rows.length === 0) ||
+            !queryExecutionHandle.data
         ) {
             return (
                 <Box className={styles.floatingPanel}>
-                    {fastDecisions ? (
-                        <EmptyStateLoader title="Loading visualization…" />
-                    ) : (
-                        <Center className={styles.loading}>
-                            <Loader
-                                type="dots"
-                                color="gray"
-                                delayedMessage="Loading visualization..."
-                            />
-                        </Center>
-                    )}
+                    <EmptyStateLoader title="Loading visualization…" />
                 </Box>
             );
         }
@@ -616,19 +580,9 @@ const AiArtifactPanelContent: FC<
     },
 );
 
-export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo((props) => {
-    const fastDecisions =
-        useServerFeatureFlag(FeatureFlags.AiAgentFastDecisions).data
-            ?.enabled === true;
-    return (
-        <AiArtifactPanelContent
-            key={
-                fastDecisions
-                    ? `${props.artifact.projectUuid}:${props.artifact.agentUuid}:${props.artifact.artifactUuid}:${props.artifact.versionUuid}`
-                    : 'legacy'
-            }
-            {...props}
-            fastDecisions={fastDecisions}
-        />
-    );
-});
+export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo((props) => (
+    <AiArtifactPanelContent
+        key={`${props.artifact.projectUuid}:${props.artifact.agentUuid}:${props.artifact.artifactUuid}:${props.artifact.versionUuid}`}
+        {...props}
+    />
+));

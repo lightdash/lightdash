@@ -1,14 +1,21 @@
 /* eslint-disable no-await-in-loop -- One native DuckDB connection. */
 import { DuckDBInstance } from '@duckdb/node-api';
 import {
+    AI_BILLABLE_FEATURES,
+    ChartType,
     DashboardTileTypes,
     FilterOperator,
+    getTemplatedUrlRowDependencies,
+    renderTemplatedUrl,
+    TableCalculationType,
+    UnitOfTime,
     WarehouseTypes,
     type ChartAsCode,
     type Filters,
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { compileMetricQuery } from '../../queryCompiler';
+import { getDashboardTabSlug } from '../../services/CoderService/scheduledContent';
 import { createAnalyticsExplores } from '../../services/ProjectService/analyticsProject/createAnalyticsExplores';
 import { MetricQueryBuilder } from '../../utils/QueryBuilder/MetricQueryBuilder';
 import { compactedStreamSchemas } from '../eventStream/registry';
@@ -21,6 +28,8 @@ import { analyticsContentAsCode } from './sampleContent';
 
 const charts = analyticsContentAsCode.flatMap((bundle) => bundle.charts);
 const explores = createAnalyticsExplores();
+const chartBaseTable = (chart: ChartAsCode) =>
+    explores.find(({ name }) => name === chart.tableName)!.baseTable;
 const compile = (chart: ChartAsCode) =>
     new MetricQueryBuilder({
         explore: explores.find(({ name }) => name === chart.tableName)!,
@@ -42,6 +51,517 @@ const compile = (chart: ChartAsCode) =>
     }).compileQuery();
 
 describe('built-in usage dashboards', () => {
+    it('makes every built-in table content action usable with hidden selected URL values', () => {
+        const linked = charts.filter(
+            (chart) =>
+                chart.chartConfig.type === ChartType.TABLE &&
+                chart.metricQuery.dimensions.some((field) =>
+                    /_(chart|dashboard|content)_name$/.test(field),
+                ),
+        );
+        expect(linked.map(({ slug }) => slug)).toHaveLength(9);
+        expect(
+            linked.some(({ slug }) =>
+                slug.endsWith('-adoption-dashboard-audience'),
+            ),
+        ).toBe(true);
+        for (const chart of linked) {
+            if (chart.chartConfig.type !== ChartType.TABLE)
+                throw new Error('Expected table');
+            const table = explores.find(({ name }) => name === chart.tableName)!
+                .tables[chartBaseTable(chart)];
+            for (const fieldId of chart.metricQuery.dimensions.filter((field) =>
+                /_(chart|dashboard|content)_name$/.test(field),
+            )) {
+                const field = Object.values(table.dimensions).find(
+                    ({ name }) => `${table.name}_${name}` === fieldId,
+                )!;
+                const [action] = field.urls!;
+                const urlId = fieldId.replace(/_name$/, '_url');
+                expect(getTemplatedUrlRowDependencies(action.url)).toEqual([
+                    urlId,
+                ]);
+                expect(chart.metricQuery.dimensions).toContain(urlId);
+                expect(
+                    chart.chartConfig.config?.columns?.[urlId]?.visible,
+                ).toBe(false);
+                expect(chart.tableConfig?.columnOrder).toContain(urlId);
+                const urlName = field.name.replace(/_name$/, '_url');
+                const target =
+                    'https://lightdash.example/projects/project/dashboards/dashboard';
+                expect(
+                    renderTemplatedUrl(
+                        action.url,
+                        {
+                            raw: '<untrusted name>',
+                            formatted: '<untrusted name>',
+                        },
+                        {
+                            [table.name]: {
+                                [urlName]: { raw: target, formatted: target },
+                            },
+                        },
+                    ),
+                ).toBe(target);
+                expect(
+                    renderTemplatedUrl(
+                        action.url,
+                        { raw: 'Legacy content', formatted: 'Legacy content' },
+                        {
+                            [table.name]: {
+                                [urlName]: { raw: null, formatted: '-' },
+                            },
+                        },
+                    ),
+                ).toBe('');
+            }
+        }
+        const scatter = charts.find(({ slug }) =>
+            slug.endsWith(
+                '-high-compute-dashboards-audience-versus-warehouse-time',
+            ),
+        )!;
+        expect(scatter.metricQuery.dimensions).not.toContain(
+            'content_health_content_url',
+        );
+    });
+
+    const aiTokens = analyticsContentAsCode.find(
+        ({ dashboard }) => dashboard.slug === 'lightdash-analytics-ai-tokens',
+    )!;
+
+    it('uses existing AI Usage fields and distinguishes billing scope from all usage', () => {
+        expect(aiTokens.charts).toHaveLength(24);
+        for (const chart of aiTokens.charts) {
+            expect(chart.tableName).toBe('ai_usage');
+            expect(chart.metricQuery.timezone).toBe('UTC');
+            const group = (chart.metricQuery.filters as Filters).dimensions!;
+            const rules = 'and' in group ? group.and : [];
+            expect(rules).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        operator: FilterOperator.IN_THE_CURRENT,
+                        settings: { unitOfTime: UnitOfTime.months },
+                    }),
+                    expect.objectContaining({
+                        operator: FilterOperator.IN_THE_PAST,
+                        values: [31],
+                        settings: {
+                            unitOfTime: UnitOfTime.days,
+                            completed: true,
+                        },
+                    }),
+                ]),
+            );
+            const billingScope =
+                /-(eligible|details|(?:feature|channel|user|project|agent)-(?:daily|rank))$/.test(
+                    chart.slug,
+                );
+            expect(rules).toHaveLength(billingScope ? 5 : 2);
+            if (billingScope) {
+                for (const [fieldId, values] of [
+                    ['ai_usage_key_management', ['lightdash-managed']],
+                    ['ai_usage_outcome', ['complete']],
+                    ['ai_usage_feature', [...AI_BILLABLE_FEATURES]],
+                ]) {
+                    expect(rules).toContainEqual(
+                        expect.objectContaining({
+                            target: { fieldId },
+                            operator: FilterOperator.EQUALS,
+                            values,
+                        }),
+                    );
+                }
+            }
+            if (/-(project-(?:daily|rank)|details)$/.test(chart.slug)) {
+                expect(chart.metricQuery.dimensions).toEqual(
+                    expect.arrayContaining([
+                        'ai_usage_project_id',
+                        'ai_usage_project_name',
+                    ]),
+                );
+            }
+        }
+    });
+
+    it('keeps AI token tabs stable on sync and leaves room for ranking labels', () => {
+        const installed = {
+            tabs: aiTokens.dashboard.tabs.map((tab) => ({
+                name: tab.name,
+                order: tab.order,
+                uuid: tab.slug!,
+            })),
+        };
+        expect(installed.tabs).toHaveLength(6);
+        for (const tab of installed.tabs) {
+            expect(getDashboardTabSlug(installed, tab.uuid)).toBe(tab.uuid);
+        }
+        for (const tile of aiTokens.dashboard.tiles.filter(
+            (item) => item.type === DashboardTileTypes.SAVED_CHART,
+        )) {
+            expect(tile.properties.title).toBe('');
+            if (tile.properties.chartSlug?.endsWith('-rank')) {
+                expect(tile.h).toBeGreaterThanOrEqual(6);
+            }
+        }
+    });
+
+    it('uses primary email in AI token details without relabeling embedded viewers as accounts', async () => {
+        const details = aiTokens.charts.find(({ slug }) =>
+            slug.endsWith('-details'),
+        )!;
+        expect(details.tableConfig?.columnOrder?.[0]).toBe('user_display_name');
+        if (details.chartConfig.type !== ChartType.TABLE)
+            throw new Error('Expected table');
+        expect(details.chartConfig.config?.columns).toMatchObject({
+            ai_usage_user_name: { visible: false },
+            ai_usage_user_email: { visible: false },
+        });
+        const instance = await DuckDBInstance.create(':memory:', {
+            threads: '1',
+            memory_limit: '128MB',
+        });
+        const db = await instance.connect();
+        try {
+            const schemas = {
+                ai_usage: compactedStreamSchemas.ai_usage,
+                lightdash_users: usageDimensionSchemas.users,
+                lightdash_projects: usageDimensionSchemas.projects,
+                lightdash_agents: usageDimensionSchemas.agents,
+            };
+            for (const [name, columns] of Object.entries(schemas)) {
+                await db.run(
+                    `CREATE TABLE "${name}" (${columns.map((column) => `"${column.name}" ${column.type}`).join(', ')})`,
+                );
+            }
+            await db.run(`INSERT INTO lightdash_users (org_id,user_id,name,email) VALUES
+                ('org','named','Alex','named@example.com'),
+                ('org','unnamed','  ',' primary@example.com '),
+                ('org','no-email',NULL,NULL),
+                ('other','unmatched',NULL,'other@example.com')`);
+            await db.run(`INSERT INTO ai_usage (org_id,user_id,channel,total_tokens) VALUES
+                ('org','named','web',1), ('org','unnamed','web',2),
+                ('org','no-email','web',3), ('org','unmatched','web',4),
+                ('org','named','embed',5), ('org',NULL,'web',6)`);
+            const rows = (
+                await db.runAndReadAll(
+                    compile({
+                        ...details,
+                        metricQuery: { ...details.metricQuery, filters: {} },
+                    }).query,
+                )
+            ).getRowObjects();
+            expect(rows).toHaveLength(6);
+            expect(rows).toEqual(
+                expect.arrayContaining(
+                    [
+                        ['named', 'web', 'Alex'],
+                        ['unnamed', 'web', 'primary@example.com'],
+                        ['no-email', 'web', 'User no-email'],
+                        ['unmatched', 'web', 'User unmatched'],
+                        ['named', 'embed', 'Embedded viewers'],
+                        [null, 'web', 'No user recorded'],
+                    ].map(([id, channel, label]) =>
+                        expect.objectContaining({
+                            ai_usage_user_id: id,
+                            ai_usage_channel: channel,
+                            user_display_name: label,
+                        }),
+                    ),
+                ),
+            );
+            expect(
+                rows.reduce(
+                    (sum, row) => sum + Number(row.ai_usage_total_tokens_used),
+                    0,
+                ),
+            ).toBe(21);
+            expect(
+                rows.some(
+                    (row) => row.ai_usage_user_email === 'other@example.com',
+                ),
+            ).toBe(false);
+        } finally {
+            db.closeSync();
+            instance.closeSync();
+        }
+    });
+
+    it('uses display-only user labels without changing the selected identities', () => {
+        const userCharts = charts.filter(
+            (chart) =>
+                chart.dashboardSlug !== 'lightdash-analytics-ai-tokens' &&
+                chart.metricQuery.dimensions.includes(
+                    `${chartBaseTable(chart)}_user_name`,
+                ),
+        );
+        expect(userCharts.length).toBeGreaterThan(0);
+        for (const chart of userCharts) {
+            const nameField = `${chartBaseTable(chart)}_user_name`;
+            const emailField = `${chartBaseTable(chart)}_user_email`;
+            const idField = `${chartBaseTable(chart)}_user_id`;
+            expect(chart.metricQuery.dimensions).toContain(idField);
+            expect(chart.metricQuery.dimensions).toContain(emailField);
+            expect(chart.metricQuery.tableCalculations).toContainEqual(
+                expect.objectContaining({
+                    name: 'user_display_name',
+                    type: TableCalculationType.STRING,
+                }),
+            );
+            expect(chart.chartConfig.type).toBe(ChartType.TABLE);
+            if (chart.chartConfig.type === ChartType.TABLE) {
+                const columns = chart.chartConfig.config?.columns;
+                expect(columns?.[nameField]?.visible).toBe(false);
+                expect(columns?.[idField]?.visible).toBe(false);
+                expect(columns?.[emailField]?.visible).toBe(false);
+                expect(
+                    chart.metricQuery.tableCalculations.find(
+                        ({ name }) => name === 'user_display_name',
+                    )?.displayName,
+                ).toBe(columns?.[nameField]?.name ?? 'User name');
+            }
+            const order = chart.tableConfig?.columnOrder ?? [];
+            expect(order).toContain(emailField);
+            expect(order.indexOf('user_display_name')).toBe(
+                order.indexOf(nameField) - 2,
+            );
+            expect(
+                order.filter((field) => field === 'user_display_name'),
+            ).toHaveLength(1);
+        }
+    });
+
+    it('falls back to primary email for missing names while preserving identities, totals and filters', async () => {
+        const instance = await DuckDBInstance.create(':memory:', {
+            threads: '1',
+            memory_limit: '128MB',
+        });
+        const db = await instance.connect();
+        try {
+            await db.run(
+                `CREATE TABLE user_activity (${userActivityColumns.map(({ name, type }) => `"${name}" ${type}`).join(', ')})`,
+            );
+            await db.run(
+                'CREATE TABLE lightdash_users (org_id VARCHAR, user_id VARCHAR, name VARCHAR, email VARCHAR)',
+            );
+            await db.run(`INSERT INTO lightdash_users VALUES
+                ('org','named-a','Alex','shared@example.com'), ('org','named-b','Alex','shared@example.com'),
+                ('org','unnamed-a',NULL,'unnamed@example.com'), ('org','unnamed-b','  ','  '),
+                ('org','empty-name','',' trimmed@example.com '), ('other','missing-name','Other tenant','other@example.com')`);
+            await db.run(`INSERT INTO user_activity (org_id,project_id,user_id,activity_date,event_count,stream) VALUES
+                ('org','project','named-a','2026-01-05',2,'ai_usage'),
+                ('org','project','named-b','2026-01-05',3,'query_events'),
+                ('org','project','unnamed-a','2026-01-05',5,'ai_usage'),
+                ('org','project','unnamed-b','2026-01-05',7,'query_events'),
+                ('org','project','empty-name','2026-01-05',11,'content_views'),
+                ('org','project','missing-name','2026-01-05',13,'mcp_tool_calls'),
+                ('org','project',NULL,'2026-01-05',17,'ai_usage'),
+                ('org','project',NULL,'2026-01-05',29,'query_events'),
+                ('org','project','','2026-01-05',19,NULL),
+                ('org','project','   ','2026-01-05',23,'data_app_events')`);
+            const chart = charts.find(({ slug }) =>
+                slug.endsWith('-observed-activity-by-person-and-week'),
+            )!;
+            const rows = (
+                await db.runAndReadAll(compile(chart).query)
+            ).getRowObjects();
+            const before = (
+                await db.runAndReadAll(
+                    compile({
+                        ...chart,
+                        metricQuery: {
+                            ...chart.metricQuery,
+                            dimensions: chart.metricQuery.dimensions.filter(
+                                (field) => field !== 'user_activity_user_email',
+                            ),
+                            metrics: chart.metricQuery.metrics.filter(
+                                (field) =>
+                                    field !== 'user_activity_activity_origin',
+                            ),
+                            additionalMetrics: [],
+                            tableCalculations: [],
+                        },
+                    }).query,
+                )
+            ).getRowObjects();
+            expect(rows).toHaveLength(before.length);
+            const labels = new Map<unknown, string>([
+                ['named-a', 'Alex'],
+                ['named-b', 'Alex'],
+                ['unnamed-a', 'unnamed@example.com'],
+                ['unnamed-b', 'User unnamed-b'],
+                ['empty-name', 'trimmed@example.com'],
+                ['missing-name', 'User missing-name'],
+                [null, 'No user recorded'],
+                ['', 'No user recorded'],
+                ['   ', 'No user recorded'],
+            ]);
+            for (const {
+                user_display_name: label,
+                user_activity_activity_origin: origin,
+                user_activity_user_email: email,
+                ...row
+            } of rows) {
+                expect(before).toContainEqual(row);
+                expect(typeof origin).toBe('string');
+                expect(label).toBe(labels.get(row.user_activity_user_id));
+                expect(email).not.toBe('other@example.com');
+            }
+            expect(
+                rows.reduce(
+                    (sum, row) => sum + Number(row.user_activity_total_events),
+                    0,
+                ),
+            ).toBe(129);
+            expect(
+                rows.find(
+                    ({ user_activity_user_id }) =>
+                        user_activity_user_id === null,
+                ),
+            ).toMatchObject({
+                user_activity_activity_origin: 'AI, Query',
+                user_activity_total_events: 46n,
+            });
+            expect(
+                rows.filter(
+                    ({ user_display_name }) => user_display_name === 'Alex',
+                ),
+            ).toHaveLength(2);
+            expect(
+                JSON.stringify(rows, (_, value) =>
+                    typeof value === 'bigint' ? String(value) : value,
+                ),
+            ).not.toContain('Other tenant');
+            const filtered = (
+                await db.runAndReadAll(
+                    compile({
+                        ...chart,
+                        metricQuery: {
+                            ...chart.metricQuery,
+                            filters: {
+                                dimensions: {
+                                    id: 'missing-names',
+                                    and: [
+                                        {
+                                            id: 'legacy-name-filter',
+                                            target: {
+                                                fieldId:
+                                                    'user_activity_user_name',
+                                            },
+                                            operator: FilterOperator.EQUALS,
+                                            values: ['Unknown user'],
+                                        },
+                                    ],
+                                },
+                            },
+                        },
+                    }).query,
+                )
+            ).getRowObjects();
+            expect(
+                filtered.map(
+                    ({ user_activity_user_id }) => user_activity_user_id,
+                ),
+            ).toEqual(
+                expect.arrayContaining(['missing-name', null, '', '   ']),
+            );
+            expect(
+                filtered.some(
+                    ({ user_display_name }) => user_display_name === 'Alex',
+                ),
+            ).toBe(false);
+        } finally {
+            db.closeSync();
+            instance.closeSync();
+        }
+    });
+
+    it('shows captured embed origin without splitting a viewer row or inventing an identity', async () => {
+        const instance = await DuckDBInstance.create(':memory:', {
+            threads: '1',
+            memory_limit: '128MB',
+        });
+        const db = await instance.connect();
+        try {
+            await db.run(
+                `CREATE TABLE data_app_events (${compactedStreamSchemas.data_app_events.map(({ name, type }) => `"${name}" ${type}`).join(', ')})`,
+            );
+            await db.run(
+                'CREATE TABLE lightdash_users (org_id VARCHAR, user_id VARCHAR, name VARCHAR, email VARCHAR)',
+            );
+            await db.run(`INSERT INTO data_app_events (org_id,project_id,user_id,app_id,event_name,view_context) VALUES
+                ('org','project',NULL,'app','data_app.view','embed'),
+                ('org','project',NULL,'app','data_app.view','embed'),
+                ('org','project',NULL,'app','data_app.view','standalone')`);
+            const chart = charts.find(
+                ({ slug }) => slug === 'lightdash-analytics-apps-top-people',
+            )!;
+            const rows = (
+                await db.runAndReadAll(compile(chart).query)
+            ).getRowObjects();
+            expect(rows).toHaveLength(1);
+            expect(rows[0]).toMatchObject({
+                user_display_name: 'No user recorded',
+                data_app_events_activity_origin: 'App, Embed',
+                data_app_events_total_views: 3n,
+            });
+        } finally {
+            db.closeSync();
+            instance.closeSync();
+        }
+    });
+
+    it('shares inactivity charts between People and Adoption without changing their fixed windows', () => {
+        const inactivityCharts = analyticsContentAsCode
+            .filter(({ dashboard }) =>
+                [
+                    'lightdash-analytics-people',
+                    'lightdash-analytics-adoption',
+                ].includes(dashboard.slug),
+            )
+            .map((bundle) => {
+                const populationCharts = bundle.charts.filter(
+                    ({ tableName }) => tableName === 'people_adoption',
+                );
+                expect(populationCharts).toHaveLength(3);
+                const count = populationCharts.find(
+                    ({ chartConfig }) =>
+                        chartConfig.type === ChartType.BIG_NUMBER,
+                )!;
+                expect(count.metricQuery.dimensions).toEqual([]);
+                expect(count.metricQuery.metrics).toEqual([
+                    'people_adoption_people_without_observed_activity',
+                ]);
+                for (const chart of populationCharts.filter(
+                    ({ chartConfig }) => chartConfig.type === ChartType.TABLE,
+                )) {
+                    expect(chart.metricQuery.dimensions).toContain(
+                        'people_adoption_user_id',
+                    );
+                    expect(chart.metricQuery.dimensions).toContain(
+                        'people_adoption_email',
+                    );
+                    expect(chart.metricQuery.dimensions).toContain(
+                        'people_adoption_activity_through_day',
+                    );
+                    expect(chart.metricQuery.metrics).toEqual([]);
+                    if (chart.chartConfig.type === ChartType.TABLE) {
+                        expect(
+                            chart.chartConfig.config?.columns
+                                ?.people_adoption_name?.visible,
+                        ).toBe(false);
+                        expect(
+                            chart.chartConfig.config?.columns
+                                ?.people_adoption_email?.visible,
+                        ).toBe(false);
+                    }
+                    expect(chart.tableConfig?.columnOrder?.[0]).toBe('person');
+                }
+                return populationCharts.map(({ metricQuery }) => metricQuery);
+            });
+        expect(inactivityCharts[0]).toEqual(inactivityCharts[1]);
+    });
+
     it('scopes outcome filters and the default date range to the two outcome charts', () => {
         const { dashboard, charts: adoptionCharts } =
             analyticsContentAsCode.find(
@@ -74,18 +594,195 @@ describe('built-in usage dashboards', () => {
         expect(outcomeTiles).toHaveLength(2);
     });
 
+    it('keeps Embed date filters on every tile and query counts restricted to embeds', () => {
+        const bundle = analyticsContentAsCode.find(
+            ({ dashboard }) => dashboard.slug === 'lightdash-analytics-embed',
+        )!;
+        const [date] = bundle.dashboard.filters!.dimensions!;
+        expect(date).toMatchObject({
+            operator: FilterOperator.IN_THE_PAST,
+            values: [30],
+            settings: { completed: true, unitOfTime: UnitOfTime.days },
+        });
+        for (const chart of bundle.charts) {
+            expect(chart.chartConfig.type).not.toBe(ChartType.TABLE);
+            expect(date.tileTargets?.[chart.slug]).toEqual({
+                fieldId: `${chart.tableName}_event_ts_day`,
+                tableName: chart.tableName,
+            });
+            if (chart.tableName === 'query_events') {
+                expect(compile(chart).query).toContain("'embed'");
+                expect(chart.metricQuery.metrics).not.toContain(
+                    'query_events_unique_users',
+                );
+            }
+        }
+    });
+
     it.each(charts.map((chart) => [chart.slug, chart] as const))(
         'compiles %s without missing fields or join warnings',
         (_slug, chart) => {
+            const explore = explores.find(
+                ({ name }) => name === chart.tableName,
+            )!;
             expect(compile(chart).warnings).toEqual([]);
             expect(chart.metricQuery.limit).toBeLessThanOrEqual(5000);
             expect(
-                chart.metricQuery.dimensions.every((field) =>
-                    field.startsWith(`${chart.tableName}_`),
+                chart.metricQuery.dimensions.every(
+                    (field) =>
+                        field.startsWith(`${explore.baseTable}_`) ||
+                        chart.metricQuery.customDimensions?.some(
+                            (dimension) =>
+                                dimension.id === field &&
+                                dimension.table === explore.baseTable,
+                        ),
                 ),
             ).toBe(true);
         },
     );
+
+    it('includes zero-event people and distinguishes them from lapsed people without merging names', async () => {
+        const instance = await DuckDBInstance.create(':memory:', {
+            memory_limit: '256MB',
+            threads: '1',
+        });
+        const db = await instance.connect();
+        try {
+            const schemas = {
+                lightdash_people: usageDimensionSchemas.people,
+                ...Object.fromEntries(
+                    [
+                        'query_events',
+                        'content_views',
+                        'agent_request_events',
+                        'data_app_events',
+                        'mcp_tool_calls',
+                    ].map((name) => [
+                        name,
+                        compactedStreamSchemas[
+                            name as keyof typeof compactedStreamSchemas
+                        ],
+                    ]),
+                ),
+            };
+            for (const [name, columns] of Object.entries(schemas)) {
+                await db.run(
+                    `CREATE TABLE "${name}" (${columns.map((column) => `"${column.name}" ${column.type}`).join(', ')})`,
+                );
+            }
+            await db.run(`INSERT INTO lightdash_people (org_id,user_id,name,organization_role,snapshot_at,is_active,is_setup_complete,is_eligible) VALUES
+                ('org','recent','Recent','member','2026-10-21 00:30:00',true,true,true),
+                ('org','lapsed','Lapsed','member','2026-10-21 00:30:00',true,true,true),
+                ('org','never-a','Alex','member','2026-10-21 00:30:00',true,true,true),
+                ('org','never-b','Alex','member','2026-10-21 00:30:00',true,true,true),
+                ('org','unnamed','   ','member','2026-10-21 00:30:00',true,true,true),
+                ('org','scheduled','Scheduled only','member','2026-10-21 00:30:00',true,true,true),
+                ('org','inactive','Inactive','member','2026-10-21 00:30:00',false,true,false),
+                ('org','pending','Pending','member','2026-10-21 00:30:00',true,false,false)`);
+            await db.run(`UPDATE lightdash_people SET email = ' person@example.com '
+                WHERE user_id IN ('never-a', 'never-b', 'unnamed')`);
+            await db.run(`INSERT INTO content_views (org_id,user_id,event_ts,actor_type,is_qualifying) VALUES
+                ('org','recent','2026-10-20 12:00:00','user',true),
+                ('org','recent','2026-10-20 12:00:00','user',true),
+                ('org','lapsed','2026-09-01 12:00:00','user',true)`);
+            await db.run(`INSERT INTO query_events (org_id,user_id,event_ts,workload_origin,initiating_actor_type) VALUES
+                ('org','scheduled','2026-10-20 12:00:00','scheduled','user')`);
+
+            const populationCharts = charts.filter(
+                ({ tableName, dashboardSlug }) =>
+                    tableName === 'people_adoption' &&
+                    dashboardSlug === 'lightdash-analytics-people',
+            );
+            const count = populationCharts.find(({ slug }) =>
+                slug.endsWith('-people-without-observed-activity'),
+            )!;
+            const noObserved = populationCharts.find(({ slug }) =>
+                slug.endsWith('-people-without-observed-activity-detail'),
+            )!;
+            const inactive30d = populationCharts.find(({ slug }) =>
+                slug.endsWith('-people-without-activity-30d-detail'),
+            )!;
+            const query = async (chart: ChartAsCode) =>
+                (
+                    await db.runAndReadAll(compile(chart).query)
+                ).getRowObjectsJS();
+            expect(await query(count)).toEqual([
+                { people_adoption_people_without_observed_activity: 4n },
+            ]);
+            const unobservedRows = await query(noObserved);
+            expect(
+                unobservedRows.map((row) => row.people_adoption_user_id).sort(),
+            ).toEqual(['never-a', 'never-b', 'scheduled', 'unnamed']);
+            expect(
+                unobservedRows.filter((row) => row.person === 'Alex'),
+            ).toHaveLength(2);
+            expect(unobservedRows).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        people_adoption_user_id: 'unnamed',
+                        person: 'person@example.com',
+                    }),
+                ]),
+            );
+            const inactiveRows = await query(inactive30d);
+            expect(
+                inactiveRows.map((row) => row.people_adoption_user_id).sort(),
+            ).toEqual(['lapsed', 'never-a', 'never-b', 'scheduled', 'unnamed']);
+            expect(inactiveRows).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        people_adoption_user_id: 'lapsed',
+                        people_adoption_activity_status:
+                            'Previously observed; inactive for 30 days',
+                        people_adoption_days_since_last_activity: 49n,
+                    }),
+                    expect.objectContaining({
+                        people_adoption_user_id: 'never-a',
+                        people_adoption_activity_status:
+                            'No qualifying activity observed',
+                        people_adoption_last_observed_activity_at: null,
+                    }),
+                ]),
+            );
+            expect(
+                new Set(
+                    inactiveRows.map((row) =>
+                        String(row.people_adoption_activity_through_day),
+                    ),
+                ).size,
+            ).toBe(1);
+
+            for (const email of ['NULL', "''", "'   '"]) {
+                await db.run(
+                    `UPDATE lightdash_people SET email = ${email} WHERE user_id = 'unnamed'`,
+                );
+                expect(await query(noObserved)).toEqual(
+                    expect.arrayContaining([
+                        expect.objectContaining({
+                            people_adoption_user_id: 'unnamed',
+                            person: 'User unnamed',
+                        }),
+                    ]),
+                );
+            }
+
+            await db.run(`INSERT INTO content_views (org_id,user_id,event_ts,actor_type,is_qualifying)
+                SELECT org_id,user_id,TIMESTAMP '2026-10-20 12:00:00','user',true
+                FROM lightdash_people WHERE is_eligible`);
+            expect(await query(count)).toEqual([
+                { people_adoption_people_without_observed_activity: 0n },
+            ]);
+            expect(await query(noObserved)).toEqual([]);
+            expect(await query(inactive30d)).toEqual([]);
+            await db.run('DELETE FROM lightdash_people');
+            expect(await query(count)).toEqual([
+                { people_adoption_people_without_observed_activity: 0n },
+            ]);
+        } finally {
+            db.closeSync();
+            instance.closeSync();
+        }
+    });
 
     it('reconciles Adoption prompts, audience and creator filters against synthetic activity', async () => {
         const instance = await DuckDBInstance.create(':memory:');
@@ -111,7 +808,7 @@ describe('built-in usage dashboards', () => {
                 );
             }
             await db.run(
-                `INSERT INTO lightdash_users VALUES ('org','a','Alex'),('org','b','Alex'),('other','a','Wrong tenant')`,
+                `INSERT INTO lightdash_users (org_id,user_id,name) VALUES ('org','a','Alex'),('org','b','Alex'),('other','a','Wrong tenant')`,
             );
             await db.run(`INSERT INTO user_activity (org_id, project_id, user_id, activity_date, event_count) VALUES
                 ('org','project','a','2026-01-05',2),('org','project','a','2026-01-06',3),('org','project','b','2026-01-05',1),('org','project',NULL,'2026-01-05',4)`);

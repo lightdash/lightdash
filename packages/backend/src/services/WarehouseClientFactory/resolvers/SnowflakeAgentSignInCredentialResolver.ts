@@ -11,11 +11,7 @@ import {
     checkSnowflakeAgentSessionWithToken,
     SNOWFLAKE_AGENT_SESSION_REQUIRED_MESSAGE,
 } from '@lightdash/warehouses';
-import { z } from 'zod';
-import {
-    OAUTH_REQUEST_TIMEOUT_MS,
-    OAuthRequestTimeoutError,
-} from '../../../auth/oauthRequestDeadline';
+import { OAUTH_REQUEST_TIMEOUT_MS } from '../../../auth/oauthRequestDeadline';
 import {
     classifySnowflakeRefreshError,
     exchangeSnowflakeRefreshToken,
@@ -70,7 +66,6 @@ export type AgentSignInRefreshEvent =
     | { kind: 'rotation'; rotated: boolean };
 export type AgentSignInInput = {
     person: { userUuid: string; organizationUuid: string; email: string };
-    silentRefresh: boolean;
     onRefresh: (event: AgentSignInRefreshEvent) => void;
 };
 export type AgentSignInResolverDependencies =
@@ -96,11 +91,6 @@ type SnowflakeCredentials = Extract<
     { type: WarehouseTypes.SNOWFLAKE }
 >;
 
-const legacyRefreshErrorSchema = z.object({
-    data: z.unknown().optional(),
-    message: z.unknown().optional(),
-});
-
 const matchesClient = (
     credential: AiUserWarehouseCredentials,
     client: ResolvedSnowflakeAgentClient,
@@ -114,21 +104,11 @@ const matchesClient = (
 const validateCredential = (
     credential: AiUserWarehouseCredentials,
     client: ResolvedSnowflakeAgentClient,
-    silentRefresh: boolean,
 ) => {
     if (!matchesClient(credential, client))
         throw new AgentCredentialResolutionError({
             kind: 'credential',
             classification: 'binding_mismatch',
-        });
-    if (
-        !silentRefresh &&
-        credential.expiresAt &&
-        credential.expiresAt.getTime() <= Date.now()
-    )
-        throw new AgentCredentialResolutionError({
-            kind: 'credential',
-            classification: 'expired',
         });
 };
 
@@ -153,7 +133,6 @@ export class SnowflakeAgentSignInCredentialResolver implements CredentialResolve
 
     private async read(
         person: AgentSignInInput['person'],
-        silentRefresh: boolean,
         policy: PersonalCredentialPersistencePolicy,
     ) {
         const client = await this.deps.snowflakeAgentClientResolver.resolve(
@@ -177,20 +156,19 @@ export class SnowflakeAgentSignInCredentialResolver implements CredentialResolve
                 kind: 'credential',
                 classification: 'missing',
             });
-        validateCredential(credential, client, silentRefresh);
+        validateCredential(credential, client);
         return { client, credential };
     }
 
     async inspect(
         person: AgentSignInInput['person'],
-        silentRefresh: boolean,
     ): Promise<AgentCredentialResolutionError | null> {
         try {
             const policy = await resolvePersonalCredentialPolicy(
                 this.deps.featureFlagModel,
                 person,
             );
-            await this.read(person, silentRefresh, policy);
+            await this.read(person, policy);
             return null;
         } catch (error) {
             if (error instanceof AgentCredentialResolutionError) return error;
@@ -212,7 +190,7 @@ export class SnowflakeAgentSignInCredentialResolver implements CredentialResolve
     async resolve(
         input: Selection,
     ): Promise<CredentialResolution<CreateSnowflakeCredentials>> {
-        const { person, silentRefresh } = input.stored;
+        const { person } = input.stored;
         const policy = await resolvePersonalCredentialPolicy(
             this.deps.featureFlagModel,
             {
@@ -221,18 +199,8 @@ export class SnowflakeAgentSignInCredentialResolver implements CredentialResolve
                 userUuid: person.userUuid,
             },
         );
-        const { client, credential } = await this.read(
-            person,
-            silentRefresh,
-            policy,
-        );
-        const refreshed = await this.refresh(
-            input,
-            credential,
-            client,
-            true,
-            policy,
-        );
+        const { client, credential } = await this.read(person, policy);
+        const refreshed = await this.refresh(input, credential, client, policy);
         const credentials: CreateSnowflakeCredentials = {
             ...refreshed.merged,
             token: refreshed.tokens.accessToken,
@@ -258,7 +226,7 @@ export class SnowflakeAgentSignInCredentialResolver implements CredentialResolve
                 credentialUuid: refreshed.credential.uuid,
                 assurances,
                 expiresAt:
-                    (silentRefresh && refreshed.tokens.accessTokenExpiresAt) ||
+                    refreshed.tokens.accessTokenExpiresAt ||
                     new Date(Date.now() + 8 * 60 * 1000),
                 clientVersion: client.clientVersion,
             },
@@ -269,15 +237,14 @@ export class SnowflakeAgentSignInCredentialResolver implements CredentialResolve
         input: Selection,
         credential: AiUserWarehouseCredentials,
         client: ResolvedSnowflakeAgentClient,
-        retryRotation: boolean,
         policy: PersonalCredentialPersistencePolicy,
     ): Promise<{
         credential: AiUserWarehouseCredentials;
         merged: CreateSnowflakeCredentials;
         tokens: SnowflakeRefreshResult;
     }> {
-        const { person, silentRefresh, onRefresh } = input.stored;
-        validateCredential(credential, client, silentRefresh);
+        const { person, onRefresh } = input.stored;
+        validateCredential(credential, client);
         let currentCredential = credential;
         const merged = policy.strictPersonalOverlay
             ? composePersonalWarehouseCredentials(
@@ -316,7 +283,7 @@ export class SnowflakeAgentSignInCredentialResolver implements CredentialResolve
                         });
                     if (current.uuid !== credential.uuid)
                         throw new RefreshTokenSourceChangedError();
-                    validateCredential(current, client, silentRefresh);
+                    validateCredential(current, client);
                     currentCredential = current;
                     return policy.strictPersonalOverlay
                         ? composePersonalWarehouseCredentials(
@@ -337,8 +304,6 @@ export class SnowflakeAgentSignInCredentialResolver implements CredentialResolve
             uuid: credential.uuid,
             purpose: UserWarehouseCredentialPurpose.AI,
         };
-        const lockEnabled =
-            retryRotation && (await source.isLockEnabled(input, owner));
         const refresher = new OAuthCredentialRefresher(
             this.deps.refreshTokenRotation,
         );
@@ -346,38 +311,33 @@ export class SnowflakeAgentSignInCredentialResolver implements CredentialResolve
         try {
             tokens = await refresher.refresh({
                 refreshToken: merged.refreshToken,
-                row: lockEnabled
-                    ? {
-                          key: owner,
-                          shareKey: JSON.stringify([
-                              'snowflake-agent',
-                              client.organizationUuid,
-                              client.clientVersion,
-                              silentRefresh,
-                          ]),
-                          readCurrentRefreshToken: (trx) =>
-                              source.readCurrentRefreshToken(
-                                  {
-                                      ...input,
-                                      owner,
-                                      refreshSource: {
-                                          credentials: credential.credentials,
-                                          fallback: input.connection,
-                                          personalCredentialPolicy: policy,
-                                      },
-                                  },
-                                  trx,
-                              ),
-                      }
-                    : null,
+                row: {
+                    key: owner,
+                    shareKey: JSON.stringify([
+                        'snowflake-agent',
+                        client.organizationUuid,
+                        client.clientVersion,
+                    ]),
+                    readCurrentRefreshToken: (trx) =>
+                        source.readCurrentRefreshToken(
+                            {
+                                ...input,
+                                owner,
+                                refreshSource: {
+                                    credentials: credential.credentials,
+                                    fallback: input.connection,
+                                    personalCredentialPolicy: policy,
+                                },
+                            },
+                            trx,
+                        ),
+                },
                 exchange: (refreshToken) =>
                     exchangeSnowflakeRefreshToken({
                         client,
                         refreshToken,
                         now: new Date(),
-                        ...(lockEnabled
-                            ? { requestTimeoutMs: OAUTH_REQUEST_TIMEOUT_MS }
-                            : {}),
+                        requestTimeoutMs: OAUTH_REQUEST_TIMEOUT_MS,
                     }),
                 persist: async ({ lockedRefreshToken, result, trx }) => {
                     onRefresh({ kind: 'refreshed' });
@@ -385,13 +345,11 @@ export class SnowflakeAgentSignInCredentialResolver implements CredentialResolve
                         result.refreshToken !== lockedRefreshToken;
                     if (
                         tokenChanged ||
-                        (silentRefresh &&
-                            ((result.refreshTokenExpiresAt &&
-                                result.refreshTokenExpiresAt.getTime() !==
-                                    currentCredential.expiresAt?.getTime()) ||
-                                (currentCredential.expiresAt &&
-                                    currentCredential.expiresAt.getTime() <=
-                                        Date.now())))
+                        (result.refreshTokenExpiresAt &&
+                            result.refreshTokenExpiresAt.getTime() !==
+                                currentCredential.expiresAt?.getTime()) ||
+                        (currentCredential.expiresAt &&
+                            currentCredential.expiresAt.getTime() <= Date.now())
                     ) {
                         const expiry = result.refreshTokenExpiresAt
                             ? {
@@ -405,7 +363,7 @@ export class SnowflakeAgentSignInCredentialResolver implements CredentialResolve
                             lockedRefreshToken,
                             result.refreshToken,
                             trx,
-                            silentRefresh ? expiry : null,
+                            expiry,
                         );
                         if (tokenChanged)
                             onRefresh({
@@ -433,49 +391,7 @@ export class SnowflakeAgentSignInCredentialResolver implements CredentialResolve
                 error instanceof OAuthRefreshExchangeError
                     ? error.originalError
                     : error;
-            if (
-                !silentRefresh &&
-                !(
-                    lockEnabled &&
-                    (cause instanceof OAuthRequestTimeoutError ||
-                        error instanceof RefreshTokenLockTimeoutError)
-                )
-            ) {
-                const parsed = legacyRefreshErrorSchema.safeParse(cause);
-                const detail = parsed.success ? parsed.data : null;
-                const invalidGrant = /\binvalid_grant\b/.test(
-                    `${detail?.data ?? ''} ${detail?.message ?? ''}`,
-                );
-                throw new AgentCredentialResolutionError(
-                    {
-                        kind: 'refresh',
-                        classification: invalidGrant
-                            ? 'legacy_grant_gone'
-                            : 'legacy_failure',
-                    },
-                    cause,
-                );
-            }
             const failure = classifySnowflakeRefreshError(cause);
-            if (
-                !lockEnabled &&
-                failure.kind === 'grant_gone' &&
-                retryRotation
-            ) {
-                const sentToken =
-                    error instanceof OAuthRefreshExchangeError
-                        ? error.refreshToken
-                        : merged.refreshToken;
-                const current = await this.findRotatedCredential(
-                    input.connection,
-                    person.userUuid,
-                    sentToken,
-                    3,
-                    policy,
-                );
-                if (current)
-                    return this.refresh(input, current, client, false, policy);
-            }
             throw new AgentCredentialResolutionError(
                 { kind: 'refresh', classification: failure.kind },
                 cause,
@@ -498,47 +414,6 @@ export class SnowflakeAgentSignInCredentialResolver implements CredentialResolve
                 classification: 'unusable',
             });
         return { credential: currentCredential, merged: currentMerged, tokens };
-    }
-
-    private async findRotatedCredential(
-        connection: CreateSnowflakeCredentials,
-        userUuid: string,
-        oldRefreshToken: string,
-        remainingReads: number,
-        policy: PersonalCredentialPersistencePolicy,
-    ): Promise<AiUserWarehouseCredentials | null> {
-        const current =
-            await this.deps.userWarehouseCredentialsModel.findAiCredentialWithSecrets(
-                { userUuid, warehouseType: WarehouseTypes.SNOWFLAKE },
-                policy,
-            );
-        const latest =
-            current &&
-            (policy.strictPersonalOverlay
-                ? composePersonalWarehouseCredentials(
-                      connection,
-                      projectPersonalWarehouseCredentials(current.credentials),
-                  )
-                : mergePersonalWarehouseCredentials(connection, current));
-        if (
-            current &&
-            latest?.type === WarehouseTypes.SNOWFLAKE &&
-            latest.authenticationType === SnowflakeAuthenticationType.SSO &&
-            latest.refreshToken &&
-            latest.refreshToken !== oldRefreshToken
-        )
-            return current;
-        if (remainingReads <= 1) return null;
-        await new Promise<void>((resolve) => {
-            setTimeout(resolve, 300);
-        });
-        return this.findRotatedCredential(
-            connection,
-            userUuid,
-            oldRefreshToken,
-            remainingReads - 1,
-            policy,
-        );
     }
 
     cacheKeyIdentity(

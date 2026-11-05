@@ -2,7 +2,6 @@ import {
     DbtProjectType,
     DefaultSupportedDbtVersion,
     DuckdbConnectionType,
-    FeatureFlags,
     ForbiddenError,
     NotFoundError,
     ProjectMemberRole,
@@ -20,7 +19,6 @@ import {
 } from '../../analytics/LightdashAnalytics';
 import { type PlaygroundContent } from '../../ee/services/ProjectService/playgroundContentTypes';
 import Logger from '../../logging/logger';
-import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { type OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type CatalogService } from '../CatalogService/CatalogService';
@@ -44,7 +42,6 @@ export type SeedTrainingContentArguments = {
 
 export type ProvisionTrainingProjectArguments = {
     user: SessionUser;
-    featureFlagModel: Pick<FeatureFlagModel, 'get'>;
     projectModel: Pick<
         ProjectModel,
         | 'getAllByOrganizationUuid'
@@ -91,7 +88,6 @@ const describe = (error: unknown): string =>
  */
 export const provisionTrainingProject = async ({
     user,
-    featureFlagModel,
     projectModel,
     onboardingModel,
     projectService,
@@ -118,14 +114,6 @@ export const provisionTrainingProject = async ({
             properties: { organizationId: organizationUuid, projectId, reason },
         });
     };
-    const { enabled: learnEnabled } = await featureFlagModel.get({
-        user,
-        featureFlagId: FeatureFlags.EnableLearn,
-    });
-    if (!learnEnabled) {
-        trackSkipped('learn_disabled', null);
-        throw new NotFoundError('Learn is not enabled for this organization');
-    }
     if (!user.email) {
         throw new ForbiddenError(
             'The enabling user needs an email to be made the training project admin',

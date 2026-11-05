@@ -581,7 +581,7 @@ const DashboardChartEditorModal: FC<Props> = ({
                         chart={history.chart}
                         projectUuid={history.chart.projectUuid}
                         sidebarHeader={
-                            <Text fz="lg" fw={600} c="ldGray.9">
+                            <Text fz="lg" fw={600}>
                                 Versions
                             </Text>
                         }

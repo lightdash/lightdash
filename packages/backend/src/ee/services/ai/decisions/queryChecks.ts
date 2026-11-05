@@ -184,10 +184,10 @@ export const getEmptyFilterHints = async ({
     searchFieldValues,
 }: {
     decisions: Pick<AiDecisionClient, 'evaluate'>;
-    query: ToolRunQueryArgsTransformed;
+    query: Pick<MetricQuery, 'exploreName' | 'filters'>;
     searchFieldValues: SearchFieldValuesFn;
 }): Promise<string> => {
-    const candidates = getTotalFilterRules(query.queryConfig.filters)
+    const candidates = getTotalFilterRules(query.filters)
         .filter((filter) => filter.operator === FilterOperator.EQUALS)
         .flatMap((filter) =>
             (filter.values ?? [])
@@ -202,7 +202,7 @@ export const getEmptyFilterHints = async ({
         candidates.map(async ({ fieldId, value }) => {
             try {
                 const result = await searchFieldValues({
-                    table: query.queryConfig.exploreName,
+                    table: query.exploreName,
                     fieldId,
                     query: value,
                 });

@@ -44,7 +44,11 @@ import {
 } from '../../dashboard/store';
 import { FilterActions } from './constants';
 import classes from './FilterConfiguration.module.css';
-import { getFilterTileRelation, getValidSqlColumnReferences } from './utils';
+import {
+    getFilterTileRelation,
+    getTileFieldOptions,
+    getValidSqlColumnReferences,
+} from './utils';
 
 type TileWithTargetFields = {
     targetType: 'field';
@@ -143,20 +147,6 @@ const TileFilterConfiguration: FC<Props> = ({
         [field],
     );
 
-    const sortFieldsByMatch = useCallback(
-        (
-            fieldMatcher: (a: Field) => (b: Field) => boolean,
-            a: Field,
-            b: Field,
-        ) => {
-            if (!field) return 0;
-            const matchA = fieldMatcher(field)(a);
-            const matchB = fieldMatcher(field)(b);
-            return matchA === matchB ? 0 : matchA ? -1 : 1;
-        },
-        [field],
-    );
-
     const sortedTileWithFilters = useMemo(() => {
         return Object.entries(availableTileFilters)
             .sort(([, a], [, b]) =>
@@ -212,20 +202,7 @@ const TileFilterConfiguration: FC<Props> = ({
                         ? (filters?.some(matchFieldByType(field)) ?? false)
                         : false;
 
-                    const sortedFilters = field
-                        ? filters
-                              ?.filter(matchFieldByType(field))
-                              .sort((a, b) =>
-                                  sortFieldsByMatch(
-                                      matchFieldByTypeAndName,
-                                      a,
-                                      b,
-                                  ),
-                              )
-                              .sort((a, b) =>
-                                  sortFieldsByMatch(matchFieldExact, a, b),
-                              )
-                        : filters;
+                    const sortedFilters = getTileFieldOptions(field, filters);
 
                     const tileWithoutTitle =
                         !tile?.properties.title ||
@@ -364,7 +341,6 @@ const TileFilterConfiguration: FC<Props> = ({
         tiles,
         filterRule,
         field,
-        sortFieldsByMatch,
     ]);
 
     const filteredTileTargetList = (tabUUid: string) => {

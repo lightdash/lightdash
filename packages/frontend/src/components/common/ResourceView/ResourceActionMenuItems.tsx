@@ -200,7 +200,7 @@ export const ResourceActionMenuItems: FC<ResourceActionMenuItemsProps> = ({
 
                 <Menu.Item
                     display={
-                        isChartOrDashboard && !authoringEnabled
+                        isSqlChart || (isChartOrDashboard && !authoringEnabled)
                             ? 'none'
                             : undefined
                     }
@@ -213,7 +213,6 @@ export const ResourceActionMenuItems: FC<ResourceActionMenuItemsProps> = ({
                             item,
                         });
                     }}
-                    style={isSqlChart ? { display: 'none' } : {}}
                 >
                     {item.type === ResourceViewItemType.SPACE
                         ? 'Update space'
@@ -224,7 +223,9 @@ export const ResourceActionMenuItems: FC<ResourceActionMenuItemsProps> = ({
                 {item.type === ResourceViewItemType.CHART ||
                 item.type === ResourceViewItemType.DASHBOARD ? (
                     <Menu.Item
-                        display={authoringEnabled ? undefined : 'none'}
+                        display={
+                            authoringEnabled && !isSqlChart ? undefined : 'none'
+                        }
                         component="button"
                         role="menuitem"
                         leftSection={<MantineIcon icon={IconCopy} size={18} />}
@@ -234,7 +235,6 @@ export const ResourceActionMenuItems: FC<ResourceActionMenuItemsProps> = ({
                                 item,
                             });
                         }}
-                        style={isSqlChart ? { display: 'none' } : {}}
                     >
                         Duplicate
                     </Menu.Item>
@@ -335,10 +335,8 @@ export const ResourceActionMenuItems: FC<ResourceActionMenuItemsProps> = ({
                                 item,
                             });
                         }}
-                        style={
-                            isSqlChart || isPersonalDataApp
-                                ? { display: 'none' }
-                                : {}
+                        display={
+                            isSqlChart || isPersonalDataApp ? 'none' : undefined
                         }
                     >
                         {isPinned ? 'Unpin from homepage' : 'Pin to homepage'}

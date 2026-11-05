@@ -7,6 +7,7 @@ import {
     screen,
     waitFor,
 } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { McpGeneralSettingsPage } from '../../ee/features/aiCopilot/components/Admin/settings/McpGeneralSettingsPage';
@@ -42,6 +43,7 @@ vi.mock('./OrganizationAgentIdentitySection', () => ({
 }));
 const api = mockedLightdashApi;
 let settings = agentSettingsMcpMock();
+let mcpEnabled = true;
 const renderPages = (input: {
     agentIdentityEnabled: boolean;
     canManageOrganization: boolean;
@@ -77,13 +79,19 @@ const renderPages = (input: {
 beforeEach(() => {
     vi.clearAllMocks();
     settings = agentSettingsMcpMock();
+    mcpEnabled = true;
     api.mockImplementation(async (request) => {
         if (request.url === '/aiAgents/admin/settings') {
             if (request.method === 'PATCH')
                 settings = { ...settings, ...JSON.parse(String(request.body)) };
-            return settings;
+            return { ...settings, mcpEnabled };
         }
         if (request.url === '/org/projects') return [];
+        if (request.url === '/org')
+            return {
+                organizationUuid: 'org',
+                name: 'Test organization',
+            };
         if (request.url === '/org/agent-identity')
             return agentSettingsIdentityMock;
         if (request.url === '/org/agent-permissions')
@@ -153,11 +161,40 @@ describe('Agents over MCP', () => {
                 expect(
                     api.mock.calls.every(
                         ([request]) =>
+                            request.url === '/aiAgents/admin/settings' ||
                             request.url === '/aiAgents/admin/settings',
                     ),
                 ).toBe(true);
         },
     );
+    it('disables MCP controls on both pages when the organization turns MCP off', async () => {
+        mcpEnabled = false;
+        renderPages({
+            agentIdentityEnabled: true,
+            canManageOrganization: true,
+            canManageOrgAiAgent: true,
+        });
+        const agents = await screen.findByRole('switch', {
+            name: 'Agents over MCP',
+        });
+        await waitFor(() => expect(agents).toBeDisabled());
+        expect(agents).toBeChecked();
+        const writes = screen.getByRole('switch', {
+            name: 'Allow content changes via MCP',
+        });
+        expect(writes).toBeDisabled();
+        expect(writes).toBeChecked();
+        const user = userEvent.setup();
+        await user.click(agents);
+        await user.click(writes);
+        expect(
+            api.mock.calls.some(([request]) => request.method === 'PATCH'),
+        ).toBe(false);
+        expect(
+            screen.getByText('MCP access is disabled for this organization.'),
+        ).toBeInTheDocument();
+        expect(screen.getByRole('radio', { name: 'Custom' })).toBeEnabled();
+    });
     it('saves at once, shares state in both directions and stays out of draft/discard', async () => {
         const view = renderPages({
             agentIdentityEnabled: true,
@@ -201,6 +238,53 @@ describe('Agents over MCP', () => {
         view.link();
         expect(await screen.findByText('On')).toBeInTheDocument();
         expect(screen.getByText('No changes')).toBeInTheDocument();
+    });
+    it('refreshes AI settings after a stale tab gets a forbidden preference update', async () => {
+        renderPages({
+            agentIdentityEnabled: true,
+            canManageOrganization: true,
+            canManageOrgAiAgent: true,
+        });
+        const agents = await screen.findByRole('switch', {
+            name: 'Agents over MCP',
+        });
+        await waitFor(() => expect(agents).toBeEnabled());
+        const settingsReadsBefore = api.mock.calls.filter(
+            ([request]) =>
+                request.url === '/aiAgents/admin/settings' &&
+                request.method === 'GET',
+        ).length;
+        mcpEnabled = false;
+        api.mockRejectedValueOnce({
+            error: {
+                statusCode: 403,
+                message: 'MCP access is disabled for this organization',
+            },
+        });
+        const user = userEvent.setup();
+        await user.click(agents);
+        await screen.findByText('MCP access is disabled');
+        await waitFor(() => expect(agents).toBeDisabled());
+        const writes = screen.getByRole('switch', {
+            name: 'Allow content changes via MCP',
+        });
+        expect(writes).toBeDisabled();
+        expect(agents).toBeChecked();
+        expect(writes).toBeChecked();
+        expect(settings.mcpAgentsEnabled).toBe(true);
+        expect(toasts.error).toHaveBeenCalledTimes(1);
+        expect(
+            api.mock.calls.filter(
+                ([request]) =>
+                    request.url === '/aiAgents/admin/settings' &&
+                    request.method === 'GET',
+            ),
+        ).toHaveLength(settingsReadsBefore + 1);
+        await user.click(agents);
+        await user.click(writes);
+        expect(
+            api.mock.calls.filter(([request]) => request.method === 'PATCH'),
+        ).toHaveLength(1);
     });
     it('keeps the confirmed value after failure and blocks duplicate saves while pending', async () => {
         renderPages({

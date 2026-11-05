@@ -20,6 +20,7 @@ describe('PreAggregateMaterializationService', () => {
             dimensions: ['order_date'],
             metrics: ['order_count'],
         },
+        definitionFingerprint: 'fingerprint-1',
     };
 
     const preAggregateModel = {
@@ -119,6 +120,7 @@ describe('PreAggregateMaterializationService', () => {
             projectUuid: 'project-1',
             preAggregateDefinitionUuid: 'def-1',
             trigger: 'manual',
+            definitionFingerprint: 'fingerprint-1',
         });
         expect(preAggregateModel.markFailed).toHaveBeenCalledWith({
             materializationUuid: 'mat-1',

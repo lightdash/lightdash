@@ -24,7 +24,10 @@ import {
     metricQueryMock,
     validExplore,
 } from '../../../services/ProjectService/ProjectService.mock';
-import { AiDecisionClient } from '../ai/decisions/AiDecisionClient';
+import {
+    AiDecisionClient,
+    resolveAiDecisionClient,
+} from '../ai/decisions/AiDecisionClient';
 import { getAvailableModels, getModel } from '../ai/models';
 import { type getFindContent } from '../ai/tools/findContent';
 import { type getRunMetricQuery } from '../ai/tools/runMetricQuery';
@@ -118,12 +121,30 @@ const buildService = ({
     ] as AnyType);
     vi.mocked(getModel).mockReset();
     vi.mocked(getModel).mockReturnValue(resolvedModel as AnyType);
+    const lightdashConfig = {
+        siteUrl: 'http://localhost',
+        preAggregates: { enabled: false },
+        ai: {
+            copilot: { maxQueryLimit: 500, toolDescriptionMaxChars: 500 },
+            decisions: undefined as AnyType,
+        },
+        managedAgent: {
+            schedule: '0 0 * * *',
+            validatedModels: [],
+            maxSteps: 5,
+            sessionTimeoutMs: 5000,
+        },
+    };
     const orgAiCopilotConfigResolver = {
         getCopilotConfig: vi.fn().mockResolvedValue(copilotConfig),
         getOrgModelOverrides: vi.fn().mockResolvedValue({
             modelVisibility: null,
             keyAccessibleModelIds: null,
         }),
+        // Reads the config lazily so tests can swap the decision key.
+        getDecisionClient: vi.fn(async () =>
+            resolveAiDecisionClient(lightdashConfig.ai.decisions),
+        ),
     };
     const aiOrganizationSettingsService = {
         getDefaultModelConfig: vi.fn().mockResolvedValue(defaultModelConfig),
@@ -206,19 +227,7 @@ const buildService = ({
         insert: vi.fn().mockResolvedValue(undefined),
     };
     const service = new ManagedAgentService({
-        lightdashConfig: {
-            siteUrl: 'http://localhost',
-            preAggregates: { enabled: false },
-            ai: {
-                copilot: { maxQueryLimit: 500, toolDescriptionMaxChars: 500 },
-            },
-            managedAgent: {
-                schedule: '0 0 * * *',
-                validatedModels: [],
-                maxSteps: 5,
-                sessionTimeoutMs: 5000,
-            },
-        },
+        lightdashConfig,
         analytics,
         managedAgentModel,
         analyticsModel: {},
@@ -604,17 +613,15 @@ describe('ManagedAgentService discovery scope', () => {
     );
 
     it.each([true, false])(
-        'resolves the organization flag before reviewing managed metric queries (enabled=%s)',
+        'reviews managed metric queries only with a decision key (enabled=%s)',
         async (enabled) => {
             const { service, dataRuntime } = buildService();
-            const getFlag = vi.fn().mockResolvedValue({ enabled });
             const internal = service as AnyType;
             internal.lightdashConfig.ai.decisions = {
-                apiKey: 'test',
+                apiKey: enabled ? 'test' : null,
                 model: 'test',
                 timeoutMs: 100,
             };
-            internal.featureFlagModel.get = getFlag;
             dataRuntime.listExplores.mockResolvedValue([
                 validExplore,
             ] as AnyType);
@@ -656,10 +663,6 @@ describe('ManagedAgentService discovery scope', () => {
                     },
                 );
                 expect(output.metadata.status).toBe('success');
-                expect(getFlag).toHaveBeenCalledWith({
-                    user: { organizationUuid: ORGANIZATION_UUID },
-                    featureFlagId: FeatureFlags.AiAgentFastDecisions,
-                });
                 expect(evaluate).toHaveBeenCalledTimes(enabled ? 1 : 0);
                 expect(output.result.includes('Query/question review')).toBe(
                     enabled,
@@ -1208,6 +1211,47 @@ describe('ManagedAgentService query check before saving', () => {
         );
         expect(savedChartModel.create).not.toHaveBeenCalled();
     });
+
+    it('turns the incomplete period on for a cartesian chart it creates', async () => {
+        const { service, savedChartModel, projectModel } = buildService();
+        stubGuards(service);
+        projectModel.findExploresFromCache.mockResolvedValue({
+            orders: {
+                tables: {
+                    orders: {
+                        dimensions: { status: {} },
+                        metrics: { total_revenue: {} },
+                    },
+                },
+            },
+        });
+        await (service as AnyType).handleToolCall(
+            PROJECT_UUID,
+            'session',
+            'run',
+            'create_content_from_code',
+            {
+                description: 'Users keep asking for revenue by status',
+                chart_as_code: {
+                    name: 'Revenue by status',
+                    tableName: 'orders',
+                    metricQuery,
+                    chartConfig: {
+                        type: 'cartesian',
+                        config: {
+                            layout: { xField: 'orders_status' },
+                            eChartsConfig: {},
+                        },
+                    },
+                },
+            },
+        );
+        expect(savedChartModel.create).toHaveBeenCalledTimes(1);
+        expect(
+            (savedChartModel.create.mock.calls[0] as AnyType[])[2].chartConfig
+                .config.layout,
+        ).toEqual({ xField: 'orders_status', showIncompletePeriod: true });
+    });
 });
 
 describe('ManagedAgentService broken-content pagination', () => {
@@ -1541,7 +1585,7 @@ describe('ManagedAgentService heartbeat authority', () => {
         await service.runHeartbeat(PROJECT_UUID, 'run-uuid');
 
         expect(userModel.findSessionUserAndOrgByUuid).toHaveBeenCalledTimes(2);
-        expect(featureFlagModel.get).toHaveBeenCalledTimes(2);
+        expect(featureFlagModel.get.mock.calls).toHaveLength(2);
         expect(agentPermissionService.loadRequest).not.toHaveBeenCalled();
         expect(
             agentPermissionService.assertOperationWithRequest,
@@ -1692,7 +1736,7 @@ describe('ManagedAgentService enabled heartbeat authority', () => {
             expect(captureAutopilotFailure).toHaveBeenCalledTimes(
                 failure === 'database' ? 1 : 0,
             );
-            expect(fixture.featureFlagModel.get).toHaveBeenCalledTimes(1);
+            expect(fixture.featureFlagModel.get.mock.calls).toHaveLength(1);
         },
     );
 
@@ -2036,7 +2080,7 @@ describe('ManagedAgentService authority check cadence', () => {
                 error: 'Autopilot actor is not configured for project project-uuid',
             }),
         );
-        expect(fixture.featureFlagModel.get).not.toHaveBeenCalled();
+        expect(fixture.featureFlagModel.get.mock.calls).toHaveLength(0);
         expect(
             fixture.userModel.findSessionUserAndOrgByUuid,
         ).not.toHaveBeenCalled();
@@ -2095,7 +2139,7 @@ describe('ManagedAgentService authority review regressions', () => {
             await fixture.service.runHeartbeat(PROJECT_UUID, 'run-uuid');
             expectAuthorityBlocked(fixture, blockedPersonMessage);
             expect(fixture.doGenerate).not.toHaveBeenCalled();
-            expect(fixture.featureFlagModel.get).not.toHaveBeenCalled();
+            expect(fixture.featureFlagModel.get.mock.calls).toHaveLength(0);
             expect(
                 fixture.userModel.findSessionUserAndOrgByUuid,
             ).toHaveBeenCalledTimes(1);

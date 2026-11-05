@@ -1,10 +1,17 @@
 import Lightdash, {
     useLightdashAiAgentThreads,
+    type AiThreadBinding,
     type LightdashAiAgentThread,
     type LightdashApiClientConfig,
     type ListAiAgentThreadsOptions,
 } from '@lightdash/sdk';
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import {
+    useEffect,
+    useMemo,
+    useState,
+    type ComponentProps,
+    type CSSProperties,
+} from 'react';
 import { ExampleLayout } from '../components/ExampleLayout';
 import type { EmbedConfigState } from '../hooks/useEmbedConfig';
 import { getRepoSourceUrl } from '../lib/repo';
@@ -22,6 +29,14 @@ type AiAgentExamplePageProps = {
 };
 
 type AiAgentRenderMode = 'iframe' | 'native';
+type AiAgentTheme = NonNullable<
+    ComponentProps<typeof Lightdash.AiAgent>['theme']
+>;
+const AI_AGENT_THEMES: { value: AiAgentTheme; label: string }[] = [
+    { value: 'light', label: 'Light' },
+    { value: 'dark', label: 'Dark' },
+    { value: 'system', label: 'System' },
+];
 
 const AI_AGENT_RENDER_MODES: { value: AiAgentRenderMode; label: string }[] = [
     { value: 'iframe', label: 'Iframe (default)' },
@@ -204,12 +219,24 @@ const truncateThreadLabel = (label: string) =>
 
 type AiAgentThreadSetup = {
     boundDashboardUuid: string;
+    boundChartUuid: string;
     threadContext: string;
 };
 
 const EMPTY_THREAD_SETUP: AiAgentThreadSetup = {
     boundDashboardUuid: '',
+    boundChartUuid: '',
     threadContext: '',
+};
+
+const getThreadBinding = (
+    setup: AiAgentThreadSetup,
+): AiThreadBinding | undefined => {
+    const dashboardUuid = setup.boundDashboardUuid.trim();
+    if (dashboardUuid) return { type: 'dashboard', dashboardUuid };
+    const chartUuid = setup.boundChartUuid.trim();
+    if (chartUuid) return { type: 'chart', chartUuid };
+    return undefined;
 };
 
 const getThreadLabel = (thread: LightdashAiAgentThread) =>
@@ -313,13 +340,14 @@ export function AiAgentExamplePage({ embedConfig }: AiAgentExamplePageProps) {
     const defaultThreadUuid = aiAgentEmbedConfig.threadUuid ?? '';
     const [latestThreadUuid, setLatestThreadUuid] = useState('');
     const [renderMode, setRenderMode] = useState<AiAgentRenderMode>('iframe');
+    const [theme, setTheme] = useState<AiAgentTheme>('light');
+    const [disableNavigation, setDisableNavigation] = useState(false);
     const [resumeThreadUuid, setResumeThreadUuid] = useState(defaultThreadUuid);
     const [threadSetupDraft, setThreadSetupDraft] =
         useState<AiAgentThreadSetup>(EMPTY_THREAD_SETUP);
     // Applied on demand so typing doesn't reload the agent
     const [threadSetup, setThreadSetup] =
         useState<AiAgentThreadSetup>(EMPTY_THREAD_SETUP);
-    const boundDashboardUuid = threadSetup.boundDashboardUuid.trim();
     const remountKey = `${selectedAiAgentEmbedUrl || embedConfig.remountKey}:${
         resumeThreadUuid || 'new'
     }`;
@@ -439,6 +467,53 @@ export function AiAgentExamplePage({ embedConfig }: AiAgentExamplePageProps) {
                             </div>
                         </div>
                         <div style={{ marginBottom: 16 }}>
+                            <label style={panelLabelStyle}>Theme</label>
+                            <div style={{ display: 'flex', gap: 16 }}>
+                                {AI_AGENT_THEMES.map((option) => (
+                                    <label
+                                        key={option.value}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 6,
+                                            fontSize: 14,
+                                        }}
+                                    >
+                                        <input
+                                            type="radio"
+                                            name="ai-agent-theme"
+                                            checked={theme === option.value}
+                                            onChange={() =>
+                                                setTheme(option.value)
+                                            }
+                                        />
+                                        {option.label}
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                        <div style={{ marginBottom: 16 }}>
+                            <label
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 6,
+                                    fontSize: 14,
+                                }}
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={disableNavigation}
+                                    onChange={(event) =>
+                                        setDisableNavigation(
+                                            event.target.checked,
+                                        )
+                                    }
+                                />
+                                Disable navigation
+                            </label>
+                        </div>
+                        <div style={{ marginBottom: 16 }}>
                             <label style={panelLabelStyle}>
                                 Answer permissions
                             </label>
@@ -534,6 +609,18 @@ export function AiAgentExamplePage({ embedConfig }: AiAgentExamplePageProps) {
                                     }
                                     style={{ padding: '8px 10px' }}
                                 />
+                                <input
+                                    aria-label="Bound chart UUID"
+                                    placeholder="Chart UUID to bind new threads to"
+                                    value={threadSetupDraft.boundChartUuid}
+                                    onChange={(event) =>
+                                        setThreadSetupDraft((current) => ({
+                                            ...current,
+                                            boundChartUuid: event.target.value,
+                                        }))
+                                    }
+                                    style={{ padding: '8px 10px' }}
+                                />
                                 <textarea
                                     aria-label="Thread context"
                                     placeholder="Initial context for new threads"
@@ -560,8 +647,9 @@ export function AiAgentExamplePage({ embedConfig }: AiAgentExamplePageProps) {
                             </div>
                             <p style={helperTextStyle}>
                                 Only threads started here get the binding and
-                                context. The dashboard must be in the token's
-                                embed space.
+                                context. Set a dashboard or a chart; the
+                                dashboard wins when both are set. It must be in
+                                the token's embed space.
                             </p>
                         </div>
                         <div style={threadHistoryStyle}>
@@ -607,15 +695,9 @@ export function AiAgentExamplePage({ embedConfig }: AiAgentExamplePageProps) {
                                     }
                                     onThreadChange={handleThreadChange}
                                     renderMode={renderMode}
-                                    binding={
-                                        boundDashboardUuid
-                                            ? {
-                                                  type: 'dashboard',
-                                                  dashboardUuid:
-                                                      boundDashboardUuid,
-                                              }
-                                            : undefined
-                                    }
+                                    theme={theme}
+                                    disableNavigation={disableNavigation}
+                                    binding={getThreadBinding(threadSetup)}
                                     threadContext={
                                         threadSetup.threadContext.trim() ||
                                         undefined

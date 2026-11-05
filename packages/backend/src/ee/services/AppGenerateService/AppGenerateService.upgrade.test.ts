@@ -153,6 +153,7 @@ function buildService(
             unverify: async () => undefined,
         } as never,
     });
+    vi.spyOn(service, 'isChartStudioAvailable').mockReturnValue(true);
 
     const canManage = opts.canManage ?? true;
     vi.spyOn(

@@ -140,6 +140,7 @@ export type SlackSettings = {
     aiLinksOnly?: boolean;
     aiMultiAgentChannelId?: string;
     aiMultiAgentProjectUuids?: string[] | null;
+    aiMultiAgentRequireMention?: boolean;
     unfurlsEnabled?: boolean;
     aiAgentsEnabled?: boolean;
 };

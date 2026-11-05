@@ -40,6 +40,7 @@ export const agentSettingsMcpMock =
         aiAgentMemoryEnabled: false,
         deepResearchLimits: AI_DEEP_RESEARCH_DEFAULT_LIMITS,
         deepResearchRawSqlEnabled: false,
+        mcpEnabled: true,
         mcpAgentsEnabled: true,
         mcpContentWritesEnabled: true,
         defaultAiAgentModelConfig: null,

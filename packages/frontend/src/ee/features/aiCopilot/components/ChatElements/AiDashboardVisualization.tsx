@@ -174,7 +174,7 @@ export const AiDashboardVisualization: FC<Props> = memo(
                                       style={{
                                           // Cap delay so a 20-tile dashboard
                                           // doesn't take forever to settle.
-                                          animationDelay: `${
+                                          '--tile-delay': `${
                                               Math.min(index, 8) * 35
                                           }ms`,
                                       }}

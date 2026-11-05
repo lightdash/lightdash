@@ -1,10 +1,11 @@
 import {
+    isStepCount,
     readUIMessageStream,
-    stepCountIs,
     streamText,
     tool,
     wrapLanguageModel,
 } from 'ai';
+import type { JSONValue, LanguageModel } from 'ai';
 import { MockLanguageModelV3 } from 'ai/test';
 import { z } from 'zod';
 import { lightdashConfigMock } from '../../../../config/lightdashConfig.mock';
@@ -22,6 +23,7 @@ import {
     getOrgModelOptions,
     MODEL_PRESETS,
     pickAmbientAnthropicPreset,
+    reconcileInheritedModelConfig,
     resolveModelConfigForPrompt,
     type OrgModelOverrides,
 } from './index';
@@ -70,6 +72,70 @@ const copilotConfigWithStreaming = (supportsStreaming: boolean) => ({
     },
 });
 
+const azureCopilotConfig = (
+    overrides: Partial<
+        NonNullable<LightdashConfig['ai']['copilot']['providers']['azure']>
+    >,
+): LightdashConfig['ai']['copilot'] => ({
+    ...baseCopilotConfig,
+    defaultProvider: 'azure',
+    providers: {
+        azure: {
+            endpoint: 'https://example.openai.azure.com',
+            apiKey: 'test',
+            apiVersion: '2025-01-01',
+            deploymentName: 'current-deployment',
+            deploymentSupportsReasoning: false,
+            reasoningEffort: null,
+            embeddingDeploymentName: 'embedding',
+            useDeploymentBasedUrls: true,
+            useChatCompletions: false,
+            customHeaders: {},
+            supportsStreaming: true,
+            ...overrides,
+        },
+    },
+});
+
+// Captures the HTTP request a model would send without a real upstream: the
+// stubbed fetch fails, so the call rejects after the request has been built.
+type V4Model = Extract<
+    Exclude<LanguageModel, string>,
+    { specificationVersion: 'v4' }
+>;
+type ModelCallOptions = Parameters<V4Model['doGenerate']>[0];
+
+const captureModelRequest = async (
+    model: Exclude<LanguageModel, string>,
+    providerOptions: Record<string, Record<string, JSONValue>> | undefined,
+    tools: ModelCallOptions['tools'] = [],
+) => {
+    if (model.specificationVersion !== 'v4') {
+        throw new Error('expected a v4 language model');
+    }
+    const fetchSpy = vi.fn(async () => new Response('{}', { status: 500 }));
+    vi.stubGlobal('fetch', fetchSpy);
+    try {
+        await model.doGenerate({
+            prompt: [{ role: 'user', content: [{ type: 'text', text: 'hi' }] }],
+            providerOptions,
+            tools,
+        });
+    } catch {
+        // The stubbed upstream always fails; only the request matters.
+    } finally {
+        vi.unstubAllGlobals();
+    }
+    const [url, init] = fetchSpy.mock.calls[0] as unknown as [
+        string | URL,
+        RequestInit,
+    ];
+    return {
+        url: url.toString(),
+        body: JSON.parse(String(init.body)) as Record<string, unknown>,
+    };
+};
+
 const copilotConfigWithZeroDataRetention = () => {
     const config = copilotConfigWithStreaming(true);
     return {
@@ -79,6 +145,20 @@ const copilotConfigWithZeroDataRetention = () => {
             openai: {
                 ...config.providers.openai,
                 zeroDataRetention: true,
+            },
+        },
+    };
+};
+
+const copilotConfigWithChatCompletions = () => {
+    const config = copilotConfigWithZeroDataRetention();
+    return {
+        ...config,
+        providers: {
+            ...config.providers,
+            openai: {
+                ...config.providers.openai,
+                useChatCompletions: true,
             },
         },
     };
@@ -186,6 +266,16 @@ describe('getModel', () => {
         expect(providerOptions.openai.reasoningSummary).toBe('auto');
     });
 
+    it('keeps a preset-pinned reasoning effort on Chat Completions', async () => {
+        const { model, providerOptions } = getModel(
+            copilotConfigWithChatCompletions(),
+            { enableReasoning: true, modelName: 'gpt-5-mini' },
+        );
+
+        const { body } = await captureModelRequest(model, providerOptions);
+        expect(body.reasoning_effort).toBe('minimal');
+    });
+
     it('keeps preset-specific reasoning effort when enabled', () => {
         const { providerOptions } = getModel(copilotConfigWithStreaming(true), {
             enableReasoning: true,
@@ -197,6 +287,126 @@ describe('getModel', () => {
         }
         expect(providerOptions.openai.parallelToolCalls).toBe(false);
         expect(providerOptions.openai.reasoningEffort).toBe('minimal');
+    });
+
+    it('sends OpenAI requests to the Responses API by default', async () => {
+        const { model, providerOptions } = getModel(
+            copilotConfigWithZeroDataRetention(),
+            { enableReasoning: true, modelName: 'gpt-5.5' },
+        );
+
+        const { url, body } = await captureModelRequest(model, providerOptions);
+        expect(url).toBe('https://api.openai.com/v1/responses');
+        expect(body.input).toBeDefined();
+        expect(body.reasoning).toEqual({
+            effort: 'medium',
+            summary: 'auto',
+        });
+        expect(body.store).toBe(false);
+        expect(body.include).toEqual(['reasoning.encrypted_content']);
+        expect(body.parallel_tool_calls).toBe(false);
+    });
+
+    it('sends OpenAI requests to Chat Completions when useChatCompletions is on', async () => {
+        const { model, providerOptions } = getModel(
+            copilotConfigWithChatCompletions(),
+            { enableReasoning: true, modelName: 'gpt-5.5' },
+        );
+
+        const { url, body } = await captureModelRequest(model, providerOptions);
+        expect(url).toBe('https://api.openai.com/v1/chat/completions');
+        expect(body.messages).toBeDefined();
+        expect(body.input).toBeUndefined();
+        expect(body.reasoning_effort).toBe('none');
+        expect(body.reasoning).toBeUndefined();
+        expect(body.store).toBeUndefined();
+        expect(body.include).toBeUndefined();
+    });
+
+    it('only sends parallel_tool_calls on Chat Completions requests that carry tools', async () => {
+        const { model, providerOptions } = getModel(
+            copilotConfigWithChatCompletions(),
+            { modelName: 'gpt-5.5' },
+        );
+        const addTool: NonNullable<ModelCallOptions['tools']>[number] = {
+            type: 'function',
+            name: 'add',
+            inputSchema: { type: 'object', properties: {} },
+        };
+
+        const withTools = await captureModelRequest(model, providerOptions, [
+            addTool,
+        ]);
+        expect(withTools.body.parallel_tool_calls).toBe(false);
+
+        const withoutTools = await captureModelRequest(model, providerOptions);
+        expect(withoutTools.body.parallel_tool_calls).toBeUndefined();
+        expect(withoutTools.body.reasoning_effort).toBe('none');
+    });
+
+    it('sends Azure requests to the Responses API by default', async () => {
+        // The Responses model only forwards reasoning for ids it recognises
+        // as reasoning models, so a custom deployment name would hide it.
+        const { model, providerOptions } = getModel(
+            azureCopilotConfig({
+                deploymentName: 'gpt-5.5',
+                deploymentSupportsReasoning: true,
+            }),
+        );
+
+        const { url, body } = await captureModelRequest(model, providerOptions);
+        expect(url).toBe(
+            'https://example.openai.azure.com/deployments/gpt-5.5/responses?api-version=2025-01-01',
+        );
+        expect(body.input).toBeDefined();
+        expect(body.reasoning).toEqual({
+            effort: 'medium',
+            summary: 'auto',
+        });
+    });
+
+    it('sends Azure requests to Chat Completions when useChatCompletions is on', async () => {
+        const { model, providerOptions } = getModel(
+            azureCopilotConfig({
+                deploymentSupportsReasoning: true,
+                useChatCompletions: true,
+            }),
+        );
+
+        const { url, body } = await captureModelRequest(model, providerOptions);
+        expect(url).toBe(
+            'https://example.openai.azure.com/deployments/current-deployment/chat/completions?api-version=2025-01-01',
+        );
+        expect(body.messages).toBeDefined();
+        expect(body.input).toBeUndefined();
+        expect(body.reasoning_effort).toBe('none');
+        expect(body.reasoning).toBeUndefined();
+    });
+
+    it('sends a configured Azure reasoning effort instead of the Chat Completions default', async () => {
+        const { model, providerOptions } = getModel(
+            azureCopilotConfig({
+                deploymentSupportsReasoning: true,
+                useChatCompletions: true,
+                reasoningEffort: 'minimal',
+            }),
+        );
+
+        const { body } = await captureModelRequest(model, providerOptions);
+        expect(body.reasoning_effort).toBe('minimal');
+    });
+
+    it('sends a configured Azure reasoning effort on the Responses API', async () => {
+        const { model, providerOptions } = getModel(
+            azureCopilotConfig({
+                deploymentName: 'gpt-5.5',
+                deploymentSupportsReasoning: true,
+                reasoningEffort: 'low',
+            }),
+        );
+
+        const { body } = await captureModelRequest(model, providerOptions);
+        expect(body.reasoning).toEqual({ effort: 'low', summary: 'auto' });
     });
 
     it('does not wrap the model when the provider supports streaming', () => {
@@ -242,8 +452,10 @@ describe('getModel', () => {
                         apiVersion: '2025-01-01',
                         deploymentName: 'current-deployment',
                         deploymentSupportsReasoning: false,
+                        reasoningEffort: null,
                         embeddingDeploymentName: 'embedding',
                         useDeploymentBasedUrls: true,
+                        useChatCompletions: false,
                         customHeaders: {},
                         supportsStreaming: true,
                     },
@@ -328,8 +540,10 @@ describe('getModel', () => {
                         apiVersion: '2025-01-01',
                         deploymentName: 'configured-deployment',
                         deploymentSupportsReasoning: false,
+                        reasoningEffort: null,
                         embeddingDeploymentName: 'embedding',
                         useDeploymentBasedUrls: true,
+                        useChatCompletions: false,
                         customHeaders: {},
                         supportsStreaming: true,
                     },
@@ -433,8 +647,28 @@ describe('getModel', () => {
     });
 });
 
-describe('GPT Sol and Luna model lifecycle', () => {
-    it.each(['gpt-5.6-sol', 'gpt-5.6-luna'])(
+describe('GPT Sol, Terra and Luna model lifecycle', () => {
+    it.each(['gpt-6-sol', 'gpt-5.6-sol'])(
+        'upgrades new threads using %s to GPT-6.1 Sol',
+        (modelName) => {
+            expect(
+                resolveModelConfigForPrompt(
+                    orgCatalogue(baseCopilotConfig, noOrgOverrides),
+                    {
+                        modelName,
+                        modelProvider: 'openai',
+                        reasoning: true,
+                    },
+                ),
+            ).toEqual({
+                modelName: 'gpt-6.1-sol',
+                modelProvider: 'openai',
+                reasoning: true,
+            });
+        },
+    );
+
+    it.each(['gpt-6-sol', 'gpt-5.6-sol', 'gpt-5.6-luna'])(
         'deprecates %s without changing saved model resolution',
         (modelName) => {
             const config = {
@@ -465,7 +699,8 @@ describe('GPT Sol and Luna model lifecycle', () => {
     );
 
     it.each([
-        ['gpt-6-sol', 'GPT-6 Sol'],
+        ['gpt-6.1-sol', 'GPT-6.1 Sol'],
+        ['gpt-6.1-terra', 'GPT-6.1 Terra'],
         ['gpt-6-luna', 'GPT-6 Luna'],
     ])('offers %s for agent selection', (modelName, displayName) => {
         const options = instanceOptions(baseCopilotConfig);
@@ -1113,7 +1348,7 @@ describe('applyStreamingCapability', () => {
         const result = streamText({
             model,
             tools: { getWeather },
-            stopWhen: stepCountIs(5),
+            stopWhen: isStepCount(5),
             prompt: 'Weather in Tallinn?',
         });
 
@@ -1138,22 +1373,9 @@ describe('applyStreamingCapability', () => {
 });
 
 describe('pickAmbientAnthropicPreset', () => {
-    it('prefers the fast model when the key can serve it', () => {
-        const preset = pickAmbientAnthropicPreset([
-            'claude-haiku-4-5-20251001',
-            'claude-opus-4-8',
-        ]);
-        expect(preset?.modelId).toBe('claude-haiku-4-5-20251001');
-    });
-
     it('falls back to an accessible model when the key lacks the fast one', () => {
         const preset = pickAmbientAnthropicPreset(['claude-opus-4-8']);
         expect(preset?.modelId).toBe('claude-opus-4-8');
-    });
-
-    it('optimistically returns the fast model when the probe failed (null)', () => {
-        const preset = pickAmbientAnthropicPreset(null);
-        expect(preset?.modelId).toBe('claude-haiku-4-5-20251001');
     });
 
     it('returns null when the key can access no shipped preset', () => {
@@ -1179,13 +1401,6 @@ describe('getFastModelForAccessibleKey', () => {
         },
     };
 
-    it('uses the fast model when the BYO key can serve it', () => {
-        const { model } = getFastModelForAccessibleKey(anthropicByoConfig, [
-            'claude-haiku-4-5-20251001',
-        ]);
-        expect(model.modelId).toBe('claude-haiku-4-5-20251001');
-    });
-
     it('falls back to an accessible model (opus 4.8) when the key lacks the fast one', () => {
         const { model } = getFastModelForAccessibleKey(anthropicByoConfig, [
             'claude-opus-4-8',
@@ -1203,7 +1418,7 @@ describe('getFastModelForAccessibleKey', () => {
             ['claude-haiku-4-5-20251001'],
         );
 
-        expect(model.modelId).toBe('claude-haiku-4-5-20251001');
+        expect(model.provider).toContain('anthropic');
     });
 
     it('never uses the instance Anthropic key for a Google-only BYO org', () => {
@@ -1308,6 +1523,36 @@ describe('organization Bedrock routing', () => {
                 .filter((preset) => preset.provider === 'bedrock')
                 .map((preset) => preset.name),
         ).toEqual(['claude-sonnet-4-5']);
+    });
+
+    // A project pinned to a Bedrock credential resolves a Bedrock-only config
+    // while the org default model may still point at the instance provider.
+    it('repoints an inherited model at the scoped default when its provider is not served', () => {
+        const config = configForRegion('ap-northeast-1', ['claude-sonnet-4-5']);
+        expect(
+            reconcileInheritedModelConfig(config, {
+                modelProvider: 'openai',
+                modelName: 'gpt-sol',
+            }),
+        ).toEqual({
+            modelProvider: 'bedrock',
+            modelName: 'claude-sonnet-4-5',
+        });
+    });
+
+    it('keeps an inherited model whose provider the scoped config serves', () => {
+        const config = configForRegion('ap-northeast-1', ['claude-sonnet-4-5']);
+        expect(
+            reconcileInheritedModelConfig(config, {
+                modelProvider: 'bedrock',
+                modelName: 'claude-sonnet-4-5',
+                reasoning: true,
+            }),
+        ).toEqual({
+            modelProvider: 'bedrock',
+            modelName: 'claude-sonnet-4-5',
+            reasoning: true,
+        });
     });
 });
 

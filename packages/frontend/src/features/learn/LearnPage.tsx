@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { FeatureFlags, ProjectType } from '@lightdash/common';
+import { ProjectType } from '@lightdash/common';
 import {
     Box,
     Button,
@@ -34,15 +34,11 @@ import ForbiddenPanel from '../../components/ForbiddenPanel';
 import { getGreeting } from '../../ee/features/homepageBuilder/greeting';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 import { useProjects } from '../../hooks/useProjects';
-import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
-import { useLearnAvailability } from './availability';
 import {
     accessNote,
-    buildLearnCatalogue,
-    focusModules,
     GROUP_DESCRIPTIONS,
     GROUP_LABELS,
     GROUP_ORDER,
@@ -50,6 +46,7 @@ import {
     isComplete,
     isStarted,
     sortForLearner,
+    upNextFor,
     type LearnModule,
 } from './catalogue';
 import { EnableLearnPanel } from './EnableLearnPanel';
@@ -68,6 +65,7 @@ import { createLearnSearch } from './search';
 import { thumbnailFor } from './thumbnails';
 import { useEnableLearn } from './useEnableLearn';
 import { useLearnAccess } from './useLearnAccess';
+import { useLearnCatalogue } from './useLearnUpNext';
 import { useStartFresh } from './useStartFresh';
 import { useStartWalkthrough } from './useStartWalkthrough';
 
@@ -103,6 +101,7 @@ const ModuleCard: FC<{
         >
             <Box
                 className={styles.band}
+                // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                 style={groupVars(module.group)}
                 aria-hidden
             >
@@ -161,8 +160,6 @@ const ModuleCard: FC<{
  */
 const LearnPage: FC = () => {
     const { user } = useApp();
-    const { data: learnFlag, isLoading: isLearnFlagLoading } =
-        useServerFeatureFlag(FeatureFlags.EnableLearn);
     const { data: projects } = useProjects();
     const trainingProject = projects?.find(
         (project) => project.type === ProjectType.TRAINING,
@@ -235,11 +232,7 @@ const LearnPage: FC = () => {
 
     // Only modules this instance can run: a walkthrough clicks the real
     // product, so a feature the instance hides has nothing to click.
-    const { isOpen, isSettled } = useLearnAvailability();
-    const catalogue = useMemo(
-        () => buildLearnCatalogue().filter(isOpen),
-        [isOpen],
-    );
+    const { catalogue, isSettled } = useLearnCatalogue();
     const {
         completed,
         started,
@@ -307,16 +300,11 @@ const LearnPage: FC = () => {
     const doneCount = available.filter((m) => isComplete(completed, m)).length;
     // Training exists to teach what a learner cannot yet do, so the
     // recommendation is the first unfinished walkthrough, held-by-role ones
-    // first (sortForRole), rather than nothing for a viewer.
-    const { resume, recommended } = focusModules(
-        held,
-        available,
-        completed,
-        lastStarted,
-    );
-    // One thing to do next: the recommendation, or whatever was last
-    // started if nothing is left to recommend.
-    const upNext = recommended ?? resume;
+    // first (sortForRole), rather than nothing for a viewer. One thing to do
+    // next: the recommendation, or whatever was last started if nothing is
+    // left to recommend.
+    const next = upNextFor(held, available, completed, lastStarted);
+    const upNext = next?.module;
 
     // Start makes the learner's copy and goes straight into it; the
     // walkthrough brings them back to the library side when it ends.
@@ -329,7 +317,7 @@ const LearnPage: FC = () => {
     );
 
     // One view per visit to the library, once the page knows what it is
-    // showing: the projects, the instance switch, and the gates that decide
+    // showing: the projects, the gates that decide
     // which modules are in the catalogue (they answer after the projects
     // do, and the counts below would be short without them), and the
     // progress the instance holds. The redirects
@@ -340,8 +328,8 @@ const LearnPage: FC = () => {
     const trackedViewRef = useRef(false);
     useEffect(() => {
         if (trackedViewRef.current) return;
-        if (!projects || !learnFlag || !isSettled || !isProgressSettled) return;
-        if (previewRedirect || !learnFlag.enabled || !canViewLearn) return;
+        if (!projects || !isSettled || !isProgressSettled) return;
+        if (previewRedirect || !canViewLearn) return;
         trackedViewRef.current = true;
         track({
             name: EventName.LEARN_LIBRARY_VIEWED,
@@ -363,7 +351,6 @@ const LearnPage: FC = () => {
         });
     }, [
         projects,
-        learnFlag,
         isSettled,
         isProgressSettled,
         previewRedirect,
@@ -376,21 +363,6 @@ const LearnPage: FC = () => {
         track,
     ]);
 
-    if (isLearnFlagLoading) return null;
-    // Learn switched off for the org: the route falls through to the
-    // project's home.
-    if (!learnFlag?.enabled) {
-        return (
-            <Navigate
-                to={
-                    projectRoute
-                        ? `/projects/${projectRoute.project.projectUuid}/home`
-                        : '/projects'
-                }
-                replace
-            />
-        );
-    }
     if (!canViewLearn) return <ForbiddenPanel />;
     if (previewRedirect) return <Navigate to={previewRedirect} replace />;
     if (projects && !trainingProject) {
@@ -426,7 +398,7 @@ const LearnPage: FC = () => {
                         }
                     />
                 </Box>
-                {upNext && (
+                {next && upNext && (
                     <Box
                         component="section"
                         className={`${styles.section} ${styles.upNext}`}
@@ -438,6 +410,7 @@ const LearnPage: FC = () => {
                         <Box
                             component="article"
                             className={styles.hero}
+                            // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                             style={groupVars(upNext.group)}
                             data-learn-recommended={upNext.scope}
                         >
@@ -461,12 +434,7 @@ const LearnPage: FC = () => {
                                         size="compact-md"
                                         loading={opening === upNext.scope}
                                         onClick={() =>
-                                            start(
-                                                upNext.scope,
-                                                recommended
-                                                    ? 'recommended'
-                                                    : 'resume',
-                                            )
+                                            start(upNext.scope, next.source)
                                         }
                                     >
                                         Start
@@ -510,6 +478,7 @@ const LearnPage: FC = () => {
                                 className={`${styles.tab} ${
                                     groupFilter === group ? styles.tabOn : ''
                                 }`}
+                                // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                                 style={groupVars(group)}
                                 aria-pressed={groupFilter === group}
                                 data-learn-chip={group}

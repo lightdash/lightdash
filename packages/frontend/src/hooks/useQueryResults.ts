@@ -5,7 +5,6 @@ import {
     isBigqueryTokenErrorMessage,
     isPreviewWarehouseSignInExpiredMessage,
     LightdashCustomSqlProvenanceChartUuidHeader,
-    MAX_SAFE_INTEGER,
     ParameterError,
     QueryExecutionContext,
     QueryHistoryStatus,
@@ -38,7 +37,7 @@ export type QueryResultsProps = {
     projectUuid: string;
     tableId: string;
     query?: MetricQuery;
-    csvLimit?: number | null; //giving null returns all results (no limit)
+    csvLimit?: number | null; // null = all results, capped by the org CSV cells limit
     chartUuid?: string;
     chartVersionUuid?: string;
     dateZoomGranularity?: DateGranularity | string;
@@ -198,24 +197,14 @@ const executeAsyncQuery = (
             { signal },
         );
     } else if (data?.query) {
-        // For metric queries, we need to handle the limit properly:
-        // - undefined: use the original query limit
-        // - null: unlimited results
-        // - number: use the specific limit
-        let queryLimit = data.query.limit;
-        if (data.csvLimit !== undefined) {
-            // For unlimited exports (null), use Number.MAX_SAFE_INTEGER
-            queryLimit = data.csvLimit ?? MAX_SAFE_INTEGER;
-        }
-
         return executeAsyncMetricQuery(
             lightdashApi,
             data.projectUuid,
             {
                 context: data.context ?? QueryExecutionContext.EXPLORE,
+                limit: data.csvLimit,
                 query: {
                     ...data.query,
-                    limit: queryLimit,
                     filters: convertDateFilters(data.query.filters),
                     timezone: data.query.timezone ?? undefined,
                     exploreName: data.tableId,

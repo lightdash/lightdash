@@ -2,7 +2,6 @@ import { type AiCreditDailyUsageSeries } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
     findTopSeriesIndex,
-    getAiCreditRowShare,
     getAiCreditSeriesColor,
     renderAiCreditTooltip,
     toAiCreditChartBuckets,
@@ -15,8 +14,8 @@ const days = (count: number) =>
     }));
 
 const series: AiCreditDailyUsageSeries[] = [
-    { type: 'value', key: 'agent', name: null, credits: 0 },
-    { type: 'other', credits: 0 },
+    { feature: 'agent', credits: 0 },
+    { feature: 'data-app', credits: 0 },
 ];
 
 describe('toAiCreditChartBuckets', () => {
@@ -42,42 +41,11 @@ describe('toAiCreditChartBuckets', () => {
     });
 });
 
-describe('getAiCreditRowShare', () => {
-    it('measures a row against the allowance so rows add up to the usage bar', () => {
-        expect(
-            getAiCreditRowShare({
-                credits: 3,
-                allowanceCredits: 6,
-                usedCredits: 4,
-            }),
-        ).toBe(50);
-    });
-
-    it('measures against credits used when there is no allowance', () => {
-        expect(
-            getAiCreditRowShare({
-                credits: 1,
-                allowanceCredits: null,
-                usedCredits: 4,
-            }),
-        ).toBe(25);
-    });
-
-    it('never overflows the bar past the allowance', () => {
-        expect(
-            getAiCreditRowShare({
-                credits: 9,
-                allowanceCredits: 6,
-                usedCredits: 9,
-            }),
-        ).toBe(100);
-    });
-});
-
 describe('getAiCreditSeriesColor', () => {
-    it('shows combined usage in a neutral colour', () => {
-        expect(getAiCreditSeriesColor(series[1], 1)).toContain('ldGray');
-        expect(getAiCreditSeriesColor(series[0], 0)).toContain('violet');
+    it('gives each series its own hue and wraps around', () => {
+        expect(getAiCreditSeriesColor(0)).toContain('violet');
+        expect(getAiCreditSeriesColor(1)).not.toBe(getAiCreditSeriesColor(0));
+        expect(getAiCreditSeriesColor(6)).toBe(getAiCreditSeriesColor(0));
     });
 });
 

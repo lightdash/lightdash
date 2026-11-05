@@ -1,14 +1,9 @@
-import {
-    Group,
-    NavLink,
-    Text,
-    useComputedColorScheme,
-    useMantineTheme,
-} from '@mantine/core';
+import { Group, NavLink, Text } from '@mantine/core';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import { useToggle } from 'react-use';
 import { TableItemDetailPreview } from '../ItemDetailPreview';
 import type { TableHeaderItem } from './types';
+import classes from './VirtualTableHeader.module.css';
 
 interface VirtualTableHeaderProps {
     item: TableHeaderItem;
@@ -22,8 +17,6 @@ const VirtualTableHeaderComponent: FC<VirtualTableHeaderProps> = ({
     item,
     onToggle,
 }) => {
-    const theme = useMantineTheme();
-    const colorScheme = useComputedColorScheme();
     const { table, isExpanded } = item.data;
     const [isHover, toggleHover] = useToggle(false);
 
@@ -63,19 +56,6 @@ const VirtualTableHeaderComponent: FC<VirtualTableHeaderProps> = ({
         [onToggle],
     );
 
-    const stickyStyle = useMemo(
-        () => ({
-            top: 0,
-            position: 'sticky' as const,
-            backgroundColor:
-                colorScheme === 'dark'
-                    ? theme.colors.dark[7]
-                    : theme.colors.background[0],
-            zIndex: 1,
-        }),
-        [colorScheme, theme.colors],
-    );
-
     const label = (
         <TableItemDetailPreview
             label={table.label}
@@ -106,7 +86,7 @@ const VirtualTableHeaderComponent: FC<VirtualTableHeaderProps> = ({
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
             label={label}
-            style={stickyStyle}
+            className={classes.stickyHeader}
         >
             {[]}
         </NavLink>

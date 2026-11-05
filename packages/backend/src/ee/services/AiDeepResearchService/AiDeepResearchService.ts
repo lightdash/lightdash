@@ -942,14 +942,6 @@ export class AiDeepResearchService extends BaseService {
         if (!(await this.aiAgentService.getIsCopilotEnabled(args.user))) {
             throw new ForbiddenError('AI Copilot is not enabled');
         }
-        // Deep Research output is a Document, so it needs Documents enabled.
-        const documentsFlag = await this.featureFlagService.get({
-            user: args.user,
-            featureFlagId: FeatureFlags.Documents,
-        });
-        if (!documentsFlag.enabled) {
-            throw new ForbiddenError('Documents are not enabled');
-        }
         // Checked once here; the run's later steps are never interrupted.
         await this.aiAgentService.assertAgentCreditsAvailable(args.user, {
             projectUuid: args.projectUuid,

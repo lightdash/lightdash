@@ -359,6 +359,7 @@ it('adds a chart as a draft node without touching saved charts', async () => {
     renderEditor();
     await screen.findByText('Live chart: Orders');
     fireEvent.click(screen.getByRole('button', { name: 'Add chart' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'New chart' }));
     expect(await screen.findByTestId('editing-chart')).toHaveTextContent('');
     fireEvent.click(screen.getByRole('button', { name: 'Apply to Document' }));
     expect(
@@ -383,7 +384,10 @@ it('adds a chart as a draft node without touching saved charts', async () => {
 it('links a saved chart and saves it as a tag', async () => {
     renderEditor();
     await screen.findByText('Live chart: Orders');
-    fireEvent.click(screen.getByRole('button', { name: 'Add saved chart' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add chart' }));
+    fireEvent.click(
+        await screen.findByRole('menuitem', { name: 'Saved chart' }),
+    );
     fireEvent.click(
         await screen.findByRole('button', { name: 'Link Revenue' }),
     );
@@ -400,7 +404,10 @@ it('links a saved chart and saves it as a tag', async () => {
 it('opens a copied saved chart in the chart editor before adding it', async () => {
     renderEditor();
     await screen.findByText('Live chart: Orders');
-    fireEvent.click(screen.getByRole('button', { name: 'Add saved chart' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add chart' }));
+    fireEvent.click(
+        await screen.findByRole('menuitem', { name: 'Saved chart' }),
+    );
     fireEvent.click(
         await screen.findByRole('button', { name: 'Copy Revenue' }),
     );
@@ -432,8 +439,12 @@ it('hides chart authoring without independent Explore permission', async () => {
     mocks.canAuthorCharts = false;
     renderEditor();
     expect(await screen.findByText('Live chart: Orders')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Add chart' }));
     expect(
-        screen.queryByRole('button', { name: 'Add chart' }),
+        await screen.findByRole('menuitem', { name: 'Saved chart' }),
+    ).toBeInTheDocument();
+    expect(
+        screen.queryByRole('menuitem', { name: 'New chart' }),
     ).not.toBeInTheDocument();
     expect(
         screen.queryByRole('button', { name: 'Edit chart Orders' }),

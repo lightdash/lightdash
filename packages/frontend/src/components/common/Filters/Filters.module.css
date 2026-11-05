@@ -1,0 +1,22 @@
+.raised {
+    z-index: 2;
+    background-color: var(--mantine-color-body);
+}
+
+.groupLine {
+    z-index: 1;
+}
+
+.operatorSelect {
+    z-index: 3;
+}
+
+.groupItems {
+    flex-grow: 1;
+    overflow-y: auto;
+}
+
+.invalidRule {
+    border: 1px solid var(--mantine-color-yellow-6);
+    border-radius: var(--mantine-radius-sm);
+}

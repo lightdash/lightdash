@@ -13,7 +13,6 @@ const {
     track,
     projectState,
     startFresh,
-    learnFlagState,
     availabilityState,
     accessState,
     progressState,
@@ -24,7 +23,6 @@ const {
     track: vi.fn(),
     learnPermission: { granted: true },
     projectState: { current: [] as unknown[] },
-    learnFlagState: { current: { enabled: true }, isLoading: false },
     availabilityState: {
         current: { isSettled: true, closed: [] as string[] },
     },
@@ -101,13 +99,6 @@ vi.mock('./progress', () => ({
     useLearnProgressActions: () => learnActions,
 }));
 
-vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: () => ({
-        data: learnFlagState.current,
-        isLoading: learnFlagState.isLoading,
-    }),
-}));
-
 vi.mock('../../hooks/useProjects', () => ({
     useProjects: () => ({ data: projectState.current }),
 }));
@@ -180,8 +171,6 @@ describe('LearnPage analytics', () => {
             lastStarted: null,
         };
         track.mockClear();
-        learnFlagState.current = { enabled: true };
-        learnFlagState.isLoading = false;
         availabilityState.current = { isSettled: true, closed: [] };
         accessState.current = scopes;
         projectState.current = [
@@ -305,12 +294,16 @@ describe('LearnPage analytics', () => {
         expect(viewEvents()).toHaveLength(1);
     });
 
-    it('records nothing when Learn is switched off for the instance', () => {
-        learnFlagState.current = { enabled: false };
-
+    // No feature flag is mocked in this file: Learn is on for every
+    // instance, so the library renders where it is opened.
+    it('shows the library with no feature flag and records the view', () => {
         renderPage();
 
-        expect(viewEvents()).toEqual([]);
+        expect(screen.getByTestId('pathname')).toHaveTextContent('/learn');
+        expect(
+            screen.getByRole('textbox', { name: 'Search the library' }),
+        ).toBeInTheDocument();
+        expect(viewEvents()).toHaveLength(1);
     });
 });
 
@@ -326,7 +319,6 @@ describe('LearnPage access', () => {
             lastStarted: null,
         };
         track.mockClear();
-        learnFlagState.current = { enabled: true };
         availabilityState.current = { isSettled: true, closed: [] };
         accessState.current = ['view:Dashboard', 'manage:Validation'];
         projectState.current = [
@@ -539,7 +531,6 @@ describe('LearnPage filters', () => {
             started: [],
             lastStarted: null,
         };
-        learnFlagState.current = { enabled: true };
         availabilityState.current = { isSettled: true, closed: [] };
         accessState.current = ['view:Dashboard', 'manage:Validation'];
         projectState.current = [
@@ -605,8 +596,6 @@ describe('LearnPage unsupported modules', () => {
             lastStarted: null,
         };
         track.mockClear();
-        learnFlagState.current = { enabled: true };
-        learnFlagState.isLoading = false;
         availabilityState.current = { isSettled: true, closed: [] };
         accessState.current = scopes;
         projectState.current = [

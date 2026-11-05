@@ -1,6 +1,5 @@
 import { Ability } from '@casl/ability';
 import {
-    FeatureFlags,
     ForbiddenError,
     ParameterError,
     type PossibleAbilities,
@@ -8,7 +7,6 @@ import {
     type UpdateOrganizationSettings,
 } from '@lightdash/common';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
-import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { type OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
 import { OrganizationSettingsService } from './OrganizationSettingsService';
 
@@ -29,15 +27,7 @@ const account = {
 // Raw row with no overrides — the resolver fills the rest with instance defaults.
 const rawSettings = { queryLimit: null, csvCellsLimit: null };
 
-const buildService = (proLimitsEnabled: boolean) => {
-    const featureFlagModel = {
-        get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => ({
-            id: featureFlagId,
-            enabled:
-                proLimitsEnabled && featureFlagId === FeatureFlags.ProLimits,
-        })),
-    } as unknown as FeatureFlagModel;
-
+const buildService = () => {
     const organizationSettingsModel = {
         get: vi.fn(async () => rawSettings),
         update: vi.fn(async () => rawSettings),
@@ -46,29 +36,27 @@ const buildService = (proLimitsEnabled: boolean) => {
     const service = new OrganizationSettingsService({
         lightdashConfig: lightdashConfigMock,
         organizationSettingsModel,
-        featureFlagModel,
     });
     return { service, organizationSettingsModel };
 };
 
-describe('OrganizationSettingsService — pro-limits gate', () => {
-    it('rejects a csvCellsLimit update when pro-limits is disabled', async () => {
-        const { service, organizationSettingsModel } = buildService(false);
-        await expect(
-            service.updateOrganizationSettings(account, { csvCellsLimit: 50 }),
-        ).rejects.toThrow(ForbiddenError);
-        expect(organizationSettingsModel.update).not.toHaveBeenCalled();
+describe('OrganizationSettingsService — updates', () => {
+    it('allows a csvCellsLimit update', async () => {
+        const { service, organizationSettingsModel } = buildService();
+        await service.updateOrganizationSettings(account, {
+            csvCellsLimit: 50,
+        });
+        expect(organizationSettingsModel.update).toHaveBeenCalled();
     });
 
-    it('rejects a queryLimit update when pro-limits is disabled', async () => {
-        const { service } = buildService(false);
-        await expect(
-            service.updateOrganizationSettings(account, { queryLimit: 50 }),
-        ).rejects.toThrow(ForbiddenError);
+    it('allows a queryLimit update', async () => {
+        const { service, organizationSettingsModel } = buildService();
+        await service.updateOrganizationSettings(account, { queryLimit: 50 });
+        expect(organizationSettingsModel.update).toHaveBeenCalled();
     });
 
-    it('allows a non-limit update (scheduled delivery) when pro-limits is disabled', async () => {
-        const { service, organizationSettingsModel } = buildService(false);
+    it('allows a non-limit update (scheduled delivery)', async () => {
+        const { service, organizationSettingsModel } = buildService();
         await service.updateOrganizationSettings(account, {
             scheduledDeliveryExpirationSeconds: 3600,
         });
@@ -76,7 +64,7 @@ describe('OrganizationSettingsService — pro-limits gate', () => {
     });
 
     it('allows an invite link expiration from one to seven whole days', async () => {
-        const { service, organizationSettingsModel } = buildService(false);
+        const { service, organizationSettingsModel } = buildService();
         await service.updateOrganizationSettings(account, {
             inviteLinkExpirationDays: 7,
         });
@@ -89,7 +77,7 @@ describe('OrganizationSettingsService — pro-limits gate', () => {
     it.each([0, 1.5, 8, '7'])(
         'rejects invalid invite link expiration %s',
         async (inviteLinkExpirationDays) => {
-            const { service, organizationSettingsModel } = buildService(false);
+            const { service, organizationSettingsModel } = buildService();
             await expect(
                 service.updateOrganizationSettings(account, {
                     inviteLinkExpirationDays:
@@ -100,16 +88,8 @@ describe('OrganizationSettingsService — pro-limits gate', () => {
         },
     );
 
-    it('allows a limit update when pro-limits is enabled', async () => {
-        const { service, organizationSettingsModel } = buildService(true);
-        await service.updateOrganizationSettings(account, {
-            csvCellsLimit: 50,
-        });
-        expect(organizationSettingsModel.update).toHaveBeenCalled();
-    });
-
-    it('allows valid CORS settings when pro-limits is disabled', async () => {
-        const { service, organizationSettingsModel } = buildService(false);
+    it('allows valid CORS settings', async () => {
+        const { service, organizationSettingsModel } = buildService();
         await service.updateOrganizationSettings(account, {
             corsAllowedDomains: [
                 'https://app.example.com',
@@ -128,7 +108,7 @@ describe('OrganizationSettingsService — pro-limits gate', () => {
     });
 
     it('rejects invalid CORS regex patterns', async () => {
-        const { service, organizationSettingsModel } = buildService(false);
+        const { service, organizationSettingsModel } = buildService();
         await expect(
             service.updateOrganizationSettings(account, {
                 corsAllowedDomains: ['/unterminated[/'],
@@ -138,7 +118,7 @@ describe('OrganizationSettingsService — pro-limits gate', () => {
     });
 
     it('rejects broad CORS regex patterns', async () => {
-        const { service, organizationSettingsModel } = buildService(false);
+        const { service, organizationSettingsModel } = buildService();
         await expect(
             service.updateOrganizationSettings(account, {
                 corsAllowedDomains: ['/^https?:\\/\\/.*$/'],
@@ -148,7 +128,7 @@ describe('OrganizationSettingsService — pro-limits gate', () => {
     });
 
     it('rejects invalid CORS origins', async () => {
-        const { service, organizationSettingsModel } = buildService(false);
+        const { service, organizationSettingsModel } = buildService();
         await expect(
             service.updateOrganizationSettings(account, {
                 corsAllowedDomains: ['https://app.example.com/path'],
@@ -185,7 +165,6 @@ describe('OrganizationSettingsService — automatic data app thumbnails', () => 
         return new OrganizationSettingsService({
             lightdashConfig: lightdashConfigMock,
             organizationSettingsModel,
-            featureFlagModel: {} as unknown as FeatureFlagModel,
         });
     };
 
@@ -254,7 +233,6 @@ describe('OrganizationSettingsService — data app captures', () => {
                 },
             },
             organizationSettingsModel,
-            featureFlagModel: {} as unknown as FeatureFlagModel,
         });
     };
 

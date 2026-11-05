@@ -42,7 +42,6 @@ export const AI_CALL_FEATURES = [
     'formula-table-calc',
     'compaction',
     'embedding',
-    'project-router',
     'agent-selector',
     'review-classifier',
     'prompt-input-classifier',
@@ -104,6 +103,7 @@ export const getAiUsageChannel = ({
         case 'evals':
         case 'scheduler':
         case 'data_app':
+        case 'dashboard_analysis':
             return createdFrom;
         default:
             return assertUnreachable(createdFrom, 'Unknown AI thread origin');
@@ -290,6 +290,7 @@ export type AiCallRuntimeContextKey =
     | 'channel'
     | 'externalUserId'
     | 'appUuid'
+    | 'dashboardUuid'
     | 'runUuid'
     | 'deepResearchRunUuid'
     | 'deepResearchPhase';

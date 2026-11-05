@@ -44,11 +44,9 @@ export const SchedulerFormMicrosoftTeamsInput: FC<
             {!hideIcon && (
                 <Box pt="xxs">
                     <MsTeamsSvg
-                        style={{
-                            margin: '5px 2px',
-                            width: '20px',
-                            height: '20px',
-                        }}
+                        className={classes.destinationIcon}
+                        width={20}
+                        height={20}
                     />
                 </Box>
             )}

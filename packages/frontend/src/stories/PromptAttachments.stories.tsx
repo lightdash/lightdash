@@ -83,8 +83,10 @@ const meta: Meta<typeof Scenario> = {
         externalSources: [],
         pendingCsvFiles: [],
         elementRefs: [],
+        composerNodes: [],
         onRemoveExternalSource: fn(),
         onRemoveElementRef: fn(),
+        onRemoveComposerNode: fn(),
     },
     decorators: [
         (renderStory) => (
@@ -134,5 +136,18 @@ export const Mixed: Story = {
             { id: 1, filename: 'customers.csv', status: 'preparing' },
         ],
         elementRefs: [heading, buttonWithoutLoc, longText],
+    },
+};
+
+export const ComposerNodes: Story = {
+    args: {
+        composerNodes: [
+            {
+                artifactUuid: 'artifact-1',
+                versionUuid: 'version-1',
+                nodeId: 'revenue_by_month',
+                title: 'Revenue by month',
+            },
+        ],
     },
 };

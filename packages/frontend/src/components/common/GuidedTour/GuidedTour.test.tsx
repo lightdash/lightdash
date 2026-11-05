@@ -881,25 +881,25 @@ describe('GuidedTour', () => {
                 renderWithProviders(
                     <GuidedTour steps={detourSteps} opened onClose={vi.fn()} />,
                 );
-                await waitFor(() =>
+                await waitFor(() => {
                     expect(
                         screen.getByText('Click Download data'),
-                    ).toBeVisible(),
-                );
-                expect(
-                    host.querySelector('[data-x="chooser"]'),
-                ).toHaveAttribute('data-tour-active');
+                    ).toBeVisible();
+                    expect(
+                        host.querySelector('[data-x="chooser"]'),
+                    ).toHaveAttribute('data-tour-active');
+                });
 
                 host.innerHTML = '<button data-x="download">Download</button>';
-                await waitFor(() =>
-                    expect(screen.getByText('Click Download')).toBeVisible(),
-                );
+                await waitFor(() => {
+                    expect(screen.getByText('Click Download')).toBeVisible();
+                    expect(
+                        host.querySelector('[data-x="download"]'),
+                    ).toHaveAttribute('data-tour-active');
+                });
                 expect(
                     screen.queryByText('Click Download data'),
                 ).not.toBeInTheDocument();
-                expect(
-                    host.querySelector('[data-x="download"]'),
-                ).toHaveAttribute('data-tour-active');
             } finally {
                 host.remove();
             }

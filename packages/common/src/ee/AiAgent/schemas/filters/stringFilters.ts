@@ -79,4 +79,4 @@ const stringFilterSchema = z.union([
         ),
 ]);
 
-export default stringFilterSchema;
+export default stringFilterSchema.meta({ id: 'StringFilterRule' });

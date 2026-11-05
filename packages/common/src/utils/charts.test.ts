@@ -1,11 +1,17 @@
 import {
     BinType,
+    ChartType,
     CustomDimensionType,
     MetricType,
+    type CartesianChartLayout,
+    type ChartConfig,
     type CreateSavedChartVersion,
     type CustomBinDimension,
 } from '..';
-import { maybeReplaceFieldsInChartVersion } from './charts';
+import {
+    applyNewChartDefaults,
+    maybeReplaceFieldsInChartVersion,
+} from './charts';
 
 it('preserves custom bins and their sorts while replacing custom metrics', () => {
     const customBin: CustomBinDimension = {
@@ -49,4 +55,29 @@ it('preserves custom bins and their sorts while replacing custom metrics', () =>
     expect(result.chartVersion.metricQuery.sorts).toEqual([
         { fieldId: customBin.id, descending: false },
     ]);
+});
+
+describe('applyNewChartDefaults', () => {
+    const cartesian = (layout: CartesianChartLayout): ChartConfig => ({
+        type: ChartType.CARTESIAN,
+        config: { layout, eChartsConfig: {} },
+    });
+
+    test('turns the incomplete period on for a new cartesian chart', () => {
+        expect(applyNewChartDefaults(cartesian({ xField: 'x' }))).toEqual(
+            cartesian({ xField: 'x', showIncompletePeriod: true }),
+        );
+    });
+
+    test('keeps an explicit choice', () => {
+        const config = cartesian({ showIncompletePeriod: false });
+        expect(applyNewChartDefaults(config)).toBe(config);
+    });
+
+    test('leaves other chart types and missing configs alone', () => {
+        const table: ChartConfig = { type: ChartType.TABLE };
+        const emptyCartesian: ChartConfig = { type: ChartType.CARTESIAN };
+        expect(applyNewChartDefaults(table)).toBe(table);
+        expect(applyNewChartDefaults(emptyCartesian)).toBe(emptyCartesian);
+    });
 });

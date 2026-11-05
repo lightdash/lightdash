@@ -5,18 +5,24 @@ import {
     type DateGranularity,
     type LanguageMap,
 } from '@lightdash/common';
-import isEqual from 'lodash/isEqual';
+import { isEqual } from 'es-toolkit/compat';
 import { type DashboardStoreState } from '.';
 import {
     parseDashboardParametersUrl,
     toDashboardParameters,
 } from '../../../providers/Dashboard/dashboardParametersUrl';
+import { initialDashboardChartSortState } from './dashboardChartSortReducer';
 import { initialDashboardDateZoomState } from './dashboardDateZoomReducer';
+import { initialDashboardEditState } from './dashboardEditReducer';
 import {
     emptyDashboardFilters,
     initialDashboardFiltersState,
 } from './dashboardFiltersReducer';
 import { initialDashboardParametersState } from './dashboardParametersReducer';
+import {
+    initialDashboardProviderState,
+    type DashboardProviderState,
+} from './dashboardSourceReducer';
 import { initialDashboardTileStatusState } from './dashboardTileStatusReducer';
 import {
     emptySavedFilterOverrides,
@@ -44,12 +50,14 @@ export const buildInitialDashboardState = ({
     parameterLabelOverrides,
     dateZoom,
     invalidateCache,
+    source = initialDashboardProviderState,
 }: {
     search: string;
     isEditMode: boolean;
     parameterLabelOverrides: LanguageMap['parameters'];
     dateZoom: DateGranularity | string | undefined;
     invalidateCache: boolean;
+    source?: DashboardProviderState;
 }): {
     state: DashboardStoreState;
     urlRestoreErrors: DashboardUrlRestoreErrors;
@@ -91,6 +99,7 @@ export const buildInitialDashboardState = ({
 
     return {
         state: {
+            source: { ...source, embedDashboard: undefined },
             filters: {
                 ...initialDashboardFiltersState,
                 savedFilterOverrides:
@@ -102,6 +111,12 @@ export const buildInitialDashboardState = ({
                 isEditMode,
                 parameterLabelOverrides,
                 parameters: parameters ?? {},
+                parameterPicks: Object.fromEntries(
+                    Object.entries(parameters ?? {}).map(([key, { value }]) => [
+                        key,
+                        value,
+                    ]),
+                ),
                 parametersHaveChanged: !isEqual(parameters ?? {}, {}),
             },
             dateZoom: {
@@ -112,6 +127,8 @@ export const buildInitialDashboardState = ({
                 controlGranularities,
             },
             tileStatus: { ...initialDashboardTileStatusState, invalidateCache },
+            edit: initialDashboardEditState,
+            chartSort: initialDashboardChartSortState,
         },
         urlRestoreErrors: {
             savedFilterOverrides: savedFilterOverrides === null,

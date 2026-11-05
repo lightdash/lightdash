@@ -1,5 +1,9 @@
 import { AzureOpenAIProvider, createAzure } from '@ai-sdk/azure';
 import { LightdashConfig } from '../../../../config/parseConfig';
+import {
+    getReasoningProviderOptions,
+    withChatCompletionsDefaults,
+} from './chatCompletions';
 import { AiModel } from './types';
 
 const PROVIDER = 'azure';
@@ -20,10 +24,11 @@ export const getAzureGpt41Model = (
 ): AiModel<typeof PROVIDER> => {
     const azure = getAzureProvider(config);
 
-    const model = azure(config.deploymentName);
+    const model = config.useChatCompletions
+        ? withChatCompletionsDefaults(azure.chat(config.deploymentName))
+        : azure(config.deploymentName);
 
     const reasoningEnabled = config.deploymentSupportsReasoning;
-    const reasoningEffort = 'medium';
 
     return {
         model,
@@ -37,8 +42,16 @@ export const getAzureGpt41Model = (
             openai: {
                 // strictJsonSchema: provider default is true
                 ...(reasoningEnabled && {
-                    reasoningSummary: 'auto',
-                    reasoningEffort,
+                    ...getReasoningProviderOptions({
+                        useChatCompletions: config.useChatCompletions,
+                        responsesEffort: 'medium',
+                        includeSummary: true,
+                    }),
+                    // Deployment names don't reveal the model, so operators pin
+                    // the effort their model accepts (gpt-5-mini rejects 'none').
+                    ...(config.reasoningEffort && {
+                        reasoningEffort: config.reasoningEffort,
+                    }),
                 }),
             },
         },

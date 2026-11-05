@@ -16,16 +16,20 @@ const composerSqlNode = (nodeId: string, sql: string) => ({
 describe('isSqlApprovalToolCall', () => {
     it('gates raw SQL tools and SQL chart saves only', () => {
         expect(isSqlApprovalToolCall('runSql', { sql: 'select 1' })).toBe(true);
-        expect(
-            isSqlApprovalToolCall('runComposerQueries', {
-                queries: [composerSqlNode('raw', 'select 1')],
-            }),
-        ).toBe(true);
-        expect(
-            isSqlApprovalToolCall('runComposerQueries', {
-                queries: [{ nodeId: 'merge', sourceType: 'duckdb', sql: 'x' }],
-            }),
-        ).toBe(false);
+        ['query', 'runComposerQueries'].forEach((composerToolName) => {
+            expect(
+                isSqlApprovalToolCall(composerToolName, {
+                    queries: [composerSqlNode('raw', 'select 1')],
+                }),
+            ).toBe(true);
+            expect(
+                isSqlApprovalToolCall(composerToolName, {
+                    queries: [
+                        { nodeId: 'merge', sourceType: 'duckdb', sql: 'x' },
+                    ],
+                }),
+            ).toBe(false);
+        });
         expect(
             isSqlApprovalToolCall('createContent', { type: 'sql_chart' }),
         ).toBe(true);

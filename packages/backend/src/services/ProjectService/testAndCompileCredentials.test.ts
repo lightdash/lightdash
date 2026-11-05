@@ -5,13 +5,17 @@ import {
     FeatureFlags,
     JobStatusType,
     JobStepType,
+    NotFoundError,
     ProjectType,
+    RedshiftAuthenticationType,
     RequestMethod,
     SnowflakeAuthenticationType,
     WarehouseTypes,
     type CreateBigqueryCredentials,
     type CreateDatabricksCredentials,
+    type CreatePostgresCredentials,
     type CreateProject,
+    type CreateRedshiftCredentials,
     type CreateSnowflakeCredentials,
     type CreateWarehouseCredentials,
     type SessionUser,
@@ -19,17 +23,20 @@ import {
 import {
     exchangeDatabricksOAuthCredentials,
     refreshDatabricksOAuthToken,
-    SshTunnel,
     warehouseClientFromCredentials,
 } from '@lightdash/warehouses';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { singleRouteProjectModelMethods } from '../../models/ProjectModel/ProjectModel.mock';
+import { createDatabase } from '../../models/RefreshTokenRotation/fakeKnex.mock';
+import { RefreshTokenRotation } from '../../models/RefreshTokenRotation/RefreshTokenRotation';
+import { type SshKeyPairModel } from '../../models/SshKeyPairModel';
 import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { type ProjectAdapter } from '../../types';
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { UserService } from '../UserService';
+import { SSH_TUNNEL_KEY_UNKNOWN_MESSAGE } from '../WarehouseClientFactory/resolvers/SshTunnelCredentialResolver';
 import { type CheckGoogleRefreshToken } from './previewBigquerySsoCredentials';
 import { ProjectService, type ProjectServiceArguments } from './ProjectService';
 import {
@@ -58,6 +65,12 @@ vi.mock('@lightdash/warehouses', async (importOriginal) => ({
         this.connect = async () => credentials;
         this.disconnect = disconnect;
     }),
+}));
+
+vi.mock('../../auth/databricksOAuthRefresh', () => ({
+    refreshDatabricksOAuthTokenWithDeadline: (
+        ...args: Parameters<typeof refreshDatabricksOAuthToken>
+    ) => refreshDatabricksOAuthToken(...args),
 }));
 vi.mock('../../projectAdapters/projectAdapter', () => ({
     projectAdapterFromConfig: vi.fn(),
@@ -100,19 +113,20 @@ const setup = (
     {
         enabled = true,
         compileEnabled = true,
-        organizationUuid = null,
         dbtType = DbtProjectType.NONE,
+        preview = false,
     }: {
+        preview?: boolean;
         enabled?: boolean;
         compileEnabled?: boolean;
-        organizationUuid?: string | null;
         dbtType?: DbtProjectType.NONE | DbtProjectType.DBT_CLOUD_IDE;
     } = {},
 ) => {
     const project = {
         ...projectWithSensitiveFields,
         warehouseConnection: credentials,
-        organizationWarehouseCredentialsUuid: organizationUuid,
+        type: preview ? ProjectType.PREVIEW : ProjectType.DEFAULT,
+        upstreamProjectUuid: preview ? 'upstream' : undefined,
         dbtConnection:
             dbtType === DbtProjectType.NONE
                 ? { type: DbtProjectType.NONE as const }
@@ -120,21 +134,36 @@ const setup = (
     };
     const projectModel = {
         ...singleRouteProjectModelMethods,
+        getOwnWarehouseCredentialsForProject: vi.fn(
+            async (): Promise<CreateWarehouseCredentials> =>
+                project.warehouseConnection,
+        ),
         getWithSensitiveFields: vi.fn(async () => project),
         getSummary: vi.fn(async () => project),
+        getWarehouseCredentialsForBinding: vi.fn(async () => credentials),
         getWarehouseCredentialsForProject: vi.fn(
             async () => project.warehouseConnection,
         ),
-        getProjectWarehouseConfig: vi.fn(async () => ({
-            organizationWarehouseCredentialsUuid: organizationUuid,
-        })),
+        getProjectWarehouseConfig: vi.fn(async () => ({})),
         getWarehouseClientFromCredentials: vi.fn<
             ProjectModel['getWarehouseClientFromCredentials']
         >((value, options) => warehouseClientFromCredentials(value, options)),
         rotateRefreshToken: vi.fn(async () => undefined),
-        update: vi.fn(async () => undefined),
+        update: vi.fn<ProjectModel['update']>(async () => undefined),
     };
     const userWarehouseCredentialsModel = {
+        getByUuidWithSecrets: vi.fn(
+            async (): Promise<
+                Awaited<
+                    ReturnType<
+                        UserWarehouseCredentialsModel['getByUuidWithSecrets']
+                    >
+                >
+            > =>
+                userWarehouseCredentialsModel.findForProjectWithSecrets.mock.results.at(
+                    -1,
+                )?.value,
+        ),
         findForProjectWithSecrets:
             vi.fn<UserWarehouseCredentialsModel['findForProjectWithSecrets']>(),
         findDatabricksOauthU2mForHostWithSecrets:
@@ -142,13 +171,6 @@ const setup = (
                 UserWarehouseCredentialsModel['findDatabricksOauthU2mForHostWithSecrets']
             >(),
         rotateRefreshToken: vi.fn(async () => undefined),
-    };
-    const organizationWarehouseCredentialsModel = {
-        rotateRefreshToken: vi.fn(async () => undefined),
-        getByUuidWithSensitiveData: vi.fn(async () => ({
-            organizationUuid: workerUser.organizationUuid,
-            credentials,
-        })),
     };
     const userOAuthGrantsModel = {
         getRefreshToken: vi.fn(async () => 'submitted-user-refresh'),
@@ -176,6 +198,13 @@ const setup = (
             },
         ),
     };
+    const sshKeyPairModel = {
+        find: vi.fn<SshKeyPairModel['find']>(async () => ({
+            publicKey: 'organization-public-key',
+            organizationUuid: project.organizationUuid,
+            privateKey: 'resolved-organization-private-key',
+        })),
+    };
     const analytics = { track: vi.fn() };
     const featureFlagModel = {
         get: vi.fn(async (_input: { featureFlagId: FeatureFlags }) => ({
@@ -183,7 +212,9 @@ const setup = (
         })),
     };
     const service = new ProjectService({
-        refreshTokenRotation: { run: vi.fn() },
+        refreshTokenRotation: new RefreshTokenRotation({
+            database: createDatabase().database,
+        }),
         lightdashConfig: {
             ...lightdashConfigMock,
             staticIp: '192.0.2.1',
@@ -194,8 +225,8 @@ const setup = (
             },
         },
         projectModel,
+        sshKeyPairModel,
         userWarehouseCredentialsModel,
-        organizationWarehouseCredentialsModel,
         userOAuthGrantsModel,
         jobModel,
         analytics,
@@ -219,9 +250,9 @@ const setup = (
         service,
         project,
         projectModel,
+        sshKeyPairModel,
         featureFlagModel,
         userWarehouseCredentialsModel,
-        organizationWarehouseCredentialsModel,
         userOAuthGrantsModel,
         jobModel,
         steps,
@@ -241,8 +272,6 @@ const setup = (
                 workerUser,
                 {
                     ...project,
-                    organizationWarehouseCredentialsUuid:
-                        organizationUuid ?? undefined,
                 } as CreateProject,
                 'create-job',
                 RequestMethod.WEB_APP,
@@ -387,14 +416,12 @@ const authCases = [
         credentials: snowflake(),
         token: 'refreshed-snowflake',
         rotated: 'rotated-snowflake',
-        organizationUuid: null,
     },
     {
         name: 'Databricks M2M refresh',
         credentials: databricks(),
         token: 'refreshed-access',
         rotated: 'rotated-refresh',
-        organizationUuid: null,
     },
     {
         name: 'Databricks M2M exchange',
@@ -405,14 +432,12 @@ const authCases = [
         },
         token: 'exchanged-access',
         rotated: 'exchanged-refresh',
-        organizationUuid: null,
     },
     {
         name: 'Databricks U2M',
         credentials: databricks(DatabricksAuthenticationType.OAUTH_U2M),
         token: 'refreshed-access',
         rotated: 'rotated-refresh',
-        organizationUuid: null,
     },
     {
         name: 'Databricks U2M user fallback',
@@ -422,18 +447,6 @@ const authCases = [
         },
         token: 'refreshed-access',
         rotated: 'rotated-refresh',
-        organizationUuid: null,
-    },
-    {
-        name: 'organisation Snowflake SSO',
-        credentials: {
-            ...snowflake(),
-            refreshToken: 'org-refresh',
-            requireUserCredentials: true,
-        },
-        token: 'refreshed-snowflake',
-        rotated: 'rotated-snowflake',
-        organizationUuid: 'org-credential-uuid',
     },
 ];
 
@@ -443,17 +456,8 @@ describe('test-and-compile credential resolution', () => {
         (storedToken) => {
             it.each(authCases)(
                 'worker resolves reloaded $name inside testing acquisition',
-                async ({
-                    name,
-                    credentials,
-                    token,
-                    rotated,
-                    organizationUuid,
-                }) => {
-                    const f = setup(
-                        { ...credentials, token: storedToken },
-                        { organizationUuid },
-                    );
+                async ({ name, credentials, token, rotated }) => {
+                    const f = setup({ ...credentials, token: storedToken }, {});
                     if (name.endsWith('user fallback')) setUserFallback(f);
                     await f.worker();
                     expect(f.projectModel.getSummary).toHaveBeenCalledTimes(
@@ -508,25 +512,15 @@ describe('test-and-compile credential resolution', () => {
                     expect(
                         f.service.warehouseClientFactory.warehouseClients,
                     ).toEqual({});
-                    if (organizationUuid) {
-                        expect(
-                            f.organizationWarehouseCredentialsModel
-                                .rotateRefreshToken,
-                        ).toHaveBeenCalledExactlyOnceWith(
-                            organizationUuid,
-                            'org-refresh',
-                            rotated,
-                        );
-                        expect(
-                            f.projectModel.rotateRefreshToken,
-                        ).not.toHaveBeenCalled();
-                    } else if (name.endsWith('user fallback')) {
+                    if (name.endsWith('user fallback')) {
                         expect(
                             f.userWarehouseCredentialsModel.rotateRefreshToken,
                         ).toHaveBeenCalledExactlyOnceWith(
                             'user-credential-uuid',
                             'user-refresh',
                             rotated,
+                            undefined,
+                            expect.anything(),
                         );
                         expect(
                             refreshDatabricksOAuthToken,
@@ -546,6 +540,7 @@ describe('test-and-compile credential resolution', () => {
                             f.project.projectUuid,
                             credentials.refreshToken,
                             rotated,
+                            expect.anything(),
                         );
                     } else {
                         expect(
@@ -568,11 +563,10 @@ describe('test-and-compile credential resolution', () => {
             );
             it.each(authCases)(
                 'switch off tests raw $name without refresh',
-                async ({ credentials, organizationUuid }) => {
+                async ({ credentials }) => {
                     const raw = { ...credentials, token: storedToken };
                     const f = setup(raw, {
                         enabled: false,
-                        organizationUuid,
                         dbtType: DbtProjectType.DBT_CLOUD_IDE,
                     });
                     await expect(f.worker()).rejects.toThrow(
@@ -593,10 +587,6 @@ describe('test-and-compile credential resolution', () => {
                     ).not.toHaveBeenCalled();
                     expect(
                         f.projectModel.rotateRefreshToken,
-                    ).not.toHaveBeenCalled();
-                    expect(
-                        f.organizationWarehouseCredentialsModel
-                            .rotateRefreshToken,
                     ).not.toHaveBeenCalled();
                     expect(
                         f.userWarehouseCredentialsModel.rotateRefreshToken,
@@ -682,8 +672,8 @@ describe('test-and-compile credential resolution', () => {
     describe.each([true, false])('create with switch %s', (enabled) => {
         it.each(authCases)(
             'preserves already-resolved submitted $name without a second refresh',
-            async ({ name, credentials, token, organizationUuid }) => {
-                const f = setup(credentials, { enabled, organizationUuid });
+            async ({ name, credentials, token }) => {
+                const f = setup(credentials, { enabled });
                 if (name.endsWith('user fallback')) {
                     setUserFallback(f);
                     f.userWarehouseCredentialsModel.findDatabricksOauthU2mForHostWithSecrets.mockResolvedValue(
@@ -758,20 +748,8 @@ describe('test-and-compile credential resolution', () => {
                                 ? 'rejected'
                                 : 'valid',
                     );
-                    const featureFlagGet = vi.fn(
-                        async ({
-                            featureFlagId,
-                        }: {
-                            featureFlagId: FeatureFlags;
-                        }) => ({
-                            enabled:
-                                featureFlagId ===
-                                FeatureFlags.PreviewSsoCredentialSync,
-                        }),
-                    );
                     Object.assign(f.service, {
                         checkGoogleRefreshToken: checkRefreshToken,
-                        featureFlagModel: { get: featureFlagGet },
                     });
                     let stored: CreateWarehouseCredentials = stale;
                     const readBinding = vi.fn<
@@ -837,10 +815,6 @@ describe('test-and-compile credential resolution', () => {
                     expect(
                         f.projectModel.getSummary,
                     ).toHaveBeenCalledExactlyOnceWith(f.project.projectUuid);
-                    expect(featureFlagGet).toHaveBeenCalledWith({
-                        user: { organizationUuid: f.project.organizationUuid },
-                        featureFlagId: FeatureFlags.PreviewSsoCredentialSync,
-                    });
                     expect(
                         getPreviewOwnsCredentials,
                     ).toHaveBeenCalledExactlyOnceWith(f.project.projectUuid);
@@ -898,7 +872,6 @@ describe('test-and-compile credential resolution', () => {
             buildAccount(),
             {
                 ...f.project,
-                organizationWarehouseCredentialsUuid: undefined,
                 warehouseConnection: { ...stored, oauthClientSecret: '' },
             },
             RequestMethod.WEB_APP,
@@ -941,69 +914,8 @@ describe('test-and-compile credential resolution', () => {
             f.project.projectUuid,
             'reloaded-refresh',
             'rotated-refresh',
+            expect.anything(),
         );
-    });
-
-    it('worker reloads organisation credentials after submitted form resolution', async () => {
-        const f = setup(
-            { ...snowflake(), refreshToken: 'org-refresh' },
-            { organizationUuid: 'org-credential-uuid' },
-        );
-        vi.mocked(
-            UserService.generateSnowflakeAccessToken,
-        ).mockResolvedValueOnce({
-            accessToken: 'form-access',
-            refreshToken: 'form-refresh',
-        });
-        const internals = f.service as unknown as {
-            _resolveWarehouseClientCredentials: <
-                T extends {
-                    warehouseConnection: CreateWarehouseCredentials;
-                    organizationWarehouseCredentialsUuid?: string;
-                },
-            >(
-                data: T,
-                userUuid: string,
-                organizationUuid: string,
-            ) => Promise<T>;
-        };
-        const resolved = await internals._resolveWarehouseClientCredentials(
-            {
-                warehouseConnection: snowflake(),
-                organizationWarehouseCredentialsUuid: 'org-credential-uuid',
-            },
-            workerUser.userUuid,
-            workerUser.organizationUuid!,
-        );
-        expect(resolved.warehouseConnection).toMatchObject({
-            token: 'form-access',
-        });
-        f.project.warehouseConnection = {
-            ...snowflake(),
-            token: 'org-reloaded-stale',
-            refreshToken: 'org-reloaded-refresh',
-        };
-        vi.mocked(
-            UserService.generateSnowflakeAccessToken,
-        ).mockResolvedValueOnce({
-            accessToken: 'refreshed-snowflake',
-            refreshToken: 'worker-rotated-refresh',
-        });
-        await f.worker();
-        expect(f.projectModel.getWithSensitiveFields).toHaveBeenCalledWith(
-            f.project.projectUuid,
-        );
-        expect(
-            UserService.generateSnowflakeAccessToken,
-        ).toHaveBeenLastCalledWith('org-reloaded-refresh');
-        expect(
-            f.organizationWarehouseCredentialsModel.rotateRefreshToken,
-        ).toHaveBeenCalledExactlyOnceWith(
-            'org-credential-uuid',
-            'org-reloaded-refresh',
-            'worker-rotated-refresh',
-        );
-        expect(f.projectModel.rotateRefreshToken).not.toHaveBeenCalled();
     });
 });
 
@@ -1053,5 +965,466 @@ describe('strict personal overlay (agent-identity on)', () => {
                 userUuid: user.userUuid,
             },
         });
+    });
+});
+
+describe('preview CLI credential refresh', () => {
+    const incoming: CreatePostgresCredentials = {
+        type: WarehouseTypes.POSTGRES,
+        host: 'warehouse',
+        port: 5432,
+        dbname: 'analytics',
+        schema: 'preview',
+        user: 'developer',
+        password: 'fresh-password',
+    };
+    const tunnel = {
+        useSshTunnel: true,
+        sshTunnelHost: 'bastion',
+        sshTunnelPort: 22,
+        sshTunnelUser: 'tunnel',
+        sshTunnelPublicKey: 'organization-public-key',
+    };
+    const parent = {
+        ...incoming,
+        ...tunnel,
+        password: 'parent-secret',
+        sshTunnelPrivateKey: 'parent-private-key',
+    };
+    const refresh = (
+        f: ReturnType<typeof setup>,
+        method = RequestMethod.CLI,
+        connection: CreateWarehouseCredentials = incoming,
+    ) =>
+        f.service.updateAndScheduleAsyncWork(
+            f.project.projectUuid,
+            buildAccount(),
+            {
+                name: f.project.name,
+                dbtConnection: f.project.dbtConnection,
+                dbtVersion: f.project.dbtVersion,
+                warehouseConnection: connection,
+            },
+            method,
+        );
+    const saved = (f: ReturnType<typeof setup>) =>
+        f.projectModel.update.mock.calls[0]?.[1]?.warehouseConnection;
+
+    test.each([RequestMethod.CLI, RequestMethod.CLI_CI])(
+        '%s heals a missing inherited tunnel with fresh credentials',
+        async (method) => {
+            const f = setup(incoming, { preview: true });
+            f.projectModel.getWarehouseCredentialsForBinding.mockResolvedValue(
+                parent,
+            );
+            await refresh(f, method);
+            // Same parent destination and public key: destination-bound inheritance carries the parent key.
+            expect(saved(f)).toMatchObject({
+                ...incoming,
+                ...tunnel,
+                sshTunnelPrivateKey: 'parent-private-key',
+            });
+        },
+    );
+    test('keeps an inherited tunnel on repeated refresh', async () => {
+        const f = setup({ ...incoming, ...tunnel }, { preview: true });
+        f.projectModel.getWarehouseCredentialsForBinding.mockResolvedValue(
+            parent,
+        );
+        await refresh(f);
+        expect(saved(f)).toMatchObject({ ...incoming, ...tunnel });
+    });
+    test('keeps the preview own tunnel', async () => {
+        const custom = {
+            ...tunnel,
+            sshTunnelHost: 'preview-bastion',
+            sshTunnelUser: 'preview-user',
+            sshTunnelPublicKey: 'preview-public-key',
+        };
+        const f = setup({ ...incoming, ...custom }, { preview: true });
+        f.projectModel.getWarehouseCredentialsForBinding.mockResolvedValue(
+            parent,
+        );
+        await refresh(f);
+        expect(saved(f)).toMatchObject({ ...incoming, ...custom });
+    });
+    test('keeps an explicit saved tunnel opt-out', async () => {
+        const f = setup(
+            { ...incoming, useSshTunnel: false },
+            { preview: true },
+        );
+        f.projectModel.getWarehouseCredentialsForBinding.mockResolvedValue(
+            parent,
+        );
+        await refresh(f);
+        expect(saved(f)).toMatchObject({ ...incoming, useSshTunnel: false });
+    });
+    test('does not copy parent database secrets or a private key without an owned public key', async () => {
+        const f = setup(incoming, { preview: true });
+        f.projectModel.getWarehouseCredentialsForBinding.mockResolvedValue({
+            ...parent,
+            sshTunnelPublicKey: ' ',
+        });
+        await expect(refresh(f)).rejects.toThrow('no public key');
+        expect(f.projectModel.update).not.toHaveBeenCalled();
+    });
+    test('keeps fresh AWS session credentials and excludes parent secrets', async () => {
+        const iam = {
+            type: WarehouseTypes.REDSHIFT,
+            host: 'redshift',
+            port: 5439,
+            dbname: 'analytics',
+            schema: 'preview',
+            user: 'developer',
+            authenticationType: RedshiftAuthenticationType.IAM,
+            region: 'eu-west-1',
+            clusterIdentifier: 'cluster',
+            accessKeyId: 'fresh-key',
+            secretAccessKey: 'fresh-secret',
+            sessionToken: 'fresh-session',
+        } as const;
+        const f = setup(iam, { preview: true });
+        f.projectModel.getWarehouseCredentialsForBinding.mockResolvedValue({
+            ...iam,
+            ...tunnel,
+            password: 'parent-password',
+            accessKeyId: 'parent-key',
+            secretAccessKey: 'parent-secret',
+            sessionToken: 'parent-session',
+            sshTunnelPrivateKey: 'parent-private-key',
+        });
+        await f.service.updateAndScheduleAsyncWork(
+            f.project.projectUuid,
+            buildAccount(),
+            {
+                name: f.project.name,
+                dbtConnection: f.project.dbtConnection,
+                dbtVersion: f.project.dbtVersion,
+                warehouseConnection: iam,
+            },
+            RequestMethod.CLI_CI,
+        );
+        expect(saved(f)).toMatchObject({
+            // Same parent destination and public key: destination-bound inheritance carries the parent key.
+            ...iam,
+            ...tunnel,
+            sshTunnelPrivateKey: 'parent-private-key',
+        });
+        expect(saved(f)).not.toHaveProperty('password');
+    });
+    test('keeps Snowflake without SSH fields unchanged', async () => {
+        const credentials = {
+            ...snowflake(),
+            authenticationType: SnowflakeAuthenticationType.PASSWORD,
+            user: 'developer',
+            password: 'fresh-password',
+            refreshToken: undefined,
+        };
+        const f = setup(credentials, { preview: true });
+        await f.service.updateAndScheduleAsyncWork(
+            f.project.projectUuid,
+            buildAccount(),
+            {
+                name: f.project.name,
+                dbtConnection: f.project.dbtConnection,
+                dbtVersion: f.project.dbtVersion,
+                warehouseConnection: credentials,
+            },
+            RequestMethod.CLI,
+        );
+        expect(saved(f)).toMatchObject(credentials);
+        expect(saved(f)).not.toHaveProperty('sshTunnelHost');
+    });
+    test('preserves the saved tunnel if the upstream credentials are gone', async () => {
+        const f = setup({ ...incoming, ...tunnel }, { preview: true });
+        f.projectModel.getWarehouseCredentialsForBinding.mockRejectedValue(
+            new NotFoundError('gone'),
+        );
+        await refresh(f);
+        expect(saved(f)).toMatchObject({ ...incoming, ...tunnel });
+    });
+    test('incoming explicit opt-out wins over saved and upstream settings', async () => {
+        const f = setup({ ...incoming, ...tunnel }, { preview: true });
+        await refresh(f, RequestMethod.CLI, {
+            ...incoming,
+            useSshTunnel: false,
+        });
+        expect(saved(f)).toMatchObject({ useSshTunnel: false });
+    });
+    test('keeps a parent without a tunnel unchanged', async () => {
+        const f = setup(incoming, { preview: true });
+        await refresh(f);
+        expect(saved(f)).toMatchObject(incoming);
+        expect(saved(f)).not.toHaveProperty('sshTunnelHost');
+    });
+    test.each([RequestMethod.WEB_APP, RequestMethod.BACKEND])(
+        '%s does not inherit settings',
+        async (method) => {
+            const f = setup({ ...incoming, ...tunnel }, { preview: true });
+            f.projectModel.getWarehouseCredentialsForBinding.mockResolvedValue(
+                parent,
+            );
+            await refresh(f, method);
+            expect(saved(f)).not.toHaveProperty('sshTunnelHost');
+        },
+    );
+    test('does not inherit settings on a non-preview', async () => {
+        const f = setup({ ...incoming, ...tunnel });
+        await refresh(f);
+        expect(saved(f)).not.toHaveProperty('sshTunnelHost');
+    });
+});
+
+describe.each([
+    {
+        name: 'Postgres',
+        incoming: {
+            type: WarehouseTypes.POSTGRES,
+            host: 'warehouse',
+            port: 5432,
+            dbname: 'analytics',
+            schema: 'preview',
+            user: 'developer',
+            password: 'fresh-password',
+        } satisfies CreatePostgresCredentials,
+    },
+    {
+        name: 'Redshift IAM',
+        incoming: {
+            type: WarehouseTypes.REDSHIFT,
+            host: 'redshift',
+            port: 5439,
+            dbname: 'analytics',
+            schema: 'preview',
+            user: 'developer',
+            authenticationType: RedshiftAuthenticationType.IAM,
+            region: 'eu-west-1',
+            clusterIdentifier: 'cluster',
+            accessKeyId: 'fresh-key',
+            secretAccessKey: 'fresh-secret',
+            sessionToken: 'fresh-session',
+        } satisfies CreateRedshiftCredentials,
+    },
+])('preview CLI refresh of a $name SSH tunnel', ({ incoming }) => {
+    const tunnel = {
+        useSshTunnel: true,
+        sshTunnelHost: 'bastion',
+        sshTunnelPort: 22,
+        sshTunnelUser: 'tunnel',
+        sshTunnelPublicKey: 'organization-public-key',
+    };
+    const parent = {
+        ...incoming,
+        ...tunnel,
+        password: 'parent-password',
+        accessKeyId: 'parent-key',
+        secretAccessKey: 'parent-secret',
+        sessionToken: 'parent-session',
+        sshTunnelPrivateKey: 'parent-private-key',
+    } as CreateWarehouseCredentials;
+    const build = (
+        previewConnection: CreateWarehouseCredentials,
+        keyPair: 'owned' | 'legacy' | 'pasted' = 'pasted',
+    ) => {
+        const f = setup(previewConnection, { preview: true });
+        f.projectModel.getWarehouseCredentialsForBinding.mockResolvedValue(
+            parent,
+        );
+        if (keyPair === 'legacy') {
+            f.sshKeyPairModel.find.mockResolvedValue({
+                publicKey: tunnel.sshTunnelPublicKey,
+                organizationUuid: null,
+                privateKey: 'legacy-pair-private-key',
+            });
+        }
+        if (keyPair === 'pasted') {
+            f.sshKeyPairModel.find.mockResolvedValue(null);
+        }
+        return f;
+    };
+    const refresh = (
+        f: ReturnType<typeof setup>,
+        connection: CreateWarehouseCredentials = incoming,
+    ) =>
+        f.service.updateAndScheduleAsyncWork(
+            f.project.projectUuid,
+            buildAccount(),
+            {
+                name: f.project.name,
+                dbtConnection: f.project.dbtConnection,
+                dbtVersion: f.project.dbtVersion,
+                warehouseConnection: connection,
+            },
+            RequestMethod.CLI,
+        );
+    const saved = (f: ReturnType<typeof setup>, call = 0) =>
+        f.projectModel.update.mock.calls[call]?.[1]?.warehouseConnection;
+    const expectNoParentSecrets = (value: unknown) =>
+        expect(JSON.stringify(value ?? null)).not.toMatch(
+            /parent-(password|key|secret|session)"/,
+        );
+    const expectUnknownKey = async (f: ReturnType<typeof setup>) => {
+        await expect(refresh(f)).rejects.toMatchObject({
+            statusCode: 400,
+            message: SSH_TUNNEL_KEY_UNKNOWN_MESSAGE,
+        });
+        expect(f.projectModel.update).not.toHaveBeenCalled();
+    };
+
+    test('carries the parent key for the inherited public key without a key-pair lookup', async () => {
+        const f = build(incoming, 'owned');
+        await refresh(f);
+        expect(saved(f)).toMatchObject({
+            ...incoming,
+            ...tunnel,
+            sshTunnelPrivateKey: 'parent-private-key',
+        });
+        expect(f.sshKeyPairModel.find).not.toHaveBeenCalled();
+        expectNoParentSecrets(saved(f));
+    });
+    test.each(['legacy', 'pasted'] as const)(
+        'refreshes a %s key through the carried parent key',
+        async (keyPair) => {
+            const f = build(incoming, keyPair);
+            await refresh(f);
+            expect(saved(f)).toMatchObject({
+                ...tunnel,
+                sshTunnelPrivateKey: 'parent-private-key',
+            });
+            expectNoParentSecrets(saved(f));
+        },
+    );
+    test('does not inherit from an upstream in another organisation', async () => {
+        const f = build(incoming, 'legacy');
+        f.projectModel.getSummary.mockResolvedValue({
+            ...f.project,
+            organizationUuid: 'other-organisation',
+        });
+        await expectUnknownKey(f);
+        expect(f.projectModel.getSummary).toHaveBeenCalledWith('upstream');
+        expect(f.sshKeyPairModel.find).toHaveBeenCalled();
+    });
+    test('does not inherit when the parent regenerated its key', async () => {
+        const f = build({
+            ...incoming,
+            ...tunnel,
+            sshTunnelPublicKey: 'previous-public-key',
+        });
+        await expectUnknownKey(f);
+        expect(f.sshKeyPairModel.find).toHaveBeenCalledWith(
+            'previous-public-key',
+        );
+    });
+    test.each([
+        [
+            'a changed tunnel host',
+            { sshTunnelHost: 'other-bastion' },
+            undefined,
+        ],
+        ['a changed tunnel port', { sshTunnelPort: 2222 }, undefined],
+        ['a changed tunnel user', { sshTunnelUser: 'other-user' }, undefined],
+        ['a changed warehouse host', {}, { host: 'moved-warehouse' }],
+        ['a changed warehouse port', {}, { port: 6543 }],
+    ])(
+        'does not carry the parent key to %s',
+        async (_case, previewPatch, payloadPatch) => {
+            const f = build({
+                ...incoming,
+                ...tunnel,
+                ...previewPatch,
+            } as CreateWarehouseCredentials);
+            await expect(
+                refresh(f, {
+                    ...incoming,
+                    ...payloadPatch,
+                } as CreateWarehouseCredentials),
+            ).rejects.toMatchObject({
+                statusCode: 400,
+                message: SSH_TUNNEL_KEY_UNKNOWN_MESSAGE,
+            });
+            expect(f.projectModel.update).not.toHaveBeenCalled();
+        },
+    );
+    test('carries the parent key across canonical destination differences', async () => {
+        const f = build({ ...incoming, ...tunnel, sshTunnelPort: 22 });
+        const { sshTunnelPort, ...parentWithoutPort } = parent as {
+            sshTunnelPort?: number;
+        } & CreateWarehouseCredentials;
+        f.projectModel.getWarehouseCredentialsForBinding.mockResolvedValue({
+            ...parentWithoutPort,
+            host: `${incoming.host.toUpperCase()}.`,
+        } as CreateWarehouseCredentials);
+        await refresh(f);
+        expect(saved(f)).toMatchObject({
+            host: incoming.host,
+            sshTunnelPrivateKey: 'parent-private-key',
+        });
+        expectNoParentSecrets(saved(f));
+    });
+    test('keeps the preview own saved private key', async () => {
+        const f = build({
+            ...incoming,
+            ...tunnel,
+            sshTunnelPrivateKey: 'preview-private-key',
+        } as CreateWarehouseCredentials);
+        await refresh(f);
+        expect(saved(f)).toMatchObject({
+            ...tunnel,
+            sshTunnelPrivateKey: 'preview-private-key',
+        });
+    });
+    test('keeps the preview own tunnel host and its saved key', async () => {
+        const f = build({
+            ...incoming,
+            ...tunnel,
+            sshTunnelHost: 'preview-bastion',
+            sshTunnelPrivateKey: 'preview-private-key',
+        } as CreateWarehouseCredentials);
+        await refresh(f);
+        expect(saved(f)).toMatchObject({
+            sshTunnelHost: 'preview-bastion',
+            sshTunnelPrivateKey: 'preview-private-key',
+        });
+        expectNoParentSecrets(saved(f));
+    });
+    test('gives a preview with its own tunnel host no parent key', async () => {
+        const f = build({
+            ...incoming,
+            ...tunnel,
+            sshTunnelHost: 'preview-bastion',
+        });
+        await expectUnknownKey(f);
+    });
+    test('copies nothing when the preview opts out of the tunnel', async () => {
+        const f = build({ ...incoming, useSshTunnel: false });
+        await refresh(f);
+        expect(saved(f)).toMatchObject({ useSshTunnel: false });
+        expect(saved(f)).not.toHaveProperty('sshTunnelPrivateKey');
+        expectNoParentSecrets(saved(f));
+    });
+    test('copies nothing when the parent does not use the tunnel', async () => {
+        const f = build({ ...incoming, ...tunnel });
+        f.projectModel.getWarehouseCredentialsForBinding.mockResolvedValue({
+            ...parent,
+            useSshTunnel: false,
+        } as CreateWarehouseCredentials);
+        await expectUnknownKey(f);
+    });
+    test('keeps working across consecutive credential-only refreshes', async () => {
+        const f = build(incoming);
+        await refresh(f);
+        expect(saved(f, 0)).toMatchObject({
+            sshTunnelPrivateKey: 'parent-private-key',
+        });
+        f.project.warehouseConnection = saved(
+            f,
+            0,
+        ) as CreateWarehouseCredentials;
+        await refresh(f);
+        expect(saved(f, 1)).toMatchObject({
+            ...tunnel,
+            sshTunnelPrivateKey: 'parent-private-key',
+        });
+        expectNoParentSecrets(saved(f, 1));
     });
 });

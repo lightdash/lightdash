@@ -42,8 +42,8 @@ import {
     type UpstreamFieldDiff,
     type UserAttributeValueMap,
 } from '@lightdash/common';
+import { chunk } from 'es-toolkit/compat';
 import { Knex } from 'knex';
-import { chunk } from 'lodash';
 import { validate as isValidUuid } from 'uuid';
 import type { LightdashConfig } from '../../config/parseConfig';
 import {

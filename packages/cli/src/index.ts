@@ -45,6 +45,7 @@ import {
 import { lintHandler } from './handlers/lint';
 import { listProjectsHandler } from './handlers/listProjects';
 import { login } from './handlers/login';
+import { logout } from './handlers/logout';
 import { preAggregateAuditHandler } from './handlers/preAggregateAudit';
 import { preAggregateCheckExternalHandler } from './handlers/preAggregateCheckExternal';
 import {
@@ -142,10 +143,22 @@ program
         '--non-interactive',
         'Disable all interactive prompts. Commands fail with helpful error if required input is missing.',
     )
-    .hook('preAction', (thisCommand) => {
+    .hook('preAction', (thisCommand, actionCommand) => {
         const opts = thisCommand.opts();
         if (opts.nonInteractive) {
             GlobalState.setNonInteractive(true);
+        }
+        if (
+            ['deploy', 'preview', 'start-preview'].includes(
+                actionCommand.name(),
+            ) &&
+            actionCommand.getOptionValueSource('source') === 'cli'
+        ) {
+            console.error(
+                styles.warning(
+                    "--source is deprecated and will be ignored in a future release. Lightdash now works out which dbt source a deploy belongs to from your dbt project. You only need it if the deploy is rejected because the source can't be inferred.",
+                ),
+            );
         }
     })
     .showHelpAfterError(
@@ -288,6 +301,17 @@ ${styles.bold('Examples:')}
     )
     .option('--verbose', undefined, false)
     .action(login);
+
+program
+    .command('logout')
+    .description(
+        'Logs out of the configured instance and revokes a browser login session',
+    )
+    .addHelpText(
+        'after',
+        '\nBrowser login sessions are revoked on the server. Saved API keys are removed locally; personal access tokens must be revoked in your account settings.\n',
+    )
+    .action(logout);
 
 const agentProgram = program
     .command('agent')
@@ -623,7 +647,7 @@ program
     .description('Creates a new preview project - waits for a keypress to stop')
     .option(
         '--source <name>',
-        'The dbt source to deploy, by name. Its explores use the warehouse connection of that source. Overrides `lightdash config set-source`',
+        '(deprecated) The dbt source to deploy, by name. Its explores use the warehouse connection of that source. Overrides `lightdash config set-source`',
     )
     .option(
         '--name <preview name>',
@@ -735,10 +759,6 @@ program
         '--no-warehouse-credentials',
         'Create preview without warehouse credentials. Copies credentials from upstream project.',
     )
-    .option(
-        '--organization-credentials <name>',
-        'Use organization warehouse credentials with the specified name (Enterprise Edition feature)',
-    )
     .option('--no-batched-deploy', 'Use the legacy single-request deploy')
     .option(
         '--use-batched-deploy',
@@ -774,7 +794,7 @@ program
     .description('Creates a new preview project')
     .option(
         '--source <name>',
-        'The dbt source to deploy, by name. Its explores use the warehouse connection of that source. Overrides `lightdash config set-source`',
+        '(deprecated) The dbt source to deploy, by name. Its explores use the warehouse connection of that source. Overrides `lightdash config set-source`',
     )
     .option(
         '--name [preview name]',
@@ -1454,6 +1474,11 @@ appsProgram
         '--port <port>',
         'port for the app dev server (default: Vite picks one, usually 5173)',
     )
+    .option(
+        '--show-sql',
+        'print the compiled SQL for each metric query the app runs',
+        false,
+    )
     .option('--verbose', undefined, false)
     .action(appsPreviewHandler);
 appsProgram
@@ -1495,7 +1520,7 @@ program
     .description('Compiles and deploys a Lightdash project')
     .option(
         '--source <name>',
-        'The dbt source to deploy, by name. Its explores use the warehouse connection of that source. Overrides `lightdash config set-source`',
+        '(deprecated) The dbt source to deploy, by name. Its explores use the warehouse connection of that source. Overrides `lightdash config set-source`',
     )
     .option(
         '--project <project uuid or slug>',
@@ -1588,10 +1613,6 @@ program
     .option(
         '--no-warehouse-credentials',
         'Create project without warehouse credentials. Skips dbt compile + warehouse catalog',
-    )
-    .option(
-        '--organization-credentials <name>',
-        'Use organization warehouse credentials with the specified name (Enterprise Edition feature)',
     )
     .option(
         '--disable-timestamp-conversion [true|false]',
@@ -1882,9 +1903,7 @@ program
 
 program
     .command('generate-exposures')
-    .description(
-        '[Experimental command] Generates a .yml file for Lightdash exposures',
-    )
+    .description('Generates a YAML file for Lightdash exposures')
     .addHelpText(
         'after',
         `

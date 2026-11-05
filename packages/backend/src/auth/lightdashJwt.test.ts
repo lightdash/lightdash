@@ -5,8 +5,8 @@ import {
     ForbiddenError,
     ParameterError,
 } from '@lightdash/common';
+import { merge } from 'es-toolkit/compat';
 import jwt from 'jsonwebtoken';
-import { merge } from 'lodash';
 import { lightdashConfig } from '../config/lightdashConfig';
 import Logger from '../logging/logger';
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
@@ -188,6 +188,65 @@ describe('JwtUtil', () => {
                 decodeLightdashJwt(token, encodedSecret).writeActions
                     ?.sourceSpaceUuids,
             ).toEqual([sourceSpaceUuid]);
+        });
+
+        const writeSpaceUuid = '5f2a6c1e-8b7d-4e3a-9c10-2b6f4d8e1a33';
+
+        it.each([
+            ['an empty list', []],
+            ['a non-uuid entry', ['space']],
+            ['duplicate entries', [writeSpaceUuid, writeSpaceUuid]],
+        ])(
+            'rejects signed tokens whose write spaces have %s',
+            (_label, writeSpaceUuids) => {
+                const token = encodeLightdashJwt(
+                    {
+                        ...mockJwtData,
+                        writeActions: { userUuid: 'actor', writeSpaceUuids },
+                    },
+                    encodedSecret,
+                    '1h',
+                );
+                expect(() => decodeLightdashJwt(token, encodedSecret)).toThrow(
+                    ForbiddenError,
+                );
+            },
+        );
+
+        it('rejects signed tokens that set both spaceUuid and writeSpaceUuids', () => {
+            const token = encodeLightdashJwt(
+                {
+                    ...mockJwtData,
+                    writeActions: {
+                        userUuid: 'actor',
+                        spaceUuid: writeSpaceUuid,
+                        writeSpaceUuids: [writeSpaceUuid],
+                    },
+                },
+                encodedSecret,
+                '1h',
+            );
+            expect(() => decodeLightdashJwt(token, encodedSecret)).toThrow(
+                ForbiddenError,
+            );
+        });
+
+        it('accepts signed tokens with valid write spaces', () => {
+            const token = encodeLightdashJwt(
+                {
+                    ...mockJwtData,
+                    writeActions: {
+                        userUuid: 'actor',
+                        writeSpaceUuids: [writeSpaceUuid, sourceSpaceUuid],
+                    },
+                },
+                encodedSecret,
+                '1h',
+            );
+            expect(
+                decodeLightdashJwt(token, encodedSecret).writeActions
+                    ?.writeSpaceUuids,
+            ).toEqual([writeSpaceUuid, sourceSpaceUuid]);
         });
 
         it('should decode and validate a valid JWT token', () => {
