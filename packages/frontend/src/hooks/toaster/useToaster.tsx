@@ -11,7 +11,7 @@ import {
     IconInfoCircle,
     type Icon,
 } from '@tabler/icons-react';
-import MarkdownPreview from '@uiw/react-markdown-preview';
+import MarkdownPreview from '@uiw/react-markdown-preview/nohighlight';
 import React, { useCallback, useEffect, useRef, type ReactNode } from 'react';
 import rehypeExternalLinks from 'rehype-external-links';
 import { v4 as uuid } from 'uuid';
