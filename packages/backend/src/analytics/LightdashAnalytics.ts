@@ -913,6 +913,15 @@ type ResultsCacheInvalidatedEvent = BaseTrack & {
     };
 };
 
+type ResultsCacheToggledEvent = BaseTrack & {
+    event: 'results_cache.toggled';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        enabled: boolean;
+    };
+};
+
 type ResultsCacheClearScheduleUpdatedEvent = BaseTrack & {
     event: 'results_cache.clear_schedule_updated';
     properties: {
@@ -4916,6 +4925,7 @@ type TypedEvent =
     | ResultsCacheDeleteEvent
     | ResultsCacheInvalidatedEvent
     | ResultsCacheClearScheduleUpdatedEvent
+    | ResultsCacheToggledEvent
     | ModeDashboardChartEvent
     | UpdateSavedChartEvent
     | SavedChartExploreChangedEvent

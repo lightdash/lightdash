@@ -1454,8 +1454,8 @@ export class AsyncQueryService extends ProjectService {
         reader: QueryResultReader = buildResultReader(account),
     ): Promise<CreateCacheResult> {
         if (!invalidateCache) {
-            // CommercialCacheService gates internally on the
-            // ResultsCacheEnabled feature flag (DB → env fallback).
+            // CommercialCacheService gates internally on the project's
+            // results cache setting.
             const existingCache =
                 await this.cacheService?.findCachedResultsFile(
                     projectUuid,

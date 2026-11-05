@@ -189,7 +189,10 @@ import {
     type PreviewCredentialsPush,
     type PushToPreview,
 } from '../../models/ProjectModel/ProjectModel';
-import { singleRouteProjectModelMethods } from '../../models/ProjectModel/ProjectModel.mock';
+import {
+    singleRouteProjectModelMethods,
+    withResultsCacheConfig,
+} from '../../models/ProjectModel/ProjectModel.mock';
 import { ProjectParametersModel } from '../../models/ProjectParametersModel';
 import { createDatabase } from '../../models/RefreshTokenRotation/fakeKnex.mock';
 import { RefreshTokenRotation } from '../../models/RefreshTokenRotation/RefreshTokenRotation';
@@ -536,6 +539,8 @@ const projectModel = {
     deleteContentInBatches: vi.fn(async () => undefined),
     getResultsCacheSettings: vi.fn<ProjectModel['getResultsCacheSettings']>(
         async () => ({
+            cacheEnabled: false,
+            cacheEnabledSetByInstance: false,
             cacheTtlSeconds: null,
             cacheGeneration: 0,
             lastInvalidatedAt: null,
@@ -558,7 +563,9 @@ const projectModel = {
             invalidatedAt: new Date('2026-10-29T12:00:00Z'),
         }),
     ),
-    getEffectiveResultsCacheTtlSeconds: vi.fn(async () => 86400),
+    getEffectiveResultsCacheTtlSeconds: vi.fn(
+        async (_projectUuid: string) => 86400,
+    ),
     deleteMergedManifest: vi.fn<ProjectModel['deleteMergedManifest']>(
         async () => undefined,
     ),
@@ -787,7 +794,11 @@ const getMockedProjectService = (
         lightdashConfig,
         analytics: analyticsMock,
         projectModel:
-            overrides.projectModel ?? (projectModel as unknown as ProjectModel),
+            overrides.projectModel ??
+            withResultsCacheConfig(
+                projectModel as unknown as ProjectModel,
+                lightdashConfig,
+            ),
         projectDbtSourcesModel:
             overrides.projectDbtSourcesModel ??
             ({
@@ -856,21 +867,11 @@ const getMockedProjectService = (
         featureFlagModel:
             overrides.featureFlagModel ??
             ({
-                // Mirror production behaviour: ResultsCacheEnabled resolves from
-                // the env-derived lightdashConfig.results.cacheEnabled when there
-                // is no DB row.
                 get: vi.fn(
-                    async ({ featureFlagId }: { featureFlagId: string }) => {
-                        if (
-                            featureFlagId === FeatureFlags.ResultsCacheEnabled
-                        ) {
-                            return {
-                                id: featureFlagId,
-                                enabled: lightdashConfig.results.cacheEnabled,
-                            };
-                        }
-                        return { id: featureFlagId, enabled: false };
-                    },
+                    async ({ featureFlagId }: { featureFlagId: string }) => ({
+                        id: featureFlagId,
+                        enabled: false,
+                    }),
                 ),
             } as unknown as FeatureFlagModel),
         projectParametersModel: {
@@ -979,8 +980,7 @@ describe('ProjectService', () => {
                         enabled:
                             featureFlagId === FeatureFlags.AgentIdentity
                                 ? enabled
-                                : featureFlagId ===
-                                  FeatureFlags.ResultsCacheEnabled,
+                                : false,
                     }),
                 );
                 const store = new Map<string, string>();
@@ -2311,6 +2311,7 @@ describe('ProjectService', () => {
             cron: '0 7 * * *',
             schedulerTimezone: 'UTC',
             nextRunAt: new Date('2026-01-15T07:00:00Z'),
+            cacheEnabled: true,
         };
 
         beforeEach(() => {
@@ -2367,14 +2368,31 @@ describe('ProjectService', () => {
             });
         });
 
-        test('rejects while results caching is disabled', async () => {
+        test('rejects enabling a schedule while results caching is disabled', async () => {
             await expect(
                 service.updateProjectResultsCacheClearSchedule(
                     projectAdmin,
                     projectUuid,
                     { enabled: true, cron: '0 6 * * *' },
                 ),
-            ).rejects.toThrow(ForbiddenError);
+            ).rejects.toThrow(ParameterError);
+            expect(
+                projectModel.updateResultsCacheClearSchedule,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('saves while results caching is disabled so the schedule can be turned off', async () => {
+            await service.updateProjectResultsCacheClearSchedule(
+                projectAdmin,
+                projectUuid,
+                { enabled: false, cron: '0 6 * * *' },
+            );
+            expect(
+                projectModel.updateResultsCacheClearSchedule,
+            ).toHaveBeenCalledWith(projectUuid, {
+                cron: '0 6 * * *',
+                nextRunAt: null,
+            });
         });
 
         test('keeps the cron but clears the next run when disabled', async () => {
@@ -2404,8 +2422,10 @@ describe('ProjectService', () => {
             );
         });
 
-        test('advances without clearing while the flag is off', async () => {
-            projectModel.getDueResultsCacheClears.mockResolvedValue([dueClear]);
+        test('advances without clearing while results caching is off', async () => {
+            projectModel.getDueResultsCacheClears.mockResolvedValue([
+                { ...dueClear, cacheEnabled: false },
+            ]);
             await service.clearDueResultsCaches(now);
             expect(projectModel.claimDueResultsCacheClear).toHaveBeenCalledWith(
                 projectUuid,
@@ -2448,12 +2468,153 @@ describe('ProjectService', () => {
             projectModel.updateResultsCacheSettings.mockClear();
         });
 
-        test('rejects updates while results caching is disabled', async () => {
+        const storedSettings = (cacheEnabled: boolean) => ({
+            cacheEnabled,
+            cacheEnabledSetByInstance: false,
+            cacheTtlSeconds: null,
+            cacheGeneration: 0,
+            lastInvalidatedAt: null,
+            clearCron: null,
+            clearNextRunAt: null,
+            schedulerTimezone: 'UTC',
+        });
+        const projectAdmin: SessionUser = {
+            ...user,
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'Project', action: ['update', 'manage'] },
+            ]),
+        };
+        const projectDeveloper: SessionUser = {
+            ...user,
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'Project', action: ['update'] },
+            ]),
+        };
+
+        test('lets project admins enable results caching while the env var is unset', async () => {
+            const track = vi.spyOn(analyticsMock, 'track');
+            track.mockClear();
+            projectModel.getResultsCacheSettings
+                .mockResolvedValueOnce(storedSettings(false))
+                .mockResolvedValueOnce(storedSettings(true));
+            const result = await service.updateProjectResultsCacheSettings(
+                projectAdmin,
+                projectUuid,
+                { cacheEnabled: true },
+            );
+
+            expect(
+                projectModel.updateResultsCacheSettings,
+            ).toHaveBeenCalledWith(projectUuid, { cacheEnabled: true });
+            expect(result.cacheEnabled).toBe(true);
+            expect(track).toHaveBeenCalledWith(
+                expect.objectContaining({ event: 'results_cache.toggled' }),
+            );
+        });
+
+        test('rejects project developers turning results caching on or off', async () => {
             await expect(
-                service.updateProjectResultsCacheSettings(user, projectUuid, {
-                    cacheTtlSeconds: 1800,
-                }),
+                service.updateProjectResultsCacheSettings(
+                    projectDeveloper,
+                    projectUuid,
+                    { cacheEnabled: true },
+                ),
             ).rejects.toThrow(ForbiddenError);
+            expect(
+                projectModel.updateResultsCacheSettings,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('skips the write and the toggled event when the value does not change', async () => {
+            const track = vi.spyOn(analyticsMock, 'track');
+            track.mockClear();
+            await service.updateProjectResultsCacheSettings(
+                projectDeveloper,
+                projectUuid,
+                { cacheEnabled: false },
+            );
+
+            expect(
+                projectModel.updateResultsCacheSettings,
+            ).not.toHaveBeenCalled();
+            expect(track).not.toHaveBeenCalledWith(
+                expect.objectContaining({ event: 'results_cache.toggled' }),
+            );
+        });
+
+        test('rejects a cacheEnabled that is not a boolean', async () => {
+            await expect(
+                service.updateProjectResultsCacheSettings(
+                    projectAdmin,
+                    projectUuid,
+                    { cacheEnabled: null as unknown as boolean },
+                ),
+            ).rejects.toThrow(ParameterError);
+            expect(
+                projectModel.updateResultsCacheSettings,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('updates the TTL while the env var forces caching off', async () => {
+            const disabledService = getMockedProjectService({
+                ...lightdashConfigWithGoogleOAuthMock,
+                results: {
+                    ...lightdashConfigWithGoogleOAuthMock.results,
+                    cacheEnabled: false,
+                },
+            });
+            await disabledService.updateProjectResultsCacheSettings(
+                user,
+                projectUuid,
+                { cacheTtlSeconds: 1800 },
+            );
+
+            expect(
+                projectModel.updateResultsCacheSettings,
+            ).toHaveBeenCalledWith(projectUuid, { cacheTtlSeconds: 1800 });
+        });
+
+        test('rejects enabling results caching while the env var forces it off', async () => {
+            const disabledService = getMockedProjectService({
+                ...lightdashConfigWithGoogleOAuthMock,
+                results: {
+                    ...lightdashConfigWithGoogleOAuthMock.results,
+                    cacheEnabled: false,
+                },
+            });
+            await expect(
+                disabledService.updateProjectResultsCacheSettings(
+                    user,
+                    projectUuid,
+                    { cacheEnabled: true },
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(
+                projectModel.updateResultsCacheSettings,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('rejects disabling results caching while the env var forces it on', async () => {
+            await expect(
+                cachingService.updateProjectResultsCacheSettings(
+                    user,
+                    projectUuid,
+                    { cacheEnabled: false },
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(
+                projectModel.updateResultsCacheSettings,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('rejects an update with no settings', async () => {
+            await expect(
+                service.updateProjectResultsCacheSettings(
+                    user,
+                    projectUuid,
+                    {},
+                ),
+            ).rejects.toThrow(ParameterError);
             expect(
                 projectModel.updateResultsCacheSettings,
             ).not.toHaveBeenCalled();
@@ -2505,14 +2666,12 @@ describe('ProjectService', () => {
         });
 
         test('persists a TTL within bounds', async () => {
-            projectModel.getResultsCacheSettings.mockResolvedValueOnce({
-                cacheTtlSeconds: 1800,
-                cacheGeneration: 0,
-                lastInvalidatedAt: null,
-                clearCron: null,
-                clearNextRunAt: null,
-                schedulerTimezone: 'UTC',
-            });
+            projectModel.getResultsCacheSettings
+                .mockResolvedValueOnce(storedSettings(false))
+                .mockResolvedValueOnce({
+                    ...storedSettings(false),
+                    cacheTtlSeconds: 1800,
+                });
             const result =
                 await cachingService.updateProjectResultsCacheSettings(
                     user,
@@ -2525,6 +2684,8 @@ describe('ProjectService', () => {
             ).toHaveBeenCalledWith(projectUuid, { cacheTtlSeconds: 1800 });
             expect(result).toEqual({
                 projectUuid,
+                cacheEnabled: true,
+                cacheEnabledSetByInstance: true,
                 cacheTtlSeconds: 1800,
                 instanceDefaultTtlSeconds:
                     lightdashConfigWithGoogleOAuthMock.results
@@ -2548,6 +2709,8 @@ describe('ProjectService', () => {
             ).toHaveBeenCalledWith(projectUuid, { cacheTtlSeconds: null });
             expect(result).toEqual({
                 projectUuid,
+                cacheEnabled: true,
+                cacheEnabledSetByInstance: true,
                 cacheTtlSeconds: null,
                 instanceDefaultTtlSeconds:
                     lightdashConfigWithGoogleOAuthMock.results
@@ -2593,6 +2756,46 @@ describe('ProjectService', () => {
                 ),
             ).rejects.toThrow(ForbiddenError);
             expect(projectModel.invalidateResultsCache).not.toHaveBeenCalled();
+        });
+
+        test('rejects invalidation when the project disabled results caching', async () => {
+            projectModel.getResultsCacheSettings.mockResolvedValueOnce({
+                cacheEnabled: false,
+                cacheEnabledSetByInstance: false,
+                cacheTtlSeconds: null,
+                cacheGeneration: 0,
+                lastInvalidatedAt: null,
+                clearCron: null,
+                clearNextRunAt: null,
+                schedulerTimezone: 'UTC',
+            });
+            await expect(
+                service.invalidateProjectResultsCache(
+                    projectAdmin,
+                    projectUuid,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(projectModel.invalidateResultsCache).not.toHaveBeenCalled();
+        });
+
+        test('allows invalidation when the project enabled results caching', async () => {
+            projectModel.getResultsCacheSettings.mockResolvedValueOnce({
+                cacheEnabled: true,
+                cacheEnabledSetByInstance: false,
+                cacheTtlSeconds: null,
+                cacheGeneration: 0,
+                lastInvalidatedAt: null,
+                clearCron: null,
+                clearNextRunAt: null,
+                schedulerTimezone: 'UTC',
+            });
+            await service.invalidateProjectResultsCache(
+                projectAdmin,
+                projectUuid,
+            );
+            expect(projectModel.invalidateResultsCache).toHaveBeenCalledWith(
+                projectUuid,
+            );
         });
 
         test('starts a new cache generation for the project', async () => {
