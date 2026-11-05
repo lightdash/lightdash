@@ -394,9 +394,20 @@ export type ApiClarifyAppRequest = {
     fileIds?: string[];
 };
 
-export type ApiClarifyAppResponse = ApiSuccess<{
+/** A pre-build question with the answers the user is most likely to give. */
+export type AppClarifyQuestion = {
+    question: string;
+    /** Short likely answers, most likely first; empty when only free text fits. */
+    options: string[];
+};
+
+export type AppClarifyResult = {
+    /** @deprecated Read `items`; kept for clients that predate suggested answers. */
     questions: string[];
-}>;
+    items: AppClarifyQuestion[];
+};
+
+export type ApiClarifyAppResponse = ApiSuccess<AppClarifyResult>;
 
 export type ApiPreviewTokenResponse = ApiSuccess<{
     token: string;

@@ -34,6 +34,7 @@ import {
     getVersionNarration,
     hasVersionNarration,
 } from '../utils/versionNarration';
+import { splitVersionPrompt } from '../utils/versionTitle';
 import classes from './AppVersionHistoryPanel.module.css';
 import AppVersionNarration from './AppVersionNarration';
 import AppVersionThumbnail, {
@@ -66,8 +67,8 @@ export type AppVersionHistoryPanelProps = {
     fetchEarlier: () => void;
     /** Stands in for an empty prompt; null renders the prompt empty. */
     emptyPromptLabel: string | null;
-    /** Time shown on versions other than the current one. */
-    olderVersionTime: 'relative' | 'absolute';
+    /** How every version row shows its time. */
+    versionTime: 'relative' | 'absolute';
     /** Rail with a dot per version beside the rows; false stacks the rows alone. */
     showTimeline?: boolean;
     /** Host-specific content under an entry's prompt. */
@@ -166,7 +167,11 @@ const VersionBuildDetails: FC<{ version: ApiAppVersionSummary }> = ({
             ariaLabel={`Build details for v${version.version}`}
             summary={null}
         >
-            <AppVersionNarration narration={narration} isLive={false} />
+            <AppVersionNarration
+                narration={narration}
+                isLive={false}
+                summary={null}
+            />
         </VersionHistoryDisclosure>
     );
 };
@@ -199,7 +204,7 @@ const AppVersionHistoryPanel: FC<AppVersionHistoryPanelProps> = ({
     isFetchingEarlier,
     fetchEarlier,
     emptyPromptLabel,
-    olderVersionTime,
+    versionTime,
     showTimeline = true,
     renderEntryExtras,
     currentThreadNumber,
@@ -223,7 +228,10 @@ const AppVersionHistoryPanel: FC<AppVersionHistoryPanelProps> = ({
         const label = `v${version.version}`;
         const isUpgrade = version.prompt === APP_UPGRADE_PROMPT_LABEL;
         const promptText = version.prompt || emptyPromptLabel;
-        const showRelativeTime = isCurrent || olderVersionTime === 'relative';
+        const { headline, rest: promptDetail } = splitVersionPrompt(
+            version.prompt,
+        );
+        const showRelativeTime = versionTime === 'relative';
         const tone: Tone = isBuilding
             ? 'building'
             : isFailed
@@ -248,6 +256,16 @@ const AppVersionHistoryPanel: FC<AppVersionHistoryPanelProps> = ({
                         tone={tone}
                         tooltip={failureReason}
                     />
+                    {isCurrent && (
+                        <Text
+                            component="span"
+                            fz="xs"
+                            fw={500}
+                            className={classes.currentLabel}
+                        >
+                            Current
+                        </Text>
+                    )}
                     {showRelativeTime ? (
                         <RelativeTime at={new Date(version.createdAt)} />
                     ) : (
@@ -262,7 +280,6 @@ const AppVersionHistoryPanel: FC<AppVersionHistoryPanelProps> = ({
                                 <Button
                                     size="compact-xs"
                                     variant="subtle"
-                                    color="gray"
                                     className={classes.action}
                                     leftSection={
                                         <MantineIcon
@@ -318,8 +335,23 @@ const AppVersionHistoryPanel: FC<AppVersionHistoryPanelProps> = ({
                     )}
                 </Group>
                 {promptText && (
-                    <Text fz="sm" className={classes.prompt}>
-                        {promptText}
+                    <Text
+                        fz="sm"
+                        fw={600}
+                        lineClamp={2}
+                        className={classes.title}
+                    >
+                        {isUpgrade || headline === null ? promptText : headline}
+                    </Text>
+                )}
+                {!isUpgrade && promptDetail !== null && (
+                    <Text
+                        fz="xs"
+                        lineClamp={2}
+                        title={version.prompt}
+                        className={classes.prompt}
+                    >
+                        {promptDetail}
                     </Text>
                 )}
                 <VersionAuthor user={version.createdByUser} />

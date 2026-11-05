@@ -33,7 +33,7 @@ const defaultProps = {
     isFetchingEarlier: false,
     fetchEarlier: vi.fn(),
     emptyPromptLabel: null,
-    olderVersionTime: 'relative' as const,
+    versionTime: 'relative' as const,
     currentThreadNumber: null as number | null,
     thumbnailSource: null,
 };
