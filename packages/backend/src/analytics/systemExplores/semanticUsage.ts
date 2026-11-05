@@ -33,9 +33,8 @@ export const semanticUsageColumns: CompactedStreamColumn[] = [
     { name: 'cache_hit', type: 'BOOLEAN' },
 ];
 
-// Rank only duplicate identities so unique events stream their wide JSON.
-// Inline the key lookup so joined charts can prune unused lineage columns.
-// Null-field rows retain unavailable lineage; distinct metrics stay non-additive.
+// Rank duplicates inline so joins can prune wide JSON; distinct metrics stay non-additive.
+// Side-by-side unnest pads only empty/null lineage to one row without parsing JSON twice.
 export const semanticUsageSql = `(WITH duplicate_query_ids AS NOT MATERIALIZED (
     SELECT org_id, query_id FROM query_events
     GROUP BY org_id, query_id HAVING COUNT(*) > 1
@@ -71,10 +70,11 @@ export const semanticUsageSql = `(WITH duplicate_query_ids AS NOT MATERIALIZED (
         q.field_reference.definitionHash AS definition_hash,
         q.field_reference.role AS role
     FROM (
-        SELECT *, unnest(COALESCE(NULLIF(TRY(from_json(semantic_field_references,
+        SELECT *, unnest(TRY(from_json(semantic_field_references,
             '[{"fieldId":"VARCHAR","fieldName":"VARCHAR","fieldLabel":"VARCHAR",
               "tableName":"VARCHAR","fieldKind":"VARCHAR","fieldOrigin":"VARCHAR",
-              "definitionHash":"VARCHAR","role":"VARCHAR"}]')), []), [NULL])) AS field_reference
+              "definitionHash":"VARCHAR","role":"VARCHAR"}]'))) AS field_reference,
+            unnest([NULL]) AS retain_query
         FROM queries
     ) q
 )
