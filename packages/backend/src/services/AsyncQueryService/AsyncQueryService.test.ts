@@ -219,6 +219,7 @@ import {
     getResultEntitlementFingerprint,
     getSqlResultEntitlementFingerprint,
     getWarehouseIdentityFingerprint,
+    matchesResultEntitlementFingerprint,
     type ResultEntitlementScope,
 } from '../../utils/queryResultProducer';
 import {
@@ -1961,6 +1962,83 @@ describe('AsyncQueryService', () => {
                     columns: [],
                 }).rows,
             ).toEqual([{ [channel]: 'Direct', [sessions]: 5 }]);
+        });
+
+        test('passes the live explore so its results are fingerprinted like the read check', async () => {
+            const { execute, submitApiQuery } = setup();
+
+            await execute();
+
+            const [[submitted]] = submitApiQuery.mock.calls as AnyType;
+            expect(submitted.history.explore).toBe(apiExplore);
+        });
+
+        test('records a result fingerprint the result read check accepts', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                queryHistoryModel: {
+                    create: vi.fn(async () => ({ queryUuid: 'live-uuid' })),
+                    findMostRecentByCacheKey: vi.fn(async () => null),
+                    recordResultProducer: vi.fn(),
+                    update: vi.fn(),
+                } as unknown as QueryHistoryModel,
+                projectModel: {
+                    getExploreFromCache: vi.fn(async () => apiExplore),
+                } as unknown as ProjectModel,
+                projectParametersModel: {
+                    find: vi.fn(async () => []),
+                } as never,
+            } as never);
+            const controls = {
+                userAttributes: {},
+                intrinsicUserAttributes: {},
+            };
+            vi.spyOn(service, 'getUserAttributes').mockResolvedValue(controls);
+            (service as AnyType).isResultIdentityEnabled = vi.fn(
+                async () => true,
+            );
+            (service as AnyType).runApiQuery = vi.fn(async () => undefined);
+            const requestParameters = { query: apiMetricQuery };
+
+            await (service as AnyType).submitApiQuery({
+                account: sessionAccount,
+                projectUuid,
+                organizationUuid: 'org-uuid',
+                connector: { describe: () => ({ connector: 'ga4' }) },
+                payload: { kind: 'query', query: '{}' },
+                limit: 10,
+                cacheKeySql: '{}',
+                context: QueryExecutionContext.AI,
+                querySurface: undefined,
+                invalidateCache: true,
+                history: {
+                    fields: getItemMap(apiExplore),
+                    requestParameters,
+                    metricQuery: apiMetricQuery,
+                    explore: apiExplore,
+                },
+                toResult: vi.fn(),
+            });
+
+            const [[, , , producer]] = vi.mocked(
+                service.queryHistoryModel.recordResultProducer,
+            ).mock.calls as AnyType;
+            // What the result read check computes for this node.
+            const readForms = await (
+                service as AnyType
+            ).getCurrentResultEntitlementFingerprintForms({
+                projectUuid,
+                parameters: requestParameters,
+                controls,
+                explore: apiExplore,
+                metricQuery: apiMetricQuery,
+            });
+            expect(producer.entitlementFingerprint).not.toBeNull();
+            expect(
+                matchesResultEntitlementFingerprint(
+                    producer.entitlementFingerprint,
+                    readForms,
+                ),
+            ).toBe(true);
         });
 
         test('refuses a pivot before calling the integration', async () => {

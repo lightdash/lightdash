@@ -12004,6 +12004,7 @@ export class AsyncQueryService extends ProjectService {
                     tableCalculations: [],
                     additionalMetrics: [],
                 },
+                explore: null,
             },
             toResult: (result) => ({
                 rows: result.rows,
@@ -12103,7 +12104,7 @@ export class AsyncQueryService extends ProjectService {
                 requestParameters.invalidateCache ??
                 args.invalidateCache ??
                 false,
-            history: { fields, requestParameters, metricQuery },
+            history: { fields, requestParameters, metricQuery, explore },
             toResult: (result) =>
                 toApiSourceResult({ compiled, rows: result.rows, fields }),
         });
@@ -12150,6 +12151,8 @@ export class AsyncQueryService extends ProjectService {
             fields: ItemsMap | null;
             requestParameters: ExecuteAsyncQueryRequestParams;
             metricQuery: MetricQuery;
+            /** The live explore a metric query reads; null for a raw api query. */
+            explore: Explore | null;
         };
         toResult: ApiResultShaper;
     }): Promise<{
@@ -12160,14 +12163,17 @@ export class AsyncQueryService extends ProjectService {
     }> {
         assertIsAccountWithOrg(account);
         const identityEnabled = await this.isResultIdentityEnabled(account);
+        // Same inputs as the result read check, which fingerprints a live
+        // explore's results with the explore and its scope.
         const resultEntitlementFingerprint = identityEnabled
-            ? getQueryResultEntitlementFingerprint({
+            ? await this.getCurrentResultEntitlementFingerprint({
+                  projectUuid,
                   parameters: getQueryResultRequestParameters(
                       history.requestParameters,
                       {},
                   ),
                   controls: await this.getUserAttributes({ account }),
-                  explore: null,
+                  explore: history.explore,
                   metricQuery: history.metricQuery,
               })
             : null;
