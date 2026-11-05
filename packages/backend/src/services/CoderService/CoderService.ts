@@ -271,6 +271,19 @@ type CoderServiceArguments = {
         WarehouseConnectionModel,
         'getProject' | 'list'
     >;
+    // Lazy accessor (not the instance): AppGenerateService depends on
+    // CoderService, so resolving it eagerly here would cycle. Only wired when
+    // EE license is active; core builds resolve undefined and data-app slug
+    // renames stay unsupported.
+    getAppGenerateService?: () => DataAppSlugRenamer | undefined;
+};
+
+type DataAppSlugRenamer = {
+    renameAppSlug(
+        user: SessionUser,
+        projectUuid: string,
+        args: { from: string; to: string },
+    ): Promise<void>;
 };
 
 type SqlChartsAsCodeResult = {
@@ -366,6 +379,10 @@ export class CoderService extends BaseService {
 
     private readonly agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
 
+    private readonly getAppGenerateService?: () =>
+        | DataAppSlugRenamer
+        | undefined;
+
     constructor({
         agentActionLogModel,
         lightdashConfig,
@@ -392,6 +409,7 @@ export class CoderService extends BaseService {
         userModel,
         directAccessService,
         warehouseConnectionModel,
+        getAppGenerateService,
     }: CoderServiceArguments) {
         super();
         this.agentActionLogModel = agentActionLogModel;
@@ -420,6 +438,7 @@ export class CoderService extends BaseService {
         this.organizationMemberProfileModel = organizationMemberProfileModel;
         this.userModel = userModel;
         this.warehouseConnectionModel = warehouseConnectionModel;
+        this.getAppGenerateService = getAppGenerateService;
         this.virtualViewCoder = new VirtualViewCoder({
             projectModel,
             projectService,
@@ -4718,10 +4737,15 @@ export class CoderService extends BaseService {
         if (!from) {
             throw new ParameterError('The source slug must not be empty');
         }
+        // Data-app slugs follow the server's own shape check
+        // (isValidDataAppSlug, applied in AppGenerateService.renameAppSlug),
+        // which allows more than generateSlug emits — e.g. consecutive
+        // hyphens and up to 255 characters.
         if (
-            !to ||
-            to.length > MAX_CONTENT_SLUG_LENGTH ||
-            generateSlug(to) !== to
+            resourceType !== ContentType.DATA_APP &&
+            (!to ||
+                to.length > MAX_CONTENT_SLUG_LENGTH ||
+                generateSlug(to) !== to)
         ) {
             throw new ParameterError(
                 `The target slug must contain between 1 and ${MAX_CONTENT_SLUG_LENGTH} lowercase letters, numbers, or hyphen-separated words`,
@@ -4744,7 +4768,10 @@ export class CoderService extends BaseService {
                 const { inheritsFromOrgOrProject, access } =
                     await this.spacePermissionService.resolveAccess(
                         user.userUuid,
-                        { type: 'space', spaceUuid: chart.spaceUuid },
+                        {
+                            type: 'space',
+                            spaceUuid: chart.spaceUuid,
+                        },
                     );
                 if (
                     auditedAbility.cannot(
@@ -4793,8 +4820,22 @@ export class CoderService extends BaseService {
                 });
                 return;
             }
+            case ContentType.DATA_APP: {
+                // Permission checks (manage on the app, registry guard) live
+                // in AppGenerateService.renameAppSlug.
+                const appGenerateService = this.getAppGenerateService?.();
+                if (!appGenerateService) {
+                    throw new NotImplementedError(
+                        'Data apps are not available on this instance',
+                    );
+                }
+                await appGenerateService.renameAppSlug(user, projectUuid, {
+                    from,
+                    to,
+                });
+                return;
+            }
             case ContentType.SPACE:
-            case ContentType.DATA_APP:
             case ContentType.DOCUMENT:
                 throw new NotImplementedError(
                     `Slug renaming is not supported for resource type "${resourceType}" yet`,
