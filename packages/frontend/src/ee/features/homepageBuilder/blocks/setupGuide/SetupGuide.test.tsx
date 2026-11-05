@@ -100,6 +100,7 @@ const fresh: SetupGuideFacts = {
     skippedRows: [],
     semanticModelCount: 0,
     chartCount: 0,
+    chartTypeNames: [],
     activeRun: null,
     completedRun: null,
     semanticStudioUrl: null,

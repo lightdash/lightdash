@@ -60,6 +60,7 @@ import { useLiveSourceSignInResult } from '../components/Settings/LiveDataSource
 import { useWatchActiveAgentOnboardingRun } from '../ee/features/agentOnboarding/hooks/useWatchActiveAgentOnboardingRun';
 import { OnboardingDoneStep } from '../ee/features/agentOnboarding/OnboardingDoneStep';
 import { OnboardingRunActivity } from '../ee/features/agentOnboarding/OnboardingRunActivity';
+import { useInstallStarterChartTypes } from '../features/chartTypes/hooks/useInstallStarterChartTypes';
 import { useCreateExternalConnection } from '../features/externalConnections/hooks/useCreateExternalConnection';
 import { useExternalConnections } from '../features/externalConnections/hooks/useExternalConnections';
 import { useLiveSourceFields } from '../features/externalConnections/hooks/useLiveSourceFields';
@@ -525,6 +526,8 @@ const OnboardingToolsContent: FC<{
     );
     const { isPickingGoogleSource, closeGoogleSourcePicker } =
         useLiveSourceSignInResult();
+    // Runs while the person finishes the tools, team and done steps
+    useInstallStarterChartTypes(projectUuid);
 
     const projectSubject = () => ({
         organizationUuid: user.organizationUuid,

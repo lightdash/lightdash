@@ -784,6 +784,16 @@ export const APP_STATE_PROMPT_BLOCK =
 // Prevents trivial sandbox exhaustion via repeated POST /code calls.
 const MAX_CONCURRENT_APP_BUILDS_PER_PROJECT = 5;
 
+// Library chart types a new project starts with; ones that need data a new project rarely has are left out
+const STARTER_CHART_TYPE_SLUGS: readonly string[] = [
+    'big-number-with-sparkline-trend',
+    'customizable-cartesian-chart',
+    'heatmap',
+    'sortable-pivot-table',
+    'radar-chart',
+    'boxplot',
+];
+
 type ImportAppCodeResult = {
     appUuid: string;
     version: number;
@@ -10662,6 +10672,61 @@ export class AppGenerateService extends BaseService {
             entry,
             options,
         );
+    }
+
+    /**
+     * Installs the starter chart types a new project gets during onboarding.
+     * Skips what is already installed, so repeat calls are cheap; one failed
+     * install doesn't stop the rest. Returns the slugs it installed.
+     */
+    async installStarterChartTypes(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<{ installedSlugs: string[] }> {
+        const { enabled } = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.ChartTypeRegistry,
+        });
+        if (!enabled || !this.chartRegistryClient.isEnabled()) {
+            return { installedSlugs: [] };
+        }
+        const { organizationUuid } = await this.assertDataAppAbility(
+            user,
+            'create',
+            projectUuid,
+            'Insufficient permissions to install chart types',
+        );
+        const [index, installed] = await Promise.all([
+            this.chartRegistryClient.getIndex(),
+            this.appModel.listRegistryInstalledApps(projectUuid),
+        ]);
+        const installedSlugs = new Set(installed.map((a) => a.registry_slug));
+        const entries = index.charts.filter(
+            (entry) =>
+                STARTER_CHART_TYPE_SLUGS.includes(entry.slug) &&
+                !installedSlugs.has(entry.slug) &&
+                !AppGenerateService.isRegistryEntryIncompatible(entry),
+        );
+        const newSlugs: string[] = [];
+        // Sequential: each install downloads and copies a bundle
+        for (const entry of entries) {
+            try {
+                // eslint-disable-next-line no-await-in-loop
+                await this.installRegistryEntry(
+                    user,
+                    projectUuid,
+                    organizationUuid,
+                    entry,
+                    {},
+                );
+                newSlugs.push(entry.slug);
+            } catch (e) {
+                this.logger.warn(
+                    `Starter chart type "${entry.slug}" failed to install in project ${projectUuid}: ${getErrorMessage(e)}`,
+                );
+            }
+        }
+        return { installedSlugs: newSlugs };
     }
 
     /** Digest mismatches keep their own error; transport failures get a library-facing one. */

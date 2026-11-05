@@ -605,6 +605,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'AppGenerateController.installRegistryChartType': [
         AgentCapability.ContentWrite,
     ],
+    'AppGenerateController.installStarterChartTypes': [
+        AgentCapability.ContentWrite,
+    ],
     'AppGenerateController.iterateApp': [AgentCapability.ContentWrite],
     'AppGenerateController.listDataAppVisualizations': [
         AgentCapability.ReadDiscover,

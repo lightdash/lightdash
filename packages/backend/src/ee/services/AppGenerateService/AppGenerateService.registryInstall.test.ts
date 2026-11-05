@@ -895,6 +895,71 @@ describe('AppGenerateService.installRegistryChartType', () => {
     });
 });
 
+describe('AppGenerateService.installStarterChartTypes', () => {
+    it('installs starter slugs not yet installed and keeps going past a failed one', async () => {
+        const sourceTar = await buildTar([
+            { name: 'src/App.tsx', content: 'x' },
+        ]);
+        const distTar = await buildTar([
+            { name: 'dist/index.html', content: '<html/>' },
+        ]);
+        const heatmap = makeEntry({ slug: 'heatmap', name: 'Heatmap' });
+        const boxplot = makeEntry({ slug: 'boxplot', name: 'Boxplot' });
+        const radar = makeEntry({ slug: 'radar-chart', name: 'Radar' });
+        const createWithVersion = vi.fn().mockResolvedValue(undefined);
+        const svc = buildService({
+            appModel: {
+                listRegistryInstalledApps: vi
+                    .fn()
+                    .mockResolvedValue([{ registry_slug: 'radar-chart' }]),
+                createWithVersion,
+            },
+            chartRegistryClient: {
+                getIndex: vi
+                    .fn()
+                    .mockResolvedValue(
+                        makeIndex([boxplot, heatmap, radar, SANKEY_ENTRY]),
+                    ),
+                downloadArtifact: vi
+                    .fn()
+                    .mockImplementation(
+                        (entry: ChartRegistryEntry, kind: 'source' | 'dist') =>
+                            entry.slug === 'boxplot'
+                                ? Promise.reject(new Error('offline'))
+                                : Promise.resolve(
+                                      kind === 'source' ? sourceTar : distTar,
+                                  ),
+                    ),
+            },
+            s3ClientOverride: makeFakeS3(),
+        });
+
+        const result = await svc.installStarterChartTypes(
+            fakeUser,
+            PROJECT_UUID,
+        );
+
+        expect(result.installedSlugs).toEqual(['heatmap']);
+        expect(createWithVersion).toHaveBeenCalledTimes(1);
+    });
+
+    it('installs nothing while the chart type library is off', async () => {
+        const getIndex = vi.fn();
+        const svc = buildService({
+            chartRegistryClient: { getIndex },
+            featureFlags: { [FeatureFlags.ChartTypeRegistry]: false },
+        });
+
+        const result = await svc.installStarterChartTypes(
+            fakeUser,
+            PROJECT_UUID,
+        );
+
+        expect(result.installedSlugs).toEqual([]);
+        expect(getIndex).not.toHaveBeenCalled();
+    });
+});
+
 describe('reinstall revives a soft-deleted install', () => {
     it('revives at the current registry version without downloading', async () => {
         const restore = vi.fn().mockResolvedValue(undefined);
