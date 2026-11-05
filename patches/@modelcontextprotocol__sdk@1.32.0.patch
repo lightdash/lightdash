@@ -1,8 +1,8 @@
 diff --git a/dist/cjs/client/auth.js b/dist/cjs/client/auth.js
-index 09eadc8264c9fcb249f5b95792f381b08b7afe90..1d439ea990e07b4b21bd4eb8988162018f6c1500 100644
+index 4c87a15f58e385da47145658ea1d82f5d4f82285..bf9b55f10a511bc7f300ca099a0b735fea02c704 100644
 --- a/dist/cjs/client/auth.js
 +++ b/dist/cjs/client/auth.js
-@@ -575,8 +575,9 @@ async function fetchWithCorsRetry(url, headers, fetchFn = fetch) {
+@@ -577,8 +577,9 @@ async function fetchWithCorsRetry(url, headers, fetchFn = fetch) {
   * Constructs the well-known path for auth-related metadata discovery
   */
  function buildWellKnownPath(wellKnownPrefix, pathname = '', options = {}) {
@@ -14,7 +14,7 @@ index 09eadc8264c9fcb249f5b95792f381b08b7afe90..1d439ea990e07b4b21bd4eb898816201
          pathname = pathname.slice(0, -1);
      }
      return options.prependPathname ? `${pathname}/.well-known/${wellKnownPrefix}` : `/.well-known/${wellKnownPrefix}${pathname}`;
-@@ -608,11 +609,25 @@ async function discoverMetadataWithFallback(serverUrl, wellKnownType, fetchFn, o
+@@ -610,11 +611,25 @@ async function discoverMetadataWithFallback(serverUrl, wellKnownType, fetchFn, o
      }
      else {
          // Try path-aware discovery first
@@ -59,10 +59,10 @@ index f2fe617344051e0b7a5ff4543af4bf435523092d..e9a78e027e590822151d16f60355b54e
      // Ensure both paths end with / for proper comparison
      // This ensures that if we have paths like "/api" and "/api/users",
 diff --git a/dist/esm/client/auth.js b/dist/esm/client/auth.js
-index c2aba1357cc03838102d49a124d54c07cab53ddc..537f8e4bde9c5fdb722d8e64c5e112e0d42ee2c5 100644
+index 9b184c011ffa092078a7ed951be21a2bd99d5f89..49289cdcf8669e632ebccaaaded9e2d3dbf5a024 100644
 --- a/dist/esm/client/auth.js
 +++ b/dist/esm/client/auth.js
-@@ -550,8 +550,9 @@ async function fetchWithCorsRetry(url, headers, fetchFn = fetch) {
+@@ -552,8 +552,9 @@ async function fetchWithCorsRetry(url, headers, fetchFn = fetch) {
   * Constructs the well-known path for auth-related metadata discovery
   */
  function buildWellKnownPath(wellKnownPrefix, pathname = '', options = {}) {
@@ -74,7 +74,7 @@ index c2aba1357cc03838102d49a124d54c07cab53ddc..537f8e4bde9c5fdb722d8e64c5e112e0
          pathname = pathname.slice(0, -1);
      }
      return options.prependPathname ? `${pathname}/.well-known/${wellKnownPrefix}` : `/.well-known/${wellKnownPrefix}${pathname}`;
-@@ -583,11 +584,25 @@ async function discoverMetadataWithFallback(serverUrl, wellKnownType, fetchFn, o
+@@ -585,11 +586,25 @@ async function discoverMetadataWithFallback(serverUrl, wellKnownType, fetchFn, o
      }
      else {
          // Try path-aware discovery first
