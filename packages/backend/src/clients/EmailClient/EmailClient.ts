@@ -22,9 +22,7 @@ import Handlebars from 'handlebars';
 import { marked } from 'marked';
 import * as nodemailer from 'nodemailer';
 import Mail from 'nodemailer/lib/mailer';
-import SMTPConnection, {
-    AuthenticationType,
-} from 'nodemailer/lib/smtp-connection';
+import SMTPConnection from 'nodemailer/lib/smtp-connection';
 import SMTPPool from 'nodemailer/lib/smtp-pool';
 import path from 'path';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -155,7 +153,7 @@ export default class EmailClient {
 
         Logger.debug(`Create email transporter`);
 
-        let auth: AuthenticationType | undefined;
+        let auth: SMTPPool.Options['auth'];
 
         if (this.lightdashConfig.smtp.useAuth) {
             if (this.lightdashConfig.smtp.auth.accessToken) {
