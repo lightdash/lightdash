@@ -331,7 +331,7 @@ describe('ChartTypeLibrarySection', () => {
 
         expect(
             screen.getByText(
-                'These chart types are available to add to your instance. Once installed, they can be used by anyone building charts in your organization.',
+                /anyone in this project can pick it in the explorer/,
             ),
         ).toBeInTheDocument();
         expect(
@@ -370,7 +370,9 @@ describe('ChartTypeLibrarySection', () => {
         // Installed chart types — upgradable ones included — are hidden from
         // the library; they live in the installed tab.
         expect(screen.getByText('(2)')).toBeInTheDocument();
-        expect(screen.getAllByText('Built by Lightdash')).toHaveLength(2);
+        expect(
+            screen.getAllByRole('img', { name: 'Built by Lightdash' }),
+        ).toHaveLength(2);
 
         expect(screen.getByText('Not installed chart')).toBeInTheDocument();
         expect(screen.queryByText('Installed chart')).not.toBeInTheDocument();
@@ -522,7 +524,7 @@ describe('ChartTypeLibrarySection', () => {
 
         expect(
             screen.getByText(
-                'Every chart type from the library is installed — find them in your installed chart types.',
+                "You've installed every chart type in the library. They're all under Installed.",
             ),
         ).toBeInTheDocument();
         expect(screen.getByText('(0)')).toBeInTheDocument();

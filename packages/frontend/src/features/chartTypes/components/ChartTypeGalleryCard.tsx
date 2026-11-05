@@ -72,8 +72,7 @@ const ChartTypeGalleryCard: FC<Props> = ({
             <PolymorphicPaperButton
                 component="div"
                 withBorder
-                radius="md"
-                shadow="subtle"
+                radius="lg"
                 className={classes.card}
                 onClick={onClick}
             >
@@ -84,7 +83,7 @@ const ChartTypeGalleryCard: FC<Props> = ({
                         icon={dataAppViz.icon}
                     />
                 </Box>
-                <Stack gap="xs" p="sm">
+                <Stack gap="xs" px="xs" pt="sm" pb="xs">
                     <Group gap="xs" wrap="nowrap" justify="space-between">
                         <Group gap="xs" wrap="nowrap" miw={0}>
                             <MantineIcon

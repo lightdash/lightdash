@@ -64,8 +64,7 @@ const ChartTypeLibraryCard: FC<Props> = ({ item, onClick }) => {
             component="button"
             type="button"
             withBorder
-            radius="md"
-            shadow="subtle"
+            radius="lg"
             className={classes.card}
             onClick={onClick}
         >
@@ -81,7 +80,7 @@ const ChartTypeLibraryCard: FC<Props> = ({ item, onClick }) => {
                     placeholder
                 )}
             </Box>
-            <Stack gap="xs" p="sm">
+            <Stack gap="xs" px="xs" pt="sm" pb="xs">
                 <Group gap="xs" wrap="nowrap" justify="space-between">
                     <Text fz={13} fw={600} truncate="end">
                         {item.name}

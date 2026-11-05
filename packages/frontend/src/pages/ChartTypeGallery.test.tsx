@@ -434,7 +434,7 @@ describe('ChartTypeGallery', () => {
         });
     });
 
-    it('lists the custom chart types and opens the detail modal', () => {
+    it('lists the custom chart types and opens the detail modal', async () => {
         setData([
             makeDataAppViz({}),
             makeDataAppViz({ dataAppVizUuid: 'viz-2', name: 'Bar race' }),
@@ -442,9 +442,13 @@ describe('ChartTypeGallery', () => {
         renderPage();
 
         expect(screen.getByText('Bar race')).toBeInTheDocument();
-        expect(screen.getByText('Chart Studio')).toBeInTheDocument();
+        expect(
+            screen.getByRole('heading', { name: 'Chart Studio' }),
+        ).toBeInTheDocument();
         expect(document.title).toContain('Chart Studio');
-        expect(screen.getByText('(2)')).toBeInTheDocument();
+        expect(
+            await screen.findByRole('tab', { name: 'Installed (2)' }),
+        ).toBeInTheDocument();
 
         fireEvent.click(screen.getByText('Radial gauge'));
 
@@ -466,10 +470,10 @@ describe('ChartTypeGallery', () => {
         renderPage();
 
         const chartTypesTab = await screen.findByRole('tab', {
-            name: 'Installed chart types (1)',
+            name: 'Installed (1)',
         });
         const libraryTab = screen.getByRole('tab', {
-            name: 'Chart type library',
+            name: 'Library',
         });
 
         expect(chartTypesTab).toHaveAttribute('aria-selected', 'true');
@@ -496,7 +500,7 @@ describe('ChartTypeGallery', () => {
         renderPage('/projects/project-1/chart-studio?tab=chart-library');
 
         expect(
-            await screen.findByRole('tab', { name: 'Chart type library' }),
+            await screen.findByRole('tab', { name: 'Library' }),
         ).toHaveAttribute('aria-selected', 'true');
         expect(
             screen.queryByRole('button', { name: 'Radial gauge' }),
@@ -900,10 +904,10 @@ describe('ChartTypeGallery', () => {
         renderPage();
 
         expect(
-            screen.getByText(/Chart types are custom visualizations/),
+            screen.getByText(/Chart types are new ways to draw your data/),
         ).toBeInTheDocument();
         expect(
-            screen.queryByPlaceholderText('Search by name or description'),
+            screen.queryByPlaceholderText('Search chart types'),
         ).not.toBeInTheDocument();
     });
 
@@ -911,12 +915,9 @@ describe('ChartTypeGallery', () => {
         setData([makeDataAppViz({})]);
         renderPage();
 
-        fireEvent.change(
-            screen.getByPlaceholderText('Search by name or description'),
-            {
-                target: { value: 'prog' },
-            },
-        );
+        fireEvent.change(screen.getByPlaceholderText('Search chart types'), {
+            target: { value: 'prog' },
+        });
         setData([]);
 
         await waitFor(() =>
@@ -940,7 +941,7 @@ describe('ChartTypeGallery', () => {
         renderPage();
 
         expect(
-            await screen.findByText('Installed chart types'),
+            await screen.findByRole('heading', { name: 'Chart Studio' }),
         ).toBeInTheDocument();
         expect(screen.queryByText('home')).not.toBeInTheDocument();
     });
@@ -992,7 +993,7 @@ describe('ChartTypeGallery', () => {
             ]),
         );
 
-        await screen.findByText('Installed chart types');
+        await screen.findByRole('heading', { name: 'Chart Studio' });
         expect(screen.queryByText('New chart type')).not.toBeInTheDocument();
     });
 
@@ -1001,7 +1002,9 @@ describe('ChartTypeGallery', () => {
             setData([makeDataAppViz({ registrySlug: 'radial-gauge' })]);
             renderPage();
 
-            expect(screen.getByText('Built by Lightdash')).toBeInTheDocument();
+            expect(
+                screen.getByRole('img', { name: 'Built by Lightdash' }),
+            ).toBeInTheDocument();
             expect(
                 screen.queryByLabelText('Edit Radial gauge'),
             ).not.toBeInTheDocument();
