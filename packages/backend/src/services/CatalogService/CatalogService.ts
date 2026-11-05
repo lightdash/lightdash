@@ -74,7 +74,7 @@ import {
 import { measureTime } from '../../logging/measureTime';
 import {
     CatalogModel,
-    type CatalogSearchContext,
+    CatalogSearchContext,
 } from '../../models/CatalogModel/CatalogModel';
 import { parseFieldsFromCompiledTable } from '../../models/CatalogModel/utils/parser';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -1899,6 +1899,43 @@ export class CatalogService<
         this.assertJwtCanViewCatalog(user, organizationUuid, projectUuid);
 
         return this.catalogModel.getDistinctOwners(projectUuid);
+    }
+
+    async getMetricTables(
+        user: Account,
+        projectUuid: string,
+    ): Promise<string[]> {
+        const { organizationUuid, name: projectName } =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { projectUuid, projectName },
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const userAttributes = await this.getUserAttributesForAccount(
+            user,
+            organizationUuid,
+            projectUuid,
+        );
+        const tablesConfiguration =
+            await this.projectModel.getTablesConfiguration(projectUuid);
+
+        return this.catalogModel.getMetricTableNames({
+            projectUuid,
+            userAttributes,
+            tablesConfiguration,
+            context: CatalogSearchContext.SPOTLIGHT,
+        });
     }
 
     // --- Saved Metrics Trees ---

@@ -160,6 +160,7 @@ export const OAUTH_CASL_CHECKED_ROUTES: readonly string[] = [
     'CatalogController.getMetadata',
     'CatalogController.getMetric',
     'CatalogController.getMetricOwners',
+    'CatalogController.getMetricTables',
     'CatalogController.getMetricsCatalog',
     'CatalogController.getMetricsTreeDetails',
     'CatalogController.getMetricsTreeLegacy',
