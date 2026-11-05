@@ -1,3 +1,17 @@
+# [3.164.0](https://github.com/lightdash/lightdash/compare/3.163.1...3.164.0) (2026-11-05)
+
+
+### Bug Fixes
+
+* **dashboard-controls:** put the Move question above its buttons ([#32132](https://github.com/lightdash/lightdash/issues/32132)) ([96b7aad](https://github.com/lightdash/lightdash/commit/96b7aad41199c5a6dd59c465e86a030d70ffe0ef))
+* **data-apps:** render Lightdash date values as wall-clock, not viewer-local ([#32125](https://github.com/lightdash/lightdash/issues/32125)) ([350d273](https://github.com/lightdash/lightdash/commit/350d273fb7269f07ee91dafa6cbbae0cac815b52)), closes [#25259](https://github.com/lightdash/lightdash/issues/25259)
+
+
+### Features
+
+* **explorer:** add a More chart types tile that opens the chart type library ([#32118](https://github.com/lightdash/lightdash/issues/32118)) ([7934900](https://github.com/lightdash/lightdash/commit/79349007ffb55ed24ba5d581e8554e6147f83ed2))
+* **onboarding:** suggest trying a new chart type after the first saved chart ([#32119](https://github.com/lightdash/lightdash/issues/32119)) ([0814a70](https://github.com/lightdash/lightdash/commit/0814a706c8c10eb655a917c199fdd99cb7e814db))
+
 ## [3.163.1](https://github.com/lightdash/lightdash/compare/3.163.0...3.163.1) (2026-11-05)
 
 
