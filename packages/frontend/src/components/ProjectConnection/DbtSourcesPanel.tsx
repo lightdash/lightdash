@@ -11,7 +11,6 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
-    Badge,
     Button,
     Card,
     Group,
@@ -469,9 +468,6 @@ const DbtSourcesPanel: FC<{
 
     return (
         <Card shadow="xs" padding="lg" radius="md" className={classes.panel}>
-            <Badge className={classes.beta} color="violet" size="sm">
-                Beta
-            </Badge>
             <Stack gap="md">
                 <Group gap={6}>
                     <Title order={5}>dbt sources</Title>
