@@ -1301,7 +1301,8 @@ const AppGenerate: FC = () => {
             prompt.imageResourceIds.length === 0 &&
             prompt.imagePreviewUrls.length === 0 &&
             prompt.dashboardName === null &&
-            prompt.externalConnections.length === 0;
+            prompt.externalConnections.length === 0 &&
+            prompt.clarifications.length === 0;
         return {
             onRetry:
                 canRetry && promptText
