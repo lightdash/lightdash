@@ -57,8 +57,10 @@ type Props = {
     optionNames: string[];
     /** Per option, why it cannot be picked ("different values", set everywhere by another control); null: it can. */
     optionDisabledReason: (string | null)[];
-    /** Per option, the question asked before a Move ("Move from X and D?"); null: nothing to take. */
-    optionMoveQuestion: (string | null)[];
+    /** The question asked before a Move, its `{controls}` the names below. */
+    moveTemplate: string;
+    /** Per option, the controls a Move takes it from ("X and D"); null: nothing to take. */
+    optionMoveFrom: (string | null)[];
     /** "Shows EMEA", while set and resolved. */
     valueLabel: string | null;
     highlight: TileHighlight | null;
@@ -66,6 +68,13 @@ type Props = {
     /** `isMove`: the author confirmed taking it from the control that sets it here. */
     onSet: (tileUuid: string, key: string | null, isMove: boolean) => void;
 };
+
+// A control named inside a sentence: the one part that reads at full weight
+const ControlName: FC<{ name: string }> = ({ name }) => (
+    <Text span inherit fw={600} c="text">
+        {name}
+    </Text>
+);
 
 const ParameterTileOverlay = memo<Props>(
     ({
@@ -78,7 +87,8 @@ const ParameterTileOverlay = memo<Props>(
         optionKeys,
         optionNames,
         optionDisabledReason,
-        optionMoveQuestion,
+        moveTemplate,
+        optionMoveFrom,
         valueLabel,
         highlight,
         scrollKey,
@@ -92,7 +102,7 @@ const ParameterTileOverlay = memo<Props>(
         // A parameter another control sets here, picked: asked before it moves
         const [pendingMove, setPendingMove] = useState<{
             key: string;
-            question: string;
+            from: string;
         } | null>(null);
         const isFocusPending = useRef(false);
         const isPickerShown = cardKind === 'set' || isPicking;
@@ -136,12 +146,10 @@ const ParameterTileOverlay = memo<Props>(
                 setIsPicking(false);
                 return;
             }
-            const question =
-                key === null
-                    ? null
-                    : optionMoveQuestion[optionKeys.indexOf(key)];
-            if (key !== null && question !== null && question !== undefined) {
-                setPendingMove({ key, question });
+            const from =
+                key === null ? null : optionMoveFrom[optionKeys.indexOf(key)];
+            if (key !== null && from !== null && from !== undefined) {
+                setPendingMove({ key, from });
                 return;
             }
             setIsPicking(false);
@@ -175,12 +183,24 @@ const ParameterTileOverlay = memo<Props>(
                     data-controls-editor
                 >
                     {pendingMove !== null ? (
-                        // As the editor's prompt: one line, its answers beside it
-                        <Group justify="space-between" wrap="nowrap" gap="xs">
+                        // The question on its own line: a long control name has room
+                        <Stack gap="xs">
                             <Text fz="xs" role="status">
-                                {pendingMove.question}
+                                {moveTemplate
+                                    .split('{controls}')
+                                    .flatMap((part, index) =>
+                                        index === 0
+                                            ? [part]
+                                            : [
+                                                  <ControlName
+                                                      key={index}
+                                                      name={pendingMove.from}
+                                                  />,
+                                                  part,
+                                              ],
+                                    )}
                             </Text>
-                            <Group gap="xs" wrap="nowrap" flex="0 0 auto">
+                            <Group gap="xs" wrap="nowrap" justify="flex-end">
                                 <Button
                                     variant="subtle"
                                     size="xs"
@@ -198,7 +218,7 @@ const ParameterTileOverlay = memo<Props>(
                                     Move
                                 </Button>
                             </Group>
-                        </Group>
+                        </Stack>
                     ) : isPickerShown ? (
                         <Stack gap="xs">
                             <Text fz="xs" c="dimmed" truncate>
@@ -235,9 +255,14 @@ const ParameterTileOverlay = memo<Props>(
                         // As a filter's card for a tile it is not on
                         <TileCardOffRow
                             label={
-                                takenByName === null
-                                    ? 'Not set'
-                                    : `Set by ${takenByName}`
+                                takenByName === null ? (
+                                    'Not set'
+                                ) : (
+                                    <>
+                                        Set by{' '}
+                                        <ControlName name={takenByName} />
+                                    </>
+                                )
                             }
                             actionLabel="Set this tile"
                             ariaLabel={selectLabel}
@@ -336,26 +361,22 @@ const MappedTileOverlays: FC = () => {
                         optionKeys={options.map(({ key }) => key)}
                         optionNames={options.map(({ name }) => name)}
                         optionDisabledReason={options.map(disabledReasonOf)}
-                        optionMoveQuestion={options.map(({ setByIds }) =>
+                        moveTemplate={getUiString(
+                            'controls.parameter.moveFrom',
+                        )}
+                        optionMoveFrom={options.map(({ setByIds }) =>
                             setByIds.length === 0
                                 ? null
-                                : interpolateUiString(
-                                      getUiString(
-                                          'controls.parameter.moveFrom',
-                                      ),
-                                      {
-                                          controls: setByIds
-                                              .map(mapping.controlNameOf)
-                                              .reduce((list, name) =>
-                                                  interpolateUiString(
-                                                      getUiString(
-                                                          'controls.parameter.nameList',
-                                                      ),
-                                                      { list, name },
-                                                  ),
+                                : setByIds
+                                      .map(mapping.controlNameOf)
+                                      .reduce((list, name) =>
+                                          interpolateUiString(
+                                              getUiString(
+                                                  'controls.parameter.nameList',
                                               ),
-                                      },
-                                  ),
+                                              { list, name },
+                                          ),
+                                      ),
                         )}
                         valueLabel={mapping.valueByTile[tile.uuid] ?? null}
                         highlight={highlight}
