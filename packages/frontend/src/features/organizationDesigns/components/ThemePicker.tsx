@@ -13,13 +13,15 @@ import { IconBrush, IconCheck, IconChevronDown } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useOrganizationDesigns } from '../hooks/useOrganizationDesigns';
-import { NO_THEME_DESCRIPTION, NO_THEME_LABEL } from '../themeCopy';
 import { ManageThemesMenuItem } from './ManageThemesMenuItem';
 import classes from './ThemePicker.module.css';
 
+const LIGHTDASH_DEFAULT_LABEL = 'No theme';
 // The compact trigger is a call to action when nothing is picked yet, so it
 // reads as an invitation rather than a status.
 const COMPACT_EMPTY_LABEL = 'Apply theme';
+const LIGHTDASH_DEFAULT_DESCRIPTION =
+    'No shared design assets - prompt any style you want';
 
 type Props = {
     /**
@@ -34,6 +36,8 @@ type Props = {
      */
     lockedAfterCreation?: boolean;
     compact?: boolean;
+    /** Compact trigger sized like a Badge, for a row of chips. */
+    chip?: boolean;
     opened?: boolean;
     onOpenedChange?: (opened: boolean) => void;
     /** Name from a saved snapshot, or a loading/error label. */
@@ -47,6 +51,7 @@ export const ThemePicker: FC<Props> = ({
     disabled,
     lockedAfterCreation,
     compact,
+    chip = false,
     opened: openedProp,
     onOpenedChange,
     fallbackLabel,
@@ -60,11 +65,11 @@ export const ThemePicker: FC<Props> = ({
     const { data: themes = [] } = useOrganizationDesigns();
 
     const selected = value ? themes.find((t) => t.designUuid === value) : null;
-    const label = selected?.name ?? fallbackLabel ?? NO_THEME_LABEL;
+    const label = selected?.name ?? fallbackLabel ?? LIGHTDASH_DEFAULT_LABEL;
     const hasSelection = value !== null;
     const description = selected
         ? selected.description || null
-        : NO_THEME_DESCRIPTION;
+        : LIGHTDASH_DEFAULT_DESCRIPTION;
 
     // Compact trigger reads as a call to action until a theme is picked, then
     // switches to showing the selected theme's name.
@@ -75,10 +80,10 @@ export const ThemePicker: FC<Props> = ({
         <Button
             variant="subtle"
             size="xs"
-            radius="xl"
+            radius={chip ? 'sm' : 'xl'}
             color="gray"
-            h="auto"
-            py={6}
+            h={chip ? 22 : 'auto'}
+            py={chip ? 0 : 6}
             className={classes.compactTrigger}
             data-selected={hasSelection}
             onClick={() => setOpened(!opened)}
@@ -201,8 +206,8 @@ export const ThemePicker: FC<Props> = ({
                 <ScrollArea.Autosize mah={280} type="scroll">
                     {themeOption(
                         'none',
-                        NO_THEME_LABEL,
-                        NO_THEME_DESCRIPTION,
+                        LIGHTDASH_DEFAULT_LABEL,
+                        LIGHTDASH_DEFAULT_DESCRIPTION,
                         value === null,
                         () => onChange(null),
                     )}

@@ -502,3 +502,9 @@
     background: transparent;
     color: var(--mantine-color-ldGray-5);
 }
+
+/* Assistant reply: inset to line up with the build rows above it. */
+.completionNote {
+    padding-inline: 12px;
+    --ai-markdown-padding-left: 0;
+}
