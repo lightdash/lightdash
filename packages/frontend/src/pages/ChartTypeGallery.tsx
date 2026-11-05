@@ -324,8 +324,8 @@ const ChartTypeGallery = () => {
                         </Title>
                         <Text fz="sm" c="dimmed" maw={720}>
                             {chartStudioAvailable
-                                ? 'Build your own chart types and use them on any data you explore.'
-                                : 'Add chart types and use them on any data you explore.'}
+                                ? 'Build the charts you’ve always wanted and use them on any data you explore.'
+                                : 'Pick the charts you’ve always wanted and use them on any data you explore.'}
                         </Text>
                     </Stack>
                     {/* The empty state carries its own CTAs. */}

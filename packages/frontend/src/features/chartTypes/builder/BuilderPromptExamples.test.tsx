@@ -52,7 +52,7 @@ describe('BuilderPromptExamples', () => {
         const card = screen
             .getByText('A funnel of signup steps')
             .closest('button');
-        const fills = Array.from(card?.querySelectorAll('[fill]') ?? []).map(
+        const fills = Array.from(card?.querySelectorAll('rect') ?? []).map(
             (el) => el.getAttribute('fill'),
         );
 
