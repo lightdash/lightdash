@@ -1,14 +1,11 @@
 import {
     DbtProjectType,
-    JobStatusType,
-    JobStepStatusType,
     type CreateWarehouseCredentials,
     type Project,
 } from '@lightdash/common';
-import { Alert, Button, Group, Stack } from '@mantine/core';
-import { useEffect, useState, type FC, type ReactNode } from 'react';
+import { Button, Group, Stack } from '@mantine/core';
+import { type FC, type ReactNode } from 'react';
 import { useUpdateMutation } from '../../../hooks/useProject';
-import useActiveJob from '../../../providers/ActiveJob/useActiveJob';
 import { dbtDefaults } from '../DbtForms/defaultValues';
 import { dbtFormValidators } from '../DbtForms/validators';
 import DbtSettingsForm from '../DbtSettingsForm';
@@ -18,23 +15,14 @@ import { type ProjectConnectionForm } from '../types';
 import { useOnProjectError } from '../useOnProjectError';
 import { warehouseDefaultValues } from '../WarehouseForms/defaultValues';
 
-// Adds a repo to a project saved warehouse-only; the saved warehouse credentials are kept as they are
+// Adds a repo to a project saved warehouse-only; the compile runs as a background job with its own toasts
 export const ConnectRepoForm: FC<{
     project: Project;
     onConnected: () => void;
     footerStart: ReactNode;
 }> = ({ project, onConnected, footerStart }) => {
     const { mutateAsync, isLoading } = useUpdateMutation(project.projectUuid);
-    const { activeJob } = useActiveJob();
     const onProjectError = useOnProjectError();
-    const [jobUuid, setJobUuid] = useState<string | null>(null);
-    const job = jobUuid && activeJob?.jobUuid === jobUuid ? activeJob : null;
-    const failedStep =
-        job?.jobStatus === JobStatusType.ERROR
-            ? job.steps.find(
-                  (step) => step.stepStatus === JobStepStatusType.ERROR,
-              )
-            : undefined;
 
     const warehouseType = project.warehouseConnection?.type;
     const form = useForm({
@@ -51,27 +39,24 @@ export const ConnectRepoForm: FC<{
         validateInputOnBlur: true,
     });
 
-    useEffect(() => {
-        if (job?.jobStatus === JobStatusType.DONE) onConnected();
-    }, [job?.jobStatus, onConnected]);
-
     const handleSubmit = async ({
         name,
         dbt,
         warehouse,
         dbtVersion,
     }: ProjectConnectionForm) => {
-        const { jobUuid: startedJobUuid } = await mutateAsync({
-            name,
-            dbtConnection: dbt,
-            warehouseConnection: warehouse,
-            dbtVersion,
-        });
-        setJobUuid(startedJobUuid);
+        try {
+            await mutateAsync({
+                name,
+                dbtConnection: dbt,
+                warehouseConnection: warehouse,
+                dbtVersion,
+            });
+        } catch {
+            return; // the mutation already shows the error
+        }
+        onConnected();
     };
-
-    const isConnecting =
-        isLoading || (!!jobUuid && job?.jobStatus !== JobStatusType.ERROR);
 
     return (
         <FormProvider form={form}>
@@ -79,19 +64,13 @@ export const ConnectRepoForm: FC<{
                 <Stack gap="lg">
                     <ProjectFormProvider revealAfterSignIn>
                         <DbtSettingsForm
-                            disabled={isConnecting}
+                            disabled={isLoading}
                             typePicker="tiles"
                         />
                     </ProjectFormProvider>
-                    {failedStep && (
-                        <Alert color="red" title="Couldn't connect your repo">
-                            {failedStep.stepError ??
-                                'Check the repo settings and try again.'}
-                        </Alert>
-                    )}
                     <Group justify="space-between" data-form-footer>
                         {footerStart}
-                        <Button type="submit" loading={isConnecting}>
+                        <Button type="submit" loading={isLoading}>
                             Connect repo
                         </Button>
                     </Group>
