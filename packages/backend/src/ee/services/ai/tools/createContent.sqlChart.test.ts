@@ -123,7 +123,11 @@ const makeApproval = ({
 const makeTool = (sqlChartSaving: SqlChartSaving) => {
     const { createContent, save } = makeCreateContent();
     return {
-        tool: getCreateContent({ createContent, sqlChartSaving }),
+        tool: getCreateContent({
+            siteUrl: 'https://app.lightdash.cloud',
+            createContent,
+            sqlChartSaving,
+        }),
         createContent,
         save,
     };

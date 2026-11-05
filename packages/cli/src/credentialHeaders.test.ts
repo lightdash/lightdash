@@ -6,7 +6,12 @@ import {
 } from '@lightdash/common';
 import { agentCommandUnavailable } from './credentials';
 import { CLI_VERSION } from './env';
-import { buildRequestHeaders, getAuthHeader } from './handlers/utils';
+import {
+    buildCredentialHeaders,
+    buildRequestHeaders,
+    getAuthHeader,
+} from './handlers/utils';
+import { loginFixture } from './personalLogin/fixtures';
 
 afterEach(() => {
     vi.unstubAllEnvs();
@@ -31,6 +36,24 @@ it.each([
         Authorization: `${scheme} ${token}`,
         'Proxy-Authorization': 'proxy',
         [LightdashRequestMethodHeader]: RequestMethod.CLI_CI,
+        [LightdashCliVersionHeader]: CLI_VERSION,
+    });
+});
+
+it('uses Bearer for a personal OAuth credential with the existing CLI headers', () => {
+    vi.stubEnv('LIGHTDASH_AGENT_CONNECTION', undefined);
+    vi.stubEnv('LIGHTDASH_PROXY_AUTHORIZATION', undefined);
+    vi.stubEnv('CI', 'false');
+    const login = loginFixture();
+    expect(
+        buildCredentialHeaders(
+            { kind: 'personal_oauth', token: login.tokens.accessToken, login },
+            null,
+        ),
+    ).toEqual({
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer personal-access',
+        [LightdashRequestMethodHeader]: RequestMethod.CLI,
         [LightdashCliVersionHeader]: CLI_VERSION,
     });
 });

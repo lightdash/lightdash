@@ -8,10 +8,13 @@ import {
     AppVizBuildContext,
     CatalogType,
     ChartType,
+    COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
     ContentType,
+    CustomDimensionType,
     DATA_APP_VIZ_TEMPLATE,
     DimensionType,
     Explore,
+    ExploreType,
     FieldType,
     FilterOperator,
     ForbiddenError,
@@ -29,6 +32,7 @@ import {
     RequestMethod,
     SessionUser,
     SourceQuery,
+    TableSelectionType,
     UnitOfTime,
     WarehouseTypes,
     type DataAppSearchResult,
@@ -36,6 +40,7 @@ import {
     type ExtractedDataReference,
     type PersistedDataAppDataReferences,
     type SavedMergeDefinition,
+    type TablesConfiguration,
 } from '@lightdash/common';
 import { EventEmitter } from 'events';
 import knex from 'knex';
@@ -53,6 +58,7 @@ import {
     withAgentActionScope,
 } from '../../../services/AiAccessService/agentActionTestUtils.mock';
 import { CoderService } from '../../../services/CoderService/CoderService';
+import { validatePagination } from '../../../services/ProjectService/resultsPagination';
 import { PromoteService } from '../../../services/PromoteService/PromoteService';
 import { SavedSqlService } from '../../../services/SavedSqlService/SavedSqlService';
 import { getDescribeWarehouseTable } from '../ai/tools/describeWarehouseTable';
@@ -131,6 +137,9 @@ const makeService = ({
     spaceModel = {
         hasSpaceWithPathAndUuids: vi.fn().mockResolvedValue(true),
     },
+    spacePermissionService = {
+        getAccessibleSpaceUuids: vi.fn().mockResolvedValue([]),
+    },
     dashboardService = {},
     savedChartService = {},
     savedSqlService = {},
@@ -158,6 +167,7 @@ const makeService = ({
     appModel = {},
     savedChartModel = {},
     dashboardModel = {},
+    maxQueryLimit = 500,
 }: {
     agentPermissionService?: Pick<
         import('../../../services/AgentPermissionService/AgentPermissionService').AgentPermissionService,
@@ -170,6 +180,7 @@ const makeService = ({
     searchFieldUniqueValues?: import('vitest').Mock;
     projectSpaces?: Array<{ uuid: string; path: string }>;
     spaceModel?: Record<string, unknown>;
+    spacePermissionService?: Record<string, unknown>;
     dashboardService?: Record<string, unknown>;
     savedChartService?: Record<string, unknown>;
     savedSqlService?: Record<string, unknown> | SavedSqlService;
@@ -195,6 +206,7 @@ const makeService = ({
     appModel?: Record<string, unknown>;
     savedChartModel?: Record<string, unknown>;
     dashboardModel?: Record<string, unknown>;
+    maxQueryLimit?: number;
 } = {}) =>
     new AiAgentToolsService({
         agentPermissionService,
@@ -210,7 +222,7 @@ const makeService = ({
         },
         lightdashConfig: {
             siteUrl: 'https://lightdash.example',
-            ai: { copilot: { maxQueryLimit: 500 } },
+            ai: { copilot: { maxQueryLimit } },
         },
         projectModel: {
             findExploresFromCache: vi.fn(
@@ -229,6 +241,9 @@ const makeService = ({
             ),
             getAllByOrganizationUuid: vi.fn().mockResolvedValue([]),
             get: vi.fn(),
+            getTablesConfiguration: vi.fn().mockResolvedValue({
+                tableSelection: { type: TableSelectionType.ALL, value: null },
+            }),
             ...projectModel,
         },
         projectService: {
@@ -252,6 +267,7 @@ const makeService = ({
         searchModel: {},
         searchService,
         spaceService: {},
+        spacePermissionService,
         spaceModel,
         dashboardService,
         savedChartService,
@@ -265,7 +281,6 @@ const makeService = ({
         aiAgentModel,
         documentService,
         featureFlagService,
-        previewDeploySetupService: {},
         shareService: {},
         userService: {},
         asyncQueryService,
@@ -832,6 +847,71 @@ describe('AiAgentToolsService', () => {
         ]);
     });
 
+    it('accepts a custom SQL dimension defined in the same query', async () => {
+        const executeMetricQueryAndGetResults = vi.fn().mockResolvedValue({
+            queryUuid: 'result',
+            rows: [],
+            fields: {},
+            cacheMetadata: { cacheHit: false },
+        });
+        const service = makeService({
+            explores: {
+                orders: makeExplore({
+                    name: 'orders',
+                    metrics: {
+                        count: {
+                            fieldType: FieldType.METRIC,
+                            name: 'count',
+                            table: 'orders',
+                        },
+                    },
+                }),
+            },
+            asyncQueryService: { executeMetricQueryAndGetResults },
+        });
+        const runtime = service.createRuntime(
+            makeRuntimeContext({ source: 'ai_agent' }),
+        );
+        const metricQuery = {
+            exploreName: 'orders',
+            dimensions: ['container_type'],
+            metrics: ['orders_count'],
+            filters: {},
+            sorts: [],
+            limit: 500,
+            tableCalculations: [],
+            additionalMetrics: [],
+            customMetrics: null,
+            customDimensions: [
+                {
+                    id: 'container_type',
+                    name: 'container_type',
+                    table: 'orders',
+                    type: CustomDimensionType.SQL as const,
+                    sql: "${orders.custom_fields} ->> 'containertype'",
+                    dimensionType: DimensionType.STRING,
+                },
+            ],
+        };
+
+        await runtime.runAsyncQuery(metricQuery);
+
+        expect(executeMetricQueryAndGetResults).toHaveBeenCalledWith(
+            expect.objectContaining({
+                metricQuery: expect.objectContaining({
+                    customDimensions: metricQuery.customDimensions,
+                }),
+            }),
+            expect.anything(),
+        );
+        await expect(
+            runtime.runAsyncQuery({
+                ...metricQuery,
+                dimensions: ['orders_missing'],
+            }),
+        ).rejects.toThrow('Field not found: orders_missing');
+    });
+
     it('blocks unbounded dimension-only scans before warehouse execution', async () => {
         const executeMetricQueryAndGetResults = vi.fn();
         const service = makeService({
@@ -875,9 +955,11 @@ describe('AiAgentToolsService', () => {
             const refusal = new AiAccessRefusedError(
                 AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
             );
-            const getWarehouseFields = vi.fn().mockRejectedValueOnce(refusal);
+            const describeWarehouseTable = vi
+                .fn()
+                .mockRejectedValueOnce(refusal);
             const service = makeService({
-                projectService: { getWarehouseFields },
+                projectService: { describeWarehouseTable },
             });
             const runtime = service.createRuntime(makeRuntimeContext());
             const describeTool = getDescribeWarehouseTable({
@@ -901,11 +983,11 @@ describe('AiAgentToolsService', () => {
                 },
                 metadata: { status: 'error' },
             });
-            expect(getWarehouseFields).toHaveBeenCalledOnce();
+            expect(describeWarehouseTable).toHaveBeenCalledOnce();
         });
 
         it('blocks metadata from an excluded default database', async () => {
-            const getWarehouseFields = vi.fn();
+            const describeWarehouseTable = vi.fn();
             const service = makeService({
                 projectModel: {
                     ...singleRouteProjectModelMethods,
@@ -917,7 +999,7 @@ describe('AiAgentToolsService', () => {
                             schema: 'jaffle',
                         }),
                 },
-                projectService: { getWarehouseFields },
+                projectService: { describeWarehouseTable },
             });
             const runtime = service.createRuntime(
                 makeRuntimeContext({
@@ -936,15 +1018,18 @@ describe('AiAgentToolsService', () => {
             ).rejects.toThrow(
                 'reads from catalog `postgres3`, which is explicitly excluded',
             );
-            expect(getWarehouseFields).not.toHaveBeenCalled();
+            expect(describeWarehouseTable).not.toHaveBeenCalled();
         });
 
         it('describes a table in an explicitly allowed database', async () => {
-            const getWarehouseFields = vi.fn().mockResolvedValue({
-                customer_id: DimensionType.STRING,
+            const describeWarehouseTable = vi.fn().mockResolvedValue({
+                fields: { customer_id: DimensionType.STRING },
+                nativeTypes: {},
+                partitioning: null,
+                warehouseType: WarehouseTypes.POSTGRES,
             });
             const service = makeService({
-                projectService: { getWarehouseFields },
+                projectService: { describeWarehouseTable },
             });
             const runtime = service.createRuntime(
                 makeRuntimeContext({
@@ -962,17 +1047,27 @@ describe('AiAgentToolsService', () => {
                     database: 'analytics',
                 }),
             ).resolves.toEqual({
-                columns: [{ name: 'customer_id', type: DimensionType.STRING }],
+                columns: [
+                    {
+                        name: 'customer_id',
+                        type: DimensionType.STRING,
+                        nativeType: null,
+                    },
+                ],
                 resolvedSchema: 'jaffle',
                 resolvedDatabase: 'analytics',
+                partitioning: null,
+                warehouseType: WarehouseTypes.POSTGRES,
             });
-            expect(getWarehouseFields).toHaveBeenCalledWith(
+            expect(describeWarehouseTable).toHaveBeenCalledWith(
                 user,
                 projectUuid,
                 QueryExecutionContext.AI,
-                'orders',
-                'jaffle',
-                'analytics',
+                {
+                    tableName: 'orders',
+                    schemaName: 'jaffle',
+                    databaseName: 'analytics',
+                },
                 QuerySurface.SLACK,
             );
         });
@@ -983,8 +1078,11 @@ describe('AiAgentToolsService', () => {
         ])(
             'treats a $label optional database as the default database',
             async ({ database }) => {
-                const getWarehouseFields = vi.fn().mockResolvedValue({
-                    customer_id: DimensionType.STRING,
+                const describeWarehouseTable = vi.fn().mockResolvedValue({
+                    fields: { customer_id: DimensionType.STRING },
+                    nativeTypes: {},
+                    partitioning: null,
+                    warehouseType: WarehouseTypes.POSTGRES,
                 });
                 const service = makeService({
                     projectModel: {
@@ -997,7 +1095,7 @@ describe('AiAgentToolsService', () => {
                                 schema: 'jaffle',
                             }),
                     },
-                    projectService: { getWarehouseFields },
+                    projectService: { describeWarehouseTable },
                 });
                 const runtime = service.createRuntime(makeRuntimeContext());
 
@@ -1007,21 +1105,26 @@ describe('AiAgentToolsService', () => {
                     database,
                 });
 
-                expect(getWarehouseFields).toHaveBeenCalledWith(
+                expect(describeWarehouseTable).toHaveBeenCalledWith(
                     user,
                     projectUuid,
                     QueryExecutionContext.AI,
-                    'orders',
-                    'jaffle',
-                    'postgres3',
+                    {
+                        tableName: 'orders',
+                        schemaName: 'jaffle',
+                        databaseName: 'postgres3',
+                    },
                     QuerySurface.SLACK,
                 );
             },
         );
 
         it('uses the Databricks catalog and schema defaults', async () => {
-            const getWarehouseFields = vi.fn().mockResolvedValue({
-                customer_id: DimensionType.STRING,
+            const describeWarehouseTable = vi.fn().mockResolvedValue({
+                fields: { customer_id: DimensionType.STRING },
+                nativeTypes: {},
+                partitioning: null,
+                warehouseType: WarehouseTypes.POSTGRES,
             });
             const service = makeService({
                 projectModel: {
@@ -1034,19 +1137,21 @@ describe('AiAgentToolsService', () => {
                             database: 'analytics',
                         }),
                 },
-                projectService: { getWarehouseFields },
+                projectService: { describeWarehouseTable },
             });
             const runtime = service.createRuntime(makeRuntimeContext());
 
             await runtime.describeWarehouseTable({ table: 'orders' });
 
-            expect(getWarehouseFields).toHaveBeenCalledWith(
+            expect(describeWarehouseTable).toHaveBeenCalledWith(
                 user,
                 projectUuid,
                 QueryExecutionContext.AI,
-                'orders',
-                'analytics',
-                'main',
+                {
+                    tableName: 'orders',
+                    schemaName: 'analytics',
+                    databaseName: 'main',
+                },
                 QuerySurface.SLACK,
             );
         });
@@ -1493,6 +1598,40 @@ describe('AiAgentToolsService', () => {
         expect(searchFieldUniqueValues).not.toHaveBeenCalled();
     });
 
+    it('searches a live source through the async query path', async () => {
+        const searchFieldUniqueValues = vi.fn();
+        const searchFieldValuesAndWait = vi
+            .fn()
+            .mockResolvedValue({ results: ['$pageview'] });
+        const service = makeService({
+            explores: {
+                posthog_events: {
+                    ...makeExplore({ name: 'posthog_events' }),
+                    type: ExploreType.API_SOURCE,
+                },
+            },
+            searchFieldUniqueValues,
+            asyncQueryService: { searchFieldValuesAndWait },
+        });
+        const runtime = service.createRuntime(makeRuntimeContext());
+
+        await expect(
+            runtime.searchFieldValues({
+                table: 'posthog_events',
+                fieldId: 'posthog_events_event',
+                query: 'page',
+            }),
+        ).resolves.toEqual(['$pageview']);
+        expect(searchFieldValuesAndWait).toHaveBeenCalledWith(
+            expect.objectContaining({
+                table: 'posthog_events',
+                search: 'page',
+                context: QueryExecutionContext.AI,
+            }),
+        );
+        expect(searchFieldUniqueValues).not.toHaveBeenCalled();
+    });
+
     it('returns a note with the empty result when there is nothing to autocomplete', async () => {
         const searchFieldUniqueValues = vi.fn();
         const service = makeService({
@@ -1705,6 +1844,165 @@ describe('AiAgentToolsService', () => {
         expect(Object.keys(explore.tables.orders.metrics)).toEqual([
             'visible_metric',
         ]);
+    });
+
+    describe('project Tables configuration', () => {
+        const makeSelectionService = (
+            tableSelection: TablesConfiguration['tableSelection'],
+            userAttributes: Record<string, string[]> = {},
+        ) =>
+            makeService({
+                userAttributes,
+                explores: {
+                    orders: makeExplore({
+                        name: 'orders',
+                        tags: ['approved', 'ai'],
+                    }),
+                    customers: makeExplore({
+                        name: 'customers',
+                        tags: ['internal', 'ai'],
+                    }),
+                    secure: makeExplore({
+                        name: 'secure',
+                        tags: ['approved', 'ai'],
+                        requiredAttributes: { access_level: '2' },
+                    }),
+                    payments: makeExplore({
+                        name: 'payments',
+                        tags: ['approved'],
+                    }),
+                    virtual_view: {
+                        ...makeExplore({ name: 'virtual_view' }),
+                        type: ExploreType.VIRTUAL,
+                    },
+                    orders__daily: {
+                        ...makeExplore({
+                            name: 'orders__daily',
+                            tags: ['approved', 'ai'],
+                        }),
+                        type: ExploreType.PRE_AGGREGATE,
+                        preAggregateSource: {
+                            sourceExploreName: 'orders',
+                            preAggregateName: 'daily',
+                        },
+                    },
+                    customers__daily: {
+                        ...makeExplore({
+                            name: 'customers__daily',
+                            tags: ['internal', 'ai'],
+                        }),
+                        type: ExploreType.PRE_AGGREGATE,
+                        preAggregateSource: {
+                            sourceExploreName: 'customers',
+                            preAggregateName: 'daily',
+                        },
+                    },
+                },
+                projectModel: {
+                    getTablesConfiguration: vi
+                        .fn()
+                        .mockResolvedValue({ tableSelection }),
+                },
+            });
+
+        const listNames = async (
+            service: AiAgentToolsService,
+            availableTags: string[] | null = null,
+        ) =>
+            (
+                await service.getAvailableExplores({
+                    user,
+                    projectUuid,
+                    availableTags,
+                })
+            )
+                .map((explore) => explore.name)
+                .sort();
+
+        it('keeps every explore for the entire project', async () => {
+            const service = makeSelectionService(
+                { type: TableSelectionType.ALL, value: null },
+                { access_level: ['2'] },
+            );
+
+            await expect(listNames(service)).resolves.toEqual([
+                'customers',
+                'customers__daily',
+                'orders',
+                'orders__daily',
+                'payments',
+                'secure',
+                'virtual_view',
+            ]);
+        });
+
+        it('excludes explores outside a models-in-list selection from listing and lookup', async () => {
+            const service = makeSelectionService({
+                type: TableSelectionType.WITH_NAMES,
+                value: ['orders'],
+            });
+
+            await expect(listNames(service)).resolves.toEqual([
+                'orders',
+                'orders__daily',
+                'virtual_view',
+            ]);
+            await expect(
+                service.getExplore({
+                    user,
+                    projectUuid,
+                    availableTags: null,
+                    exploreName: 'orders',
+                }),
+            ).resolves.toMatchObject({ name: 'orders' });
+            await expect(
+                service.getExplore({
+                    user,
+                    projectUuid,
+                    availableTags: null,
+                    exploreName: 'customers',
+                }),
+            ).rejects.toThrow(NotFoundError);
+        });
+
+        it('excludes explores without a selected tag', async () => {
+            const service = makeSelectionService({
+                type: TableSelectionType.WITH_TAGS,
+                value: ['approved'],
+            });
+
+            await expect(listNames(service)).resolves.toEqual([
+                'orders',
+                'orders__daily',
+                'payments',
+                'virtual_view',
+            ]);
+            await expect(
+                service.getExplore({
+                    user,
+                    projectUuid,
+                    availableTags: null,
+                    exploreName: 'customers',
+                }),
+            ).rejects.toThrow(NotFoundError);
+        });
+
+        it('combines the selection with agent tags and user attributes', async () => {
+            const selection = {
+                type: TableSelectionType.WITH_TAGS,
+                value: ['approved'],
+            };
+
+            await expect(
+                listNames(makeSelectionService(selection), ['ai']),
+            ).resolves.toEqual(['orders', 'orders__daily']);
+            await expect(
+                listNames(
+                    makeSelectionService(selection, { access_level: ['2'] }),
+                    ['ai'],
+                ),
+            ).resolves.toEqual(['orders', 'orders__daily', 'secure']);
+        });
     });
 
     it('adds verified field usage for AI runtime searches but not MCP searches', async () => {
@@ -3017,7 +3315,7 @@ describe('AiAgentToolsService', () => {
                 projectUuid,
                 'orders-by-status',
                 expect.not.objectContaining({ connection: expect.anything() }),
-                { mode: 'create' },
+                { mode: 'create', authorization: 'space_access' },
             );
             expect(created).toMatchObject({
                 type: 'sql_chart',
@@ -3174,6 +3472,7 @@ describe('AiAgentToolsService', () => {
                 projectUuid,
                 'orders-by-status',
                 expect.objectContaining({ limit: 100 }),
+                { authorization: 'space_access' },
             );
             expect(edited).toMatchObject({
                 type: 'sql_chart',
@@ -3212,6 +3511,7 @@ describe('AiAgentToolsService', () => {
                 projectUuid,
                 'orders-by-status',
                 expect.objectContaining({ sql }),
+                { authorization: 'space_access' },
             );
         });
 
@@ -3612,11 +3912,30 @@ describe('AiAgentToolsService runComposerQueries', () => {
     const readyResults = {
         status: QueryHistoryStatus.READY,
         rows: [{ orders_total: { value: { raw: 42, formatted: '42' } } }],
+        totalResults: 1,
         columns: {
             orders_total: {
                 reference: 'orders_total',
                 type: DimensionType.NUMBER,
             },
+        },
+    };
+
+    const readyStatuses = {
+        statuses: submissions.map(({ queryUuid }) => ({
+            queryUuid,
+            status: QueryHistoryStatus.READY,
+            error: null,
+            totalRowCount: 1,
+            warehouseExecutionTimeMs: null,
+            columns: readyResults.columns,
+        })),
+    };
+
+    const ordersColumns = {
+        orders_status: {
+            reference: 'orders_status',
+            type: DimensionType.STRING,
         },
     };
 
@@ -3626,15 +3945,27 @@ describe('AiAgentToolsService runComposerQueries', () => {
             .mockResolvedValue({ queries: submissions });
         const getAsyncQueryResults = vi.fn().mockResolvedValue(readyResults);
         const service = makeService({
-            querySourceService: { executeSourceQueries },
+            querySourceService: {
+                executeSourceQueries,
+                getSourceQueryStatuses: vi
+                    .fn()
+                    .mockResolvedValue(readyStatuses),
+            },
             asyncQueryService: { getAsyncQueryResults },
         });
 
         const result = await service
-            .createRuntime(makeRuntimeContext())
+            .createRuntime(
+                makeRuntimeContext({
+                    agentUuid: 'agent-uuid',
+                    threadUuid: 'thread-uuid',
+                    promptUuid: 'prompt-uuid',
+                }),
+            )
             .runComposerQueries({
                 queries: composerQueries,
                 terminalNodeId: 'joined',
+                sampleNodeIds: [],
             });
 
         expect(executeSourceQueries).toHaveBeenCalledWith({
@@ -3646,10 +3977,16 @@ describe('AiAgentToolsService runComposerQueries', () => {
             parameters: {},
             userAttributeOverrides: {},
             invalidateCache: false,
+            aiAttribution: {
+                aiAgentUuid: 'agent-uuid',
+                threadUuid: 'thread-uuid',
+                promptUuid: 'prompt-uuid',
+            },
         });
         expect(getAsyncQueryResults).toHaveBeenCalledWith(
             expect.objectContaining({ queryUuid: 'query-2', page: 1 }),
         );
+        if (result.status !== 'success') throw new Error('expected success');
         expect(result.submissions).toEqual(submissions);
         expect(result.terminal).toEqual({
             queryUuid: 'query-2',
@@ -3659,13 +3996,193 @@ describe('AiAgentToolsService runComposerQueries', () => {
         });
     });
 
+    it("reads every node's status once the terminal is ready", async () => {
+        const getSourceQueryStatuses = vi.fn().mockResolvedValue({
+            statuses: [
+                {
+                    queryUuid: 'query-1',
+                    status: QueryHistoryStatus.READY,
+                    error: null,
+                    totalRowCount: 500,
+                    warehouseExecutionTimeMs: 12,
+                    columns: ordersColumns,
+                },
+                {
+                    queryUuid: 'query-2',
+                    status: QueryHistoryStatus.READY,
+                    error: null,
+                    totalRowCount: 1,
+                    warehouseExecutionTimeMs: 3,
+                    columns: readyResults.columns,
+                },
+            ],
+        });
+        const service = makeService({
+            querySourceService: {
+                executeSourceQueries: vi
+                    .fn()
+                    .mockResolvedValue({ queries: submissions }),
+                getSourceQueryStatuses,
+            },
+            asyncQueryService: {
+                getAsyncQueryResults: vi.fn().mockResolvedValue(readyResults),
+            },
+        });
+
+        const result = await service
+            .createRuntime(makeRuntimeContext())
+            .runComposerQueries({
+                queries: composerQueries,
+                terminalNodeId: 'joined',
+                sampleNodeIds: [],
+            });
+
+        expect(result.status).toBe('success');
+        expect(result.nodeStatuses).toEqual([
+            {
+                nodeId: 'orders',
+                state: QueryHistoryStatus.READY,
+                error: null,
+                rowCount: 500,
+                columns: ordersColumns,
+                sample: null,
+            },
+            {
+                nodeId: 'joined',
+                state: QueryHistoryStatus.READY,
+                error: null,
+                rowCount: 1,
+                columns: readyResults.columns,
+                sample: null,
+            },
+        ]);
+    });
+
+    it('does not report a node successful when its status read says otherwise', async () => {
+        const onNodeStatus = vi.fn();
+        const service = makeService({
+            querySourceService: {
+                executeSourceQueries: vi
+                    .fn()
+                    .mockResolvedValue({ queries: submissions }),
+                getSourceQueryStatuses: vi.fn().mockResolvedValue({
+                    statuses: [
+                        {
+                            queryUuid: 'query-1',
+                            status: QueryHistoryStatus.EXECUTING,
+                            error: null,
+                            totalRowCount: null,
+                            warehouseExecutionTimeMs: null,
+                            columns: null,
+                        },
+                        {
+                            queryUuid: 'query-2',
+                            status: QueryHistoryStatus.READY,
+                            error: null,
+                            totalRowCount: 1,
+                            warehouseExecutionTimeMs: 3,
+                            columns: readyResults.columns,
+                        },
+                    ],
+                }),
+            },
+            asyncQueryService: {
+                getAsyncQueryResults: vi.fn().mockResolvedValue(readyResults),
+            },
+        });
+
+        const result = await service
+            .createRuntime(makeRuntimeContext())
+            .runComposerQueries({
+                queries: composerQueries,
+                terminalNodeId: 'joined',
+                sampleNodeIds: [],
+                onNodeStatus,
+            });
+
+        expect(result.nodeStatuses[0]).toEqual({
+            nodeId: 'orders',
+            state: QueryHistoryStatus.EXECUTING,
+            error: null,
+            rowCount: null,
+            columns: null,
+            sample: null,
+        });
+        expect(onNodeStatus).not.toHaveBeenCalledWith(
+            expect.objectContaining({ nodeId: 'orders', status: 'success' }),
+        );
+    });
+
+    it('returns running with every submission and node status when the terminal outlives the deadline', async () => {
+        const executeSourceQueries = vi
+            .fn()
+            .mockResolvedValue({ queries: submissions });
+        const getAsyncQueryResults = vi
+            .fn()
+            .mockResolvedValue({ status: QueryHistoryStatus.EXECUTING });
+        const service = makeService({
+            querySourceService: {
+                executeSourceQueries,
+                getSourceQueryStatuses: vi.fn().mockResolvedValue({
+                    statuses: [
+                        readyStatuses.statuses[0],
+                        {
+                            ...readyStatuses.statuses[1],
+                            status: QueryHistoryStatus.EXECUTING,
+                            totalRowCount: null,
+                            columns: null,
+                        },
+                    ],
+                }),
+            },
+            asyncQueryService: { getAsyncQueryResults },
+        });
+
+        await expect(
+            service
+                .createRuntime(makeRuntimeContext())
+                .runComposerQueriesUntilDeadline({
+                    queries: composerQueries,
+                    terminalNodeId: 'joined',
+                    sampleNodeIds: [],
+                    deadlineMs: Date.now() - 1,
+                }),
+        ).resolves.toEqual({
+            status: 'running',
+            submissions,
+            nodeStatuses: [
+                {
+                    nodeId: 'orders',
+                    state: QueryHistoryStatus.READY,
+                    error: null,
+                    rowCount: 1,
+                    columns: readyResults.columns,
+                    sample: null,
+                },
+                {
+                    nodeId: 'joined',
+                    state: QueryHistoryStatus.EXECUTING,
+                    error: null,
+                    rowCount: null,
+                    columns: null,
+                    sample: null,
+                },
+            ],
+        });
+    });
+
     it('carries the runtime user attribute overrides into the pipeline', async () => {
         const executeSourceQueries = vi
             .fn()
             .mockResolvedValue({ queries: submissions });
         const getAsyncQueryResults = vi.fn().mockResolvedValue(readyResults);
         const service = makeService({
-            querySourceService: { executeSourceQueries },
+            querySourceService: {
+                executeSourceQueries,
+                getSourceQueryStatuses: vi
+                    .fn()
+                    .mockResolvedValue(readyStatuses),
+            },
             asyncQueryService: { getAsyncQueryResults },
         });
 
@@ -3678,6 +4195,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
             .runComposerQueries({
                 queries: composerQueries,
                 terminalNodeId: 'joined',
+                sampleNodeIds: [],
             });
 
         expect(executeSourceQueries).toHaveBeenCalledWith(
@@ -3699,20 +4217,23 @@ describe('AiAgentToolsService runComposerQueries', () => {
                 .mockResolvedValue(readyResults);
             // While the terminal is still running, the upstream node has
             // already finished.
-            const getSourceQueryStatuses = vi.fn().mockResolvedValue({
-                statuses: [
-                    {
-                        queryUuid: 'query-1',
-                        status: QueryHistoryStatus.READY,
-                        error: null,
-                    },
-                    {
-                        queryUuid: 'query-2',
-                        status: QueryHistoryStatus.EXECUTING,
-                        error: null,
-                    },
-                ],
-            });
+            const getSourceQueryStatuses = vi
+                .fn()
+                .mockResolvedValueOnce({
+                    statuses: [
+                        {
+                            queryUuid: 'query-1',
+                            status: QueryHistoryStatus.READY,
+                            error: null,
+                        },
+                        {
+                            queryUuid: 'query-2',
+                            status: QueryHistoryStatus.EXECUTING,
+                            error: null,
+                        },
+                    ],
+                })
+                .mockResolvedValue(readyStatuses);
             const service = makeService({
                 querySourceService: {
                     executeSourceQueries,
@@ -3727,6 +4248,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
                 .runComposerQueries({
                     queries: composerQueries,
                     terminalNodeId: 'joined',
+                    sampleNodeIds: [],
                     onNodeStatus,
                 });
             await vi.advanceTimersByTimeAsync(2_000);
@@ -3783,6 +4305,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
             service.createRuntime(makeRuntimeContext()).runComposerQueries({
                 queries: composerQueries,
                 terminalNodeId: 'joined',
+                sampleNodeIds: [],
                 onNodeStatus,
             }),
         ).rejects.toThrow('column "missing" does not exist');
@@ -3803,7 +4326,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
         ]);
     });
 
-    it('marks unfinished nodes failed when fetching results throws', async () => {
+    it('returns a failure outcome marking unfinished nodes failed when fetching results throws', async () => {
         const executeSourceQueries = vi
             .fn()
             .mockResolvedValue({ queries: submissions });
@@ -3820,9 +4343,13 @@ describe('AiAgentToolsService runComposerQueries', () => {
             service.createRuntime(makeRuntimeContext()).runComposerQueries({
                 queries: composerQueries,
                 terminalNodeId: 'joined',
+                sampleNodeIds: [],
                 onNodeStatus,
             }),
-        ).rejects.toThrow('column "missing" does not exist');
+        ).resolves.toMatchObject({
+            status: 'failure',
+            error: 'column "missing" does not exist',
+        });
 
         expect(
             onNodeStatus.mock.calls
@@ -3844,7 +4371,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
         ]);
     });
 
-    it('emits error statuses for failing nodes before throwing', async () => {
+    it('emits error statuses for failing nodes', async () => {
         const executeSourceQueries = vi
             .fn()
             .mockResolvedValue({ queries: submissions });
@@ -3875,13 +4402,12 @@ describe('AiAgentToolsService runComposerQueries', () => {
         });
 
         const onNodeStatus = vi.fn();
-        await expect(
-            service.createRuntime(makeRuntimeContext()).runComposerQueries({
-                queries: composerQueries,
-                terminalNodeId: 'joined',
-                onNodeStatus,
-            }),
-        ).rejects.toThrow(/"orders" \(relation does not exist\)/);
+        await service.createRuntime(makeRuntimeContext()).runComposerQueries({
+            queries: composerQueries,
+            terminalNodeId: 'joined',
+            sampleNodeIds: [],
+            onNodeStatus,
+        });
 
         expect(onNodeStatus.mock.calls.map(([update]) => update)).toEqual([
             {
@@ -3923,46 +4449,363 @@ describe('AiAgentToolsService runComposerQueries', () => {
             service.createRuntime(makeRuntimeContext()).runComposerQueries({
                 queries: composerQueries,
                 terminalNodeId: 'unknown_node',
+                sampleNodeIds: [],
             }),
         ).rejects.toThrow('unknown_node');
     });
 
-    it('names the failing node when the terminal query errors', async () => {
-        const executeSourceQueries = vi
-            .fn()
-            .mockResolvedValue({ queries: submissions });
-        const getAsyncQueryResults = vi.fn().mockResolvedValue({
-            status: QueryHistoryStatus.ERROR,
-            error: 'referenced query failed',
-        });
+    it("returns a failure outcome with every node's status when a node fails", async () => {
         const getSourceQueryStatuses = vi.fn().mockResolvedValue({
             statuses: [
                 {
                     queryUuid: 'query-1',
-                    status: QueryHistoryStatus.ERROR,
-                    error: 'relation does not exist',
+                    status: QueryHistoryStatus.READY,
+                    error: null,
+                    totalRowCount: 12,
+                    warehouseExecutionTimeMs: 5,
+                    columns: ordersColumns,
                 },
                 {
                     queryUuid: 'query-2',
                     status: QueryHistoryStatus.ERROR,
-                    error: 'referenced query failed',
+                    error: 'column "missing" does not exist',
+                    totalRowCount: null,
+                    warehouseExecutionTimeMs: null,
+                    columns: null,
                 },
             ],
         });
         const service = makeService({
             querySourceService: {
-                executeSourceQueries,
+                executeSourceQueries: vi
+                    .fn()
+                    .mockResolvedValue({ queries: submissions }),
                 getSourceQueryStatuses,
+            },
+            asyncQueryService: {
+                getAsyncQueryResults: vi.fn().mockResolvedValue({
+                    status: QueryHistoryStatus.ERROR,
+                    error: 'column "missing" does not exist',
+                }),
+            },
+        });
+
+        const result = await service
+            .createRuntime(makeRuntimeContext())
+            .runComposerQueries({
+                queries: composerQueries,
+                terminalNodeId: 'joined',
+                sampleNodeIds: [],
+            });
+
+        expect(result).toEqual({
+            status: 'failure',
+            error: 'Composer query failed.',
+            nodeStatuses: [
+                {
+                    nodeId: 'orders',
+                    state: QueryHistoryStatus.READY,
+                    error: null,
+                    rowCount: 12,
+                    columns: ordersColumns,
+                    sample: null,
+                },
+                {
+                    nodeId: 'joined',
+                    state: QueryHistoryStatus.ERROR,
+                    error: 'column "missing" does not exist',
+                    rowCount: null,
+                    columns: null,
+                    sample: null,
+                },
+            ],
+        });
+    });
+
+    it('returns a failure outcome with node statuses when the terminal query is cancelled', async () => {
+        const service = makeService({
+            querySourceService: {
+                executeSourceQueries: vi
+                    .fn()
+                    .mockResolvedValue({ queries: submissions }),
+                getSourceQueryStatuses: vi.fn().mockResolvedValue({
+                    statuses: [
+                        readyStatuses.statuses[0],
+                        {
+                            ...readyStatuses.statuses[1],
+                            status: QueryHistoryStatus.CANCELLED,
+                            totalRowCount: null,
+                            columns: null,
+                        },
+                    ],
+                }),
+            },
+            asyncQueryService: {
+                getAsyncQueryResults: vi.fn().mockResolvedValue({
+                    status: QueryHistoryStatus.CANCELLED,
+                }),
+            },
+        });
+
+        const result = await service
+            .createRuntime(makeRuntimeContext())
+            .runComposerQueries({
+                queries: composerQueries,
+                terminalNodeId: 'joined',
+                sampleNodeIds: [],
+            });
+
+        expect(result).toMatchObject({
+            status: 'failure',
+            error: 'Composer query was cancelled.',
+            nodeStatuses: [
+                { nodeId: 'orders', state: QueryHistoryStatus.READY },
+                { nodeId: 'joined', state: QueryHistoryStatus.CANCELLED },
+            ],
+        });
+    });
+
+    it('returns a failure outcome with node statuses when the terminal query times out', async () => {
+        vi.useFakeTimers();
+        try {
+            const service = makeService({
+                querySourceService: {
+                    executeSourceQueries: vi
+                        .fn()
+                        .mockResolvedValue({ queries: submissions }),
+                    getSourceQueryStatuses: vi.fn().mockResolvedValue({
+                        statuses: [
+                            readyStatuses.statuses[0],
+                            {
+                                ...readyStatuses.statuses[1],
+                                status: QueryHistoryStatus.EXECUTING,
+                                totalRowCount: null,
+                                columns: null,
+                            },
+                        ],
+                    }),
+                },
+                asyncQueryService: {
+                    getAsyncQueryResults: vi.fn().mockResolvedValue({
+                        status: QueryHistoryStatus.EXECUTING,
+                    }),
+                },
+            });
+
+            const promise = service
+                .createRuntime(makeRuntimeContext())
+                .runComposerQueries({
+                    queries: composerQueries,
+                    terminalNodeId: 'joined',
+                    sampleNodeIds: [],
+                });
+            await vi.advanceTimersByTimeAsync(6 * 60 * 1000);
+
+            await expect(promise).resolves.toMatchObject({
+                status: 'failure',
+                error: 'Composer query timed out after 5 minutes.',
+                nodeStatuses: [
+                    { nodeId: 'orders', state: QueryHistoryStatus.READY },
+                    { nodeId: 'joined', state: QueryHistoryStatus.EXECUTING },
+                ],
+            });
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('reads a preview page and takes the row count from the stored total when the node limit exceeds the results page cap', async () => {
+        const totalRows = 3000;
+        const getAsyncQueryResults = vi.fn(
+            async ({ page, pageSize }: { page: number; pageSize: number }) => {
+                validatePagination({
+                    page,
+                    pageSize,
+                    queryMaxLimit: 2500,
+                    totalRowCount: totalRows,
+                });
+                return {
+                    ...readyResults,
+                    rows: Array.from({ length: pageSize }, (_, i) => ({
+                        orders_total: { value: { raw: i } },
+                    })),
+                    totalResults: totalRows,
+                };
+            },
+        );
+        const service = makeService({
+            maxQueryLimit: 5000,
+            querySourceService: {
+                executeSourceQueries: vi
+                    .fn()
+                    .mockResolvedValue({ queries: submissions }),
+                getSourceQueryStatuses: vi
+                    .fn()
+                    .mockResolvedValue(readyStatuses),
             },
             asyncQueryService: { getAsyncQueryResults },
         });
 
-        await expect(
-            service.createRuntime(makeRuntimeContext()).runComposerQueries({
-                queries: composerQueries,
+        const result = await service
+            .createRuntime(makeRuntimeContext())
+            .runComposerQueries({
+                queries: composerQueries.map((query) =>
+                    query.nodeId === 'joined'
+                        ? { ...query, limit: totalRows }
+                        : query,
+                ),
                 terminalNodeId: 'joined',
-            }),
-        ).rejects.toThrow(/"orders" \(relation does not exist\)/);
+                sampleNodeIds: [],
+            });
+
+        if (result.status !== 'success') throw new Error('expected success');
+        expect(result.terminal.rowCount).toBe(totalRows);
+        expect(result.terminal.rows).toHaveLength(
+            COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
+        );
+    });
+
+    describe('node samples', () => {
+        const ordersPage = async (pageSize: number) => ({
+            status: QueryHistoryStatus.READY,
+            rows: Array.from({ length: 8 }, (_, index) => ({
+                orders_status: {
+                    value: {
+                        raw: `status-${index}`,
+                        formatted: `status-${index}`,
+                    },
+                },
+            })).slice(0, pageSize),
+            totalResults: 8,
+            columns: ordersColumns,
+        });
+        const runSampled = (
+            readOrders: typeof ordersPage,
+            sampleNodeIds: string[],
+        ) =>
+            makeService({
+                querySourceService: {
+                    executeSourceQueries: vi
+                        .fn()
+                        .mockResolvedValue({ queries: submissions }),
+                    getSourceQueryStatuses: vi
+                        .fn()
+                        .mockResolvedValue(readyStatuses),
+                },
+                asyncQueryService: {
+                    getAsyncQueryResults: vi
+                        .fn()
+                        .mockImplementation(
+                            ({
+                                queryUuid,
+                                pageSize,
+                            }: {
+                                queryUuid: string;
+                                pageSize: number;
+                            }) =>
+                                queryUuid === 'query-1'
+                                    ? readOrders(pageSize)
+                                    : Promise.resolve(readyResults),
+                        ),
+                },
+            })
+                .createRuntime(makeRuntimeContext())
+                .runComposerQueries({
+                    queries: composerQueries,
+                    terminalNodeId: 'joined',
+                    sampleNodeIds,
+                });
+        const samplesOf = (result: {
+            nodeStatuses: { nodeId: string; sample: unknown }[];
+        }) =>
+            Object.fromEntries(
+                result.nodeStatuses.map(({ nodeId, sample }) => [
+                    nodeId,
+                    sample,
+                ]),
+            );
+
+        it('reads at most five rows for each node asked to be sampled', async () => {
+            const result = await runSampled(ordersPage, ['orders']);
+
+            expect(result.status).toBe('success');
+            expect(samplesOf(result)).toEqual({
+                orders: [0, 1, 2, 3, 4].map((index) => ({
+                    orders_status: `status-${index}`,
+                })),
+                joined: null,
+            });
+        });
+
+        it('reads no sample for a node not asked to be sampled', async () => {
+            const result = await runSampled(ordersPage, []);
+
+            expect(samplesOf(result)).toEqual({ orders: null, joined: null });
+        });
+
+        it('samples the ready nodes of a run still running at the deadline', async () => {
+            const result = await makeService({
+                querySourceService: {
+                    executeSourceQueries: vi
+                        .fn()
+                        .mockResolvedValue({ queries: submissions }),
+                    getSourceQueryStatuses: vi.fn().mockResolvedValue({
+                        statuses: [
+                            readyStatuses.statuses[0],
+                            {
+                                ...readyStatuses.statuses[1],
+                                status: QueryHistoryStatus.EXECUTING,
+                                totalRowCount: null,
+                                columns: null,
+                            },
+                        ],
+                    }),
+                },
+                asyncQueryService: {
+                    getAsyncQueryResults: vi
+                        .fn()
+                        .mockImplementation(
+                            ({
+                                queryUuid,
+                                pageSize,
+                            }: {
+                                queryUuid: string;
+                                pageSize: number;
+                            }) =>
+                                queryUuid === 'query-1'
+                                    ? ordersPage(pageSize)
+                                    : Promise.resolve({
+                                          status: QueryHistoryStatus.EXECUTING,
+                                      }),
+                        ),
+                },
+            })
+                .createRuntime(makeRuntimeContext())
+                .runComposerQueriesUntilDeadline({
+                    queries: composerQueries,
+                    terminalNodeId: 'joined',
+                    sampleNodeIds: ['orders', 'joined'],
+                    deadlineMs: Date.now() - 1,
+                });
+
+            expect(result.status).toBe('running');
+            expect(samplesOf(result)).toEqual({
+                orders: [0, 1, 2, 3, 4].map((index) => ({
+                    orders_status: `status-${index}`,
+                })),
+                joined: null,
+            });
+        });
+
+        it('gives a null sample and still succeeds when a sample read fails', async () => {
+            const result = await runSampled(
+                () => Promise.reject(new Error('Access denied')),
+                ['orders'],
+            );
+
+            expect(result.status).toBe('success');
+            expect(samplesOf(result)).toEqual({ orders: null, joined: null });
+        });
     });
 });
 
@@ -4000,7 +4843,7 @@ describe('AiAgentToolsService runComposerQueries python failures', () => {
             },
         });
 
-        const error = await service
+        const result = await service
             .createRuntime(makeRuntimeContext())
             .runComposerQueries({
                 queries: [
@@ -4014,14 +4857,15 @@ describe('AiAgentToolsService runComposerQueries python failures', () => {
                     },
                 ],
                 terminalNodeId: 'forecast',
-            })
-            .catch((e: Error) => e);
+                sampleNodeIds: [],
+            });
 
-        expect(error).toBeInstanceOf(Error);
-        const { message } = error as Error;
-        expect(message).toContain('"forecast" (run() raised:');
-        expect(message).toContain("KeyError: 'amount'");
-        expect(message.length).toBeLessThan(4096 + 200);
+        if (result.status !== 'failure') throw new Error('expected failure');
+        const [{ nodeId, error }] = result.nodeStatuses;
+        expect(nodeId).toBe('forecast');
+        expect(error).toContain('run() raised:');
+        expect(error).toContain("KeyError: 'amount'");
+        expect(error!.length).toBeLessThan(4096 + 200);
     });
 });
 
@@ -6150,6 +6994,29 @@ describe.each(agentActionTestCases)(
                 'secret-name',
             );
         });
+        test('user name is refused for a service account', async () => {
+            const service = makeService();
+            const updateUser = vi.fn().mockResolvedValue(undefined);
+            Object.assign(service['userService'], { updateUser });
+            await expect(
+                withAgentActionScope(user, surface, enabled, () =>
+                    service
+                        .createRuntime(
+                            makeRuntimeContext({
+                                user: {
+                                    ...user,
+                                    serviceAccount: { uuid: 'service-account' },
+                                },
+                            }),
+                        )
+                        .updateUserName({
+                            firstName: 'Sam',
+                            lastName: 'Viewer',
+                        }),
+                ),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(updateUser).not.toHaveBeenCalled();
+        });
         test.each(['chart', 'dashboard'] as const)(
             'scheduled %s records before augmentation failure',
             async (resourceType) => {
@@ -6714,7 +7581,6 @@ test('gates effectful runtime operations before their implementations run', asyn
     for (const key of [
         'createScheduledDelivery',
         'syncDbtProject',
-        'setupPreviewDeploy',
         'generateDataApp',
         'updateUserName',
     ]) {
@@ -7986,5 +8852,261 @@ describe('AiAgentToolsService in a thread bound to a chart', () => {
             } as never),
         ).rejects.toThrow(ParameterError);
         expect(generateApp).not.toHaveBeenCalled();
+    });
+});
+
+describe('AiAgentToolsService canAuthorContent', () => {
+    // An Interactive Viewer: saves content only where a space grant allows it.
+    const spaceEditorRules = [
+        {
+            action: 'view',
+            subject: 'Project',
+            conditions: { organizationUuid, projectUuid },
+        },
+        {
+            action: 'manage',
+            subject: 'Dashboard',
+            conditions: {
+                projectUuid,
+                access: { $elemMatch: { userUuid, role: 'editor' } },
+            },
+        },
+        {
+            action: 'manage',
+            subject: 'SavedChart',
+            conditions: {
+                projectUuid,
+                access: { $elemMatch: { userUuid, role: 'editor' } },
+            },
+        },
+    ] as const;
+
+    const makeUser = (
+        rules: ConstructorParameters<typeof Ability<PossibleAbilities>>[0],
+    ): SessionUser =>
+        ({
+            ...defaultSessionUser,
+            userUuid,
+            organizationUuid,
+            ability: new Ability<PossibleAbilities>(rules),
+        }) as SessionUser;
+
+    const serviceWithEditableSpaces = (editableSpaceUuids: string[]) =>
+        makeService({
+            spaceModel: {
+                find: vi
+                    .fn()
+                    .mockResolvedValue([
+                        { uuid: 'space-a' },
+                        { uuid: 'space-b' },
+                    ]),
+            },
+            spacePermissionService: {
+                getAccessibleSpaceUuids: vi
+                    .fn()
+                    .mockResolvedValue(editableSpaceUuids),
+            },
+        });
+
+    it('follows space access in a project, not the project role', async () => {
+        const editorUser = makeUser([...spaceEditorRules]);
+        expect(
+            await serviceWithEditableSpaces(['space-b']).canAuthorContent({
+                user: editorUser,
+                projectUuid,
+                spaceUuids: null,
+            }),
+        ).toBe(true);
+        expect(
+            await serviceWithEditableSpaces([]).canAuthorContent({
+                user: editorUser,
+                projectUuid,
+                spaceUuids: null,
+            }),
+        ).toBe(false);
+    });
+
+    it('asks which spaces the user can save charts into', async () => {
+        const getAccessibleSpaceUuids = vi.fn().mockResolvedValue([]);
+        const editorUser = makeUser([...spaceEditorRules]);
+        await makeService({
+            spaceModel: { find: vi.fn().mockResolvedValue([{ uuid: 'a' }]) },
+            spacePermissionService: { getAccessibleSpaceUuids },
+        }).canAuthorContent({
+            user: editorUser,
+            projectUuid,
+            spaceUuids: null,
+        });
+        expect(getAccessibleSpaceUuids).toHaveBeenCalledWith(
+            'create',
+            editorUser,
+            ['a'],
+            { subjectType: 'SavedChart' },
+        );
+    });
+
+    it('without a project, the role alone decides', async () => {
+        const find = vi.fn();
+        const service = makeService({ spaceModel: { find } });
+        expect(
+            await service.canAuthorContent({
+                user: makeUser([...spaceEditorRules]),
+                projectUuid: undefined,
+                spaceUuids: null,
+            }),
+        ).toBe(true);
+        expect(
+            await service.canAuthorContent({
+                user: makeUser([]),
+                projectUuid: undefined,
+                spaceUuids: null,
+            }),
+        ).toBe(false);
+        expect(find).not.toHaveBeenCalled();
+    });
+
+    it('answers no for a role that can never save content without listing spaces', async () => {
+        const find = vi.fn();
+        const service = makeService({ spaceModel: { find } });
+        expect(
+            await service.canAuthorContent({
+                user: makeUser([]),
+                projectUuid,
+                spaceUuids: null,
+            }),
+        ).toBe(false);
+        expect(find).not.toHaveBeenCalled();
+    });
+
+    it('counts saving into a space the user may create', async () => {
+        const editorUser = makeUser([
+            ...spaceEditorRules,
+            {
+                action: 'create',
+                subject: 'Space',
+                conditions: { organizationUuid, projectUuid },
+            },
+        ]);
+        expect(
+            await serviceWithEditableSpaces([]).canAuthorContent({
+                user: editorUser,
+                projectUuid,
+                spaceUuids: null,
+            }),
+        ).toBe(true);
+    });
+
+    it('with write spaces, counts only those spaces', async () => {
+        const find = vi.fn();
+        const getAccessibleSpaceUuids = vi.fn().mockResolvedValue([]);
+        const editorUser = makeUser([
+            ...spaceEditorRules,
+            {
+                action: 'create',
+                subject: 'Space',
+                conditions: { organizationUuid, projectUuid },
+            },
+        ]);
+        expect(
+            await makeService({
+                spaceModel: { find },
+                spacePermissionService: { getAccessibleSpaceUuids },
+            }).canAuthorContent({
+                user: editorUser,
+                projectUuid,
+                spaceUuids: ['write-space'],
+            }),
+        ).toBe(false);
+        expect(getAccessibleSpaceUuids).toHaveBeenCalledWith(
+            'create',
+            editorUser,
+            ['write-space'],
+            { subjectType: 'SavedChart' },
+        );
+        expect(find).not.toHaveBeenCalled();
+    });
+
+    describe('canAuthorDocuments', () => {
+        const documentEditorRules = [
+            {
+                action: 'manage',
+                subject: 'Document',
+                conditions: {
+                    projectUuid,
+                    access: { $elemMatch: { userUuid, role: 'editor' } },
+                },
+            },
+        ] as const;
+
+        it('follows Document permissions, not chart permissions', async () => {
+            const service = serviceWithEditableSpaces(['space-b']);
+            expect(
+                await service.canAuthorDocuments({
+                    user: makeUser([...documentEditorRules]),
+                    projectUuid,
+                    spaceUuids: null,
+                }),
+            ).toBe(true);
+            expect(
+                await service.canAuthorDocuments({
+                    user: makeUser([...spaceEditorRules]),
+                    projectUuid,
+                    spaceUuids: null,
+                }),
+            ).toBe(false);
+            expect(
+                await service.canAuthorContent({
+                    user: makeUser([...documentEditorRules]),
+                    projectUuid,
+                    spaceUuids: null,
+                }),
+            ).toBe(false);
+        });
+
+        it('asks which spaces the user can save Documents into', async () => {
+            const getAccessibleSpaceUuids = vi.fn().mockResolvedValue([]);
+            const documentUser = makeUser([...documentEditorRules]);
+            expect(
+                await makeService({
+                    spaceModel: {
+                        find: vi.fn().mockResolvedValue([{ uuid: 'a' }]),
+                    },
+                    spacePermissionService: { getAccessibleSpaceUuids },
+                }).canAuthorDocuments({
+                    user: documentUser,
+                    projectUuid,
+                    spaceUuids: null,
+                }),
+            ).toBe(false);
+            expect(getAccessibleSpaceUuids).toHaveBeenCalledWith(
+                'create',
+                documentUser,
+                ['a'],
+                { subjectType: 'Document' },
+            );
+        });
+
+        it('with write spaces, counts only those spaces', async () => {
+            const getAccessibleSpaceUuids = vi
+                .fn()
+                .mockResolvedValue(['write-space']);
+            const documentUser = makeUser([...documentEditorRules]);
+            expect(
+                await makeService({
+                    spaceModel: { find: vi.fn() },
+                    spacePermissionService: { getAccessibleSpaceUuids },
+                }).canAuthorDocuments({
+                    user: documentUser,
+                    projectUuid,
+                    spaceUuids: ['write-space'],
+                }),
+            ).toBe(true);
+            expect(getAccessibleSpaceUuids).toHaveBeenCalledWith(
+                'create',
+                documentUser,
+                ['write-space'],
+                { subjectType: 'Document' },
+            );
+        });
     });
 });

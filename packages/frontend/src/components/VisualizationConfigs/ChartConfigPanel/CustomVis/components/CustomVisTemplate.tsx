@@ -38,18 +38,13 @@ const getTemplateIcon = (template: TemplateType) => {
 };
 export const SelectTemplate = ({
     itemsMap,
-    isCustomConfig,
     setEditorConfig,
 }: {
     itemsMap: ItemsMap | undefined;
-    isCustomConfig: boolean;
-    isEditorEmpty: boolean;
     setEditorConfig: (config: string) => void;
 }) => {
     const loadTemplate = useCallback(
         (template: TemplateType) => {
-            if (!isCustomConfig) return null;
-
             const xField = sortedItemsForXAxis(itemsMap)[0];
             const [yField, extraField] = sortedItemsForYAxis(itemsMap);
 
@@ -61,7 +56,7 @@ export const SelectTemplate = ({
             );
             setEditorConfig(templateString);
         },
-        [isCustomConfig, itemsMap, setEditorConfig],
+        [itemsMap, setEditorConfig],
     );
 
     return (

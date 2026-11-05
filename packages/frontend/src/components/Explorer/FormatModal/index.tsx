@@ -15,7 +15,7 @@ import {
 import { Button } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconEraser, IconPencil } from '@tabler/icons-react';
-import isEqual from 'lodash/isEqual';
+import { isEqual } from 'es-toolkit/compat';
 import { memo, useCallback, useEffect, useMemo } from 'react';
 import { type ValueOf } from 'type-fest';
 import {

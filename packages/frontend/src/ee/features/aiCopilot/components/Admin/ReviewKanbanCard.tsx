@@ -116,7 +116,6 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                             )}
                             <Text
                                 fw={500}
-                                c="ldGray.9"
                                 lineClamp={2}
                                 className={styles.cardTitle}
                             >
@@ -146,7 +145,7 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                             >
                                 <Text
                                     fz="xs"
-                                    c="ldGray.5"
+                                    c="dimmed"
                                     className={styles.lastSeen}
                                 >
                                     {formatRelativeReviewDate(item.lastSeenAt)}
@@ -187,10 +186,9 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                                             h={6}
                                             bg="indigo.5"
                                             className={styles.pulse}
-                                            style={{ borderRadius: '50%' }}
                                         />
                                     )}
-                                    <Text fz="xs" c="ldGray.6">
+                                    <Text fz="xs" c="dimmed">
                                         {activityLabel}
                                     </Text>
                                 </Group>

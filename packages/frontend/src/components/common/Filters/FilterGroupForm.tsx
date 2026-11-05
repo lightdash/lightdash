@@ -33,6 +33,7 @@ import { v4 as uuidv4 } from 'uuid';
 import MantineIcon from '../MantineIcon';
 import { FILTER_SELECT_LIMIT } from './constants';
 import FilterRuleForm from './FilterRuleForm';
+import classes from './Filters.module.css';
 
 type Props = {
     hideButtons?: boolean;
@@ -49,13 +50,7 @@ const ALLOW_CONVERT_TO_GROUP_UP_TO_DEPTH = 2;
 
 const AddFilterButton: FC<{ onClick: () => void }> = ({ onClick }) => {
     return (
-        <Box
-            pos="relative"
-            bg="var(--mantine-color-body)"
-            style={{
-                zIndex: 2,
-            }}
-        >
+        <Box pos="relative" className={classes.raised}>
             <Button
                 variant="light"
                 size="xs"
@@ -189,12 +184,12 @@ const FilterGroupForm: FC<Props> = memo(
                         h="100%"
                         top={0}
                         left={18}
-                        style={{ zIndex: 1 }}
+                        className={classes.groupLine}
                     />
                 )}
 
                 <Group gap="xs">
-                    <Box pos="relative" style={{ zIndex: 3 }}>
+                    <Box pos="relative" className={classes.operatorSelect}>
                         <Select
                             limit={FILTER_SELECT_LIMIT}
                             size="xs"
@@ -229,11 +224,7 @@ const FilterGroupForm: FC<Props> = memo(
                     </Text>
                 </Group>
 
-                <Stack
-                    gap="xs"
-                    pl={36}
-                    style={{ flexGrow: 1, overflowY: 'auto' }}
-                >
+                <Stack gap="xs" pl={36} className={classes.groupItems}>
                     {items.map((item, index) => (
                         <React.Fragment key={item.id}>
                             {!isFilterGroup(item) ? (

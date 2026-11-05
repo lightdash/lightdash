@@ -57,7 +57,6 @@ export type ContentSqlQuerying = {
     approval: SqlApprovalDependencies;
     maxLimit: number;
     sqlScope: SqlScope | null;
-    hyphenatedIdentifiers: boolean;
 };
 
 type Dependencies = {
@@ -249,7 +248,6 @@ export const getRunContentQuery = ({
             const scopeViolations = findSqlScopeViolations(
                 sql,
                 sqlQuerying.sqlScope,
-                { hyphenatedIdentifiers: sqlQuerying.hyphenatedIdentifiers },
             );
             if (scopeViolations.length > 0 && sqlQuerying.sqlScope) {
                 return await persistIfResumed(

@@ -8,7 +8,9 @@ import {
     EMPTY_RESPONSE_MESSAGE,
     getKnownUserFacingErrorMessage,
     getUserFacingErrorMessage,
+    OUTPUT_LIMIT_REACHED_MESSAGE,
     PROVIDER_BILLING_MESSAGE,
+    PROVIDER_RATE_LIMIT_MESSAGE,
     STEP_CAP_REACHED_MESSAGE,
 } from './errorMessages';
 import {
@@ -43,6 +45,20 @@ describe('getUserFacingErrorMessage', () => {
             );
             expect(error.finishReason).toBe('stop');
             expect(error.stepsCount).toBe(3);
+        });
+
+        it.each([
+            {
+                name: 'getUserFacingErrorMessage',
+                resolve: getUserFacingErrorMessage,
+            },
+            {
+                name: 'getKnownUserFacingErrorMessage',
+                resolve: getKnownUserFacingErrorMessage,
+            },
+        ])('distinguishes output exhaustion through $name', ({ resolve }) => {
+            const message = resolve(new AiAgentEmptyResponseError('length', 1));
+            expect(message).toBe(OUTPUT_LIMIT_REACHED_MESSAGE);
         });
     });
 
@@ -101,9 +117,45 @@ describe('getUserFacingErrorMessage', () => {
                 getUserFacingErrorMessage(
                     new Error(message),
                     undefined,
-                    'self-managed',
+                    'lightdash-managed',
                 ),
             ).toBe(RATE_LIMIT_MESSAGE);
+        });
+
+        it.each(['self-managed', 'lightdash-managed'] as const)(
+            'tells %s key owners whose rate limit was hit after retries',
+            (keyManagement) => {
+                const error = new RetryError({
+                    message: 'Failed after 7 attempts',
+                    reason: 'maxRetriesExceeded',
+                    errors: [
+                        new APICallError({
+                            message:
+                                'Your requests to gpt-6.1 for my-deployment have exceeded token rate limit.',
+                            url: 'https://example.openai.azure.com/openai/deployments/my-deployment',
+                            requestBodyValues: {},
+                            statusCode: 429,
+                        }),
+                    ],
+                });
+                expect(
+                    getKnownUserFacingErrorMessage(error, keyManagement),
+                ).toBe(
+                    keyManagement === 'self-managed'
+                        ? PROVIDER_RATE_LIMIT_MESSAGE
+                        : RATE_LIMIT_MESSAGE,
+                );
+            },
+        );
+
+        it('points self-managed key owners at their provider on a throttled message', () => {
+            expect(
+                getUserFacingErrorMessage(
+                    new Error('Request was throttled'),
+                    undefined,
+                    'self-managed',
+                ),
+            ).toBe(PROVIDER_RATE_LIMIT_MESSAGE);
         });
     });
 
@@ -408,6 +460,23 @@ describe('unknown user-facing errors', () => {
                 keyManagement === 'self-managed'
                     ? PROVIDER_BILLING_MESSAGE
                     : 'managed fallback',
+            );
+        },
+    );
+
+    it.each(['self-managed', 'lightdash-managed'] as const)(
+        'respects %s rate-limit guidance for an unknown provider error',
+        async (keyManagement) => {
+            const { decisions } = setup('rate');
+            expect(
+                await createUserFacingErrorResolver({
+                    decisions,
+                    keyManagement,
+                })(new Error('Too many concurrent requests'), 'fallback'),
+            ).toBe(
+                keyManagement === 'self-managed'
+                    ? PROVIDER_RATE_LIMIT_MESSAGE
+                    : RATE_LIMIT_MESSAGE,
             );
         },
     );

@@ -45,6 +45,7 @@ import {
 import { lintHandler } from './handlers/lint';
 import { listProjectsHandler } from './handlers/listProjects';
 import { login } from './handlers/login';
+import { logout } from './handlers/logout';
 import { preAggregateAuditHandler } from './handlers/preAggregateAudit';
 import { preAggregateCheckExternalHandler } from './handlers/preAggregateCheckExternal';
 import {
@@ -300,6 +301,17 @@ ${styles.bold('Examples:')}
     )
     .option('--verbose', undefined, false)
     .action(login);
+
+program
+    .command('logout')
+    .description(
+        'Logs out of the configured instance and revokes a browser login session',
+    )
+    .addHelpText(
+        'after',
+        '\nBrowser login sessions are revoked on the server. Saved API keys are removed locally; personal access tokens must be revoked in your account settings.\n',
+    )
+    .action(logout);
 
 const agentProgram = program
     .command('agent')
@@ -746,10 +758,6 @@ program
     .option(
         '--no-warehouse-credentials',
         'Create preview without warehouse credentials. Copies credentials from upstream project.',
-    )
-    .option(
-        '--organization-credentials <name>',
-        'Use organization warehouse credentials with the specified name (Enterprise Edition feature)',
     )
     .option('--no-batched-deploy', 'Use the legacy single-request deploy')
     .option(
@@ -1466,6 +1474,11 @@ appsProgram
         '--port <port>',
         'port for the app dev server (default: Vite picks one, usually 5173)',
     )
+    .option(
+        '--show-sql',
+        'print the compiled SQL for each metric query the app runs',
+        false,
+    )
     .option('--verbose', undefined, false)
     .action(appsPreviewHandler);
 appsProgram
@@ -1600,10 +1613,6 @@ program
     .option(
         '--no-warehouse-credentials',
         'Create project without warehouse credentials. Skips dbt compile + warehouse catalog',
-    )
-    .option(
-        '--organization-credentials <name>',
-        'Use organization warehouse credentials with the specified name (Enterprise Edition feature)',
     )
     .option(
         '--disable-timestamp-conversion [true|false]',
@@ -1894,9 +1903,7 @@ program
 
 program
     .command('generate-exposures')
-    .description(
-        '[Experimental command] Generates a .yml file for Lightdash exposures',
-    )
+    .description('Generates a YAML file for Lightdash exposures')
     .addHelpText(
         'after',
         `

@@ -61,8 +61,11 @@ export default defineConfig({
     },
     resolve: {
         dedupe: ['react', 'react-dom'],
-        alias:
-            process.env.NODE_ENV === 'development'
+        alias: {
+            // Same-shape es-toolkit entries replace lodash copies pulled in by react-ace and react-grid-layout
+            'lodash.isequal': 'es-toolkit/compat/isEqual',
+            // No lodash.get alias: es-toolkit's CJS get makes rolldown emit a self-calling require_hasOwn in react-ace
+            ...(process.env.NODE_ENV === 'development'
                 ? {
                       '@lightdash/common/src': path.resolve(
                           __dirname,
@@ -85,7 +88,8 @@ export default defineConfig({
                           '../visualization/src/index.ts',
                       ),
                   }
-                : undefined,
+                : {}),
+        },
     },
     build: {
         outDir: 'build',
@@ -122,7 +126,7 @@ export default defineConfig({
                         },
                         {
                             name: 'modules',
-                            test: /node_modules[\\/](jspdf|lodash|colorjs\.io|zod)/,
+                            test: /node_modules[\\/](jspdf|lodash|es-toolkit|colorjs\.io|zod)/,
                             priority: 15,
                         },
                         {

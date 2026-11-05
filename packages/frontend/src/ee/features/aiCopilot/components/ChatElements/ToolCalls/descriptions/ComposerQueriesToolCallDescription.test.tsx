@@ -89,7 +89,7 @@ describe('ComposerQueriesToolCallDescription', () => {
         expect(screen.queryByText(/secret/)).not.toBeInTheDocument();
     });
 
-    it('opens only the running node and marks the rest with their status', () => {
+    it('keeps running nodes collapsed and marks each with its status', () => {
         renderWithProviders(
             <ComposerQueriesToolCallDescription
                 queries={[
@@ -116,16 +116,10 @@ describe('ComposerQueriesToolCallDescription', () => {
         expect(screen.getByLabelText('Completed')).toBeInTheDocument();
         expect(screen.getByLabelText('Running')).toBeInTheDocument();
         expect(screen.getByLabelText('Queued')).toBeInTheDocument();
-
-        expect(screen.getAllByRole('button', { expanded: true })).toHaveLength(
-            1,
-        );
-        expect(
-            screen.getByRole('button', { expanded: true }),
-        ).toHaveTextContent('Revenue');
+        expect(screen.queryByRole('button', { expanded: true })).toBeNull();
     });
 
-    it('opens failed nodes and labels them failed', () => {
+    it('collapses failed nodes and labels them failed', () => {
         renderWithProviders(
             <ComposerQueriesToolCallDescription
                 queries={[
@@ -140,8 +134,9 @@ describe('ComposerQueriesToolCallDescription', () => {
         );
 
         expect(screen.getByLabelText('Failed')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { expanded: true })).toBeNull();
         expect(
-            screen.getByRole('button', { expanded: true }),
+            screen.getAllByRole('button', { expanded: false })[1],
         ).toHaveTextContent('Broken step');
     });
 

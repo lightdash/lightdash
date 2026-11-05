@@ -48,6 +48,7 @@ import useApp from '../providers/App/useApp';
 import { FavoritesProvider } from '../providers/Favorites/FavoritesProvider';
 import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
+import classes from './Space.module.css';
 
 const Space: FC = () => {
     const projectUuid = useProjectUuid()!;
@@ -115,12 +116,12 @@ const Space: FC = () => {
 
     if (space === undefined) {
         return (
-            <div style={{ marginTop: '20px' }}>
+            <Box mt="lg">
                 <SuboptimalState
                     title="Space does not exist"
                     description={`We could not find space with uuid ${spaceUuid}`}
                 />
-            </div>
+            </Box>
         );
     }
 
@@ -221,11 +222,9 @@ const Space: FC = () => {
                                                 )
                                             ) : (
                                                 <span
-                                                    style={{
-                                                        display: 'inline-flex',
-                                                        alignItems: 'center',
-                                                        gap: 4,
-                                                    }}
+                                                    className={
+                                                        classes.lockedCrumb
+                                                    }
                                                 >
                                                     <MantineIcon
                                                         icon={IconLock}

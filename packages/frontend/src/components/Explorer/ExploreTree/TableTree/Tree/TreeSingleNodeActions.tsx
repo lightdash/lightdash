@@ -1,6 +1,5 @@
 import {
     DimensionType,
-    FeatureFlags,
     friendlyName,
     getCustomDimensionWriteBackError,
     getCustomMetricType,
@@ -41,7 +40,6 @@ import useToaster from '../../../../../hooks/toaster/useToaster';
 import { useFilteredFields } from '../../../../../hooks/useFilters';
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { useCannotAuthorCustomSql } from '../../../../../hooks/user/useCannotAuthorCustomSql';
-import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../../providers/App/useApp';
 import { useRequestRegistryMetricDelete } from '../../../../../providers/Explorer/useIsModalHosted';
 import useTracking from '../../../../../providers/Tracking/useTracking';
@@ -101,11 +99,6 @@ const TreeSingleNodeActions: FC<Props> = ({
     }, [item]);
 
     const requestRegistryMetricDelete = useRequestRegistryMetricDelete();
-
-    const { data: customGroupBinsFlag } = useServerFeatureFlag(
-        FeatureFlags.CustomGroupBins,
-    );
-    const isCustomGroupBinsEnabled = customGroupBinsFlag?.enabled ?? false;
 
     const duplicateCustomMetric = (customMetric: AdditionalMetric) => {
         const newDeepCopyItem = JSON.parse(JSON.stringify(customMetric));
@@ -513,8 +506,7 @@ const TreeSingleNodeActions: FC<Props> = ({
                 {!basicActionsOnly &&
                 isDimension(item) &&
                 (item.type === DimensionType.NUMBER ||
-                    (item.type === DimensionType.STRING &&
-                        isCustomGroupBinsEnabled)) ? (
+                    item.type === DimensionType.STRING) ? (
                     <>
                         <Menu.Divider />
                         <Menu.Item

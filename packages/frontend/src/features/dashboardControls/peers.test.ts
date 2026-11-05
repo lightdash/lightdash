@@ -15,15 +15,19 @@ import {
     getEffectiveTabUuid,
     getFieldCount,
     getFieldScope,
+    getFilterChips,
     getFilterFields,
+    getFilterRows,
     getMissingTileFieldId,
     getTabCounts,
     getTabCountsForField,
     getTileField,
+    getTileRowKey,
     getTilesOnTab,
     isSqlColumnRow,
     isTargetOnRow,
     isTileFieldKnown,
+    isTileInRow,
     canTileTakeFilter,
     removeField,
     removeFieldFromAll,
@@ -850,6 +854,52 @@ describe('what a field would do over the tiles in scope', () => {
         });
     });
 
+    describe('a SQL column on a field filter', () => {
+        const sqlTile = {
+            uuid: 's',
+            tabUuid: 't1',
+            type: DashboardTileTypes.SQL_CHART,
+        } as DashboardTile;
+        const allTiles = [...tiles, sqlTile];
+        const onColumn = rule({ s: toSqlColumnTarget('country') });
+
+        it('is a row of the filter, after its fields, but not a field', () => {
+            expect(getFilterFields(onColumn, allTiles)).toEqual([
+                'orders_status',
+            ]);
+            expect(getFilterRows(onColumn, allTiles)).toEqual([
+                'orders_status',
+                'country',
+            ]);
+            expect(isSqlColumnRow(onColumn, 'country')).toBe(true);
+            expect(
+                isTargetOnRow(
+                    onColumn,
+                    toSqlColumnTarget('country'),
+                    'country',
+                ),
+            ).toBe(true);
+        });
+
+        it('is no row once its tile is gone', () => {
+            expect(getFilterRows(onColumn, tiles)).toEqual(['orders_status']);
+        });
+
+        it('becomes the first row when the only field is removed', () => {
+            const next = removeField(
+                onColumn,
+                'orders_status',
+                allTiles,
+                fieldsByTile,
+                { s: [{ reference: 'country', type: DimensionType.STRING }] },
+            );
+            expect(next.target).toEqual(toSqlColumnTarget('country'));
+            expect(next.tileTargets).toEqual({
+                s: toSqlColumnTarget('country'),
+            });
+        });
+    });
+
     describe('a SQL column that reads like a field id', () => {
         const sqlTile = {
             uuid: 's',
@@ -915,6 +965,9 @@ describe('what a field would do over the tiles in scope', () => {
             };
             expect(isSqlColumnRow(columnRule, 'orders_status')).toBe(true);
             expect(isSqlColumnRow(onColumn, 'orders_status')).toBe(false);
+            expect(getFilterRows(onColumn, allTiles)).toEqual([
+                'orders_status',
+            ]);
             expect(
                 getFieldCount(
                     columnRule,
@@ -988,5 +1041,81 @@ describe('a field on a tile that no longer offers it', () => {
             getTabCountsForField(r, 'orders_gone', tiles, tabs, fieldsByTile)
                 .t1,
         ).toEqual({ applied: 1, total: 1 });
+    });
+});
+
+describe('chips: a field id as each tile labels it', () => {
+    const label = (tableLabel: string) =>
+        ({
+            table: 'customers',
+            name: 'id',
+            label: 'Id',
+            tableLabel,
+        }) as DashboardFilterableField;
+    const payments = label('Customers');
+    const orders = label('Order customer');
+    const PAYMENTS_KEY = 'customers_id::Customers::Id';
+    const ORDERS_KEY = 'customers_id::Order customer::Id';
+    const chipTiles = [tile('p', 't1'), tile('o', 't1'), tile('x', 't1')];
+    const [p, o, x] = chipTiles;
+    const byTile = { p: [payments], o: [orders], x: [] };
+    const fieldsMap = { customers_id: payments };
+    const idRule: DashboardFilterRule = {
+        ...rule(),
+        target: { fieldId: 'customers_id', tableName: 'customers' },
+    };
+
+    it("keys a tile by its own explore's label, else the dashboard's", () => {
+        expect(getTileRowKey(p, 'customers_id', byTile, fieldsMap)).toBe(
+            PAYMENTS_KEY,
+        );
+        expect(getTileRowKey(o, 'customers_id', byTile, fieldsMap)).toBe(
+            ORDERS_KEY,
+        );
+        expect(getTileRowKey(x, 'customers_id', byTile, fieldsMap)).toBe(
+            PAYMENTS_KEY,
+        );
+        expect(getTileRowKey(x, 'gone', byTile, fieldsMap)).toBe('gone');
+    });
+
+    it('is a chip per label the tiles on the field give it', () => {
+        expect(getFilterChips(idRule, chipTiles, byTile, fieldsMap)).toEqual([
+            { key: PAYMENTS_KEY, fieldId: 'customers_id' },
+            { key: ORDERS_KEY, fieldId: 'customers_id' },
+        ]);
+        // On no tile: one chip, as the dashboard labels it
+        expect(
+            getFilterChips(
+                { ...idRule, tileTargets: { p: false, o: false } },
+                chipTiles,
+                byTile,
+                fieldsMap,
+            ),
+        ).toEqual([{ key: PAYMENTS_KEY, fieldId: 'customers_id' }]);
+    });
+
+    it('keeps a column reference with "::" whole', () => {
+        const column = toSqlColumnTarget('ORDER_DATE::DATE');
+        expect(
+            getFilterChips(
+                { ...rule(), target: column },
+                chipTiles,
+                byTile,
+                {},
+            ),
+        ).toEqual([{ key: 'ORDER_DATE::DATE', fieldId: 'ORDER_DATE::DATE' }]);
+    });
+
+    it("reaches only a chip's own tiles; a key that is its id reaches all", () => {
+        const ordersChip = { key: ORDERS_KEY, fieldId: 'customers_id' };
+        expect(
+            chipTiles.filter((t) =>
+                isTileInRow(t, ordersChip, byTile, fieldsMap),
+            ),
+        ).toEqual([o]);
+        const plain = { key: 'ORDER_DATE::DATE', fieldId: 'ORDER_DATE::DATE' };
+        expect(
+            chipTiles.every((t) => isTileInRow(t, plain, byTile, fieldsMap)),
+        ).toBe(true);
     });
 });

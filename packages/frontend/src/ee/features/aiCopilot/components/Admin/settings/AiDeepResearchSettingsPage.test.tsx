@@ -99,7 +99,7 @@ describe('AiDeepResearchSettingsPage', () => {
             </MemoryRouter>,
         );
 
-        const updateButton = screen.getByRole('button', { name: 'Update' });
+        const updateButton = screen.getByRole('button', { name: 'Save' });
         expect(updateButton).toBeDisabled();
 
         fireEvent.change(
@@ -151,7 +151,7 @@ describe('AiDeepResearchSettingsPage', () => {
         await user.click(screen.getByRole('button', { name: 'Cancel' }));
 
         expect(stepsInput).toHaveValue('16');
-        expect(screen.getByRole('button', { name: 'Update' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
         expect(updateSettings).not.toHaveBeenCalled();
     });
 

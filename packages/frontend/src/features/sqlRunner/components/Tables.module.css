@@ -52,13 +52,21 @@
 }
 
 .tableButton[data-active] {
-    background-color: light-dark(rgb(24 24 27 / 0.07), rgb(236 236 238 / 0.09));
+    background-color: color-mix(
+        in srgb,
+        var(--mantine-color-text) 8%,
+        transparent
+    );
     color: var(--mantine-color-text);
     font-weight: 500;
 }
 
 .tableButton[data-active]:hover {
-    background-color: light-dark(rgb(24 24 27 / 0.1), rgb(236 236 238 / 0.13));
+    background-color: color-mix(
+        in srgb,
+        var(--mantine-color-text) 12%,
+        transparent
+    );
 }
 
 .recentButton {
@@ -135,4 +143,12 @@
 
 .fade[data-visible] {
     opacity: 1;
+}
+
+.virtualRow {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    transform: translateY(var(--row-start));
 }

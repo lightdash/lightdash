@@ -18,6 +18,7 @@ import MantineIcon from '../../common/MantineIcon';
 import MantineLinkButton from '../../common/MantineLinkButton';
 import SuboptimalState from '../../common/SuboptimalState/SuboptimalState';
 import AddTileButton from '../AddTileButton';
+import classes from './EmptyStateNoTiles.module.css';
 
 interface SavedChartsAvailableProps {
     onAddTiles: (
@@ -73,7 +74,7 @@ const EmptyStateNoTiles: FC<SavedChartsAvailableProps> = ({
 
     return (
         <TrackSection name={SectionName.EMPTY_RESULTS_TABLE}>
-            <div style={{ padding: '50px 0' }}>
+            <div className={classes.emptyState}>
                 {hasSavedCharts ? (
                     <SuboptimalState
                         icon={IconLayoutDashboard}

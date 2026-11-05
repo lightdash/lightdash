@@ -25,6 +25,11 @@ vi.mock('../../../../hooks/useSpaces', () => ({
     useSpaceSummaries: () => ({
         data: [
             { uuid: 'personal', name: 'Personal', parentSpaceUuid: null },
+            {
+                uuid: 'personal-drafts',
+                name: 'Drafts',
+                parentSpaceUuid: 'personal',
+            },
             { uuid: 'finance', name: 'Finance', parentSpaceUuid: null },
             {
                 uuid: 'users-root',
@@ -35,6 +40,11 @@ vi.mock('../../../../hooks/useSpaces', () => ({
                 uuid: 'other-personal',
                 name: 'Someone else',
                 parentSpaceUuid: 'users-root',
+            },
+            {
+                uuid: 'other-personal-nested',
+                name: 'Someone else nested',
+                parentSpaceUuid: 'other-personal',
             },
         ],
         isInitialLoading: false,
@@ -95,6 +105,10 @@ describe('RequestReviewModal', () => {
             screen.queryByText('Default User Spaces'),
         ).not.toBeInTheDocument();
         expect(screen.queryByText('Someone else')).not.toBeInTheDocument();
+        expect(screen.queryByText('Drafts')).not.toBeInTheDocument();
+        expect(
+            screen.queryByText('Someone else nested'),
+        ).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled();
 
         await pickFinanceAndContinue();

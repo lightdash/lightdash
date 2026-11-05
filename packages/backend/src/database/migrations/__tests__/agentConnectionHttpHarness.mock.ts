@@ -1,5 +1,4 @@
 import { FeatureFlags } from '@lightdash/common';
-import connectSessionKnex from 'connect-session-knex';
 import signature from 'cookie-signature';
 import express, { type ErrorRequestHandler } from 'express';
 import expressSession from 'express-session';
@@ -10,6 +9,7 @@ import { once } from 'node:events';
 import { type AddressInfo } from 'node:net';
 import passport from 'passport';
 import { fromSession } from '../../../auth/account/account';
+import { KnexSessionStore } from '../../../auth/KnexSessionStore';
 import { lightdashConfig } from '../../../config/lightdashConfig';
 import { apiKeyPassportStrategy } from '../../../controllers/authentication/strategies/apiKeyStrategy';
 import { errorHandler } from '../../../errors';
@@ -96,13 +96,7 @@ export const startConnectionHttpServer = async (database: Knex) => {
             }
         },
     );
-    const Store = connectSessionKnex(expressSession);
-    const store = new Store({
-        knex: database,
-        tablename: 'sessions',
-        createtable: false,
-        clearInterval: 0,
-    });
+    const store = new KnexSessionStore(database, { cleanupInterval: 0 });
     const app = express();
     app.use(express.json());
     app.use(express.urlencoded({ extended: false }));

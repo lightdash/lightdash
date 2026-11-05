@@ -17,6 +17,15 @@ const dashboardAsCodeSchema = z.object({
             name: z.string(),
         }),
     ),
+    config: z
+        .object({
+            controlSections: z.array(z.object({ name: z.string() })).optional(),
+        })
+        .optional()
+        // Only section names are translatable; drop an otherwise empty config
+        .transform((config) =>
+            config?.controlSections?.length ? config : undefined,
+        ),
     tiles: z.array(
         z.union([
             z.object({

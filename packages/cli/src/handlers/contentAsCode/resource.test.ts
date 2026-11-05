@@ -1,7 +1,6 @@
 import {
     ChartType,
     ContentAsCodeType,
-    type AgentAsCode,
     type DocumentAsCode,
     type HomepageAsCode,
 } from '@lightdash/common';
@@ -9,6 +8,7 @@ import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { type AgentAsCodeFile } from '../aiAgentKnowledgeDocuments';
 import {
     AI_AGENT_CODE_RESOURCE,
     ALERT_CODE_RESOURCE,
@@ -19,7 +19,7 @@ import { readCodeResourceFiles, writeCodeResourceDocuments } from './resource';
 
 const temporaryDirectories: string[] = [];
 
-const agent = (slug: string): AgentAsCode => ({
+const agent = (slug: string): AgentAsCodeFile => ({
     contentType: ContentAsCodeType.AI_AGENT,
     version: 1,
     agentVersion: 2,

@@ -4,6 +4,7 @@ import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 import { TableItemDetailPreview } from '../ExploreTree/TableTree/ItemDetailPreview';
+import classes from './GroupHeader.module.css';
 
 const INDENT_PER_DEPTH = 16;
 
@@ -26,7 +27,7 @@ const GroupHeader: FC<GroupHeaderProps> = ({
     const hasDescription = !!description;
 
     return (
-        <Box style={{ paddingLeft: `${depth * INDENT_PER_DEPTH}px` }}>
+        <Box pl={depth * INDENT_PER_DEPTH}>
             <NavLink
                 opened={isExpanded}
                 onClick={onToggle}
@@ -44,9 +45,7 @@ const GroupHeader: FC<GroupHeaderProps> = ({
                     <MantineIcon
                         icon={isExpanded ? IconChevronDown : IconChevronRight}
                         size={14}
-                        style={{
-                            margin: 1,
-                        }}
+                        className={classes.chevron}
                     />
                 }
                 // --end
@@ -59,7 +58,7 @@ const GroupHeader: FC<GroupHeaderProps> = ({
                         offset={0}
                     >
                         <Group>
-                            <Text fz="sm" fw={500} c="ldGray.7">
+                            <Text fz="sm" fw={500} c="dimmed">
                                 {label}
                             </Text>
                         </Group>

@@ -2,39 +2,6 @@ import { z } from 'zod';
 import { toolErrorStructuredContentSchema } from '../outputMetadata';
 import { makeBuiltInToolResultGuard } from './builtInToolResultGuard';
 
-export const TOOL_EDIT_REPO_DESCRIPTION = [
-    'Make a code change to a repository the organization can write to, and open or update a pull request with it, when the user asks to change code (fix a typo, edit a config file, add a small feature).',
-    "Changes to this project's dbt project go through editDbtProject, which also compiles the semantic layer; editRepo runs no build, so the pull request's own CI verifies the change.",
-    'It applies the change in an isolated sandbox that clones the repository. The call is synchronous and can take several minutes; report the result as your own work.',
-    'It is not for questions about data or code, nor for changes that can be made inside Lightdash, such as to saved charts and dashboards.',
-].join(' ');
-
-export const toolEditRepoArgsSchema = z.object({
-    repoTarget: z
-        .string()
-        .describe(
-            'The repository to edit, as "owner/repo" (e.g. "acme/web-app"): one the organization\'s Git app can write to and the user can access. Resolve the exact name (e.g. with discoverRepos) rather than guessing.',
-        ),
-    prompt: z
-        .string()
-        .nullable()
-        .describe(
-            'A self-contained instruction, written as a direct task: which files to change and the literal change. The sandbox does not see this conversation, so include every detail it needs.',
-        ),
-    prUrl: z
-        .string()
-        .nullable()
-        .describe(
-            "Full URL of an existing pull request to update instead (e.g. 'https://github.com/owner/repo/pull/123'): one the user pasted, or one of several this conversation opened on the repository (from listWorkstreams). It must be on repoTarget. Otherwise null.",
-        ),
-    startNewPullRequest: z
-        .boolean()
-        .nullable()
-        .describe(
-            'true opens a new pull request in this conversation for a change unrelated to the open one on this repository; null continues the most recent pull request on it. Ignored when prUrl is set.',
-        ),
-});
-
 export const toolEditRepoStructuredContentSchema = z.object({
     repository: z
         .string()
@@ -128,8 +95,6 @@ export const toolEditRepoOutputSchema = z.object({
         toolErrorStructuredContentSchema,
     ]),
 });
-
-export type ToolEditRepoArgs = z.infer<typeof toolEditRepoArgsSchema>;
 
 export type ToolEditRepoOutput = z.infer<typeof toolEditRepoOutputSchema>;
 

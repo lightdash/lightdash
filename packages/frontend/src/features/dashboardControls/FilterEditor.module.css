@@ -1,0 +1,85 @@
+/* The popover arrives on mount: a fade as it settles 4px onto its anchor,
+   at the theme's dropdown pace. CSS, not Mantine's transition: the dropdown
+   mounts already open, also when the editor moves to a new pill */
+.dropdown {
+    animation: controls-arrive var(--ld-motion-dropdown-duration)
+        var(--ld-motion-dropdown-easing);
+}
+
+@keyframes controls-arrive {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+}
+
+/* The editor in its popover, as wide as the shipped filter popover */
+.root {
+    display: flex;
+    flex-direction: column;
+    width: min(400px, calc(100vw - 56px));
+}
+
+.content {
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
+}
+
+.editorHeader {
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md) 0;
+    min-height: calc(24px + var(--mantine-spacing-sm));
+}
+
+/* Only the timestamp range overflows the popover: its two pickers stack,
+   and each picker's timezone drops to its own line */
+.valueForm > :global(.mantine-Group-root),
+.valueForm > :global(.mantine-Group-root) > :global(.mantine-Group-root) {
+    flex-wrap: wrap;
+}
+
+/* Keep the editing timezone alongside its timestamp when there is room. */
+.valueForm :global(.mantine-DateTimePicker-root) {
+    flex: 1 1 185px;
+}
+
+/* The Settings chip wraps, never truncates: its icon hangs beside the first
+   line and wrapped lines start under the text */
+.wrappingChip {
+    height: auto;
+    padding-block: calc(var(--mantine-spacing-xs) / 4);
+}
+
+.wrappingChipLabel {
+    height: auto;
+    line-height: var(--mantine-line-height-xs);
+    overflow: visible;
+    white-space: normal;
+    text-align: start;
+}
+
+/* The question a pill or Add asked, above everything */
+.prompt {
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
+    border-bottom: 1px solid var(--mantine-color-default-border);
+    background-color: var(--ld-color-page);
+}
+
+.footer {
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
+    border-top: 1px solid var(--mantine-color-default-border);
+}
+
+/* Waiting on the prompt: dimmed, and inert from the markup */
+.body[data-dimmed] {
+    opacity: 0.4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dropdown {
+        animation: none;
+    }
+
+    /* The menus' theme pop, which Mantine writes inline */
+    .menu {
+        transition: none !important;
+    }
+}

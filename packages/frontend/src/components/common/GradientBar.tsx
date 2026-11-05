@@ -1,6 +1,7 @@
 import { Box } from '@mantine/core';
 import { useMemo, type FC } from 'react';
 import { interpolateMultiColor } from '../../utils/colorUtils';
+import classes from './GradientBar.module.css';
 
 type GradientBarProps = {
     colors: string[];
@@ -40,11 +41,11 @@ const GradientBar: FC<GradientBarProps> = ({
         <Box
             h={height}
             w="100%"
+            opacity={opacity}
+            className={classes.bar}
             style={{
-                background: `linear-gradient(to right, ${gradientStops})`,
-                borderRadius,
-                ...(opacity !== undefined && { opacity }),
-                boxShadow: 'var(--mantine-shadow-subtle)',
+                '--gradient-bar-stops': gradientStops,
+                '--gradient-bar-radius': `${borderRadius}px`,
             }}
         />
     );

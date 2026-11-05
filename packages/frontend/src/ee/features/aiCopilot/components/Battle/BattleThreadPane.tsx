@@ -13,6 +13,7 @@ import { useModelOptions } from '../../hooks/useModelOptions';
 import { useAiAgentThreadStreamQuery } from '../../streaming/useAiAgentThreadStreamQuery';
 import { formatDurationMs } from '../../utils/responseTiming';
 import { AgentChatDisplay } from '../ChatElements/AgentChatDisplay';
+import classes from './BattleThreadPane.module.css';
 import {
     formatTokenCount,
     getBattleTotals,
@@ -149,9 +150,7 @@ const BattlePaneHeader: FC<Omit<Props, 'agentName' | 'onChoiceSelect'>> = ({
             px="sm"
             py={6}
             wrap="nowrap"
-            style={{
-                borderBottom: '1px solid var(--mantine-color-default-border)',
-            }}
+            className={classes.header}
         >
             <Group gap="xs" wrap="nowrap" miw={0}>
                 <Badge

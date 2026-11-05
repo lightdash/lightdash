@@ -15,7 +15,7 @@ export const AndSeparator: FC = () => (
 export const OrSeparator: FC = () => (
     <Divider
         label={
-            <Text size="10px" fw={500} c="ldGray.5">
+            <Text size="10px" fw={500} c="dimmed">
                 OR
             </Text>
         }

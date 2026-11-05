@@ -28,7 +28,14 @@ import {
 } from '@mantine/core';
 import { IconInfoCircle, IconRotate2, IconSql } from '@tabler/icons-react';
 import { produce } from 'immer';
-import { useCallback, useMemo, useRef, useState, type FC } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import { flushSync } from 'react-dom';
 import FieldIcon from '../../../components/common/Filters/FieldIcon';
 import FieldLabel from '../../../components/common/Filters/FieldLabel';
@@ -71,6 +78,7 @@ interface Props {
     isCreatingNew?: boolean;
     isTemporary?: boolean;
     onSave: (value: DashboardFilterRule) => void;
+    onDraftChange?: (value: DashboardFilterRule | undefined) => void;
     onEditRequirementRules?: () => void;
 }
 
@@ -88,6 +96,7 @@ const FilterConfiguration: FC<Props> = ({
     defaultFilterRule,
     popoverProps,
     onSave,
+    onDraftChange,
     onEditRequirementRules,
 }) => {
     const getUiString = useUiStrings();
@@ -103,6 +112,10 @@ const FilterConfiguration: FC<Props> = ({
     const draftFilterRuleRef = useRef(draftFilterRule);
     draftFilterRuleRef.current = draftFilterRule;
 
+    useEffect(() => {
+        onDraftChange?.(draftFilterRule);
+    }, [draftFilterRule, onDraftChange]);
+
     const isFilterModified = useMemo(() => {
         if (!originalFilterRule || !draftFilterRule) return false;
 
@@ -113,12 +126,16 @@ const FilterConfiguration: FC<Props> = ({
         const isCreatingTemporary = isCreatingNew && !isEditMode;
 
         if (newField && isField(newField) && isFilterableField(newField)) {
+            const newRule = createDashboardFilterRuleFromField({
+                field: newField,
+                availableTileFilters,
+                isTemporary: isCreatingTemporary,
+            });
+            // A viewer's new filter with no value reads "any value"
             setDraftFilterRule(
-                createDashboardFilterRuleFromField({
-                    field: newField,
-                    availableTileFilters,
-                    isTemporary: isCreatingTemporary,
-                }),
+                isCreatingTemporary
+                    ? getFilterRuleWithDisabledState(newRule, false)
+                    : newRule,
             );
 
             setSelectedField(newField);
@@ -181,12 +198,15 @@ const FilterConfiguration: FC<Props> = ({
                 ),
             );
 
+            const newRule = createDashboardFilterRuleFromSqlColumn({
+                column: newColumn,
+                availableTileColumns: allTileColumns,
+                isTemporary: isCreatingTemporary,
+            });
             setDraftFilterRule(
-                createDashboardFilterRuleFromSqlColumn({
-                    column: newColumn,
-                    availableTileColumns: allTileColumns,
-                    isTemporary: isCreatingTemporary,
-                }),
+                isCreatingTemporary
+                    ? getFilterRuleWithDisabledState(newRule, false)
+                    : newRule,
             );
         },
         [isCreatingNew, isEditMode, sqlChartTilesMetadata],
@@ -344,11 +364,7 @@ const FilterConfiguration: FC<Props> = ({
         if (ruleToSave) onSave(ruleToSave);
     }, [onSave]);
 
-    const isApplyDisabled = !isFilterEnabled(
-        draftFilterRule,
-        isEditMode,
-        isCreatingNew,
-    );
+    const isApplyDisabled = !isFilterEnabled(draftFilterRule);
 
     const isLockedRequiredMissing =
         isLockedRequiredMissingValue(draftFilterRule);

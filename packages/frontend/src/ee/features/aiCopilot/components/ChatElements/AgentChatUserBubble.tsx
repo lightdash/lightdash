@@ -89,7 +89,7 @@ export const UserBubble: FC<Props> = ({
         >
             <Stack gap={0} align="flex-end">
                 {showUserName ? (
-                    <Text size="sm" c="ldGray.7" fw={600}>
+                    <Text size="sm" c="dimmed" fw={600}>
                         {name}
                     </Text>
                 ) : null}

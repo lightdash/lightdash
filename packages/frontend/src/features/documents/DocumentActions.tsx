@@ -228,11 +228,10 @@ const DocumentActions = ({
                         <Menu.Item
                             leftSection={
                                 document.verification ? (
-                                    <IconCircleCheckFilled
+                                    <MantineIcon
+                                        icon={IconCircleCheckFilled}
                                         size={18}
-                                        style={{
-                                            color: 'var(--mantine-color-green-6)',
-                                        }}
+                                        color="green.6"
                                     />
                                 ) : (
                                     <IconCircleCheck size={18} />

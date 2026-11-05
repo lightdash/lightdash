@@ -26,6 +26,7 @@ import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { useInfiniteVerifiedArtifacts } from '../../hooks/useAiAgentAdmin';
 import { useSetArtifactVersionVerified } from '../../hooks/useAiAgentArtifacts';
 import { useAiAgentPermission } from '../../hooks/useAiAgentPermission';
+import adminClasses from './AdminTable.module.css';
 
 type Props = {
     onArtifactSelect: (artifact: AiAgentVerifiedArtifact) => void;
@@ -164,7 +165,7 @@ export const VerifiedArtifactsTable: FC<Props> = ({
                 Cell: ({ row }) => {
                     const { firstName, lastName } = row.original.verifiedBy;
                     return (
-                        <Text fz="sm" c="ldGray.7">
+                        <Text fz="sm" c="dimmed">
                             {firstName} {lastName}
                         </Text>
                     );
@@ -178,7 +179,7 @@ export const VerifiedArtifactsTable: FC<Props> = ({
                 Cell: ({ row }) => {
                     const date = new Date(row.original.verifiedAt);
                     return (
-                        <Text fz="sm" c="ldGray.7">
+                        <Text fz="sm" c="dimmed">
                             {date.toLocaleDateString()}
                         </Text>
                     );
@@ -191,7 +192,7 @@ export const VerifiedArtifactsTable: FC<Props> = ({
                 size: 120,
                 Cell: ({ row }) => {
                     return (
-                        <Text fz="sm" c="ldGray.7">
+                        <Text fz="sm" c="dimmed">
                             {row.original.referenceCount}
                         </Text>
                     );
@@ -257,20 +258,16 @@ export const VerifiedArtifactsTable: FC<Props> = ({
         enableStickyHeader: true,
         mantineTableBodyRowProps: ({ row }) => ({
             onClick: () => onArtifactSelect(row.original),
-            style: {
-                cursor: 'pointer',
-                backgroundColor:
-                    selectedArtifactVersionUuid === row.original.versionUuid
-                        ? 'var(--mantine-color-ldGray-1)'
-                        : undefined,
-            },
+            'data-selected':
+                selectedArtifactVersionUuid === row.original.versionUuid ||
+                undefined,
         }),
         state: {
             isLoading,
             showProgressBars: isFetchingNextPage,
         },
         mantineTableContainerProps: {
-            style: { maxHeight: 'calc(100vh - 200px)' },
+            mah: 'calc(100vh - 200px)',
             onScroll: (event: React.UIEvent<HTMLDivElement>) => {
                 const { scrollTop, scrollHeight, clientHeight } =
                     event.currentTarget;
@@ -287,62 +284,19 @@ export const VerifiedArtifactsTable: FC<Props> = ({
             highlightOnHover: true,
             withColumnBorders: Boolean(artifacts.length),
         },
-        mantineTableHeadCellProps: (props) => {
-            const isFirstColumn =
-                props.table.getAllColumns().indexOf(props.column) === 0;
-            const isLastColumn =
-                props.table.getAllColumns().indexOf(props.column) ===
-                props.table.getAllColumns().length - 1;
-
-            return {
-                bg: 'ldGray.0',
-                h: '3xl',
-                pos: 'relative',
-                style: {
-                    userSelect: 'none',
-                    padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
-                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderRight: props.column.getIsResizing()
-                        ? `2px solid ${theme.colors.blue[3]}`
-                        : `1px solid ${
-                              isLastColumn || isFirstColumn
-                                  ? 'transparent'
-                                  : theme.colors.ldGray[2]
-                          }`,
-                    borderTop: 'none',
-                    borderLeft: 'none',
-                },
-            };
-        },
-        mantineTableBodyCellProps: () => {
-            return {
-                h: 48,
-                style: {
-                    padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-                    borderRight: 'none',
-                    borderLeft: 'none',
-                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderTop: 'none',
-                },
-            };
-        },
+        mantineTableBodyCellProps: { h: 48 },
         renderBottomToolbar: () => (
             <Box
                 p={`${theme.spacing.sm} ${theme.spacing.xl} ${theme.spacing.md} ${theme.spacing.xl}`}
                 fz="xs"
                 fw={500}
-                c="ldGray.8"
-                style={{
-                    borderTop: `1px solid ${theme.colors.ldGray[3]}`,
-                }}
+                className={adminClasses.loadMoreFooter}
             >
                 {isFetching ? (
-                    <Text c="ldGray.8" fz="xs">
-                        Loading more...
-                    </Text>
+                    <Text fz="xs">Loading more...</Text>
                 ) : (
                     <Group gap="xs">
-                        <Text fz="xs" c="ldGray.8">
+                        <Text fz="xs">
                             {hasNextPage
                                 ? 'Scroll for more results'
                                 : 'All results loaded'}

@@ -1,4 +1,5 @@
 import { useEffect, useRef, type FC, type ReactNode } from 'react';
+import classes from './StickyWithDetection.module.css';
 
 type StickyWithDetectionProps = {
     /**
@@ -72,14 +73,7 @@ export const StickyWithDetection: FC<StickyWithDetectionProps> = ({
 
     return (
         <>
-            <div
-                ref={sentinelRef}
-                style={{
-                    height: '1px',
-                    marginTop: '-1px',
-                    pointerEvents: 'none',
-                }}
-            />
+            <div ref={sentinelRef} className={classes.sentinel} />
             {children}
         </>
     );

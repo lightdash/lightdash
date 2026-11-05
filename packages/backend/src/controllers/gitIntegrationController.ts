@@ -2,17 +2,13 @@ import {
     AdditionalMetric,
     ApiCustomDimensionWriteBackPreview,
     ApiErrorPayload,
-    ApiGitFileContent,
     assertRegisteredAccount,
     CustomDimension,
-    FeatureFlags,
-    ForbiddenError,
     PullRequestCreated,
     UUID,
 } from '@lightdash/common';
 import {
     Body,
-    Deprecated,
     Get,
     Hidden,
     Middlewares,
@@ -30,7 +26,6 @@ import express from 'express';
 import { toSessionUser } from '../auth/account';
 import {
     allowApiKeyAuthentication,
-    getDeprecatedRouteMiddleware,
     isAuthenticated,
     unauthorisedInDemo,
 } from './authentication';
@@ -183,145 +178,6 @@ export class GitIntegrationController extends BaseController {
             results: await this.services
                 .getGitIntegrationService()
                 .getBranches(toSessionUser(req.account), projectUuid),
-        };
-    }
-
-    /**
-     * Get the YAML file for an explore's base table
-     * @summary Get explore file
-     *
-     * @deprecated Use GET /api/v1/projects/{projectUuid}/git/branches/{branch}/files instead
-     */
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        unauthorisedInDemo,
-        getDeprecatedRouteMiddleware(new Date('2026-06-10'), {
-            suffixMessage:
-                'Use GET /api/v1/projects/{projectUuid}/git/branches/{branch}/files instead.',
-        }),
-    ])
-    @SuccessResponse('200', 'Success')
-    @Get('/explores/{exploreName}/files')
-    @OperationId('GetGitFileForExplore')
-    @Deprecated()
-    async getFileForExplore(
-        @Path() projectUuid: string,
-        @Path() exploreName: string,
-        @Request() req: express.Request,
-    ): Promise<{ status: 'ok'; results: ApiGitFileContent }> {
-        assertRegisteredAccount(req.account);
-        const flag = await this.services.getFeatureFlagService().get({
-            user: toSessionUser(req.account),
-            featureFlagId: FeatureFlags.EditYamlInUi,
-        });
-        if (!flag.enabled) {
-            throw new ForbiddenError('Edit YAML in UI feature is not enabled');
-        }
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: await this.services
-                .getGitIntegrationService()
-                .getFileForExplore(
-                    toSessionUser(req.account),
-                    projectUuid,
-                    exploreName,
-                ),
-        };
-    }
-
-    /**
-     * Get the file path for an explore's YAML file (without fetching content)
-     * @summary Get explore file path
-     */
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        unauthorisedInDemo,
-    ])
-    @SuccessResponse('200', 'Success')
-    @Get('/explores/{exploreName}/file-path')
-    @OperationId('GetGitFilePathForExplore')
-    async getFilePathForExplore(
-        @Path() projectUuid: string,
-        @Path() exploreName: string,
-        @Request() req: express.Request,
-    ): Promise<{ status: 'ok'; results: { filePath: string } }> {
-        assertRegisteredAccount(req.account);
-        const flag = await this.services.getFeatureFlagService().get({
-            user: toSessionUser(req.account),
-            featureFlagId: FeatureFlags.EditYamlInUi,
-        });
-        if (!flag.enabled) {
-            throw new ForbiddenError('Edit YAML in UI feature is not enabled');
-        }
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: await this.services
-                .getGitIntegrationService()
-                .getFilePathForExplore(
-                    toSessionUser(req.account),
-                    projectUuid,
-                    exploreName,
-                ),
-        };
-    }
-
-    /**
-     * Create a pull request with arbitrary file changes
-     * @summary Create file PR
-     *
-     * @deprecated Use POST /api/v1/projects/{projectUuid}/git/branches/{branch}/pull-request instead
-     */
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        unauthorisedInDemo,
-        getDeprecatedRouteMiddleware(new Date('2026-06-10'), {
-            suffixMessage:
-                'Use POST /api/v1/projects/{projectUuid}/git/branches/{branch}/pull-request instead.',
-        }),
-    ])
-    @SuccessResponse('200', 'Success')
-    @Post('/pull-requests/file-change')
-    @OperationId('CreatePullRequestForFileChange')
-    @Deprecated()
-    async createPullRequestForFileChange(
-        @Path() projectUuid: string,
-        @Body()
-        body: {
-            filePath: string;
-            content: string;
-            originalSha: string;
-            title: string;
-            description: string;
-        },
-        @Request() req: express.Request,
-    ): Promise<{ status: 'ok'; results: PullRequestCreated }> {
-        assertRegisteredAccount(req.account);
-        const flag = await this.services.getFeatureFlagService().get({
-            user: toSessionUser(req.account),
-            featureFlagId: FeatureFlags.EditYamlInUi,
-        });
-        if (!flag.enabled) {
-            throw new ForbiddenError('Edit YAML in UI feature is not enabled');
-        }
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: await this.services
-                .getGitIntegrationService()
-                .createPullRequestWithFileChange(
-                    toSessionUser(req.account),
-                    projectUuid,
-                    body.filePath,
-                    body.content,
-                    body.originalSha,
-                    body.title,
-                    body.description,
-                ),
         };
     }
 }

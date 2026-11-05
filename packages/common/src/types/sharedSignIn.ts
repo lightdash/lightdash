@@ -44,20 +44,30 @@ export const getPersonSignIn = (
 ): PersonSignIn | null => {
     switch (credentials.type) {
         case WarehouseTypes.BIGQUERY: {
-            const keyfile = credentials.keyfileContents;
-            if (
-                credentials.authenticationType !==
-                    BigqueryAuthenticationType.ADC &&
-                keyfile?.type === 'authorized_user' &&
-                typeof keyfile.refresh_token === 'string' &&
-                keyfile.refresh_token
-            ) {
-                return {
-                    provider: PersonSignInProvider.GOOGLE,
-                    refreshToken: keyfile.refresh_token,
-                };
+            const { authenticationType } = credentials;
+            switch (authenticationType) {
+                case BigqueryAuthenticationType.ADC:
+                case BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION:
+                    return null;
+                case BigqueryAuthenticationType.PRIVATE_KEY:
+                case BigqueryAuthenticationType.SSO:
+                case undefined: {
+                    const keyfile = credentials.keyfileContents;
+                    return keyfile?.type === 'authorized_user' &&
+                        typeof keyfile.refresh_token === 'string' &&
+                        keyfile.refresh_token
+                        ? {
+                              provider: PersonSignInProvider.GOOGLE,
+                              refreshToken: keyfile.refresh_token,
+                          }
+                        : null;
+                }
+                default:
+                    return assertUnreachable(
+                        authenticationType,
+                        'Unknown BigQuery authentication type',
+                    );
             }
-            return null;
         }
         case WarehouseTypes.SNOWFLAKE:
             return credentials.authenticationType ===

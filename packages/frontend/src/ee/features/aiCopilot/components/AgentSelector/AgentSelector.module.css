@@ -16,12 +16,7 @@
 }
 
 .target:hover {
-    @mixin light {
-        background-color: var(--mantine-color-ldGray-0);
-    }
-    @mixin dark {
-        background-color: var(--mantine-color-ldGray-2);
-    }
+    background-color: var(--mantine-color-default-hover);
 }
 
 .label {
@@ -44,13 +39,7 @@
 .headerTarget:focus-visible,
 .headerTarget[data-open='true'] {
     border-color: transparent;
-
-    @mixin light {
-        background-color: var(--mantine-color-ldGray-1);
-    }
-    @mixin dark {
-        background-color: var(--mantine-color-ldDark-4);
-    }
+    background-color: var(--mantine-color-default-hover);
 }
 
 .target[data-variant='drawer'] {
@@ -80,12 +69,7 @@
 .compact[data-open='true'] {
     border-color: transparent;
 
-    @mixin light {
-        background-color: var(--mantine-color-ldGray-0);
-    }
-    @mixin dark {
-        background-color: var(--mantine-color-ldGray-2);
-    }
+    background-color: var(--mantine-color-default-hover);
 }
 
 .compact .label {

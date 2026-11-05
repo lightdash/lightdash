@@ -2,8 +2,9 @@ import { buildSankeyEchartsOption } from '@lightdash/visualization/editor';
 import { useMemo } from 'react';
 import { isSankeyVisualizationConfig } from '../../components/LightdashVisualization/types';
 import {
+    useVisualizationConfig,
+    useVisualizationInputs,
     useVisualizationServices,
-    useVisualizationState,
 } from '../../components/LightdashVisualization/useVisualizationContext';
 import { useVisualizationTheme } from '../useVisualizationTheme';
 
@@ -13,13 +14,9 @@ import { useVisualizationTheme } from '../useVisualizationTheme';
  */
 const useEchartsSankeyConfig = (isInDashboard?: boolean) => {
     const { isTouchDevice } = useVisualizationServices();
-    const {
-        visualizationConfig,
-        colorPalette,
-        parameters,
-        minimal,
-        resolvedTimezone,
-    } = useVisualizationState();
+    const visualizationConfig = useVisualizationConfig();
+    const { colorPalette, parameters, minimal, resolvedTimezone } =
+        useVisualizationInputs();
 
     const theme = useVisualizationTheme();
 

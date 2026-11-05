@@ -6,6 +6,7 @@ import {
     type GroupAsCode,
     type PossibleAbilities,
 } from '@lightdash/common';
+import * as auditLogger from '../logging/winston';
 import { type FeatureFlagService } from './FeatureFlag/FeatureFlagService';
 import { GroupsService } from './GroupService';
 
@@ -152,6 +153,9 @@ describe('GroupsService groups as code', () => {
     it.each(['pat', 'service-account'] as const)(
         'supports %s authorization through the account path',
         async (authenticationType) => {
+            const audit = vi
+                .spyOn(auditLogger, 'logAuditEvent')
+                .mockImplementation(() => {});
             groupsModel.upsertGroupAsCode.mockResolvedValue({
                 action: PromotionAction.CREATE,
                 groupUuid: 'group-uuid',
@@ -172,6 +176,21 @@ describe('GroupsService groups as code', () => {
                 memberEmails: ['first@example.com', 'second@example.com'],
                 actorUserUuid: 'actor-user-uuid',
             });
+            expect(audit).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    actor: expect.objectContaining({
+                        type: authenticationType,
+                    }),
+                    resource: expect.objectContaining({
+                        metadata: expect.objectContaining({
+                            event: 'group.membership_changed',
+                            groupUuid: 'group-uuid',
+                            operation: 'replace',
+                        }),
+                    }),
+                }),
+            );
+            audit.mockRestore();
         },
     );
 

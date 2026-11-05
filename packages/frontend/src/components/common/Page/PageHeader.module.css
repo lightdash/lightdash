@@ -79,8 +79,7 @@
         font-size: 12px;
     }
 
-    .root .breadcrumbs :global(.mantine-Anchor-root),
-    .root .breadcrumbs :global(.mantine-Text-root) {
+    .root .breadcrumbs * {
         font-size: 12px;
     }
 

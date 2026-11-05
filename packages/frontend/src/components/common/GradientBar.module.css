@@ -1,0 +1,5 @@
+.bar {
+    background: linear-gradient(to right, var(--gradient-bar-stops));
+    border-radius: var(--gradient-bar-radius);
+    box-shadow: var(--mantine-shadow-subtle);
+}

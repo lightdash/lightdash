@@ -5,7 +5,13 @@ import Lightdash, {
     type LightdashApiClientConfig,
     type ListAiAgentThreadsOptions,
 } from '@lightdash/sdk';
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import {
+    useEffect,
+    useMemo,
+    useState,
+    type ComponentProps,
+    type CSSProperties,
+} from 'react';
 import { ExampleLayout } from '../components/ExampleLayout';
 import type { EmbedConfigState } from '../hooks/useEmbedConfig';
 import { getRepoSourceUrl } from '../lib/repo';
@@ -23,6 +29,14 @@ type AiAgentExamplePageProps = {
 };
 
 type AiAgentRenderMode = 'iframe' | 'native';
+type AiAgentTheme = NonNullable<
+    ComponentProps<typeof Lightdash.AiAgent>['theme']
+>;
+const AI_AGENT_THEMES: { value: AiAgentTheme; label: string }[] = [
+    { value: 'light', label: 'Light' },
+    { value: 'dark', label: 'Dark' },
+    { value: 'system', label: 'System' },
+];
 
 const AI_AGENT_RENDER_MODES: { value: AiAgentRenderMode; label: string }[] = [
     { value: 'iframe', label: 'Iframe (default)' },
@@ -326,6 +340,7 @@ export function AiAgentExamplePage({ embedConfig }: AiAgentExamplePageProps) {
     const defaultThreadUuid = aiAgentEmbedConfig.threadUuid ?? '';
     const [latestThreadUuid, setLatestThreadUuid] = useState('');
     const [renderMode, setRenderMode] = useState<AiAgentRenderMode>('iframe');
+    const [theme, setTheme] = useState<AiAgentTheme>('light');
     const [disableNavigation, setDisableNavigation] = useState(false);
     const [resumeThreadUuid, setResumeThreadUuid] = useState(defaultThreadUuid);
     const [threadSetupDraft, setThreadSetupDraft] =
@@ -444,6 +459,32 @@ export function AiAgentExamplePage({ embedConfig }: AiAgentExamplePageProps) {
                                             }
                                             onChange={() =>
                                                 setRenderMode(option.value)
+                                            }
+                                        />
+                                        {option.label}
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                        <div style={{ marginBottom: 16 }}>
+                            <label style={panelLabelStyle}>Theme</label>
+                            <div style={{ display: 'flex', gap: 16 }}>
+                                {AI_AGENT_THEMES.map((option) => (
+                                    <label
+                                        key={option.value}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 6,
+                                            fontSize: 14,
+                                        }}
+                                    >
+                                        <input
+                                            type="radio"
+                                            name="ai-agent-theme"
+                                            checked={theme === option.value}
+                                            onChange={() =>
+                                                setTheme(option.value)
                                             }
                                         />
                                         {option.label}
@@ -654,6 +695,7 @@ export function AiAgentExamplePage({ embedConfig }: AiAgentExamplePageProps) {
                                     }
                                     onThreadChange={handleThreadChange}
                                     renderMode={renderMode}
+                                    theme={theme}
                                     disableNavigation={disableNavigation}
                                     binding={getThreadBinding(threadSetup)}
                                     threadContext={

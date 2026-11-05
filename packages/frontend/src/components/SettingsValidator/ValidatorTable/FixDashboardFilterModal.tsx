@@ -306,7 +306,7 @@ export const FixDashboardFilterModal: FC<Props> = ({
                             </Box>
                         </Tooltip>
                     ) : (
-                        <Text fz="xs" c="ldGray.7">
+                        <Text fz="xs" c="dimmed">
                             This {renameType} is not used in any other
                             dashboards or charts.
                         </Text>

@@ -113,7 +113,9 @@ const FilterQuarterPicker: FC<Props> = ({
     return (
         <Popover
             opened={opened}
-            onClose={close}
+            onChange={(isOpened) => {
+                if (!isOpened) close();
+            }}
             position="bottom"
             {...popoverProps}
         >
@@ -122,6 +124,9 @@ const FilterQuarterPicker: FC<Props> = ({
                     size="xs"
                     data-autofocus={autoFocus || undefined}
                     onClick={disabled ? undefined : open}
+                    onKeyDown={(event) => {
+                        if (event.key === 'Escape' && opened) close();
+                    }}
                     placeholder={
                         placeholder ??
                         getUiString('filters.inputs.selectQuarter')
@@ -134,11 +139,7 @@ const FilterQuarterPicker: FC<Props> = ({
                     }
                     error={invalidValue ? 'Invalid date' : undefined}
                     readOnly
-                    styles={{
-                        input: {
-                            cursor: 'pointer',
-                        },
-                    }}
+                    classNames={{ input: styles.input }}
                 />
             </Popover.Target>
             <Popover.Dropdown>

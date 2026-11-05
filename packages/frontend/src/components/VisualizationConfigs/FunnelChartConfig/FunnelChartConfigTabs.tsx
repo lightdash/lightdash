@@ -19,44 +19,70 @@ import {
     Switch,
     Tooltip,
 } from '@mantine/core';
-import { memo, type FC } from 'react';
+import { memo, useMemo, type FC } from 'react';
+import {
+    selectFunnelColorDefaults,
+    selectFunnelData,
+    selectFunnelEditor,
+    selectFunnelFieldPools,
+    selectFunnelSelectedField,
+    useVisualizationSelector,
+} from '../../../features/visualization/store';
+import { useFunnelEditorActions } from '../../../hooks/useFunnelChartConfig';
 import FieldSelect from '../../common/FieldSelect';
-import { isFunnelVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
+import {
+    useVisualizationInputs,
+    useVisualizationInputSelector,
+} from '../../LightdashVisualization/useVisualizationContext';
 import { ColorPaletteSection } from '../common/ColorPaletteSection';
 import { Config } from '../common/Config';
 import { VisualizationConfigTabs } from '../common/VisualizationConfigTabs';
 import { StepConfig } from './StepConfig';
 
 export const ConfigTabs: FC = memo(() => {
-    const { visualizationConfig, itemsMap } = useVisualizationState();
-
-    if (!isFunnelVisualizationConfig(visualizationConfig)) return null;
-
-    const granularityFields = Object.keys(getGranularityMapFromItems(itemsMap));
-
-    const numericFields = Object.values(visualizationConfig.numericFields);
+    const { itemsMap } = useVisualizationInputs();
+    const granularityFields = useMemo(
+        () => Object.keys(getGranularityMapFromItems(itemsMap)),
+        [itemsMap],
+    );
+    const pools = useVisualizationInputSelector(selectFunnelFieldPools);
+    const numericFields = Object.values(pools.numericFields);
     // TODO: dimensions should be selectable for labels
-    // const dimensions = Object.values(visualizationConfig.dimensions);
 
+    const selectedField = useVisualizationInputSelector(
+        selectFunnelSelectedField,
+    );
+    const data = useVisualizationInputSelector(selectFunnelData);
+    const colorDefaults = useVisualizationInputSelector(
+        selectFunnelColorDefaults,
+    );
+    const dataInput = useVisualizationSelector(
+        (state) => selectFunnelEditor(state).dataInput,
+    );
+    const labels = useVisualizationSelector(
+        (state) => selectFunnelEditor(state).labels,
+    );
+    const labelOverrides = useVisualizationSelector(
+        (state) => selectFunnelEditor(state).labelOverrides,
+    );
+    const colorOverrides = useVisualizationSelector(
+        (state) => selectFunnelEditor(state).colorOverrides,
+    );
+    const showLegend = useVisualizationSelector(
+        (state) => selectFunnelEditor(state).showLegend,
+    );
+    const legendPosition = useVisualizationSelector(
+        (state) => selectFunnelEditor(state).legendPosition,
+    );
     const {
-        selectedField,
         onFieldChange,
-        dataInput,
         setDataInput,
-        labels,
         onLabelsChange,
-        labelOverrides,
         onLabelOverridesChange,
-        colorDefaults,
-        colorOverrides,
         onColorOverridesChange,
-        data,
-        showLegend,
         toggleShowLegend,
-        legendPosition,
         legendPositionChange,
-    } = visualizationConfig.chartConfig;
+    } = useFunnelEditorActions();
 
     // Match the rendered step order: query order when steps come from rows,
     // descending taper otherwise

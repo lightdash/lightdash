@@ -1,8 +1,4 @@
-import {
-    ExploreType,
-    FeatureFlags,
-    type ApiExploreResults,
-} from '@lightdash/common';
+import { ExploreType, type ApiExploreResults } from '@lightdash/common';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
@@ -14,8 +10,8 @@ import { renderWithProviders } from '../../../testing/testUtils';
 import ExplorePanel from './index';
 
 const testState = vi.hoisted(() => ({
-    enabledFlags: new Set<string>(),
-    isGitProject: false,
+    canClearCache: false,
+    invalidateExplores: vi.fn(),
     merge: undefined as
         | {
               isMerging: boolean;
@@ -24,7 +20,6 @@ const testState = vi.hoisted(() => ({
               addSource: ReturnType<typeof vi.fn>;
           }
         | undefined,
-    openSourceCodeEditor: vi.fn(),
 }));
 
 // ExploreTree owns the search + expanded-category state in local useState.
@@ -38,19 +33,11 @@ vi.mock('../../../hooks/useExplore', () => ({ useExplore: vi.fn() }));
 vi.mock('../../../hooks/useProjectUuid', () => ({
     useProjectUuid: () => 'project-uuid',
 }));
-vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: (flag: string) => ({
-        data: { enabled: testState.enabledFlags.has(flag) },
-    }),
-}));
-vi.mock('../WriteBackModal/hooks', () => ({
-    useIsGitProject: () => testState.isGitProject,
-}));
-vi.mock('../../../features/sourceCodeEditor', () => ({
-    useSourceCodeEditor: () => ({ open: testState.openSourceCodeEditor }),
-}));
 vi.mock('../../../features/mergeQuery/context/useMerge', () => ({
     useMergeSafe: () => testState.merge,
+}));
+vi.mock('../../../features/mergeQuery/components/MergeQuerySidebar', () => ({
+    MergeQuerySidebar: () => null,
 }));
 vi.mock('../../../features/virtualView', () => ({
     EditVirtualViewModal: () => null,
@@ -65,6 +52,17 @@ vi.mock(
 );
 vi.mock('../../../providers/Tracking/useTracking', () => ({
     default: () => ({ track: vi.fn() }),
+}));
+
+vi.mock('../../ProjectResultsCache/useCanClearCachedResults', () => ({
+    useCanClearCachedResults: vi.fn(() => testState.canClearCache),
+}));
+vi.mock('../../../hooks/useProjectResultsCacheSettings', () => ({
+    useInvalidateContentResultsCache: vi.fn(),
+    useInvalidateExploresResultsCache: vi.fn(() => ({
+        mutate: testState.invalidateExplores,
+        isLoading: false,
+    })),
 }));
 
 const mockUseExplore = vi.mocked(useExplore);
@@ -109,10 +107,7 @@ const renderPanel = (appMocks?: Parameters<typeof renderWithProviders>[1]) => {
 describe('ExplorePanel loading state', () => {
     beforeEach(() => {
         mockUseExplore.mockReset();
-        testState.enabledFlags.clear();
-        testState.isGitProject = false;
         testState.merge = undefined;
-        testState.openSourceCodeEditor.mockReset();
     });
 
     it('shows the skeleton on the initial load (no data yet)', () => {
@@ -154,10 +149,84 @@ describe('ExplorePanel loading state', () => {
 describe('ExplorePanel virtual view actions', () => {
     beforeEach(() => {
         mockUseExplore.mockReset();
-        testState.enabledFlags.clear();
-        testState.isGitProject = false;
         testState.merge = undefined;
-        testState.openSourceCodeEditor.mockReset();
+    });
+
+    it('starts a merge from a virtual view without edit permissions', async () => {
+        const user = userEvent.setup();
+        const addSource = vi.fn();
+        mockUseExplore.mockReturnValue(
+            exploreQuery({
+                data: { ...mockExplore, type: ExploreType.VIRTUAL },
+            }),
+        );
+        testState.merge = {
+            isMerging: false,
+            readOnly: false,
+            additionalSources: [],
+            addSource,
+        };
+
+        renderPanel({ user: { abilityRules: [] } });
+        expect(
+            screen.queryByRole('button', { name: 'Query options' }),
+        ).not.toBeInTheDocument();
+        await user.click(
+            screen.getByRole('button', { name: 'Virtual view actions' }),
+        );
+        expect(
+            screen.queryByRole('menuitem', { name: 'Edit virtual view' }),
+        ).not.toBeInTheDocument();
+        await user.click(
+            screen.getByRole('menuitem', { name: /Merge another query/ }),
+        );
+        expect(addSource).toHaveBeenCalledOnce();
+    });
+
+    it('shows only merge on a dbt explore even with virtual view permissions', async () => {
+        const user = userEvent.setup();
+        mockUseExplore.mockReturnValue(exploreQuery({ data: mockExplore }));
+        testState.merge = {
+            isMerging: false,
+            readOnly: false,
+            additionalSources: [],
+            addSource: vi.fn(),
+        };
+
+        renderPanel({
+            user: {
+                abilityRules: [
+                    { action: 'manage', subject: 'VirtualView' },
+                    { action: 'view', subject: 'ContentAsCode' },
+                ],
+            },
+        });
+        await user.click(screen.getByRole('button', { name: 'Query options' }));
+        expect(
+            screen.getByRole('menuitem', { name: /Merge another query/ }),
+        ).toBeInTheDocument();
+        expect(screen.getAllByRole('menuitem')).toHaveLength(1);
+    });
+
+    it.each([
+        { isMerging: true, readOnly: false },
+        { isMerging: false, readOnly: true },
+    ])('hides merge when unavailable: %o', (state) => {
+        mockUseExplore.mockReturnValue(
+            exploreQuery({
+                data: { ...mockExplore, type: ExploreType.VIRTUAL },
+            }),
+        );
+        testState.merge = {
+            ...state,
+            additionalSources: [],
+            addSource: vi.fn(),
+        };
+
+        renderPanel({ user: { abilityRules: [] } });
+        expect(
+            screen.queryByRole('button', { name: 'Virtual view actions' }),
+        ).not.toBeInTheDocument();
     });
 
     it('opens content as code from the virtual view menu', async () => {
@@ -199,50 +268,18 @@ describe('ExplorePanel virtual view actions', () => {
     });
 });
 
-const sourceCodeAbility = {
-    user: {
-        abilityRules: [
-            {
-                action: 'view' as const,
-                subject: 'SourceCode' as const,
-            },
-        ],
-    },
-};
-
 describe('ExplorePanel query options', () => {
     beforeEach(() => {
         mockUseExplore.mockReset();
         mockUseExplore.mockReturnValue(exploreQuery({ data: mockExplore }));
-        testState.enabledFlags.clear();
-        testState.isGitProject = false;
         testState.merge = undefined;
-        testState.openSourceCodeEditor.mockReset();
     });
 
-    it('hides query options when both features are unavailable', () => {
+    it('hides query options when merge is unavailable', () => {
         renderPanel();
 
         expect(
             screen.queryByRole('button', { name: 'Query options' }),
-        ).not.toBeInTheDocument();
-    });
-
-    it('shows only source code when only its feature is available', async () => {
-        const user = userEvent.setup();
-        testState.enabledFlags.add(FeatureFlags.EditYamlInUi);
-        testState.isGitProject = true;
-
-        renderPanel(sourceCodeAbility);
-        await user.click(
-            await screen.findByRole('button', { name: 'Query options' }),
-        );
-
-        expect(
-            screen.getByRole('menuitem', { name: 'View source code' }),
-        ).toBeInTheDocument();
-        expect(
-            screen.queryByRole('menuitem', { name: /Merge another query/ }),
         ).not.toBeInTheDocument();
     });
 
@@ -267,32 +304,68 @@ describe('ExplorePanel query options', () => {
         expect(within(mergeItem).getByText('Beta')).toBeInTheDocument();
         await user.click(mergeItem);
 
-        expect(
-            screen.queryByRole('menuitem', { name: 'View source code' }),
-        ).not.toBeInTheDocument();
         expect(addSource).toHaveBeenCalledOnce();
     });
+});
 
-    it('shows both actions in one menu when both features are available', async () => {
-        const user = userEvent.setup();
-        testState.enabledFlags.add(FeatureFlags.EditYamlInUi);
-        testState.isGitProject = true;
-        testState.merge = {
-            isMerging: false,
-            readOnly: false,
-            additionalSources: [],
-            addSource: vi.fn(),
-        };
+describe('ExplorePanel clear cache', () => {
+    beforeEach(() => {
+        mockUseExplore.mockReset();
+        mockUseExplore.mockReturnValue(exploreQuery({ data: mockExplore }));
+        testState.merge = undefined;
+        testState.canClearCache = true;
+        testState.invalidateExplores = vi.fn();
+    });
+    afterEach(() => {
+        testState.canClearCache = false;
+    });
 
-        renderPanel(sourceCodeAbility);
+    const openModal = async (user: ReturnType<typeof userEvent.setup>) => {
         await user.click(screen.getByRole('button', { name: 'Query options' }));
+        await user.click(
+            screen.getByRole('menuitem', { name: 'Clear cache for everyone' }),
+        );
+    };
+
+    it('hides the action without permission', () => {
+        testState.canClearCache = false;
+        renderPanel();
 
         expect(
-            screen.getByRole('menuitem', { name: 'View source code' }),
-        ).toBeInTheDocument();
-        expect(
-            screen.getByRole('menuitem', { name: /Merge another query/ }),
-        ).toBeInTheDocument();
-        expect(screen.getAllByRole('menu')).toHaveLength(1);
+            screen.queryByRole('button', { name: 'Query options' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('clears only this explore by default', async () => {
+        const user = userEvent.setup();
+        renderPanel();
+        await openModal(user);
+        await user.click(
+            screen.getByRole('button', { name: 'Clear for everyone' }),
+        );
+
+        expect(testState.invalidateExplores).toHaveBeenCalledWith(
+            { exploreNames: ['orders'], includeJoinedExplores: false },
+            expect.anything(),
+        );
+    });
+
+    it('includes explores using the table when ticked', async () => {
+        const user = userEvent.setup();
+        renderPanel();
+        await openModal(user);
+        await user.click(
+            screen.getByRole('checkbox', {
+                name: /Also clear explores that use this table/,
+            }),
+        );
+        await user.click(
+            screen.getByRole('button', { name: 'Clear for everyone' }),
+        );
+
+        expect(testState.invalidateExplores).toHaveBeenCalledWith(
+            { exploreNames: ['orders'], includeJoinedExplores: true },
+            expect.anything(),
+        );
     });
 });

@@ -27,3 +27,7 @@
         min-height: 44px;
     }
 }
+
+.unassigned {
+    cursor: default;
+}

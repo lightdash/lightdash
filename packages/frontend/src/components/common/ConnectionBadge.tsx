@@ -7,7 +7,7 @@ type Props = {
 
 const ConnectionBadge: FC<Props> = ({ name }) =>
     name === null ? null : (
-        <Badge size="xs" variant="light" color="gray" style={{ flexShrink: 0 }}>
+        <Badge size="xs" variant="light" color="gray" flex="none">
             {name}
         </Badge>
     );

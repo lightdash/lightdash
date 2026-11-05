@@ -31,7 +31,7 @@ const ChartTypeGalleryEmptyState: FC<Props> = ({ projectUuid }) => {
                 size="lg"
             />
 
-            <Text size="md" fw={600} c="ldGray.8">
+            <Text size="md" fw={600}>
                 No chart types yet
             </Text>
 

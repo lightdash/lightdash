@@ -15,6 +15,7 @@ import {
     type ResultRow,
 } from '@lightdash/common';
 import {
+    Box,
     Center,
     Group,
     Loader,
@@ -48,6 +49,7 @@ import { type TableContext } from '../types';
 import { useTableContext } from '../useTableContext';
 import { countSubRows } from '../utils';
 import BodyCell from './BodyCell';
+import classes from './TableBody.module.css';
 
 export const VirtualizedArea: FC<{ cellCount: number; padding: number }> = ({
     cellCount,
@@ -56,12 +58,7 @@ export const VirtualizedArea: FC<{ cellCount: number; padding: number }> = ({
     return (
         <tr>
             {[...Array(cellCount)].map((_, index) => (
-                <td
-                    key={index}
-                    style={{
-                        height: `${padding}px`,
-                    }}
-                />
+                <Box component="td" key={index} h={padding} />
             ))}
         </tr>
     );
@@ -259,7 +256,7 @@ const TableRow: FC<TableRowProps> = ({
                         minimal={minimal}
                         rowSpan={rowSpanMerge?.rowSpan}
                         key={cell.id}
-                        style={meta?.style}
+                        styleProps={meta?.styleProps}
                         backgroundColor={backgroundColor}
                         fontColor={fontColor}
                         textStyle={textStyle}
@@ -289,16 +286,10 @@ const TableRow: FC<TableRowProps> = ({
                                 <Button
                                     size="compact-xs"
                                     variant="subtle"
-                                    styles={(theme) => ({
-                                        root: {
-                                            height: 'unset',
-                                            paddingLeft: theme.spacing.two,
-                                            paddingRight: theme.spacing.xxs,
-                                        },
-                                        section: {
-                                            marginRight: 0,
-                                        },
-                                    })}
+                                    classNames={{
+                                        root: classes.groupToggleButton,
+                                        section: classes.groupToggleSection,
+                                    }}
                                     onClick={(
                                         e: React.MouseEvent<HTMLButtonElement>,
                                     ) => {
@@ -316,9 +307,7 @@ const TableRow: FC<TableRowProps> = ({
                                             }
                                         />
                                     }
-                                    style={{
-                                        color: fontColor ?? 'inherit',
-                                    }}
+                                    c={fontColor ?? 'inherit'}
                                 >
                                     ({countSubRows(row)})
                                 </Button>
@@ -441,13 +430,13 @@ const VirtualizedTableBody: FC<{
                 <tr key={index}>
                     {Array.from({ length: tableColumnsCount }).map(
                         (__, colIdx) => (
-                            <td key={colIdx} style={{ padding: 8.5 }}>
+                            <Box component="td" key={colIdx} p={8.5}>
                                 <Skeleton
                                     w="100%"
                                     // Removing 17px to account for the padding of the table defined in Table.styles.ts
                                     h={`calc(${ROW_HEIGHT_PX}px - 17px)`}
                                 />
-                            </td>
+                            </Box>
                         ),
                     )}
                 </tr>

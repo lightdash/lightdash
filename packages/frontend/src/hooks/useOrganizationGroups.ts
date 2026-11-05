@@ -73,6 +73,8 @@ export const useOrganizationGroups = (
                     lightdashApi,
                     includeMembers,
                     searchInput,
+                    undefined,
+                    { sortBy: 'name', sortDirection: 'asc' },
                 )
             ).data;
         },

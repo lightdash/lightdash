@@ -66,7 +66,7 @@ const SavedTreesContainer: FC = () => {
                 resizable={!compact}
                 sizes={compact ? [0, 100] : undefined}
                 classNames={{ handle: sidebarStyles.resizeHandle }}
-                style={{ flex: 1, minHeight: 0 }}
+                flex={1}
             >
                 <ResizableSplitter.Pane
                     id="tree-list-sidebar"

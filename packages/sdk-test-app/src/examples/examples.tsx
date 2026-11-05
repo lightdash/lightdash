@@ -116,7 +116,7 @@ export const examples: ExampleDefinition[] = [
         path: '/examples/theme',
         title: 'Theme demo',
         description:
-            'Switch the embedded dashboard between light and dark mode via the `theme` prop.',
+            'Switch the embedded dashboard between light, dark and the OS scheme via the `theme` prop.',
         sourcePath: 'packages/sdk-test-app/src/examples/ThemeExamplePage.tsx',
         component: ThemeExamplePage,
     },

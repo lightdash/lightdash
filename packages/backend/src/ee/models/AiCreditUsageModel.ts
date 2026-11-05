@@ -1,16 +1,15 @@
 import {
     AI_BILLABLE_FEATURES,
-    assertUnreachable,
     calculateAiCredits,
     findAiCreditRate,
     getAiCreditContractWindow,
+    isAiBillableFeature,
     isAiCreditAllowanceAlertPlanSettled,
     planAiCreditAllowanceAlerts,
     type AiCreditAllowanceAlertRecord,
     type AiCreditDailyUsage,
     type AiCreditPeriod,
     type AiCreditRateCardRow,
-    type AiCreditUsageBreakdown,
     type AiCreditUsageBreakdownRow,
     type AiCreditUsageSummary,
     type AiCreditUsageTotals,
@@ -26,12 +25,7 @@ import {
     AiUsageLedgerTableName,
     type DbAiUsageLedger,
 } from '../../database/entities/aiUsageLedger';
-import { EmailTableName } from '../../database/entities/emails';
-import { OrganizationTableName } from '../../database/entities/organizations';
-import { ProjectTableName } from '../../database/entities/projects';
-import { UserTableName } from '../../database/entities/users';
 import Logger from '../../logging/logger';
-import { AiAgentTableName } from '../database/entities/aiAgent';
 import { type AiCreditAllowanceAlertModel } from './AiCreditAllowanceAlertModel';
 import {
     hasAllowance,
@@ -39,9 +33,7 @@ import {
     type AiCreditContractWithAllowance,
 } from './AiCreditContractModel';
 import {
-    breakdownHasNames,
     buildAiCreditDailyUsage,
-    type AiCreditDailyUsageBucket,
     type AiCreditDailyUsageEntry,
 } from './aiCreditDailyUsage';
 import { type AiCreditHoldModel } from './AiCreditHoldModel';
@@ -96,30 +88,7 @@ export type LedgerUsageGroup = {
 
 export type LedgerDailyUsageGroup = PricedTokenGroup & {
     day: string;
-    breakdown_key: string | null;
-    is_embedded_viewer: boolean;
-};
-
-const BREAKDOWN_COLUMNS: Record<AiCreditUsageBreakdown, keyof DbAiUsageLedger> =
-    {
-        feature: 'feature',
-        channel: 'usage_channel',
-        user: 'user_uuid',
-        project: 'project_uuid',
-        agent: 'agent_uuid',
-    };
-
-export const toDailyUsageBucket = (
-    breakdown: AiCreditUsageBreakdown,
-    group: Pick<LedgerDailyUsageGroup, 'breakdown_key' | 'is_embedded_viewer'>,
-): AiCreditDailyUsageBucket => {
-    // Every embedded viewer acts as the embed's service user, so their calls are grouped rather than listed.
-    if (breakdown === 'user' && group.is_embedded_viewer) {
-        return { type: 'embeddedViewers' };
-    }
-    return group.breakdown_key === null
-        ? { type: 'unattributed' }
-        : { type: 'value', key: group.breakdown_key };
+    feature: string;
 };
 
 export type AiCreditUsageAccumulator = Pick<
@@ -388,22 +357,16 @@ export class AiCreditUsageModel {
     private async groupBillableUsageByDay(
         organizationUuid: string,
         period: AiCreditPeriod,
-        breakdown: AiCreditUsageBreakdown,
         rateBoundaries: Date[],
     ): Promise<LedgerDailyUsageGroup[]> {
         const day = this.database.raw(
             `to_char(created_at at time zone 'UTC', 'YYYY-MM-DD')`,
         );
-        const embedded = this.database.raw('(external_user_id is not null)');
-        const column = BREAKDOWN_COLUMNS[breakdown];
         return (
             this.database(AiUsageLedgerTableName)
                 .select(
                     this.database.raw(`${day.toQuery()} as day`),
-                    `${column} as breakdown_key`,
-                    this.database.raw(
-                        `${embedded.toQuery()} as is_embedded_viewer`,
-                    ),
+                    'feature',
                     'provider',
                     'model',
                     ...this.tokenAggregates(),
@@ -418,116 +381,40 @@ export class AiCreditUsageModel {
                 .where('created_at', '<', period.periodEnd)
                 // Plain columns first: knex drops the rest when the first argument is a raw expression.
                 .groupBy(
-                    column,
+                    'feature',
                     'provider',
                     'model',
                     day,
-                    embedded,
                     this.rateSegment(rateBoundaries),
                 )
         );
     }
 
-    // Names are scoped to the organization; a key with no row here was deleted.
-    private async findBreakdownNames(
-        organizationUuid: string,
-        breakdown: AiCreditUsageBreakdown,
-        keys: string[],
-    ): Promise<Map<string, string>> {
-        if (keys.length === 0) return new Map();
-        switch (breakdown) {
-            case 'user': {
-                const rows: { key: string; name: string }[] =
-                    await this.database(UserTableName)
-                        .leftJoin(EmailTableName, function joinPrimaryEmail() {
-                            this.on(
-                                `${EmailTableName}.user_id`,
-                                '=',
-                                `${UserTableName}.user_id`,
-                            ).andOnVal(`${EmailTableName}.is_primary`, true);
-                        })
-                        .whereIn(`${UserTableName}.user_uuid`, keys)
-                        .select(
-                            `${UserTableName}.user_uuid as key`,
-                            this.database.raw(
-                                `coalesce(nullif(trim(concat_ws(' ', ${UserTableName}.first_name, ${UserTableName}.last_name)), ''), ${EmailTableName}.email, 'Unnamed user') as name`,
-                            ),
-                        );
-                return new Map(rows.map(({ key, name }) => [key, name]));
-            }
-            case 'project': {
-                const rows: { key: string; name: string }[] =
-                    await this.database(ProjectTableName)
-                        .innerJoin(
-                            OrganizationTableName,
-                            `${OrganizationTableName}.organization_id`,
-                            `${ProjectTableName}.organization_id`,
-                        )
-                        .where(
-                            `${OrganizationTableName}.organization_uuid`,
-                            organizationUuid,
-                        )
-                        .whereIn(`${ProjectTableName}.project_uuid`, keys)
-                        .select(
-                            `${ProjectTableName}.project_uuid as key`,
-                            `${ProjectTableName}.name as name`,
-                        );
-                return new Map(rows.map(({ key, name }) => [key, name]));
-            }
-            case 'agent': {
-                const rows: { key: string; name: string }[] =
-                    await this.database(AiAgentTableName)
-                        .where('organization_uuid', organizationUuid)
-                        .whereIn('ai_agent_uuid', keys)
-                        .select('ai_agent_uuid as key', 'name');
-                return new Map(rows.map(({ key, name }) => [key, name]));
-            }
-            case 'feature':
-            case 'channel':
-                return new Map();
-            default:
-                return assertUnreachable(
-                    breakdown,
-                    `Unknown AI credit usage breakdown ${breakdown}`,
-                );
-        }
-    }
-
-    /** Billable credits per UTC day of the period, split by one breakdown. */
+    /** Billable credits per UTC day of the period, by feature. */
     async summarizeByDay(
         organizationUuid: string,
         period: AiCreditPeriod,
-        breakdown: AiCreditUsageBreakdown,
     ): Promise<AiCreditDailyUsage> {
         const rateCard = await this.rateCardModel.getAll();
         const groups = await this.groupBillableUsageByDay(
             organizationUuid,
             period,
-            breakdown,
             toRateBoundaries(rateCard),
         );
         const entries = groups.flatMap<AiCreditDailyUsageEntry>((group) => {
             const priced = priceUsageGroup(rateCard, group);
-            return priced === null
+            // The query only returns billable features, so the guard narrows the type.
+            return priced === null || !isAiBillableFeature(group.feature)
                 ? []
                 : [
                       {
                           date: group.day,
-                          bucket: toDailyUsageBucket(breakdown, group),
+                          feature: group.feature,
                           credits: priced.credits,
                       },
                   ];
         });
-        const names = breakdownHasNames(breakdown)
-            ? await this.findBreakdownNames(organizationUuid, breakdown, [
-                  ...new Set(
-                      entries.flatMap(({ bucket }) =>
-                          bucket.type === 'value' ? [bucket.key] : [],
-                      ),
-                  ),
-              ])
-            : null;
-        return buildAiCreditDailyUsage({ period, breakdown, entries, names });
+        return buildAiCreditDailyUsage({ period, entries });
     }
 
     // The hold decision reads the same billable figure the usage card shows.

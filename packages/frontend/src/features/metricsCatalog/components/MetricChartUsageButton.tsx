@@ -68,8 +68,9 @@ export const MetricChartUsageButton = ({
                 leftSection={<BarChart />}
                 opacity={hasChartsUsage ? 1 : 0.8}
                 fz="sm"
-                c="ldGray.7"
+                c="dimmed"
                 className={styles.button}
+                classNames={{ section: styles.section }}
             >
                 {row.original.chartUsage}
             </Button>

@@ -11,6 +11,8 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../features/explorer/store';
+import { selectTableShowSubtotals } from '../../features/visualization/store';
+import { useTableEditorActions } from '../../hooks/tableVisualization/useTableConfig';
 import {
     matchesIdentity,
     normalizePivotValues,
@@ -23,8 +25,7 @@ import {
 import { SortDirection } from '../../utils/sortUtils';
 import PivotTable, { type PivotSortMenuTarget } from '../common/PivotTable';
 import ColumnHeaderSortMenuOptions from '../Explorer/ResultsCard/ColumnHeaderSortMenuOptions';
-import { isTableVisualizationConfig } from '../LightdashVisualization/types';
-import { useVisualizationState } from '../LightdashVisualization/useVisualizationContext';
+import { useVisualizationInputSelector } from '../LightdashVisualization/useVisualizationContext';
 import { getExplorerPivotSortMenu } from './getExplorerPivotSortMenu';
 
 type ExplorerPivotTableProps = Omit<
@@ -52,12 +53,10 @@ const ExplorerPivotTable: FC<ExplorerPivotTableProps> = ({
     const dimensions = useExplorerSelector(selectDimensions);
     const pivotConfig = useExplorerSelector(selectPivotConfig);
 
-    const { visualizationConfig } = useVisualizationState();
-    const chartConfig = isTableVisualizationConfig(visualizationConfig)
-        ? visualizationConfig.chartConfig
-        : null;
-
-    const showSubtotals = chartConfig?.showSubtotals ?? false;
+    const showSubtotals = useVisualizationInputSelector(
+        selectTableShowSubtotals,
+    );
+    const { updateColumnProperty } = useTableEditorActions();
     const rowDims = useMemo(
         () => getRowDims(dimensions, pivotConfig?.columns),
         [dimensions, pivotConfig],
@@ -194,7 +193,7 @@ const ExplorerPivotTable: FC<ExplorerPivotTableProps> = ({
                         onSelect={(direction) => applySort(target, direction)}
                         onRemove={() => removeSort(target)}
                     />
-                    {chartConfig && isDimTarget && (
+                    {isDimTarget && (
                         <>
                             <Menu.Divider />
                             <Menu.Item
@@ -203,10 +202,9 @@ const ExplorerPivotTable: FC<ExplorerPivotTableProps> = ({
                                     menuTarget.reference,
                                 )}
                                 onClick={() => {
-                                    chartConfig.updateColumnProperty(
-                                        menuTarget.reference,
-                                        { visible: false },
-                                    );
+                                    updateColumnProperty(menuTarget.reference, {
+                                        visible: false,
+                                    });
                                 }}
                             >
                                 Hide column
@@ -218,7 +216,7 @@ const ExplorerPivotTable: FC<ExplorerPivotTableProps> = ({
         },
         [
             applySort,
-            chartConfig,
+            updateColumnProperty,
             getField,
             isSubtotalGroupingLevel,
             removeSort,

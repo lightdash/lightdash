@@ -22,6 +22,7 @@ describeContentAsCodeSchemaContract({
         'draftStaleness',
         'draftsAwaitingReview',
         'hasUnpublishedChanges',
+        'managedFromRepository',
         'organizationUuid',
         'pinnedListOrder',
         'pinnedListUuid',

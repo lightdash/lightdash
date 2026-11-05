@@ -2,7 +2,7 @@ import {
     type OrganizationSettings,
     type UpdateOrganizationSettings,
 } from '@lightdash/common';
-import { Button, Group, Loader, Stack } from '@mantine/core';
+import { Button, Divider, Group, Loader, Stack } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { type FC } from 'react';
 import useHealth from '../../../hooks/health/useHealth';
@@ -11,6 +11,8 @@ import {
     useUpdateOrganizationSettings,
 } from '../../../hooks/organization/useOrganizationSettings';
 import { NumberInput } from '../../common/NumberInput';
+import { SettingRow } from '../../common/Settings/SettingLayout';
+import { SettingsCard } from '../../common/Settings/SettingsCard';
 
 /**
  * Editable form for the org's export limits. Split out from the panel so the
@@ -51,41 +53,58 @@ const LimitsForm: FC<{
         form.values.csvCellsLimit === initial.csvCellsLimit;
 
     return (
-        <form onSubmit={handleSubmit}>
-            <Stack gap="lg">
-                <NumberInput
-                    label="Maximum query rows"
-                    description={`The most rows a single query or export can return for your organization. Up to ${queryRowsCap.toLocaleString()}.`}
-                    min={1}
-                    max={queryRowsCap}
-                    clampBehavior="strict"
-                    allowDecimal={false}
-                    allowNegative={false}
-                    thousandSeparator=","
-                    {...form.getInputProps('queryLimit')}
-                />
-                <NumberInput
-                    label="Maximum CSV / Excel cells"
-                    description={`The most cells (rows × columns) a CSV or Excel export can contain. Up to ${csvCellsCap.toLocaleString()}.`}
-                    min={1}
-                    max={csvCellsCap}
-                    clampBehavior="strict"
-                    allowDecimal={false}
-                    allowNegative={false}
-                    thousandSeparator=","
-                    {...form.getInputProps('csvCellsLimit')}
-                />
-                <Group justify="flex-end">
-                    <Button
-                        type="submit"
-                        loading={update.isLoading}
-                        disabled={isUnchanged}
-                    >
-                        Save
-                    </Button>
-                </Group>
-            </Stack>
-        </form>
+        <SettingsCard>
+            <form onSubmit={handleSubmit}>
+                <Stack gap="md">
+                    <SettingRow
+                        title="Maximum query rows"
+                        description={`The most rows a single query or export can return for your organization. Up to ${queryRowsCap.toLocaleString()}.`}
+                        control={
+                            <NumberInput
+                                aria-label="Maximum query rows"
+                                size="xs"
+                                w={160}
+                                min={1}
+                                max={queryRowsCap}
+                                clampBehavior="strict"
+                                allowDecimal={false}
+                                allowNegative={false}
+                                thousandSeparator=","
+                                {...form.getInputProps('queryLimit')}
+                            />
+                        }
+                    />
+                    <Divider />
+                    <SettingRow
+                        title="Maximum CSV / Excel cells"
+                        description={`The most cells (rows × columns) a CSV or Excel export can contain. Up to ${csvCellsCap.toLocaleString()}.`}
+                        control={
+                            <NumberInput
+                                aria-label="Maximum CSV / Excel cells"
+                                size="xs"
+                                w={160}
+                                min={1}
+                                max={csvCellsCap}
+                                clampBehavior="strict"
+                                allowDecimal={false}
+                                allowNegative={false}
+                                thousandSeparator=","
+                                {...form.getInputProps('csvCellsLimit')}
+                            />
+                        }
+                    />
+                    <Group justify="flex-end">
+                        <Button
+                            type="submit"
+                            loading={update.isLoading}
+                            disabled={isUnchanged}
+                        >
+                            Save
+                        </Button>
+                    </Group>
+                </Stack>
+            </form>
+        </SettingsCard>
     );
 };
 
@@ -94,7 +113,7 @@ const LimitsPanel: FC = () => {
     const health = useHealth();
 
     if (isInitialLoading || !data || !health.data) {
-        return <Loader />;
+        return <Loader size="sm" />;
     }
 
     // Remount when the effective values change so the form re-seeds from server

@@ -18,6 +18,7 @@ import {
     type ComposerNodeColumn,
     type ComposerPipelineNode,
     type ComposerStoredChartVizConfig,
+    type Explore,
     type ThreadComposerQueryNode,
 } from '@lightdash/common';
 import { tool } from 'ai';
@@ -45,6 +46,7 @@ import { toolErrorOutput } from '../utils/toolErrorHandler';
 
 type Dependencies = {
     getPrompt: GetPromptFn;
+    getExplore: (exploreName: string) => Explore | null;
     listThreadComposerQueryNodes: ListThreadComposerQueryNodesFn;
     getThreadComposerNodeColumns: GetThreadComposerNodeColumnsFn;
     runComposerQueries: RunComposerQueriesFn;
@@ -141,6 +143,7 @@ const toPresentedArtifactVersion = ({
     terminalNodeId,
     vizConfig,
     maxQueryLimit,
+    getExplore,
 }: {
     title: string;
     description: string | null;
@@ -148,6 +151,7 @@ const toPresentedArtifactVersion = ({
     terminalNodeId: string;
     vizConfig: ComposerStoredChartVizConfig;
     maxQueryLimit: number;
+    getExplore: Dependencies['getExplore'];
 }): AiComposerArtifactVersion | AiComposerSemanticArtifactVersion => {
     const [node, ...rest] = queries;
     const semantic =
@@ -158,6 +162,7 @@ const toPresentedArtifactVersion = ({
                   node,
                   vizConfig,
                   maxQueryLimit,
+                  explore: getExplore(node.exploreName),
               })
             : null;
     return (
@@ -202,6 +207,7 @@ const toSlackRenderInput = (
 
 export const getVisualize = ({
     getPrompt,
+    getExplore,
     listThreadComposerQueryNodes,
     getThreadComposerNodeColumns,
     runComposerQueries,
@@ -264,7 +270,12 @@ export const getVisualize = ({
                         ? await runComposerQueries({
                               queries,
                               terminalNodeId: nodeId,
-                          }).catch(() => null)
+                              sampleNodeIds: [],
+                          })
+                              .then((outcome) =>
+                                  outcome.status === 'success' ? outcome : null,
+                              )
+                              .catch(() => null)
                         : null;
                 const columns = run
                     ? toComposerNodeColumns(run.terminal.columns)
@@ -292,6 +303,7 @@ export const getVisualize = ({
                     terminalNodeId: nodeId,
                     vizConfig: storedVizConfig,
                     maxQueryLimit,
+                    getExplore,
                 });
                 const artifact = await createOrUpdateArtifact({
                     threadUuid,
@@ -300,12 +312,12 @@ export const getVisualize = ({
                 });
 
                 const slackRenderInput =
-                    slackImage && run && run.terminal.rows.length > 0
+                    slackImage && run && run.terminal.rowCount > 0
                         ? toSlackRenderInput(version, {
                               artifactUuid: artifact.artifactUuid,
                               versionUuid: artifact.versionUuid,
                               queryUuid: run.terminal.queryUuid,
-                              rowLimit: run.terminal.rows.length,
+                              rowLimit: run.terminal.rowCount,
                           })
                         : null;
                 if (slackRenderInput && deferSlackVisualization) {

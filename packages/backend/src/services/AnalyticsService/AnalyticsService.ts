@@ -53,10 +53,6 @@ export class AnalyticsService extends BaseService {
         this.csvService = args.csvService;
     }
 
-    async getDashboardViews(dashboardUuid: string): Promise<number> {
-        return this.analyticsModel.countDashboardViews(dashboardUuid);
-    }
-
     async getUserActivity(
         projectUuid: string,
         account: Account,

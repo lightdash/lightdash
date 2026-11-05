@@ -90,6 +90,12 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../../ee/providers/Embed/useEmbed', () => ({
     default: () => mocks.embed,
 }));
+vi.mock('../../hooks/dashboard/useDashboardTileParameterReferences', () => ({
+    useDashboardTileParameterReferences: () => undefined,
+}));
+vi.mock('../../hooks/dashboard/useSyncParameterControls', () => ({
+    useSyncParameterControls: () => undefined,
+}));
 vi.mock('../../hooks/dashboard/useDashboard', () => ({
     useDashboardQuery: () => ({
         data: mocks.dashboard,
@@ -452,6 +458,16 @@ describe('filters: load', () => {
         expect(result.current.dashboardFilters).toEqual(emptyFilters);
         expect(result.current.originalDashboardFilters).toEqual(emptyFilters);
         expect(result.current.allFilters).toEqual(emptyFilters);
+    });
+
+    it('loads a dashboard whose saved config is null', () => {
+        // The API serialises a dashboard saved without config as null
+        mocks.dashboard = {
+            ...makeDashboard({ filters: savedFilters }),
+            config: null,
+        } as unknown as Dashboard;
+        const { result } = renderDashboard();
+        expect(result.current.dashboardFilters).toEqual(savedFilters);
     });
 
     it('composes allFilters from saved and temporary filters in all categories', () => {

@@ -6,7 +6,7 @@ import {
     getErrorMessage,
 } from '@lightdash/common';
 import { generateText, tool } from 'ai';
-import isEqual from 'lodash/isEqual';
+import { isEqual } from 'es-toolkit/compat';
 import { type z } from 'zod';
 import { aiCopilotConfigSchema } from '../../../../config/aiConfigSchema';
 import { getAiConfig } from '../../../../config/parseConfig';
@@ -457,7 +457,7 @@ export const runLlmFilterPermutationCase = async ({
                 activeTools: ['generateFilters'],
                 toolChoice: { type: 'tool', toolName: 'generateFilters' },
             }),
-            onStepFinish: (step) => {
+            onStepEnd: (step) => {
                 modelStepResults.push({
                     step: step.stepNumber + 1,
                     finishReason: step.finishReason,
@@ -470,7 +470,7 @@ export const runLlmFilterPermutationCase = async ({
                     toolResults: stringifyJson(step.toolResults),
                 });
             },
-            system: systemPrompt,
+            instructions: systemPrompt,
             tools: {
                 generateFilters: tool({
                     description:

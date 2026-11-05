@@ -284,7 +284,6 @@ export class GithubProvider implements GitProvider {
             description,
             user,
             setStage,
-            onRemoteCommitted: args.onRemoteCommitted,
             assertStagedChangesAllowed: args.assertStagedChangesAllowed,
             assertPublishAllowed: args.assertPublishAllowed,
         });
@@ -338,7 +337,6 @@ export class GithubProvider implements GitProvider {
             description,
             user,
             setStage,
-            onRemoteCommitted: args.onRemoteCommitted,
             assertStagedChangesAllowed: args.assertStagedChangesAllowed,
             assertPublishAllowed: args.assertPublishAllowed,
         });
@@ -469,7 +467,6 @@ export class GithubProvider implements GitProvider {
         description,
         user,
         setStage,
-        onRemoteCommitted,
         assertStagedChangesAllowed,
         assertPublishAllowed,
     }: {
@@ -483,7 +480,6 @@ export class GithubProvider implements GitProvider {
         description: string;
         user: SessionUser;
         setStage: SetStage;
-        onRemoteCommitted: () => Promise<void>;
         assertStagedChangesAllowed: (() => Promise<void>) | null;
         assertPublishAllowed: (() => Promise<void>) | null;
     }): Promise<LandedCommit> {
@@ -538,7 +534,6 @@ export class GithubProvider implements GitProvider {
             fileChanges,
             ...githubAuth(installation),
         });
-        await onRemoteCommitted();
         return { commitSha: commit.oid, ...diffStat };
     }
 }

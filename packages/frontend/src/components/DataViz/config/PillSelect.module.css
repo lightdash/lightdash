@@ -33,21 +33,12 @@
 }
 
 .grayInput {
-    color: light-dark(
-        var(--mantine-color-ldGray-7),
-        var(--mantine-color-ldGray-2)
-    );
-    background-color: light-dark(
-        var(--mantine-color-ldGray-1),
-        var(--mantine-color-ldGray-8)
-    );
+    color: var(--mantine-color-ldGray-7);
+    background-color: var(--mantine-color-ldGray-1);
 }
 
 .grayInput:hover {
-    background-color: light-dark(
-        var(--mantine-color-ldGray-2),
-        var(--mantine-color-ldGray-7)
-    );
+    background-color: var(--mantine-color-ldGray-2);
 }
 
 .inputUnsetValue {
@@ -91,4 +82,16 @@
 
 .grayOption[data-combobox-selected]:hover {
     background-color: var(--mantine-color-ldGray-3);
+}
+
+.aggregationInput {
+    width: 50px;
+}
+
+.aggregationInputWide {
+    width: 70px;
+}
+
+.sortInput {
+    width: 115px;
 }

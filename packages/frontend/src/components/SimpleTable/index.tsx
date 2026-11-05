@@ -16,7 +16,10 @@ import {
     type HeaderProps,
 } from '../common/Table/types';
 import { isTableVisualizationConfig } from '../LightdashVisualization/types';
-import { useVisualizationState } from '../LightdashVisualization/useVisualizationContext';
+import {
+    useVisualizationConfig,
+    useVisualizationInputs,
+} from '../LightdashVisualization/useVisualizationContext';
 import CellContextMenu from './CellContextMenu';
 import DashboardCellContextMenu from './DashboardCellContextMenu';
 import DashboardHeaderContextMenu from './DashboardHeaderContextMenu';
@@ -35,6 +38,8 @@ type SimpleTableProps = {
     onScreenshotReady?: () => void;
     onScreenshotError?: () => void;
     enableContextMenu?: boolean;
+    /** Edge to edge: no padding, side borders or radius. */
+    flush?: boolean;
 };
 
 const SimpleTable: FC<SimpleTableProps> = ({
@@ -46,18 +51,19 @@ const SimpleTable: FC<SimpleTableProps> = ({
     onScreenshotReady,
     onScreenshotError,
     enableContextMenu = true,
+    flush = false,
     ...rest
 }) => {
     const {
         columnOrder,
         itemsMap,
-        visualizationConfig,
         resultsData,
         isLoading,
         isEditMode,
         parameters,
         hasExplorerStore,
-    } = useVisualizationState();
+    } = useVisualizationInputs();
+    const visualizationConfig = useVisualizationConfig();
 
     const hasSignaledScreenshotReady = useRef(false);
 
@@ -411,7 +417,12 @@ const SimpleTable: FC<SimpleTableProps> = ({
                             />
                         )}
                         {showResultsTotal && (
-                            <Flex justify="flex-end" pt="xxs" align="center">
+                            <Flex
+                                justify="flex-end"
+                                pt="xxs"
+                                px={isDashboard ? 'xs' : 0}
+                                align="center"
+                            >
                                 <ResultCount
                                     count={pivotTableData.data.rowsCount}
                                 />
@@ -426,9 +437,14 @@ const SimpleTable: FC<SimpleTableProps> = ({
     }
 
     return (
-        <Box p={isDashboard ? 0 : 'xs'} pb="md" miw="100%" h="100%">
+        <Box
+            p={isDashboard || flush ? 0 : 'xs'}
+            pb={flush ? 0 : 'md'}
+            miw="100%"
+            h="100%"
+        >
             <Table
-                isDashboard={isDashboard}
+                isDashboard={isDashboard || flush}
                 minimal={minimal}
                 $shouldExpand={$shouldExpand}
                 className={className}

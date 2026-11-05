@@ -2,6 +2,7 @@ import {
     AI_AGENT_MEMORY_CONSOLIDATION_OPERATION_TYPES,
     AI_AGENT_MEMORY_CONSOLIDATION_REJECTION_REASONS,
     AnyType,
+    ApiConnectorType,
     assertUnreachable,
     PreAggregateMissReason,
     QueryExecutionContext,
@@ -28,12 +29,20 @@ import { PreAggregateMaterializationsTableName } from '../ee/database/entities/p
 import { type SuggestionFallbackReason } from '../ee/services/ai/agents/suggestionErrors';
 import Logger from '../logging/logger';
 import { SchedulerClient } from '../scheduler/SchedulerClient';
+import type {
+    ColumnDiscoveryMethod,
+    ColumnDiscoveryOutcome,
+} from '../services/AsyncQueryService/columnDiscovery';
 import {
     COMPOSER_QUERY_STAGES,
     type ComposerQuerySource,
     type ComposerQueryStage,
 } from '../services/AsyncQueryService/composerQueryStage';
 import type { WarehouseExecutionSource } from '../services/AsyncQueryService/types';
+import {
+    API_QUERY_OUTCOMES,
+    type ApiQueryOutcome,
+} from '../services/QuerySourceService/api/apiQueryOutcome';
 import {
     serializeOtelHttpMetrics,
     shutdownOtelHttpMetrics,
@@ -243,6 +252,20 @@ export default class PrometheusMetrics {
         'source' | 'stage'
     > | null = null;
 
+    // Live API source requests (PostHog, ...), by connector and outcome
+    public apiSourceRequestCounter: prometheus.Counter<
+        'connector' | 'outcome'
+    > | null = null;
+
+    public apiSourceRequestDurationHistogram: prometheus.Histogram<
+        'connector' | 'outcome'
+    > | null = null;
+
+    public apiSourceInflightGauge: prometheus.Gauge<'connector'> | null = null;
+
+    public apiSourceTruncatedCounter: prometheus.Counter<'connector'> | null =
+        null;
+
     // Pre-aggregate metrics
     public preAggregateMatchCounter: prometheus.Counter<string> | null = null;
 
@@ -358,6 +381,11 @@ export default class PrometheusMetrics {
 
     private warehouseDurationHistogram: prometheus.Histogram | null = null;
 
+    private columnDiscoveryCounter: prometheus.Counter | null = null;
+
+    private columnDiscoveryDurationHistogram: prometheus.Histogram | null =
+        null;
+
     private warehousePhaseDurationHistogram: prometheus.Histogram | null = null;
 
     private projectQueryPhaseDurationHistogram: prometheus.Histogram | null =
@@ -454,6 +482,32 @@ export default class PrometheusMetrics {
                     buckets: [0.1, 0.5, 1, 2.5, 5, 10, 30, 60, 120],
                     ...rest,
                 });
+
+                this.columnDiscoveryCounter = new prometheus.Counter({
+                    name: 'lightdash_query_column_discovery_total',
+                    help: 'SQL result column discovery warehouse calls',
+                    labelNames: [
+                        'method',
+                        'warehouse_type',
+                        'context',
+                        'outcome',
+                    ],
+                    ...rest,
+                });
+
+                this.columnDiscoveryDurationHistogram =
+                    new prometheus.Histogram({
+                        name: 'lightdash_query_column_discovery_duration_seconds',
+                        help: 'SQL result column discovery warehouse call duration',
+                        labelNames: [
+                            'method',
+                            'warehouse_type',
+                            'context',
+                            'outcome',
+                        ],
+                        buckets: [0.1, 0.5, 1, 2.5, 5, 10, 30, 60, 120],
+                        ...rest,
+                    });
 
                 this.warehousePhaseDurationHistogram = new prometheus.Histogram(
                     {
@@ -907,6 +961,33 @@ export default class PrometheusMetrics {
                         ...rest,
                     });
 
+                this.apiSourceRequestCounter = new prometheus.Counter({
+                    name: 'lightdash_api_source_requests_total',
+                    help: 'Live API source requests, by connector and outcome',
+                    labelNames: ['connector', 'outcome'],
+                    ...rest,
+                });
+                this.apiSourceRequestDurationHistogram =
+                    new prometheus.Histogram({
+                        name: 'lightdash_api_source_request_duration_seconds',
+                        help: 'Live API source request duration, by connector and outcome',
+                        labelNames: ['connector', 'outcome'],
+                        buckets: [0.25, 0.5, 1, 2.5, 5, 10, 20, 30, 45, 60],
+                        ...rest,
+                    });
+                this.apiSourceInflightGauge = new prometheus.Gauge({
+                    name: 'lightdash_api_source_inflight_requests',
+                    help: 'Live API source requests in flight on this process, by connector',
+                    labelNames: ['connector'],
+                    ...rest,
+                });
+                this.apiSourceTruncatedCounter = new prometheus.Counter({
+                    name: 'lightdash_api_source_truncated_total',
+                    help: 'Live API source results cut at the row limit, by connector',
+                    labelNames: ['connector'],
+                    ...rest,
+                });
+
                 // Pre-create every known label combination so each series
                 // exports a zero baseline from process start. Without this,
                 // Managed Prometheus treats the first observed sample of a
@@ -939,6 +1020,20 @@ export default class PrometheusMetrics {
                         });
                     },
                 );
+                Object.values(ApiConnectorType).forEach((connector) => {
+                    this.apiSourceInflightGauge?.set({ connector }, 0);
+                    this.apiSourceTruncatedCounter?.inc({ connector }, 0);
+                    API_QUERY_OUTCOMES.forEach((outcome) => {
+                        this.apiSourceRequestCounter?.inc(
+                            { connector, outcome },
+                            0,
+                        );
+                        this.apiSourceRequestDurationHistogram?.zero({
+                            connector,
+                            outcome,
+                        });
+                    });
+                });
                 AI_AGENT_MEMORY_DISTILL_OUTCOMES.forEach((outcome) => {
                     this.aiAgentMemoryDistillCounter?.inc({ outcome }, 0);
                     this.aiAgentMemoryDistillDurationHistogram?.zero({
@@ -1759,6 +1854,32 @@ export default class PrometheusMetrics {
         );
     }
 
+    public observeColumnDiscovery({
+        method,
+        warehouseType,
+        context,
+        outcome,
+        durationMs,
+    }: {
+        method: ColumnDiscoveryMethod;
+        warehouseType: string;
+        context: string;
+        outcome: ColumnDiscoveryOutcome;
+        durationMs: number;
+    }) {
+        const labels = {
+            method,
+            warehouse_type: warehouseType,
+            context: getQueryContextLabel(context),
+            outcome,
+        };
+        this.columnDiscoveryCounter?.inc(labels);
+        this.columnDiscoveryDurationHistogram?.observe(
+            labels,
+            durationMs / 1000,
+        );
+    }
+
     public observeWarehousePhaseDurations(
         phaseTimings: WarehousePhaseTimings,
         warehouseType: string,
@@ -2070,6 +2191,26 @@ export default class PrometheusMetrics {
             { source, stage },
             durationMs,
         );
+    }
+
+    public observeApiSourceRequest(
+        connector: ApiConnectorType,
+        outcome: ApiQueryOutcome,
+        durationMs: number,
+    ) {
+        this.apiSourceRequestCounter?.inc({ connector, outcome });
+        this.apiSourceRequestDurationHistogram?.observe(
+            { connector, outcome },
+            durationMs / 1000,
+        );
+    }
+
+    public trackApiSourceInflight(connector: ApiConnectorType, delta: 1 | -1) {
+        this.apiSourceInflightGauge?.inc({ connector }, delta);
+    }
+
+    public incrementApiSourceTruncated(connector: ApiConnectorType) {
+        this.apiSourceTruncatedCounter?.inc({ connector });
     }
 
     public incrementUsageEventsPushed() {

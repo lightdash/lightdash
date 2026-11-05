@@ -5,6 +5,7 @@ export type OAuthTokenBinding = OAuthResourceBinding & {
     familyUuid: string | null;
     agentConnectionGrantUuid: string | null;
     parentRefreshToken: string | null;
+    sessionExpiresAt: Date | null;
 };
 
 export const withOAuthTokenBinding = (

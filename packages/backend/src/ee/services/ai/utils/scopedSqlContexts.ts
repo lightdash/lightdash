@@ -15,7 +15,11 @@ import { QueryExecutionContext } from '@lightdash/common';
  * scope.
  */
 const AGENT_SCOPED_QUERY_CONTEXTS: ReadonlySet<QueryExecutionContext> = new Set(
-    [QueryExecutionContext.AI, QueryExecutionContext.MCP_RUN_SQL],
+    [
+        QueryExecutionContext.AI,
+        QueryExecutionContext.MCP_RUN_SQL,
+        QueryExecutionContext.MCP_QUERY,
+    ],
 );
 
 export const isAgentScopedQueryContext = (

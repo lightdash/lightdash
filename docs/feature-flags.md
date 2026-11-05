@@ -338,51 +338,13 @@ before saving.
 
 ### Snowflake silent agent refresh
 
-`agent-identity-silent-refresh` is a default-on defect-fix kill switch. The
-handler uses the standard database resolver with a true fallback. Console user
-and organisation overrides and instance defaults apply. The generic ENV lists
-have the precedence described above; there is no per-feature ENV setting.
-
-The flag is resolved for the requesting user and organisation only after
-`agent-identity` is enabled and a Snowflake agent sign-in provider is selected.
-Other identity sources and disabled agent identity add no flag or credential
-reads. It affects query refresh and side-effect-free connection status checks.
-
-When on, the OAuth endpoint decides whether the grant is alive. Successful
-refreshes update the token and grant deadline together through a guarded write.
+With `agent-identity` enabled and a Snowflake agent sign-in provider selected,
+the OAuth endpoint decides whether the grant is alive. Successful refreshes
+update the token and grant deadline together through a guarded write.
 Temporary failures keep credentials and return a retryable error. A confirmed
-`invalid_grant` refusal emits expiry analytics on query evaluations. When off,
-the stored-deadline checks and legacy refresh-error mapping apply.
-
-Console changes affect the next resolution without a restart. ENV changes need
-a process restart. Disabling this flag does not undo token rotations or revoke
-issued tokens. It does not change non-agent Snowflake authentication.
-
-### Warehouse OAuth refresh locking
-
-`warehouse-oauth-refresh-lock` is a default-on kill switch. When it is on, a
-Snowflake or Databricks OAuth refresh runs one at a time per credential row.
-Databricks U2M and M2M refresh-token grants use the lock. M2M client-credentials
-grants and submitted credentials without a stored owner stay unlocked. Callers
-in one process share one refresh. A PostgreSQL advisory
-transaction lock serializes refreshes of the row across processes, and the
-waiter refreshes with the rotated token that the first caller saved.
-
-Callers resolve the flag for the credential's organisation, without a user
-UUID, so personal overrides do not apply. Instance defaults, organisation
-overrides and the generic ENV precedence apply.
-
-At most a quarter of the pool, minimum one, holds a refresh lock at
-one time in each process. A caller waits up to 30 seconds for a slot and up to
-5 seconds for the advisory lock. The guarded token write can wait longer for a
-database row lock. Token requests close their sockets after 30 seconds
-of inactivity. A timeout returns a retryable refresh error.
-
-Console changes apply to the next refresh. Turning the flag off restores the
-previous refresh behavior inside the resolver: no locked reread or request
-deadline, with the legacy rotation-write policy. It does not undo rotations or
-enable a disabled preview credential-resolution path. ENV changes need a process
-restart.
+`invalid_grant` refusal emits expiry analytics on query evaluations.
+Side-effect-free connection status checks do not reject a sign-in solely because
+its stored deadline has passed. Non-agent Snowflake authentication is unchanged.
 
 ### OAuth scope enforcement
 
@@ -446,12 +408,20 @@ apply. Compile, test-and-compile, preview projects and scheduler workers use the
 same policy. Console changes apply to the next policy resolution. The generic
 ENV lists use the precedence above and need an API and worker restart.
 
-When enabled, local dbt compilation refuses authentication modes that depend on
-the server's cloud identity. Use an explicit key or a person's sign-in instead.
-The dbt child process also stops inheriting the cloud credential variables in
-`CLOUD_CREDENTIAL_ENVIRONMENT_VARIABLE_KEYS`, including those in the machine
-allowlist. Project environment variables and target-injected credentials remain
-available. The server environment does not change.
+When enabled, local dbt compilation refuses ambient authentication modes.
+Use an explicit key, a person's sign-in or BigQuery workload identity federation
+instead. The dbt child process also stops inheriting the cloud credential
+variables in `CLOUD_CREDENTIAL_ENVIRONMENT_VARIABLE_KEYS`, including those in
+the machine allowlist. Project environment variables and target-injected
+credentials remain available. The server environment does not change.
+
+BigQuery workload identity federation counts as explicit credentials because its
+provider is configured per project and its federated principal is scoped by the
+customer's workload identity pool. The dbt child receives a generated
+`external_account` file through `GOOGLE_APPLICATION_CREDENTIALS`, without a
+service account key or inherited Application Default Credentials (ADC). Its
+subject token still comes from the server's Google identity, so
+`bigquery-workload-identity-auth` must stay off on shared instances.
 
 Disabling the flag restores the existing profile and child-environment behaviour.
 It does not change credential selection, revoke credentials or stop work already

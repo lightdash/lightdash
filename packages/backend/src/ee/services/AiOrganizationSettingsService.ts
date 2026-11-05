@@ -4,10 +4,12 @@ import {
     AI_DEEP_RESEARCH_MAX_WORKERS,
     AiOrganizationRuntimeSettings,
     AiOrganizationSettings,
+    assertUnreachable,
     BYO_AI_PROVIDERS,
     CommercialFeatureFlags,
     ComputedAiOrganizationSettings,
     DATA_APP_ANALYSIS_DEFAULT_LIMITS,
+    DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS,
     FeatureFlags,
     ForbiddenError,
     getErrorMessage,
@@ -27,6 +29,7 @@ import {
     type ByoAiProvider,
     type CreateAiProviderCredential,
     type DataAppAnalysisLimits,
+    type McpProjectAccess,
     type ProjectAiCredentialSelection,
     type RegisteredAccount,
     type SessionUser,
@@ -62,6 +65,7 @@ import {
     OrgAiCopilotConfigResolver,
     type ReviewJudgeAvailability,
 } from './ai/OrgAiCopilotConfigResolver';
+import { isSameMcpProjectAccess } from './McpService/mcpProjectAccess';
 
 type AvailableModelPreset = ModelPreset<SelectableModelProvider>;
 
@@ -187,6 +191,22 @@ export const validateDataAppAnalysisLimits = (
     });
 };
 
+/** Normalizes a submitted org default to trimmed text or null (cleared). */
+export const normalizeAnalysisDefaultInstructions = (
+    raw: string | null,
+): string | null => {
+    const instructions = raw?.trim() || null;
+    if (
+        instructions !== null &&
+        instructions.length > DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS
+    ) {
+        throw new ParameterError(
+            `Analysis instructions are limited to ${DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS} characters`,
+        );
+    }
+    return instructions;
+};
+
 export const validateDeepResearchLimits = (
     limits: AiDeepResearchLimits,
 ): void => {
@@ -270,6 +290,14 @@ export class AiOrganizationSettingsService extends BaseService {
             (await this.aiOrganizationSettingsModel.findMcpEnabled(
                 organizationUuid,
             )) ?? true
+        );
+    }
+
+    async getMcpProjectAccess(
+        organizationUuid: string,
+    ): Promise<McpProjectAccess> {
+        return this.aiOrganizationSettingsModel.getMcpProjectAccess(
+            organizationUuid,
         );
     }
 
@@ -482,12 +510,13 @@ export class AiOrganizationSettingsService extends BaseService {
                 deepResearchLimits: AI_DEEP_RESEARCH_DEFAULT_LIMITS,
                 deepResearchRawSqlEnabled: false,
                 mcpEnabled: true,
+                mcpProjectAccess: { mode: 'all' },
                 mcpContentWritesEnabled: true,
                 mcpAgentsEnabled: true,
                 dataAppRuntimeAiEnabled: false,
                 dataAppContinueInAskAiEnabled: true,
-                dataAppAutoAnalysisEnabled: false,
                 dataAppAnalysisLimits: DATA_APP_ANALYSIS_DEFAULT_LIMITS,
+                dataAppAnalysisDefaultInstructions: null,
                 requireExplicitSlackChannelLinking: false,
                 defaultAiAgentModelConfig: null,
                 modelVisibility: effectiveModelVisibility,
@@ -583,7 +612,6 @@ export class AiOrganizationSettingsService extends BaseService {
                 ),
                 dataAppRuntimeAiEnabled: false,
                 dataAppContinueInAskAiEnabled: true,
-                dataAppAutoAnalysisEnabled: false,
                 threadRetentionHours: null,
             };
         }
@@ -608,8 +636,6 @@ export class AiOrganizationSettingsService extends BaseService {
             dataAppRuntimeAiEnabled: settings.dataAppRuntimeAiEnabled ?? false,
             dataAppContinueInAskAiEnabled:
                 settings.dataAppContinueInAskAiEnabled ?? true,
-            dataAppAutoAnalysisEnabled:
-                settings.dataAppAutoAnalysisEnabled ?? false,
             threadRetentionHours: settings.threadRetentionHours ?? null,
         };
     }
@@ -657,15 +683,15 @@ export class AiOrganizationSettingsService extends BaseService {
         );
     }
 
-    /** Org default for running AI analysis when a data app loads. */
-    async isDataAppAutoAnalysisEnabled(
+    /** Org-wide guidance for AI analysis summaries; app instructions append to it. */
+    async getDataAppAnalysisDefaultInstructions(
         organizationUuid: string,
-    ): Promise<boolean> {
+    ): Promise<string | null> {
         const settings =
             await this.aiOrganizationSettingsModel.findByOrganizationUuid(
                 organizationUuid,
             );
-        return settings?.dataAppAutoAnalysisEnabled ?? false;
+        return settings?.dataAppAnalysisDefaultInstructions ?? null;
     }
 
     async isDeepResearchRawSqlEnabled({
@@ -733,7 +759,45 @@ export class AiOrganizationSettingsService extends BaseService {
 
         await this.checkAiSettingsAccess(user, organizationUuid);
 
+        let { mcpProjectAccess } = aiSettingsUpdate;
+        if (mcpProjectAccess !== undefined) {
+            switch (mcpProjectAccess.mode) {
+                case 'all':
+                    mcpProjectAccess = { mode: 'all' };
+                    break;
+                case 'selected': {
+                    const projectUuids = [
+                        ...new Set(mcpProjectAccess.projectUuids),
+                    ].sort();
+                    const projects =
+                        await this.projectModel.getAllByOrganizationUuid(
+                            organizationUuid,
+                        );
+                    const organizationProjects = new Set(
+                        projects.map((project) => project.projectUuid),
+                    );
+                    if (
+                        projectUuids.some(
+                            (uuid) => !organizationProjects.has(uuid),
+                        )
+                    ) {
+                        throw new ParameterError(
+                            'Invalid MCP project selection',
+                        );
+                    }
+                    mcpProjectAccess = { mode: 'selected', projectUuids };
+                    break;
+                }
+                default:
+                    assertUnreachable(
+                        mcpProjectAccess,
+                        'Unknown MCP project access mode',
+                    );
+            }
+        }
+
         if (
+            aiSettingsUpdate.mcpProjectAccess !== undefined ||
             aiSettingsUpdate.mcpAgentsEnabled !== undefined ||
             aiSettingsUpdate.mcpContentWritesEnabled !== undefined
         ) {
@@ -743,6 +807,11 @@ export class AiOrganizationSettingsService extends BaseService {
                         organizationUuid,
                     );
                 if (
+                    (mcpProjectAccess !== undefined &&
+                        !isSameMcpProjectAccess(
+                            mcpProjectAccess,
+                            storedSettings?.mcpProjectAccess ?? { mode: 'all' },
+                        )) ||
                     (aiSettingsUpdate.mcpAgentsEnabled !== undefined &&
                         aiSettingsUpdate.mcpAgentsEnabled !==
                             (storedSettings?.mcpAgentsEnabled ?? true)) ||
@@ -765,6 +834,12 @@ export class AiOrganizationSettingsService extends BaseService {
                 aiSettingsUpdate.dataAppAnalysisLimits,
             );
         }
+        const normalizedDefaultInstructions =
+            aiSettingsUpdate.dataAppAnalysisDefaultInstructions === undefined
+                ? undefined
+                : normalizeAnalysisDefaultInstructions(
+                      aiSettingsUpdate.dataAppAnalysisDefaultInstructions,
+                  );
 
         if (aiSettingsUpdate.threadRetentionHours !== undefined) {
             // No-op writes stay allowed: clients that round-trip the settings
@@ -966,18 +1041,27 @@ export class AiOrganizationSettingsService extends BaseService {
             }
         }
 
-        const update =
-            reconciledDefaultModelConfig === undefined
-                ? aiSettingsUpdate
-                : {
-                      ...aiSettingsUpdate,
-                      defaultAiAgentModelConfig: reconciledDefaultModelConfig,
-                  };
+        const update = {
+            ...aiSettingsUpdate,
+            ...(mcpProjectAccess !== undefined ? { mcpProjectAccess } : {}),
+            ...(reconciledDefaultModelConfig !== undefined
+                ? { defaultAiAgentModelConfig: reconciledDefaultModelConfig }
+                : {}),
+            ...(normalizedDefaultInstructions !== undefined
+                ? {
+                      dataAppAnalysisDefaultInstructions:
+                          normalizedDefaultInstructions,
+                  }
+                : {}),
+        };
         const settings = await this.aiOrganizationSettingsModel.upsert(
             organizationUuid,
             update,
         );
-        if (update.mcpEnabled !== undefined) {
+        if (
+            update.mcpEnabled !== undefined ||
+            update.mcpProjectAccess !== undefined
+        ) {
             try {
                 logAuditEvent(
                     createAuditLogEvent(
@@ -987,7 +1071,15 @@ export class AiOrganizationSettingsService extends BaseService {
                             type: 'OrganizationSettings',
                             organizationUuid,
                             metadata: {
-                                mcpEnabled: settings.mcpEnabled,
+                                ...(update.mcpEnabled !== undefined
+                                    ? { mcpEnabled: settings.mcpEnabled }
+                                    : {}),
+                                ...(update.mcpProjectAccess !== undefined
+                                    ? {
+                                          mcpProjectAccess:
+                                              settings.mcpProjectAccess,
+                                      }
+                                    : {}),
                             },
                         },
                         {

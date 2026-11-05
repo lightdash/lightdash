@@ -13,6 +13,7 @@ export interface SyncModalFormValues {
     };
     saveInNewTab: boolean;
     showFilters?: boolean;
+    useCachedResults: boolean;
 }
 
 const [SyncModalFormProvider, useSyncModalFormContext, useSyncModalForm] =
@@ -33,4 +34,5 @@ export const DEFAULT_VALUES: SyncModalFormValues = {
     },
     saveInNewTab: false,
     showFilters: false,
+    useCachedResults: false,
 };

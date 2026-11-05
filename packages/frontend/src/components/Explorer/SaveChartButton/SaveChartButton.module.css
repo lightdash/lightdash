@@ -1,0 +1,4 @@
+.saveWithSaveAs {
+    --button-border-width: 2px;
+    border-right: 1px solid alpha(var(--mantine-color-dark-3), 0.4);
+}

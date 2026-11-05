@@ -1,6 +1,5 @@
 import {
     assertRegisteredAccount,
-    type AiCreditUsageBreakdown,
     type ApiAiCreditDailyUsageResponse,
     type ApiAiCreditUsageResponse,
     type ApiErrorPayload,
@@ -9,7 +8,6 @@ import {
     Get,
     Middlewares,
     OperationId,
-    Query,
     Request,
     Response,
     Route,
@@ -53,10 +51,9 @@ export class AiCreditController extends BaseController {
     }
 
     /**
-     * Billable AI credits per day of the current period, split by feature,
-     * channel, user, project or agent. Organization admins only.
+     * Billable AI credits per day of the current period, by feature.
+     * Organization admins only.
      * @summary Get daily AI credit usage
-     * @param breakdown what to split each day's credits by
      */
     @Middlewares([
         allowApiKeyAuthentication,
@@ -68,12 +65,11 @@ export class AiCreditController extends BaseController {
     @OperationId('getOrganizationAiCreditDailyUsage')
     async getDailyUsage(
         @Request() req: express.Request,
-        @Query() breakdown: AiCreditUsageBreakdown,
     ): Promise<ApiAiCreditDailyUsageResponse> {
         assertRegisteredAccount(req.account);
         const results = await this.services
             .getAiCreditService<AiCreditService>()
-            .getOrganizationDailyUsage(toSessionUser(req.account), breakdown);
+            .getOrganizationDailyUsage(toSessionUser(req.account));
         this.setStatus(200);
         return { status: 'ok', results };
     }

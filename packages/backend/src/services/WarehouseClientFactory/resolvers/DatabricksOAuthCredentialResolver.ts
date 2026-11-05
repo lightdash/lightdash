@@ -284,9 +284,7 @@ export class DatabricksOAuthCredentialResolver implements CredentialResolver<Cre
                         : 'No refresh token or OAuth credentials available for Databricks OAuth authentication',
                 );
             }
-            const lockEnabled =
-                owner !== null &&
-                (await this.source.isLockEnabled(input, owner));
+            const lockEnabled = owner !== null;
             const persistOwner = lockEnabled ? owner : policy.legacyOwner;
             const result = await this.refresher.refresh({
                 refreshToken: connection.refreshToken,

@@ -31,13 +31,14 @@ import VisualizationProvider from './VisualizationProvider';
 const consumerRenders = vi.hoisted(() => ({ count: 0 }));
 
 vi.mock('./useVisualizationContext', async (importOriginal) => {
-    const actual = await importOriginal<Record<string, () => unknown>>();
+    const actual =
+        await importOriginal<Record<string, (...args: unknown[]) => unknown>>();
     return Object.fromEntries(
         Object.entries(actual).map(([name, hook]) => [
             name,
-            () => {
+            (...args: unknown[]) => {
                 consumerRenders.count += 1;
-                return hook();
+                return hook(...args);
             },
         ]),
     );

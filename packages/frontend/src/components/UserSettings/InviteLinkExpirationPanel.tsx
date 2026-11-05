@@ -8,6 +8,7 @@ import {
     useOrganizationSettings,
     useUpdateOrganizationSettings,
 } from '../../hooks/organization/useOrganizationSettings';
+import { SettingRow } from '../common/Settings/SettingLayout';
 
 const expirationOptions = Array.from(
     { length: MAX_INVITE_LINK_EXPIRATION_DAYS },
@@ -30,28 +31,31 @@ const InviteLinkExpirationPanel: FC = () => {
         organizationSettings.data?.inviteLinkExpirationDays ??
         DEFAULT_INVITE_LINK_EXPIRATION_DAYS;
 
-    if (organizationSettings.isInitialLoading) {
-        return <Loader size="sm" />;
-    }
-
-    if (!organizationSettings.data) {
-        return null;
-    }
-
     return (
-        <Select
-            label="Invite link expiration"
-            description="Applies to new organization invite links. Existing links are unchanged."
-            data={expirationOptions}
-            value={String(inviteLinkExpirationDays)}
-            disabled={updateOrganizationSettings.isLoading}
-            onChange={(value) => {
-                if (value !== null) {
-                    updateOrganizationSettings.mutate({
-                        inviteLinkExpirationDays: Number(value),
-                    });
-                }
-            }}
+        <SettingRow
+            title="Invite link expiration"
+            description="How long new invite links stay valid. Existing links are unchanged."
+            control={
+                organizationSettings.isInitialLoading ? (
+                    <Loader size="sm" />
+                ) : organizationSettings.data ? (
+                    <Select
+                        aria-label="Invite link expiration"
+                        size="xs"
+                        w={160}
+                        data={expirationOptions}
+                        value={String(inviteLinkExpirationDays)}
+                        disabled={updateOrganizationSettings.isLoading}
+                        onChange={(value) => {
+                            if (value !== null) {
+                                updateOrganizationSettings.mutate({
+                                    inviteLinkExpirationDays: Number(value),
+                                });
+                            }
+                        }}
+                    />
+                ) : null
+            }
         />
     );
 };

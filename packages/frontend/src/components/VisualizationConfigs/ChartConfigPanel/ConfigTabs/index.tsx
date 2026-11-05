@@ -1,5 +1,5 @@
 import { memo, useMemo, type FC } from 'react';
-import { useVisualizationState } from '../../../LightdashVisualization/useVisualizationContext';
+import { useVisualizationInputs } from '../../../LightdashVisualization/useVisualizationContext';
 import { VisualizationConfigTabs } from '../../common/VisualizationConfigTabs';
 import { Axes } from '../Axes';
 import { Grid } from '../Grid';
@@ -8,7 +8,7 @@ import { Legend } from '../Legend';
 import { Series } from '../Series';
 
 export const ConfigTabs: FC = memo(() => {
-    const { itemsMap } = useVisualizationState();
+    const { itemsMap } = useVisualizationInputs();
 
     const items = useMemo(() => Object.values(itemsMap || {}), [itemsMap]);
 

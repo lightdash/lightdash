@@ -5,6 +5,7 @@ import {
 import {
     Box,
     Button,
+    getDefaultZIndex,
     Group,
     Menu,
     Paper,
@@ -48,13 +49,6 @@ import { WritebackDiffModal } from './WritebackDiffModal';
 type Props = {
     metadata: ToolEditDbtProjectOutput['metadata'];
     projectUuid: string;
-    /**
-     * True when this card belongs to a `setupPreviewDeploy` PR (one that adds
-     * the preview-deploy workflow) rather than a data-change `editDbtProject`
-     * PR. A setup PR never produces a preview of itself, so the preview
-     * affordance is suppressed for it.
-     */
-    isPreviewDeploySetup: boolean;
     /**
      * The agent + thread this card belongs to. When present, merging the PR
      * also injects the (hidden) post-merge migration prompt so the agent
@@ -198,7 +192,7 @@ export const PullRequestActionButtons: FC<{
                 gravity: 0.9,
                 scalar: 0.85,
                 ticks: 120,
-                zIndex: 400,
+                zIndex: getDefaultZIndex('overlay'),
                 colors: ['#7048e8', '#9775fa', '#b197fc', '#d0bfff', '#e5dbff'],
                 origin: confettiOrigin.current,
             });
@@ -320,7 +314,6 @@ export const PullRequestActionButtons: FC<{
 export const AiEditDbtProjectToolCall: FC<Props> = ({
     metadata,
     projectUuid,
-    isPreviewDeploySetup,
     agentUuid,
     threadUuid,
 }) => {
@@ -531,7 +524,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                     >
                         <MantineIcon icon={IconGitPullRequest} size={14} />
                     </ThemeIcon>
-                    <Text size="xs" c="ldGray.7">
+                    <Text size="xs" c="dimmed">
                         Working on the change — this can take a few minutes.
                     </Text>
                 </Group>
@@ -557,7 +550,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                     >
                         <MantineIcon icon={IconGitPullRequest} size={14} />
                     </ThemeIcon>
-                    <Text size="xs" c="ldGray.7">
+                    <Text size="xs" c="dimmed">
                         No file changes were needed — no pull request was
                         opened.
                     </Text>
@@ -615,7 +608,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                                     </Text>
                                     {shortCommitSha && (
                                         <>
-                                            <Text size="xs" c="ldGray.4">
+                                            <Text size="xs" c="dimmed">
                                                 ·
                                             </Text>
                                             <Text
@@ -669,7 +662,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                             projectUuid={projectUuid}
                             prUrl={metadata.prUrl}
                             previewUrl={
-                                isPreviewDeploySetup || isBitbucket
+                                isBitbucket
                                     ? null
                                     : (metadata.previewUrl ?? null)
                             }

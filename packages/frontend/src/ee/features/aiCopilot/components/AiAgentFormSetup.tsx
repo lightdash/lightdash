@@ -270,12 +270,6 @@ export const AiAgentFormSetup = ({
         }),
     );
 
-    const scrollToKnowledgeAndData = useCallback(() => {
-        document
-            .getElementById('knowledge-and-data')
-            ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, []);
-
     const handleDeleteClick = useCallback(() => {
         setDeleteModalOpen(true);
     }, []);
@@ -325,14 +319,10 @@ export const AiAgentFormSetup = ({
         FeatureFlags.AiThreadRetention,
     );
 
-    const multiSourceQueryFlagQuery = useServerFeatureFlag(
-        FeatureFlags.MultiSourceQuery,
-    );
     const composeSqlRunnerFlagQuery = useServerFeatureFlag(
         FeatureFlags.ComposeSqlRunner,
     );
     const composerQueriesAvailable =
-        multiSourceQueryFlagQuery.data?.enabled === true &&
         composeSqlRunnerFlagQuery.data?.enabled === true;
 
     const isGroupsEnabled =
@@ -625,7 +615,7 @@ export const AiAgentFormSetup = ({
                                 <Box>
                                     <Title
                                         order={6}
-                                        c="ldGray.7"
+                                        c="dimmed"
                                         size="sm"
                                         fw={500}
                                     >
@@ -956,7 +946,7 @@ export const AiAgentFormSetup = ({
                                 label={
                                     <SwitchLabel
                                         text="Create and edit content"
-                                        help="Requires reading rows to be enabled. Only works for users with content-as-code access (admins, developers, and editors)."
+                                        help="Requires reading rows to be enabled. Users only get the actions their role allows."
                                         badge={<BetaBadge />}
                                     />
                                 }
@@ -1032,20 +1022,6 @@ export const AiAgentFormSetup = ({
                                 />
                             )}
                         </Stack>
-
-                        <Text size="xs" c="dimmed">
-                            Which explores, spaces and documents it can read is
-                            set in{' '}
-                            <Anchor
-                                component="button"
-                                type="button"
-                                size="xs"
-                                onClick={scrollToKnowledgeAndData}
-                            >
-                                Knowledge &amp; data
-                            </Anchor>
-                            .
-                        </Text>
                     </AgentSettingsSection>
 
                     <AgentSettingsSection
@@ -1332,7 +1308,7 @@ export const AiAgentFormSetup = ({
                                 <Box>
                                     <Title
                                         order={6}
-                                        c="ldGray.7"
+                                        c="dimmed"
                                         size="sm"
                                         fw={500}
                                     >

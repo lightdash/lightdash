@@ -24,9 +24,6 @@ export const AnalyticsEmbedDashboard: FC = () => {
                     width="100%"
                     height="100%"
                     frameBorder="0"
-                    style={{
-                        border: 'none',
-                    }}
                     title="Analytics Dashboard"
                 />
             )}

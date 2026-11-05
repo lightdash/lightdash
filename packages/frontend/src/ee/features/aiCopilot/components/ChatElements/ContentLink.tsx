@@ -346,7 +346,6 @@ export const ContentLink: FC<ContentLinkProps> = ({
                     type="button"
                     fz="xs"
                     fw={500}
-                    c="ldGray.8"
                     td="none"
                     classNames={{
                         root: styles.contentLink,

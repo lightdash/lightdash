@@ -5,7 +5,12 @@ import {
     type SummaryContent,
 } from '@lightdash/common';
 import { ActionIcon, Box, Group, Text, Tooltip } from '@mantine/core';
-import { IconCircleCheckFilled, IconEye, IconX } from '@tabler/icons-react';
+import {
+    IconCircleCheckFilled,
+    IconEye,
+    IconGripVertical,
+    IconX,
+} from '@tabler/icons-react';
 import { type FC, type PropsWithChildren } from 'react';
 import { Link } from 'react-router';
 import { FavoriteActionIcon } from '../../../../components/common/FavoriteActionIcon';
@@ -26,6 +31,8 @@ type Props = {
     content: SummaryContent;
     projectUuid: string;
     onRemove?: () => void;
+    /** Editor drag tile: no link, no view stats, a grip in their place. */
+    isSortable?: boolean;
     star?: HomepageFavorite;
     /** `row`/`tile` are card-chrome variants; `compact` is a slim
      * single-line tile for dense grids. */
@@ -101,15 +108,22 @@ const ViewsCount: FC<{ content: SummaryContent; projectUuid: string }> = ({
     );
 };
 
-const KindAndViews: FC<{ content: SummaryContent; projectUuid: string }> = ({
-    content,
-    projectUuid,
-}) => (
+const SortGrip: FC = () => (
+    <span className={classes.sortGrip} aria-hidden>
+        <MantineIcon icon={IconGripVertical} size={14} />
+    </span>
+);
+
+const KindAndViews: FC<{
+    content: SummaryContent;
+    projectUuid: string;
+    showViews: boolean;
+}> = ({ content, projectUuid, showViews }) => (
     <Group gap={5} wrap="nowrap" className={classes.rowMeta}>
         <Text size="xs" c="dimmed" span>
             {CONTENT_KIND_LABEL[content.contentType]}
         </Text>
-        {content.contentType !== ContentType.DOCUMENT && (
+        {showViews && content.contentType !== ContentType.DOCUMENT && (
             <>
                 <Text size="xs" c="dimmed" span>
                     ·
@@ -199,6 +213,7 @@ export const ContentCard: FC<Props> = ({
     content,
     projectUuid,
     onRemove,
+    isSortable = false,
     star,
     variant = 'row',
     tourAnchor,
@@ -213,13 +228,14 @@ export const ContentCard: FC<Props> = ({
               'data-tour-value': content.name,
           }
         : undefined;
-    const to = onRemove
-        ? null
-        : getResourceUrl(
-              projectUuid,
-              contentToResourceViewItem(content),
-              projectUrlIdentifier,
-          );
+    const to =
+        onRemove || isSortable
+            ? null
+            : getResourceUrl(
+                  projectUuid,
+                  contentToResourceViewItem(content),
+                  projectUrlIdentifier,
+              );
     const cardClass = `${classes.hoverCard}${to ? ` ${classes.clickable}` : ''}`;
 
     // A single dense line — visibly lighter than the two-line card variant.
@@ -234,7 +250,11 @@ export const ContentCard: FC<Props> = ({
                 <Box className={classes.resTileBody}>
                     <ContentTitle content={content} star={star} />
                 </Box>
-                <ViewsCount content={content} projectUuid={projectUuid} />
+                {isSortable ? (
+                    <SortGrip />
+                ) : (
+                    <ViewsCount content={content} projectUuid={projectUuid} />
+                )}
                 {onRemove && (
                     <Box className={classes.tileActions}>
                         <CardActions content={content} onRemove={onRemove} />
@@ -256,11 +276,16 @@ export const ContentCard: FC<Props> = ({
                 <ResourceIcon item={contentToResourceViewItem(content)} />
                 <Box className={classes.tileBody}>
                     <ContentTitle content={content} star={star} />
-                    <KindAndViews content={content} projectUuid={projectUuid} />
+                    <KindAndViews
+                        content={content}
+                        projectUuid={projectUuid}
+                        showViews={!isSortable}
+                    />
                     <TileExtra content={content} />
                 </Box>
-                {onRemove && (
+                {(onRemove || isSortable) && (
                     <Box className={classes.tileActions}>
+                        {isSortable && <SortGrip />}
                         <CardActions content={content} onRemove={onRemove} />
                     </Box>
                 )}
@@ -274,8 +299,13 @@ export const ContentCard: FC<Props> = ({
                 <ResourceIcon item={contentToResourceViewItem(content)} />
                 <Box flex={1} miw={0}>
                     <ContentTitle content={content} star={star} />
-                    <KindAndViews content={content} projectUuid={projectUuid} />
+                    <KindAndViews
+                        content={content}
+                        projectUuid={projectUuid}
+                        showViews={!isSortable}
+                    />
                 </Box>
+                {isSortable && <SortGrip />}
                 <CardActions content={content} onRemove={onRemove} />
             </Group>
         </MaybeLink>

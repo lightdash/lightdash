@@ -171,7 +171,19 @@ export type DuckdbParquetSource = {
     /** Trusted provider bytes for exact manifest URLs; staged privately per query. */
     fileBuffers?: ReadonlyMap<string, Uint8Array>;
     scope: string;
-    tables: { name: string; urls: string[]; columns?: DuckdbParquetColumns }[];
+    tables: {
+        name: string;
+        urls: string[];
+        columns?: DuckdbParquetColumns;
+        /** Disable inferred path columns for tables with mixed partition layouts. */
+        hivePartitioning?: boolean;
+        /** Suppress historical fallback rows when a captured row has the same identity. */
+        fallbackRows?: {
+            keyColumns: string[];
+            markerColumn: string;
+            markerValue: string;
+        };
+    }[];
     /** Typed, empty lookups for snapshots which have not been published yet. */
     emptyTables?: {
         name: string;
@@ -179,6 +191,8 @@ export type DuckdbParquetSource = {
     }[];
     /** Exact server-signed GET URLs; never combine with bucket credentials. */
     signedUrls?: boolean;
+    /** Sign buffered object URLs only when private staging cannot be used. */
+    getSignedUrls?: (urls: readonly string[]) => Promise<readonly string[]>;
     httpAuth?: { bearerToken: string };
     s3Config?: DuckdbS3SessionConfig;
 };
@@ -291,6 +305,22 @@ export const getDuckdbTimestampDomainFromString = (
     return undefined;
 };
 
+export const mapFieldTypeFromDuckdbTypeName = (
+    typeName: string,
+): DimensionType => {
+    const upper = typeName.toUpperCase();
+    const typeId = {
+        'TIMESTAMP WITH TIME ZONE': DuckDBTypeId.TIMESTAMP_TZ,
+        TIMESTAMPTZ: DuckDBTypeId.TIMESTAMP_TZ,
+        'TIME WITH TIME ZONE': DuckDBTypeId.TIME_TZ,
+        TIMETZ: DuckDBTypeId.TIME_TZ,
+        REAL: DuckDBTypeId.FLOAT,
+        NUMERIC: DuckDBTypeId.DECIMAL,
+        ...DuckDBTypeId,
+    }[upper.replace(/\(.*\)$/, '') as keyof typeof DuckDBTypeId];
+    return mapFieldTypeFromTypeId(typeof typeId === 'number' ? typeId : 0);
+};
+
 const mapFieldTypeFromString = (typeName: string): DimensionType => {
     const upper = typeName.toUpperCase();
     if (upper === 'DATE') return DimensionType.DATE;
@@ -399,7 +429,7 @@ class ConcurrencyBudget {
         return true;
     }
 
-    acquire(timeoutMs: number): Promise<boolean> {
+    acquire(timeoutMs?: number): Promise<boolean> {
         if (this.tryAcquire()) {
             return Promise.resolve(true);
         }
@@ -408,17 +438,19 @@ class ConcurrencyBudget {
             const pendingAcquire: (typeof this.pendingAcquires)[number] = {
                 resolve,
             };
-            const timeout = setTimeout(() => {
-                const index = this.pendingAcquires.indexOf(pendingAcquire);
-                if (index === -1) {
-                    return;
-                }
+            if (timeoutMs !== undefined) {
+                const timeout = setTimeout(() => {
+                    const index = this.pendingAcquires.indexOf(pendingAcquire);
+                    if (index === -1) {
+                        return;
+                    }
 
-                this.pendingAcquires.splice(index, 1);
-                resolve(false);
-            }, timeoutMs);
-            timeout.unref();
-            pendingAcquire.timeout = timeout;
+                    this.pendingAcquires.splice(index, 1);
+                    resolve(false);
+                }, timeoutMs);
+                timeout.unref();
+                pendingAcquire.timeout = timeout;
+            }
             this.pendingAcquires.push(pendingAcquire);
         });
     }
@@ -453,6 +485,16 @@ class ConcurrencyBudget {
             }
             resolve(false);
         });
+    }
+}
+
+const PARQUET_QUERY_TIMEOUT_MS = 120_000;
+
+class ParquetQueryTimeoutError extends WarehouseQueryError {
+    constructor() {
+        super(
+            'Analytics query exceeded the 120 second execution limit and was stopped. Try a narrower date range.',
+        );
     }
 }
 
@@ -626,6 +668,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         EMBEDDED_MAX_CONCURRENT_QUERIES,
     );
 
+    private static readonly parquetConcurrencyBudget = new ConcurrencyBudget(2);
+
     private static readonly embeddedOrganizationConcurrencyBudgets = new Map<
         string,
         ConcurrencyBudget
@@ -796,9 +840,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         this.sharedResourceLimits = isParquet
             ? {
                   memoryLimit: '256MB',
-                  // Overlap remote reads without exhausting the memory budget
-                  // with per-thread scan and aggregation buffers.
-                  threads: 4,
+                  // Parallel JSON decoders can exhaust this budget before spilling.
+                  threads: 1,
                   ...options?.sharedResourceLimits,
               }
             : options?.sharedResourceLimits;
@@ -1154,6 +1197,11 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             await DuckdbWarehouseClient.restrictToObjectStorage(db, client);
         }
 
+        if (client.parquetConfig) {
+            await db.run("SET allowed_configs = ['TimeZone'];");
+            await db.run('SET lock_configuration = true;');
+        }
+
         const bootstrapMs = performance.now() - bootstrapStart;
         client.logger?.info(
             `DuckDB query bootstrap complete: cacheKey=${client.instanceCacheKey ?? 'none'} bootstrap=${formatMilliseconds(bootstrapMs)}ms httpfs=${formatMilliseconds(httpfsMs)}ms memory_limit=${client.sharedResourceLimits?.memoryLimit ?? 'default'} threads=${client.sharedResourceLimits?.threads ?? 'default'} s3=${client.s3Config ? 'configured' : 'none'} ducklake=${client.ducklakeConfig ? 'configured' : 'none'} shared=${client.instanceCacheKey ? 'true' : 'false'}`,
@@ -1215,7 +1263,9 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         const references =
             await DuckdbWarehouseClient.getParquetQueryTables(querySql);
         const referencedTables = references ? new Set(references) : undefined;
+        const sourceStart = performance.now();
         const resolved = await this.parquetConfig!.resolveSource(references);
+        const sourceResolutionMs = performance.now() - sourceStart;
         const source = {
             ...resolved,
             tables: resolved.tables.map((table) => ({
@@ -1252,6 +1302,39 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                 'Signed Parquet sources cannot carry bucket credentials',
             );
         }
+        if (source.getSignedUrls && !source.signedUrls) {
+            throw new ParameterError(
+                'Deferred Parquet signing requires a signed source',
+            );
+        }
+        const validateUrl = (url: string, allowBuffered: boolean) => {
+            const parsed = new URL(url);
+            const buffered =
+                allowBuffered &&
+                source.getSignedUrls &&
+                source.fileBuffers?.has(url) &&
+                !parsed.search;
+            if (
+                parsed.href !== url ||
+                !url.startsWith(source.scope) ||
+                !parsed.pathname.endsWith('.parquet') ||
+                (!source.signedUrls && parsed.search) ||
+                (source.signedUrls &&
+                    ((!buffered &&
+                        !parsed.searchParams.has('X-Amz-Signature') &&
+                        !parsed.searchParams.has('X-Goog-Signature')) ||
+                        !/^[a-zA-Z0-9_./=%-]+$/.test(parsed.pathname) ||
+                        /%(?!3D)/i.test(parsed.pathname))) ||
+                parsed.hash ||
+                /[*?[\]{}]/.test(parsed.pathname) ||
+                (!source.signedUrls && parsed.pathname.includes('%'))
+            ) {
+                throw new ParameterError(
+                    'Parquet file is outside the trusted source prefix',
+                );
+            }
+            return parsed;
+        };
         const names = new Set<string>();
         const validateColumns = (columns: DuckdbParquetColumns) => {
             if (
@@ -1279,8 +1362,39 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             validateColumns(columns);
             names.add(name);
         });
-        source.tables.forEach(({ name, urls, columns }) => {
+        source.tables.forEach((table) => {
+            const { name, urls, columns, fallbackRows, hivePartitioning } =
+                table;
             if (columns) validateColumns(columns);
+            if (
+                hivePartitioning !== undefined &&
+                typeof hivePartitioning !== 'boolean'
+            ) {
+                throw new ParameterError(
+                    'Invalid Parquet Hive partitioning configuration',
+                );
+            }
+            if (fallbackRows) {
+                const { keyColumns, markerColumn, markerValue } = fallbackRows;
+                const columnNames = new Set(
+                    columns?.map((column) => column.name),
+                );
+                if (
+                    !columns ||
+                    keyColumns.length === 0 ||
+                    new Set(keyColumns).size !== keyColumns.length ||
+                    [...keyColumns, markerColumn].some(
+                        (column) =>
+                            !/^[a-z][a-z0-9_]*$/.test(column) ||
+                            !columnNames.has(column),
+                    ) ||
+                    typeof markerValue !== 'string'
+                ) {
+                    throw new ParameterError(
+                        'Invalid Parquet fallback row configuration',
+                    );
+                }
+            }
             if (
                 !/^[a-z][a-z0-9_]*$/.test(name) ||
                 names.has(name) ||
@@ -1291,27 +1405,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                 );
             }
             names.add(name);
-            urls.forEach((url) => {
-                const parsed = new URL(url);
-                if (
-                    parsed.href !== url ||
-                    !url.startsWith(source.scope) ||
-                    !parsed.pathname.endsWith('.parquet') ||
-                    (!source.signedUrls && parsed.search) ||
-                    (source.signedUrls &&
-                        ((!parsed.searchParams.has('X-Amz-Signature') &&
-                            !parsed.searchParams.has('X-Goog-Signature')) ||
-                            !/^[a-zA-Z0-9_./=%-]+$/.test(parsed.pathname) ||
-                            /%(?!3D)/i.test(parsed.pathname))) ||
-                    parsed.hash ||
-                    /[*?[\]{}]/.test(parsed.pathname) ||
-                    (!source.signedUrls && parsed.pathname.includes('%'))
-                ) {
-                    throw new ParameterError(
-                        'Parquet file is outside the trusted source prefix',
-                    );
-                }
-            });
+            urls.forEach((url) => validateUrl(url, true));
         });
         if (source.httpAuth) {
             if (scope.protocol !== 'https:') {
@@ -1332,9 +1426,15 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                 scope: [source.scope],
             });
         }
-        // Restrict the engine, not just SQL validation. No globbing, arbitrary
-        // network reads, local files, or shared spill/cache directories.
-        await db.run("SET temp_directory = '';");
+        const spillDirectory = parquetDirectory
+            ? path.join(parquetDirectory, 'spill')
+            : '';
+        if (spillDirectory) await fs.mkdir(spillDirectory, { mode: 0o700 });
+        // DuckDB allowlists this private child when external access is disabled.
+        // User SQL still cannot call file functions or change this configuration.
+        await db.run("SET max_temp_directory_size = '2GB';");
+        await db.run(`SET temp_directory = ${literal(spillDirectory)};`);
+        await db.run('SET allowed_directories = [];');
         // These caches live only in this query's private, memory-limited
         // instance, which is closed in withEphemeralQuerySession's finally.
         // Reuse metadata between view binding, validation and execution without
@@ -1344,6 +1444,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         await db.run('SET parquet_metadata_cache = true;');
         // Only validated manifest URLs can supply bytes. Each query owns a
         // private directory; never allow the shared cache or another query's paths.
+        const stagingStart = performance.now();
+        let stagedFiles = 0;
         if (source.signedUrls && source.fileBuffers && parquetDirectory) {
             let stagedBytes = 0;
             for (const table of source.tables) {
@@ -1358,7 +1460,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                 // Never mix remote and local files in one table, including on failure.
                 if (
                     buffers.every((buffer) => buffer) &&
-                    stagedBytes + size <= 8 * 1024 * 1024
+                    stagedBytes + size <= 32 * 1024 * 1024
                 ) {
                     stagedBytes += size;
                     const localPaths: string[] = [];
@@ -1382,13 +1484,55 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                             localPaths.push(localPath);
                         }
                         table.urls = localPaths;
+                        stagedFiles += localPaths.length;
                     } catch {
                         // Keep the entire table remote if temporary storage is unavailable.
                     }
                 }
             }
         }
+        const stagingMs = performance.now() - stagingStart;
+        if (source.getSignedUrls) {
+            for (const table of source.tables) {
+                const unsignedUrls = table.urls.filter(
+                    (url) =>
+                        url.startsWith(source.scope) && !new URL(url).search,
+                );
+                if (unsignedUrls.length > 0) {
+                    // eslint-disable-next-line no-await-in-loop
+                    const signedUrls = await source.getSignedUrls(unsignedUrls);
+                    if (signedUrls.length !== unsignedUrls.length) {
+                        throw new ParameterError(
+                            'Invalid signed Parquet manifest',
+                        );
+                    }
+                    const replacements = new Map<string, string>();
+                    unsignedUrls.forEach((url, index) => {
+                        const signed = validateUrl(signedUrls[index], false);
+                        const original = new URL(url);
+                        if (
+                            signed.origin !== original.origin ||
+                            signed.pathname !== original.pathname
+                        ) {
+                            throw new ParameterError(
+                                'Signed Parquet URL must match the requested object',
+                            );
+                        }
+                        replacements.set(url, signed.href);
+                    });
+                    table.urls = table.urls.map(
+                        (url) => replacements.get(url) ?? url,
+                    );
+                }
+            }
+        }
         const files = source.tables.flatMap(({ urls }) => urls);
+        this.logger?.info('DuckDB Parquet source prepared', {
+            sourceResolutionMs,
+            stagingMs,
+            fileCount: files.length,
+            stagedFiles,
+        });
         await db.run(`SET allowed_paths = [${files.map(literal).join(',')}];`);
         await db.run('SET enable_external_access = false;');
         // Only bind the dependencies resolved in the isolated parser above.
@@ -1403,16 +1547,41 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             );
         }
         // eslint-disable-next-line no-restricted-syntax
-        for (const { name, urls, columns } of tables) {
+        for (const {
+            name,
+            urls,
+            columns,
+            fallbackRows,
+            hivePartitioning,
+        } of tables) {
             // Older retained files may all predate an additive column. A typed
             // zero-row branch supplies its schema without materializing rows.
             const missingColumns = columns
                 ? ` UNION ALL BY NAME SELECT ${columns.map((column) => `NULL::${column.type} AS "${column.name}"`).join(', ')} WHERE false`
                 : '';
+            const sourceQuery = `SELECT * FROM read_parquet([${urls.map(literal).join(',')}], hive_partitioning = ${hivePartitioning ?? true}, union_by_name = true)${missingColumns}`;
+            const capturedRow = fallbackRows
+                ? `"${fallbackRows.markerColumn}" IS DISTINCT FROM ${literal(fallbackRows.markerValue)}`
+                : undefined;
+            // Keep every captured row, including its existing duplicate-delivery
+            // semantics. Only historical fallback rows yield to captured identities,
+            // regardless of completion date or nullable identity columns.
+            // Filter fallback rows before matching identities: a window over all
+            // captured events exceeds the query memory budget on larger histories.
+            const viewQuery = fallbackRows
+                ? `WITH parquet_source AS NOT MATERIALIZED (${sourceQuery})
+                   SELECT * FROM parquet_source WHERE ${capturedRow}
+                   UNION ALL
+                   SELECT history.* FROM parquet_source AS history
+                   WHERE NOT (history.${capturedRow})
+                   AND NOT EXISTS (
+                       SELECT 1 FROM parquet_source AS captured
+                       WHERE captured.${capturedRow}
+                       AND ${fallbackRows.keyColumns.map((column) => `captured."${column}" IS NOT DISTINCT FROM history."${column}"`).join(' AND ')}
+                   )`
+                : sourceQuery;
             // eslint-disable-next-line no-await-in-loop
-            await db.run(
-                `CREATE VIEW "${name}" AS SELECT * FROM read_parquet([${urls.map(literal).join(',')}], hive_partitioning = true, union_by_name = true)${missingColumns};`,
-            );
+            await db.run(`CREATE VIEW "${name}" AS ${viewQuery};`);
         }
     }
 
@@ -1569,6 +1738,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         DuckdbWarehouseClient.sharedInstanceS3Scopes.clear();
         DuckdbWarehouseClient.sharedInstanceS3SecretLocks.clear();
         DuckdbWarehouseClient.embeddedConcurrencyBudget.reset();
+        DuckdbWarehouseClient.parquetConcurrencyBudget.reset();
         DuckdbWarehouseClient.embeddedOrganizationConcurrencyBudgets.forEach(
             (budget) => budget.reset(),
         );
@@ -2198,17 +2368,37 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         querySql?: string,
     ): Promise<T> {
         const sessionStart = performance.now();
-
-        const instanceCreateStart = performance.now();
-        const instance = await DuckDBInstance.create(':memory:');
-        const instanceCreateMs = performance.now() - instanceCreateStart;
-
-        const connectStart = performance.now();
-        const connection = await instance.connect();
-        const connectMs = performance.now() - connectStart;
-
+        const budget = this.parquetConfig
+            ? DuckdbWarehouseClient.parquetConcurrencyBudget
+            : undefined;
+        if (budget && !(await budget.acquire())) {
+            throw new WarehouseQueryError(
+                'Analytics query capacity was reset. Try again.',
+            );
+        }
+        let instance: DuckDBInstance | undefined;
+        let connection: DuckdbConnection | undefined;
         let parquetDirectory: string | undefined;
+        let queryFailed = false;
+        let deadlineExceeded = false;
+        let timeout: ReturnType<typeof setTimeout> | undefined;
         try {
+            const instanceCreateStart = performance.now();
+            instance = await DuckDBInstance.create(':memory:');
+            const instanceCreateMs = performance.now() - instanceCreateStart;
+
+            const connectStart = performance.now();
+            connection = await instance.connect();
+            const connectMs = performance.now() - connectStart;
+
+            if (this.parquetConfig) {
+                timeout = setTimeout(() => {
+                    deadlineExceeded = true;
+                    connection?.interrupt();
+                }, PARQUET_QUERY_TIMEOUT_MS);
+                timeout.unref();
+            }
+
             if (this.parquetConfig) {
                 parquetDirectory = await fs
                     .mkdtemp(
@@ -2224,8 +2414,13 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                     parquetDirectory,
                 );
 
+            if (deadlineExceeded)
+                throw new Error('Analytics query deadline exceeded');
+
             const queryStart = performance.now();
             const result = await callback(connection);
+            if (deadlineExceeded)
+                throw new Error('Analytics query deadline exceeded');
             const queryMs = performance.now() - queryStart;
 
             const totalMs = performance.now() - sessionStart;
@@ -2241,12 +2436,45 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             );
 
             return result;
+        } catch (error) {
+            queryFailed = true;
+            if (deadlineExceeded) {
+                throw new ParquetQueryTimeoutError();
+            }
+            throw error;
         } finally {
-            connection.closeSync?.();
-            connection.disconnectSync?.();
-            instance.closeSync?.();
-            if (parquetDirectory)
-                await fs.rm(parquetDirectory, { recursive: true, force: true });
+            if (timeout) clearTimeout(timeout);
+            const cleanupErrors: unknown[] = [];
+            try {
+                for (const close of [
+                    () => connection?.closeSync?.(),
+                    () => connection?.disconnectSync?.(),
+                    () => instance?.closeSync?.(),
+                ]) {
+                    try {
+                        close();
+                    } catch (error) {
+                        cleanupErrors.push(error);
+                    }
+                }
+                if (parquetDirectory) {
+                    await fs
+                        .rm(parquetDirectory, {
+                            recursive: true,
+                            force: true,
+                            maxRetries: 3,
+                            retryDelay: 100,
+                        })
+                        .catch((error: unknown) => cleanupErrors.push(error));
+                }
+                if (cleanupErrors.length > 0) {
+                    this.logger?.warn?.('DuckDB query cleanup failed');
+                    // eslint-disable-next-line no-unsafe-finally -- Preserve primary errors, fail successful queries only.
+                    if (!queryFailed) throw cleanupErrors[0];
+                }
+            } finally {
+                budget?.release();
+            }
         }
     }
 
@@ -2351,7 +2579,11 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                         querySql,
                     );
                 } catch (error) {
-                    if (error instanceof ParameterError) throw error;
+                    if (
+                        error instanceof ParameterError ||
+                        error instanceof ParquetQueryTimeoutError
+                    )
+                        throw error;
                     throw new WarehouseQueryError(
                         'Internal analytics query failed. Check storage access and query permissions.',
                     );
@@ -2894,10 +3126,26 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         db: DuckdbConnection,
         sql: string,
     ): Promise<void> {
+        const stripped = DuckdbWarehouseClient.stripSqlComments(sql);
+        if (this.parquetConfig && /\bU&"/i.test(stripped)) {
+            throw new ParameterError(
+                'Escaped identifiers are not supported in analytics queries',
+            );
+        }
+        if (
+            this.parquetConfig &&
+            stripped
+                .match(/\$\$[\s\S]*?\$\$|'(?:[^']|'')*'|"(?:[^"]|"")*"/g)
+                ?.some((token) => token.startsWith('"') && /[\\/]/.test(token))
+        ) {
+            throw new ParameterError(
+                'File table paths are not allowed in analytics queries',
+            );
+        }
         if (
             this.parquetConfig &&
             /\b(duckdb_\w+|pragma_\w+|sqlite_\w+|pg_\w+|information_schema)\b/i.test(
-                DuckdbWarehouseClient.stripSqlComments(sql),
+                stripped,
             )
         ) {
             throw new ParameterError(

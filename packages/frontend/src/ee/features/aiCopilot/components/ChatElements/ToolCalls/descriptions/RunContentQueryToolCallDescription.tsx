@@ -1,6 +1,7 @@
 import type { ToolRunContentQueryArgs } from '@lightdash/common';
 import { rem, Text } from '@mantine/core';
 import type { FC } from 'react';
+import { ExploreChip } from '../ExploreChip';
 import { type SqlApprovalTarget } from '../SqlApprovalActions';
 import { ToolCallChip } from '../ToolCallChip';
 import { SqlRunToolCallDescription } from './SqlRunToolCallDescription';
@@ -28,7 +29,7 @@ export const RunContentQueryToolCallDescription: FC<
         return (
             <Text c="dimmed" size="xs">
                 Ran metric query on{' '}
-                <ToolCallChip mx={rem(2)}>{source.tableName}</ToolCallChip>
+                <ExploreChip mx={rem(2)} exploreName={source.tableName} />
             </Text>
         );
     }

@@ -49,6 +49,11 @@ export const isAgentRecoverableError = (error: unknown): boolean =>
 const errorName = (error: unknown): string =>
     error instanceof Error ? error.name : 'UnknownError';
 
+const isPersonalSnowflakeTokenError = (error: unknown): boolean =>
+    error instanceof SnowflakeTokenError &&
+    error.data.requiresUserReauthentication === true &&
+    !error.data.sharedSignIn;
+
 export const toolErrorHandler = (
     error: unknown,
     message: string,
@@ -70,6 +75,15 @@ export const toolErrorHandler = (
             'ai.tool.error.name': errorName(error),
             'ai.tool.error.recoverable': true,
         });
+    }
+
+    if (isPersonalSnowflakeTokenError(error)) {
+        const errorMessage =
+            'Your Snowflake sign-in has expired. Reauthenticate with your own Snowflake account, then send your question again. Do not retry the query or ask an admin to reconnect on your behalf.';
+        Logger.warn(
+            '[AiAgent][Tool Error Handler] Personal Snowflake sign-in requires reauthentication',
+        );
+        return errorMessage;
     }
 
     const refusalDetails =
@@ -109,6 +123,9 @@ export const toolErrorOutput = (
         result,
         metadata: {
             status: 'error',
+            ...(isPersonalSnowflakeTokenError(error)
+                ? { requiresSnowflakeReauthentication: true as const }
+                : {}),
             ...(error instanceof AiAccessRefusedError &&
             error.refusal.reason.startsWith('agent_')
                 ? { refusal: error.refusal }

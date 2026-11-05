@@ -1,5 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, type FC } from 'react';
+import { BrandedFaviconSync } from '../../components/common/BrandedFaviconSync';
+import { BrandedAppNameSync } from '../../components/common/DocumentTitle';
 import useHealth from '../../hooks/health/useHealth';
 import { LAST_PROJECT_KEY, LAST_USER_KEY } from '../../hooks/useActiveProject';
 import useUser from '../../hooks/user/useUser';
@@ -63,6 +65,8 @@ const AppProvider: FC<React.PropsWithChildren<{}>> = ({ children }) => {
 
     return (
         <AppProviderContext.Provider value={value}>
+            <BrandedAppNameSync />
+            <BrandedFaviconSync />
             {children}
         </AppProviderContext.Provider>
     );

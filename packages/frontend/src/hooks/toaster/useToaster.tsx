@@ -137,6 +137,7 @@ const useToaster = () => {
                 ),
                 classNames: {
                     root: styles.root,
+                    body: styles.body,
                     title: styles.title,
                     description: styles.description,
                     closeButton: styles.closeButton,

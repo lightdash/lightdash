@@ -105,6 +105,11 @@ export const REQUEST_POLICY: readonly RequestPolicy[] = [
         'ProjectController.replaceProjectTableGroups',
     ),
     route(
+        'PUT',
+        '/api/v1/projects/:project/project-context',
+        'ProjectController.replaceProjectContext',
+    ),
+    route(
         'POST',
         '/api/v2/projects/:project/deploy',
         'DeployController.startDeploySession',

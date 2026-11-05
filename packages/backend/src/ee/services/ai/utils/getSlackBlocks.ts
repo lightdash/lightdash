@@ -16,7 +16,6 @@ import {
     isAiSqlChartArtifactConfig,
     isComposerSlackImageVizConfig,
     isToolEditDbtProjectResult,
-    isToolSetupPreviewDeployResult,
     NotFoundError,
     parseVizConfig,
     SlackPrompt,
@@ -26,7 +25,7 @@ import {
     type Explore,
 } from '@lightdash/common';
 import { Block, KnownBlock } from '@slack/bolt';
-import { partition } from 'lodash';
+import { partition } from 'es-toolkit/compat';
 import type { SlackStreamChunk } from '../../../../clients/Slack/SlackClient';
 import { stripMemoryCitations } from './memoryCitation';
 import { populateCustomMetricsSQL } from './populateCustomMetricsSQL';
@@ -280,7 +279,6 @@ const TOOL_TASK_TITLES: Record<string, string> = {
     editContent: 'Updating content',
     editDbtProject: 'Opening dbt project PR',
     editRepo: 'Opening repository PR',
-    setupPreviewDeploy: 'Preparing preview deploy',
     listKnowledgeDocuments: 'Checking project knowledge',
     getKnowledgeDocumentContent: 'Reading project knowledge',
     readPinnedThread: 'Reading pinned conversation',
@@ -1284,37 +1282,6 @@ export function getModernPullRequestCardBlocks(
             );
             return;
         }
-
-        if (
-            isToolSetupPreviewDeployResult(result) &&
-            result.metadata.status === 'success' &&
-            result.metadata.prUrl
-        ) {
-            const pr = parseGithubPrUrl(result.metadata.prUrl);
-            cards.push(
-                buildSlackCardBlock({
-                    blockId: `ai_agent_preview_pr_card_${result.uuid}`,
-                    title: `Opened preview deploy PR${
-                        pr?.number ? ` #${pr.number}` : ''
-                    }`,
-                    subtitle: pr?.repository,
-                    body: 'Adds the Lightdash preview-project GitHub Actions workflow.',
-                    subtext: 'Add the required GitHub secrets before merging.',
-                    actions: [
-                        {
-                            type: 'button',
-                            url: result.metadata.prUrl,
-                            style: 'primary',
-                            action_id: `actions.view_preview_deploy_pr_card_button_click.${index}`,
-                            text: {
-                                type: 'plain_text',
-                                text: 'PR',
-                            },
-                        },
-                    ],
-                }),
-            );
-        }
     });
 
     return cards;
@@ -1457,83 +1424,6 @@ export function getAgentSelectionBlocks(args: {
                   }
                 : { options: buildAgentOptions(agents, buildValue) },
     });
-}
-
-// At or below this many projects we render quick-tap buttons; above it we fall
-// back to a dropdown to avoid a wall of buttons.
-const PROJECT_SELECTION_BUTTON_THRESHOLD = 3;
-
-export function getProjectSelectionBlocks(
-    projects: { projectUuid: string; name: string }[],
-    channelId: string,
-): (Block | KnownBlock)[] {
-    const promptBlock: Block | KnownBlock = {
-        type: 'section',
-        text: {
-            type: 'mrkdwn',
-            text: ':open_file_folder: *Which project would you like to use?*\n\nThis organization has multiple projects, so pick the one I should work in.',
-        },
-    };
-
-    // Slack caps static_select option values at 150 chars.
-    const buildSelectionValue = (project: {
-        projectUuid: string;
-        name: string;
-    }): string =>
-        JSON.stringify({
-            p: project.projectUuid,
-            c: channelId,
-            n: truncateSlackText(project.name, 50),
-        });
-
-    // Few projects: one button each for a single tap.
-    if (projects.length <= PROJECT_SELECTION_BUTTON_THRESHOLD) {
-        return [
-            promptBlock,
-            {
-                type: 'actions',
-                block_id: 'project_selection',
-                elements: projects.map((project, index) => ({
-                    type: 'button',
-                    // Unique per button; handler matches the select_project prefix.
-                    action_id: `select_project:${index}`,
-                    // Slack caps button text at 75 characters.
-                    text: {
-                        type: 'plain_text',
-                        text: truncateSlackText(project.name, 75),
-                    },
-                    value: buildSelectionValue(project),
-                })),
-            },
-        ];
-    }
-
-    // Many projects: a dropdown keeps the message compact.
-    return [
-        promptBlock,
-        {
-            type: 'actions',
-            block_id: 'project_selection',
-            elements: [
-                {
-                    type: 'static_select',
-                    action_id: 'select_project',
-                    placeholder: {
-                        type: 'plain_text',
-                        text: 'Choose a project...',
-                    },
-                    // Slack caps option text at 75 characters.
-                    options: projects.map((project) => ({
-                        text: {
-                            type: 'plain_text',
-                            text: truncateSlackText(project.name, 75),
-                        },
-                        value: buildSelectionValue(project),
-                    })),
-                },
-            ],
-        },
-    ];
 }
 
 // Slack caps static_select at 100 options.

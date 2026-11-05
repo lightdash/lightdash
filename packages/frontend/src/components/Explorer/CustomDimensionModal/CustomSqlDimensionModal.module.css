@@ -1,3 +1,8 @@
 .dimensionTypeSelect {
     align-self: flex-start;
 }
+
+.expandedContent {
+    min-width: 90vw;
+    height: 70vh;
+}

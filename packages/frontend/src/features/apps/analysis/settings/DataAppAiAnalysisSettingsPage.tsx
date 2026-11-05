@@ -1,9 +1,9 @@
 import {
     DATA_APP_ANALYSIS_DEFAULT_LIMITS,
+    DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS,
     type DataAppAnalysisLimits,
 } from '@lightdash/common';
 import {
-    Box,
     Button,
     Divider,
     Group,
@@ -11,24 +11,19 @@ import {
     Stack,
     Switch,
     Text,
-    Title,
+    Textarea,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import {
-    IconMessageChatbot,
-    IconPlayerPlay,
-    IconSparkles,
-    type Icon,
-} from '@tabler/icons-react';
+import { IconMessageChatbot, IconSparkles } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
 import Callout from '../../../../components/common/Callout';
-import MantineIcon from '../../../../components/common/MantineIcon';
 import { NumberInput } from '../../../../components/common/NumberInput';
 import {
-    SettingsCard,
-    SettingsGridCard,
-} from '../../../../components/common/Settings/SettingsCard';
+    SettingRow,
+    SettingsSection,
+} from '../../../../components/common/Settings/SettingLayout';
+import { SettingsCard } from '../../../../components/common/Settings/SettingsCard';
 import {
     SettingsPage,
     SettingsPageDocumentationLink,
@@ -37,31 +32,6 @@ import {
     useAiOrganizationAdminSettings,
     useUpdateAiOrganizationSettings,
 } from '../../../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
-
-const SettingRow: FC<{
-    icon: Icon;
-    name: string;
-    description: string;
-    checked: boolean;
-    disabled: boolean;
-    onChange: (checked: boolean) => void;
-}> = ({ icon, name, description, checked, disabled, onChange }) => (
-    <Group wrap="nowrap" align="flex-start" gap="sm">
-        <MantineIcon icon={icon} size="lg" color="ldGray.7" />
-        <Stack gap={2} flex={1}>
-            <Title order={6}>{name}</Title>
-            <Text c="dimmed" fz="xs">
-                {description}
-            </Text>
-        </Stack>
-        <Switch
-            size="md"
-            checked={checked}
-            disabled={disabled}
-            onChange={(event) => onChange(event.currentTarget.checked)}
-        />
-    </Group>
-);
 
 type LimitField = {
     key: keyof DataAppAnalysisLimits;
@@ -76,21 +46,19 @@ const LIMIT_FIELDS: LimitField[] = [
         key: 'dailyDetectCap',
         label: 'Analyses per day',
         description:
-            'Model runs of the analysis across all apps and viewers in your organization per UTC day. Stored analyses of identical results are reused and do not count. Leave empty for no cap.',
+            'Model runs of the analysis. Stored analyses of identical results are reused and do not count. Leave empty for no cap.',
         nullable: true,
     },
     {
         key: 'dailyInvestigateCap',
         label: 'Investigations per day',
-        description:
-            'Agent investigations across all apps and viewers in your organization per UTC day. Leave empty for no cap.',
+        description: 'Agent investigations. Leave empty for no cap.',
         nullable: true,
     },
     {
         key: 'dailyPromptCap',
         label: 'Prompts per day',
-        description:
-            'Answers to in-app AI prompts across all apps and viewers in your organization per UTC day. Leave empty for no cap.',
+        description: 'Answers to in-app AI prompts. Leave empty for no cap.',
         nullable: true,
     },
     {
@@ -137,6 +105,69 @@ const toLimits = (values: LimitsFormValues): DataAppAnalysisLimits => ({
 const requiredLimit = (value: number | '') =>
     value === '' ? 'Enter a value of 1 or more' : null;
 
+const InstructionsForm: FC<{
+    initialInstructions: string | null;
+    disabled: boolean;
+}> = ({ initialInstructions, disabled }) => {
+    const updateSettings = useUpdateAiOrganizationSettings();
+    const initialValue = initialInstructions ?? '';
+    const form = useForm({
+        initialValues: { instructions: initialValue },
+    });
+    const isUnchanged = form.values.instructions.trim() === initialValue;
+    const handleSubmit = form.onSubmit((values) => {
+        updateSettings.mutate({
+            dataAppAnalysisDefaultInstructions:
+                values.instructions.trim() || null,
+        });
+    });
+
+    return (
+        <SettingsSection
+            label="Summary instructions"
+            description="Guidance every AI analysis summary in your organization follows — language, formats, or a line of domain vocabulary. An app's own instructions are applied on top of these."
+        >
+            <SettingsCard>
+                <form onSubmit={handleSubmit}>
+                    <Stack gap="md">
+                        <Textarea
+                            placeholder="e.g. Write in British English. Show amounts in ZAR."
+                            description={`Up to ${DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS} characters. Changing this re-runs stored analyses on next view.`}
+                            autosize
+                            minRows={3}
+                            maxRows={8}
+                            maxLength={DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS}
+                            disabled={disabled}
+                            {...form.getInputProps('instructions')}
+                        />
+                        <Group justify="flex-end">
+                            {!isUnchanged && !updateSettings.isLoading && (
+                                <Button
+                                    variant="outline"
+                                    onClick={() =>
+                                        form.setValues({
+                                            instructions: initialValue,
+                                        })
+                                    }
+                                >
+                                    Cancel
+                                </Button>
+                            )}
+                            <Button
+                                type="submit"
+                                disabled={disabled || isUnchanged}
+                                loading={updateSettings.isLoading}
+                            >
+                                Save
+                            </Button>
+                        </Group>
+                    </Stack>
+                </form>
+            </SettingsCard>
+        </SettingsSection>
+    );
+};
+
 const LimitsForm: FC<{
     initialLimits: DataAppAnalysisLimits;
     disabled: boolean;
@@ -158,53 +189,52 @@ const LimitsForm: FC<{
     });
 
     return (
-        <SettingsGridCard>
-            <Box>
-                <Title order={5}>Limits</Title>
-                <Text c="dimmed" fz="xs">
-                    Caps on how much AI analysis your organization can run. On
-                    Lightdash's AI key the daily caps cannot exceed{' '}
-                    {DATA_APP_ANALYSIS_DEFAULT_LIMITS.dailyDetectCap} analyses
-                    and {DATA_APP_ANALYSIS_DEFAULT_LIMITS.dailyInvestigateCap}{' '}
-                    investigations; on your own key they apply as set.
-                </Text>
-            </Box>
-            <form onSubmit={handleSubmit}>
-                <Stack gap="md">
-                    {LIMIT_FIELDS.map((field) => (
-                        <NumberInput
-                            key={field.key}
-                            label={field.label}
-                            description={field.description}
-                            placeholder={field.nullable ? 'No cap' : undefined}
-                            min={1}
-                            allowDecimal={false}
-                            allowNegative={false}
-                            thousandSeparator=","
-                            disabled={disabled}
-                            {...form.getInputProps(field.key)}
-                        />
-                    ))}
-                    <Group justify="flex-end">
-                        {!isUnchanged && !updateSettings.isLoading && (
+        <SettingsSection
+            label="Limits"
+            description={`Caps on how much AI analysis your organization can run. Daily caps count across all apps and viewers and reset each UTC day. On the built-in AI key they cannot exceed ${DATA_APP_ANALYSIS_DEFAULT_LIMITS.dailyDetectCap} analyses and ${DATA_APP_ANALYSIS_DEFAULT_LIMITS.dailyInvestigateCap} investigations; on your own key they apply as set.`}
+        >
+            <SettingsCard>
+                <form onSubmit={handleSubmit}>
+                    <Stack gap="md">
+                        {LIMIT_FIELDS.map((field) => (
+                            <NumberInput
+                                key={field.key}
+                                label={field.label}
+                                description={field.description}
+                                placeholder={
+                                    field.nullable ? 'No cap' : undefined
+                                }
+                                min={1}
+                                allowDecimal={false}
+                                allowNegative={false}
+                                thousandSeparator=","
+                                disabled={disabled}
+                                {...form.getInputProps(field.key)}
+                            />
+                        ))}
+                        <Group justify="flex-end">
+                            {!isUnchanged && !updateSettings.isLoading && (
+                                <Button
+                                    variant="outline"
+                                    onClick={() =>
+                                        form.setValues(initialValues)
+                                    }
+                                >
+                                    Cancel
+                                </Button>
+                            )}
                             <Button
-                                variant="outline"
-                                onClick={() => form.setValues(initialValues)}
+                                type="submit"
+                                disabled={disabled || isUnchanged}
+                                loading={updateSettings.isLoading}
                             >
-                                Cancel
+                                Save
                             </Button>
-                        )}
-                        <Button
-                            type="submit"
-                            disabled={disabled || isUnchanged}
-                            loading={updateSettings.isLoading}
-                        >
-                            Save
-                        </Button>
-                    </Group>
-                </Stack>
-            </form>
-        </SettingsGridCard>
+                        </Group>
+                    </Stack>
+                </form>
+            </SettingsCard>
+        </SettingsSection>
     );
 };
 
@@ -232,71 +262,84 @@ export const DataAppAiAnalysisSettingsPage: FC = () => {
                     <Loader size="sm" />
                 </Group>
             ) : (
-                <Stack gap="md">
+                <>
                     {!aiOn && (
                         <Callout variant="warning" title="AI is not enabled">
-                            <Text fz="xs">
-                                AI analysis needs Ask AI enabled for the
-                                organization. Turn it on under{' '}
-                                <Text
-                                    span
-                                    component={Link}
-                                    to="/generalSettings/ai/general"
-                                    td="underline"
-                                >
-                                    Ask AI · General
-                                </Text>
-                                .
+                            AI analysis needs Ask AI enabled for the
+                            organization. Turn it on under{' '}
+                            <Text
+                                span
+                                inherit
+                                component={Link}
+                                to="/generalSettings/ai/general"
+                                td="underline"
+                            >
+                                Ask AI · General
                             </Text>
+                            .
                         </Callout>
                     )}
-                    <SettingsCard>
-                        <Stack gap="md">
-                            <SettingRow
-                                icon={IconSparkles}
-                                name="AI analysis"
-                                description="Lets viewers analyse the current view of any data app or dashboard. Sends query results a viewer already has access to, to your configured AI provider."
-                                checked={analysisOn}
-                                disabled={isUpdating || !aiOn}
-                                onChange={(checked) =>
-                                    updateSettings({
-                                        dataAppRuntimeAiEnabled: checked,
-                                    })
-                                }
-                            />
-                            <Divider />
-                            <SettingRow
-                                icon={IconPlayerPlay}
-                                name="Analyse automatically on load"
-                                description="Default for apps: run the analysis when a viewer opens an app, without a click. Stored analyses of identical results are reused."
-                                checked={
-                                    settings.dataAppAutoAnalysisEnabled ?? false
-                                }
-                                disabled={isUpdating || !aiOn || !analysisOn}
-                                onChange={(checked) =>
-                                    updateSettings({
-                                        dataAppAutoAnalysisEnabled: checked,
-                                    })
-                                }
-                            />
-                            <Divider />
-                            <SettingRow
-                                icon={IconMessageChatbot}
-                                name="Continue investigations in Ask AI"
-                                description="Lets viewers carry an investigation on as an Ask AI thread. The thread stays read-only. Off keeps viewers at the explanation."
-                                checked={
-                                    settings.dataAppContinueInAskAiEnabled ??
-                                    true
-                                }
-                                disabled={isUpdating || !aiOn || !analysisOn}
-                                onChange={(checked) =>
-                                    updateSettings({
-                                        dataAppContinueInAskAiEnabled: checked,
-                                    })
-                                }
-                            />
-                        </Stack>
-                    </SettingsCard>
+                    <SettingsSection label="Availability" description={null}>
+                        <SettingsCard>
+                            <Stack gap="md">
+                                <SettingRow
+                                    icon={IconSparkles}
+                                    title="AI analysis"
+                                    description="Lets viewers analyse the current view of any data app or dashboard. Sends query results a viewer already has access to, to your configured AI provider."
+                                    control={
+                                        <Switch
+                                            size="md"
+                                            aria-label="AI analysis"
+                                            checked={analysisOn}
+                                            disabled={isUpdating || !aiOn}
+                                            onChange={(event) =>
+                                                updateSettings({
+                                                    dataAppRuntimeAiEnabled:
+                                                        event.currentTarget
+                                                            .checked,
+                                                })
+                                            }
+                                        />
+                                    }
+                                />
+                                <Divider />
+                                <SettingRow
+                                    icon={IconMessageChatbot}
+                                    title="Continue investigations in Ask AI"
+                                    description="Lets viewers carry an investigation on as an Ask AI thread. The thread stays read-only. Off keeps viewers at the explanation."
+                                    control={
+                                        <Switch
+                                            size="md"
+                                            aria-label="Continue investigations in Ask AI"
+                                            checked={
+                                                settings.dataAppContinueInAskAiEnabled ??
+                                                true
+                                            }
+                                            disabled={
+                                                isUpdating ||
+                                                !aiOn ||
+                                                !analysisOn
+                                            }
+                                            onChange={(event) =>
+                                                updateSettings({
+                                                    dataAppContinueInAskAiEnabled:
+                                                        event.currentTarget
+                                                            .checked,
+                                                })
+                                            }
+                                        />
+                                    }
+                                />
+                            </Stack>
+                        </SettingsCard>
+                    </SettingsSection>
+                    <InstructionsForm
+                        key={settings.dataAppAnalysisDefaultInstructions ?? ''}
+                        initialInstructions={
+                            settings.dataAppAnalysisDefaultInstructions ?? null
+                        }
+                        disabled={isUpdating || !aiOn || !analysisOn}
+                    />
                     <LimitsForm
                         key={JSON.stringify(
                             settings.dataAppAnalysisLimits ??
@@ -308,7 +351,7 @@ export const DataAppAiAnalysisSettingsPage: FC = () => {
                         }
                         disabled={isUpdating || !aiOn || !analysisOn}
                     />
-                </Stack>
+                </>
             )}
         </SettingsPage>
     );

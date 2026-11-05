@@ -17,6 +17,8 @@ type BlockHeaderProps = {
     centered?: boolean;
     /** Right-aligned header controls (e.g. an admin-only action). */
     actions?: ReactNode;
+    /** Editor only: makes the title editable in place. */
+    onTitleChange?: (title: string) => void;
 };
 
 export const BlockHeader: FC<BlockHeaderProps> = ({
@@ -25,6 +27,7 @@ export const BlockHeader: FC<BlockHeaderProps> = ({
     pill,
     centered = false,
     actions,
+    onTitleChange,
 }) => (
     <Box
         className={`${classes.sectionHeader}${
@@ -33,7 +36,18 @@ export const BlockHeader: FC<BlockHeaderProps> = ({
         mb={10}
     >
         <MantineIcon icon={icon} size={14} color="dimmed" />
-        <span className={classes.sectionTitle}>{title}</span>
+        {onTitleChange ? (
+            <input
+                className={`${classes.sectionTitle} ${classes.inlineTitle}`}
+                aria-label="Block title"
+                placeholder="Add a title"
+                value={title}
+                size={Math.max(title.length, 11)}
+                onChange={(e) => onTitleChange(e.currentTarget.value)}
+            />
+        ) : (
+            <span className={classes.sectionTitle}>{title}</span>
+        )}
         {pill ? <MiniPill>{pill}</MiniPill> : null}
         {actions ? (
             <span className={classes.sectionHeaderActions}>{actions}</span>

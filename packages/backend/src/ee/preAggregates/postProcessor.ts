@@ -4,8 +4,7 @@ import {
     type ExploreError,
     type ExplorePostProcessor,
 } from '@lightdash/common';
-import attempt from 'lodash/attempt';
-import isError from 'lodash/isError';
+import { attempt, isError } from 'es-toolkit/compat';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { generatePreAggregateExplores } from './generatePreAggregateExplores';
 

@@ -159,7 +159,26 @@ describe('PythonSandboxRunner provider selection', () => {
 
     beforeEach(() => {
         createSandboxProvider.mockClear();
+        create.mockClear();
         create.mockRejectedValue(new Error('stop after create'));
+    });
+
+    it('includes the configured template in the results cache version', () => {
+        const version = (tag: string) =>
+            new PythonSandboxRunner({
+                lightdashConfig: {
+                    ...lightdashConfigMock,
+                    appRuntime: {
+                        ...lightdashConfigMock.appRuntime,
+                        sandboxProvider: 'e2b',
+                        e2bPythonTemplateTag: tag,
+                    },
+                },
+                logger,
+                metrics: null,
+            }).version;
+        expect(version('v1')).toContain('lightdash-python-runner:v1:');
+        expect(version('v1')).not.toEqual(version('v2'));
     });
 
     it('creates the cloud run provider with the python gateway config', async () => {
@@ -211,42 +230,208 @@ describe('PythonSandboxRunner provider selection', () => {
         expect(createSandboxProvider).not.toHaveBeenCalled();
     });
 
-    it.each(['lambda-microvm', 'azure-sandboxes'] as const)(
-        'rejects %s as unsupported',
-        async (sandboxProvider) => {
-            await expect(runWith({ sandboxProvider })).rejects.toThrow(
-                new MissingConfigError(
-                    `Python queries are not supported on the ${sandboxProvider} sandbox provider yet`,
-                ),
+    const azureSandboxes = {
+        ...lightdashConfigMock.appRuntime.azureSandboxes,
+        subscriptionId: 'subscription',
+        resourceGroup: 'resource-group',
+    };
+
+    it('creates the azure provider with the python sandbox group', async () => {
+        await expect(
+            runWith({
+                sandboxProvider: 'azure-sandboxes',
+                azureSandboxes,
+                azureSandboxesAiWritebackGroup: 'writeback-group',
+                azureSandboxesPythonGroup: 'python-group',
+                azureSandboxesPythonDiskImage: 'python-disk-image-id',
+            }),
+        ).rejects.toThrow('stop after create');
+        expect(createSandboxProvider).toHaveBeenCalledWith(
+            expect.objectContaining({
+                provider: 'azure-sandboxes',
+                azureSandboxes: expect.objectContaining({
+                    subscriptionId: 'subscription',
+                    resourceGroup: 'resource-group',
+                    sandboxGroup: 'python-group',
+                }),
+                gcpCloudRun: null,
+                snapshotStore: null,
+            }),
+        );
+        expect(create).toHaveBeenCalledWith(
+            expect.objectContaining({ templateRef: 'python-disk-image-id' }),
+        );
+    });
+
+    it('rejects azure without a python sandbox group', async () => {
+        await expect(
+            runWith({
+                sandboxProvider: 'azure-sandboxes',
+                azureSandboxes,
+                azureSandboxesAiWritebackGroup: 'writeback-group',
+                azureSandboxesPythonGroup: null,
+                azureSandboxesPythonDiskImage: 'python-disk-image-id',
+            }),
+        ).rejects.toThrow(
+            new MissingConfigError(
+                'Azure Sandboxes is not configured (AZURE_SANDBOXES_SUBSCRIPTION_ID / AZURE_SANDBOXES_RESOURCE_GROUP / AZURE_SANDBOXES_PYTHON_GROUP)',
+            ),
+        );
+        expect(createSandboxProvider).not.toHaveBeenCalled();
+    });
+
+    it('rejects azure without a python disk image', async () => {
+        await expect(
+            runWith({
+                sandboxProvider: 'azure-sandboxes',
+                azureSandboxes,
+                azureSandboxesPythonGroup: 'python-group',
+                azureSandboxesPythonDiskImage: null,
+            }),
+        ).rejects.toThrow(
+            new MissingConfigError(
+                'Azure python sandbox disk image is not configured (AZURE_SANDBOXES_PYTHON_DISK_IMAGE)',
+            ),
+        );
+        expect(create).not.toHaveBeenCalled();
+    });
+
+    it('rejects lambda-microvm as unsupported', async () => {
+        await expect(
+            runWith({ sandboxProvider: 'lambda-microvm' }),
+        ).rejects.toThrow(
+            new MissingConfigError(
+                'Python queries are not supported on the lambda-microvm sandbox provider yet',
+            ),
+        );
+        expect(createSandboxProvider).not.toHaveBeenCalled();
+    });
+});
+
+describe('PythonSandboxRunner stage instrumentation', () => {
+    it.each([
+        {
+            sandboxProvider: 'e2b' as const,
+            templateRef: 'custom-template:custom-tag',
+            stages: ['create', 'write_inputs', 'compile'],
+            inputSpans: [],
+        },
+        {
+            sandboxProvider: 'docker' as const,
+            templateRef: 'lightdash-python-runner:local',
+            stages: ['create', 'compile', 'write_inputs'],
+            inputSpans: [
+                { 'lightdash.inputName': 'a', 'lightdash.inputBytes': 8 },
+                { 'lightdash.inputName': 'b', 'lightdash.inputBytes': 3 },
+            ],
+        },
+    ])(
+        'traces the template and stages on $sandboxProvider',
+        async ({ sandboxProvider, templateRef, stages, inputSpans }) => {
+            const handle = {
+                sandboxId: 'sandbox-1',
+                commands: {
+                    run: vi.fn(async () => ({
+                        stdout: '',
+                        stderr: '',
+                        exitCode: 0,
+                    })),
+                },
+                files: {
+                    write: vi.fn(),
+                    readBytes: vi.fn(async () => Buffer.from('{}')),
+                    read: vi.fn(async () => '{}'),
+                },
+            } as unknown as SandboxHandle;
+            create.mockResolvedValue(handle);
+            destroy.mockResolvedValue(undefined);
+            const observeComposerQueryStageDuration = vi.fn();
+            spans.length = 0;
+
+            await new PythonSandboxRunner({
+                lightdashConfig: {
+                    ...lightdashConfigMock,
+                    appRuntime: {
+                        ...lightdashConfigMock.appRuntime,
+                        sandboxProvider,
+                        e2bPythonTemplateName: 'custom-template',
+                        e2bPythonTemplateTag: 'custom-tag',
+                    },
+                },
+                logger: silentLogger,
+                metrics: { observeComposerQueryStageDuration },
+            }).run({
+                queryUuid: 'query',
+                code: 'def run(inputs, params):\n    return inputs["a"]',
+                inputs: [
+                    { name: 'a', jsonl: Buffer.from('{"x":1}\n') },
+                    { name: 'b', jsonl: Buffer.from('{}\n') },
+                ],
+                inputMeta: { inputs: {}, params: {}, limit: 10 },
+                timeoutMs: 1000,
+            });
+
+            expect(
+                spans
+                    .filter(({ name }) => name === 'python.sandbox.write_input')
+                    .map(({ attributes }) => attributes),
+            ).toEqual(inputSpans);
+            expect(
+                spans.find(({ name }) => name === 'python.sandbox.run')
+                    ?.attributes,
+            ).toMatchObject({
+                'lightdash.sandboxId': 'sandbox-1',
+                'lightdash.templateRef': templateRef,
+            });
+            expect(create).toHaveBeenLastCalledWith(
+                expect.objectContaining({ templateRef }),
             );
-            expect(createSandboxProvider).not.toHaveBeenCalled();
+            await vi.waitFor(() =>
+                expect(
+                    observeComposerQueryStageDuration.mock.calls.map(
+                        ([, stage]) => stage,
+                    ),
+                ).toEqual([...stages, 'run', 'read_output', 'destroy']),
+            );
         },
     );
 });
 
-describe('PythonSandboxRunner stage instrumentation', () => {
-    it('traces each input write and observes every sandbox stage', async () => {
+describe('PythonSandboxRunner batching', () => {
+    beforeEach(() => silentLogger.warn.mockClear());
+    it('batches uploads, keeps the compile check, detaches cleanup', async () => {
+        let rejectDestroy: (error: Error) => void = () => {};
+        destroy.mockImplementationOnce(
+            () =>
+                new Promise<void>((_resolve, reject) => {
+                    rejectDestroy = reject;
+                }),
+        );
         const handle = {
-            sandboxId: 'sandbox-1',
+            sandboxId: 'batch-test',
+            files: {
+                write: vi.fn(),
+                writeMany: vi.fn(
+                    async (
+                        _files: {
+                            path: string;
+                            contents: string | Uint8Array;
+                        }[],
+                    ) => {},
+                ),
+                readBytes: vi.fn(async () => Buffer.from('{"x":1}\n')),
+                read: vi.fn(async () => '{}'),
+            },
             commands: {
                 run: vi.fn(async () => ({
-                    stdout: '',
+                    stdout: 'user logs',
                     stderr: '',
                     exitCode: 0,
                 })),
             },
-            files: {
-                write: vi.fn(),
-                readBytes: vi.fn(async () => Buffer.from('{}')),
-                read: vi.fn(async () => '{}'),
-            },
-        } as unknown as SandboxHandle;
-        create.mockResolvedValue(handle);
-        destroy.mockResolvedValue(undefined);
-        const observeComposerQueryStageDuration = vi.fn();
-        spans.length = 0;
-
-        await new PythonSandboxRunner({
+        };
+        create.mockResolvedValueOnce(handle);
+        const runner = new PythonSandboxRunner({
             lightdashConfig: {
                 ...lightdashConfigMock,
                 appRuntime: {
@@ -255,40 +440,73 @@ describe('PythonSandboxRunner stage instrumentation', () => {
                 },
             },
             logger: silentLogger,
-            metrics: { observeComposerQueryStageDuration },
-        }).run({
+            metrics: null,
+        });
+        const result = await runner.run({
             queryUuid: 'query',
             code: 'def run(inputs, params):\n    return inputs["a"]',
-            inputs: [
-                { name: 'a', jsonl: Buffer.from('{"x":1}\n') },
-                { name: 'b', jsonl: Buffer.from('{}\n') },
-            ],
+            inputs: [{ name: 'a', jsonl: Buffer.from('{"x":1}\n') }],
             inputMeta: { inputs: {}, params: {}, limit: 10 },
             timeoutMs: 1000,
         });
-
-        expect(
-            spans
-                .filter(({ name }) => name === 'python.sandbox.write_input')
-                .map(({ attributes }) => attributes),
-        ).toEqual([
-            { 'lightdash.inputName': 'a', 'lightdash.inputBytes': 8 },
-            { 'lightdash.inputName': 'b', 'lightdash.inputBytes': 3 },
-        ]);
-        expect(
-            spans.find(({ name }) => name === 'python.sandbox.run')?.attributes,
-        ).toMatchObject({ 'lightdash.sandboxId': 'sandbox-1' });
-        expect(
-            observeComposerQueryStageDuration.mock.calls.map(
-                ([source, stage]) => `${source}.${stage}`,
+        expect(result.stdout).toBe('user logs');
+        expect(handle.files.write).not.toHaveBeenCalled();
+        expect(handle.files.writeMany).toHaveBeenCalledOnce();
+        expect(handle.files.writeMany.mock.calls[0][0]).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({ path: '/work/main.py' }),
+                expect.objectContaining({ path: '/work/runner.py' }),
+                {
+                    path: '/work/in/a.jsonl',
+                    contents: Buffer.from('{"x":1}\n'),
+                },
+                expect.objectContaining({ path: '/work/in/meta.json' }),
+                { path: '/work/out/.keep', contents: '' },
+            ]),
+        );
+        expect(handle.commands.run).toHaveBeenCalledTimes(2);
+        expect(create).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                onTimeout: 'kill',
+                timeoutMs: 61000,
+            }),
+        );
+        expect(destroy).toHaveBeenLastCalledWith('batch-test');
+        rejectDestroy(new Error('cleanup unavailable'));
+        await vi.waitFor(() =>
+            expect(silentLogger.warn).toHaveBeenCalledWith(
+                expect.stringContaining('cleanup unavailable'),
             ),
-        ).toEqual([
-            'python.create',
-            'python.compile',
-            'python.write_inputs',
-            'python.run',
-            'python.read_output',
-            'python.destroy',
-        ]);
+        );
+    });
+    it('destroys the sandbox when a batched upload fails', async () => {
+        const error = new Error('upload failed');
+        const handle = {
+            sandboxId: 'failed-upload',
+            files: { writeMany: vi.fn().mockRejectedValue(error) },
+        };
+        create.mockResolvedValueOnce(handle);
+        destroy.mockResolvedValueOnce(undefined);
+        const runner = new PythonSandboxRunner({
+            lightdashConfig: {
+                ...lightdashConfigMock,
+                appRuntime: {
+                    ...lightdashConfigMock.appRuntime,
+                    sandboxProvider: 'e2b',
+                },
+            },
+            logger: silentLogger,
+            metrics: null,
+        });
+        await expect(
+            runner.run({
+                queryUuid: 'query',
+                code: 'code',
+                inputs: [],
+                inputMeta: { inputs: {}, params: {}, limit: 10 },
+                timeoutMs: 1000,
+            }),
+        ).rejects.toBe(error);
+        expect(destroy).toHaveBeenLastCalledWith('failed-upload');
     });
 });

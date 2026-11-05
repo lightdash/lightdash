@@ -66,14 +66,18 @@ import {
     selectDashboardFilters,
     selectDashboardParameterDefinitions,
     selectDashboardParameterReferences,
+    selectAreParameterControlsSaved,
     selectDashboardParameters,
     selectDashboardTabs,
     selectDashboardTiles,
+    selectControlSections,
     selectHasDefaultDateZoomGranularityChanged,
     selectHasParameterOrderChanged,
+    selectHaveControlSectionsChanged,
     selectHaveCustomMetricsChanged,
     selectHaveDateZoomGranularitiesChanged,
     selectHaveFiltersChanged,
+    selectHaveParameterControlsChanged,
     selectHavePinnedParametersChanged,
     selectHaveTabsChanged,
     selectHaveTilesChanged,
@@ -81,14 +85,19 @@ import {
     selectIsDateZoomDisabled,
     selectMissingRequiredParameters,
     selectOldestCacheTime,
+    selectParameterControls,
     selectParameterOrder,
+    selectParameterPicks,
     selectParametersHaveChanged,
     selectParameterValues,
     selectPinnedParameters,
     selectRawTemporaryFilters,
+    dashboardEditActions,
+    dashboardParametersActions,
     useAreAllChartsLoaded,
     useDashboardDateZoomConfig,
     useDashboardDateZoomGranularities,
+    useDashboardDispatch,
     useDashboardSelector,
     useDashboardStore,
     useDefaultDateZoomGranularity,
@@ -96,10 +105,13 @@ import {
     useHasDateZoomConfigChanged,
     useRequiredFiltersNote,
 } from '../features/dashboard/store';
+import TileQueryQueueProvider from '../features/dashboard/tileQueryQueue/TileQueryQueueProvider';
 import { ControlsSidebarPage } from '../features/dashboardControls/ControlsSidebarPage';
 import { DashboardHeaderGuard } from '../features/dashboardControls/DashboardHeaderGuard';
+import { getDimensionFiltersToSave } from '../features/dashboardFilters/FilterConfiguration/utils';
 import { FilterBarPopoversProvider } from '../features/dashboardFilters/FilterRequirements/FilterBarPopoversProvider';
 import DashboardTabs from '../features/dashboardTabs';
+import { useFitToScreen } from '../features/dashboardTabs/useFitToScreen';
 import { isLeavingTrainingCopy } from '../features/scopeTours/trainingCopy';
 import {
     appendNewTilesToBottom,
@@ -127,12 +139,16 @@ import useDashboardTileStatusContext from '../providers/Dashboard/useDashboardTi
 import useNativeFullscreenToggle from '../providers/Fullscreen/useNativeFullscreenToggle';
 import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
-import { buildDashboardConfig } from '../utils/dashboardConfig';
+import {
+    buildDashboardConfig,
+    getParametersToSave,
+} from '../utils/dashboardConfig';
 import { isSameDashboardRoute } from '../utils/dashboardRoutes';
 import '../styles/react-grid.css';
 
 /** Dashboard URL param naming the chart open in the in-dashboard editor. */
 const EDIT_CHART_SEARCH_PARAM = 'editChart';
+const FIT_TO_SCREEN_SEARCH_PARAM = 'fit';
 
 const Dashboard: FC = () => {
     const authoringEnabled = useContentAuthoringEnabled();
@@ -235,6 +251,9 @@ const Dashboard: FC = () => {
     const parametersHaveChanged = useDashboardSelector(
         selectParametersHaveChanged,
     );
+    const haveParameterControlsChanged = useDashboardSelector(
+        selectHaveParameterControlsChanged,
+    );
     const parameterValues = useDashboardSelector(selectParameterValues);
     const clearAllParameters = useDashboardContext((c) => c.clearAllParameters);
     const hasDateZoomDisabledChanged = useMemo(() => {
@@ -277,6 +296,11 @@ const Dashboard: FC = () => {
     );
     const setHasParameterOrderChanged = useDashboardContext(
         (c) => c.setHasParameterOrderChanged,
+    );
+    const dashboardDispatch = useDashboardDispatch();
+    const controlSections = useDashboardSelector(selectControlSections);
+    const haveControlSectionsChanged = useDashboardSelector(
+        selectHaveControlSectionsChanged,
     );
     const dateZoomGranularities = useDashboardDateZoomGranularities();
     const haveDateZoomGranularitiesChanged = useDashboardSelector(
@@ -732,6 +756,17 @@ const Dashboard: FC = () => {
         setPinnedParameters(dashboard.config?.pinnedParameters ?? []);
         setHavePinnedParametersChanged(false);
         setHasParameterOrderChanged(false);
+        dashboardDispatch(
+            dashboardEditActions.setHaveControlSectionsChanged(false),
+        );
+        dashboardDispatch(
+            dashboardParametersActions.setHaveParameterControlsChanged(false),
+        );
+        dashboardDispatch(
+            dashboardEditActions.syncControlSections(
+                dashboard.config?.controlSections ?? [],
+            ),
+        );
         setDateZoomGranularities(
             dashboard.config?.dateZoomGranularities ??
                 Object.values(DateGranularity),
@@ -782,6 +817,7 @@ const Dashboard: FC = () => {
         setHasDateZoomConfigChanged,
         setHasParameterOrderChanged,
         setRequiredFiltersNote,
+        dashboardDispatch,
     ]);
 
     const handleMoveDashboardToSpace = useCallback(
@@ -835,8 +871,10 @@ const Dashboard: FC = () => {
         hasAddFilterDisabledChanged ||
         hasRequiredFiltersNoteChanged ||
         parametersHaveChanged ||
+        haveParameterControlsChanged ||
         havePinnedParametersChanged ||
         hasParameterOrderChanged ||
+        haveControlSectionsChanged ||
         haveDateZoomGranularitiesChanged ||
         hasDefaultDateZoomGranularityChanged ||
         hasDateZoomConfigChanged;
@@ -883,6 +921,14 @@ const Dashboard: FC = () => {
             setHaveDateZoomGranularitiesChanged(false);
             setHasDefaultDateZoomGranularityChanged(false);
             setHasDateZoomConfigChanged(false);
+            dashboardDispatch(
+                dashboardEditActions.setHaveControlSectionsChanged(false),
+            );
+            dashboardDispatch(
+                dashboardParametersActions.setHaveParameterControlsChanged(
+                    false,
+                ),
+            );
             // The saved config is the source of truth again
             setRequiredFiltersNote(undefined);
             setDashboardTemporaryFilters({
@@ -923,6 +969,7 @@ const Dashboard: FC = () => {
         setHasDefaultDateZoomGranularityChanged,
         setHasDateZoomConfigChanged,
         setRequiredFiltersNote,
+        dashboardDispatch,
         dashboardTabs,
         activeTab,
     ]);
@@ -1031,6 +1078,32 @@ const Dashboard: FC = () => {
     const chartVersionParam = searchParams.get(
         CREATE_SAVED_CHART_VERSION_SEARCH_PARAM,
     );
+
+    // A viewer-side layout option, kept in the url so a fitted link can be shared
+    const isFitToScreen =
+        searchParams.get(FIT_TO_SCREEN_SEARCH_PARAM) === 'true';
+    const handleToggleFitToScreen = useCallback(() => {
+        setSearchParams(
+            (params) => {
+                if (isFitToScreen) {
+                    params.delete(FIT_TO_SCREEN_SEARCH_PARAM);
+                } else {
+                    params.set(FIT_TO_SCREEN_SEARCH_PARAM, 'true');
+                }
+                return params;
+            },
+            { replace: true },
+        );
+    }, [isFitToScreen, setSearchParams]);
+    const [gridElement, setGridElement] = useState<HTMLDivElement | null>(null);
+    const fitToScreen = useFitToScreen({
+        isFitToScreen,
+        isEditMode,
+        gridElement,
+        tiles: dashboardTiles,
+        tabs: dashboardTabs,
+        activeTabUuid: activeTab?.uuid,
+    });
     const chartFromUrl = useSavedQuery({
         uuidOrSlug:
             isChartEditorEnabled &&
@@ -1250,7 +1323,10 @@ const Dashboard: FC = () => {
         dashboardTabs,
     ]);
 
-    if (isDashboardLoading) {
+    // Until the controls flag answers the page could not pick its bar and
+    // would swap it, remounting the grid; the request runs alongside the
+    // dashboard's, so it only waits when the flag is slower
+    if (isDashboardLoading || dashboardControlsFlag.isInitialLoading) {
         return <PageSpinner />;
     }
 
@@ -1300,22 +1376,29 @@ const Dashboard: FC = () => {
             ...dashboardFilters.dimensions,
             ...dashboardTemporaryFilters.dimensions,
         ];
-        // Reset value for required filter on save dashboard
-        const requiredFiltersWithoutValues = dimensionFilters.map((filter) => {
-            if (filter.required || filter.requiredGroupId) {
-                return {
-                    ...filter,
-                    disabled: true,
-                    values: [],
-                };
-            }
-            return filter;
+        // Flag on, a required filter keeps its value as its default
+        const dimensionFiltersToSave = getDimensionFiltersToSave(
+            dimensionFilters,
+            isDashboardControlsEnabled,
+        );
+
+        const { parameterControlsToSave, parameters } = getParametersToSave({
+            parameterControls: selectParameterControls(dashboardState),
+            areParameterControlsSaved:
+                selectAreParameterControlsSaved(dashboardState),
+            haveParameterControlsChanged:
+                selectHaveParameterControlsChanged(dashboardState),
+            existingParameterControls:
+                dashboard.config?.parameterControls ?? null,
+            parameterPicks: selectParameterPicks(dashboardState),
+            appliedParameters: selectDashboardParameters(dashboardState),
+            savedParameters: dashboard.parameters ?? {},
         });
 
         const dashboardUpdate: UpdateDashboard = {
             tiles: dashboardTiles,
             filters: {
-                dimensions: requiredFiltersWithoutValues,
+                dimensions: dimensionFiltersToSave,
                 metrics: [
                     ...dashboardFilters.metrics,
                     ...dashboardTemporaryFilters.metrics,
@@ -1344,8 +1427,11 @@ const Dashboard: FC = () => {
                 stagedCustomMetrics: haveCustomMetricsChanged
                     ? dashboardCustomMetrics
                     : undefined,
+                controlSections,
+                haveControlSectionsChanged,
+                parameterControlsToSave,
             }),
-            parameters: selectDashboardParameters(dashboardState),
+            parameters,
             ...(preserveVerification !== undefined
                 ? { preserveVerification }
                 : {}),
@@ -1383,6 +1469,9 @@ const Dashboard: FC = () => {
         dashboardTiles,
         isFullScreenFeatureEnabled,
         onToggleFullscreen: handleToggleFullscreen,
+        isFitToScreen,
+        isFitToScreenAvailable: fitToScreen.isAvailable,
+        onToggleFitToScreen: handleToggleFitToScreen,
         hasDashboardChanged,
         onAddTiles: handleAddTiles,
         onNewChart:
@@ -1622,6 +1711,8 @@ const Dashboard: FC = () => {
                                 handleEditTile={stableEditTile}
                                 setGridWidth={setGridWidth}
                                 setAddingTab={setAddingTab}
+                                fitToScreenRowHeight={fitToScreen.rowHeight}
+                                gridContainerRef={setGridElement}
                                 onNewChart={
                                     isChartEditorEnabled && isEditMode
                                         ? handleOpenNewChart
@@ -1688,7 +1779,9 @@ const DashboardPage: FC = () => {
             <SentryErrorBoundary fallback={() => <></>}>
                 <DashboardAnalysisAdapterBridge />
             </SentryErrorBoundary>
-            <Dashboard />
+            <TileQueryQueueProvider>
+                <Dashboard />
+            </TileQueryQueueProvider>
         </DashboardProvider>
     );
 };

@@ -1,6 +1,6 @@
+import { merge } from 'es-toolkit/compat';
 import { promises as fs } from 'fs';
 import * as yaml from 'js-yaml';
-import lodash from 'lodash';
 import * as os from 'os';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
@@ -80,7 +80,7 @@ const setConfig = async (config: Config) => {
     await writeConfigToFile(configFilePath, config);
 };
 
-const getRawConfig = async (): Promise<Config> => {
+export const getRawConfig = async (): Promise<Config> => {
     try {
         await ensureConfigFilePermissions(configFilePath);
         const contents = await fs.readFile(configFilePath, 'utf8');
@@ -235,6 +235,12 @@ export const setAnswer = async (answer: Config['answers']) => {
     const config = await getRawConfig();
     await setConfig({
         ...config,
-        answers: lodash.merge(config.answers, answer),
+        answers: merge(config.answers, answer),
     });
+};
+
+export const unsetApiKey = async (): Promise<void> => {
+    const config = await getRawConfig();
+    if (config.context) delete config.context.apiKey;
+    await setConfig(config);
 };

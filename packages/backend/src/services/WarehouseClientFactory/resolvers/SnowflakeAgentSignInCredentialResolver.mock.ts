@@ -20,7 +20,6 @@ import {
 type Args = {
     connection: CreateSnowflakeCredentials;
     person: { userUuid: string; organizationUuid: string; email: string };
-    silentRefresh: boolean;
     organizationUuid?: string;
     evaluationKind?: 'query' | 'diagnostic' | 'result_read';
 };
@@ -48,10 +47,7 @@ export class AgentSignInResolverHarness {
                 getOwnWarehouseCredentialsForProject: vi.fn(),
                 rotateRefreshToken: vi.fn(),
             },
-            organizationWarehouseCredentialsModel: {
-                getByUuidWithSensitiveData: vi.fn(),
-                rotateRefreshToken: vi.fn(),
-            },
+
             warehouseConnectionModel: {
                 getProject: vi.fn(),
                 getOwnCredentials: vi.fn(),
@@ -68,10 +64,7 @@ export class AgentSignInResolverHarness {
     }
 
     async missingPrerequisite(args: Args) {
-        const error = await this.resolver.inspect(
-            args.person,
-            args.silentRefresh,
-        );
+        const error = await this.resolver.inspect(args.person);
         return error
             ? mapAgentCredentialResolutionError(this.logger, error, {
                   ...args.person,
@@ -91,7 +84,6 @@ export class AgentSignInResolverHarness {
             connection: args.connection,
             stored: {
                 person: args.person,
-                silentRefresh: args.silentRefresh,
                 onRefresh: (
                     event: import('./SnowflakeAgentSignInCredentialResolver').AgentSignInRefreshEvent,
                 ) => logAgentSignInRefresh(this.logger, event, context),

@@ -1,5 +1,9 @@
 import { subject } from '@casl/ability';
-import { CommercialFeatureFlags, FeatureFlags } from '@lightdash/common';
+import {
+    CommercialFeatureFlags,
+    FeatureFlags,
+    isAiAdminScopedProjectType,
+} from '@lightdash/common';
 import { matchPath, useLocation } from 'react-router';
 import { useIsGitProject } from '../../components/Explorer/WriteBackModal/hooks';
 import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
@@ -45,12 +49,6 @@ export const useSettingsContext = (): SettingsContext => {
     const shouldShowAiAgentReviews =
         aiOrganizationSettingsQuery.data?.aiAgentReviewsEnabled === true;
 
-    const { data: serviceAccountsFlag } = useServerFeatureFlag(
-        CommercialFeatureFlags.ServiceAccounts,
-    );
-    const isServiceAccountFeatureFlagEnabled =
-        serviceAccountsFlag?.enabled ?? false;
-
     const {
         health: {
             data: health,
@@ -90,6 +88,9 @@ export const useSettingsContext = (): SettingsContext => {
     const { data: dashboardAnalysisFlag } = dashboardAnalysisFlagQuery;
     const isChartStudioAvailable = useChartStudioAvailable();
 
+    const { data: apiQuerySourcesFlag } = useServerFeatureFlag(
+        FeatureFlags.ApiQuerySources,
+    );
     const { data: externalSourcesFlag } = useServerFeatureFlag(
         FeatureFlags.ExternalSources,
     );
@@ -98,13 +99,9 @@ export const useSettingsContext = (): SettingsContext => {
     );
     const isResultsCacheEnabled = resultsCacheFlag?.enabled ?? false;
 
-    const { data: proLimitsFlag } = useServerFeatureFlag(
-        FeatureFlags.ProLimits,
-    );
-    const isProLimitsEnabled = proLimitsFlag?.enabled ?? false;
-
     // The roadmap proxy is only registered behind a validated enterprise license.
     const isOrganizationRoadmapEnabled = health?.license?.valid === true;
+    const isServiceAccountsEnabled = health?.license?.valid === true;
 
     const { data: ssoOrganizationSettingsFlag } = useServerFeatureFlag(
         FeatureFlags.SsoOrganizationSettings,
@@ -155,17 +152,14 @@ export const useSettingsContext = (): SettingsContext => {
     // project-scoped AI admins (only the projects they can reach). These are
     // administration surfaces, so visibility mirrors the backend MANAGE gate
     // (resolveReadScope): `manage:OrganizationAiAgent` org-wide, else
-    // `manage:AiAgent` over the access-filtered project list. Using `manage`
+    // `manage:AiAgent` over the access-filtered non-preview projects. Using `manage`
     // (not `view`) keeps interactive_viewers — who hold org-wide view:AiAgent —
     // out, matching what the backend actually authorizes.
     const { data: projects } = useProjects();
     const organizationUuid = organization?.organizationUuid;
-    const {
-        data: analyticsProjectFlag,
-        isInitialLoading: isAnalyticsProjectFlagLoading,
-    } = useServerFeatureFlag(FeatureFlags.AnalyticsProject);
+    const isAnalyticsProjectLoading = isHealthLoading;
     const canAccessAnalyticsSettings =
-        analyticsProjectFlag?.enabled === true &&
+        health?.hasManagedAnalytics === true &&
         !!organizationUuid &&
         (user?.ability.can(
             'manage',
@@ -190,14 +184,16 @@ export const useSettingsContext = (): SettingsContext => {
         ) ?? false;
     const hasAnyAiAgentAccess =
         canManageOrgAiAgent ||
-        (projects ?? []).some((p) =>
-            user?.ability?.can(
-                'manage',
-                subject('AiAgent', {
-                    organizationUuid,
-                    projectUuid: p.projectUuid,
-                }),
-            ),
+        (projects ?? []).some(
+            (p) =>
+                isAiAdminScopedProjectType(p.type) &&
+                user?.ability?.can(
+                    'manage',
+                    subject('AiAgent', {
+                        organizationUuid,
+                        projectUuid: p.projectUuid,
+                    }),
+                ),
         );
 
     const allowPasswordAuthentication =
@@ -213,10 +209,6 @@ export const useSettingsContext = (): SettingsContext => {
     const isGroupManagementEnabled =
         userGroupsFeatureFlagQuery.data?.enabled ?? false;
 
-    // This allows us to enable service accounts in the UI for on-premise installations
-    const isServiceAccountsEnabled =
-        health?.isServiceAccountEnabled || isServiceAccountFeatureFlagEnabled;
-
     const isAgentIdentityEnabled = agentIdentityFlag?.enabled ?? false;
 
     return {
@@ -228,9 +220,8 @@ export const useSettingsContext = (): SettingsContext => {
         project,
         showImpersonationPanel,
         isCustomRolesEnabled,
-        isProLimitsEnabled,
         canAccessAnalyticsSettings,
-        isAnalyticsProjectFlagLoading,
+        isAnalyticsProjectLoading,
         isOrganizationRoadmapEnabled,
         canAccessAiCredits,
         isAiCreditsLoading: isAiCreditUsageLoading,
@@ -252,6 +243,7 @@ export const useSettingsContext = (): SettingsContext => {
             dataAppAnalysisFlagQuery.isInitialLoading ||
             dashboardAnalysisFlagQuery.isInitialLoading,
         isChartStudioAvailable,
+        isApiQuerySourcesEnabled: apiQuerySourcesFlag?.enabled ?? false,
         externalSourcesFlag,
         isResultsCacheEnabled,
         embeddingEnabled,

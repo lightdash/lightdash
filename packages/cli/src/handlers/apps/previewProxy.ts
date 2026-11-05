@@ -1,12 +1,19 @@
 import {
     APP_SDK_EXPLORE_BASE_TABLE_PATH,
+    APP_SDK_SPACE_CHARTS_PATH,
+    emptyAppSdkSpaceCharts,
     extractAppSdkRouteProjectUuid,
+    extractAppSdkSpaceCharts,
     extractExploreBaseTable,
     isAllowedAppSdkRoute,
+    isAppSdkMetricQueryRoute,
     isAppSdkScheduleDownloadRoute,
     LightdashSignedDownloadHeader,
     parseAppSdkExploreBaseTableRequest,
+    parseAppSdkSpaceChartsRequest,
+    resolveAppSdkSpaceUuid,
     type AppSdkExploreBaseTableResult,
+    type AppSdkSpaceChartsResult,
 } from '@lightdash/common';
 import { timingSafeEqual } from 'crypto';
 import * as http from 'http';
@@ -66,6 +73,18 @@ export type PreviewProxyHandle = {
     close: () => Promise<void>;
 };
 
+/** What --show-sql reports for each metric query the previewed app runs. */
+export type CompiledQueryLogEntry = {
+    exploreName: string;
+    dimensions: string[];
+    metrics: string[];
+    compiledSql: string | null;
+    compilationErrors: string[];
+    // Execution-time transformations the compile endpoint cannot apply
+    // (e.g. date zoom, dashboard filters) — the printed SQL excludes them.
+    runtimeOnlyTransformations: string[];
+};
+
 const sendJsonError = (
     res: http.ServerResponse,
     status: number,
@@ -115,9 +134,13 @@ const secretsMatch = (
 export const startPreviewProxy = (args: {
     upstreamUrl: string;
     authorization: string;
+    resolveAuthorization?: () => Promise<string>;
     proxyAuthorization?: string;
     projectUuid: string;
     nonce: string;
+    // When set, each metric query the app runs is compiled upstream and
+    // reported here (--show-sql). Never blocks or alters the query itself.
+    onCompiledQuery?: (entry: CompiledQueryLogEntry) => void;
 }): Promise<PreviewProxyHandle> => {
     refuseAgentConnection();
     const upstream = new URL(args.upstreamUrl);
@@ -135,8 +158,11 @@ export const startPreviewProxy = (args: {
     });
 
     // Resolves the parsed body of a successful upstream GET, or null.
-    const getUpstreamJson = (path: string): Promise<unknown> =>
-        new Promise((resolve) => {
+    const getUpstreamJson = async (path: string): Promise<unknown> => {
+        const authorization = args.resolveAuthorization
+            ? await args.resolveAuthorization()
+            : args.authorization;
+        return new Promise((resolve) => {
             const upstreamReq = requestFn(
                 {
                     protocol: upstream.protocol,
@@ -144,9 +170,12 @@ export const startPreviewProxy = (args: {
                     port: upstream.port || undefined,
                     path,
                     method: 'GET',
-                    headers: withUpstreamCredentials({
-                        accept: 'application/json',
-                    }),
+                    headers: {
+                        ...withUpstreamCredentials({
+                            accept: 'application/json',
+                        }),
+                        authorization,
+                    },
                 },
                 (upstreamRes) => {
                     readBody(upstreamRes).then(
@@ -165,6 +194,133 @@ export const startPreviewProxy = (args: {
             upstreamReq.on('error', () => resolve(null));
             upstreamReq.end();
         });
+    };
+
+    // Resolves the parsed body of a successful upstream POST, or null.
+    const postUpstreamJson = async (
+        path: string,
+        body: string,
+    ): Promise<unknown> => {
+        const authorization = args.resolveAuthorization
+            ? await args.resolveAuthorization()
+            : args.authorization;
+        return new Promise((resolve) => {
+            const payload = Buffer.from(body, 'utf-8');
+            const upstreamReq = requestFn(
+                {
+                    protocol: upstream.protocol,
+                    hostname: upstream.hostname,
+                    port: upstream.port || undefined,
+                    path,
+                    method: 'POST',
+                    headers: {
+                        ...withUpstreamCredentials({
+                            accept: 'application/json',
+                            'content-type': 'application/json',
+                            'content-length': payload.length,
+                        }),
+                        authorization,
+                    },
+                },
+                (upstreamRes) => {
+                    readBody(upstreamRes).then(
+                        (text) => {
+                            const status = upstreamRes.statusCode ?? 502;
+                            resolve(
+                                status >= 200 && status < 300
+                                    ? parseJson(text)
+                                    : null,
+                            );
+                        },
+                        () => resolve(null),
+                    );
+                },
+            );
+            upstreamReq.on('error', () => resolve(null));
+            upstreamReq.end(payload);
+        });
+    };
+
+    // --show-sql: compile the metric query the app just ran (same payload the
+    // customer-facing compileQuery endpoint takes) and report the SQL.
+    const compileAndReport = async (requestBody: string): Promise<void> => {
+        const report = args.onCompiledQuery;
+        if (report === undefined) return;
+        const parsed = parseJson(requestBody);
+        if (typeof parsed !== 'object' || parsed === null) return;
+        const {
+            query,
+            parameters,
+            usePreAggregateCache,
+            pivotConfiguration,
+            dateZoom,
+            dashboardFilters,
+        } = parsed as {
+            query?: unknown;
+            parameters?: unknown;
+            usePreAggregateCache?: unknown;
+            pivotConfiguration?: unknown;
+            dateZoom?: unknown;
+            dashboardFilters?: unknown;
+        };
+        if (typeof query !== 'object' || query === null) return;
+        const metricQuery = query as {
+            exploreName?: unknown;
+            dimensions?: unknown;
+            metrics?: unknown;
+            dateZoom?: unknown;
+        };
+        if (typeof metricQuery.exploreName !== 'string') return;
+        const toStrings = (value: unknown): string[] =>
+            Array.isArray(value)
+                ? value.filter(
+                      (item): item is string => typeof item === 'string',
+                  )
+                : [];
+        // compileQuery cannot apply these execution-time transformations, so
+        // the printed SQL would silently diverge — disclose them instead.
+        const hasDashboardFilters =
+            typeof dashboardFilters === 'object' &&
+            dashboardFilters !== null &&
+            Object.values(dashboardFilters).some(
+                (group) => Array.isArray(group) && group.length > 0,
+            );
+        const runtimeOnlyTransformations = [
+            ...(dateZoom !== undefined || metricQuery.dateZoom !== undefined
+                ? ['date zoom']
+                : []),
+            ...(hasDashboardFilters ? ['dashboard filters'] : []),
+        ];
+        const entry: CompiledQueryLogEntry = {
+            exploreName: metricQuery.exploreName,
+            dimensions: toStrings(metricQuery.dimensions),
+            metrics: toStrings(metricQuery.metrics),
+            compiledSql: null,
+            compilationErrors: [],
+            runtimeOnlyTransformations,
+        };
+        const compiled = await postUpstreamJson(
+            `/api/v1/projects/${encodeURIComponent(args.projectUuid)}/explores/${encodeURIComponent(metricQuery.exploreName)}/compileQuery`,
+            JSON.stringify({
+                ...query,
+                parameters,
+                usePreAggregateCache,
+                pivotConfiguration,
+            }),
+        );
+        if (typeof compiled === 'object' && compiled !== null) {
+            const { results } = compiled as { results?: unknown };
+            if (typeof results === 'object' && results !== null) {
+                const { query: sql, compilationErrors } = results as {
+                    query?: unknown;
+                    compilationErrors?: unknown;
+                };
+                if (typeof sql === 'string') entry.compiledSql = sql;
+                entry.compilationErrors = toStrings(compilationErrors);
+            }
+        }
+        report(entry);
+    };
 
     // Host-answered virtual route: replies with only the explore's base
     // table, never the explore itself.
@@ -193,7 +349,48 @@ export const startPreviewProxy = (args: {
         res.end(JSON.stringify({ status: 'ok', results }));
     };
 
-    const server = http.createServer((req, res) => {
+    // Host-answered virtual route: resolves a slug-or-uuid space reference
+    // to its trimmed chart list with the developer's credentials. Unknown
+    // space, no access, and upstream failure all answer uniformly empty —
+    // same face as the deployed app's bridge.
+    const answerSpaceCharts = async (
+        req: http.IncomingMessage,
+        res: http.ServerResponse,
+    ): Promise<void> => {
+        const request = parseAppSdkSpaceChartsRequest(
+            parseJson(await readBody(req)),
+        );
+        if (request === null) {
+            sendJsonError(
+                res,
+                400,
+                'Preview proxy: invalid space-charts request',
+            );
+            return;
+        }
+        let results: AppSdkSpaceChartsResult = emptyAppSdkSpaceCharts();
+        try {
+            const spaces = await getUpstreamJson(
+                `/api/v1/projects/${encodeURIComponent(args.projectUuid)}/spaces`,
+            );
+            const spaceUuid = resolveAppSdkSpaceUuid(spaces, request.space);
+            if (spaceUuid !== null) {
+                const space = await getUpstreamJson(
+                    `/api/v1/projects/${encodeURIComponent(args.projectUuid)}/spaces/${encodeURIComponent(spaceUuid)}`,
+                );
+                results = extractAppSdkSpaceCharts(space) ?? results;
+            }
+        } catch {
+            // Keep the uniform empty answer.
+        }
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ status: 'ok', results }));
+    };
+
+    const handleRequest = async (
+        req: http.IncomingMessage,
+        res: http.ServerResponse,
+    ): Promise<void> => {
         const method = req.method ?? 'GET';
         const nonceHeader = req.headers[PREVIEW_PROXY_NONCE_HEADER];
         const browserAuthorization = req.headers.authorization;
@@ -210,6 +407,19 @@ export const startPreviewProxy = (args: {
             pathname = new URL(req.url ?? '/', 'http://localhost').pathname;
         } catch {
             sendJsonError(res, 400, 'Preview proxy: malformed request URL');
+            return;
+        }
+
+        if (pathname === APP_SDK_SPACE_CHARTS_PATH) {
+            answerSpaceCharts(req, res).catch(() => {
+                if (!res.headersSent) {
+                    sendJsonError(
+                        res,
+                        400,
+                        'Preview proxy: invalid space-charts request',
+                    );
+                }
+            });
             return;
         }
 
@@ -253,6 +463,8 @@ export const startPreviewProxy = (args: {
         const headers = withUpstreamCredentials(
             filterHeaders(req.headers, DROPPED_REQUEST_HEADERS),
         );
+        if (args.resolveAuthorization)
+            headers.authorization = await args.resolveAuthorization();
         // The previewed app fetches the export's fileUrl directly from the
         // local dev page, which carries no instance credentials — ask the
         // backend for a SIGNED URL, same as the deployed app's bridge.
@@ -291,7 +503,32 @@ export const startPreviewProxy = (args: {
                 res.destroy();
             }
         });
-        req.pipe(upstreamReq);
+        if (
+            args.onCompiledQuery !== undefined &&
+            isAppSdkMetricQueryRoute(method, pathname)
+        ) {
+            // Buffer so the same bytes are both forwarded and compiled.
+            readBody(req).then(
+                (body) => {
+                    upstreamReq.end(body);
+                    compileAndReport(body).catch(() => {});
+                },
+                () => upstreamReq.destroy(),
+            );
+        } else {
+            req.pipe(upstreamReq);
+        }
+    };
+    const server = http.createServer((req, res) => {
+        handleRequest(req, res).catch(() => {
+            if (!res.headersSent)
+                sendJsonError(
+                    res,
+                    502,
+                    'Preview proxy: could not authenticate the upstream request.',
+                );
+            else res.destroy();
+        });
     });
 
     return new Promise((resolve, reject) => {

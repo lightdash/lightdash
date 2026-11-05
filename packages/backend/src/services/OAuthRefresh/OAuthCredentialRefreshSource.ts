@@ -1,6 +1,5 @@
 import {
     assertUnreachable,
-    FeatureFlags,
     ForbiddenError,
     getErrorMessage,
     NotFoundError,
@@ -12,7 +11,6 @@ import {
 import { type Knex } from 'knex';
 import type Logger from '../../logging/logger';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
-import type { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { RefreshTokenSourceChangedError } from '../../models/RefreshTokenRotation/RefreshTokenRotation';
 import type {
@@ -49,10 +47,6 @@ export type OAuthCredentialRefreshSourceDependencies = {
         | 'getSummary'
         | 'getOwnWarehouseCredentialsForProject'
         | 'rotateRefreshToken'
-    >;
-    organizationWarehouseCredentialsModel: Pick<
-        OrganizationWarehouseCredentialsModel,
-        'getByUuidWithSensitiveData' | 'rotateRefreshToken'
     >;
     userWarehouseCredentialsModel: Pick<
         UserWarehouseCredentialsModel,
@@ -103,39 +97,6 @@ export class OAuthCredentialRefreshSource<
         },
     ) {}
 
-    async isLockEnabled(
-        input: OAuthRefreshSelection<C>,
-        owner: OAuthCredentialOwner,
-    ): Promise<boolean> {
-        let { organizationUuid } = input.context;
-        if (organizationUuid === null) {
-            if (owner.kind === 'organization') {
-                organizationUuid = (
-                    await this.deps.organizationWarehouseCredentialsModel.getByUuidWithSensitiveData(
-                        owner.uuid,
-                    )
-                ).organizationUuid;
-            } else if (owner.kind === 'project' || input.projectUuid !== null) {
-                organizationUuid = (
-                    await this.deps.projectModel.getSummary(
-                        owner.kind === 'project'
-                            ? owner.uuid
-                            : (input.projectUuid as string),
-                    )
-                ).organizationUuid;
-            }
-        }
-        const { enabled } = await this.deps.featureFlagModel.get(
-            organizationUuid === null
-                ? { featureFlagId: FeatureFlags.WarehouseOAuthRefreshLock }
-                : {
-                      user: { organizationUuid },
-                      featureFlagId: FeatureFlags.WarehouseOAuthRefreshLock,
-                  },
-        );
-        return enabled;
-    }
-
     async readCurrentRefreshToken(
         input: OAuthRefreshSelection<C> & CredentialSelectionSource,
         trx: Knex,
@@ -152,14 +113,6 @@ export class OAuthCredentialRefreshSource<
                             owner.uuid,
                             trx,
                         );
-                    break;
-                case 'organization':
-                    credentials = (
-                        await this.deps.organizationWarehouseCredentialsModel.getByUuidWithSensitiveData(
-                            owner.uuid,
-                            trx,
-                        )
-                    ).credentials;
                     break;
                 case 'user':
                     if (!refreshSource)
@@ -273,14 +226,6 @@ export class OAuthCredentialRefreshSource<
             switch (owner.kind) {
                 case 'project':
                     await this.deps.projectModel.rotateRefreshToken(
-                        owner.uuid,
-                        oldRefreshToken,
-                        newRefreshToken,
-                        ...(trx ? [trx] : []),
-                    );
-                    break;
-                case 'organization':
-                    await this.deps.organizationWarehouseCredentialsModel.rotateRefreshToken(
                         owner.uuid,
                         oldRefreshToken,
                         newRefreshToken,

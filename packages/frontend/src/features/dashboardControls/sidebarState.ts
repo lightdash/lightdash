@@ -2,11 +2,9 @@ import {
     type DashboardFilterRule,
     type DashboardFilters,
 } from '@lightdash/common';
-import isEqual from 'lodash/isEqual';
-import isUndefined from 'lodash/isUndefined';
-import omit from 'lodash/omit';
-import omitBy from 'lodash/omitBy';
+import { isEqual, isUndefined, omit, omitBy } from 'es-toolkit/compat';
 import { hasFilterValueSet } from '../dashboardFilters/FilterConfiguration/utils';
+import { type ControlsSidebarContextValue } from './useControlsSidebar';
 
 export type ControlsSidebarSnapshot = {
     dashboardFilters: DashboardFilters;
@@ -17,6 +15,23 @@ export type ControlsSidebarSnapshot = {
 export const PLACEHOLDER_TARGET = { fieldId: '', tableName: '' };
 export const isPlaceholderRule = (rule: DashboardFilterRule): boolean =>
     rule.target.fieldId === '';
+
+// Until its field is picked a new filter has no pill: the editor anchors on
+// the section "+" it was started from, else on the bar's "Add filter"
+export const isPickingNewField = (c: ControlsSidebarContextValue) =>
+    c.isSidebarOpen && c.isNew && c.isPlaceholder;
+
+export const isNewFilterIn = (
+    c: ControlsSidebarContextValue,
+    sectionIds: string[],
+): boolean =>
+    isPickingNewField(c) && sectionIds.includes(c.editingRule?.sectionId ?? '');
+
+// A folded section renders no pills, so its "+" holds the editor of a member
+export const isEditingIn = (
+    c: ControlsSidebarContextValue,
+    sectionId: string,
+): boolean => c.isSidebarOpen && c.editingRule?.sectionId === sectionId;
 
 export const findFilterRule = (
     filters: DashboardFilters,
@@ -115,6 +130,17 @@ export const haveOtherFilterRulesChanged = (
         );
     });
 
+// Section membership applies to the dashboard at once, so it is never undone
+export const withSectionOf = (
+    saved: DashboardFilterRule,
+    now: DashboardFilterRule,
+): DashboardFilterRule => {
+    if (saved.sectionId === now.sectionId) return saved;
+    return now.sectionId === undefined
+        ? omit(saved, 'sectionId')
+        : { ...saved, sectionId: now.sectionId };
+};
+
 // Puts a rule of the snapshot back in the list the snapshot holds it in: in
 // place when it is still there, else out of any other list and at its index
 const putBackFilterRule = (
@@ -123,8 +149,10 @@ const putBackFilterRule = (
     saved: DashboardFilterRule,
 ): DashboardFilters => {
     const group = snapshot.metrics.includes(saved) ? 'metrics' : 'dimensions';
-    if (filters[group].some((rule) => rule.id === saved.id))
-        return replaceFilterRule(filters, saved);
+    const now = filters[group].find((rule) => rule.id === saved.id);
+    // Still there: it keeps its place and the section it is in now
+    if (now !== undefined)
+        return replaceFilterRule(filters, withSectionOf(saved, now));
     const others = removeFilterRule(filters, saved.id);
     const index = snapshot[group].indexOf(saved);
     return {
@@ -165,6 +193,20 @@ export const restoreFilterRules = (
             (next, saved) => putBackFilterRule(next, snapshot, saved),
             filters,
         );
+
+// Apply: the draft's version of the edited rule and of the other rules the
+// editor wrote goes onto the dashboard's filters, each in its current section
+export const applyDraft = (
+    filters: DashboardFilters,
+    draft: DashboardFilters,
+    filterId: string,
+    otherIds: string[],
+): DashboardFilters =>
+    restoreFilterRules(
+        restoreFilterRule(filters, draft, filterId),
+        draft,
+        otherIds,
+    );
 
 // What the dashboard's "changed" flag is once the editor is done
 export const haveFiltersChangedSince = (

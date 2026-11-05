@@ -2,10 +2,7 @@
     padding: var(--mantine-spacing-md);
     border-radius: var(--mantine-radius-md);
     border: 1px solid var(--mantine-color-default-border);
-    background-color: light-dark(
-        var(--mantine-color-ldGray-0),
-        var(--mantine-color-dark-6)
-    );
+    background-color: var(--mantine-color-ldGray-0);
 }
 
 /* Line the subtitle up under the title, past the icon and its gap. */

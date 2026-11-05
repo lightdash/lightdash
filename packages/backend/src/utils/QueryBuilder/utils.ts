@@ -50,7 +50,7 @@ import {
     type FindTablesWithMetricInflationArgs,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
-import { isArray } from 'lodash';
+import { isArray } from 'es-toolkit/compat';
 import { hasUserAttribute } from '../../services/UserAttributesService/UserAttributeUtils';
 
 export {

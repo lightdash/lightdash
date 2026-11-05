@@ -1,12 +1,16 @@
 import { createContext, useContext } from 'react';
 
-/** The public class names an embed puts on the rail (default none). */
+/** The public class names an embed puts on the filter editor (default none). */
 export type RailContractClassNames = {
     rail: string;
     /** The field search's list while a filter is added. */
     addFilterDropdown: string;
     /** The value inputs' lists of the filter being edited. */
     filterDropdown: string;
+    /** Each parameter pill. */
+    parameter: string;
+    /** The parameter popover. */
+    parameterDropdown: string;
 };
 
 export const RailContractClasses = createContext<RailContractClassNames | null>(

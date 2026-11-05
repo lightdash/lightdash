@@ -11,8 +11,14 @@ import DbtSettingsForm from './DbtSettingsForm';
 import { FormProvider, useForm } from './formContext';
 import { ProjectFormProvider } from './ProjectFormProvider';
 
+const useGithubConfig = vi.hoisted(() =>
+    vi.fn((_enabled?: boolean) => ({
+        data: { enabled: true, installationId: '123' },
+    })),
+);
+
 vi.mock('../common/GithubIntegration/hooks/useGithubIntegration', () => ({
-    useGithubConfig: () => ({ data: { enabled: true, installationId: '123' } }),
+    useGithubConfig,
     useGitHubRepositories: () => ({ data: [{ fullName: 'org/native' }] }),
 }));
 
@@ -136,5 +142,13 @@ describe('native GitHub connection form', () => {
             screen.queryByLabelText('Semantic layer format'),
         ).not.toBeInTheDocument();
         expect(screen.getByLabelText('Target name')).toBeInTheDocument();
+    });
+
+    it('does not fetch the GitHub install outside the onboarding repo step', () => {
+        renderWithProviders(<FormHarness bitbucket />);
+        expect(useGithubConfig).toHaveBeenCalled();
+        expect(
+            useGithubConfig.mock.calls.every(([enabled]) => enabled === false),
+        ).toBe(true);
     });
 });

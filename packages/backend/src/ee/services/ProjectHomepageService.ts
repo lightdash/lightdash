@@ -3,7 +3,6 @@ import {
     ANNOUNCEMENT_BODY_MAX_LENGTH,
     ANNOUNCEMENT_CATEGORY_META,
     assertUnreachable,
-    CommercialFeatureFlags,
     ContentAsCodeType,
     convertOrganizationRoleToProjectRole,
     defaultHomepageConfig,
@@ -47,7 +46,6 @@ import { randomUUID } from 'crypto';
 import { type Readable } from 'stream';
 import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { toSessionUser } from '../../auth/account';
-import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { type SlackClient } from '../../clients/Slack/SlackClient';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { type GroupsModel } from '../../models/GroupsModel';
@@ -56,7 +54,6 @@ import { type SlackAuthenticationModel } from '../../models/SlackAuthenticationM
 import { type UserModel } from '../../models/UserModel';
 import { BaseService } from '../../services/BaseService';
 import type { DocumentService } from '../../services/DocumentService/DocumentService';
-import { type FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { type PersistentDownloadFileService } from '../../services/PersistentDownloadFileService/PersistentDownloadFileService';
 import type { RecentContentService } from '../../services/RecentContentService/RecentContentService';
 import {
@@ -218,14 +215,12 @@ export type ProjectHomepageServiceArguments = {
         | 'upsertAsCode'
     >;
     analytics: Pick<LightdashAnalytics, 'track'>;
-    featureFlagService: Pick<FeatureFlagService, 'get'>;
     groupsModel: Pick<GroupsModel, 'findUserGroups'>;
     projectModel: Pick<
         ProjectModel,
         'getProjectMemberAccess' | 'getProjectGroupAccesses' | 'getSummary'
     >;
     userModel: Pick<UserModel, 'getUserDetailsByUuid'>;
-    fileStorageClient: FileStorageClient;
     persistentDownloadFileService: PersistentDownloadFileService;
     slackClient: Pick<SlackClient, 'postMessage'>;
     slackAuthenticationModel: Pick<
@@ -246,15 +241,11 @@ export class ProjectHomepageService extends BaseService {
 
     private readonly analytics: ProjectHomepageServiceArguments['analytics'];
 
-    private readonly featureFlagService: ProjectHomepageServiceArguments['featureFlagService'];
-
     private readonly groupsModel: ProjectHomepageServiceArguments['groupsModel'];
 
     private readonly projectModel: ProjectHomepageServiceArguments['projectModel'];
 
     private readonly userModel: ProjectHomepageServiceArguments['userModel'];
-
-    private readonly fileStorageClient: ProjectHomepageServiceArguments['fileStorageClient'];
 
     private readonly persistentDownloadFileService: ProjectHomepageServiceArguments['persistentDownloadFileService'];
 
@@ -272,11 +263,9 @@ export class ProjectHomepageService extends BaseService {
         this.projectHomepageModel = args.projectHomepageModel;
         this.recentContentService = args.recentContentService;
         this.analytics = args.analytics;
-        this.featureFlagService = args.featureFlagService;
         this.groupsModel = args.groupsModel;
         this.projectModel = args.projectModel;
         this.userModel = args.userModel;
-        this.fileStorageClient = args.fileStorageClient;
         this.persistentDownloadFileService = args.persistentDownloadFileService;
         this.slackClient = args.slackClient;
         this.slackAuthenticationModel = args.slackAuthenticationModel;
@@ -284,22 +273,15 @@ export class ProjectHomepageService extends BaseService {
         this.schedulerClient = args.schedulerClient;
     }
 
-    // Homepage v2 is on when the org opted in via settings OR the commercial
-    // flag is set — the flag remains as the legacy enablement path and
-    // kill-switch while the opt-in flow rolls out.
+    // On by default; an org is off only after an admin switched back to the
+    // classic homepage. Must match useHomepageBuilderFlag in the frontend.
     private async isHomepageEnabled(user: SessionUser): Promise<boolean> {
-        if (user.organizationUuid) {
-            const settings =
-                await this.projectHomepageModel.findOrgHomepageSettings(
-                    user.organizationUuid,
-                );
-            if (settings?.enabled) return true;
-        }
-        const flag = await this.featureFlagService.get({
-            user,
-            featureFlagId: CommercialFeatureFlags.HomepageBuilder,
-        });
-        return flag.enabled;
+        if (!user.organizationUuid) return false;
+        const settings =
+            await this.projectHomepageModel.findOrgHomepageSettings(
+                user.organizationUuid,
+            );
+        return settings?.enabled ?? true;
     }
 
     private async assertFlagEnabled(user: SessionUser): Promise<void> {
@@ -321,7 +303,7 @@ export class ProjectHomepageService extends BaseService {
         return (
             settings ?? {
                 organizationUuid: user.organizationUuid,
-                enabled: false,
+                enabled: true,
                 opening: null,
             }
         );
@@ -1648,17 +1630,12 @@ export class ProjectHomepageService extends BaseService {
                 bufferedUpload,
             );
 
-        const storageId = `${announcementImageS3Prefix(
-            projectUuid,
-        )}${randomUUID()}`;
-        const s3Key = `${storageId}.png`;
-
-        await this.fileStorageClient.uploadImage(normalizedImage, storageId);
-
         const persistentUrl =
-            await this.persistentDownloadFileService.createPersistentUrl({
-                s3Key,
-                fileType: 'image',
+            await this.persistentDownloadFileService.uploadPersistentImage({
+                image: normalizedImage,
+                storageId: `${announcementImageS3Prefix(
+                    projectUuid,
+                )}${randomUUID()}`,
                 organizationUuid: user.organizationUuid,
                 projectUuid,
                 createdByUserUuid: user.userUuid,

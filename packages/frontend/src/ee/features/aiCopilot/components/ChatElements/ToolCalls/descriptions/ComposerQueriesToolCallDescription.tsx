@@ -10,9 +10,11 @@ import {
     Group,
     Stack,
     Text,
+    Tooltip,
     UnstyledButton,
 } from '@mantine/core';
 import {
+    IconApi,
     IconBrandPython,
     IconChevronRight,
     IconDatabase,
@@ -24,6 +26,13 @@ import { clsx } from 'clsx';
 import { useMemo, useState, type FC } from 'react';
 import CodeBlock from '../../../../../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../../../../../components/common/MantineIcon';
+import {
+    useApiSourceExploreConnectionUuid,
+    useLiveSourceExplore,
+} from '../../../../../../../features/externalConnections/liveSources/apiSourceExplore';
+import { getLiveSource } from '../../../../../../../features/externalConnections/liveSources/liveSourceCatalog';
+import { LiveSourceIcon } from '../../../../../../../features/externalConnections/liveSources/LiveSourceIcon';
+import { useLiveSourceConnection } from '../../../../../../../features/externalConnections/liveSources/useLiveSourceConnection';
 import { useCanViewAiAgentSql } from '../../../../hooks/useCanViewAiAgentSql';
 import {
     useComposerNodeStatusLabel,
@@ -57,6 +66,14 @@ const referenceAliases = (items: string[] | Record<string, string>) =>
 // Reads of nodes from earlier versions have no title in this submission
 const referenceTargets = (items: string[] | Record<string, string>) =>
     Array.isArray(items) ? items : Object.values(items);
+
+// One look for every query on a live data source, through its explore or an
+// api node from an older thread.
+const LIVE_SOURCE_PRESENTATION = {
+    icon: IconApi,
+    badge: 'Live data source',
+    detail: '',
+} as const;
 
 const getNodePresentation = (
     node: ToolComposerQueryNode,
@@ -103,7 +120,19 @@ const getNodePresentation = (
                 detail: `Reads ${references.join(', ')}`,
             } as const;
         }
+        case QuerySourceType.API:
+            return LIVE_SOURCE_PRESENTATION;
     }
+};
+
+/** A live data source explore reads by its label, e.g. "Events". */
+const NodeExploreName: FC<{ exploreName: string }> = ({ exploreName }) => {
+    const liveSource = useLiveSourceExplore(exploreName);
+    return (
+        <Text size="xs" c="dimmed">
+            {liveSource?.label ?? exploreName}
+        </Text>
+    );
 };
 
 const NodeBody: FC<{ node: ToolComposerQueryNode }> = ({ node }) => {
@@ -112,9 +141,7 @@ const NodeBody: FC<{ node: ToolComposerQueryNode }> = ({ node }) => {
     if (node.sourceType === QuerySourceType.SEMANTIC_LAYER) {
         return (
             <Group gap={4} wrap="wrap">
-                <Text size="xs" c="dimmed">
-                    {node.exploreName}
-                </Text>
+                <NodeExploreName exploreName={node.exploreName} />
                 {[...node.dimensions, ...node.metrics].map((fieldId) => (
                     <ToolCallChip key={fieldId}>{fieldId}</ToolCallChip>
                 ))}
@@ -125,7 +152,29 @@ const NodeBody: FC<{ node: ToolComposerQueryNode }> = ({ node }) => {
         if (!canViewSql || !node.code) return null;
         return (
             <Box className={sqlBlockStyles.code}>
-                <CodeBlock code={node.code} language="python" />
+                <CodeBlock
+                    code={node.code}
+                    language="python"
+                    classNames={{
+                        codeHighlight: sqlBlockStyles.codeHighlight,
+                        code: sqlBlockStyles.codeInner,
+                    }}
+                />
+            </Box>
+        );
+    }
+    if (node.sourceType === QuerySourceType.API) {
+        if (!canViewSql || !node.payload.query) return null;
+        return (
+            <Box className={sqlBlockStyles.code}>
+                <CodeBlock
+                    code={node.payload.query}
+                    language="sql"
+                    classNames={{
+                        codeHighlight: sqlBlockStyles.codeHighlight,
+                        code: sqlBlockStyles.codeInner,
+                    }}
+                />
             </Box>
         );
     }
@@ -149,10 +198,23 @@ const ComposerQueryNode: FC<{
     nodeStatus?: ComposerQueryNodeStatus;
     approval?: SqlApprovalTarget;
 }> = ({ node, titlesByNodeId, nodeStatus, approval }) => {
-    const presentation = getNodePresentation(node, titlesByNodeId);
+    const exploreConnectionUuid = useApiSourceExploreConnectionUuid(
+        node.sourceType === QuerySourceType.SEMANTIC_LAYER
+            ? node.exploreName
+            : null,
+    );
+    const liveSourceConnectionUuid =
+        node.sourceType === QuerySourceType.API
+            ? node.connectionUuid
+            : exploreConnectionUuid;
+    const liveSource = useLiveSourceConnection(liveSourceConnectionUuid);
+    const presentation = liveSourceConnectionUuid
+        ? LIVE_SOURCE_PRESENTATION
+        : getNodePresentation(node, titlesByNodeId);
     const active = isActiveStatus(nodeStatus);
-    // Active and failed nodes open by default; a user toggle wins until the status changes.
-    const defaultOpen = active || nodeStatus?.status === 'error';
+    // Only nodes awaiting approval open by default; a user toggle wins until
+    // the status changes.
+    const defaultOpen = nodeStatus?.status === 'awaiting_approval';
     const [userToggle, setUserToggle] = useState<{
         status: ComposerQueryNodeStatus['status'] | undefined;
         open: boolean;
@@ -192,13 +254,41 @@ const ComposerQueryNode: FC<{
                     {nodeStatus ? (
                         <NodeStatusIndicator status={nodeStatus.status} />
                     ) : null}
-                    <MantineIcon
-                        icon={presentation.icon}
-                        size={13}
-                        stroke={1.6}
-                        className={rowStyles.icon}
-                        data-status={active ? 'running' : undefined}
-                    />
+                    {liveSourceConnectionUuid ? (
+                        <Tooltip
+                            label={
+                                liveSource
+                                    ? getLiveSource(liveSource.connector).label
+                                    : null
+                            }
+                            disabled={!liveSource}
+                        >
+                            <Box
+                                component="span"
+                                display="inline-flex"
+                                role="img"
+                                aria-label={
+                                    liveSource
+                                        ? getLiveSource(liveSource.connector)
+                                              .label
+                                        : presentation.badge
+                                }
+                            >
+                                <LiveSourceIcon
+                                    connector={liveSource?.connector ?? null}
+                                    size={13}
+                                />
+                            </Box>
+                        </Tooltip>
+                    ) : (
+                        <MantineIcon
+                            icon={presentation.icon}
+                            size={13}
+                            stroke={1.6}
+                            className={rowStyles.icon}
+                            data-status={active ? 'running' : undefined}
+                        />
+                    )}
                     <Text size="xs" className={rowStyles.label} truncate>
                         {node.title ?? node.nodeId}
                     </Text>
@@ -209,7 +299,7 @@ const ComposerQueryNode: FC<{
                         truncate
                         className={styles.detail}
                     >
-                        {presentation.detail}
+                        {liveSource?.name ?? presentation.detail}
                     </Text>
                     {statusText ? (
                         <Text

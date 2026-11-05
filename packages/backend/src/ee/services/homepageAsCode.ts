@@ -210,6 +210,7 @@ export const downloadHomepageConfig = (
             case 'metrics':
             case 'favorites':
             case 'recent':
+            case 'learn':
                 return value;
             default:
                 return assertUnreachable(value, 'Homepage block');
@@ -320,6 +321,7 @@ export const uploadHomepageConfig = (
             case 'metrics':
             case 'favorites':
             case 'recent':
+            case 'learn':
                 return value;
             default:
                 return assertUnreachable(value, 'Homepage block');

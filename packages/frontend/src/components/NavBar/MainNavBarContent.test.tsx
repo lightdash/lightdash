@@ -40,6 +40,12 @@ vi.mock('./UserMenu', () => ({
 
 vi.mock('./ExploreMenu', () => ({ default: () => null }));
 vi.mock('./BrowseMenu', () => ({ default: () => null }));
+vi.mock(
+    '../../ee/features/agentOnboarding/AgentOnboardingNavIndicator',
+    () => ({
+        AgentOnboardingNavIndicator: () => null,
+    }),
+);
 vi.mock('./SettingsMenu', () => ({ default: () => null }));
 vi.mock('./HelpMenu', () => ({ default: () => null }));
 vi.mock('./HeadwayMenuItem', () => ({ default: () => null }));
@@ -51,6 +57,7 @@ vi.mock('./SharedSignInExpiryListener', () => ({
     SharedSignInExpiryListener: () => null,
 }));
 vi.mock('../../features/learn/LearnLink', () => ({ LearnLink: () => null }));
+vi.mock('./NavBarLogo', () => ({ NavBarLogo: () => null }));
 
 describe('MainNavBarContent compact navigation', () => {
     it('keeps project and account controls in the navigation drawer', async () => {

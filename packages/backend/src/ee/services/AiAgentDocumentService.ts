@@ -1,11 +1,11 @@
 import { subject } from '@casl/ability';
 import {
     AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES,
-    AI_AGENT_DOCUMENT_MAX_NAME_LENGTH,
     AI_AGENT_DOCUMENT_ORG_QUOTA_BYTES,
     AiAgent,
     AiAgentDocument,
     AiAgentDocumentContent,
+    AiAgentDocumentListItem,
     AiAgentDocumentSummary,
     ApiCreateAgentDocument,
     ApiCreateAiAgentDocument,
@@ -13,6 +13,7 @@ import {
     ApiUpdateAgentDocumentContent,
     Explore,
     ForbiddenError,
+    normalizeAiAgentDocumentName,
     NotFoundError,
     ParameterError,
     PayloadTooLargeError,
@@ -26,8 +27,15 @@ import {
     LightdashAnalytics,
 } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
+import { type ContentAsCodeProjectSettingsModel } from '../../models/ContentAsCodeProjectSettingsModel';
+import {
+    AI_AGENT_KNOWLEDGE_DOCUMENT_SNAPSHOT_TYPE,
+    getKnowledgeDocumentSnapshotSlug,
+    type ContentAsCodeSnapshotModel,
+} from '../../models/ContentAsCodeSnapshotModel';
 import { BaseService } from '../../services/BaseService';
 import { AiAgentDocumentModel } from '../models/AiAgentDocumentModel';
+import { type AiAgentModel } from '../models/AiAgentModel';
 import {
     createFallbackDocumentSummary,
     generateDocumentSummary,
@@ -73,12 +81,23 @@ export type AiAgentDocumentScope = {
     agentUuid: string;
 };
 
+// 'repo' is the content-as-code upload, the one writer a Git-backed document
+// still accepts; everything else, including API calls, is 'ui'.
+export type AiAgentDocumentWriteSource = 'ui' | 'repo';
+
+type OrganizationDocumentScope = AiAgentDocumentScope & {
+    organizationUuid: string;
+};
+
 type AiAgentDocumentServiceDependencies = {
     analytics: LightdashAnalytics;
     aiAgentDocumentModel: AiAgentDocumentModel;
     aiAgentService: AiAgentService;
     lightdashConfig: LightdashConfig;
     orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
+    contentAsCodeProjectSettingsModel: ContentAsCodeProjectSettingsModel;
+    contentAsCodeSnapshotModel: ContentAsCodeSnapshotModel;
+    aiAgentModel: AiAgentModel;
 };
 
 export class AiAgentDocumentService extends BaseService {
@@ -92,6 +111,12 @@ export class AiAgentDocumentService extends BaseService {
 
     private readonly orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
 
+    private readonly contentAsCodeProjectSettingsModel: ContentAsCodeProjectSettingsModel;
+
+    private readonly contentAsCodeSnapshotModel: ContentAsCodeSnapshotModel;
+
+    private readonly aiAgentModel: AiAgentModel;
+
     constructor(dependencies: AiAgentDocumentServiceDependencies) {
         super();
         this.analytics = dependencies.analytics;
@@ -100,6 +125,89 @@ export class AiAgentDocumentService extends BaseService {
         this.lightdashConfig = dependencies.lightdashConfig;
         this.orgAiCopilotConfigResolver =
             dependencies.orgAiCopilotConfigResolver;
+        this.contentAsCodeProjectSettingsModel =
+            dependencies.contentAsCodeProjectSettingsModel;
+        this.contentAsCodeSnapshotModel =
+            dependencies.contentAsCodeSnapshotModel;
+        this.aiAgentModel = dependencies.aiAgentModel;
+    }
+
+    // Under content_as_code.sync a document the repo last applied accepts no
+    // other writer, whoever the user is; documents nobody uploaded stay editable.
+    private async assertNotGitBacked(
+        source: AiAgentDocumentWriteSource,
+        scope: OrganizationDocumentScope,
+        documentName: string,
+    ): Promise<void> {
+        if (source === 'repo') return;
+        const managed = await this.findGitBackedDocumentNames(scope, [
+            documentName,
+        ]);
+        if (!managed.has(documentName)) return;
+        throw new ForbiddenError(
+            'This knowledge document is managed by Content as Code and can only be changed from the repository.',
+            { contentAsCodeManaged: true },
+        );
+    }
+
+    private async findAgentSlug({
+        organizationUuid,
+        projectUuid,
+        agentUuid,
+    }: OrganizationDocumentScope): Promise<string | undefined> {
+        const [agent] = await this.aiAgentModel.findAgentsForCode({
+            organizationUuid,
+            projectUuid,
+            agentUuids: [agentUuid],
+        });
+        return agent?.slug;
+    }
+
+    // A stamp outliving its document would lock the next document of that
+    // name, so every delete or rename drops it, whatever the sync setting.
+    private async dropGitBackedStamp(
+        scope: OrganizationDocumentScope,
+        documentName: string,
+    ): Promise<void> {
+        const agentSlug = await this.findAgentSlug(scope);
+        if (agentSlug === undefined) return;
+        await this.contentAsCodeSnapshotModel.delete(
+            scope.projectUuid,
+            AI_AGENT_KNOWLEDGE_DOCUMENT_SNAPSHOT_TYPE,
+            getKnowledgeDocumentSnapshotSlug(agentSlug, documentName),
+        );
+    }
+
+    private async findGitBackedDocumentNames(
+        { organizationUuid, projectUuid, agentUuid }: OrganizationDocumentScope,
+        names: string[],
+    ): Promise<Set<string>> {
+        const settings =
+            await this.contentAsCodeProjectSettingsModel.get(projectUuid);
+        if (!settings?.syncEnabled) return new Set();
+        const agentSlug = await this.findAgentSlug({
+            organizationUuid,
+            projectUuid,
+            agentUuid,
+        });
+        if (agentSlug === undefined) return new Set();
+        const slugByName = new Map(
+            names.map((name) => [
+                name,
+                getKnowledgeDocumentSnapshotSlug(agentSlug, name),
+            ]),
+        );
+        const stamped = await this.contentAsCodeSnapshotModel.findSlugs(
+            projectUuid,
+            AI_AGENT_KNOWLEDGE_DOCUMENT_SNAPSHOT_TYPE,
+            [...slugByName.values()],
+        );
+        return new Set(
+            names.filter((name) => {
+                const slug = slugByName.get(name);
+                return slug !== undefined && stamped.has(slug);
+            }),
+        );
     }
 
     /**
@@ -217,18 +325,26 @@ export class AiAgentDocumentService extends BaseService {
     async listDocuments(
         user: SessionUser,
         { projectUuid, agentUuid }: AiAgentDocumentScope,
-    ): Promise<AiAgentDocumentSummary[]> {
+    ): Promise<AiAgentDocumentListItem[]> {
         const organizationUuid = assertOrganizationUuid(user);
         await this.assertCopilotEnabled(user);
         this.assertCanViewDocuments(user, organizationUuid, projectUuid);
         // Throws if the agent does not exist in this project
         await this.aiAgentService.getAgent(user, agentUuid, projectUuid);
 
-        return this.aiAgentDocumentModel.findAllForAgent({
+        const documents = await this.aiAgentDocumentModel.findAllForAgent({
             organizationUuid,
             agentUuid,
             projectUuid,
         });
+        const managedNames = await this.findGitBackedDocumentNames(
+            { organizationUuid, projectUuid, agentUuid },
+            documents.map(({ name }) => name),
+        );
+        return documents.map((document) => ({
+            ...document,
+            managedByContentAsCode: managedNames.has(document.name),
+        }));
     }
 
     async createDocument(
@@ -285,6 +401,7 @@ export class AiAgentDocumentService extends BaseService {
         { projectUuid, agentUuid }: AiAgentDocumentScope,
         documentUuid: string,
         body: ApiUpdateAgentDocumentContent,
+        source: AiAgentDocumentWriteSource = 'ui',
     ): Promise<AiAgentDocument> {
         const organizationUuid = assertOrganizationUuid(user);
         await this.assertCopilotEnabled(user);
@@ -314,14 +431,17 @@ export class AiAgentDocumentService extends BaseService {
             organizationUuid,
             existing.projectUuid,
         );
+        await this.assertNotGitBacked(
+            source,
+            { organizationUuid, projectUuid, agentUuid },
+            existing.name,
+        );
 
-        const name = body.name.trim();
-        if (name.length === 0) {
-            throw new ParameterError('Document name cannot be empty');
-        }
-        if (name.length > AI_AGENT_DOCUMENT_MAX_NAME_LENGTH) {
-            throw new ParameterError(
-                `Document name cannot exceed ${AI_AGENT_DOCUMENT_MAX_NAME_LENGTH} characters`,
+        const name = normalizeAiAgentDocumentName(body.name);
+        if (existing.name.trim() !== name) {
+            await this.dropGitBackedStamp(
+                { organizationUuid, projectUuid, agentUuid },
+                existing.name,
             );
         }
 
@@ -394,6 +514,9 @@ export class AiAgentDocumentService extends BaseService {
             organizationUuid,
             name,
             content: body.content,
+            ...(body.mimeType !== undefined
+                ? { mimeType: normalizeMimeType(body.mimeType, '') }
+                : {}),
             summary,
             updatedByUserUuid: user.userUuid,
         });
@@ -418,6 +541,7 @@ export class AiAgentDocumentService extends BaseService {
         { projectUuid, agentUuid }: AiAgentDocumentScope,
         documentUuid: string,
         body: ApiUpdateAgentDocument,
+        source: AiAgentDocumentWriteSource = 'ui',
     ): Promise<void> {
         const organizationUuid = assertOrganizationUuid(user);
         await this.assertCopilotEnabled(user);
@@ -441,6 +565,11 @@ export class AiAgentDocumentService extends BaseService {
             user,
             organizationUuid,
             existing.projectUuid,
+        );
+        await this.assertNotGitBacked(
+            source,
+            { organizationUuid, projectUuid, agentUuid },
+            existing.name,
         );
 
         await this.aiAgentDocumentModel.updateAlwaysIncludeInContext({
@@ -480,6 +609,7 @@ export class AiAgentDocumentService extends BaseService {
         },
     ): Promise<AiAgentDocument> {
         await this.assertNotTrainingProject(scope.projectUuid, 'added');
+        const name = normalizeAiAgentDocumentName(body.name);
         const contentBytes = Buffer.byteLength(body.content, 'utf8');
         if (contentBytes > AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES) {
             throw new PayloadTooLargeError(
@@ -514,16 +644,16 @@ export class AiAgentDocumentService extends BaseService {
         let summary: AiAgentDocument['summary'];
         try {
             summary = await this.generateSummary(user, organizationUuid, {
-                name: body.name,
+                name,
                 content: body.content,
                 projectUuid: scope.projectUuid,
                 projectExplores: scope.projectExplores,
             });
         } catch (error) {
             this.logger.error(
-                `Failed to generate summary for document "${body.name}", storing a fallback summary: ${error}`,
+                `Failed to generate summary for document "${name}", storing a fallback summary: ${error}`,
             );
-            summary = createFallbackDocumentSummary(body.name);
+            summary = createFallbackDocumentSummary(name);
         }
 
         const storageKey = `org/${organizationUuid}/doc/${uuidv4()}.${
@@ -533,7 +663,7 @@ export class AiAgentDocumentService extends BaseService {
         const document = await this.aiAgentDocumentModel.create({
             organizationUuid,
             projectUuid: scope.projectUuid,
-            name: body.name,
+            name,
             originalFilename: body.originalFilename,
             mimeType,
             content: body.content,
@@ -563,6 +693,7 @@ export class AiAgentDocumentService extends BaseService {
         user: SessionUser,
         { projectUuid, agentUuid }: AiAgentDocumentScope,
         documentUuid: string,
+        source: AiAgentDocumentWriteSource = 'ui',
     ): Promise<void> {
         const organizationUuid = assertOrganizationUuid(user);
         await this.assertCopilotEnabled(user);
@@ -588,8 +719,17 @@ export class AiAgentDocumentService extends BaseService {
             organizationUuid,
             existing.projectUuid,
         );
+        await this.assertNotGitBacked(
+            source,
+            { organizationUuid, projectUuid, agentUuid },
+            existing.name,
+        );
 
         await this.aiAgentDocumentModel.delete(documentUuid);
+        await this.dropGitBackedStamp(
+            { organizationUuid, projectUuid, agentUuid },
+            existing.name,
+        );
 
         this.analytics.track<AiAgentDocumentDeletedEvent>({
             event: 'ai_agent_document.deleted',
@@ -608,7 +748,7 @@ export class AiAgentDocumentService extends BaseService {
     async listOrganizationDocuments(
         user: SessionUser,
         { projectUuid }: { projectUuid?: string | null } = {},
-    ): Promise<AiAgentDocumentSummary[]> {
+    ): Promise<AiAgentDocumentListItem[]> {
         const organizationUuid = assertOrganizationUuid(user);
         await this.assertCopilotEnabled(user);
         this.assertCanViewDocuments(
@@ -616,10 +756,17 @@ export class AiAgentDocumentService extends BaseService {
             organizationUuid,
             projectUuid ?? null,
         );
-        return this.aiAgentDocumentModel.findAllForOrganization({
-            organizationUuid,
-            projectUuid,
-        });
+        // This route predates Content as Code management; the agent-scoped
+        // list is the one that reports it.
+        const documents =
+            await this.aiAgentDocumentModel.findAllForOrganization({
+                organizationUuid,
+                projectUuid,
+            });
+        return documents.map((document) => ({
+            ...document,
+            managedByContentAsCode: false,
+        }));
     }
 
     /**
@@ -733,7 +880,30 @@ export class AiAgentDocumentService extends BaseService {
             organizationUuid,
             existing.projectUuid,
         );
+        const grantedScopes = existing.projectUuid
+            ? existing.agentAccess.map((agentUuid) => ({
+                  organizationUuid,
+                  projectUuid: existing.projectUuid as string,
+                  agentUuid,
+              }))
+            : [];
+        const managedFor = await Promise.all(
+            grantedScopes.map((scope) =>
+                this.findGitBackedDocumentNames(scope, [existing.name]),
+            ),
+        );
+        if (managedFor.some((names) => names.has(existing.name))) {
+            throw new ForbiddenError(
+                'This knowledge document is managed by Content as Code and can only be changed from the repository.',
+                { contentAsCodeManaged: true },
+            );
+        }
         await this.aiAgentDocumentModel.delete(documentUuid);
+        await Promise.all(
+            grantedScopes.map((scope) =>
+                this.dropGitBackedStamp(scope, existing.name),
+            ),
+        );
 
         this.analytics.track<AiAgentDocumentDeletedEvent>({
             event: 'ai_agent_document.deleted',

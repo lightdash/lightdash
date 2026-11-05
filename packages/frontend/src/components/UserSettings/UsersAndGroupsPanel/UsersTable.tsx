@@ -55,6 +55,7 @@ import MantineIcon from '../../common/MantineIcon';
 import ConfirmAdminSelfDowngradeModal from './ConfirmAdminSelfDowngradeModal';
 import InviteSuccess from './InviteSuccess';
 import UsersActionMenu from './UsersActionMenu';
+import tableClasses from './UsersAndGroupsTable.module.css';
 import { UsersTopToolbar } from './UsersTopToolbar';
 
 const fetchSize = 50;
@@ -478,52 +479,17 @@ const UsersTable: FC = () => {
         enableTopToolbar: true,
         mantineTableContainerProps: {
             ref: tableContainerRef,
-            style: { maxHeight: 'calc(100dvh - 420px)' },
+            mah: 'calc(100dvh - 420px)',
             onScroll,
         },
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: Boolean(flatData.length),
         },
-        mantineTableHeadCellProps: (props) => {
-            const isLastColumn =
-                props.table.getAllColumns().indexOf(props.column) ===
-                props.table.getAllColumns().length - 1;
-
-            return {
-                bg: 'ldGray.0',
-                h: '3xl',
-                pos: 'relative',
-                style: {
-                    userSelect: 'none',
-                    padding: `${theme.spacing.xs} ${
-                        isCompact ? theme.spacing.md : theme.spacing.xl
-                    }`,
-                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderRight: props.column.getIsResizing()
-                        ? `2px solid ${theme.colors.blue[3]}`
-                        : `1px solid ${
-                              isLastColumn
-                                  ? 'transparent'
-                                  : theme.colors.ldGray[2]
-                          }`,
-                    borderTop: 'none',
-                    borderLeft: 'none',
-                },
-            };
-        },
-        mantineTableBodyCellProps: () => {
-            return {
-                style: {
-                    padding: `${theme.spacing.md} ${
-                        isCompact ? theme.spacing.md : theme.spacing.xl
-                    }`,
-                    borderRight: 'none',
-                    borderLeft: 'none',
-                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderTop: 'none',
-                },
-            };
+        mantineTableHeadCellProps: { px: isCompact ? 'md' : 'xl' },
+        mantineTableBodyCellProps: {
+            py: 'md',
+            px: isCompact ? 'md' : 'xl',
         },
         renderTopToolbar: () => (
             <UsersTopToolbar search={search} setSearch={setSearch} />
@@ -533,18 +499,13 @@ const UsersTable: FC = () => {
                 p={`${theme.spacing.sm} ${theme.spacing.xl} ${theme.spacing.md} ${theme.spacing.xl}`}
                 fz="xs"
                 fw={500}
-                c="ldGray.8"
-                style={{
-                    borderTop: `1px solid ${theme.colors.ldGray[3]}`,
-                }}
+                className={tableClasses.bottomToolbar}
             >
                 {isFetching ? (
-                    <Text c="ldGray.8" fz="xs">
-                        Loading more...
-                    </Text>
+                    <Text fz="xs">Loading more...</Text>
                 ) : (
                     <Group gap="two">
-                        <Text fz="xs" c="ldGray.8">
+                        <Text fz="xs">
                             {hasNextPage
                                 ? 'Scroll for more users'
                                 : 'All users loaded'}

@@ -48,6 +48,8 @@ export const OAUTH_UNCHECKED_OPERATIONS = {
     'MetricsExplorerController.runMetricSeries': 'read',
     'MetricsExplorerController.compileMetricTotalQuery': 'read',
     'OrganizationController.getOrganization': 'read',
+    'OrganizationBrandController.getOrganizationBrand': 'read',
+    'OrganizationBrandController.getOrganizationBrandLogo': 'read',
     'OrganizationController.createOrganization': 'write',
     'OrganizationController.getProjects': 'read',
     'OrganizationController.getUserSchedulersSummary': 'read',
@@ -227,6 +229,7 @@ export const OAUTH_UNCHECKED_OPERATIONS = {
     'DataAppAnalysisController.lookup': 'read',
     'DataAppAnalysisController.prompt': 'write',
     'DataAppAnalysisController.investigate': 'write',
+    'DataAppAnalysisController.investigateInstruction': 'write',
     'DataAppAnalysisController.getAnalysis': 'read',
     'DashboardAnalysisController.detect': 'write',
     'DashboardAnalysisController.lookup': 'read',
@@ -279,6 +282,7 @@ export const OAUTH_UNCHECKED_OPERATIONS = {
     'SlackController.get': 'read',
     'SlackController.getChannelById': 'read',
     'SlackController.updateCustomSettings': 'write',
+    'BigqueryController.getBigQueryDatasetsFromKeyfile': 'read',
     'BigquerySSOController.getBigQueryDatabases': 'read',
     'BigquerySSOController.getBigQueryProjects': 'read',
     'BigquerySSOController.getBigQueryProjectRecommendation': 'read',
@@ -299,7 +303,6 @@ export const OAUTH_UNCHECKED_OPERATIONS = {
     'organizationRouter.getActiveCreateProjectJob': 'read',
     'organizationRouter.getOnboarding': 'read',
     'organizationRouter.setOnboardingSuccessDate': 'write',
-    'dashboardRouter.getDashboardViews': 'read',
     'UserService.verifyEmail': 'write',
 } as const;
 

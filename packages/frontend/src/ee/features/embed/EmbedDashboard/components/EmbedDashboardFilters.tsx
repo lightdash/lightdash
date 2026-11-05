@@ -20,6 +20,7 @@ import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
 import { embedContractClass } from '../../styles/embedClassContract';
+import classes from './EmbedDashboardFilters.module.css';
 
 // Resets every filter once they changed, for viewers who cannot add filters
 // (with "Add filter", the button carries its own reset)
@@ -48,12 +49,7 @@ export const EmbedResetFiltersButton: FC = () => {
                     setHaveFiltersChanged(false);
                     resetDashboardFilters();
                 }}
-                styles={{
-                    root: {
-                        borderRadius: '100px',
-                        borderStyle: 'dashed',
-                    },
-                }}
+                classNames={{ root: classes.resetButton }}
             >
                 <MantineIcon icon={IconRotate2} />
             </Button>

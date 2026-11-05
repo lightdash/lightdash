@@ -34,13 +34,6 @@ export const ReviewPrDiffContent: FC<Props> = ({
 
     // Pierre's <Virtualizer> IS the scroll viewport its virtualizer tracks —
     // each file gets its own so off-screen rows render as you scroll.
-    const viewportStyle = {
-        maxHeight,
-        overflow: 'auto',
-        colorScheme,
-        '--diffs-font-size': '11px',
-        '--diffs-line-height': '17px',
-    } as CSSProperties;
 
     if (isLoading || !diff) {
         return (
@@ -68,7 +61,15 @@ export const ReviewPrDiffContent: FC<Props> = ({
                         radius="md"
                         className={classes.diffPanel}
                     >
-                        <Virtualizer style={viewportStyle}>
+                        <Virtualizer
+                            className={classes.diffViewport}
+                            style={
+                                {
+                                    '--diff-color-scheme': colorScheme,
+                                    '--diff-max-height': maxHeight,
+                                } as CSSProperties
+                            }
+                        >
                             <MultiFileDiff
                                 oldFile={{
                                     name: file.path,
@@ -80,7 +81,7 @@ export const ReviewPrDiffContent: FC<Props> = ({
                                 }}
                                 // color-scheme must sit on the diff host
                                 // itself to override its `:host` default.
-                                style={{ colorScheme }}
+                                className={classes.diffHost}
                                 renderHeaderMetadata={() => (
                                     <Text fz="xs" c="dimmed">
                                         +{file.additions} −{file.deletions}

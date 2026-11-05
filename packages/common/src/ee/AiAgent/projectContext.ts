@@ -172,6 +172,16 @@ type ProjectContextFileEntry = Omit<
     [key: string]: unknown;
 };
 
+// Body of the CLI upload: the raw file, so the server derives ids and
+// validates with the same loader the Git ingest paths use.
+export type ApiReplaceProjectContextBody = {
+    yaml: string;
+};
+
+export type ApiReplaceProjectContextResults =
+    | { ingested: true; entryCount: number }
+    | { ingested: false; reason: 'ai_agent_reviews_disabled' };
+
 // Judge-emitted write-path entry (op + nullable id, no global). Mirrors
 // aiAgentJudgeProjectContextEntrySchema; redeclared here to keep this module
 // free of the review-classifier types.

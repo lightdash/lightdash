@@ -24,9 +24,13 @@ import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { UpdateDBProjectGroupAccess } from '../database/entities/projectGroupAccess';
 import { GroupsModel } from '../models/GroupsModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
-import { assertHumanManagedMutation } from './AgentPermissionService/assertHumanManagedMutation';
+import {
+    assertHumanAgentPolicyMutation,
+    assertHumanManagedMutation,
+} from './AgentPermissionService/assertHumanManagedMutation';
 import { BaseService } from './BaseService';
 import { FeatureFlagService } from './FeatureFlag/FeatureFlagService';
+import { recordGroupMembershipChange } from './groupMembershipAudit';
 
 type GroupServiceArguments = {
     analytics: LightdashAnalytics;
@@ -169,7 +173,7 @@ export class GroupsService extends BaseService {
         organizationUuid: string,
         groupInput: GroupAsCode,
     ): Promise<ApiGroupAsCodeUpsertResponse['results']> {
-        await assertHumanManagedMutation({
+        await assertHumanAgentPolicyMutation({
             organizationUuid: account.organization.organizationUuid,
             ability: account.user.ability,
             oauth: account.authentication.type === 'oauth',
@@ -190,6 +194,15 @@ export class GroupsService extends BaseService {
         });
 
         if (result.action !== PromotionAction.NO_CHANGES) {
+            recordGroupMembershipChange(
+                account,
+                organizationUuid,
+                result.groupUuid,
+                {
+                    operation: 'replace',
+                    memberUuids: null,
+                },
+            );
             this.analytics.track({
                 userId: account.user.userUuid,
                 event:
@@ -231,7 +244,7 @@ export class GroupsService extends BaseService {
         user: SessionUser,
         member: GroupMembership,
     ): Promise<GroupMembership | undefined> {
-        await assertHumanManagedMutation({
+        await assertHumanAgentPolicyMutation({
             organizationUuid: user.organizationUuid,
             ability: user.ability,
             oauth: false,
@@ -263,6 +276,15 @@ export class GroupsService extends BaseService {
             [member.userUuid],
         );
         if (groupMembership) {
+            recordGroupMembershipChange(
+                user,
+                group.organizationUuid,
+                group.uuid,
+                {
+                    operation: 'add',
+                    memberUuids: [member.userUuid],
+                },
+            );
             const updatedGroup = await this.groupsModel.getGroupWithMembers(
                 member.groupUuid,
             );
@@ -287,7 +309,7 @@ export class GroupsService extends BaseService {
         user: SessionUser,
         member: GroupMembership,
     ): Promise<boolean> {
-        await assertHumanManagedMutation({
+        await assertHumanAgentPolicyMutation({
             organizationUuid: user.organizationUuid,
             ability: user.ability,
             oauth: false,
@@ -318,6 +340,15 @@ export class GroupsService extends BaseService {
             await this.groupsModel.removeGroupMember(member);
 
         if (isGroupMemberRemoved) {
+            recordGroupMembershipChange(
+                user,
+                group.organizationUuid,
+                group.uuid,
+                {
+                    operation: 'remove',
+                    memberUuids: [member.userUuid],
+                },
+            );
             const updatedGroup = await this.groupsModel.getGroupWithMembers(
                 member.groupUuid,
             );
@@ -338,7 +369,7 @@ export class GroupsService extends BaseService {
     }
 
     async delete(user: SessionUser, groupUuid: string): Promise<void> {
-        await assertHumanManagedMutation({
+        await assertHumanAgentPolicyMutation({
             organizationUuid: user.organizationUuid,
             ability: user.ability,
             oauth: false,
@@ -366,6 +397,10 @@ export class GroupsService extends BaseService {
             throw new ForbiddenError();
         }
         await this.groupsModel.deleteGroup(groupUuid);
+        recordGroupMembershipChange(user, group.organizationUuid, group.uuid, {
+            operation: 'delete',
+            memberUuids: null,
+        });
         this.analytics.track({
             userId: user.userUuid,
             event: 'group.deleted',
@@ -419,7 +454,7 @@ export class GroupsService extends BaseService {
         groupUuid: string,
         update: UpdateGroupWithMembers,
     ): Promise<Group | GroupWithMembers> {
-        await assertHumanManagedMutation({
+        await assertHumanAgentPolicyMutation({
             organizationUuid: user.organizationUuid,
             ability: user.ability,
             oauth: false,
@@ -451,6 +486,17 @@ export class GroupsService extends BaseService {
             groupUuid,
             update,
         });
+        if (update.members !== undefined) {
+            recordGroupMembershipChange(
+                user,
+                group.organizationUuid,
+                group.uuid,
+                {
+                    operation: 'replace',
+                    memberUuids: updatedGroup.memberUuids,
+                },
+            );
+        }
         this.analytics.track({
             userId: user.userUuid,
             event: 'group.updated',

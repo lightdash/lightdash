@@ -1,4 +1,5 @@
 import type { ContentAsCodeType } from '../../types/coder';
+import type { AiAgentDocumentMimeType } from './documentTypes';
 import type { AiAgentModelConfig } from './requestTypes';
 
 export type AgentAsCodeEvaluationPrompt = {
@@ -9,6 +10,16 @@ export type AgentAsCodeEvaluationPrompt = {
 export type AgentAsCodeEvaluation = {
     title: string;
     prompts: AgentAsCodeEvaluationPrompt[];
+};
+
+// Markdown or plain text, 20 KB max. The CLI stores it in its own file
+// beside the agent YAML and inlines it for transport.
+export type AgentAsCodeKnowledgeDocument = {
+    name: string;
+    alwaysIncludeInContext: boolean;
+    // Decides the file extension in the repo: .md or .txt
+    mimeType: AiAgentDocumentMimeType;
+    content: string;
 };
 
 export type AgentAsCode = {
@@ -36,6 +47,9 @@ export type AgentAsCode = {
     // unchanged; present = authoritative (bind these, unbind the rest).
     skills?: string[];
     evaluations?: AgentAsCodeEvaluation[];
+    // Documents owned by this agent alone; shared ones are never included nor
+    // touched. Omitted = leave unchanged; present = authoritative.
+    knowledgeDocuments?: AgentAsCodeKnowledgeDocument[];
     updatedAt?: Date;
     downloadedAt?: Date;
 };

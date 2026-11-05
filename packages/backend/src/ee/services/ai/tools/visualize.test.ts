@@ -1,9 +1,12 @@
 import {
     DimensionType,
+    FilterOperator,
+    MetricType,
     QuerySourceType,
     type AiArtifact,
     type AiWebAppPrompt,
     type ComposerNodeColumn,
+    type Explore,
     type ThreadComposerQueryNode,
     type ToolVisualizeArgs,
     type ToolVisualizeOutput,
@@ -15,6 +18,7 @@ import type {
     ResolveCustomChartTypeFn,
     RunComposerQueriesFn,
 } from '../types/aiAgentDependencies';
+import { mockOrdersExplore } from '../utils/validationExplore.mock';
 import { getVisualize } from './visualize';
 
 const prompt = {
@@ -112,6 +116,7 @@ const makeRun = (
     rows: Record<string, unknown>[],
     terminalNodeId: string,
 ): Awaited<ReturnType<RunComposerQueriesFn>> => ({
+    status: 'success',
     submissions: [],
     terminal: {
         queryUuid: 'query-uuid',
@@ -123,6 +128,7 @@ const makeRun = (
         rows,
         rowCount: rows.length,
     },
+    nodeStatuses: [],
 });
 
 const makeTool = ({
@@ -133,7 +139,9 @@ const makeTool = ({
     resolveCustomChartType = resolveStatusRibbon,
     deferSlackVisualization,
     slackLinksOnly = false,
+    getExplore = () => null,
 }: {
+    getExplore?: (exploreName: string) => Explore | null;
     threadNodes?: ThreadComposerQueryNode[];
     nodeColumns?: Record<string, ComposerNodeColumn[]>;
     rows?: Record<string, unknown>[];
@@ -149,6 +157,7 @@ const makeTool = ({
     );
     const tool = getVisualize({
         getPrompt: async () => currentPrompt,
+        getExplore,
         listThreadComposerQueryNodes: async () => threadNodes,
         getThreadComposerNodeColumns: (async ({ nodeId }) =>
             nodeColumns[nodeId] ??
@@ -289,6 +298,61 @@ describe('visualize', () => {
         expect(runComposerQueries).toHaveBeenCalledWith({
             queries: [ordersNode],
             terminalNodeId: 'orders',
+            sampleNodeIds: [],
+        });
+    });
+
+    it("types a lone node's custom metric filters from its explore to write a classic version", async () => {
+        const getExplore = vi.fn(() => mockOrdersExplore);
+        const { visualize, versions } = makeTool({
+            getExplore,
+            threadNodes: [
+                {
+                    ...ordersNode,
+                    metrics: ['orders_total_order_amount', 'orders_buyers'],
+                    additionalMetrics: [
+                        {
+                            table: 'orders',
+                            name: 'buyers',
+                            label: 'Buyers',
+                            type: MetricType.COUNT_DISTINCT,
+                            sql: '${TABLE}.customer_name',
+                            baseDimensionName: 'customer_name',
+                            filters: [
+                                {
+                                    id: 'orders_buyers_filter_0',
+                                    target: { fieldRef: 'orders.is_active' },
+                                    operator: FilterOperator.EQUALS,
+                                    values: [true],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        });
+
+        await visualize();
+
+        expect(getExplore).toHaveBeenCalledWith('orders');
+        expect(versions[0].vizConfig).toMatchObject({
+            source: 'semantic',
+            config: {
+                queryConfig: {
+                    customMetrics: [
+                        {
+                            kind: 'aggregation',
+                            name: 'buyers',
+                            filters: [
+                                {
+                                    table: 'orders',
+                                    filter: { fieldId: 'orders_is_active' },
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
         });
     });
 
@@ -313,7 +377,11 @@ describe('visualize', () => {
 
     it('writes the card without hints when the hint run fails', async () => {
         const { visualize, versions, runComposerQueries } = makeTool();
-        runComposerQueries.mockRejectedValueOnce(new Error('warehouse down'));
+        runComposerQueries.mockResolvedValueOnce({
+            status: 'failure',
+            error: 'warehouse down',
+            nodeStatuses: [],
+        });
 
         const output = await visualize({
             vizConfig: { ...barConfig, type: 'pie', x: 'orders_status' },

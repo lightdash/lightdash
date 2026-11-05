@@ -21,10 +21,7 @@ import { useEffect, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
 import TruncatedText from '../../../../components/common/TruncatedText';
-import {
-    rehypeRemoveHeaderLinks,
-    useMdEditorStyle,
-} from '../../../../utils/markdownUtils';
+import { rehypeRemoveHeaderLinks } from '../../../../utils/markdownUtils';
 import {
     useAgentAiMcpServerTools,
     useRefreshAiMcpServerToolsMutation,
@@ -35,6 +32,7 @@ import {
     estimateMcpToolDefinitionTokens,
     formatTokenEstimate,
 } from '../utils/mcpToolTokenEstimates';
+import classes from './AiAgentMcpServerToolsPanel.module.css';
 import styles from './McpToolTokenEstimate.module.css';
 
 type Props = {
@@ -79,7 +77,6 @@ const ToolDescriptionModal = ({
     source: string;
 }) => {
     const { colorScheme } = useMantineColorScheme();
-    const markdownStyle = useMdEditorStyle();
 
     return (
         <MantineModal
@@ -106,37 +103,7 @@ const ToolDescriptionModal = ({
                         <MarkdownPreview
                             source={source}
                             rehypeRewrite={rehypeRemoveHeaderLinks}
-                            style={{
-                                ...markdownStyle,
-                                color: 'var(--mantine-color-text)',
-                            }}
-                            components={{
-                                p: ({ children }) => (
-                                    <p style={{ margin: 0, fontWeight: 400 }}>
-                                        {children}
-                                    </p>
-                                ),
-                                ul: ({ children }) => (
-                                    <ul
-                                        style={{
-                                            margin: '4px 0 0',
-                                            paddingLeft: 18,
-                                        }}
-                                    >
-                                        {children}
-                                    </ul>
-                                ),
-                                ol: ({ children }) => (
-                                    <ol
-                                        style={{
-                                            margin: '4px 0 0',
-                                            paddingLeft: 18,
-                                        }}
-                                    >
-                                        {children}
-                                    </ol>
-                                ),
-                            }}
+                            className={classes.description}
                         />
                     </Box>
                 </Box>
@@ -434,7 +401,6 @@ export const AiAgentMcpServerToolsPanel: FC<Props> = ({
                                                         maxWidth="100%"
                                                         fz="sm"
                                                         fw={600}
-                                                        c="ldGray.9"
                                                     >
                                                         {tool.title ||
                                                             tool.toolName}

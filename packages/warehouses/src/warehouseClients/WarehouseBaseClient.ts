@@ -5,6 +5,7 @@ import {
     Metric,
     setCatalogTimestampDomain,
     SupportedDbtAdapter,
+    TablePartitioning,
     TimeIntervalUnit,
     UnnestSql,
     UnnestSqlArgs,
@@ -99,6 +100,7 @@ export default abstract class WarehouseBaseClient<
             queryParams?: Record<string, AnyType>;
             tags?: Record<string, string>;
             timezone?: string;
+            recoverStalledQuery?: boolean;
             onPhaseTiming?: (
                 phase: WarehouseQueryPhase,
                 durationMs: number,
@@ -113,6 +115,7 @@ export default abstract class WarehouseBaseClient<
             queryParams,
             tags,
             timezone,
+            recoverStalledQuery,
         }: WarehouseExecuteAsyncQueryArgs,
         resultsStreamCallback?: (
             rows: WarehouseResults['rows'],
@@ -134,6 +137,7 @@ export default abstract class WarehouseBaseClient<
                 queryParams,
                 tags,
                 timezone,
+                recoverStalledQuery,
                 onPhaseTiming: (phase, durationMs) => {
                     phaseTimings[phase] =
                         (phaseTimings[phase] ?? 0) + durationMs;
@@ -210,6 +214,14 @@ export default abstract class WarehouseBaseClient<
         database?: string,
         tags?: Record<string, string>,
     ): Promise<WarehouseCatalog>;
+
+    async getTablePartitioning(
+        _tableName: string,
+        _schema: string,
+        _database: string,
+    ): Promise<TablePartitioning | null> {
+        return null;
+    }
 
     async listDatabases(
         _tags?: Record<string, string>,

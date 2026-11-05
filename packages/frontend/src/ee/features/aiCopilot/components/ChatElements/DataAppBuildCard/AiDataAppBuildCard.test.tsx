@@ -120,9 +120,10 @@ const app = (
     latestReadyVersion:
         versions.find((v) => v.status === 'ready')?.version ?? null,
     latestReadyVersionUsesAiAnalysis: null,
+    latestReadyVersionHasAnalyzableData: null,
+    addAnalysisDismissed: false,
     icon: null,
     verification: null,
-    autoAnalysis: 'inherit',
 });
 
 const pending: ToolGenerateDataAppOutput['metadata'] = {

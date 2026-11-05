@@ -136,6 +136,7 @@ it('covers the tools registered by the real MCP service across feature variants'
                     scheduledDeliveryEnabled: enabled,
                     runSqlEnabled: enabled,
                     runMetricQueryEnabled: enabled,
+                    queryEnabled: enabled,
                     filterExpressionsEnabled: enabled,
                     documentsEnabled: enabled,
                     dataAppBuildsEnabled: enabled,
@@ -158,7 +159,7 @@ it('covers the tools registered by the real MCP service across feature variants'
         Object.keys(MCP_TOOL_CAPABILITIES).filter(
             (name) => !registeredMcpTools.includes(name),
         ),
-    ).toEqual(['run_composer_queries']);
+    ).toEqual([]);
 });
 
 const collectLiteralToolKeys = (node: ts.Node): string[] => {
@@ -225,15 +226,15 @@ const buildAgentTools = (overrides: Partial<AiAgentArgs>) => {
         builtInSkills: [],
         customSkills: [{ name: 'test-skill' }],
         canCreateDashboards: true,
+        canCreateScheduledDeliveries: true,
         canRunSql: true,
         enableAiWriteback: true,
-        enableCodingAgent: true,
+        enableContentReads: true,
         enableContentTools: true,
         enableDataAccess: true,
         enableDocuments: true,
         enableEditProjectContext: true,
         enableGenerateDataApp: true,
-        enablePreviewDeploySetup: true,
         enableRepoDiscovery: true,
         enableReadAttachments: true,
         enableFilterExpressions: true,
@@ -246,8 +247,20 @@ const buildAgentTools = (overrides: Partial<AiAgentArgs>) => {
         }),
         execution: { mode: 'standard', maxSteps: 10 },
         messageHistory: [{ role: 'user', content: 'Question' }],
+        liveSources: [
+            {
+                connectionUuid: 'live-source',
+                name: 'Product analytics',
+                connector: 'posthog',
+            },
+        ],
         mcpServers: [],
-        requestingUser: { name: 'User', role: null, groups: [] },
+        requestingUser: {
+            name: 'User',
+            role: null,
+            groups: [],
+            isServiceAccount: false,
+        },
         maxQueryLimit: 5000,
         runSqlMaxLimit: 5000,
         getDashboardChartsPageSize: 10,
@@ -280,6 +293,7 @@ it('covers common agent definitions and all runtime variants without stale entri
         {},
         { enableComposerQueries: true },
         { enableContentTools: false },
+        { enableContentReads: false, enableContentTools: false },
         { decisions: undefined, canRunSql: false, enableDataAccess: false },
         ...(['coordinator', 'worker'] as const).flatMap((role) =>
             [false, true].map((canUseRawSql) => ({
@@ -337,13 +351,11 @@ it('covers common agent definitions and all runtime variants without stale entri
             'generateDashboard',
             'createContent',
             'editDbtProject',
-            'editRepo',
-            'setupPreviewDeploy',
             'readAttachments',
         ]),
     );
     expect(Object.keys(agentToolDefinitionsByName).sort()).toEqual(
-        [...ToolNameSchema.options].sort(),
+        ToolNameSchema.options.filter((name) => name !== 'editRepo').sort(),
     );
     expect(Object.keys(AGENT_TOOL_CAPABILITIES).sort()).toEqual(
         sortedUnique([
@@ -606,11 +618,6 @@ const compositeFixtures = [
         'rest',
         'ProjectCoderController.pullContentAsCodeFromGit',
         [AgentCapability.DbtWriteback, AgentCapability.ContentWrite],
-    ],
-    [
-        'agent',
-        'setupPreviewDeploy',
-        [AgentCapability.DeployUpload, AgentCapability.DbtWriteback],
     ],
 ] as const;
 

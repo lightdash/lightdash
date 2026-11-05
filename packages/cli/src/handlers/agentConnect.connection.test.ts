@@ -885,7 +885,7 @@ it('reports why a service account cannot bootstrap approval', async () => {
     });
     await run();
     expect(output()).toContain(
-        'Agent connection approval requires a personal CLI login. Service account credentials cannot start approval.',
+        'Agent connection approval needs a personal access token login. Run `lightdash login <url> --token <personal access token>` and retry. Browser logins and service account credentials cannot start approval.',
     );
 });
 it.each(['bootstrap', 'request', 'exchange', 'proof'])(

@@ -22,7 +22,7 @@ import {
     Select,
     Tooltip,
 } from '@mantine/core';
-import differenceBy from 'lodash/differenceBy';
+import { differenceBy } from 'es-toolkit/compat';
 import { useCallback, useMemo, type FC } from 'react';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import FieldSelect from '../../common/FieldSelect';

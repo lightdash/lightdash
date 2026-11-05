@@ -377,7 +377,7 @@ export const FormatForm: FC<Props> = ({
                                             >
                                                 {example}
                                             </Text>
-                                            <Text size="xs" c="ldGray.5">
+                                            <Text size="xs" c="dimmed">
                                                 {fmt}
                                             </Text>
                                         </PolymorphicPaperButton>
@@ -535,9 +535,9 @@ export const FormatForm: FC<Props> = ({
                 CustomFormatType.BYTES_IEC,
             ].includes(formatType) && (
                 <Grid.Col span={12}>
-                    <Text size="xs" c="ldGray.5">
+                    <Text size="xs" c="dimmed">
                         Format expression:{' '}
-                        <Text span fw={500} c="ldGray.7">
+                        <Text span fw={500} c="dimmed">
                             {usesRuntimeOnlyFormatExpression
                                 ? 'runtime only'
                                 : formatExpression || 'default'}
