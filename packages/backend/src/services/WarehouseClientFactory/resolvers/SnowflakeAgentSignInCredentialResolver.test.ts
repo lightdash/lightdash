@@ -218,6 +218,28 @@ describe('AgentSignInResolverHarness', () => {
         ).toHaveBeenCalledTimes(2);
     });
 
+    test('every mint runs its own session check and a refresh-token rotation keeps the credential uuid', async () => {
+        const { provider, model } = setup();
+        const mints = [
+            await provider.mint(mintArgs),
+            await provider.mint(mintArgs),
+            await provider.mint(mintArgs),
+        ];
+        expect(checkSnowflakeAgentSessionWithToken).toHaveBeenCalledTimes(3);
+        expect(model.rotateRefreshToken).toHaveBeenCalledWith(
+            'credential',
+            'old-refresh-token',
+            'new-refresh-token',
+            expect.anything(),
+            expect.anything(),
+        );
+        expect(mints.map(({ identityUuid }) => identityUuid)).toEqual([
+            'credential',
+            'credential',
+            'credential',
+        ]);
+    });
+
     test('access token rejection is probed again and never reuses the prior successful probe', async () => {
         const { provider } = setup();
         await provider.mint(mintArgs);

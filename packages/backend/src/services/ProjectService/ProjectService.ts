@@ -420,7 +420,10 @@ import { UserModel } from '../../models/UserModel';
 import { UserOAuthGrantsModel } from '../../models/UserOAuthGrantsModel';
 import type { PersonalCredentialPersistencePolicy } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
-import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
+import {
+    WarehouseAvailableTablesModel,
+    type AgentTableListOwner,
+} from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { type WarehouseConnectionCompileModel } from '../../models/WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
 import {
     type WarehouseConnectionIdentityModel,
@@ -588,6 +591,10 @@ import {
     EXTRA_CONNECTION_SELECT_CREDENTIALS_MESSAGE,
     getExtraConnectionRequireUserCredentials,
 } from '../WarehouseConnectionService/extraConnectionUserCredentials';
+import {
+    getAgentTableListOwner,
+    getAgentTableListScopeFingerprint,
+} from './agentTableList';
 import {
     assertAnalyticsProjectEnabled,
     createAnalyticsClient,
@@ -14859,6 +14866,16 @@ export class ProjectService
                     warehouseConnectionUuid: resolution.warehouseConnectionUuid,
                     connectionRoute: resolution.connectionRoute,
                 };
+                const agentOwner = getAgentTableListOwner(resolution.aiPlan);
+                if (agentOwner)
+                    return this.getAgentWarehouseTables({
+                        owner: agentOwner,
+                        projectUuid,
+                        resolution,
+                        liveRef,
+                        connectionContext,
+                        queryContext,
+                    });
             }
             return this.warehouseClientFactory.withWarehouseClient(
                 liveRef,
@@ -14918,6 +14935,59 @@ export class ProjectService
                   projectUuid,
               );
         return catalog && Object.keys(catalog).length > 0 ? catalog : null;
+    }
+
+    private async getAgentWarehouseTables({
+        owner,
+        projectUuid,
+        resolution,
+        liveRef,
+        connectionContext,
+        queryContext,
+    }: {
+        owner: AgentTableListOwner;
+        projectUuid: string;
+        resolution: ResolvedWarehouseConnection;
+        liveRef: WarehouseClientRef;
+        connectionContext: ConnectionContext;
+        queryContext: QueryExecutionContext;
+    }): Promise<WarehouseTablesCatalog> {
+        const key = {
+            owner,
+            projectUuid,
+            scopeFingerprint: getAgentTableListScopeFingerprint({
+                warehouseConnectionUuid: resolution.warehouseConnectionUuid,
+                credentials: resolution.warehouseCredentials,
+            }),
+        };
+        const saved =
+            await this.warehouseAvailableTablesModel.getAgentTableList(key);
+        if (saved !== null && Object.keys(saved).length > 0) return saved;
+        const tables = await this.warehouseClientFactory.withWarehouseClient(
+            liveRef,
+            connectionContext,
+            ({ warehouseClient }) =>
+                warehouseClient.getAllTables(
+                    undefined,
+                    withAgentMarkerTag({ query_context: queryContext }),
+                ),
+        );
+        const catalog = WarehouseAvailableTablesModel.toWarehouseCatalog(
+            tables.map((table) => ({
+                ...table,
+                partition_column: table.partitionColumn || null,
+                table_type: table.tableType,
+            })),
+        );
+        if (Object.keys(catalog).length > 0)
+            await this.warehouseAvailableTablesModel
+                .saveAgentTableList(key, catalog)
+                .catch((error: unknown) =>
+                    Logger.warn(
+                        `Could not save the agent table list for ${owner.kind}: ${getErrorMessage(error)}`,
+                    ),
+                );
+        return catalog;
     }
 
     private async saveWarehouseTables(
