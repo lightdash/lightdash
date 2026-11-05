@@ -9853,6 +9853,28 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
+    /** A viewer's parameter values and per-tile exclusions, as an embed token allows them */
+    static getAccountParameterInputs(
+        account: Account,
+        parameters: ParametersValuesMap | undefined,
+        excludedParameterKeys: string[] | undefined,
+    ): {
+        parameters: ParametersValuesMap | undefined;
+        excludedParameterKeys: string[] | undefined;
+    } {
+        if (!isJwtUser(account)) return { parameters, excludedParameterKeys };
+        return {
+            parameters: getEmbedParameterValues(
+                account.access.parameters,
+                parameters,
+            ),
+            excludedParameterKeys: getEmbedExcludedParameterKeys(
+                account.access.parameters,
+                excludedParameterKeys,
+            ),
+        };
+    }
+
     async executeAsyncDashboardChartQuery({
         account,
         projectUuid,
@@ -9866,8 +9888,8 @@ export class AsyncQueryService extends ProjectService {
         querySurface,
         invalidateCache,
         limit,
-        parameters,
-        excludedParameterKeys,
+        parameters: requestedParameters,
+        excludedParameterKeys: requestedExcludedParameterKeys,
         pivotResults,
         includeUnpublishedDraft,
         sessionTimezone,
@@ -9876,6 +9898,13 @@ export class AsyncQueryService extends ProjectService {
         userAttributeOverrides,
     }: ExecuteAsyncDashboardChartQueryArgs): Promise<ApiExecuteAsyncDashboardChartQueryResults> {
         assertIsAccountWithOrg(account);
+        // An embed token can call this route directly, so its parameter rules apply here too
+        const { parameters, excludedParameterKeys } =
+            AsyncQueryService.getAccountParameterInputs(
+                account,
+                requestedParameters,
+                requestedExcludedParameterKeys,
+            );
 
         const publishedChart =
             preloadedSavedChart ??
@@ -15497,6 +15526,13 @@ export class AsyncQueryService extends ProjectService {
     async executeAsyncDashboardSqlChartQuery(
         args: ExecuteAsyncDashboardSqlChartArgs,
     ): Promise<ApiExecuteAsyncDashboardSqlChartQueryResults> {
+        // An embed token can call this route directly, so its parameter rules apply here too
+        const { parameters, excludedParameterKeys } =
+            AsyncQueryService.getAccountParameterInputs(
+                args.account,
+                args.parameters,
+                args.excludedParameterKeys,
+            );
         const savedChart = isExecuteAsyncDashboardSqlChartByUuid(args)
             ? await this.savedSqlModel.getByUuid(args.savedSqlUuid, {
                   projectUuid: args.projectUuid,
@@ -15582,8 +15618,8 @@ export class AsyncQueryService extends ProjectService {
                 requestParameters: undefined,
                 appResolved: {
                     account,
-                    parameters: args.parameters,
-                    excludedParameterKeys: args.excludedParameterKeys,
+                    parameters,
+                    excludedParameterKeys,
                 },
             }),
             this.projectParametersModel.find(projectUuid),
@@ -15593,7 +15629,7 @@ export class AsyncQueryService extends ProjectService {
         const combinedParameters = await this.combineParameters(
             projectUuid,
             undefined,
-            omit(args.parameters, tileParameterLayer.excludedKeys),
+            omit(parameters, tileParameterLayer.excludedKeys),
             tileParameterLayer.dashboardValues,
             projectParameters,
         );
