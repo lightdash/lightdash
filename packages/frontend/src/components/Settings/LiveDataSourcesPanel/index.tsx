@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     formatEstimatedBytes,
     type ApiConnectorType,
     type ExternalConnection,
@@ -22,6 +21,7 @@ import {
     IconPencil,
     IconPlus,
     IconRefresh,
+    IconReload,
     IconListDetails,
     IconTrash,
 } from '@tabler/icons-react';
@@ -29,12 +29,12 @@ import { useEffect, useState, type FC } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useExternalConnectionApiUsage } from '../../../features/externalConnections/hooks/useExternalConnectionApiUsage';
 import { useExternalConnections } from '../../../features/externalConnections/hooks/useExternalConnections';
+import { useRefreshLiveSourceFields } from '../../../features/externalConnections/hooks/useLiveSourceFields';
 import { getLiveSource } from '../../../features/externalConnections/liveSources/liveSourceCatalog';
 import { LiveSourceIcon } from '../../../features/externalConnections/liveSources/LiveSourceIcon';
 import { getSemanticStudioSourceUrl } from '../../../features/semanticStudio/urls';
 import useHealth from '../../../hooks/health/useHealth';
 import tableStyles from '../../../hooks/styles/tableStyles.module.css';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { formatDuration } from '../../../utils/formatters';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
@@ -68,102 +68,114 @@ const SourceRow: FC<{
     usage: ExternalConnectionApiUsage | null;
     onEdit: () => void;
     onViewFields: () => void;
-    /** Field editing lives in Semantic Layer when its flag is on. */
-    fieldsInStudio: boolean;
     onReconnect: (() => void) | null;
     onDelete: () => void;
+    projectUuid: string;
 }> = ({
     connection,
     usage,
     onEdit,
     onViewFields,
-    fieldsInStudio,
     onReconnect,
     onDelete,
-}) => (
-    <Table.Tr>
-        <Table.Td>
-            {connection.apiSource ? (
-                <Group gap="xs" wrap="nowrap">
-                    <LiveSourceIcon
-                        connector={connection.apiSource.connector}
-                    />
-                    <Text fz="sm">{integrationLabel(connection)}</Text>
-                </Group>
-            ) : (
-                <Text fz="sm" c="dimmed">
-                    —
+    projectUuid,
+}) => {
+    const refreshFields = useRefreshLiveSourceFields({
+        projectUuid,
+        connectionUuid: connection.externalConnectionUuid,
+    });
+    return (
+        <Table.Tr>
+            <Table.Td>
+                {connection.apiSource ? (
+                    <Group gap="xs" wrap="nowrap">
+                        <LiveSourceIcon
+                            connector={connection.apiSource.connector}
+                        />
+                        <Text fz="sm">{integrationLabel(connection)}</Text>
+                    </Group>
+                ) : (
+                    <Text fz="sm" c="dimmed">
+                        —
+                    </Text>
+                )}
+            </Table.Td>
+            <Table.Td>
+                <Text fw={600} fz="sm">
+                    {connection.name}
                 </Text>
-            )}
-        </Table.Td>
-        <Table.Td>
-            <Text fw={600} fz="sm">
-                {connection.name}
-            </Text>
-        </Table.Td>
-        <Table.Td ta="right">
-            <Text fz="sm">
-                {formatEstimatedBytes(usage?.responseBytes ?? 0)}
-            </Text>
-        </Table.Td>
-        <Table.Td ta="right">
-            <Text fz="sm">{(usage?.apiCalls ?? 0).toLocaleString()}</Text>
-        </Table.Td>
-        <Table.Td ta="right">
-            {usage && usage.medianDurationMs !== null ? (
-                <Text fz="sm">{formatDuration(usage.medianDurationMs)}</Text>
-            ) : (
-                <Text fz="sm" c="dimmed">
-                    —
+            </Table.Td>
+            <Table.Td ta="right">
+                <Text fz="sm">
+                    {formatEstimatedBytes(usage?.responseBytes ?? 0)}
                 </Text>
-            )}
-        </Table.Td>
-        <Table.Td w="1%">
-            <Menu position="bottom-end">
-                <Menu.Target>
-                    <ActionIcon
-                        variant="transparent"
-                        size="sm"
-                        aria-label={`Actions for ${connection.name}`}
-                    >
-                        <MantineIcon icon={IconDots} />
-                    </ActionIcon>
-                </Menu.Target>
-                <Menu.Dropdown>
-                    <Menu.Item
-                        leftSection={<MantineIcon icon={IconPencil} />}
-                        onClick={onEdit}
-                    >
-                        Edit
-                    </Menu.Item>
-                    <Menu.Item
-                        leftSection={<MantineIcon icon={IconListDetails} />}
-                        onClick={onViewFields}
-                    >
-                        {fieldsInStudio
-                            ? 'Edit fields in Semantic Layer'
-                            : 'Fields'}
-                    </Menu.Item>
-                    {onReconnect && (
-                        <Menu.Item
-                            leftSection={<MantineIcon icon={IconRefresh} />}
-                            onClick={onReconnect}
+            </Table.Td>
+            <Table.Td ta="right">
+                <Text fz="sm">{(usage?.apiCalls ?? 0).toLocaleString()}</Text>
+            </Table.Td>
+            <Table.Td ta="right">
+                {usage && usage.medianDurationMs !== null ? (
+                    <Text fz="sm">
+                        {formatDuration(usage.medianDurationMs)}
+                    </Text>
+                ) : (
+                    <Text fz="sm" c="dimmed">
+                        —
+                    </Text>
+                )}
+            </Table.Td>
+            <Table.Td w="1%">
+                <Menu position="bottom-end">
+                    <Menu.Target>
+                        <ActionIcon
+                            variant="transparent"
+                            size="sm"
+                            aria-label={`Actions for ${connection.name}`}
                         >
-                            Reconnect
+                            <MantineIcon icon={IconDots} />
+                        </ActionIcon>
+                    </Menu.Target>
+                    <Menu.Dropdown>
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconPencil} />}
+                            onClick={onEdit}
+                        >
+                            Edit
                         </Menu.Item>
-                    )}
-                    <Menu.Item
-                        color="red"
-                        leftSection={<MantineIcon icon={IconTrash} />}
-                        onClick={onDelete}
-                    >
-                        Delete
-                    </Menu.Item>
-                </Menu.Dropdown>
-            </Menu>
-        </Table.Td>
-    </Table.Tr>
-);
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconListDetails} />}
+                            onClick={onViewFields}
+                        >
+                            Edit fields in Semantic Layer
+                        </Menu.Item>
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconReload} />}
+                            disabled={refreshFields.isLoading}
+                            onClick={() => refreshFields.mutate()}
+                        >
+                            Refresh fields
+                        </Menu.Item>
+                        {onReconnect && (
+                            <Menu.Item
+                                leftSection={<MantineIcon icon={IconRefresh} />}
+                                onClick={onReconnect}
+                            >
+                                Reconnect
+                            </Menu.Item>
+                        )}
+                        <Menu.Item
+                            color="red"
+                            leftSection={<MantineIcon icon={IconTrash} />}
+                            onClick={onDelete}
+                        >
+                            Delete
+                        </Menu.Item>
+                    </Menu.Dropdown>
+                </Menu>
+            </Table.Td>
+        </Table.Tr>
+    );
+};
 
 type ModalState =
     | { kind: 'closed' }
@@ -185,10 +197,6 @@ const modalConnector = (modal: ModalState): ApiConnectorType | null => {
 };
 
 const LiveDataSourcesPanel: FC<Props> = ({ projectUuid }) => {
-    const semanticStudioFlag = useServerFeatureFlag(
-        FeatureFlags.SemanticStudio,
-    );
-    const fieldsInStudio = semanticStudioFlag.data?.enabled === true;
     const { data: connections, isLoading } =
         useExternalConnections(projectUuid);
     const { data: usage } = useExternalConnectionApiUsage(projectUuid);
@@ -298,6 +306,7 @@ const LiveDataSourcesPanel: FC<Props> = ({ projectUuid }) => {
                                 {sources.map((connection) => (
                                     <SourceRow
                                         key={connection.externalConnectionUuid}
+                                        projectUuid={projectUuid}
                                         connection={connection}
                                         usage={
                                             usage?.find(
@@ -312,15 +321,12 @@ const LiveDataSourcesPanel: FC<Props> = ({ projectUuid }) => {
                                                 connection,
                                             })
                                         }
-                                        fieldsInStudio={fieldsInStudio}
                                         onViewFields={() =>
                                             navigate(
-                                                fieldsInStudio
-                                                    ? getSemanticStudioSourceUrl(
-                                                          projectUuid,
-                                                          connection.externalConnectionUuid,
-                                                      )
-                                                    : `/generalSettings/projectManagement/${projectUuid}/liveDataSources/${connection.externalConnectionUuid}/fields`,
+                                                getSemanticStudioSourceUrl(
+                                                    projectUuid,
+                                                    connection.externalConnectionUuid,
+                                                ),
                                             )
                                         }
                                         onReconnect={getReconnect(connection)}

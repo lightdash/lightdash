@@ -1,8 +1,8 @@
 /**
- * /projects/:projectUuid/semantic-layer/*, listed under Browse when the flag
- * is on. Everyone in the project opens it; what they see is what the backend
- * returns for them, and what they can change follows their role (see
- * permissions.ts). The rest of the path is the page you are on; see urls.ts.
+ * /projects/:projectUuid/semantic-layer/*, listed under Browse. Everyone in
+ * the project opens it; what they see is what the backend returns for them,
+ * and what they can change follows their role (see permissions.ts). The rest
+ * of the path is the page you are on; see urls.ts.
  */
 import { FeatureFlags } from '@lightdash/common';
 import { Center, Loader } from '@mantine/core';
@@ -53,7 +53,6 @@ const SemanticStudioPage: FC = () => {
         [navigate, projectUuid],
     );
     const { user } = useApp();
-    const flag = useServerFeatureFlag(FeatureFlags.SemanticStudio);
     const externalSourcesFlag = useServerFeatureFlag(
         FeatureFlags.ExternalSources,
     );
@@ -129,7 +128,6 @@ const SemanticStudioPage: FC = () => {
     );
 
     if (
-        flag.isInitialLoading ||
         externalSourcesFlag.isInitialLoading ||
         liveSourcesFlag.isInitialLoading ||
         isProjectLoading ||
@@ -155,7 +153,7 @@ const SemanticStudioPage: FC = () => {
         );
     }
 
-    if (!flag.data?.enabled || !permissions || !canOpen) {
+    if (!permissions || !canOpen) {
         return <ForbiddenPanel subject="Semantic Layer" />;
     }
     if (projectError) {

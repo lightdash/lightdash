@@ -3,6 +3,7 @@ import { IconCircleCheck } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { useLiveSourceFields } from '../../../features/externalConnections/hooks/useLiveSourceFields';
+import { getSemanticStudioSourceUrl } from '../../../features/semanticStudio/urls';
 import MantineModal from '../../common/MantineModal';
 
 type Props = {
@@ -32,7 +33,7 @@ export const SourceConnectedModal: FC<Props> = ({
             confirmLabel="View fields"
             onConfirm={() =>
                 navigate(
-                    `/generalSettings/projectManagement/${projectUuid}/liveDataSources/${connectionUuid}/fields`,
+                    getSemanticStudioSourceUrl(projectUuid, connectionUuid),
                 )
             }
         >
