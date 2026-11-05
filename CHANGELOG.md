@@ -1,3 +1,10 @@
+## [3.166.4](https://github.com/lightdash/lightdash/compare/3.166.3...3.166.4) (2026-11-05)
+
+
+### Performance Improvements
+
+* **common:** let bundlers drop unused common modules ([#32140](https://github.com/lightdash/lightdash/issues/32140)) ([f6c7095](https://github.com/lightdash/lightdash/commit/f6c70951c958e4a00ee194615f72d30a6292e0bb))
+
 ## [3.166.3](https://github.com/lightdash/lightdash/compare/3.166.2...3.166.3) (2026-11-05)
 
 
