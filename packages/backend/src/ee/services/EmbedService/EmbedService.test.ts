@@ -415,6 +415,28 @@ describe('EmbedService', () => {
         test('is dropped with parameter interactivity off', () => {
             expect(gate(false, ['status'])).toBeUndefined();
         });
+
+        test('is dropped when the token limits which parameters the viewer may change', () => {
+            const gateLimited = (
+                EmbedService as unknown as {
+                    getGatedExcludedKeys(
+                        account: unknown,
+                        keys: string[] | undefined,
+                    ): string[] | undefined;
+                }
+            ).getGatedExcludedKeys(
+                {
+                    access: {
+                        parameters: {
+                            enabled: true,
+                            allowedParameters: ['status'],
+                        },
+                    },
+                },
+                ['status'],
+            );
+            expect(gateLimited).toBeUndefined();
+        });
     });
 
     describe('dashboard available filters hidden fields', () => {
@@ -2481,9 +2503,31 @@ describe('EmbedService', () => {
                 isInteractivityEnabled: false,
                 expectedRequestParameters: {},
             },
+            {
+                isInteractivityEnabled: true,
+                parameterOptions: { allowedParameters: ['region'] },
+                expectedRequestParameters: {},
+            },
+            {
+                isInteractivityEnabled: true,
+                parameterOptions: {
+                    allowedParameters: [],
+                    values: { date_granularity: 'Day' },
+                },
+                expectedRequestParameters: { date_granularity: 'Day' },
+            },
+            {
+                isInteractivityEnabled: false,
+                parameterOptions: { values: { date_granularity: 'Day' } },
+                expectedRequestParameters: { date_granularity: 'Day' },
+            },
         ])(
-            'combines embed autocomplete parameters when interactivity is $isInteractivityEnabled',
-            async ({ isInteractivityEnabled, expectedRequestParameters }) => {
+            'combines embed autocomplete parameters when interactivity is $isInteractivityEnabled with $parameterOptions',
+            async ({
+                isInteractivityEnabled,
+                parameterOptions,
+                expectedRequestParameters,
+            }) => {
                 const dashboardUuid = 'dashboard-1';
                 const field = validExplore.tables.a.dimensions.dim1;
                 const effectiveParameters = { date_granularity: 'Month' };
@@ -2566,7 +2610,10 @@ describe('EmbedService', () => {
                     },
                     access: {
                         content: { dashboardUuid },
-                        parameters: { enabled: isInteractivityEnabled },
+                        parameters: {
+                            enabled: isInteractivityEnabled,
+                            ...parameterOptions,
+                        },
                         controls: {
                             userAttributes: {},
                             intrinsicUserAttributes: {},

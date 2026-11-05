@@ -61,6 +61,8 @@ import {
     getDimensions,
     getDimensionsWithValidParameters,
     getDocumentRuntimeChartConfig,
+    getEmbedExcludedParameterKeys,
+    getEmbedParameterValues,
     getEmbedWriteSpaceUuids,
     getErrorMessage,
     getExecutableFilterFieldIds,
@@ -91,7 +93,6 @@ import {
     isMergeMetricSource,
     isMergeResultSource,
     isMetric,
-    isParameterInteractivityEnabled,
     isValidTimezone,
     isVizTableConfig,
     ItemsMap,
@@ -8721,11 +8722,10 @@ export class AsyncQueryService extends ProjectService {
             // Viewer-supplied parameters are only trusted when the JWT
             // grants parameter interactivity — parity with the embed
             // search endpoint.
-            acceptedParameters = isParameterInteractivityEnabled(
+            acceptedParameters = getEmbedParameterValues(
                 account.access.parameters,
-            )
-                ? parameters
-                : {};
+                parameters,
+            );
         }
 
         const context = QueryExecutionContext.FILTER_AUTOCOMPLETE;
@@ -10021,9 +10021,10 @@ export class AsyncQueryService extends ProjectService {
             appResolved.excludedParameterKeys !== undefined &&
             (appResolved.account.isRegisteredUser() ||
                 (isJwtUser(appResolved.account) &&
-                    isParameterInteractivityEnabled(
+                    getEmbedExcludedParameterKeys(
                         appResolved.account.access.parameters,
-                    )))
+                        appResolved.excludedParameterKeys,
+                    ) !== undefined))
         ) {
             return {
                 dashboardValues: appResolved.parameters ?? {},

@@ -1,5 +1,6 @@
 import {
     assertRegisteredAccount,
+    type ApiChartParametersResponse,
     type ApiErrorPayload,
     type ApiSavedChartResponse,
     type ApiSuccessEmpty,
@@ -65,6 +66,35 @@ export class ProjectSavedChartControllerV2 extends BaseController {
                 req.account!,
                 { projectUuid },
             ),
+        };
+    }
+
+    /**
+     * List the parameters a saved chart's query uses: each one's definition
+     * (label, type, options, default), its current value (saved on the chart,
+     * else the default), and whether it is defined in the project or a model.
+     * Read from the saved query without running it.
+     *
+     * Run the chart with other values by passing `parameters` to the v2 query
+     * endpoints.
+     * @summary Get chart parameters
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{chartUuidOrSlug}/parameters')
+    @OperationId('getProjectSavedChartParameters')
+    async getParameters(
+        @Path() projectUuid: string,
+        @Path() chartUuidOrSlug: string,
+        @Request() req: express.Request,
+    ): Promise<ApiChartParametersResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getDashboardService()
+                .getChartParameters(req.account, projectUuid, chartUuidOrSlug),
         };
     }
 

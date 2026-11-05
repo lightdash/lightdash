@@ -628,7 +628,7 @@ const EmbedDashboard: FC<{
         }
     }, [dashboard, setDashboardTiles]);
 
-    useEmbedSavedParameters(dashboard);
+    useEmbedSavedParameters(dashboard, isEditMode);
 
     useEffect(() => {
         if (!dashboard || isEditMode) return;
