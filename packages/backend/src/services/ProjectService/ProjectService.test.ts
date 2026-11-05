@@ -213,7 +213,11 @@ import {
 } from '../../scheduler/compileShutdown';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import SchedulerTask from '../../scheduler/SchedulerTask';
-import type { DbtManifestFetchTimings, ProjectAdapter } from '../../types';
+import type {
+    CachedWarehouse,
+    DbtManifestFetchTimings,
+    ProjectAdapter,
+} from '../../types';
 import { buildCacheHash } from '../../utils/cacheUtils';
 import { metricQueryWithLimit } from '../../utils/csvLimitUtils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
@@ -14520,7 +14524,11 @@ type ResolveCompileAdapterArgs = {
         adapter: ProjectAdapter;
         connection: ScopedWarehouseConnection;
         warehouseCredentials: CreateWarehouseCredentials;
-        cachedWarehouse: { warehouseCatalog: {}; warehouseTables: {} };
+        cachedWarehouse: {
+            warehouseCatalog: {};
+            warehouseTables: {};
+            onWarehouseCatalogChange?: CachedWarehouse['onWarehouseCatalogChange'];
+        };
         dbtVersionOption: DbtVersionOptionLatest;
         dbtPartialParse: boolean;
         dbtTargetPolicy: { explicitCredentials: boolean };
@@ -14540,6 +14548,7 @@ type BuildMergedManifestAdapterArgs = {
 
 type ResolvedCompileAdapter = {
     adapter: ProjectAdapter;
+    failedDbtSourceUuids?: string[];
     stagedMergedManifest?: Buffer;
     connectionWarnings?: string[];
 };
@@ -15172,6 +15181,116 @@ describe('ProjectService.resolveCompileAdapter (single-source regression firewal
                     sourceFetchConcurrency,
                 },
             }) as unknown as ProjectServiceInternals;
+
+        it('keeps combined-service availability scoped to participating sources', async () => {
+            const projectService = buildService(2);
+            const primaryInput = primaryManifest();
+            (primaryInput.nodes['model.pkg_a.orders'] as DbtRawModelNode).meta =
+                {
+                    explores: {
+                        bare: {
+                            joins: [
+                                {
+                                    join: 'customers',
+                                    alias: 'target',
+                                    sql_on: '${orders.id} = ${target.id}',
+                                },
+                            ],
+                        },
+                        qualified: {
+                            joins: [
+                                {
+                                    join: 'source-b__customers',
+                                    alias: 'target',
+                                    sql_on: '${orders.id} = ${target.id}',
+                                },
+                            ],
+                        },
+                        failed: {
+                            joins: [
+                                {
+                                    join: 'source-c__customers',
+                                    alias: 'target',
+                                    sql_on: '${orders.id} = ${target.id}',
+                                },
+                            ],
+                        },
+                    },
+                };
+            const failedConfig = { type: DbtProjectType.NONE } as const;
+            vi.spyOn(projectService, 'buildSourceAdapter').mockImplementation(
+                async (config) => {
+                    if (config === failedConfig)
+                        throw new Error('Synthetic source unavailable');
+                    return buildAdapterWithManifest(sourceManifest());
+                },
+            );
+            const { adapter, failedDbtSourceUuids } =
+                await projectService.buildMergedManifestAdapter({
+                    ...baseArgs,
+                    primary: {
+                        ...primary,
+                        cachedWarehouse: {
+                            warehouseCatalog: {},
+                            warehouseTables: {},
+                            onWarehouseCatalogChange: vi.fn(),
+                        },
+                        adapter: buildAdapterWithManifest(primaryInput),
+                        connection: {
+                            ...primary.connection,
+                            deriveClient: () => ({
+                                ...warehouseClientMock,
+                                getCatalog: vi.fn(async () => ({
+                                    analytics: {
+                                        public: {
+                                            orders: {
+                                                id: DimensionType.NUMBER,
+                                            },
+                                            customers: {
+                                                id: DimensionType.NUMBER,
+                                            },
+                                        },
+                                    },
+                                })),
+                            }),
+                        },
+                    },
+                    sources: [
+                        buildSource('source-b'),
+                        {
+                            ...buildSource('source-c'),
+                            dbtConnection: failedConfig,
+                        },
+                        { ...buildSource('ignored'), dbtConnection: null },
+                    ],
+                });
+            const explores = await (
+                adapter as DbtBaseProjectAdapter
+            ).compileAllExplores(undefined, false, true, true);
+            const get = (name: string) =>
+                explores.find((e) => e.name === name) as Explore;
+            expect(failedDbtSourceUuids).toEqual(['source-c-uuid']);
+            expect(get('bare').joinedTables).toEqual([]);
+            expect(get('bare').warnings).toEqual([
+                expect.objectContaining({
+                    message: expect.stringContaining(
+                        'source inventory is unavailable: source-c',
+                    ),
+                }),
+            ]);
+            expect(get('qualified').tables.target).toMatchObject({
+                dbtSourceUuid: 'source-b-uuid',
+                dbtPackageName: 'pkg_b',
+                dbtModelUniqueId: 'model.pkg_b.customers',
+            });
+            expect(get('failed').warnings).toEqual([
+                expect.objectContaining({
+                    message: expect.stringContaining(
+                        'source "source-c" inventory is unavailable',
+                    ),
+                }),
+            ]);
+        });
 
         it('fetches the primary at the same time as the additional sources', async () => {
             const events: string[] = [];

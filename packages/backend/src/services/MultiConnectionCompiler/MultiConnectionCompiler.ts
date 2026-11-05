@@ -1,4 +1,5 @@
 import {
+    assertValidDbtManifestIdentifiers,
     getDeferredExploreName,
     getErrorMessage,
     getModelsFromManifest,
@@ -30,6 +31,7 @@ import {
 } from '../../models/ProjectModel/ProjectModel';
 import { type WarehouseConnectionCompileModel } from '../../models/WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
 import {
+    compileGroupAvailability,
     ManifestCollisionError,
     mergeCompileGroupManifests,
     planCompileGroups,
@@ -251,7 +253,7 @@ export class MultiConnectionCompiler {
                         warehouseCredentials,
                         connection,
                     );
-                    validateDbtSourceManifest(result.manifest);
+                    validateDbtSourceManifest(result.manifest, source.name);
                     await lifecycle.releaseSourceDisk?.(source);
                     return result;
                 } catch (error) {
@@ -265,6 +267,10 @@ export class MultiConnectionCompiler {
         const primarySources: SourceManifest[] = [];
         if (primaryTask) {
             const result = await primaryTask.fetch();
+            assertValidDbtManifestIdentifiers(
+                result.manifest,
+                primaryTask.context.name,
+            );
             await primaryTask.releaseDisk?.();
             primarySources.push({
                 ...primaryTask.context,
@@ -380,6 +386,10 @@ export class MultiConnectionCompiler {
                 let catalog: WarehouseCatalog | null = null;
                 const adapter = new DbtManifestProjectAdapter({
                     parsedManifest: manifest,
+                    joinAvailability: compileGroupAvailability(
+                        plan.sources,
+                        lifecycle?.isolation?.failedSourceUuids ?? [],
+                    ),
                     warehouseClient,
                     cachedWarehouse: {
                         warehouseCatalog:
@@ -560,6 +570,10 @@ export class MultiConnectionCompiler {
         const originalMerged = mergeCompileGroupManifests(originalSources);
         const originalAdapter = new DbtManifestProjectAdapter({
             parsedManifest: originalMerged.manifest,
+            joinAvailability: compileGroupAvailability(
+                originalPlan.sources,
+                isolation.failedSourceUuids,
+            ),
             warehouseClient: primary.connection.deriveClient(
                 primary.warehouseCredentials,
                 {

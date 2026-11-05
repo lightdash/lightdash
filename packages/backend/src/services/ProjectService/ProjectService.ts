@@ -26,6 +26,7 @@ import {
     assertRegisteredAccount,
     assertUnreachable,
     assertValidBigqueryKeyfile,
+    assertValidDbtManifestIdentifiers,
     AthenaAuthenticationType,
     BigqueryAuthenticationType,
     buildDataTimezonePreviewResponse,
@@ -432,7 +433,10 @@ import {
     type ConnectionRouteWithOriginal,
 } from '../../models/WarehouseConnectionRouter/WarehouseConnectionRouter';
 import { WarehouseConnectionTablesModel } from '../../models/WarehouseConnectionTablesModel/WarehouseConnectionTablesModel';
-import { type CompilableDbtSource } from '../../projectAdapters/CompileGroup';
+import {
+    compileGroupAvailability,
+    type CompilableDbtSource,
+} from '../../projectAdapters/CompileGroup';
 import { DbtBaseProjectAdapter } from '../../projectAdapters/dbtBaseProjectAdapter';
 import { assertGithubInstallationResolved } from '../../projectAdapters/githubAuthorization';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
@@ -8500,6 +8504,7 @@ export class ProjectService
             let result: DbtManifestFetchResult;
             try {
                 result = await manifestFetch;
+                assertValidDbtManifestIdentifiers(result.manifest, sourceName);
             } finally {
                 activeFetches.delete(manifestFetch);
             }
@@ -8602,7 +8607,10 @@ export class ProjectService
                                         await sourceAdapter.getDbtManifest({
                                             signal,
                                         });
-                                    validateDbtSourceManifest(result.manifest);
+                                    validateDbtSourceManifest(
+                                        result.manifest,
+                                        source.name,
+                                    );
                                     await sourceAdapter.releaseDisk();
                                     return result;
                                 } catch (error) {
@@ -8831,6 +8839,10 @@ export class ProjectService
                 {
                     projectDir: primary.adapter.dbtProjectDir,
                     selectedModelIds,
+                    joinAvailability: compileGroupAvailability(
+                        sources,
+                        isolation.failedSourceUuids,
+                    ),
                 },
             ),
             stagedMergedManifest,

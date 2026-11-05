@@ -945,3 +945,299 @@ describe('external model stubs after independent source compilation', () => {
         );
     });
 });
+
+describe('generation-local source availability', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    it.each([
+        { group: 'original', elsewhere: false, firstRun: false },
+        { group: 'extra', elsewhere: false, firstRun: false },
+        { group: 'original', elsewhere: true, firstRun: false },
+        { group: 'extra', elsewhere: true, firstRun: false },
+        { group: 'original', elsewhere: false, firstRun: true },
+        { group: 'extra', elsewhere: false, firstRun: true },
+    ] as const)(
+        'keeps foreign fallback bounded to $group (elsewhere $elsewhere, first run $firstRun)',
+        async ({ group, elsewhere, firstRun }) => {
+            const h = harness({
+                providerGroup: group,
+                extraCredentials: postgres,
+            });
+            const offline = source('offline', 3);
+            const consumerGroupIndex = group === 'original' ? 0 : 1;
+            const failureGroupIndex = elsewhere
+                ? 1 - consumerGroupIndex
+                : consumerGroupIndex;
+            h.plans[failureGroupIndex].sources.push(offline);
+            h.projectModel.countCachedExploresForDbtSource.mockResolvedValue(
+                firstRun ? 0 : 2,
+            );
+            const consumerPackage =
+                group === 'original' ? 'primary_project' : 'analytics_project';
+            const consumerName =
+                group === 'original' ? 'primary_orders' : 'orders';
+            const consumer = model(consumerPackage, consumerName);
+            const join = (target: string) => [
+                {
+                    join: target,
+                    alias: 'target',
+                    sql_on: `\${${consumerName}.id} = \${target.id}`,
+                },
+            ];
+            consumer.meta = {
+                explores: {
+                    foreign_bare: { joins: join('calendar') },
+                    own: { joins: join(consumerName) },
+                    explicit_healthy: { joins: join('shared__calendar') },
+                    explicit_failed: { joins: join('offline__orders') },
+                },
+            };
+            const consumerManifest = {
+                ...manifest(
+                    consumerPackage,
+                    consumerName,
+                    SupportedDbtAdapter.POSTGRES,
+                ),
+                nodes: { [consumer.unique_id]: consumer },
+            };
+            const timings = { gitRefreshMs: null, depsMs: null, manifestMs: 0 };
+            let failed = firstRun;
+            h.input.primary.fetchManifest = async () => ({
+                manifest:
+                    group === 'original'
+                        ? consumerManifest
+                        : manifest(
+                              'primary_project',
+                              'primary_orders',
+                              SupportedDbtAdapter.POSTGRES,
+                          ),
+                timings,
+            });
+            h.fetchSourceManifest.mockImplementation(async (s) => {
+                if (s.name === 'offline' && failed)
+                    throw new DbtError('Synthetic manifest failure');
+                if (s.name === 'analytics')
+                    return {
+                        manifest:
+                            group === 'extra'
+                                ? consumerManifest
+                                : manifest(
+                                      'analytics_project',
+                                      'orders',
+                                      SupportedDbtAdapter.POSTGRES,
+                                  ),
+                        timings,
+                    };
+                if (s.name === 'shared')
+                    return {
+                        manifest: manifest(
+                            'shared_dimensions',
+                            'calendar',
+                            SupportedDbtAdapter.POSTGRES,
+                        ),
+                        timings,
+                    };
+                return {
+                    manifest: manifest(
+                        'offline_project',
+                        'orders',
+                        SupportedDbtAdapter.POSTGRES,
+                    ),
+                    timings,
+                };
+            });
+            await [firstRun, true, true, false].reduce(
+                async (previous, failing) => {
+                    await previous;
+                    failed = failing;
+                    const compilation = await h.compiler.compile(h.input);
+                    const rows = await collect(compilation.exploreStream);
+                    const find = (name: string) =>
+                        rows.find((e) => e.name === name) as Explore;
+                    const blocked = failing && !elsewhere;
+                    expect(find('foreign_bare').joinedTables).toHaveLength(
+                        blocked ? 0 : 1,
+                    );
+                    if (blocked)
+                        expect(find('foreign_bare').warnings).toEqual([
+                            expect.objectContaining({
+                                type: InlineErrorType.MISSING_TABLE,
+                                message: expect.stringContaining(
+                                    'source inventory is unavailable: offline',
+                                ),
+                            }),
+                        ]);
+                    else
+                        expect(
+                            find('foreign_bare').tables.target,
+                        ).toMatchObject({
+                            dbtSourceUuid: 'shared-uuid',
+                            dbtPackageName: 'shared_dimensions',
+                            dbtModelUniqueId:
+                                'model.shared_dimensions.calendar',
+                        });
+                    expect(find('own').joinedTables).toHaveLength(1);
+                    expect(find('own').tables.target.dbtPackageName).toBe(
+                        consumerPackage,
+                    );
+                    expect(
+                        find('explicit_healthy').tables.target,
+                    ).toMatchObject({
+                        dbtSourceUuid: 'shared-uuid',
+                        dbtPackageName: 'shared_dimensions',
+                        dbtModelUniqueId: 'model.shared_dimensions.calendar',
+                    });
+                    if (blocked) {
+                        expect(find('explicit_failed').joinedTables).toEqual(
+                            [],
+                        );
+                        expect(find('explicit_failed').warnings).toEqual([
+                            expect.objectContaining({
+                                message: expect.stringContaining(
+                                    'source "offline" inventory is unavailable',
+                                ),
+                            }),
+                        ]);
+                        expect(compilation.carry).toMatchObject({
+                            dbtSourceUuids: ['offline-uuid'],
+                        });
+                        expect(
+                            compilation.naming?.models.some(
+                                (m) => m.sourceUuid === 'offline-uuid',
+                            ),
+                        ).toBe(false);
+                    }
+                },
+                Promise.resolve(),
+            );
+        },
+    );
+
+    it('keeps a pending generation unavailable after a later generation recovers', async () => {
+        const h = harness();
+        h.plans.splice(1);
+        h.plans[0].sources.push(source('offline', 2));
+        const orders = model('primary_project', 'primary_orders');
+        orders.meta = {
+            joins: [
+                {
+                    join: 'calendar',
+                    sql_on: '${primary_orders.id} = ${calendar.id}',
+                },
+            ],
+        };
+        h.input.primary.fetchManifest = async () => ({
+            manifest: {
+                ...manifest(
+                    'primary_project',
+                    'primary_orders',
+                    SupportedDbtAdapter.POSTGRES,
+                ),
+                nodes: { [orders.unique_id]: orders },
+            },
+            timings: { gitRefreshMs: null, depsMs: null, manifestMs: 0 },
+        });
+        const fetch = h.fetchSourceManifest.getMockImplementation()!;
+        let failing = true;
+        h.fetchSourceManifest.mockImplementation(async (...args) => {
+            if (args[0].name !== 'offline') return fetch(...args);
+            if (failing) throw new DbtError('Synthetic failure');
+            return {
+                manifest: manifest(
+                    'offline',
+                    'orders',
+                    SupportedDbtAdapter.POSTGRES,
+                ),
+                timings: { gitRefreshMs: null, depsMs: null, manifestMs: 0 },
+            };
+        });
+        const pending = await h.compiler.compile(h.input);
+        failing = false;
+        const recovered = await h.compiler.compile(h.input);
+        const recoveredRows = await collect(recovered.exploreStream);
+        const pendingRows = await collect(pending.exploreStream);
+        expect(
+            (
+                recoveredRows.find(
+                    (e) => e.dbtModelIdentity?.uniqueId === orders.unique_id,
+                ) as Explore
+            ).joinedTables,
+        ).toHaveLength(1);
+        expect(
+            (
+                pendingRows.find(
+                    (e) => e.dbtModelIdentity?.uniqueId === orders.unique_id,
+                ) as Explore
+            ).joinedTables,
+        ).toEqual([]);
+    });
+    it('retains unavailable model identity after validation fails without marking a whole source failed', async () => {
+        const h = harness();
+        h.plans.splice(1);
+        h.plans[0].sources.push(source('invalid', 2));
+        const orders = model('primary_project', 'primary_orders');
+        orders.meta = {
+            joins: [
+                {
+                    join: 'calendar',
+                    alias: 'target',
+                    sql_on: '${primary_orders.id} = ${target.id}',
+                },
+            ],
+        };
+        h.input.primary.fetchManifest = async () => ({
+            manifest: {
+                ...manifest(
+                    'primary_project',
+                    'primary_orders',
+                    SupportedDbtAdapter.POSTGRES,
+                ),
+                nodes: { [orders.unique_id]: orders },
+            },
+            timings: { gitRefreshMs: null, depsMs: null, manifestMs: 0 },
+        });
+        const fetch = h.fetchSourceManifest.getMockImplementation()!;
+        h.fetchSourceManifest.mockImplementation(async (...args) => {
+            if (args[0].name !== 'invalid') return fetch(...args);
+            const invalid = manifest(
+                'invalid_project',
+                'calendar',
+                SupportedDbtAdapter.POSTGRES,
+            );
+            (
+                invalid.nodes[
+                    'model.invalid_project.calendar'
+                ] as DbtRawModelNode
+            ).columns = {};
+            return {
+                manifest: invalid,
+                timings: { gitRefreshMs: null, depsMs: null, manifestMs: 0 },
+            };
+        });
+        const compilation = await h.compiler.compile(h.input);
+        const rows = await collect(compilation.exploreStream);
+        const consumer = rows.find(
+            (e) => e.dbtModelIdentity?.uniqueId === orders.unique_id,
+        ) as Explore;
+        expect(consumer.joinedTables).toEqual([]);
+        expect(consumer.warnings).toEqual([
+            expect.objectContaining({
+                message: expect.stringContaining('ambiguous'),
+            }),
+        ]);
+        expect(
+            rows.find(
+                (e) =>
+                    e.dbtModelIdentity?.uniqueId ===
+                    'model.invalid_project.calendar',
+            ),
+        ).toMatchObject({
+            errors: [expect.anything()],
+            dbtModelIdentity: {
+                sourceUuid: 'invalid-uuid',
+                packageName: 'invalid_project',
+            },
+        });
+        expect(compilation.carry).not.toHaveProperty('dbtSourceUuids');
+    });
+});

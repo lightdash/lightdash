@@ -1304,3 +1304,5 @@ export * from './types/releaseHighlights';
 export { getDeferredExploreName } from './dbt/qualifiedName';
 
 export * from './utils/exploreName';
+
+export * from './dbt/validateDbtText';

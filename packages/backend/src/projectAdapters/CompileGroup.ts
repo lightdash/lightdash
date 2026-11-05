@@ -5,6 +5,7 @@ import {
     ParameterError,
     stripExternalDbtNodes,
     UnexpectedServerError,
+    type DbtJoinAvailability,
     type DbtManifest,
     type DbtProjectConfig,
     type ManifestCollision,
@@ -31,6 +32,28 @@ export type SourceManifest = {
     manifest: DbtManifest;
     selectedModelIds?: string[];
 };
+
+export const compileGroupAvailability = (
+    sources: readonly { projectDbtSourceUuid: string; name: string }[],
+    failedSourceUuids: readonly string[],
+): DbtJoinAvailability =>
+    Object.freeze({
+        unavailableSources: Object.freeze(
+            sources
+                .filter((source) =>
+                    failedSourceUuids.includes(source.projectDbtSourceUuid),
+                )
+                .map((source) =>
+                    Object.freeze({
+                        sourceUuid: source.projectDbtSourceUuid,
+                        sourceName: source.name,
+                    }),
+                )
+                .sort((left, right) =>
+                    left.sourceName.localeCompare(right.sourceName),
+                ),
+        ),
+    });
 
 export class ManifestCollisionError extends ParameterError {}
 
