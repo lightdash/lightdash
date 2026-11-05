@@ -68,7 +68,7 @@
 
 .summary {
     --ai-markdown-padding-left: 0;
-    --ai-markdown-font-size: 12px;
+    --ai-markdown-font-size: var(--mantine-font-size-sm);
     --summary-line-height: 1.55;
     --summary-collapsed-lines: 6;
     width: 100%;
@@ -89,11 +89,18 @@
     );
 }
 
-.summaryToggle {
-    font-size: 12px;
+.summaryLabel {
+    font-size: var(--mantine-font-size-xs);
     font-weight: 500;
     line-height: 1.55;
-    color: var(--mantine-color-ldGray-6);
+    color: var(--mantine-color-dimmed);
+}
+
+.summaryToggle {
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 500;
+    line-height: 1.55;
+    color: var(--mantine-color-dimmed);
 }
 
 .summaryToggle:hover {
@@ -123,4 +130,17 @@
     .actions {
         order: 100;
     }
+}
+
+.elapsed {
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+}
+
+.readyStatus {
+    min-width: 0;
+}
+
+.readyIcon {
+    flex-shrink: 0;
 }

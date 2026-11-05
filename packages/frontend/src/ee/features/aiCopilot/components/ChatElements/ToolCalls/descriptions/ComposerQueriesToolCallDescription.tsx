@@ -56,16 +56,18 @@ type ComposerQueriesToolCallDescriptionProps = {
     approval?: SqlApprovalTarget;
 };
 
-const isActiveStatus = (nodeStatus: ComposerQueryNodeStatus | undefined) =>
-    nodeStatus?.status === 'running' ||
-    nodeStatus?.status === 'awaiting_approval';
-
 const referenceAliases = (items: string[] | Record<string, string>) =>
     Array.isArray(items) ? items : Object.keys(items);
 
 // Reads of nodes from earlier versions have no title in this submission
 const referenceTargets = (items: string[] | Record<string, string>) =>
     Array.isArray(items) ? items : Object.values(items);
+
+// Streaming args can land before their inputs, so an empty list says nothing.
+const readsDetail = (inputs: string[]) => {
+    const named = inputs.filter((input) => input.length > 0);
+    return named.length > 0 ? `Reads ${named.join(', ')}` : '';
+};
 
 // One look for every query on a live data source, through its explore or an
 // api node from an older thread.
@@ -84,20 +86,20 @@ const getNodePresentation = (
             return {
                 icon: IconSitemap,
                 badge: 'Semantic layer',
-                detail: `${node.exploreName} · ${node.dimensions.length} dimension${node.dimensions.length === 1 ? '' : 's'} · ${node.metrics.length} metric${node.metrics.length === 1 ? '' : 's'}`,
+                detail: '',
             } as const;
         case QuerySourceType.SQL:
             return {
                 icon: IconDatabase,
                 badge: 'Warehouse SQL',
-                detail: 'Project warehouse',
+                detail: '',
             } as const;
         case QuerySourceType.EXTERNAL: {
             const tables = referenceAliases(node.tables);
             return {
                 icon: IconFileSpreadsheet,
                 badge: 'External data',
-                detail: `Reads ${tables.join(', ')}`,
+                detail: readsDetail(tables),
             } as const;
         }
         case QuerySourceType.DUCKDB: {
@@ -107,7 +109,7 @@ const getNodePresentation = (
             return {
                 icon: IconGitMerge,
                 badge: 'DuckDB compose',
-                detail: `Reads ${references.join(', ')}`,
+                detail: readsDetail(references),
             } as const;
         }
         case QuerySourceType.PYTHON: {
@@ -117,7 +119,7 @@ const getNodePresentation = (
             return {
                 icon: IconBrandPython,
                 badge: 'Python',
-                detail: `Reads ${references.join(', ')}`,
+                detail: readsDetail(references),
             } as const;
         }
         case QuerySourceType.API:
@@ -211,7 +213,6 @@ const ComposerQueryNode: FC<{
     const presentation = liveSourceConnectionUuid
         ? LIVE_SOURCE_PRESENTATION
         : getNodePresentation(node, titlesByNodeId);
-    const active = isActiveStatus(nodeStatus);
     // Only nodes awaiting approval open by default; a user toggle wins until
     // the status changes.
     const defaultOpen = nodeStatus?.status === 'awaiting_approval';
@@ -225,9 +226,10 @@ const ComposerQueryNode: FC<{
         setUserToggle({ status: nodeStatus?.status, open: value });
     const open = userOpen ?? defaultOpen;
     const statusLabel = useComposerNodeStatusLabel();
-    // Trailing status word on the row; success reads from the check mark alone.
+    // Running, queued and done read from the glyph; only states that need action or explain a stop get words.
     const statusText =
-        nodeStatus && nodeStatus.status !== 'success'
+        nodeStatus?.status === 'awaiting_approval' ||
+        nodeStatus?.status === 'error'
             ? statusLabel(nodeStatus.status).toLowerCase()
             : null;
     const showApproval =
@@ -246,15 +248,17 @@ const ComposerQueryNode: FC<{
                 aria-expanded={open}
             >
                 <Group
-                    gap={8}
+                    gap={10}
                     align="center"
                     wrap="nowrap"
-                    className={rowStyles.head}
+                    className={styles.head}
                 >
                     {nodeStatus ? (
-                        <NodeStatusIndicator status={nodeStatus.status} />
-                    ) : null}
-                    {liveSourceConnectionUuid ? (
+                        <NodeStatusIndicator
+                            status={nodeStatus.status}
+                            size="md"
+                        />
+                    ) : liveSourceConnectionUuid ? (
                         <Tooltip
                             label={
                                 liveSource
@@ -276,30 +280,28 @@ const ComposerQueryNode: FC<{
                             >
                                 <LiveSourceIcon
                                     connector={liveSource?.connector ?? null}
-                                    size={13}
+                                    size={14}
                                 />
                             </Box>
                         </Tooltip>
                     ) : (
                         <MantineIcon
                             icon={presentation.icon}
-                            size={13}
+                            size={14}
                             stroke={1.6}
                             className={rowStyles.icon}
-                            data-status={active ? 'running' : undefined}
                         />
                     )}
-                    <Text size="xs" className={rowStyles.label} truncate>
+                    <Text
+                        size="sm"
+                        truncate
+                        className={styles.title}
+                        data-status={nodeStatus?.status}
+                    >
                         {node.title ?? node.nodeId}
                     </Text>
-                    <ToolCallChip>{presentation.badge}</ToolCallChip>
-                    <Text
-                        size="xs"
-                        c="dimmed"
-                        truncate
-                        className={styles.detail}
-                    >
-                        {liveSource?.name ?? presentation.detail}
+                    <Text size="xs" truncate className={styles.suffix}>
+                        {liveSource?.name ?? presentation.badge}
                     </Text>
                     {statusText ? (
                         <Text
@@ -312,7 +314,7 @@ const ComposerQueryNode: FC<{
                     ) : null}
                     <MantineIcon
                         icon={IconChevronRight}
-                        size={11}
+                        size={12}
                         stroke={1.6}
                         className={clsx(
                             rowStyles.chevron,
@@ -323,6 +325,11 @@ const ComposerQueryNode: FC<{
             </UnstyledButton>
             <Collapse expanded={open} transitionDuration={200}>
                 <Stack gap={6} className={styles.body}>
+                    {presentation.detail ? (
+                        <Text size="xs" c="dimmed">
+                            {presentation.detail}
+                        </Text>
+                    ) : null}
                     <NodeBody node={node} />
                     {showApproval ? (
                         <SqlApprovalActions {...approval} review={null} />

@@ -97,7 +97,7 @@ export const UserBubble: FC<Props> = ({
                     {isEmbed ? (
                         // The message permalink lives in the full app, which an
                         // embed cannot open.
-                        <Text c="dimmed" fz="xs">
+                        <Text c="dimmed" fz="xs" className={styles.timestamp}>
                             {timeAgo}
                         </Text>
                     ) : (
@@ -105,6 +105,7 @@ export const UserBubble: FC<Props> = ({
                             component={Link}
                             c="dimmed"
                             fz="xs"
+                            className={styles.timestamp}
                             to={`/projects/${projectUuid}/ai-agents/${agentUuid}/threads/${message.threadUuid}/messages/${message.uuid}`}
                         >
                             {timeAgo}
@@ -148,10 +149,10 @@ export const UserBubble: FC<Props> = ({
 
             <Card
                 pos="relative"
-                radius="md"
-                py={6}
-                px="sm"
-                color="white"
+                radius="lg"
+                py="xs"
+                px="md"
+                withBorder={false}
                 className={`${styles.messageCard} ${
                     isEmptyMessage ? styles.emptyMessageCard : ''
                 }`}

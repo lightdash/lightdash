@@ -5,29 +5,19 @@ import {
     getSdkFeatureTargetForTemplate,
     isAppVersionInProgress,
 } from '@lightdash/common';
-import {
-    ActionIcon,
-    Box,
-    Center,
-    Group,
-    Loader,
-    Menu,
-    Stack,
-    Text,
-} from '@mantine/core';
+import { Box, Center, Group, Loader, Menu, Stack, Text } from '@mantine/core';
 import {
     IconAlertTriangle,
     IconAppWindow,
     IconArrowRight,
     IconCircleMinus,
     IconExternalLink,
-    IconX,
 } from '@tabler/icons-react';
+import { clsx } from 'clsx';
 import { useCallback, useRef, useState, type FC, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import EmptyStateLoader from '../../../../../components/common/EmptyStateLoader';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import TruncatedText from '../../../../../components/common/TruncatedText';
 import AppIframePreview, {
     type AppIframePreviewHandle,
 } from '../../../../../features/apps/AppIframePreview';
@@ -60,7 +50,12 @@ import {
     useAiAgentStoreSelector,
 } from '../../store/hooks';
 import artifactStyles from './AiArtifactPanel.module.css';
-import { type DataAppBuildCardState } from './DataAppBuildCard/DataAppBuildCard';
+import { ArtifactWindowControls } from './ArtifactFocusToggle';
+import { ArtifactPanelHeading } from './ArtifactPanelHeading';
+import {
+    BuildProgress,
+    type DataAppBuildCardState,
+} from './DataAppBuildCard/DataAppBuildCard';
 import {
     DATA_APP_BUILD_CANCELLED_TITLE,
     DATA_APP_BUILD_FAILED_TITLE,
@@ -85,12 +80,18 @@ const BuildStateBody: FC<{ state: DataAppBuildCardState }> = ({ state }) => {
                 <Box className={artifactStyles.previewEmpty}>
                     <MantineIcon icon={IconAppWindow} size={48} />
                     <Text size="sm">Your app preview will appear here</Text>
-                    <Text size="xs" c="dimmed">
-                        {state.kind === 'building'
-                            ? state.statusMessage
-                            : 'Starting the build'}{' '}
-                        <LoadingDots />
-                    </Text>
+                    {state.kind === 'building' ? (
+                        <Box className={artifactStyles.buildProgress}>
+                            <BuildProgress
+                                step={state.step}
+                                startedAt={state.startedAt}
+                            />
+                        </Box>
+                    ) : (
+                        <Text size="xs" c="dimmed">
+                            Starting the build <LoadingDots />
+                        </Text>
+                    )}
                 </Box>
             );
         case 'failed':
@@ -364,14 +365,11 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
               }
             : null;
 
-    const closeButton = (
-        <ActionIcon
-            size="sm"
-            onClick={() => dispatch(clearPreview())}
-            aria-label="Close"
-        >
-            <MantineIcon icon={IconX} />
-        </ActionIcon>
+    const windowControls = (separated: boolean) => (
+        <ArtifactWindowControls
+            onClose={() => dispatch(clearPreview())}
+            separated={separated}
+        />
     );
 
     const renderMessage = (message: string) => (
@@ -381,7 +379,7 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
                     <Text size="xs" c="dimmed" ta="center">
                         {message}
                     </Text>
-                    {closeButton}
+                    {windowControls(false)}
                 </Stack>
             </Center>
         </Box>
@@ -409,7 +407,7 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
                             color="ldGray.6"
                             delayedMessage="Loading data app..."
                         />
-                        {closeButton}
+                        {windowControls(false)}
                     </Stack>
                 </Center>
             </Box>
@@ -461,6 +459,7 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
                     <AppInspectorPanel
                         projectUuid={projectUuid}
                         hideWhenEmpty={!inspectorPinned}
+                        placement="docked"
                         {...inspector.panelProps}
                         onToggleLineage={handleToggleLineage}
                     />
@@ -477,16 +476,16 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
         <Box className={artifactStyles.floatingPanel}>
             <Box className={artifactStyles.floatingContent}>
                 <Box className={artifactStyles.head}>
-                    <Stack gap={0} flex={1} miw={0}>
-                        <TruncatedText fz="sm" fw={600} maxWidth="100%">
-                            {getAppDisplayName(app.name, appUuid)}
-                        </TruncatedText>
-                        {app.description && (
-                            <TruncatedText fz="xs" c="dimmed" maxWidth="100%">
-                                {app.description}
-                            </TruncatedText>
-                        )}
-                    </Stack>
+                    <ArtifactPanelHeading
+                        title={getAppDisplayName(app.name, appUuid)}
+                        description={app.description || null}
+                        marker={
+                            effectiveVersion === null
+                                ? null
+                                : { kind: 'version', version: effectiveVersion }
+                        }
+                        descriptionDisplay="tooltip"
+                    />
 
                     <Group gap={2} className={artifactStyles.headRight}>
                         <AppActionsMenu
@@ -602,11 +601,16 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
                                     onToggle={picker.toggle}
                                 />
                             )}
-                        {closeButton}
+                        {windowControls(true)}
                     </Group>
                 </Box>
 
-                <Box className={artifactStyles.previewBody}>
+                <Box
+                    className={clsx(
+                        artifactStyles.previewBody,
+                        artifactStyles.previewBodyStacked,
+                    )}
+                >
                     {body}
                     {isViewingOlderVersion && (
                         <DataAppVersionPill

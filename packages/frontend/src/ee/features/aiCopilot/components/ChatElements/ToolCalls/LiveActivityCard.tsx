@@ -1,4 +1,5 @@
 import {
+    interpolateUiString,
     isComposerQueryToolName,
     type AiAgentToolCall,
     type AiAgentToolName,
@@ -16,6 +17,7 @@ import {
     UnstyledButton,
 } from '@mantine/core';
 import {
+    IconAlertCircle,
     IconChevronRight,
     IconNotes,
     type Icon as TablerIconType,
@@ -23,6 +25,7 @@ import {
 import { useState, type FC } from 'react';
 import { AiMarkdown } from '../../../../../../components/common/AiMarkdown';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
+import { useUiStrings } from '../../../../../providers/Embed/useUiStrings';
 import { type StepProgressMessage } from '../../../store/aiAgentThreadStreamSlice';
 import { type ComposerQueryNodeStatus } from '../composerNodeStatus';
 import { AgentStepGroups } from './AgentStepGroups';
@@ -34,7 +37,9 @@ import { type SqlApprovalThread } from './SqlApprovalActions';
 import { ToolCallChip } from './ToolCallChip';
 import { ToolCallIcon } from './ToolCallIcon';
 import { ToolCallRow } from './ToolCallRow';
+import { getActivityStepLabels } from './utils/activityStepLabels';
 import {
+    getComposerNodeReads,
     getComposerQueryNodes,
     isWarehouseSqlNode,
 } from './utils/composerQueryNodes';
@@ -47,6 +52,7 @@ import {
     getMcpToolDisplayName,
 } from './utils/mcpToolDisplay';
 import { stripMarkdown } from './utils/stripMarkdown';
+import { getToolCallFailures } from './utils/toolCallFailure';
 import { type ToolCallGroupDisplay } from './utils/toolCallGrouping';
 import { type ToolCallSummary } from './utils/types';
 
@@ -86,6 +92,8 @@ type Props = {
     };
     /** Rendered as the first item of the card body. */
     reasoning?: { texts: string[]; isLive: boolean };
+    /** A failure summary below the card carries the error, so the header stays quiet. */
+    isFailureSummarized?: boolean;
 };
 
 const REASONING_PREVIEW_LENGTH = 140;
@@ -262,7 +270,17 @@ const LatestRow: FC<{
     isLive: boolean;
     awaitingApproval: boolean;
     mcpServers?: AiMcpServer[];
-}> = ({ group, isLive, awaitingApproval, mcpServers }) => {
+    failedCount: number;
+    showCount: boolean;
+}> = ({
+    group,
+    isLive,
+    awaitingApproval,
+    mcpServers,
+    failedCount,
+    showCount,
+}) => {
+    const getUiString = useUiStrings();
     const builtInToolName = isToolName(group.toolName) ? group.toolName : null;
     const linkedMcpServer =
         group.calls.find((toolCall) => toolCall.mcpServer)?.mcpServer ??
@@ -314,19 +332,30 @@ const LatestRow: FC<{
                     className={styles.iconChip}
                     data-live={isLive ? 'true' : 'false'}
                 >
-                    <ToolCallIcon
-                        toolName={group.toolName}
-                        size={12}
-                        stroke={1.7}
-                        className={styles.latestIcon}
-                        mcpServer={mcpServer}
-                        data-live={isLive ? 'true' : 'false'}
-                    />
+                    {failedCount > 0 ? (
+                        <MantineIcon
+                            icon={IconAlertCircle}
+                            size={14}
+                            stroke={1.7}
+                            className={styles.latestIcon}
+                            data-status="error"
+                            aria-hidden
+                        />
+                    ) : (
+                        <ToolCallIcon
+                            toolName={group.toolName}
+                            size={14}
+                            stroke={1.7}
+                            className={styles.latestIcon}
+                            mcpServer={mcpServer}
+                            data-live={isLive ? 'true' : 'false'}
+                        />
+                    )}
                 </Box>
             </Box>
             {label ? (
                 <Text
-                    size="xs"
+                    size="sm"
                     className={styles.latestLabel}
                     key={`label-${group.toolName}-${isLive ? 'live' : 'done'}`}
                     // Walkthrough: the product's own words for what the
@@ -342,7 +371,7 @@ const LatestRow: FC<{
                     className={styles.latestMcpLabel}
                     key={`label-${group.toolName}-${isLive ? 'live' : 'done'}`}
                 >
-                    <Text size="xs" className={styles.latestLabel}>
+                    <Text size="sm" className={styles.latestLabel}>
                         Using {mcpDisplayMetadata?.label ?? 'MCP'}:
                     </Text>
                     <ToolCallChip
@@ -353,13 +382,26 @@ const LatestRow: FC<{
                     </ToolCallChip>
                 </Group>
             )}
-            {isGrouped && (
+            {isGrouped && showCount && (
                 <Box
                     className={styles.countBadge}
                     key={`count-${group.calls.length}`}
                 >
                     {group.calls.length}
                 </Box>
+            )}
+            {failedCount > 0 && (
+                <Text size="xs" className={styles.failedLabel}>
+                    {isGrouped
+                        ? interpolateUiString(
+                              getUiString('aiAgent.activity.partlyFailed'),
+                              {
+                                  failed: failedCount,
+                                  total: group.calls.length,
+                              },
+                          )
+                        : getUiString('aiAgent.activity.failed')}
+                </Text>
             )}
             {awaitingApproval ? (
                 <Text size="xs" className={styles.awaitingApproval}>
@@ -369,7 +411,7 @@ const LatestRow: FC<{
                 showPreview &&
                 chipLabel && (
                     <Text
-                        size="xs"
+                        size="sm"
                         c="dimmed"
                         lineClamp={1}
                         className={styles.latestPreview}
@@ -537,7 +579,7 @@ const getComposerNodeStatuses = (
         | undefined;
     const outputStatus = output?.metadata?.status;
 
-    return Object.fromEntries(
+    const statuses = Object.fromEntries(
         nodeIds.flatMap((nodeId): [string, ComposerQueryNodeStatus][] => {
             const fromEvent = eventStatuses.get(nodeId);
             // Failures show no indicator: the agent retries on its own.
@@ -555,6 +597,17 @@ const getComposerNodeStatuses = (
             return [];
         }),
     );
+    // Every node is submitted as running at once; one still waiting on its inputs is queued.
+    for (const query of queries) {
+        if (statuses[query.nodeId]?.status !== 'running') continue;
+        const isWaiting = getComposerNodeReads(query).some(
+            (readId) =>
+                statuses[readId] !== undefined &&
+                statuses[readId].status !== 'success',
+        );
+        if (isWaiting) statuses[query.nodeId] = { status: 'pending' };
+    }
+    return statuses;
 };
 
 /**
@@ -586,6 +639,30 @@ const renderInlineLiveTrace = (params: {
     );
 };
 
+const getComposerProgress = (
+    calls: ToolCallSummary[],
+    stepProgressMessages: StepProgressMessage[],
+    pendingApprovalIds: string[],
+): { done: number; total: number } | null => {
+    const total = calls.reduce(
+        (sum, call) => sum + getComposerQueryNodes(call.toolArgs).length,
+        0,
+    );
+    if (total < 2) return null;
+    const done = calls
+        .flatMap((call) =>
+            Object.values(
+                getComposerNodeStatuses(
+                    call,
+                    stepProgressMessages,
+                    pendingApprovalIds.includes(call.toolCallId),
+                ) ?? {},
+            ),
+        )
+        .filter((status) => status.status === 'success').length;
+    return { done, total };
+};
+
 export const LiveActivityCard: FC<Props> = ({
     toolGroups,
     isLive,
@@ -595,7 +672,9 @@ export const LiveActivityCard: FC<Props> = ({
     stepProgressMessages = [],
     approval,
     reasoning,
+    isFailureSummarized = false,
 }) => {
+    const getUiString = useUiStrings();
     const latestGroup =
         toolGroups.length > 0 ? toolGroups[toolGroups.length - 1] : undefined;
     const pendingApprovalIds = approval?.pendingToolCallIds ?? [];
@@ -631,6 +710,8 @@ export const LiveActivityCard: FC<Props> = ({
         userToggle?.key === expandKey ? userToggle.value : null;
     const setUserExpanded = (value: boolean) =>
         setUserToggle({ key: expandKey, value });
+    // While a step runs, earlier steps and reasoning fold behind one row.
+    const [earlierToggle, setEarlierToggle] = useState<boolean | null>(null);
 
     const hasReasoning = (reasoning?.texts.length ?? 0) > 0;
 
@@ -663,6 +744,14 @@ export const LiveActivityCard: FC<Props> = ({
         (sum, group) => sum + group.calls.length,
         0,
     );
+    const latestFailedCount = latest
+        ? getToolCallFailures(latest.calls, toolResults).length
+        : 0;
+    const failedStepCount = toolGroups.reduce(
+        (sum, group) =>
+            sum + getToolCallFailures(group.calls, toolResults).length,
+        0,
+    );
     const olderGroups = latest ? toolGroups.slice(0, -1) : toolGroups;
     const olderCount = latest ? totalCalls - latest.calls.length : totalCalls;
     const hasExpandableBody = olderCount > 0 || hasReasoning;
@@ -675,6 +764,45 @@ export const LiveActivityCard: FC<Props> = ({
         (latest !== null && isComposerQueryToolName(latest.toolName)) ||
         latestAwaitingApproval;
     const showBody = expanded && (hasExpandableBody || latestNeedsExpandedBody);
+    const earlierOpen =
+        latest === null || (earlierToggle ?? userExpanded === true);
+    const stepLabels = getActivityStepLabels(
+        {
+            totalCalls,
+            latestCallCount: latest?.calls.length ?? 0,
+            hasReasoning,
+        },
+        getUiString,
+    );
+    // A failed run reads "Failed", not as partial progress.
+    const composerProgress =
+        latest &&
+        isActive &&
+        latestFailedCount === 0 &&
+        isComposerQueryToolName(latest.toolName)
+            ? getComposerProgress(
+                  latest.calls,
+                  stepProgressMessages,
+                  pendingApprovalIds,
+              )
+            : null;
+    const summary =
+        latest === null ? getActivityTitle(toolGroups, toolResults) : null;
+    // Every finished turn counts its steps, unless the failure label already does.
+    const getHeaderMeta = () => {
+        if (composerProgress) {
+            return interpolateUiString(
+                getUiString('aiAgent.activity.queryProgress'),
+                composerProgress,
+            );
+        }
+        if (latest) return stepLabels.running;
+        if (failedStepCount === totalCalls && !isFailureSummarized) {
+            return null;
+        }
+        return stepLabels.finished;
+    };
+    const headerMeta = getHeaderMeta();
 
     return (
         <Box
@@ -691,9 +819,8 @@ export const LiveActivityCard: FC<Props> = ({
             >
                 <Group gap={6} align="center" wrap="nowrap">
                     <Box className={styles.latestSlot}>
-                        {showSummaryHeader ? (
+                        {summary ? (
                             (() => {
-                                const summary = getActivityTitle(toolGroups);
                                 const SummaryIcon = summary.icon;
                                 return (
                                     <Group
@@ -704,12 +831,12 @@ export const LiveActivityCard: FC<Props> = ({
                                     >
                                         <MantineIcon
                                             icon={SummaryIcon}
-                                            size={13}
+                                            size={14}
                                             stroke={1.6}
                                             className={styles.latestIcon}
                                         />
                                         <Text
-                                            size="xs"
+                                            size="sm"
                                             className={styles.latestLabel}
                                         >
                                             {summary.title}
@@ -718,21 +845,45 @@ export const LiveActivityCard: FC<Props> = ({
                                             toolGroups={toolGroups}
                                             mcpServers={mcpServers}
                                         />
+                                        {failedStepCount > 0 &&
+                                            !isFailureSummarized && (
+                                                <Text
+                                                    size="xs"
+                                                    className={
+                                                        styles.failedLabel
+                                                    }
+                                                >
+                                                    {interpolateUiString(
+                                                        getUiString(
+                                                            failedStepCount ===
+                                                                1
+                                                                ? 'aiAgent.activity.failedSteps.singular'
+                                                                : 'aiAgent.activity.failedSteps.plural',
+                                                        ),
+                                                        {
+                                                            count: failedStepCount,
+                                                        },
+                                                    )}
+                                                </Text>
+                                            )}
                                     </Group>
                                 );
                             })()
                         ) : latest ? (
                             <LatestRow
                                 group={latest}
-                                isLive={isActive}
+                                // Present tense until the turn ends; only a failed step reads as past.
+                                isLive={isActive && latestFailedCount === 0}
                                 awaitingApproval={latestAwaitingApproval}
                                 mcpServers={mcpServers}
+                                failedCount={latestFailedCount}
+                                showCount={composerProgress === null}
                             />
                         ) : null}
                     </Box>
-                    {olderCount > 0 && (
+                    {headerMeta && (
                         <Text size="xs" className={styles.counter}>
-                            +{olderCount}
+                            {headerMeta}
                         </Text>
                     )}
                     {(hasExpandableBody || latestNeedsExpandedBody) && (
@@ -771,7 +922,7 @@ export const LiveActivityCard: FC<Props> = ({
                 transitionTimingFunction="cubic-bezier(0.16, 1, 0.3, 1)"
             >
                 <Stack gap={6} className={styles.history}>
-                    {reasoning && hasReasoning && (
+                    {latest === null && reasoning && hasReasoning && (
                         <ReasoningHistoryRow
                             texts={reasoning.texts}
                             isLive={reasoning.isLive}
@@ -862,7 +1013,34 @@ export const LiveActivityCard: FC<Props> = ({
                         if (renderableCalls.length === 0) return null;
                         return <Stack gap={4}>{renderableCalls}</Stack>;
                     })()}
-                    {olderGroups.length > 0 && (
+                    {latest && stepLabels.earlier !== null && (
+                        <UnstyledButton
+                            className={styles.earlierToggle}
+                            aria-expanded={earlierOpen}
+                            onClick={() => setEarlierToggle(!earlierOpen)}
+                        >
+                            <Group gap={4} wrap="nowrap">
+                                <Text size="xs" className={styles.olderLabel}>
+                                    {stepLabels.earlier}
+                                </Text>
+                                <MantineIcon
+                                    icon={IconChevronRight}
+                                    size={11}
+                                    stroke={1.6}
+                                    className={`${styles.chevron} ${
+                                        earlierOpen ? styles.chevronOpen : ''
+                                    }`}
+                                />
+                            </Group>
+                        </UnstyledButton>
+                    )}
+                    {latest && earlierOpen && reasoning && hasReasoning && (
+                        <ReasoningHistoryRow
+                            texts={reasoning.texts}
+                            isLive={reasoning.isLive}
+                        />
+                    )}
+                    {olderGroups.length > 0 && earlierOpen && (
                         <Stack gap={2}>
                             {olderGroups.map((group, idx) => {
                                 const groupTrace =

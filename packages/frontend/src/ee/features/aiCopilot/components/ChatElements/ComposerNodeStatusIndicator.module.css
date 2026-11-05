@@ -52,3 +52,21 @@
         animation: none;
     }
 }
+
+.statusIndicator[data-size='md'] {
+    width: rem(16px);
+    height: rem(16px);
+}
+
+.statusIndicator[data-size='md'][data-status='success'] {
+    color: var(--mantine-color-dimmed);
+}
+
+.statusIndicator[data-size='md'][data-status='error'] {
+    color: light-dark(var(--mantine-color-red-8), var(--mantine-color-red-4));
+}
+
+.statusIndicator[data-size='md'] .statusDot {
+    width: rem(10px);
+    height: rem(10px);
+}

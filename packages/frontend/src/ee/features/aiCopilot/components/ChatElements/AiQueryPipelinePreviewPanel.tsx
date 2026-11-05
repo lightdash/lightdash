@@ -77,6 +77,7 @@ export const AiQueryPipelinePreviewPanel: FC<Props> = ({ pipelinePreview }) => {
             }}
             title={pipeline.title}
             description={null}
+            isRevision={false}
             config={config}
             run={run.data ?? null}
             runError={run.error ?? null}

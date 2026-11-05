@@ -420,3 +420,289 @@ describe('LiveActivityCard reasoning', () => {
         expect(screen.getAllByRole('button')[1]).toContainElement(reasoningRow);
     });
 });
+
+describe('LiveActivityCard step status', () => {
+    const sqlGroup = (
+        call: Partial<LiveActivityToolGroup['calls'][number]>,
+    ): LiveActivityToolGroup[] => [
+        {
+            keyId: 'sql-call',
+            toolName: 'runSql',
+            calls: [
+                {
+                    toolCallId: 'sql-call',
+                    toolName: 'runSql',
+                    toolArgs: { sql: 'select 1' },
+                    ...call,
+                },
+            ],
+        },
+    ];
+
+    it('flags failed steps in the finished summary header', () => {
+        renderWithProviders(
+            <LiveActivityCard
+                isLive={false}
+                toolGroups={sqlGroup({})}
+                toolResults={[
+                    {
+                        uuid: 'result-1',
+                        promptUuid: 'prompt-1',
+                        createdAt: new Date(),
+                        toolCallId: 'sql-call',
+                        toolType: 'built-in',
+                        toolName: 'runSql',
+                        result: 'Bad SQL',
+                        metadata: { status: 'error' },
+                    },
+                ]}
+            />,
+        );
+        expect(screen.getByText('1 step failed')).toBeInTheDocument();
+        expect(screen.queryByText('1 step')).not.toBeInTheDocument();
+    });
+
+    it('leaves the failure to the summary below when one carries the error', () => {
+        renderWithProviders(
+            <LiveActivityCard
+                isLive={false}
+                isFailureSummarized
+                toolGroups={sqlGroup({})}
+                toolResults={[
+                    {
+                        uuid: 'result-1',
+                        promptUuid: 'prompt-1',
+                        createdAt: new Date(),
+                        toolCallId: 'sql-call',
+                        toolType: 'built-in',
+                        toolName: 'runSql',
+                        result: 'Bad SQL',
+                        metadata: { status: 'error' },
+                    },
+                ]}
+            />,
+        );
+        expect(screen.queryByText('1 step failed')).not.toBeInTheDocument();
+        expect(screen.getByText('1 step')).toBeInTheDocument();
+    });
+
+    it('counts a single finished step like any other turn', () => {
+        renderWithProviders(
+            <LiveActivityCard
+                isLive={false}
+                toolGroups={[
+                    {
+                        keyId: 'app-call',
+                        toolName: 'generateDataApp',
+                        calls: [
+                            {
+                                toolCallId: 'app-call',
+                                toolName: 'generateDataApp',
+                                toolArgs: {},
+                            },
+                        ],
+                    },
+                ]}
+            />,
+        );
+        expect(screen.getByText('Steps taken')).toBeInTheDocument();
+        expect(screen.getByText('1 step')).toBeInTheDocument();
+    });
+
+    it('keeps a finished latest step in the present tense while streaming', () => {
+        renderWithProviders(
+            <LiveActivityCard
+                isLive
+                toolGroups={sqlGroup({
+                    toolOutput: { result: '', metadata: { status: 'success' } },
+                    isPreliminary: false,
+                })}
+            />,
+        );
+        expect(screen.getByText('Running SQL query')).toBeInTheDocument();
+        expect(screen.queryByText('Ran SQL query')).not.toBeInTheDocument();
+    });
+});
+
+describe('LiveActivityCard failed composer run', () => {
+    const queries = ['a', 'b', 'c'].map((nodeId) => ({
+        sourceType: QuerySourceType.EXTERNAL,
+        nodeId,
+        title: `Node ${nodeId}`,
+        description: null,
+        sql: 'select 1',
+        tables: ['t'],
+        limit: 500,
+    }));
+    const failedRun: LiveActivityToolGroup[] = [
+        {
+            keyId: 'composer-call',
+            toolName: 'runComposerQueries',
+            calls: [
+                {
+                    toolCallId: 'composer-call',
+                    toolName: 'runComposerQueries',
+                    toolArgs: {
+                        title: 'Compare',
+                        description: null,
+                        terminalNodeId: 'c',
+                        queries,
+                    },
+                    isPreliminary: false,
+                    toolOutput: {
+                        result: 'Composer query failed',
+                        metadata: { status: 'error' },
+                    },
+                },
+            ],
+        },
+    ];
+
+    it('reads as failed instead of partial query progress', () => {
+        renderWithProviders(
+            <LiveActivityCard
+                isLive
+                toolGroups={failedRun}
+                stepProgressMessages={['a', 'b'].map((nodeId) => ({
+                    message: `Ran ${nodeId}`,
+                    toolName: 'runComposerQueries',
+                    progressId: `composer-call:${nodeId}`,
+                    progressStatus: 'complete' as const,
+                }))}
+            />,
+        );
+        expect(screen.getByText('Failed')).toBeInTheDocument();
+        expect(screen.queryByText(/of 3 queries/)).not.toBeInTheDocument();
+    });
+
+    it('does not claim a chart was built when the run failed', () => {
+        renderWithProviders(
+            <LiveActivityCard isLive={false} toolGroups={failedRun} />,
+        );
+        expect(screen.getByText('1 step failed')).toBeInTheDocument();
+        expect(
+            screen.queryByText('How this chart was built'),
+        ).not.toBeInTheDocument();
+    });
+});
+
+describe('LiveActivityCard composer progress', () => {
+    it('counts queries once instead of also badging the call count', () => {
+        const call = (nodeId: string) => ({
+            toolCallId: `call-${nodeId}`,
+            toolName: 'runComposerQueries',
+            toolArgs: {
+                title: null,
+                description: null,
+                terminalNodeId: null,
+                queries: [
+                    {
+                        sourceType: QuerySourceType.SQL,
+                        nodeId,
+                        title: nodeId,
+                        description: null,
+                        sql: 'select 1',
+                        limit: 500,
+                    },
+                ],
+            },
+        });
+        renderWithProviders(
+            <LiveActivityCard
+                isLive
+                toolGroups={[
+                    {
+                        keyId: 'composer',
+                        toolName: 'runComposerQueries',
+                        calls: [call('a'), call('b')],
+                    },
+                ]}
+                stepProgressMessages={[
+                    {
+                        message: 'Ran a',
+                        toolName: 'runComposerQueries',
+                        progressId: 'call-a:a',
+                        progressStatus: 'complete',
+                    },
+                ]}
+            />,
+        );
+        expect(screen.getByText('1 of 2 queries')).toBeInTheDocument();
+        expect(
+            screen.queryByText('2', { exact: true }),
+        ).not.toBeInTheDocument();
+    });
+});
+
+describe('LiveActivityCard composer dependencies', () => {
+    const groups: LiveActivityToolGroup[] = [
+        {
+            keyId: 'composer',
+            toolName: 'runComposerQueries',
+            calls: [
+                {
+                    toolCallId: 'call',
+                    toolName: 'runComposerQueries',
+                    toolArgs: {
+                        title: null,
+                        description: null,
+                        terminalNodeId: 'totals',
+                        queries: [
+                            {
+                                sourceType: QuerySourceType.SQL,
+                                nodeId: 'orders',
+                                title: 'Orders',
+                                description: null,
+                                sql: 'select 1',
+                                limit: 500,
+                            },
+                            {
+                                sourceType: QuerySourceType.DUCKDB,
+                                nodeId: 'totals',
+                                title: 'Totals',
+                                description: null,
+                                sql: 'select * from orders',
+                                references: ['orders'],
+                                limit: 500,
+                            },
+                        ],
+                    },
+                },
+            ],
+        },
+    ];
+    const running = (nodeId: string) => ({
+        message: `Running ${nodeId}`,
+        toolName: 'runComposerQueries',
+        progressId: `call:${nodeId}`,
+        progressStatus: 'in_progress' as const,
+    });
+
+    it('queues a node until the results it reads finish', () => {
+        renderWithProviders(
+            <LiveActivityCard
+                isLive
+                toolGroups={groups}
+                stepProgressMessages={[running('orders'), running('totals')]}
+            />,
+        );
+        expect(screen.getAllByLabelText('Running')).toHaveLength(1);
+        expect(screen.getAllByLabelText('Queued')).toHaveLength(1);
+    });
+
+    it('runs the node once its inputs are done', () => {
+        renderWithProviders(
+            <LiveActivityCard
+                isLive
+                toolGroups={groups}
+                stepProgressMessages={[
+                    running('orders'),
+                    running('totals'),
+                    { ...running('orders'), progressStatus: 'complete' },
+                ]}
+            />,
+        );
+        expect(screen.getAllByLabelText('Running')).toHaveLength(1);
+        expect(screen.queryByLabelText('Queued')).not.toBeInTheDocument();
+    });
+});

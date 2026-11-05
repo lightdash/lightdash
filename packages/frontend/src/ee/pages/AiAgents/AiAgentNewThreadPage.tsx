@@ -2,7 +2,6 @@ import { type AiAgentBattleProfile } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
-    Center,
     Group,
     Pill,
     Popover,
@@ -447,7 +446,7 @@ const AiAgentNewThreadPage: FC = () => {
     );
 
     return (
-        <Center h="100%">
+        <Box className={styles.startScreen}>
             <Stack
                 justify="space-between"
                 gap={0}
@@ -455,7 +454,7 @@ const AiAgentNewThreadPage: FC = () => {
                 {...ChatElementsUtils.centeredElementProps}
                 h="unset"
             >
-                <Stack flex={1} py="lg">
+                <Stack flex={1} py="lg" gap="xl">
                     <Stack
                         align="center"
                         gap={6}
@@ -545,14 +544,6 @@ const AiAgentNewThreadPage: FC = () => {
                             }
                         />
                     </Stack>
-
-                    {projectUuid && agentUuid && (
-                        <AiAgentNewThreadMcpConnections
-                            projectUuid={projectUuid}
-                            agentUuid={agentUuid}
-                            onSuggestedPrompt={handleSuggestedPrompt}
-                        />
-                    )}
 
                     {verifiedQuestions && (
                         <SuggestedQuestions
@@ -645,11 +636,20 @@ const AiAgentNewThreadPage: FC = () => {
                             defaultValue={pendingPrompt}
                             onValueChange={setPendingPrompt}
                             contentMentionPriorityItems={contentMentionItems}
+                            suggestionLayout="list"
                         />
+
+                        {projectUuid && agentUuid && (
+                            <AiAgentNewThreadMcpConnections
+                                projectUuid={projectUuid}
+                                agentUuid={agentUuid}
+                                onSuggestedPrompt={handleSuggestedPrompt}
+                            />
+                        )}
                     </Stack>
                 </Stack>
             </Stack>
-        </Center>
+        </Box>
     );
 };
 export default AiAgentNewThreadPage;

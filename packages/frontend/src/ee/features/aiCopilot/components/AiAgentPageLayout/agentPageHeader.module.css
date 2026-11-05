@@ -1,23 +1,25 @@
 .root {
-    min-height: rem(44px);
+    min-height: rem(40px);
 }
 
-.action {
-    height: rem(32px);
-    border-color: var(--mantine-color-ldGray-2);
-    box-shadow: var(--mantine-shadow-subtle);
-    color: var(--mantine-color-ldGray-9);
-    font-size: var(--mantine-font-size-xs);
+.actions {
+    flex-shrink: 0;
 }
 
-.actionIcon {
-    width: rem(32px);
+.divider {
+    height: rem(16px);
+    align-self: center;
+    margin-inline: rem(4px);
 }
 
 .threadAction {
-    width: rem(32px);
-    height: rem(32px);
-    color: var(--mantine-color-ldGray-9);
+    width: rem(30px);
+    height: rem(30px);
+    color: var(--mantine-color-dimmed);
+
+    &:hover {
+        color: var(--mantine-color-text);
+    }
 }
 
 .flippedIcon {

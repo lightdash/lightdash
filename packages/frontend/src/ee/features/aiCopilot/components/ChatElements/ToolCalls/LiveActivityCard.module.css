@@ -1,7 +1,7 @@
 .card {
     position: relative;
     border-radius: 10px;
-    padding: 7px 12px;
+    padding: 8px 12px;
     animation: cardSlideIn 280ms cubic-bezier(0.16, 1, 0.3, 1);
     overflow: hidden;
     font-family: var(--mantine-font-family);
@@ -61,7 +61,7 @@
 }
 
 .latestRow {
-    height: 22px;
+    height: rem(28px);
     min-width: 0;
 }
 
@@ -81,8 +81,8 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 20px;
-    height: 20px;
+    width: rem(22px);
+    height: rem(22px);
     border-radius: 6px;
     background-color: transparent;
     border: 1px solid transparent;
@@ -111,10 +111,21 @@
     animation: livePulse 1.6s ease-in-out infinite;
 }
 
+.latestIcon[data-status='error'] {
+    color: light-dark(var(--mantine-color-red-8), var(--mantine-color-red-4));
+}
+
+.failedLabel {
+    flex-shrink: 0;
+    line-height: 1;
+    font-weight: 500;
+    color: light-dark(var(--mantine-color-red-8), var(--mantine-color-red-4));
+}
+
 .latestLabel {
     flex-shrink: 0;
     line-height: 1;
-    color: var(--mantine-color-ldGray-8);
+    color: var(--mantine-color-text);
     font-family: var(--mantine-font-family);
     font-weight: 500;
     letter-spacing: -0.005em;
@@ -198,15 +209,15 @@
 .countBadge {
     display: inline-flex;
     align-items: center;
-    height: 16px;
+    height: 18px;
     padding: 0 6px;
     border-radius: 999px;
     background-color: var(--mantine-color-ldGray-2);
     color: var(--mantine-color-ldGray-7);
-    font-size: 10px;
+    font-size: var(--mantine-font-size-xs);
     font-weight: 500;
     line-height: 1;
-    letter-spacing: 0.01em;
+    font-variant-numeric: tabular-nums;
     flex-shrink: 0;
     animation: countPop 380ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
@@ -264,18 +275,19 @@
 
 .counter {
     flex-shrink: 0;
-    color: var(--mantine-color-ldGray-5);
+    color: var(--mantine-color-dimmed);
+    font-variant-numeric: tabular-nums;
     letter-spacing: -0.005em;
 }
 
 .chevron {
     flex-shrink: 0;
-    color: var(--mantine-color-ldGray-5);
+    color: var(--mantine-color-ldGray-6);
     /* Springy chevron rotation. */
     transition:
         transform 360ms cubic-bezier(0.34, 1.56, 0.64, 1),
         color 200ms ease;
-    opacity: 0.6;
+    opacity: 0.8;
 }
 
 .card:hover .chevron {
@@ -318,6 +330,24 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
+}
+
+/* Folds reasoning and finished steps below the running one. */
+.earlierToggle {
+    align-self: flex-start;
+    border-radius: var(--mantine-radius-sm);
+    font-family: var(--mantine-font-family);
+}
+
+.earlierToggle:hover .chevron,
+.earlierToggle:hover .olderLabel {
+    opacity: 1;
+    color: var(--mantine-color-text);
+}
+
+.olderLabel {
+    color: var(--mantine-color-dimmed);
+    font-weight: 500;
 }
 
 /* History rows cascade in with staggered delays (see --row-delay) so opening
@@ -490,4 +520,9 @@
         animation: none;
         transition: none;
     }
+}
+
+.counter::before {
+    content: '·';
+    margin-right: 6px;
 }

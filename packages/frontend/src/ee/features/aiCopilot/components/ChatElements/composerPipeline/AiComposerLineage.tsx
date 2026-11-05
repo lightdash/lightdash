@@ -1,6 +1,14 @@
 import { interpolateUiString, type SourceQuery } from '@lightdash/common';
-import { Badge, Box, Group, Paper, Text } from '@mantine/core';
-import { useElementSize } from '@mantine/hooks';
+import { Badge, Box, Button, Group, Paper, Text } from '@mantine/core';
+import {
+    useElementSize,
+    useWindowEvent,
+    type SplitterPaneSize,
+} from '@mantine/hooks';
+import {
+    IconLayoutBottombarCollapse,
+    IconLayoutBottombarExpand,
+} from '@tabler/icons-react';
 import {
     Background,
     Handle,
@@ -17,6 +25,7 @@ import {
 import { clsx } from 'clsx';
 import { useEffect, useMemo, useRef, useState, type FC } from 'react';
 import '@xyflow/react/dist/style.css';
+import MantineIcon from '../../../../../../components/common/MantineIcon';
 import DefaultEdge from '../../../../../../components/common/ReactFlow/DefaultEdge';
 import reactFlowStyles from '../../../../../../components/common/ReactFlow/reactFlow.module.css';
 import ResizableSplitter from '../../../../../../components/common/ResizableSplitter';
@@ -36,14 +45,19 @@ import {
     type PipelineNotebookProps,
 } from './notebook/PipelineNotebook';
 import {
+    getFittedGraphShare,
+    getPipelineFlowHeight,
+    GRAPH_FIT_PADDING,
     layoutPipelineFlow,
     toPipelineFlow,
     type PipelineFlowNode,
 } from './pipelineGraph';
 
 type GraphDisplay = {
+    selectedNodeId: string | null;
     onFocusNode: (nodeId: string) => void;
     onHoverNode: (nodeId: string | null) => void;
+    onClearSelection: () => void;
     nodeStatuses: Readonly<Record<string, ComposerRunNodeStatus>>;
 };
 
@@ -72,7 +86,10 @@ const NodeFacts: FC<{
     );
 };
 
-const LineageNodeView: FC<NodeProps<PipelineFlowNode>> = ({ data }) => {
+const LineageNodeView: FC<NodeProps<PipelineFlowNode>> = ({
+    data,
+    selected,
+}) => {
     const getUiString = useUiStrings();
     return (
         <Paper
@@ -81,6 +98,8 @@ const LineageNodeView: FC<NodeProps<PipelineFlowNode>> = ({ data }) => {
             className={styles.graphNode}
             data-terminal={data.isTerminal}
             data-dimmed={data.isDimmed}
+            data-selected={selected}
+            aria-pressed={selected}
             aria-label={interpolateUiString(
                 getUiString('aiAgent.composer.lineage.focusNode'),
                 { node: data.title },
@@ -92,7 +111,12 @@ const LineageNodeView: FC<NodeProps<PipelineFlowNode>> = ({ data }) => {
                 position={Position.Left}
                 className={styles.handle}
             />
-            <Group gap="xs" wrap="nowrap" className={styles.graphNodeHead}>
+            <Group
+                gap="xs"
+                wrap="nowrap"
+                align="flex-start"
+                className={styles.graphNodeHead}
+            >
                 <Box className={styles.graphNodeIcon}>
                     <ComposerNodeIcon query={data.query} size={14} />
                 </Box>
@@ -100,7 +124,7 @@ const LineageNodeView: FC<NodeProps<PipelineFlowNode>> = ({ data }) => {
                     <Text
                         component="span"
                         className={styles.graphNodeTitle}
-                        truncate
+                        lineClamp={2}
                     >
                         {data.title}
                     </Text>
@@ -134,18 +158,36 @@ const LineageNodeView: FC<NodeProps<PipelineFlowNode>> = ({ data }) => {
 
 const nodeTypes: NodeTypes = { pipeline: LineageNodeView };
 const edgeTypes: EdgeTypes = { pipeline: DefaultEdge };
-const FIT_VIEW_OPTIONS = { padding: 0.15, maxZoom: 1 };
+// Never enlarge past 100%, so node labels keep their CSS size.
+const FIT_VIEW_OPTIONS = { padding: GRAPH_FIT_PADDING, maxZoom: 1 };
+const GRAPH_SHARE_BOUNDS = { min: 15, max: 35 };
+const DEFAULT_SIZES: SplitterPaneSize[] = [
+    GRAPH_SHARE_BOUNDS.max,
+    100 - GRAPH_SHARE_BOUNDS.max,
+];
+const EXPANDED_GRAPH_SIZES: SplitterPaneSize[] = [80, 20];
+const isGraphExpanded = ([graph]: SplitterPaneSize[]) =>
+    typeof graph === 'number' && graph >= 60;
 
-const LineageFlow: FC<{ layers: PipelineLayer[] } & GraphDisplay> = ({
+const LineageFlow: FC<
+    {
+        layers: PipelineLayer[];
+        onLayout: (contentHeight: number) => void;
+    } & GraphDisplay
+> = ({
     layers,
+    onLayout,
+    selectedNodeId,
     onFocusNode,
     onHoverNode,
+    onClearSelection,
     nodeStatuses,
 }) => {
     const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+    const focusedNodeId = hoveredNodeId ?? selectedNodeId;
     const flow = useMemo(
-        () => toPipelineFlow(layers, { hoveredNodeId, nodeStatuses }),
-        [layers, hoveredNodeId, nodeStatuses],
+        () => toPipelineFlow(layers, { focusedNodeId, nodeStatuses }),
+        [layers, focusedNodeId, nodeStatuses],
     );
     // State holds what React Flow owns (positions, sizes); data comes from props.
     const [nodes, setNodes, onNodesChange] = useNodesState(flow.nodes);
@@ -155,24 +197,38 @@ const LineageFlow: FC<{ layers: PipelineLayer[] } & GraphDisplay> = ({
         );
         return nodes.map((node) => ({
             ...node,
+            selected: node.id === selectedNodeId,
             data: dataById.get(node.id) ?? node.data,
         }));
-    }, [nodes, flow.nodes]);
+    }, [nodes, flow.nodes, selectedNodeId]);
     const laidOut = useRef(false);
     const initialized = useNodesInitialized();
-    const { fitView } = useReactFlow();
+    const { fitView, getNodes } = useReactFlow<PipelineFlowNode>();
     const { ref, width, height } = useElementSize();
+    const getUiString = useUiStrings();
+    const focusedTitle =
+        focusedNodeId !== null && flow.nodes.some((node) => node.data.isDimmed)
+            ? (flow.nodes.find((node) => node.id === focusedNodeId)?.data
+                  .title ?? null)
+            : null;
 
     // Positions need measured sizes, so lay out once React Flow has them.
     useEffect(() => {
         if (!initialized || laidOut.current) return;
         laidOut.current = true;
-        setNodes((current) => layoutPipelineFlow(current, flow.edges));
+        const laidOutNodes = layoutPipelineFlow(getNodes(), flow.edges);
+        setNodes(laidOutNodes);
+        onLayout(getPipelineFlowHeight(laidOutNodes));
         requestAnimationFrame(() => void fitView(FIT_VIEW_OPTIONS));
-    }, [initialized, flow.edges, setNodes, fitView]);
+    }, [initialized, flow.edges, setNodes, getNodes, fitView, onLayout]);
 
+    // Wait a frame so React Flow has measured the resized viewport first.
     useEffect(() => {
-        if (laidOut.current) void fitView(FIT_VIEW_OPTIONS);
+        if (!laidOut.current) return;
+        const frame = requestAnimationFrame(
+            () => void fitView(FIT_VIEW_OPTIONS),
+        );
+        return () => cancelAnimationFrame(frame);
     }, [width, height, fitView]);
 
     return (
@@ -186,6 +242,7 @@ const LineageFlow: FC<{ layers: PipelineLayer[] } & GraphDisplay> = ({
                 edges={flow.edges}
                 onNodesChange={onNodesChange}
                 onNodeClick={(_, node) => onFocusNode(node.id)}
+                onPaneClick={onClearSelection}
                 onNodeMouseEnter={(_, node) => {
                     setHoveredNodeId(node.id);
                     onHoverNode(node.id);
@@ -200,7 +257,7 @@ const LineageFlow: FC<{ layers: PipelineLayer[] } & GraphDisplay> = ({
                 fitViewOptions={FIT_VIEW_OPTIONS}
                 minZoom={0.25}
                 maxZoom={1.5}
-                attributionPosition="top-right"
+                attributionPosition="bottom-right"
                 nodesDraggable={false}
                 nodesConnectable={false}
                 nodesFocusable={false}
@@ -212,6 +269,25 @@ const LineageFlow: FC<{ layers: PipelineLayer[] } & GraphDisplay> = ({
             >
                 <Background />
             </ReactFlow>
+            {focusedTitle !== null && (
+                <Paper className={styles.focusHint}>
+                    <Text component="span" fz="xs" c="dimmed" truncate>
+                        {interpolateUiString(
+                            getUiString('aiAgent.composer.lineage.focusHint'),
+                            { node: focusedTitle },
+                        )}
+                    </Text>
+                    {selectedNodeId !== null && (
+                        <Button
+                            size="compact-xs"
+                            variant="subtle"
+                            onClick={onClearSelection}
+                        >
+                            {getUiString('aiAgent.composer.lineage.clearFocus')}
+                        </Button>
+                    )}
+                </Paper>
+            )}
         </Box>
     );
 };
@@ -237,8 +313,8 @@ type Props = Pick<
     terminalNodeId: string;
 };
 
-// The lineage graph on top, one notebook cell per node below; clicking a
-// graph node focuses its cell.
+// The lineage graph on top, one notebook cell per node below; selecting a node
+// in either highlights it in both.
 export const AiComposerLineage: FC<Props> = ({
     queries,
     terminalNodeId,
@@ -251,41 +327,109 @@ export const AiComposerLineage: FC<Props> = ({
     );
     const getUiString = useUiStrings();
     const notebookRef = useRef<PipelineNotebookHandle>(null);
+    const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+    const clearSelection = () => setSelectedNodeId(null);
+    // Default graph height fits its nodes, capped at the default share.
+    const { ref: splitRef, height: splitHeight } = useElementSize();
+    const [graphContentHeight, setGraphContentHeight] = useState(0);
+    const fittedShare = getFittedGraphShare(
+        graphContentHeight,
+        splitHeight,
+        GRAPH_SHARE_BOUNDS,
+    );
+    const fittedSizes: SplitterPaneSize[] = [fittedShare, 100 - fittedShare];
+    // null follows the fitted default until the user resizes or expands.
+    const [userSizes, setUserSizes] = useState<SplitterPaneSize[] | null>(null);
+    const sizes = userSizes ?? fittedSizes;
+    const graphExpanded = isGraphExpanded(sizes);
+    const toggleGraphLabel = getUiString(
+        graphExpanded
+            ? 'aiAgent.composer.lineage.restoreGraph'
+            : 'aiAgent.composer.lineage.expandGraph',
+    );
+    useWindowEvent('keydown', (event) => {
+        if (event.key === 'Escape' && selectedNodeId !== null) {
+            // Claims the key so the panel stays expanded.
+            event.preventDefault();
+            clearSelection();
+        }
+    });
 
     return (
-        <ResizableSplitter
-            orientation="vertical"
-            handleLabel={getUiString('aiAgent.composer.lineage.resize')}
-            classNames={{ handle: styles.splitHandle }}
-        >
-            <ResizableSplitter.Pane id="graph" defaultSize={35} min={15}>
-                {layers.length > 0 && (
-                    <ReactFlowProvider key={pipelineKey(layers)}>
-                        <LineageFlow
-                            layers={layers}
+        <Box ref={splitRef} className={styles.split}>
+            <ResizableSplitter
+                orientation="vertical"
+                handleLabel={getUiString('aiAgent.composer.lineage.resize')}
+                classNames={{ handle: styles.splitHandle }}
+                sizes={sizes}
+                onSizeChange={setUserSizes}
+            >
+                <ResizableSplitter.Pane
+                    id="graph"
+                    defaultSize={DEFAULT_SIZES[0]}
+                    min={15}
+                    className={styles.graphPane}
+                >
+                    <Button
+                        variant="default"
+                        size="compact-xs"
+                        className={styles.graphToggle}
+                        leftSection={
+                            <MantineIcon
+                                icon={
+                                    graphExpanded
+                                        ? IconLayoutBottombarExpand
+                                        : IconLayoutBottombarCollapse
+                                }
+                                size={14}
+                            />
+                        }
+                        onClick={() =>
+                            setUserSizes(
+                                graphExpanded ? null : EXPANDED_GRAPH_SIZES,
+                            )
+                        }
+                    >
+                        {toggleGraphLabel}
+                    </Button>
+                    {layers.length > 0 && (
+                        <ReactFlowProvider key={pipelineKey(layers)}>
+                            <LineageFlow
+                                layers={layers}
+                                onLayout={setGraphContentHeight}
+                                nodeStatuses={nodeStatuses}
+                                selectedNodeId={selectedNodeId}
+                                onFocusNode={(nodeId) =>
+                                    notebookRef.current?.focusNode(nodeId)
+                                }
+                                onHoverNode={(nodeId) =>
+                                    nodeId
+                                        ? notebookRef.current?.showLineage(
+                                              nodeId,
+                                          )
+                                        : notebookRef.current?.hideLineage()
+                                }
+                                onClearSelection={clearSelection}
+                            />
+                        </ReactFlowProvider>
+                    )}
+                </ResizableSplitter.Pane>
+                <ResizableSplitter.Pane
+                    id="steps"
+                    defaultSize={DEFAULT_SIZES[1]}
+                    min={20}
+                >
+                    <Box className={styles.steps}>
+                        <PipelineNotebook
+                            ref={notebookRef}
+                            nodes={layers.flatMap((layer) => layer.nodes)}
                             nodeStatuses={nodeStatuses}
-                            onFocusNode={(nodeId) =>
-                                notebookRef.current?.focusNode(nodeId)
-                            }
-                            onHoverNode={(nodeId) =>
-                                nodeId
-                                    ? notebookRef.current?.showLineage(nodeId)
-                                    : notebookRef.current?.hideLineage()
-                            }
+                            onSelectNode={setSelectedNodeId}
+                            {...notebookProps}
                         />
-                    </ReactFlowProvider>
-                )}
-            </ResizableSplitter.Pane>
-            <ResizableSplitter.Pane id="steps" defaultSize={65} min={20}>
-                <Box className={styles.steps}>
-                    <PipelineNotebook
-                        ref={notebookRef}
-                        nodes={layers.flatMap((layer) => layer.nodes)}
-                        nodeStatuses={nodeStatuses}
-                        {...notebookProps}
-                    />
-                </Box>
-            </ResizableSplitter.Pane>
-        </ResizableSplitter>
+                    </Box>
+                </ResizableSplitter.Pane>
+            </ResizableSplitter>
+        </Box>
     );
 };

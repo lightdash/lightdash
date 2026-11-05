@@ -1044,6 +1044,8 @@ const buildCardStates: DataAppBuildCardState[] = [
         kind: 'building',
         name: 'Weekly revenue by region',
         statusMessage: 'Building your app',
+        step: { index: 1, labelKey: 'aiAgent.dataAppBuild.stage.writing' },
+        startedAt: new Date(),
         narration: {
             reasoning: ['Totals should reconcile against the revenue metric.'],
             activity: ['Ran 5 queries · 26 weeks · 4 regions'],

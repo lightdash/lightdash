@@ -1,4 +1,5 @@
 import {
+    interpolateUiString,
     type AiAgentToolResult,
     type AiAgentToolName,
     type AiMcpServer,
@@ -13,9 +14,10 @@ import {
     Text,
     UnstyledButton,
 } from '@mantine/core';
-import { IconChevronRight } from '@tabler/icons-react';
+import { IconAlertCircle, IconChevronRight } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
+import { useUiStrings } from '../../../../../providers/Embed/useUiStrings';
 import { ToolCallDescription } from './descriptions/ToolCallDescription';
 import { ToolCallChip } from './ToolCallChip';
 import styles from './ToolCallRow.module.css';
@@ -27,6 +29,7 @@ import {
     getMcpToolDisplayMetadata,
     getMcpToolDisplayName,
 } from './utils/mcpToolDisplay';
+import { getToolCallFailures } from './utils/toolCallFailure';
 import { type ToolCallGroupDisplay } from './utils/toolCallGrouping';
 import { isToolWithoutDescription } from './utils/toolsWithoutDescription';
 import { type ToolCallSummary } from './utils/types';
@@ -74,6 +77,7 @@ export const ToolCallRow: FC<Props> = ({
     toolResults,
     display,
 }) => {
+    const getUiString = useUiStrings();
     const builtInToolName = isToolName(toolName) ? toolName : null;
     const linkedMcpServer =
         toolCalls.find((toolCall) => toolCall.mcpServer)?.mcpServer ??
@@ -102,6 +106,15 @@ export const ToolCallRow: FC<Props> = ({
         toolCalls.some(hasCallDescription) || Boolean(extraBody);
     const isGrouped = toolCalls.length > 1;
     const [expanded, setExpanded] = useState(false);
+    const failures = getToolCallFailures(toolCalls, toolResults);
+    const effectiveStatus: ToolCallRowStatus =
+        failures.length > 0 ? 'error' : status;
+    const failureLabel = isGrouped
+        ? interpolateUiString(getUiString('aiAgent.activity.partlyFailed'), {
+              failed: failures.length,
+              total: toolCalls.length,
+          })
+        : getUiString('aiAgent.activity.failed');
 
     const chipLabels: (string | null)[] = toolCalls.map((tc) =>
         isToolName(tc.toolName)
@@ -183,21 +196,32 @@ export const ToolCallRow: FC<Props> = ({
 
     const head = (
         <Group gap={8} align="center" wrap="nowrap" className={styles.head}>
-            <ToolCallRowIcon
-                toolName={toolName}
-                toolCalls={toolCalls}
-                size={13}
-                stroke={1.6}
-                className={styles.icon}
-                mcpServer={mcpServer}
-                data-status={status}
-            />
+            {effectiveStatus === 'error' ? (
+                <MantineIcon
+                    icon={IconAlertCircle}
+                    size={14}
+                    stroke={1.6}
+                    className={styles.icon}
+                    data-status="error"
+                    aria-hidden
+                />
+            ) : (
+                <ToolCallRowIcon
+                    toolName={toolName}
+                    toolCalls={toolCalls}
+                    size={14}
+                    stroke={1.6}
+                    className={styles.icon}
+                    mcpServer={mcpServer}
+                    data-status={effectiveStatus}
+                />
+            )}
             {label ? (
-                <Text size="xs" className={styles.label}>
+                <Text size="sm" className={styles.label}>
                     {label}
                 </Text>
             ) : (
-                <Text size="xs" className={styles.label}>
+                <Text size="sm" className={styles.label}>
                     Used {mcpDisplayMetadata?.label ?? 'MCP'}:{' '}
                     <ToolCallChip maxWidth={260} className={styles.mcpToolChip}>
                         {mcpToolDisplayName}
@@ -206,6 +230,11 @@ export const ToolCallRow: FC<Props> = ({
             )}
             {isGrouped && (
                 <Box className={styles.countBadge}>{toolCalls.length}</Box>
+            )}
+            {failures.length > 0 && (
+                <Text size="xs" className={styles.failedLabel}>
+                    {failureLabel}
+                </Text>
             )}
             <Box className={styles.previewSlot}>{renderInlinePreview()}</Box>
             {isClickable && (
@@ -219,12 +248,40 @@ export const ToolCallRow: FC<Props> = ({
         </Group>
     );
 
+    const failureDetails = failures.filter((failure) => failure.message !== '');
+    const failureMessages =
+        failureDetails.length > 0 ? (
+            <Stack gap={2} className={styles.failureMessages}>
+                {failureDetails.map((failure) => (
+                    <Text
+                        key={failure.toolCallId}
+                        size="xs"
+                        ff="monospace"
+                        lineClamp={2}
+                        className={styles.failureMessage}
+                        title={failure.message}
+                    >
+                        {failure.message}
+                    </Text>
+                ))}
+            </Stack>
+        ) : null;
+
     if (!isClickable) {
-        return <Box className={styles.row}>{head}</Box>;
+        return (
+            <Box className={styles.row} data-status={effectiveStatus}>
+                {head}
+                {failureMessages}
+            </Box>
+        );
     }
 
     return (
-        <Box className={styles.row} data-expanded={expanded}>
+        <Box
+            className={styles.row}
+            data-expanded={expanded}
+            data-status={effectiveStatus}
+        >
             <UnstyledButton
                 onClick={() => setExpanded((prev) => !prev)}
                 aria-expanded={expanded}
@@ -233,6 +290,7 @@ export const ToolCallRow: FC<Props> = ({
             >
                 {head}
             </UnstyledButton>
+            {failureMessages}
             <Collapse
                 expanded={expanded}
                 transitionDuration={240}

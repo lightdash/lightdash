@@ -1,6 +1,9 @@
 import type { AiPromptResponseTiming } from '@lightdash/common';
-import { Badge, Stack, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Badge, Stack, Text, Tooltip } from '@mantine/core';
+import { IconClock } from '@tabler/icons-react';
 import { type FC } from 'react';
+import MantineIcon from '../../../../../components/common/MantineIcon';
+import { useUiString } from '../../../../providers/Embed/useUiStrings';
 import {
     formatDurationMs,
     getResponseTimingMetrics,
@@ -20,6 +23,7 @@ export const MessageTimingIndicator: FC<Props> = ({
     isWinner,
     tokens,
 }) => {
+    const timingLabel = useUiString('aiAgent.message.responseTiming');
     if (!responseTiming) return null;
 
     const metrics = getResponseTimingMetrics(responseTiming);
@@ -73,12 +77,19 @@ export const MessageTimingIndicator: FC<Props> = ({
             maw={320}
             multiline
         >
-            <Badge variant="transparent" size="sm" fz="xs" c="dimmed">
-                {isWinner ? '🥇 ' : ''}
-                {tokens
-                    ? `${formatDurationMs(metrics.totalMs)} · ${formatTokenCount(tokens.agent, tokens.jev)}`
-                    : `${ttft} · ${formatDurationMs(metrics.totalMs)}`}
-            </Badge>
+            {/* Battles compare runs, so their numbers stay inline; otherwise timing is debug detail. */}
+            {tokens || isWinner ? (
+                <Badge variant="transparent" size="sm" fz="xs" c="dimmed">
+                    {isWinner ? '🥇 ' : ''}
+                    {tokens
+                        ? `${formatDurationMs(metrics.totalMs)} · ${formatTokenCount(tokens.agent, tokens.jev)}`
+                        : `${ttft} · ${formatDurationMs(metrics.totalMs)}`}
+                </Badge>
+            ) : (
+                <ActionIcon aria-label={timingLabel}>
+                    <MantineIcon icon={IconClock} />
+                </ActionIcon>
+            )}
         </Tooltip>
     );
 };

@@ -32,13 +32,9 @@
     composes: verticalContent from '../../../../../styles/ScrollArea.module.css';
 }
 
-.threadItems {
-    flex-shrink: 0;
-}
-
 .threadNavLink {
     border-radius: rem(6px);
-    min-height: rem(28px);
+    min-height: rem(32px);
 }
 
 .threadSection[data-position='right'] {
@@ -69,12 +65,9 @@
     }
 }
 
+/* Reserves the chevron's space so the title ellipsis lands before it. */
 .threadNavLink:has(.threadMenuButton) .threadTitle {
-    mask-image: linear-gradient(
-        to right,
-        black calc(100% - rem(28px)),
-        transparent calc(100% - rem(20px))
-    );
+    padding-inline-end: rem(24px);
 }
 
 @media (hover: hover) {
@@ -85,6 +78,12 @@
             :has([aria-expanded='true'])
         )
         .threadTitle {
-        mask-image: none;
+        padding-inline-end: 0;
     }
+}
+
+.groupToggle {
+    align-self: flex-start;
+    font-weight: 400;
+    color: var(--mantine-color-dimmed);
 }

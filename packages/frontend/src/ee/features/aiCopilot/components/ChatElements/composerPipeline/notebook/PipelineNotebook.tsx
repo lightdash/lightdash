@@ -45,6 +45,7 @@ import {
 import { useExploreFromHere } from './useExploreFromHere';
 
 const FLASH_MS = 1200;
+const CELL_SCROLL_GAP = 16;
 
 const formatDuration = (ms: number) =>
     ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(1)} s`;
@@ -70,6 +71,8 @@ export type PipelineNotebookProps = {
     chatNodeIds: ReadonlySet<string>;
     /** Null when the pipeline can't be pinned to a chat. */
     onAddToChat: ((node: PipelineNode) => void) | null;
+    /** Selects the node in the lineage graph. */
+    onSelectNode: (nodeId: string) => void;
 };
 
 const CellStatus: FC<{
@@ -89,7 +92,7 @@ const CellStatus: FC<{
 
 type CellProps = Omit<
     PipelineNotebookProps,
-    'ref' | 'nodes' | 'chatNodeIds'
+    'ref' | 'nodes' | 'chatNodeIds' | 'onSelectNode'
 > & {
     node: PipelineNode;
     /** The nodes this one reads. */
@@ -316,7 +319,11 @@ const NotebookCell: FC<CellProps> = ({
                             <UnstyledButton
                                 key={reference.nodeId}
                                 className={styles.referencePill}
-                                onClick={() => onJump(reference.nodeId)}
+                                onClick={(event) => {
+                                    // The cell's own click would reselect this cell.
+                                    event.stopPropagation();
+                                    onJump(reference.nodeId);
+                                }}
                                 onMouseEnter={() => onLineageHover(true)}
                                 onMouseLeave={() => onLineageHover(false)}
                             >
@@ -388,8 +395,10 @@ export const PipelineNotebook: FC<PipelineNotebookProps> = ({
     ref,
     nodes,
     chatNodeIds,
+    onSelectNode,
     ...cellProps
 }) => {
+    const notebookEl = useRef<HTMLDivElement>(null);
     const cellEls = useRef(new Map<string, HTMLDivElement>());
     const [flashNodeId, setFlashNodeId] = useState<string | null>(null);
     const [lineage, setLineage] = useState<Lineage | null>(null);
@@ -401,9 +410,18 @@ export const PipelineNotebook: FC<PipelineNotebookProps> = ({
         [nodes],
     );
     const focusNode = (nodeId: string) => {
-        cellEls.current
-            .get(nodeId)
-            ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        onSelectNode(nodeId);
+        // Lines drawn before the scroll would leave a hook pointing off-screen.
+        window.clearTimeout(intentTimer.current);
+        setIsLineageVisible(false);
+        const cell = cellEls.current.get(nodeId);
+        // Scrolls only the notebook; scrollIntoView would also nudge the page.
+        if (cell) {
+            notebookEl.current?.scrollTo({
+                top: cell.offsetTop - CELL_SCROLL_GAP,
+                behavior: 'smooth',
+            });
+        }
         setFlashNodeId(nodeId);
         window.setTimeout(
             () =>
@@ -456,7 +474,7 @@ export const PipelineNotebook: FC<PipelineNotebookProps> = ({
     useImperativeHandle(ref, () => ({ focusNode, showLineage, hideLineage }));
 
     return (
-        <Stack gap="lg" className={styles.notebook}>
+        <Stack gap="lg" className={styles.notebook} ref={notebookEl}>
             <svg
                 className={styles.lineage}
                 data-lineage
@@ -480,6 +498,7 @@ export const PipelineNotebook: FC<PipelineNotebookProps> = ({
                         if (el) cellEls.current.set(node.nodeId, el);
                         else cellEls.current.delete(node.nodeId);
                     }}
+                    onClick={() => onSelectNode(node.nodeId)}
                     data-lineage-role={
                         !isLineageVisible || !lineage
                             ? undefined

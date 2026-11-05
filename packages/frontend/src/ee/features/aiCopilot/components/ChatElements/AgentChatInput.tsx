@@ -31,7 +31,7 @@ import {
     IconFileText,
     IconFolderSearch,
     IconPaperclip,
-    IconPlayerStop,
+    IconPlayerStopFilled,
     IconPlus,
     IconTelescope,
     IconTerminal2,
@@ -302,6 +302,8 @@ interface AgentChatInputProps {
     fullWidth?: boolean;
     clearOnSubmit?: boolean;
     showSuggestions?: boolean;
+    // 'list' shows empty-state suggestions as roomy rows instead of chips.
+    suggestionLayout?: 'chips' | 'list';
     contentMentionPriorityItems?: ContentMentionSuggestionItem[];
     // Reveals the deep research and agent controls on first focus instead of
     // showing them always.
@@ -378,6 +380,7 @@ export const AgentChatInput = ({
     fullWidth = false,
     clearOnSubmit = true,
     showSuggestions = true,
+    suggestionLayout = 'chips',
     contentMentionPriorityItems = [],
     revealControlsOnFocus = false,
     dense = false,
@@ -610,9 +613,15 @@ export const AgentChatInput = ({
         };
         measure();
         scrollEl.addEventListener('scroll', onScroll, { passive: true });
+        // Content can grow without a scroll event (late chips, expanding steps).
+        const resizeObserver = new ResizeObserver(onScroll);
+        for (const child of scrollEl.firstElementChild?.children ?? []) {
+            resizeObserver.observe(child);
+        }
         return () => {
             if (raf !== null) window.cancelAnimationFrame(raf);
             scrollEl?.removeEventListener('scroll', onScroll);
+            resizeObserver.disconnect();
         };
     }, []);
 
@@ -1152,12 +1161,12 @@ export const AgentChatInput = ({
                 disabled={accessRefused}
                 onChipClick={handleChipClick}
                 onImpression={handleImpression}
-                align={isThreadInput ? 'left' : 'center'}
-                showPromptAffordance={isThreadInput}
+                layout={isThreadInput ? 'compact' : suggestionLayout}
                 maxVisible={isPhoneLayout ? 2 : undefined}
             />
         );
     }, [
+        suggestionLayout,
         accessRefused,
         emptyStateMode,
         postResponseMode,
@@ -1403,7 +1412,7 @@ export const AgentChatInput = ({
         );
     };
 
-    // Status bar under the thread composer: attach and SQL Runner stay
+    // Footer row inside the thread composer shell: attach and SQL Runner stay
     // switchable mid-thread; the model is fixed so it is only a label.
     const renderStatusRow = () => {
         if (!showStatusRow) return null;
@@ -1594,9 +1603,8 @@ export const AgentChatInput = ({
         if (canInterrupt) {
             return (
                 <ComposerSubmitButton
-                    icon={IconPlayerStop}
+                    icon={IconPlayerStopFilled}
                     label="Stop agent"
-                    destructive
                     size={size}
                     disabled={hasRequestedInterrupt}
                     loading={
@@ -1673,11 +1681,15 @@ export const AgentChatInput = ({
                 >
                     {isThreadInput && renderChipRow(styles.threadChipFlow)}
 
-                    <Box className={styles.threadInputStack}>
+                    <Box
+                        className={styles.threadInputStack}
+                        data-with-status={showStatusRow || undefined}
+                    >
                         <Box className={styles.dropTarget} {...dropTargetProps}>
                             <PromptComposer
                                 {...composerCommonProps}
                                 variant="inline"
+                                className={styles.stackComposer}
                                 attachments={renderedAttachments}
                                 toolbarLeft={
                                     <Group gap={4} align="center" wrap="nowrap">
@@ -1817,7 +1829,9 @@ export const AgentChatInput = ({
 
                 {!isThreadInput &&
                     renderChipRow(
-                        styles.chipTray,
+                        suggestionLayout === 'list'
+                            ? styles.suggestionListTray
+                            : styles.chipTray,
                         shouldReserveEmptyStateSuggestions,
                     )}
             </AiAccessGate>
