@@ -1,6 +1,5 @@
 import {
     AGENT_ONBOARDING_STAGES,
-    FeatureFlags,
     type ApiConnectorType,
 } from '@lightdash/common';
 import { Box, Button, Image, Stack, Text, Title } from '@mantine/core';
@@ -16,7 +15,6 @@ import { LiveSourceIcon } from '../../../features/externalConnections/liveSource
 import { WAREHOUSE_SOURCE_ID } from '../../../features/semanticStudio/realProject';
 import { getSemanticStudioSourceUrl } from '../../../features/semanticStudio/urls';
 import { useProject } from '../../../hooks/useProject';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
@@ -88,10 +86,6 @@ export const OnboardingDoneStep: FC<{ projectUuid: string }> = ({
             },
         });
     const { data: connections = [] } = useExternalConnections(projectUuid);
-    const isSemanticStudioEnabled =
-        useServerFeatureFlag(FeatureFlags.SemanticStudio).data?.enabled ===
-        true;
-
     const warehouse = WarehouseTypeLabels.find(
         ({ key }) => key === project?.warehouseConnection?.type,
     );
@@ -141,14 +135,10 @@ export const OnboardingDoneStep: FC<{ projectUuid: string }> = ({
                                             : ', ')}
                                     <SourceName
                                         source={source}
-                                        to={
-                                            isSemanticStudioEnabled
-                                                ? getSemanticStudioSourceUrl(
-                                                      projectUuid,
-                                                      source.key,
-                                                  )
-                                                : null
-                                        }
+                                        to={getSemanticStudioSourceUrl(
+                                            projectUuid,
+                                            source.key,
+                                        )}
                                     />
                                 </Fragment>
                             ))}{' '}
