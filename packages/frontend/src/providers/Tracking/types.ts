@@ -1,4 +1,5 @@
 import {
+    type AgentOnboardingRunStatus,
     type AppVersionStatus,
     type AiDeepResearchTerminalStatus,
     type ContentReviewContentType,
@@ -99,14 +100,14 @@ type SetupInviteSentEvent = {
 type PlaygroundProjectEnteredEvent = {
     name: EventName.PLAYGROUND_PROJECT_ENTERED;
     properties: {
-        organizationId: string;
+        organizationId: string | null;
     };
 };
 
 type PlaygroundProjectSetupFailedEvent = {
     name: EventName.PLAYGROUND_PROJECT_SETUP_FAILED;
     properties: {
-        organizationId: string;
+        organizationId: string | null;
         failureType: PlaygroundSetupFailure;
     };
 };
@@ -963,6 +964,34 @@ type BigquerySsoSigninCompletedEvent = {
         success: boolean;
     };
 };
+export type OnboardingScreen =
+    | 'verify_email'
+    | 'organization'
+    | 'about_you'
+    | 'choose_source'
+    | 'warehouse_form'
+    | 'dbt_repo'
+    | 'dbt'
+    | 'tools'
+    | 'team'
+    | 'done';
+
+type OnboardingScreenViewedEvent = {
+    name: EventName.ONBOARDING_SCREEN_VIEWED;
+    properties: {
+        screen: OnboardingScreen;
+        organizationId: string | null;
+        projectId: string | null;
+        secondsOnPreviousScreen: number | null;
+    };
+};
+
+type OnboardingStepSkippedEvent = {
+    name: EventName.ONBOARDING_STEP_SKIPPED;
+    properties: {
+        screen: OnboardingScreen;
+    };
+};
 
 type SnowflakeCliSsoCommandCopiedEvent = {
     name: EventName.SNOWFLAKE_CLI_SSO_COMMAND_COPIED;
@@ -1028,7 +1057,7 @@ type CreateProjectColumnsDefinedButtonClickedEvent = {
 };
 
 type AgentOnboardingDemoOfferProperties = {
-    organizationId: string;
+    organizationId: string | null;
     projectUuid: string;
     agentOnboardingRunUuid: string;
     offerType: 'provision_demo' | 'open_existing_demo';
@@ -1047,7 +1076,7 @@ type AgentOnboardingDemoOfferAcceptedEvent = {
 };
 
 type AgentOnboardingCompletionToastProperties = {
-    organizationId: string;
+    organizationId: string | null;
     projectUuid: string;
     agentOnboardingRunUuid: string;
 };
@@ -1086,6 +1115,17 @@ type MapTileUsageEvent = {
         minZoom: number | null;
         maxZoom: number | null;
         durationMs: number;
+    };
+};
+
+type OnboardingDoneActionClickedEvent = {
+    name: EventName.ONBOARDING_DONE_ACTION_CLICKED;
+    properties: {
+        organizationId: string | null;
+        projectId: string;
+        action: 'ask_first_question' | 'look_around';
+        areMetricsLive: boolean;
+        runStatus: AgentOnboardingRunStatus | null;
     };
 };
 
@@ -1352,6 +1392,7 @@ export type EventData =
     | SetupStepClickedEvent
     | DocumentationClickedEvent
     | SearchResultClickedEvent
+    | OnboardingDoneActionClickedEvent
     | GlobalSearchOpenEvent
     | GlobalSearchClosedEvent
     | OnboardingStepClickedEvent
@@ -1363,6 +1404,8 @@ export type EventData =
     | MetricsCatalogClickedEvent
     | MetricsCatalogChartUsageClickedEvent
     | MetricsCatalogExploreClickedEvent
+    | OnboardingScreenViewedEvent
+    | OnboardingStepSkippedEvent
     | MetricsCatalogChartUsageChartClickedEvent
     | MetricsCatalogCategoryClickedEvent
     | MetricsCatalogCategoryFilterAppliedEvent

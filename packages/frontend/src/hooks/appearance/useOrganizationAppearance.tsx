@@ -154,6 +154,30 @@ export const useDeleteColorPalette = () => {
     );
 };
 
+/** Creates a palette and makes it the org default, quietly; failures leave the default palette */
+export const useApplyColorPalette = () => {
+    const lightdashApi = useLightdashApi();
+    const queryClient = useQueryClient();
+
+    return useMutation<
+        ApiColorPaletteResponse['results'],
+        ApiError,
+        CreateColorPalette
+    >(
+        async (data) => {
+            const { colorPaletteUuid } = await createColorPaletteApi(
+                lightdashApi,
+                data,
+            );
+            return setActiveColorPaletteApi(lightdashApi, colorPaletteUuid);
+        },
+        {
+            mutationKey: ['apply_color_palette'],
+            onSuccess: () => queryClient.invalidateQueries(['color_palettes']),
+        },
+    );
+};
+
 export const useSetActiveColorPalette = () => {
     const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastApiError } = useToaster();

@@ -6,7 +6,6 @@ import AppRoute from './components/AppRoute';
 import ProjectLayout from './components/common/ProjectLayout';
 import ForbiddenPanel from './components/ForbiddenPanel';
 import JobDetailsDrawer from './components/JobDetailsDrawer';
-import NavBar from './components/NavBar';
 import { NavBarLayout } from './components/NavBarLayout';
 import PrivateRoute from './components/PrivateRoute';
 import ProjectRoute from './components/ProjectRoute';
@@ -67,12 +66,9 @@ const PUBLIC_ROUTES: RouteObject[] = [
             );
             return {
                 Component: () => (
-                    <>
-                        <NavBar />
-                        <TrackPage name={PageName.ORGANIZATION_SETUP}>
-                            <OrganizationSetup />
-                        </TrackPage>
-                    </>
+                    <TrackPage name={PageName.ORGANIZATION_SETUP}>
+                        <OrganizationSetup />
+                    </TrackPage>
                 ),
             };
         },

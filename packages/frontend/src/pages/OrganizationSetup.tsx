@@ -1,25 +1,26 @@
+import { subject } from '@casl/ability';
 import {
     CompleteUserSchema,
     describeInvalidOrganizationName,
     FeatureFlags,
     getEmailDomain,
     LightdashMode,
+    ProjectType,
     sanitizeOrganizationName,
     suggestOrganizationName,
     validateOrganizationEmailDomains,
     type HealthState,
     type OrganizationBrandColor,
-    type OrganizationBrandLogo,
 } from '@lightdash/common';
 import {
     Box,
     Button,
     Checkbox,
-    Divider,
+    Collapse,
     Group,
     Select,
+    Skeleton,
     Stack,
-    Collapse,
     Text,
     TextInput,
     Title,
@@ -34,12 +35,17 @@ import {
     useRef,
     useState,
 } from 'react';
-import { Navigate, useNavigate, useSearchParams } from 'react-router';
-import AboutFooter from '../components/AboutFooter';
-import Callout from '../components/common/Callout';
+import { Navigate, useSearchParams } from 'react-router';
 import { DocumentTitle } from '../components/common/DocumentTitle';
+import OnboardingLayout from '../components/common/OnboardingLayout';
+import { useOnboardingNavigate } from '../components/common/viewTransition';
 import PageSpinner from '../components/PageSpinner';
 import { jobTitles } from '../components/UserCompletionModal/jobTitles';
+import { BrandPreview } from '../components/UserSettings/AppearanceSettingsPanel/BrandPreview';
+import { generateBrandPalette } from '../components/UserSettings/AppearanceSettingsPanel/generateBrandPalette';
+import { useHomepageBuilderFlag } from '../ee/features/homepageBuilder/hooks/useProjectHomepage';
+import { withViewTransition } from '../features/apps/utils/viewTransition';
+import { useApplyColorPalette } from '../hooks/appearance/useOrganizationAppearance';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import {
     useDetectOrganizationBrand,
@@ -51,13 +57,12 @@ import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
 import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
+import { getNoProjectPath } from '../utils/noProjectPath';
 import { inferOrganizationName } from '../utils/organizationName';
 import classes from './OrganizationSetup.module.css';
-import { OrganizationSetupPreview } from './OrganizationSetupPreview';
+import { ReferralSourcePicker } from './ReferralSourcePicker';
 
-const PRESET_COLORS = ['#4c6ef5', '#7950f2', '#40c057', '#f59f00', '#fa5252'];
-const DEFAULT_COLOR = PRESET_COLORS[0];
-const MAX_SWATCHES = 7;
+const DEFAULT_COLOR = '#4c6ef5';
 
 const isValidHexColor = (hex: string): boolean =>
     /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(hex);
@@ -82,15 +87,6 @@ const brandColorsSorted = (colors: OrganizationBrandColor[]): string[] => {
             .sort((a, b) => priority(a.type) - priority(b.type))
             .map((color) => color.hex),
     );
-};
-
-const buildSwatches = (brandColors: string[]): string[] =>
-    dedupeColors([...brandColors, ...PRESET_COLORS]).slice(0, MAX_SWATCHES);
-
-const pickTileLogo = (logos: OrganizationBrandLogo[]): string | null => {
-    const dark = logos.find((logo) => logo.theme === 'dark');
-    const neutral = logos.find((logo) => logo.theme === null);
-    return dark?.url ?? neutral?.url ?? logos[0]?.url ?? null;
 };
 
 const buildBrandColors = (
@@ -124,12 +120,13 @@ const withOrganizationNameMessage =
 
 type OrganizationSetupFormValues = {
     organizationName: string;
+    firstName: string;
+    lastName: string;
     jobTitle: string;
     howDidYouHearAboutUs: string;
     enableEmailDomainAccess: boolean;
     isMarketingOptedIn: boolean;
     isTrackingAnonymized: boolean;
-    selectedColor: string;
 };
 
 type OrganizationSetupContentProps = {
@@ -159,12 +156,13 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                 canEnterOrganizationName && isCompanyDomain
                     ? inferOrganizationName(emailDomain)
                     : '',
+            firstName: user.firstName,
+            lastName: user.lastName,
             jobTitle: '',
             howDidYouHearAboutUs: '',
             enableEmailDomainAccess: canEnableEmailDomainAccess,
             isMarketingOptedIn: true,
             isTrackingAnonymized: false,
-            selectedColor: DEFAULT_COLOR,
         },
         validate: withOrganizationNameMessage(
             zodResolver(
@@ -194,6 +192,7 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
         brandDetectionEnabled,
     );
     const saveBrand = useSaveOrganizationBrand({ showSuccessToast: false });
+    const applyColorPalette = useApplyColorPalette();
 
     const { setValues, isDirty } = form;
     const hasAppliedDetectedBrand = useRef(false);
@@ -203,20 +202,13 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
         if (!canUseBranding || !brand || hasAppliedDetectedBrand.current)
             return;
         hasAppliedDetectedBrand.current = true;
-        const detected = brandColorsSorted(brand.colors);
-        setValues((current) => ({
-            ...(brand.name && !isDirty('organizationName')
-                ? {
-                      organizationName: sanitizeOrganizationName(
-                          brand.name,
-                          inferOrganizationName(emailDomain),
-                      ),
-                  }
-                : {}),
-            ...(current.selectedColor === DEFAULT_COLOR && detected[0]
-                ? { selectedColor: detected[0] }
-                : {}),
-        }));
+        if (!brand.name || isDirty('organizationName')) return;
+        setValues({
+            organizationName: sanitizeOrganizationName(
+                brand.name,
+                inferOrganizationName(emailDomain),
+            ),
+        });
     }, [brandDetection.data, canUseBranding, emailDomain, isDirty, setValues]);
 
     const hasTrackedBrandDetection = useRef(false);
@@ -244,32 +236,17 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
     ]);
 
     const detectedBrand = canUseBranding ? (brandDetection.data ?? null) : null;
+    // Hold the preview until the lookup settles so it never flips from sample to branded
+    const isBrandPending = brandDetectionEnabled && brandDetection.isLoading;
     const detectedColors = detectedBrand
         ? brandColorsSorted(detectedBrand.colors)
         : [];
-    const swatches = buildSwatches(detectedColors);
-    const detectedLogoUrl = detectedBrand
-        ? pickTileLogo(detectedBrand.logos)
-        : null;
-    const selectedColor = canUseBranding
-        ? form.values.selectedColor
-        : DEFAULT_COLOR;
-
-    const previewColors = buildBrandColors(
-        selectedColor,
-        detectedBrand?.colors ?? [],
-    );
-    const titleFont =
-        detectedBrand?.fonts.find((font) => font.type === 'title') ?? null;
-    const bodyFont =
-        detectedBrand?.fonts.find((font) => font.type === 'body') ?? null;
+    const selectedColor = detectedColors[0] ?? DEFAULT_COLOR;
 
     const showWorkspaceStep = canEnterOrganizationName;
-    const totalSteps = showWorkspaceStep ? 2 : 1;
     const [step, setStep] = useState(1);
 
     const isWorkspaceStep = showWorkspaceStep && step === 1;
-    const stepLabel = isWorkspaceStep ? 'Set up your workspace' : 'About you';
     const displayStep = showWorkspaceStep ? step : 1;
 
     const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -282,30 +259,27 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                 name: EventName.ORGANIZATION_SETUP_STEP_COMPLETED,
                 properties: { step: 'workspace' },
             });
-            setStep(2);
+            withViewTransition(() => setStep(2));
             return;
         }
 
         const result = form.validate();
         if (result.hasErrors) {
             if (showWorkspaceStep && 'organizationName' in result.errors) {
-                setStep(1);
+                withViewTransition(() => setStep(1));
             }
             return;
         }
 
         const values = form.values;
 
-        track({
-            name: EventName.ORGANIZATION_SETUP_STEP_COMPLETED,
-            properties: { step: 'about_you' },
-        });
-
         if (!canEnterOrganizationName) {
             // Joining an existing org: no org name to set, and the brand
             // belongs to the org (which a joiner — often a viewer — has no
             // rights to change), so don't attempt to save it.
             completeMutation.mutate({
+                firstName: values.firstName,
+                lastName: values.lastName,
                 jobTitle: values.jobTitle,
                 enableEmailDomainAccess: values.enableEmailDomainAccess,
                 isMarketingOptedIn: values.isMarketingOptedIn,
@@ -314,30 +288,50 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
             return;
         }
 
-        completeMutation.mutate({
-            organizationName: values.organizationName,
-            jobTitle: values.jobTitle,
-            howDidYouHearAboutUs: values.howDidYouHearAboutUs.trim(),
-            enableEmailDomainAccess: values.enableEmailDomainAccess,
-            isMarketingOptedIn: values.isMarketingOptedIn,
-            isTrackingAnonymized: values.isTrackingAnonymized,
-        });
-
         const brandDomain =
             detectedBrand?.domain ?? (isCompanyDomain ? emailDomain : null);
+        const brandName =
+            values.organizationName.trim() || detectedBrand?.name || null;
+        const brandColors = buildBrandColors(
+            selectedColor,
+            detectedBrand?.colors ?? [],
+        );
+
+        completeMutation
+            .mutateAsync({
+                organizationName: values.organizationName,
+                firstName: values.firstName,
+                lastName: values.lastName,
+                jobTitle: values.jobTitle,
+                howDidYouHearAboutUs: values.howDidYouHearAboutUs.trim(),
+                enableEmailDomainAccess: values.enableEmailDomainAccess,
+                isMarketingOptedIn: values.isMarketingOptedIn,
+                isTrackingAnonymized: values.isTrackingAnonymized,
+            })
+            .then(() => {
+                // Without detected colors the default palette beats one derived from a placeholder
+                if (
+                    canUseBranding &&
+                    brandDomain &&
+                    detectedColors.length > 0
+                ) {
+                    applyColorPalette.mutate({
+                        name: `${brandName ?? brandDomain} brand`,
+                        colors: generateBrandPalette(
+                            brandColors.map(({ hex }) => hex),
+                        ),
+                    });
+                }
+            })
+            .catch(() => undefined);
+
         if (canUseBranding && brandDomain) {
             saveBrand.mutate({
                 domain: brandDomain,
-                name:
-                    values.organizationName.trim() ||
-                    detectedBrand?.name ||
-                    null,
+                name: brandName,
                 description: detectedBrand?.description ?? null,
                 logos: detectedBrand?.logos ?? [],
-                colors: buildBrandColors(
-                    selectedColor,
-                    detectedBrand?.colors ?? [],
-                ),
+                colors: brandColors,
                 fonts: detectedBrand?.fonts ?? [],
             });
         }
@@ -366,170 +360,140 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
         }
     };
 
-    const logoTileInitial = (form.values.organizationName || '?')
-        .charAt(0)
-        .toUpperCase();
+    const brandPreview = (
+        <Box
+            component="section"
+            aria-label="Brand preview"
+            aria-busy={isBrandPending}
+        >
+            <Skeleton visible={isBrandPending} radius="md">
+                <BrandPreview
+                    compact
+                    name={form.values.organizationName || null}
+                    logos={detectedBrand?.logos ?? []}
+                    colors={buildBrandColors(
+                        selectedColor,
+                        detectedBrand?.colors ?? [],
+                    )}
+                    titleFont={
+                        detectedBrand?.fonts.find(
+                            (font) => font.type === 'title',
+                        ) ?? null
+                    }
+                    bodyFont={
+                        detectedBrand?.fonts.find(
+                            (font) => font.type === 'body',
+                        ) ?? null
+                    }
+                />
+            </Skeleton>
+            {isBrandPending ? (
+                <Text size="xs" c="dimmed" mt="xs">
+                    Looking up your brand…
+                </Text>
+            ) : detectedBrand ? (
+                <Group gap="xs" wrap="nowrap" mt="sm">
+                    {detectedColors.length > 0 && (
+                        <Group gap={4} wrap="nowrap">
+                            {detectedColors.slice(0, 5).map((color) => (
+                                <Box
+                                    key={color}
+                                    className={classes.brandDot}
+                                    bg={color}
+                                />
+                            ))}
+                        </Group>
+                    )}
+                    <Text size="xs" c="dimmed">
+                        We've pulled your branding from {detectedBrand.domain}
+                    </Text>
+                </Group>
+            ) : (
+                <Text size="xs" c="dimmed" mt="xs">
+                    Preview with sample data
+                </Text>
+            )}
+        </Box>
+    );
 
     return (
-        <Box className={classes.page}>
+        <OnboardingLayout
+            screen={isWorkspaceStep ? 'organization' : 'about_you'}
+            aside={brandPreview}
+            progress={{
+                currentStep: displayStep,
+                steps: showWorkspaceStep
+                    ? ['Organization', 'About you']
+                    : ['About you'],
+            }}
+        >
             <DocumentTitle title="Set up your organization" />
 
             <Box className={classes.body}>
                 <Box className={classes.leftPane}>
                     <form onSubmit={handleSubmit} noValidate>
                         {isWorkspaceStep ? (
-                            <Stack gap="lg">
-                                <Stack gap="xs">
-                                    <Text size="sm" c="dimmed">
-                                        Step {displayStep} of {totalSteps} ·{' '}
-                                        {stepLabel}
-                                    </Text>
-                                    <Title
-                                        order={1}
-                                        fz={44}
-                                        className={classes.heading}
-                                    >
-                                        Name your organization
-                                    </Title>
-                                    <Text c="dimmed" size="lg">
-                                        This is how your team and your agent
-                                        will refer to your workspace.
-                                    </Text>
-                                </Stack>
+                            <Stack key="workspace" gap="lg">
+                                <Title order={1} className={classes.heading}>
+                                    Name your organization
+                                </Title>
 
                                 <TextInput
-                                    label="Organization name"
+                                    aria-label="Organization name"
                                     placeholder="Acme Analytics"
                                     size="md"
                                     required
                                     {...organizationNameInputProps}
                                     onChange={handleOrganizationNameChange}
-                                    error={hasNameError}
+                                    error={
+                                        nameMessage ? (
+                                            <Box component="span" role="alert">
+                                                <Text span inherit>
+                                                    {nameMessage.title}
+                                                </Text>
+                                                {form.values.organizationName.trim() && (
+                                                    <>
+                                                        <Text span inherit>
+                                                            {' '}
+                                                        </Text>
+                                                        <Text span inherit>
+                                                            {nameMessage.body}
+                                                        </Text>
+                                                    </>
+                                                )}
+                                            </Box>
+                                        ) : null
+                                    }
                                 />
 
-                                <Collapse
-                                    expanded={hasNameError}
-                                    transitionDuration={200}
-                                >
-                                    {hasNameError && nameMessage && (
-                                        <Callout
-                                            variant="danger"
-                                            title={nameMessage.title}
-                                        >
-                                            <Text size="sm">
-                                                {nameMessage.body}
-                                            </Text>
-                                            {nameSuggestion && (
-                                                <Group mt="xs">
-                                                    <Button
-                                                        variant="default"
-                                                        size="compact-sm"
-                                                        type="button"
-                                                        onClick={
-                                                            applyNameSuggestion
-                                                        }
-                                                    >
-                                                        {`Use "${nameSuggestion}"`}
-                                                    </Button>
-                                                </Group>
-                                            )}
-                                        </Callout>
-                                    )}
-                                </Collapse>
-
-                                {canUseBranding && (
-                                    <>
-                                        <Divider />
-
-                                        <Stack gap="md">
-                                            <Group gap="sm">
-                                                <Text fw={600}>Brand</Text>
-                                                <Text
-                                                    size="xs"
-                                                    c="dimmed"
-                                                    className={
-                                                        classes.optionalPill
-                                                    }
-                                                >
-                                                    Optional · you can change
-                                                    this later
-                                                </Text>
-                                            </Group>
-
-                                            <Stack gap="xs">
-                                                <Text size="sm" fw={500}>
-                                                    Theme color
-                                                </Text>
-                                                <Group gap="lg" align="center">
-                                                    <Box
-                                                        className={
-                                                            classes.logoTile
-                                                        }
-                                                        bg={
-                                                            detectedLogoUrl
-                                                                ? 'var(--mantine-color-ldGray-0)'
-                                                                : selectedColor
-                                                        }
-                                                    >
-                                                        {detectedLogoUrl ? (
-                                                            <img
-                                                                src={
-                                                                    detectedLogoUrl
-                                                                }
-                                                                alt=""
-                                                                className={
-                                                                    classes.logoTileImage
-                                                                }
-                                                            />
-                                                        ) : (
-                                                            <Text
-                                                                fw={600}
-                                                                fz="xl"
-                                                                c="white"
-                                                            >
-                                                                {
-                                                                    logoTileInitial
-                                                                }
-                                                            </Text>
-                                                        )}
-                                                    </Box>
-
-                                                    <Box
-                                                        className={
-                                                            classes.swatchRow
-                                                        }
-                                                    >
-                                                        {swatches.map(
-                                                            (color) => (
-                                                                <Box
-                                                                    key={color}
-                                                                    component="button"
-                                                                    type="button"
-                                                                    aria-label={`Select theme color ${color}`}
-                                                                    className={
-                                                                        color.toLowerCase() ===
-                                                                        selectedColor.toLowerCase()
-                                                                            ? `${classes.swatch} ${classes.swatchSelected}`
-                                                                            : classes.swatch
-                                                                    }
-                                                                    bg={color}
-                                                                    onClick={() =>
-                                                                        form.setFieldValue(
-                                                                            'selectedColor',
-                                                                            color,
-                                                                        )
-                                                                    }
-                                                                />
-                                                            ),
-                                                        )}
-                                                    </Box>
-                                                </Group>
-                                            </Stack>
-                                        </Stack>
-                                    </>
+                                {hasNameError && nameSuggestion && (
+                                    <Button
+                                        variant="subtle"
+                                        size="compact-sm"
+                                        type="button"
+                                        onClick={applyNameSuggestion}
+                                    >{`Use "${nameSuggestion}"`}</Button>
                                 )}
 
-                                <Group>
+                                {canEnableEmailDomainAccess && (
+                                    <Checkbox
+                                        label={
+                                            <>
+                                                Let anyone with an{' '}
+                                                <Text span inherit fw={600}>
+                                                    @{emailDomain}
+                                                </Text>{' '}
+                                                email join
+                                            </>
+                                        }
+                                        {...form.getInputProps(
+                                            'enableEmailDomainAccess',
+                                            { type: 'checkbox' },
+                                        )}
+                                    />
+                                )}
+
+                                <Group justify="flex-end" mt="md">
                                     <Button
                                         type="submit"
                                         size="md"
@@ -542,23 +506,27 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                 </Group>
                             </Stack>
                         ) : (
-                            <Stack gap="lg">
-                                <Stack gap="xs">
-                                    <Text size="sm" c="dimmed">
-                                        Step {displayStep} of {totalSteps} ·{' '}
-                                        {stepLabel}
-                                    </Text>
-                                    <Title
-                                        order={1}
-                                        fz={44}
-                                        className={classes.heading}
-                                    >
-                                        Tell us about you
-                                    </Title>
-                                    <Text c="dimmed" size="lg">
-                                        This helps us tailor Lightdash for you.
-                                    </Text>
-                                </Stack>
+                            <Stack key="about-you" gap="lg">
+                                <Title order={1} className={classes.heading}>
+                                    Tell us about you
+                                </Title>
+
+                                <Group grow align="flex-start">
+                                    <TextInput
+                                        label="First name"
+                                        placeholder="Jane"
+                                        size="md"
+                                        required
+                                        {...form.getInputProps('firstName')}
+                                    />
+                                    <TextInput
+                                        label="Last name"
+                                        placeholder="Doe"
+                                        size="md"
+                                        required
+                                        {...form.getInputProps('lastName')}
+                                    />
+                                </Group>
 
                                 <Select
                                     label="What's your role?"
@@ -570,28 +538,25 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                 />
 
                                 {canEnterOrganizationName && (
-                                    <TextInput
-                                        label="How did you hear about us?"
-                                        placeholder="Google, a colleague, a podcast..."
-                                        size="md"
-                                        required
-                                        {...form.getInputProps(
-                                            'howDidYouHearAboutUs',
-                                        )}
-                                    />
+                                    <Collapse expanded={!!form.values.jobTitle}>
+                                        <ReferralSourcePicker
+                                            value={
+                                                form.values.howDidYouHearAboutUs
+                                            }
+                                            onChange={(value) =>
+                                                form.setFieldValue(
+                                                    'howDidYouHearAboutUs',
+                                                    value,
+                                                )
+                                            }
+                                            error={
+                                                form.errors.howDidYouHearAboutUs
+                                            }
+                                        />
+                                    </Collapse>
                                 )}
 
                                 <Stack gap="xs">
-                                    {canEnableEmailDomainAccess && (
-                                        <Checkbox
-                                            label={`Allow users with @${emailDomain} to join the organization as a viewer`}
-                                            {...form.getInputProps(
-                                                'enableEmailDomainAccess',
-                                                { type: 'checkbox' },
-                                            )}
-                                        />
-                                    )}
-
                                     <Checkbox
                                         label="Keep me updated on new Lightdash features"
                                         {...form.getInputProps(
@@ -612,13 +577,19 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                     )}
                                 </Stack>
 
-                                <Group>
+                                <Group justify="flex-end">
                                     {showWorkspaceStep && (
                                         <Button
                                             variant="subtle"
                                             color="gray"
                                             size="md"
-                                            onClick={() => setStep(1)}
+                                            onClick={(event) => {
+                                                // Stops the click activating the Continue submit that replaces this button
+                                                event.preventDefault();
+                                                withViewTransition(() =>
+                                                    setStep(1),
+                                                );
+                                            }}
                                         >
                                             Back
                                         </Button>
@@ -627,42 +598,27 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                         type="submit"
                                         size="md"
                                         loading={completeMutation.isLoading}
-                                        disabled={!form.values.jobTitle}
+                                        disabled={
+                                            !form.values.jobTitle ||
+                                            !form.values.firstName.trim() ||
+                                            !form.values.lastName.trim()
+                                        }
                                     >
-                                        Finish
+                                        Continue
                                     </Button>
                                 </Group>
                             </Stack>
                         )}
                     </form>
                 </Box>
-
-                <Box className={classes.rightPane}>
-                    <OrganizationSetupPreview
-                        caption={
-                            canUseBranding
-                                ? 'A preview of Lightdash, themed to your brand.'
-                                : 'A preview of Lightdash.'
-                        }
-                        name={form.values.organizationName || null}
-                        logos={detectedBrand?.logos ?? []}
-                        colors={previewColors}
-                        titleFont={titleFont}
-                        bodyFont={bodyFont}
-                        detectedDomain={detectedBrand?.domain ?? null}
-                        detectedLogoUrl={detectedLogoUrl}
-                    />
-                </Box>
             </Box>
-
-            <AboutFooter />
-        </Box>
+        </OnboardingLayout>
     );
 };
 
 const OrganizationSetup: FC = () => {
     const { health, user } = useApp();
-    const navigate = useNavigate();
+    const onboardingNavigate = useOnboardingNavigate();
     const [searchParams] = useSearchParams();
     const redirectParam = searchParams.get('redirect');
     const redirectTo =
@@ -676,8 +632,35 @@ const OrganizationSetup: FC = () => {
     const organization = useOrganization({
         enabled: !!user.data?.organizationUuid,
     });
+    const homepageBuilderFlag = useHomepageBuilderFlag();
+    const canCreateProject =
+        user.data?.ability.can(
+            'create',
+            subject('Project', {
+                organizationUuid: user.data.organizationUuid,
+                type: ProjectType.DEFAULT,
+            }),
+        ) ?? false;
+    // Landing on the final page keeps the view transition from snapshotting a redirect
+    const landingPath =
+        redirectTo === '/' &&
+        organization.data?.needsProject &&
+        canCreateProject
+            ? getNoProjectPath({
+                  isNewOnboardingEnabled:
+                      orgSetupPageFlag.data?.enabled ?? false,
+                  isHomepageBuilderEnabled: homepageBuilderFlag.isEnabled,
+              })
+            : redirectTo;
+    const { track } = useTracking();
     const completeMutation = useUserCompleteMutation({
-        onSuccess: () => void navigate(redirectTo),
+        onSuccess: () => {
+            track({
+                name: EventName.ORGANIZATION_SETUP_STEP_COMPLETED,
+                properties: { step: 'about_you' },
+            });
+            onboardingNavigate(landingPath);
+        },
     });
     const isCompletingSetup =
         completeMutation.isLoading || completeMutation.isSuccess;

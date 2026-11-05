@@ -166,6 +166,9 @@ const Register: FC = () => {
     const isEmailOnlySignup =
         (emailOnlySignupFlag.data?.enabled ?? false) &&
         !!health.data?.hasEmailClient;
+    const signupOnboardingFlow = emailOnlySignupFlag.data?.enabled
+        ? 'new'
+        : 'legacy';
 
     const ssoLogins = isAnySsoEnabled(health.data?.auth) && (
         <Stack>
@@ -189,7 +192,7 @@ const Register: FC = () => {
                         name: EventName.SIGNUP_FORM_SUBMITTED,
                         properties: {
                             variant: 'email_only',
-                            onboardingFlow: 'new',
+                            onboardingFlow: signupOnboardingFlow,
                         },
                     });
                     mutate(data);
@@ -203,7 +206,7 @@ const Register: FC = () => {
                         name: EventName.SIGNUP_FORM_SUBMITTED,
                         properties: {
                             variant: 'password',
-                            onboardingFlow: 'legacy',
+                            onboardingFlow: signupOnboardingFlow,
                         },
                     });
                     mutate(data);
