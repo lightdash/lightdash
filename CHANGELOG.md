@@ -1,3 +1,10 @@
+## [3.154.3](https://github.com/lightdash/lightdash/compare/3.154.2...3.154.3) (2026-11-05)
+
+
+### Bug Fixes
+
+* **learn:** repair canonical Agents references ([#32087](https://github.com/lightdash/lightdash/issues/32087)) ([917e254](https://github.com/lightdash/lightdash/commit/917e254825d682bba8a81f8e875494b20a749a76))
+
 ## [3.154.2](https://github.com/lightdash/lightdash/compare/3.154.1...3.154.2) (2026-11-05)
 
 
