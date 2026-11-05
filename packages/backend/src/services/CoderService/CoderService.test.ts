@@ -398,6 +398,7 @@ describe('CoderService', () => {
 
         it('renders a dashboard draft move as the target space slug', async () => {
             const result = await service.getDashboardAsCodeWithOverlay(
+                defaultSessionUser,
                 publishedDashboard.uuid,
                 { spaceUuid: 'draft-space' },
             );
@@ -1957,6 +1958,7 @@ describe('CoderService', () => {
                 dashboard,
                 [{ name: 'Space', path: 'space', uuid: 'space-uuid' }],
                 new Map(),
+                true,
             );
             expect(exported.config.controlSections).toEqual([
                 { slug: 'currency-comparison', name: 'Currency comparison' },

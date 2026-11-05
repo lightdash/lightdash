@@ -174,7 +174,7 @@
             "requiredStop": false
         },
         "dashboard-control-section-slugs-experimental-exports": {
-            "reason": "Experimental dashboard section downloads replace IDs with slugs, including saved sections when dashboard-controls is off. The flag defaults off on Cloud and self-hosted. Legacy ID uploads and stored identities remain supported. Experimental readers must adopt slugs. POST findings are allOf restructuring; existing request fields and requirements are unchanged.",
+            "reason": "Experimental dashboard section downloads use slugs when dashboard-controls is enabled. The flag defaults off on Cloud and self-hosted; disabled exports retain IDs, including previously saved sections. Legacy ID uploads and stored identities remain supported. Experimental readers must adopt slugs. POST findings are allOf restructuring; existing request fields and requirements are unchanged.",
             "requiredStop": false,
             "impact": {
                 "kind": "no-external-callers",

@@ -3364,12 +3364,14 @@ describe.each([true, false])(
                 );
                 expect(
                     service.dashboardService.areDashboardControlsEnabled,
-                ).toHaveBeenCalledTimes(withControls ? 1 : 0);
+                ).toHaveBeenCalledOnce();
                 const exported = result.dashboards[0];
                 const current = await service.getCurrentDashboardAsCode(
+                    makeSessionUser([]),
                     dashboard.uuid,
                 );
                 const draft = await service.getDashboardAsCodeWithOverlay(
+                    makeSessionUser([]),
                     dashboard.uuid,
                     { name: 'Draft name' },
                 );
@@ -3378,23 +3380,43 @@ describe.each([true, false])(
                         exported.config.controlSections,
                     );
                     expect(writeback.filters).toEqual(exported.filters);
+                    expect(writeback.config?.parameterControls).toEqual(
+                        exported.config.parameterControls,
+                    );
                 }
 
-                expect(exported.config.controlSections).toEqual([
-                    { slug: 'saved-section', name: 'Saved section' },
-                ]);
-                expect(exported.filters.dimensions[0].sectionSlug).toBe(
-                    'saved-section',
-                );
-                expect(
-                    exported.filters.dimensions[0].sectionId,
-                ).toBeUndefined();
-                expect(exported.config.parameterSectionSlugs).toEqual({
-                    currency: 'saved-section',
-                });
-                expect(exported.config.parameterSections).toBeUndefined();
-                if (!enabled)
+                if (enabled) {
+                    expect(exported.config.controlSections).toEqual([
+                        { slug: 'saved-section', name: 'Saved section' },
+                    ]);
+                    expect(exported.filters.dimensions[0].sectionSlug).toBe(
+                        'saved-section',
+                    );
+                    expect(
+                        exported.filters.dimensions[0].sectionId,
+                    ).toBeUndefined();
+                    expect(exported.config.parameterSectionSlugs).toEqual({
+                        currency: 'saved-section',
+                    });
+                    expect(exported.config.parameterSections).toBeUndefined();
+                } else {
+                    expect(exported.config.controlSections).toEqual(
+                        dashboard.config!.controlSections,
+                    );
+                    expect(exported.filters.dimensions[0].sectionId).toBe(
+                        'saved-section',
+                    );
+                    expect(
+                        exported.filters.dimensions[0].sectionSlug,
+                    ).toBeUndefined();
+                    expect(exported.config.parameterSections).toEqual({
+                        currency: 'saved-section',
+                    });
+                    expect(
+                        exported.config.parameterSectionSlugs,
+                    ).toBeUndefined();
                     expect(exported.config.parameterControls).toBeUndefined();
+                }
             },
         );
     },
