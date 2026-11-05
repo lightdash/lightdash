@@ -1498,29 +1498,32 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                     (url) =>
                         url.startsWith(source.scope) && !new URL(url).search,
                 );
-                if (unsignedUrls.length === 0) continue;
-                // eslint-disable-next-line no-await-in-loop
-                const signedUrls = await source.getSignedUrls(unsignedUrls);
-                if (signedUrls.length !== unsignedUrls.length) {
-                    throw new ParameterError('Invalid signed Parquet manifest');
-                }
-                const replacements = new Map<string, string>();
-                unsignedUrls.forEach((url, index) => {
-                    const signed = validateUrl(signedUrls[index], false);
-                    const original = new URL(url);
-                    if (
-                        signed.origin !== original.origin ||
-                        signed.pathname !== original.pathname
-                    ) {
+                if (unsignedUrls.length > 0) {
+                    // eslint-disable-next-line no-await-in-loop
+                    const signedUrls = await source.getSignedUrls(unsignedUrls);
+                    if (signedUrls.length !== unsignedUrls.length) {
                         throw new ParameterError(
-                            'Signed Parquet URL must match the requested object',
+                            'Invalid signed Parquet manifest',
                         );
                     }
-                    replacements.set(url, signed.href);
-                });
-                table.urls = table.urls.map(
-                    (url) => replacements.get(url) ?? url,
-                );
+                    const replacements = new Map<string, string>();
+                    unsignedUrls.forEach((url, index) => {
+                        const signed = validateUrl(signedUrls[index], false);
+                        const original = new URL(url);
+                        if (
+                            signed.origin !== original.origin ||
+                            signed.pathname !== original.pathname
+                        ) {
+                            throw new ParameterError(
+                                'Signed Parquet URL must match the requested object',
+                            );
+                        }
+                        replacements.set(url, signed.href);
+                    });
+                    table.urls = table.urls.map(
+                        (url) => replacements.get(url) ?? url,
+                    );
+                }
             }
         }
         const files = source.tables.flatMap(({ urls }) => urls);

@@ -42,14 +42,17 @@ export class AnalyticsFileCache {
             return hit.value;
         }
         for (const [id, entry] of this.entries) {
-            if (this.bytes + size <= this.maxBytes && this.entries.size < 4096)
+            if (
+                this.bytes + size <= this.maxBytes &&
+                this.entries.size < 16_384
+            )
                 break;
             if (entry.ready) {
                 this.entries.delete(id);
                 this.bytes -= entry.size;
             }
         }
-        if (this.bytes + size > this.maxBytes || this.entries.size >= 4096)
+        if (this.bytes + size > this.maxBytes || this.entries.size >= 16_384)
             return undefined;
         this.bytes += size;
         const entry = {

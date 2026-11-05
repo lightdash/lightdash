@@ -104,9 +104,9 @@ describe('private query staging of cached Parquet', () => {
                     : bytes.subarray(start, end + 1),
             );
         });
-        await new Promise<void>((resolve) =>
-            server.listen(0, '127.0.0.1', resolve),
-        );
+        await new Promise<void>((resolve) => {
+            server.listen(0, '127.0.0.1', resolve);
+        });
         try {
             const manifest = bufferedSource();
             const { port } = server.address() as AddressInfo;
@@ -125,7 +125,7 @@ describe('private query staging of cached Parquet', () => {
                 [unsigned, bytes],
                 [signed, bytes],
             ]);
-            const writeFile = fs.writeFile;
+            const { writeFile } = fs;
             const writes = vi
                 .spyOn(fs, 'writeFile')
                 .mockImplementationOnce(writeFile)
@@ -152,9 +152,9 @@ describe('private query staging of cached Parquet', () => {
             ).rejects.toThrow();
         } finally {
             server.closeAllConnections();
-            await new Promise<void>((resolve, reject) =>
-                server.close((error) => (error ? reject(error) : resolve())),
-            );
+            await new Promise<void>((resolve, reject) => {
+                server.close((error) => (error ? reject(error) : resolve()));
+            });
         }
     });
 

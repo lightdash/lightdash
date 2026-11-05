@@ -148,10 +148,17 @@ describe('analytics project gate', () => {
                 storage,
                 organizationUuid: 'persisted-org',
             });
-            expect(DuckdbWarehouseClient).toHaveBeenCalledWith({
-                type: 'duckdb_parquet',
-                resolveSource: expect.any(Function),
-            });
+            expect(DuckdbWarehouseClient).toHaveBeenCalledWith(
+                {
+                    type: 'duckdb_parquet',
+                    resolveSource: expect.any(Function),
+                },
+                {
+                    logger: expect.objectContaining({
+                        info: expect.any(Function),
+                    }),
+                },
+            );
         },
     );
 

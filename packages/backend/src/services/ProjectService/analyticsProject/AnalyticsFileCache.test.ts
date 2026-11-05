@@ -138,9 +138,25 @@ describe('AnalyticsFileCache', () => {
         const pending = Array.from({ length: 16 }, (_, n) =>
             cache.get(scope, s3, 'bucket', `${n}`, 'v1', 4),
         );
-        const seventeenth = cache.get(scope, s3, 'bucket', 'seventeenth', 'v1', 4);
-        const duplicate = cache.get(scope, s3, 'bucket', 'seventeenth', 'v1', 4);
-        expect(await cache.get(scope, s3, 'bucket', 'over-budget', 'v1', 4)).toBeUndefined();
+        const seventeenth = cache.get(
+            scope,
+            s3,
+            'bucket',
+            'seventeenth',
+            'v1',
+            4,
+        );
+        const duplicate = cache.get(
+            scope,
+            s3,
+            'bucket',
+            'seventeenth',
+            'v1',
+            4,
+        );
+        expect(
+            await cache.get(scope, s3, 'bucket', 'over-budget', 'v1', 4),
+        ).toBeUndefined();
         expect(send).toHaveBeenCalledTimes(16);
         finish();
         expect(await Promise.all([...pending, seventeenth, duplicate])).toEqual(
@@ -172,7 +188,11 @@ describe('AnalyticsFileCache', () => {
         expect(await Promise.all(pending.slice(1))).toEqual(
             Array.from({ length: 16 }, () => Buffer.from('data')),
         );
-        expect((await cache.get(scope, s3, 'bucket', 'retry', 'v1', 4))?.toString()).toBe('data');
+        expect(
+            (
+                await cache.get(scope, s3, 'bucket', 'retry', 'v1', 4)
+            )?.toString(),
+        ).toBe('data');
     });
 
     it('buffers many overlapping dashboard tiles without concurrency fallbacks', async () => {
@@ -191,13 +211,16 @@ describe('AnalyticsFileCache', () => {
             return response();
         });
         const s3 = client(send);
-        const tiles = Array.from({ length: 6 }, (_, tile) => [
+        const tiles = Array.from({ length: 6 }, (_tile, tile) => [
             'shared-dimension',
-            ...Array.from({ length: 8 }, (_, file) => `tile-${tile}/file-${file}`),
+            ...Array.from(
+                { length: 8 },
+                (_, file) => `tile-${tile}/file-${file}`,
+            ),
         ]);
-        const pending = tiles.flat().map((file) =>
-            cache.get(scope, s3, 'bucket', file, 'v1', 4),
-        );
+        const pending = tiles
+            .flat()
+            .map((file) => cache.get(scope, s3, 'bucket', file, 'v1', 4));
         expect(send).toHaveBeenCalledTimes(16);
         finish();
         expect(await Promise.all(pending)).toEqual(

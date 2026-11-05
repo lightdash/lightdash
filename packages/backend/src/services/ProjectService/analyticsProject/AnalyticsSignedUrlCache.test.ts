@@ -28,7 +28,11 @@ describe('AnalyticsSignedUrlCache', () => {
         const cache = createCache();
         const signing = deferred();
         const sign = vi.fn(() => signing.promise);
-        const request = { identity: 'org-a/file/v1/credentials-a', expiresAt: 1000, sign };
+        const request = {
+            identity: 'org-a/file/v1/credentials-a',
+            expiresAt: 1000,
+            sign,
+        };
         const requests = Array.from({ length: 8 }, () => cache.get(request));
         signing.resolve('signed-url');
         const results = await Promise.all(requests);
@@ -37,9 +41,18 @@ describe('AnalyticsSignedUrlCache', () => {
         expect(results.slice(1)).toEqual(
             Array(7).fill({ url: 'signed-url', cacheHit: true }),
         );
-        await cache.get({ ...request, identity: 'org-b/file/v1/credentials-a' });
-        await cache.get({ ...request, identity: 'org-a/file/v2/credentials-a' });
-        await cache.get({ ...request, identity: 'org-a/file/v1/credentials-b' });
+        await cache.get({
+            ...request,
+            identity: 'org-b/file/v1/credentials-a',
+        });
+        await cache.get({
+            ...request,
+            identity: 'org-a/file/v2/credentials-a',
+        });
+        await cache.get({
+            ...request,
+            identity: 'org-a/file/v1/credentials-b',
+        });
         expect(sign).toHaveBeenCalledTimes(4);
     });
 
@@ -48,12 +61,18 @@ describe('AnalyticsSignedUrlCache', () => {
         const sign = vi.fn(async () => `url-${now}`);
         await cache.get({ identity: 'file', expiresAt: 1000, sign });
         now = 999;
-        expect(await cache.get({ identity: 'file', expiresAt: 1999, sign })).toEqual({
-            url: 'url-0', cacheHit: true,
+        expect(
+            await cache.get({ identity: 'file', expiresAt: 1999, sign }),
+        ).toEqual({
+            url: 'url-0',
+            cacheHit: true,
         });
         now = 1000;
-        expect(await cache.get({ identity: 'file', expiresAt: 2000, sign })).toEqual({
-            url: 'url-1000', cacheHit: false,
+        expect(
+            await cache.get({ identity: 'file', expiresAt: 2000, sign }),
+        ).toEqual({
+            url: 'url-1000',
+            cacheHit: false,
         });
         expect(sign).toHaveBeenCalledTimes(2);
     });
@@ -61,9 +80,17 @@ describe('AnalyticsSignedUrlCache', () => {
     it('does not reuse a signature whose deadline passed while signing', async () => {
         const cache = createCache();
         const signing = deferred();
-        const first = cache.get({ identity: 'file', expiresAt: 10, sign: () => signing.promise });
+        const first = cache.get({
+            identity: 'file',
+            expiresAt: 10,
+            sign: () => signing.promise,
+        });
         const refresh = vi.fn(async () => 'fresh');
-        const next = cache.get({ identity: 'file', expiresAt: 1000, sign: refresh });
+        const next = cache.get({
+            identity: 'file',
+            expiresAt: 1000,
+            sign: refresh,
+        });
         now = 10;
         signing.resolve('original');
         expect(await first).toEqual({ url: 'original', cacheHit: false });
@@ -76,16 +103,33 @@ describe('AnalyticsSignedUrlCache', () => {
         const signing = deferred();
         const sign = vi.fn(() => signing.promise);
         const first = cache.get({ identity: 'file', expiresAt: 1000, sign });
-        const duplicate = cache.get({ identity: 'file', expiresAt: 1000, sign });
-        const queued = cache.get({ identity: 'other', expiresAt: 1000, sign: async () => 'other-url' });
+        const duplicate = cache.get({
+            identity: 'file',
+            expiresAt: 1000,
+            sign,
+        });
+        const queued = cache.get({
+            identity: 'other',
+            expiresAt: 1000,
+            sign: async () => 'other-url',
+        });
         const results = Promise.allSettled([first, duplicate, queued]);
         signing.reject(new Error('temporary signing failure'));
         expect((await results).map((result) => result.status)).toEqual([
-            'rejected', 'rejected', 'fulfilled',
+            'rejected',
+            'rejected',
+            'fulfilled',
         ]);
         expect(sign).toHaveBeenCalledTimes(1);
-        expect(await cache.get({ identity: 'file', expiresAt: 1000, sign: async () => 'retry-url' })).toEqual({
-            url: 'retry-url', cacheHit: false,
+        expect(
+            await cache.get({
+                identity: 'file',
+                expiresAt: 1000,
+                sign: async () => 'retry-url',
+            }),
+        ).toEqual({
+            url: 'retry-url',
+            cacheHit: false,
         });
     });
 
@@ -93,18 +137,26 @@ describe('AnalyticsSignedUrlCache', () => {
         const cache = createCache({ maxEntries: 3 });
         const signing = [deferred(), deferred(), deferred()];
         const sign = signing.map((pending) => vi.fn(() => pending.promise));
-        const requests = sign.map((fn, index) => cache.get({ identity: `${index}`, expiresAt: 1000, sign: fn }));
+        const requests = sign.map((fn, index) =>
+            cache.get({ identity: `${index}`, expiresAt: 1000, sign: fn }),
+        );
         await Promise.resolve();
         expect(sign.map((fn) => fn.mock.calls.length)).toEqual([1, 1, 0]);
         const excess = vi.fn(async () => 'excess');
-        await expect(cache.get({ identity: 'excess', expiresAt: 1000, sign: excess })).rejects.toThrow('capacity exceeded');
+        await expect(
+            cache.get({ identity: 'excess', expiresAt: 1000, sign: excess }),
+        ).rejects.toThrow('capacity exceeded');
         expect(excess).not.toHaveBeenCalled();
         signing[0].resolve('first');
         await requests[0];
         expect(sign.map((fn) => fn.mock.calls.length)).toEqual([1, 1, 1]);
         signing[1].resolve('second');
         signing[2].resolve('third');
-        expect((await Promise.all(requests)).map(({ url }) => url)).toEqual(['first', 'second', 'third']);
+        expect((await Promise.all(requests)).map(({ url }) => url)).toEqual([
+            'first',
+            'second',
+            'third',
+        ]);
     });
 
     it('evicts the least recently used resolved URL at the entry limit', async () => {
@@ -129,17 +181,29 @@ describe('AnalyticsSignedUrlCache', () => {
         await cache.get({ identity: 'large', expiresAt: 1000, sign: large });
         await cache.get({ identity: 'large', expiresAt: 1000, sign: large });
         expect(large).toHaveBeenCalledTimes(2);
-        expect(await cache.get({ identity: 'a', expiresAt: 1000, sign })).toEqual({ url: 'four', cacheHit: true });
+        expect(
+            await cache.get({ identity: 'a', expiresAt: 1000, sign }),
+        ).toEqual({ url: 'four', cacheHit: true });
     });
 
     it('clears settled entries without discarding pending signing reservations', async () => {
         const cache = createCache();
         const signing = deferred();
-        const request = cache.get({ identity: 'file', expiresAt: 1000, sign: () => signing.promise });
+        const request = cache.get({
+            identity: 'file',
+            expiresAt: 1000,
+            sign: () => signing.promise,
+        });
         expect(() => cache.clear()).toThrow('while signing');
         signing.resolve('url');
         await request;
         cache.clear();
-        expect(await cache.get({ identity: 'file', expiresAt: 1000, sign: async () => 'fresh' })).toEqual({ url: 'fresh', cacheHit: false });
+        expect(
+            await cache.get({
+                identity: 'file',
+                expiresAt: 1000,
+                sign: async () => 'fresh',
+            }),
+        ).toEqual({ url: 'fresh', cacheHit: false });
     });
 });

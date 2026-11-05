@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { DuckdbWarehouseClient } from '@lightdash/warehouses';
 import { lightdashConfig } from '../../../config/lightdashConfig';
+import Logger from '../../../logging/logger';
 import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { createS3AnalyticsSourceResolver } from './S3AnalyticsSource';
 
@@ -47,14 +48,17 @@ export const createAnalyticsClient = async (
         organizationUuid,
         ...options,
     });
-    return new DuckdbWarehouseClient({
-        type: 'duckdb_parquet',
-        resolveSource: async (referencedTables) => {
-            await assertAnalyticsProjectEnabled(
-                featureFlagModel,
-                organizationUuid,
-            );
-            return resolveSource(referencedTables);
+    return new DuckdbWarehouseClient(
+        {
+            type: 'duckdb_parquet',
+            resolveSource: async (referencedTables) => {
+                await assertAnalyticsProjectEnabled(
+                    featureFlagModel,
+                    organizationUuid,
+                );
+                return resolveSource(referencedTables);
+            },
         },
-    });
+        { logger: Logger },
+    );
 };
