@@ -1,3 +1,10 @@
+# [3.158.0](https://github.com/lightdash/lightdash/compare/3.157.0...3.158.0) (2026-11-05)
+
+
+### Features
+
+* **cli:** deploy and preview upload lightdash.project_context.yml ([#32065](https://github.com/lightdash/lightdash/issues/32065)) ([677d86d](https://github.com/lightdash/lightdash/commit/677d86d225879663d2c3a83b9b87b9286601a682))
+
 # [3.157.0](https://github.com/lightdash/lightdash/compare/3.156.2...3.157.0) (2026-11-05)
 
 

@@ -1,40 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "3.157.0",
-  "previousVersion": "3.156.2",
-  "releaseDate": "2026-11-05T11:29:32.769Z",
+  "version": "3.158.0",
+  "previousVersion": "3.157.0",
+  "releaseDate": "2026-11-05T11:46:20.495Z",
   "migrations": {
-    "present": true,
-    "count": 2,
-    "coreCount": 1,
-    "eeCount": 1,
-    "files": [
-      {
-        "name": "20261104180000_add_invite_links_invited_by.ts",
-        "edition": "core",
-        "tables": [
-          "invite_links",
-          "users"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      },
-      {
-        "name": "20261104190000_add_api_source_schema_to_external_connections.ts",
-        "edition": "ee",
-        "tables": [
-          "external_connections"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      }
-    ]
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
+    "eeCount": 0,
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
@@ -46,13 +20,8 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [
-        "GET /api/v1/schedulers/runs/{runId}/logs — added the new `scanApiSourceSchema` enum value to the `results/logs/items/allOf[#/components/schemas/BaseSchedulerLog]/task` response property for the response status `200`",
-        "GET /api/v1/schedulers/runs/{runId}/logs — added the new `warmWarehouseTablesCache` enum value to the `results/logs/items/allOf[#/components/schemas/BaseSchedulerLog]/task` response property for the response status `200`",
-        "GET /api/v1/schedulers/{projectUuid}/logs — added the new `scanApiSourceSchema` enum value to the `results/data/logs/items/allOf[#/components/schemas/BaseSchedulerLog]/task` response property for the response status `200`",
-        "GET /api/v1/schedulers/{projectUuid}/logs — added the new `warmWarehouseTablesCache` enum value to the `results/data/logs/items/allOf[#/components/schemas/BaseSchedulerLog]/task` response property for the response status `200`"
-      ],
-      "advisoryCount": 4
+      "advisories": [],
+      "advisoryCount": 0
     },
     "mcp": {
       "checked": true,

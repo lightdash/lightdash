@@ -61011,6 +61011,64 @@
                 "required": ["status"],
                 "type": "object"
             },
+            "ApiReplaceProjectContextResults": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "entryCount": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "ingested": {
+                                "type": "boolean",
+                                "enum": [true],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["entryCount", "ingested"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "reason": {
+                                "type": "string",
+                                "enum": ["ai_agent_reviews_disabled"],
+                                "nullable": false
+                            },
+                            "ingested": {
+                                "type": "boolean",
+                                "enum": [false],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["reason", "ingested"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiSuccess_ApiReplaceProjectContextResults_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ApiReplaceProjectContextResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiReplaceProjectContextBody": {
+                "properties": {
+                    "yaml": {
+                        "type": "string"
+                    }
+                },
+                "required": ["yaml"],
+                "type": "object"
+            },
             "ApiProjectColorPaletteResponse": {
                 "properties": {
                     "results": {
@@ -75787,7 +75845,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.157.0",
+        "version": "3.158.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -104260,6 +104318,57 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/ApiTableGroupsResults"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/project-context": {
+            "put": {
+                "operationId": "replaceProjectContext",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess_ApiReplaceProjectContextResults_"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Replace the project's AI agent context with the contents of\n`lightdash.project_context.yml`. Sent by the CLI on deploy/preview so\nprojects without a Git connection get the same context a server-side\ncompile would ingest. The CLI only calls this when the file exists, so\nremoving the file leaves the stored entries unchanged; send an empty\n`entries: []` file to clear them. Requires the organization's \"Review AI\nagent turns\" setting; when it is off the entries are left unchanged.",
+                "summary": "Replace project AI context",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiReplaceProjectContextBody"
                             }
                         }
                     }
