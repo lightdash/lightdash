@@ -11,7 +11,7 @@ import {
     Divider,
     Group,
     Loader,
-    Paper,
+    Box,
     SegmentedControl,
     SimpleGrid,
     Stack,
@@ -93,12 +93,12 @@ const DAYS_OPTIONS = [
     { value: '30', label: 'Last 30 days' },
 ];
 
-const STAT_TILE_HEIGHT = 120;
+const STAT_TILE_HEIGHT = 80;
 
 type StatProps = { label: string; value: string };
 
 const Stat: FC<StatProps> = ({ label, value }) => (
-    <Paper withBorder radius="md" h={STAT_TILE_HEIGHT}>
+    <Box h={STAT_TILE_HEIGHT}>
         <BigNumberDisplay
             value={value}
             label={label}
@@ -106,7 +106,7 @@ const Stat: FC<StatProps> = ({ label, value }) => (
             comparison={undefined}
             flipColors={false}
         />
-    </Paper>
+    </Box>
 );
 
 const pluralizeMisses = (count: number) =>
