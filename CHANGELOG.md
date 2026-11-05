@@ -1,3 +1,15 @@
+## [3.166.2](https://github.com/lightdash/lightdash/compare/3.166.1...3.166.2) (2026-11-05)
+
+
+### Bug Fixes
+
+* **onboarding:** fire step_completed for live source starts and stop repeat verified events ([#32137](https://github.com/lightdash/lightdash/issues/32137)) ([7853572](https://github.com/lightdash/lightdash/commit/785357221c8e17ada1a83b77caa081583f82d788))
+
+
+### Performance Improvements
+
+* **frontend:** stop the react chunk group from swallowing react-* packages ([#32123](https://github.com/lightdash/lightdash/issues/32123)) ([e745e64](https://github.com/lightdash/lightdash/commit/e745e64474e20a1feadad8dec7ea38b067095ff2)), closes [#32139](https://github.com/lightdash/lightdash/issues/32139)
+
 ## [3.166.1](https://github.com/lightdash/lightdash/compare/3.166.0...3.166.1) (2026-11-05)
 
 
