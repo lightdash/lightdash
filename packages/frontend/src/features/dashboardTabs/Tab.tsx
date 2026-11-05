@@ -1,4 +1,3 @@
-import { Draggable } from '@hello-pangea/dnd';
 import type { DashboardTab } from '@lightdash/common';
 import { ActionIcon, Group, Menu, Tabs, Tooltip } from '@mantine/core';
 import {
@@ -10,8 +9,15 @@ import {
     IconPencil,
     IconTrash,
 } from '@tabler/icons-react';
-import { type Dispatch, type FC, type SetStateAction } from 'react';
+import clsx from 'clsx';
+import {
+    type Dispatch,
+    type FC,
+    type SetStateAction,
+    type SyntheticEvent,
+} from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
+import { SortableItem } from '../../components/common/Sortable/Sortable';
 import { useIsTruncated } from '../../hooks/useIsTruncated';
 import styles from './tabs.module.css';
 
@@ -30,6 +36,10 @@ type DraggableTabProps = {
     hasQuietActions?: boolean;
 };
 
+// The portaled menu bubbles its events here through React: never drag from it
+const isInsideTab = (e: SyntheticEvent<HTMLElement>) =>
+    e.target instanceof Node && e.currentTarget.contains(e.target);
+
 const DraggableTab: FC<DraggableTabProps> = ({
     tab,
     idx,
@@ -47,27 +57,35 @@ const DraggableTab: FC<DraggableTabProps> = ({
     const { ref, isTruncated } = useIsTruncated(
         hasQuietActions ? '.mantine-Tabs-tabLabel' : 'span',
     );
+    const isWholeTabHandle = isEditMode && hasQuietActions;
 
     return (
-        <Draggable
-            key={tab.uuid}
-            draggableId={tab.uuid}
-            index={idx}
-            // With no grip the tab, a button, is the handle
-            disableInteractiveElementBlocking={isEditMode && hasQuietActions}
-        >
-            {(provided, snapshot) => (
+        <SortableItem id={tab.uuid} disabled={!isEditMode}>
+            {(sortable) => (
                 <div
-                    ref={provided.innerRef}
-                    {...provided.draggableProps}
-                    {...provided.dragHandleProps}
+                    // With no grip the whole tab, menu included, is the handle
+                    {...(isWholeTabHandle && sortable.handleProps)}
+                    ref={(el) => {
+                        sortable.ref(el);
+                        if (isWholeTabHandle) sortable.handleProps.ref(el);
+                    }}
+                    className={clsx(
+                        sortable.className,
+                        isWholeTabHandle && sortable.handleProps.className,
+                    )}
+                    // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
+                    style={sortable.style}
+                    onMouseDown={(e) => {
+                        if (isWholeTabHandle && isInsideTab(e))
+                            sortable.handleProps.onMouseDown(e);
+                    }}
+                    onTouchStart={(e) => {
+                        if (isWholeTabHandle && isInsideTab(e))
+                            sortable.handleProps.onTouchStart(e);
+                    }}
                     // On the wrapper: it is the tab's first focus stop
-                    data-quiet-actions={
-                        (isEditMode && hasQuietActions) || undefined
-                    }
-                    data-dragging={
-                        (hasQuietActions && snapshot.isDragging) || undefined
-                    }
+                    data-quiet-actions={isWholeTabHandle || undefined}
+                    data-dragging={sortable.isDragging || undefined}
                 >
                     <Tooltip
                         label={tab.name}
@@ -91,7 +109,7 @@ const DraggableTab: FC<DraggableTabProps> = ({
                                 // A quiet tab is its own handle: no grip
                                 isEditMode && !hasQuietActions ? (
                                     <ActionIcon
-                                        {...provided.dragHandleProps}
+                                        {...sortable.handleProps}
                                         size="xs"
                                     >
                                         <MantineIcon
@@ -204,7 +222,7 @@ const DraggableTab: FC<DraggableTabProps> = ({
                     </Tooltip>
                 </div>
             )}
-        </Draggable>
+        </SortableItem>
     );
 };
 
