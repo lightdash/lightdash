@@ -544,6 +544,24 @@ describe('SnowflakeWarehouseClient', () => {
         },
     );
 
+    it('identifies warehouse connections with the partner application ID', async () => {
+        const warehouse = new SnowflakeWarehouseClient(credentials);
+
+        await warehouse.streamQuery('SELECT 1', () => {}, {});
+
+        expect(createConnection).toHaveBeenCalledWith(
+            expect.objectContaining({ application: 'Lightdash_Lightdash' }),
+        );
+    });
+
+    it('identifies agent session checks with the partner application ID', async () => {
+        await checkSnowflakeAgentSessionWithToken('test', 'token');
+
+        expect(createConnection).toHaveBeenCalledWith(
+            expect.objectContaining({ application: 'Lightdash_Lightdash' }),
+        );
+    });
+
     it('configures the local application authorization-code flow with SDK defaults', () => {
         const warehouse = new SnowflakeWarehouseClient({
             ...credentials,
