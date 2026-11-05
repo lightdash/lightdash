@@ -74,6 +74,38 @@ class WallClockDate extends Date {
     getTimezoneOffset() {
         return 0;
     }
+
+    // Setters must match the getters: date-fns week tokens (II, ww, RRRR)
+    // compute via startOfWeek, which mutates clones with setDate/setHours.
+    // Inheriting the local setters would mix UTC reads with local writes and
+    // land on the wrong ISO week in non-UTC viewer timezones.
+    setFullYear(...args: Parameters<Date['setFullYear']>) {
+        return this.setUTCFullYear(...args);
+    }
+
+    setMonth(...args: Parameters<Date['setMonth']>) {
+        return this.setUTCMonth(...args);
+    }
+
+    setDate(day: number) {
+        return this.setUTCDate(day);
+    }
+
+    setHours(...args: Parameters<Date['setHours']>) {
+        return this.setUTCHours(...args);
+    }
+
+    setMinutes(...args: Parameters<Date['setMinutes']>) {
+        return this.setUTCMinutes(...args);
+    }
+
+    setSeconds(...args: Parameters<Date['setSeconds']>) {
+        return this.setUTCSeconds(...args);
+    }
+
+    setMilliseconds(ms: number) {
+        return this.setUTCMilliseconds(ms);
+    }
 }
 
 function toDate(value: unknown): Date | null {

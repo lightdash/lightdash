@@ -107,6 +107,22 @@ describe.each(['America/Los_Angeles', 'Pacific/Kiritimati', 'UTC'])(
             ).toBe('Nov 2, 2025 01:30');
         });
 
+        test('custom week patterns compute from the wall-clock reading', () => {
+            // Week tokens exercise date-fns' startOfWeek, which mutates via
+            // setters — local setters mixed with UTC getters land on the
+            // wrong ISO week off UTC.
+            expect(
+                formatDate('2025-01-01T00:00:00Z', undefined, 'cell', {
+                    pattern: "RRRR-'W'II",
+                }),
+            ).toBe('2025-W01');
+            expect(
+                formatDate('2024-12-29T00:00:00Z', undefined, 'cell', {
+                    pattern: "RRRR-'W'II",
+                }),
+            ).toBe('2024-W52');
+        });
+
         test('a custom pattern still renders the wall-clock day', () => {
             expect(
                 formatDate('2025-03-09T00:00:00Z', undefined, 'cell', {
