@@ -2,7 +2,6 @@ import { FeatureFlags, isAgentOnboardingRunTerminal } from '@lightdash/common';
 import { notifications } from '@mantine/notifications';
 import { useEffect, type FC } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import { AI_NAME } from '../../../components/common/aiName';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
@@ -69,7 +68,7 @@ export const AgentOnboardingCompletionWatcher: FC = () => {
                 showToastWarning({
                     key: runToastKey(agentOnboardingRunUuid),
                     autoClose: false,
-                    title: `${AI_NAME} couldn't finish project setup`,
+                    title: "Project setup couldn't finish",
                     subtitle: 'You can try again from home.',
                     action: {
                         children: 'See what happened',
