@@ -118,6 +118,8 @@ minimumReleaseAgeExclude:
   - zod@4.6.6
   # Renovate security update: node-forge@1.4.1
   - node-forge@1.4.1
+  # Renovate security update: @opentelemetry/instrumentation-knex@0.65.0
+  - "@opentelemetry/instrumentation-knex@0.65.0"
 
 # pnpm 11 defaults verifyDepsBeforeRun to `install`, which re-verifies (and
 # reinstalls) node_modules before running any package script. The production
