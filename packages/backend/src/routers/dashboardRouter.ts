@@ -58,25 +58,6 @@ dashboardRouter.get(
     },
 );
 
-dashboardRouter.get(
-    '/:dashboardUuid/views',
-    allowApiKeyAuthentication,
-    isAuthenticated,
-    requireOAuthScopeOperation('dashboardRouter.getDashboardViews'),
-    async (req, res, next) => {
-        req.services
-            .getAnalyticsService()
-            .getDashboardViews(req.params.dashboardUuid)
-            .then((results) => {
-                res.json({
-                    status: 'ok',
-                    results,
-                });
-            })
-            .catch(next);
-    },
-);
-
 dashboardRouter.patch(
     '/:dashboardUuidOrSlug',
     allowApiKeyAuthentication,

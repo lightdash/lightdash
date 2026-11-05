@@ -36,3 +36,7 @@
     margin: 0;
     flex-shrink: 0;
 }
+
+.cleanUpButton {
+    box-shadow: var(--mantine-shadow-subtle);
+}

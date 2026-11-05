@@ -19,6 +19,7 @@ Commands:
   URL is optional - if not provided, uses the last URL you logged into. URL can be flexible: single words like "app" become "https://app.lightdash.cloud", protocol defaults to https, and paths are ignored.
   
   👀 See https://docs.lightdash.com/guides/cli/cli-authentication for more help and examples
+  logout                                  Logs out of the configured instance and revokes a browser login session
   agent                                   Connect your agent to the warehouse and check its status
   config                                  Sets configuration
   dbt                                     Runs dbt commands
@@ -35,7 +36,7 @@ Commands:
   generate [options]                      Generates a new schema.yml file for model
   rename [options]                        Rename models and fields on Lightdash content
   slug-update [options]                   Rename a chart or dashboard slug and update its local references
-  generate-exposures [options]            [Experimental command] Generates a .yml file for Lightdash exposures
+  generate-exposures [options]            Generates a YAML file for Lightdash exposures
   diagnostics [options]                   Shows diagnostic information about the CLI environment
   lint [options]                          Validates Lightdash Code files (models, charts, dashboards) against JSON schemas
   warehouse-catalog [options]             Explore the selected project's raw warehouse databases, schemas, tables, and fields

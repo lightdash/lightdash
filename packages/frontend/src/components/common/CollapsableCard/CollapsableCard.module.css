@@ -43,3 +43,23 @@
 .disabledButton:hover {
     background-color: transparent;
 }
+
+.card {
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+}
+
+.visualizationWrapper {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.visualizationContent {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}

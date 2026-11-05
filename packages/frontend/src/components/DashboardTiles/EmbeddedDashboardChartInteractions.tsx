@@ -4,7 +4,13 @@ import {
     type SavedChart,
 } from '@lightdash/common';
 import { Menu, Portal } from '@mantine/core';
-import React, { useCallback, useState, type FC, type ReactNode } from 'react';
+import React, {
+    useCallback,
+    useState,
+    type CSSProperties,
+    type FC,
+    type ReactNode,
+} from 'react';
 import { type EmbedExploreOptions } from '../../ee/providers/Embed/types';
 import {
     selectIsDateZoomAppliedToTile,
@@ -19,6 +25,7 @@ import { type EmbeddedDashboardInteractivity } from '../LightdashVisualization/c
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
 import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
 import { type EchartsSeriesClickEvent } from '../SimpleChart';
+import tileClasses from './DashboardTiles.module.css';
 import {
     getAppliedTileDateZoom,
     type AppliedTileDateZoomArgs,
@@ -150,7 +157,6 @@ const EmbeddedDashboardChartInteractions: FC<Props> = ({
                 onClose={() => setContextMenuIsOpen(false)}
                 closeOnItemClick
                 closeOnEscape
-                radius={0}
                 position="bottom-start"
                 offset={{ crossAxis: 0, mainAxis: 0 }}
             >
@@ -158,10 +164,13 @@ const EmbeddedDashboardChartInteractions: FC<Props> = ({
                     <Menu.Target>
                         <div
                             onContextMenu={(event) => event.preventDefault()}
-                            style={{
-                                position: 'absolute',
-                                ...contextMenuTargetOffset,
-                            }}
+                            className={tileClasses.contextMenuTarget}
+                            style={
+                                {
+                                    '--menu-left': `${contextMenuTargetOffset?.left ?? 0}px`,
+                                    '--menu-top': `${contextMenuTargetOffset?.top ?? 0}px`,
+                                } as CSSProperties
+                            }
                         />
                     </Menu.Target>
                 </Portal>

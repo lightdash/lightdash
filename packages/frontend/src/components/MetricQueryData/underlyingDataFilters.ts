@@ -18,6 +18,7 @@ import {
 } from '@lightdash/common';
 import { v4 as uuidv4 } from 'uuid';
 import { getZoomedDimFilter } from './dateZoomFilter';
+import { type UnderlyingDataConfig } from './types';
 
 export type UnderlyingDataFilterParts = {
     pointFilterRules: FilterRule[];
@@ -36,7 +37,9 @@ export const getUnderlyingDataFilterParts = ({
     allDimensions,
     resolvedTimezone,
 }: {
-    item: ItemsMap[string];
+    // Undefined when the clicked series could not be resolved to a field: the
+    // clicked row's dimension values and pivot values still scope the result
+    item: ItemsMap[string] | undefined;
     value: ResultValue;
     fieldValues: Record<string, ResultValue>;
     pivotReference: PivotReference | undefined;
@@ -46,62 +49,63 @@ export const getUnderlyingDataFilterParts = ({
 }): UnderlyingDataFilterParts => {
     // If we are viewing data from a metric or a table calculation, we filter
     // using all existing dimensions in the table
-    const dimensionFilters = !isDimension(item)
-        ? Object.entries(fieldValues).reduce((acc, r) => {
-              const [key, { raw }] = r;
+    const dimensionFilters =
+        item === undefined || !isDimension(item)
+            ? Object.entries(fieldValues).reduce((acc, r) => {
+                  const [key, { raw }] = r;
 
-              const isValidDimension = allDimensions.find(
-                  (dimension) => getItemId(dimension) === key,
-              );
-              if (!isValidDimension) return acc;
+                  const isValidDimension = allDimensions.find(
+                      (dimension) => getItemId(dimension) === key,
+                  );
+                  if (!isValidDimension) return acc;
 
-              const zoomedFilters = getZoomedDimFilter(key, raw, dateZoom);
-              if (zoomedFilters) return [...acc, ...zoomedFilters];
+                  const zoomedFilters = getZoomedDimFilter(key, raw, dateZoom);
+                  if (zoomedFilters) return [...acc, ...zoomedFilters];
 
-              const dimensionFilter: FilterRule = {
-                  id: uuidv4(),
-                  target: {
-                      fieldId: key,
+                  const dimensionFilter: FilterRule = {
+                      id: uuidv4(),
+                      target: {
+                          fieldId: key,
+                      },
+                      operator:
+                          raw === null
+                              ? FilterOperator.NULL
+                              : FilterOperator.EQUALS,
+                      values:
+                          raw === null
+                              ? undefined
+                              : [
+                                    normalizeCellRawForFilter(
+                                        raw,
+                                        isValidDimension,
+                                        resolvedTimezone,
+                                    ),
+                                ],
+                  };
+                  return [...acc, dimensionFilter];
+              }, [] as FilterRule[])
+            : (getZoomedDimFilter(getItemId(item), value.raw, dateZoom) ?? [
+                  {
+                      id: uuidv4(),
+                      target: {
+                          fieldId: getItemId(item),
+                      },
+                      operator:
+                          value.raw === null
+                              ? FilterOperator.NULL
+                              : FilterOperator.EQUALS,
+                      values:
+                          value.raw === null
+                              ? undefined
+                              : [
+                                    normalizeCellRawForFilter(
+                                        value.raw,
+                                        item,
+                                        resolvedTimezone,
+                                    ),
+                                ],
                   },
-                  operator:
-                      raw === null
-                          ? FilterOperator.NULL
-                          : FilterOperator.EQUALS,
-                  values:
-                      raw === null
-                          ? undefined
-                          : [
-                                normalizeCellRawForFilter(
-                                    raw,
-                                    isValidDimension,
-                                    resolvedTimezone,
-                                ),
-                            ],
-              };
-              return [...acc, dimensionFilter];
-          }, [] as FilterRule[])
-        : (getZoomedDimFilter(getItemId(item), value.raw, dateZoom) ?? [
-              {
-                  id: uuidv4(),
-                  target: {
-                      fieldId: getItemId(item),
-                  },
-                  operator:
-                      value.raw === null
-                          ? FilterOperator.NULL
-                          : FilterOperator.EQUALS,
-                  values:
-                      value.raw === null
-                          ? undefined
-                          : [
-                                normalizeCellRawForFilter(
-                                    value.raw,
-                                    item,
-                                    resolvedTimezone,
-                                ),
-                            ],
-              },
-          ]);
+              ]);
 
     const pivotFilter: FilterRule[] = (pivotReference?.pivotValues || []).map(
         (pivot) => ({
@@ -118,7 +122,9 @@ export const getUnderlyingDataFilterParts = ({
     );
 
     const metric: Metric | undefined =
-        isField(item) && isMetric(item) ? item : undefined;
+        item !== undefined && isField(item) && isMetric(item)
+            ? item
+            : undefined;
 
     const metricFilters =
         metric?.filters?.map((filter) => ({
@@ -135,6 +141,33 @@ export const getUnderlyingDataFilterParts = ({
         pointFilterRules: [...dimensionFilters, ...pivotFilter],
         metricFilterRules: metricFilters,
     };
+};
+
+// Filter parts for the underlying-data modal. A click whose item could not be
+// resolved still filters on the clicked row: dropping every filter would show
+// all rows of the explore instead of the clicked bar.
+export const getUnderlyingDataFilterPartsFromConfig = ({
+    underlyingDataConfig,
+    allDimensions,
+    resolvedTimezone,
+}: {
+    underlyingDataConfig: UnderlyingDataConfig | undefined;
+    allDimensions: ItemsMap[string][];
+    resolvedTimezone: string | undefined;
+}): UnderlyingDataFilterParts | null => {
+    if (!underlyingDataConfig) return null;
+    const { item, fieldValues, pivotReference, value, dateZoom } =
+        underlyingDataConfig;
+
+    return getUnderlyingDataFilterParts({
+        item,
+        value,
+        fieldValues,
+        pivotReference,
+        dateZoom,
+        allDimensions,
+        resolvedTimezone,
+    });
 };
 
 export const combineUnderlyingDataFilters = ({

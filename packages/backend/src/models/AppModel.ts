@@ -16,7 +16,6 @@ import {
     type AppVersionStatusHistoryEntryKind,
     type ChartConfig,
     type DataAppActivityFilters,
-    type DataAppAutoAnalysis,
     type DataAppCodingAgent,
     type DataAppCodingAgentSessionUsage,
     type DataAppGenerationUsage,
@@ -1128,7 +1127,7 @@ export class AppModel {
         name: string;
         description: string;
         icon: string | null;
-        autoAnalysis: DataAppAutoAnalysis;
+        addAnalysisDismissedAt: Date | null;
         createdByUserUuid: string;
         organizationUuid: string;
         spaceUuid: string | null;
@@ -1196,7 +1195,7 @@ export class AppModel {
                 `${AppsTableName}.name`,
                 `${AppsTableName}.description`,
                 `${AppsTableName}.icon`,
-                `${AppsTableName}.auto_analysis`,
+                `${AppsTableName}.add_analysis_dismissed_at`,
                 `${AppsTableName}.created_by_user_uuid`,
                 `${AppsTableName}.space_uuid`,
                 `${SpaceTableName}.name as space_name`,
@@ -1226,7 +1225,7 @@ export class AppModel {
                 name: string;
                 description: string;
                 icon: string | null;
-                auto_analysis: DataAppAutoAnalysis;
+                add_analysis_dismissed_at: Date | null;
                 created_by_user_uuid: string;
                 space_uuid: string | null;
                 space_name: string | null;
@@ -1251,7 +1250,7 @@ export class AppModel {
             name,
             description,
             icon,
-            auto_analysis: autoAnalysis,
+            add_analysis_dismissed_at: addAnalysisDismissedAt,
             created_by_user_uuid: createdByUserUuid,
             space_uuid: spaceUuid,
             space_name: spaceName,
@@ -1273,7 +1272,7 @@ export class AppModel {
                     name: string;
                     description: string;
                     icon: string | null;
-                    auto_analysis: DataAppAutoAnalysis;
+                    add_analysis_dismissed_at: Date | null;
                     created_by_user_uuid: string;
                     space_uuid: string | null;
                     space_name: string | null;
@@ -1293,7 +1292,7 @@ export class AppModel {
             name,
             description,
             icon,
-            autoAnalysis,
+            addAnalysisDismissedAt,
             createdByUserUuid,
             organizationUuid,
             spaceUuid,
@@ -1317,9 +1316,7 @@ export class AppModel {
     async updateApp(
         appId: string,
         projectUuid: string,
-        update: Partial<
-            Pick<DbApp, 'name' | 'description' | 'icon' | 'auto_analysis'>
-        >,
+        update: Partial<Pick<DbApp, 'name' | 'description' | 'icon'>>,
     ): Promise<DbApp> {
         const [row] = await this.database(AppsTableName)
             .where({ app_id: appId, project_uuid: projectUuid })
@@ -1330,6 +1327,20 @@ export class AppModel {
             throw new NotFoundError(`App not found: ${appId}`);
         }
         return row;
+    }
+
+    /** Idempotent: re-dismissing refreshes the timestamp, which is harmless. */
+    async dismissAddAnalysisOffer(
+        appId: string,
+        projectUuid: string,
+    ): Promise<void> {
+        const count = await this.database(AppsTableName)
+            .where({ app_id: appId, project_uuid: projectUuid })
+            .whereNull('deleted_at')
+            .update({ add_analysis_dismissed_at: new Date() });
+        if (count === 0) {
+            throw new NotFoundError(`App not found: ${appId}`);
+        }
     }
 
     async updateDesignUuid(

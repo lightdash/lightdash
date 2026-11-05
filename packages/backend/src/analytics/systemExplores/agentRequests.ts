@@ -2,7 +2,7 @@ import { FilterOperator, MetricType } from '@lightdash/common';
 import type { CompactedStreamColumn } from '../eventStream/types';
 import type { SystemMetricDefinition } from './systemStreamMetrics';
 
-export const agentRequestsColumns: CompactedStreamColumn[] = [
+export const agentRequestStartsColumns: CompactedStreamColumn[] = [
     { name: 'org_id', type: 'VARCHAR' },
     { name: 'project_id', type: 'VARCHAR' },
     { name: 'user_id', type: 'VARCHAR' },
@@ -11,6 +11,10 @@ export const agentRequestsColumns: CompactedStreamColumn[] = [
     { name: 'prompt_id', type: 'VARCHAR' },
     { name: 'surface', type: 'VARCHAR' },
     { name: 'requested_at', type: 'TIMESTAMP' },
+];
+
+export const agentRequestsColumns: CompactedStreamColumn[] = [
+    ...agentRequestStartsColumns,
     { name: 'responded_at', type: 'TIMESTAMP' },
     { name: 'status', type: 'VARCHAR' },
     { name: 'request_latency_ms', type: 'BIGINT' },
@@ -26,7 +30,7 @@ export const agentRequestsColumns: CompactedStreamColumn[] = [
 // Read-time grouping keeps the request grain stable and lets late lifecycle
 // events join a request even when they arrive in a later nightly partition.
 // Only creation events create rows; an orphan outcome cannot invent a request.
-export const agentRequestsSql = `(WITH events AS (
+const agentRequestStartsCtes = `WITH events AS (
     SELECT * FROM agent_request_events
     WHERE event_id IS NOT NULL AND prompt_id IS NOT NULL
     QUALIFY ROW_NUMBER() OVER (PARTITION BY org_id, event_id ORDER BY event_ts DESC) = 1
@@ -35,7 +39,12 @@ export const agentRequestsSql = `(WITH events AS (
         surface, event_ts AS requested_at
     FROM events WHERE stage = 'created'
     QUALIFY ROW_NUMBER() OVER (PARTITION BY org_id, prompt_id ORDER BY event_ts, event_id) = 1
-), latest_status AS (
+)`;
+
+export const agentRequestStartsSql = `(${agentRequestStartsCtes}
+SELECT * FROM starts)`;
+
+export const agentRequestsSql = `(${agentRequestStartsCtes}, latest_status AS (
     SELECT org_id, prompt_id,
         CASE stage
             WHEN 'outcome' THEN outcome
@@ -103,7 +112,7 @@ LEFT JOIN feedback_counts fc USING (org_id, prompt_id)
 LEFT JOIN consumption c ON c.org_id = s.org_id AND c.project_id = s.project_id
     AND c.prompt_id = s.prompt_id)`;
 
-export const agentRequestsMetrics: SystemMetricDefinition[] = [
+export const agentRequestStartsMetrics: SystemMetricDefinition[] = [
     {
         name: 'total_requests',
         description:
@@ -118,6 +127,10 @@ export const agentRequestsMetrics: SystemMetricDefinition[] = [
         type: MetricType.COUNT_DISTINCT,
         column: 'user_id',
     },
+];
+
+export const agentRequestsMetrics: SystemMetricDefinition[] = [
+    ...agentRequestStartsMetrics,
     ...[
         ['successful_requests', 'success'],
         ['failed_requests', 'error'],

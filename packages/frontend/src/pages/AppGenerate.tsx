@@ -80,6 +80,7 @@ import AddAnalysisOffer from '../features/apps/analysis/AddAnalysisOffer';
 import AnalysisOffChip from '../features/apps/analysis/AnalysisOffChip';
 import { useDataAppAnalysisAvailability } from '../features/apps/analysis/useDataAppAnalysisAvailability';
 import { useDataAppAnalysisController } from '../features/apps/analysis/useDataAppAnalysisController';
+import { useDismissAddAnalysisOffer } from '../features/apps/analysis/useDismissAddAnalysisOffer';
 import { type AppIframePreviewHandle } from '../features/apps/AppIframePreview';
 import AppInspectorPanel from '../features/apps/AppInspectorPanel';
 import {
@@ -229,11 +230,7 @@ const ThemeChip: FC<{
                 size="md"
                 leftSection={<MantineIcon icon={IconBrush} size={12} />}
                 disabled={disabled}
-                styles={{
-                    root: {
-                        cursor: disabled ? 'not-allowed' : 'pointer',
-                    },
-                }}
+                className={classes.themeBadge}
             >
                 {themeName}
             </Badge>
@@ -1185,11 +1182,15 @@ const AppGenerate: FC = () => {
     const [insightInstructions, setInsightInstructions] = useState<
         string | null
     >(null);
+    const [insightAnalyseOnLoad, setInsightAnalyseOnLoad] = useState<
+        boolean | null
+    >(null);
     const analysisController = useDataAppAnalysisController({
         projectUuid,
         appUuid: previewApp?.appUuid,
         queries: trackedQueries,
         availability: analysisAvailability,
+        analyseOnLoad: insightAnalyseOnLoad ?? false,
         instructions: insightInstructions,
         // No agent picker in the builder yet; the viewer's default agent
         // (falling back to the first accessible one) is used.
@@ -1375,29 +1376,30 @@ const AppGenerate: FC = () => {
     // through the upgrade first.
     const latestReadyUsesAnalysis =
         appData?.pages[0]?.latestReadyVersionUsesAiAnalysis ?? null;
-    const [addAnalysisDismissals, setAddAnalysisDismissals] = useState(0);
-    const addAnalysisDismissedKey = activeAppUuid
-        ? `data-apps:add-analysis-dismissed:${activeAppUuid}`
-        : null;
-    const addAnalysisDismissed = useMemo(() => {
-        if (!addAnalysisDismissedKey) return false;
-        void addAnalysisDismissals;
-        try {
-            return localStorage.getItem(addAnalysisDismissedKey) === 'true';
-        } catch {
-            return false;
-        }
-    }, [addAnalysisDismissedKey, addAnalysisDismissals]);
+    const latestReadyHasAnalyzableData =
+        appData?.pages[0]?.latestReadyVersionHasAnalyzableData ?? null;
+    // Dismissal is persisted on the app, so the offer stops nagging across
+    // browsers and builders — including after the build agent declines to add
+    // analysis. Local state hides it instantly while the mutation runs.
+    const serverAddAnalysisDismissed =
+        appData?.pages[0]?.addAnalysisDismissed ?? false;
+    const [locallyDismissedAppUuid, setLocallyDismissedAppUuid] = useState<
+        string | null
+    >(null);
+    const { mutate: persistAddAnalysisDismissal } =
+        useDismissAddAnalysisOffer();
+    const addAnalysisDismissed =
+        serverAddAnalysisDismissed ||
+        (canonicalAppUuid !== undefined &&
+            locallyDismissedAppUuid === canonicalAppUuid);
     const dismissAddAnalysis = useCallback(() => {
-        if (addAnalysisDismissedKey) {
-            try {
-                localStorage.setItem(addAnalysisDismissedKey, 'true');
-            } catch {
-                // Per-viewer convenience only; the offer just reappears.
-            }
-        }
-        setAddAnalysisDismissals((n) => n + 1);
-    }, [addAnalysisDismissedKey]);
+        if (!projectUuid || !canonicalAppUuid) return;
+        setLocallyDismissedAppUuid(canonicalAppUuid);
+        persistAddAnalysisDismissal({
+            projectUuid,
+            appUuid: canonicalAppUuid,
+        });
+    }, [projectUuid, canonicalAppUuid, persistAddAnalysisDismissal]);
     const [isAnalysisUpgradeOpen, setIsAnalysisUpgradeOpen] = useState(false);
     const showAddAnalysisOffer =
         analysisAvailability.status === 'available' &&
@@ -1408,6 +1410,10 @@ const AppGenerate: FC = () => {
         activeAppUuid !== undefined &&
         latestReadyVersion !== null &&
         latestReadyUsesAnalysis === false &&
+        // Analysis runs over query results; an app that pulls no query data
+        // (e.g. metadata from an external connection) would show a blank
+        // summary, so never offer it there.
+        latestReadyHasAnalyzableData === true &&
         sdkUpgradeOffer.status !== 'unknown' &&
         (analysisInUseScope === null || analysisInUseScope !== previewScope);
     const showVizSampleConsent =
@@ -1448,6 +1454,30 @@ const AppGenerate: FC = () => {
         const el = chatMessagesRef.current;
         el?.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
     }, []);
+
+    // Auto-scroll is "sticky": scrolling up detaches it (so build-status polls
+    // can't yank the user back down), returning to the bottom reattaches it.
+    // Only an upward move detaches — the smooth auto-scroll itself only ever
+    // moves down, so it can't unstick mid-animation.
+    const isChatStickyRef = useRef(true);
+    const lastChatScrollTopRef = useRef(0);
+    const handleChatScroll = useCallback(() => {
+        const el = chatMessagesRef.current;
+        if (!el) return;
+        const prevTop = lastChatScrollTopRef.current;
+        lastChatScrollTopRef.current = el.scrollTop;
+        if (el.scrollHeight - el.scrollTop - el.clientHeight < 40) {
+            isChatStickyRef.current = true;
+        } else if (el.scrollTop < prevTop) {
+            isChatStickyRef.current = false;
+        }
+    }, []);
+
+    // Sending a message always returns to the bottom, even when detached.
+    const stickChatToBottom = useCallback(() => {
+        isChatStickyRef.current = true;
+        scrollToBottom();
+    }, [scrollToBottom]);
 
     // Where the user was when they asked for earlier history. Older versions
     // are prepended, so without re-anchoring the chat would jump around and
@@ -1490,6 +1520,7 @@ const AppGenerate: FC = () => {
             earlierHistoryAnchorRef.current = null;
             return;
         }
+        if (!isChatStickyRef.current) return;
         scrollToBottom();
     }, [
         messages,
@@ -1883,6 +1914,7 @@ const AppGenerate: FC = () => {
                     submittedAtVersion: maxHistoryVersion,
                 },
             ]);
+            stickChatToBottom();
             promptEditorRef.current?.clear();
             setIsPromptEmpty(true);
             setFileAttachments([]);
@@ -1960,6 +1992,7 @@ const AppGenerate: FC = () => {
                     submittedAtVersion: maxHistoryVersion,
                 },
             ]);
+            stickChatToBottom();
             resetGenerate();
             resetIterate();
             iterateMutate(
@@ -2091,6 +2124,7 @@ const AppGenerate: FC = () => {
                         )}
                         <Box
                             ref={chatMessagesRef}
+                            onScroll={handleChatScroll}
                             className={classes.chatMessages}
                             // Walkthrough look for create:DataApp: the
                             // conversation that builds the app, version by
@@ -2746,11 +2780,14 @@ const AppGenerate: FC = () => {
                                             sdkUpgradeOffer.status !== 'current'
                                         }
                                         busy={isLoading}
-                                        onAddAnalysis={() =>
+                                        onAddAnalysis={() => {
+                                            // One click is enough: if the
+                                            // agent declines, don't re-nag.
+                                            dismissAddAnalysis();
                                             submitCannedPrompt(
                                                 'Add AI analysis to this app.',
-                                            )
-                                        }
+                                            );
+                                        }}
                                         onUpgradeApp={() =>
                                             setIsAnalysisUpgradeOpen(true)
                                         }
@@ -3561,6 +3598,9 @@ const AppGenerate: FC = () => {
                                         onInsightsInUse={handleInsightsInUse}
                                         onInsightInstructionsChange={
                                             setInsightInstructions
+                                        }
+                                        onInsightAnalyseOnLoadChange={
+                                            setInsightAnalyseOnLoad
                                         }
                                         onMountedQueriesChange={
                                             analysisController.setMountedQueryUuids

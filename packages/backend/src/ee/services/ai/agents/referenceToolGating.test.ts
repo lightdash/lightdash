@@ -1,4 +1,4 @@
-import { generateText, stepCountIs, tool, type ToolSet } from 'ai';
+import { generateText, isStepCount, tool, type ToolSet } from 'ai';
 import { MockLanguageModelV3 } from 'ai/test';
 import { z } from 'zod';
 import { getLoadAgentTools } from '../tools/loadAgentTools';
@@ -27,7 +27,7 @@ const tools = () => ({
     createContent: tool({ inputSchema: z.object({}) }),
     runContentQuery: tool({ inputSchema: z.object({}) }),
     runSql: tool({ inputSchema: z.object({}) }),
-    editRepo: tool({ inputSchema: z.object({}) }),
+    editDbtProject: tool({ inputSchema: z.object({}) }),
     loadSkill: tool({ inputSchema: z.object({}) }),
 });
 
@@ -41,7 +41,7 @@ describe('intent toolbox', () => {
                     calls += 1;
                     const names = options.tools?.map(({ name }) => name);
                     if (calls === 1) {
-                        expect(names).not.toContain('editRepo');
+                        expect(names).not.toContain('editDbtProject');
                         expect(names).toEqual([
                             'loadAgentTools',
                             'getKnowledgeDocumentContent',
@@ -66,7 +66,7 @@ describe('intent toolbox', () => {
                         };
                     }
                     expect(names).toContain('generateVisualization');
-                    expect(names).toContain('editRepo');
+                    expect(names).toContain('editDbtProject');
                     return {
                         content: [
                             { type: 'text', text: 'Full toolbox restored.' },
@@ -80,7 +80,7 @@ describe('intent toolbox', () => {
             tools: gate.tools,
             prompt: 'Use another tool if needed.',
             prepareStep: () => ({ activeTools: gate.activeTools() }),
-            stopWhen: stepCountIs(3),
+            stopWhen: isStepCount(3),
         });
         expect(result.text).toBe('Full toolbox restored.');
         expect(calls).toBe(2);
@@ -174,7 +174,7 @@ describe('intent toolbox', () => {
         ).not.toContain('generateDataApp');
         expect(
             createIntentToolGate(tools(), 'repository_change').activeTools(),
-        ).toEqual(expect.arrayContaining(['editRepo', 'loadSkill']));
+        ).toEqual(expect.arrayContaining(['editDbtProject', 'loadSkill']));
         expect(
             createIntentToolGate(tools(), 'repository_change').activeTools(),
         ).not.toContain('generateVisualization');
@@ -191,7 +191,7 @@ describe('deferred prompt sections', () => {
             expect.arrayContaining(['runQuery', 'generateVisualization']),
         );
         expect(active).not.toContain('createContent');
-        expect(active).not.toContain('editRepo');
+        expect(active).not.toContain('editDbtProject');
     });
 
     it('keeps the full toolbox when a likely turn type does not narrow it', () => {
@@ -289,7 +289,7 @@ describe('deferred prompt sections', () => {
             tools: gate.tools,
             prompt: 'Save this as a chart.',
             prepareStep: () => ({ activeTools: gate.activeTools() }),
-            stopWhen: stepCountIs(3),
+            stopWhen: isStepCount(3),
         });
         expect(secondPrompt).toContain('## Content tools');
     });

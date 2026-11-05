@@ -1,5 +1,5 @@
 import { ComparisonDiffTypes } from '@lightdash/common';
-import clamp from 'lodash/clamp';
+import { clamp } from 'es-toolkit/compat';
 import { DEFAULT_ROW_HEIGHT } from '../../../features/dashboardTabs/gridUtils';
 import styles from './BigNumberDisplay.module.css';
 

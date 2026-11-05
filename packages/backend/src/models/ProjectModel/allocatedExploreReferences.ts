@@ -100,12 +100,14 @@ export const rewriteAllocatedSql = (
 export const rewriteAllocatedExplore = <T extends Explore | ExploreError>(
     explore: T,
     names: ReadonlyMap<string, string>,
+    columnNames: ReadonlySet<string> = new Set(),
 ): T => {
-    const standaloneAliases = new Set(
-        Object.values(explore.tables ?? {})
+    const standaloneAliases = new Set([
+        ...columnNames,
+        ...Object.values(explore.tables ?? {})
             .filter((table) => table.nestedFrom !== undefined)
             .flatMap((table) => [table.name, `${table.name}__offset`]),
-    );
+    ]);
     const orderedNames = [...names].sort(
         ([left], [right]) => right.length - left.length,
     );
@@ -210,5 +212,6 @@ export const rewriteAllocatedExplore = <T extends Explore | ExploreError>(
     };
     const rewritten = visit(explore, '') as T;
     rewritten.name = names.get(explore.name) ?? explore.name;
+    rewritten.label = explore.label;
     return rewritten;
 };

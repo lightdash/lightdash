@@ -1,46 +1,26 @@
 import { ChartType } from '@lightdash/common';
-import { useEffect, useMemo, type FC } from 'react';
-import useCartesianChartConfig from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
+import { memo, useMemo, type FC } from 'react';
+import useCartesianChartConfig, {
+    useCartesianEditorSync,
+} from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import {
     type VisualizationCartesianConfigProps,
     type VisualizationConfigCartesian,
 } from './types';
+import { useEmitChartConfig } from './useEmitChartConfig';
 
 const VisualizationCartesianConfig: FC<VisualizationCartesianConfigProps> = ({
-    itemsMap,
-    resultsData,
-    validPivotDimensions,
-    columnOrder,
-    initialChartConfig,
     onChartConfigChange,
-    stacking,
-    cartesianType,
-    colorPalette,
     children,
-    tableCalculationsMetadata,
-    unsavedMetricQuery,
 }) => {
-    const cartesianConfig = useCartesianChartConfig({
-        initialChartConfig,
-        pivotKeys: validPivotDimensions,
-        resultsData,
-        columnOrder,
-        itemsMap,
-        stacking,
-        cartesianType,
-        colorPalette,
-        tableCalculationsMetadata,
-        unsavedMetricQuery,
-    });
+    useCartesianEditorSync();
+    const cartesianConfig = useCartesianChartConfig();
 
-    useEffect(() => {
-        if (!onChartConfigChange || !cartesianConfig.validConfig) return;
-
-        onChartConfigChange({
-            type: ChartType.CARTESIAN,
-            config: cartesianConfig.validConfig,
-        });
-    }, [cartesianConfig, onChartConfigChange]);
+    useEmitChartConfig(
+        ChartType.CARTESIAN,
+        cartesianConfig.validConfig,
+        onChartConfigChange,
+    );
 
     const visualizationConfig: VisualizationConfigCartesian = useMemo(
         () => ({
@@ -53,4 +33,5 @@ const VisualizationCartesianConfig: FC<VisualizationCartesianConfigProps> = ({
     return children({ visualizationConfig });
 };
 
-export default VisualizationCartesianConfig;
+// Memoised so a resize skips it; an echoed config re-renders it, the memoised aggregate spares consumers
+export default memo(VisualizationCartesianConfig);

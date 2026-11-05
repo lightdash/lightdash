@@ -8,6 +8,7 @@ import {
     getDbtVersionSupportedWarehouses,
     getInvalidDbtEnvironmentVariableKeys,
     getLatestSupportDbtVersion,
+    isAiAdminScopedProjectType,
     isMissingBigqueryKeyfile,
     isSafeDbtEnvironmentVariableKey,
     isWarehouseSupportedByDbtVersion,
@@ -18,6 +19,7 @@ import {
     omitEmptySecrets,
     PROJECT_DBT_SOURCE_NAME_MAX_LENGTH,
     PROJECT_DBT_SOURCE_NAME_PATTERN,
+    ProjectType,
     resolveDbtVersion,
     SupportedDbtVersions,
     validateProjectDbtSourceName,
@@ -496,6 +498,18 @@ describe('omitted secrets on connection test', () => {
             }),
         ).toMatchObject({ keyfileContents: {} });
     });
+    it('allows federated BigQuery connections without a keyfile', () => {
+        const federated = {
+            ...bigquery,
+            authenticationType:
+                BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION,
+            keyfileContents: undefined,
+        };
+        expect(isMissingBigqueryKeyfile(federated)).toBe(false);
+        expect(fillOmittedSecrets(federated)).toMatchObject({
+            keyfileContents: {},
+        });
+    });
 });
 
 describe('preview tunnel credential merge', () => {
@@ -558,5 +572,13 @@ describe('preview tunnel credential merge', () => {
             useSshTunnel: false,
             sshTunnelHost: 'preview-bastion',
         });
+    });
+});
+
+describe('isAiAdminScopedProjectType', () => {
+    it('counts only default projects towards AI admin access', () => {
+        expect(isAiAdminScopedProjectType(ProjectType.DEFAULT)).toBe(true);
+        expect(isAiAdminScopedProjectType(ProjectType.PREVIEW)).toBe(false);
+        expect(isAiAdminScopedProjectType(ProjectType.TRAINING)).toBe(false);
     });
 });

@@ -529,6 +529,105 @@ describe('AppGenerateService.exploresToModelFiles', () => {
         });
     });
 
+    it('renders field url link patterns on metrics and dimensions', () => {
+        const explore = {
+            name: 'orders',
+            baseTable: 'orders',
+            joinedTables: [],
+            tables: {
+                orders: {
+                    metrics: {
+                        total_revenue: {
+                            name: 'total_revenue',
+                            type: 'sum',
+                            urls: [
+                                {
+                                    label: 'Revenue report',
+                                    url: 'https://example.com/revenue?v=${value.raw}',
+                                },
+                            ],
+                        },
+                    },
+                    dimensions: {
+                        account_number: {
+                            name: 'account_number',
+                            type: 'string',
+                            urls: [
+                                {
+                                    label: 'Open account',
+                                    url: 'https://example.com/accounts/${value.raw}',
+                                },
+                                {
+                                    label: 'Open conversation',
+                                    url: 'https://example.com/c/${row.orders.conversation_id.raw}',
+                                },
+                            ],
+                        },
+                        status: {
+                            name: 'status',
+                            type: 'string',
+                        },
+                    },
+                },
+            },
+        } as unknown as Explore;
+
+        const result = exploresToModelFiles([explore]);
+        const orders = (
+            parseYaml(
+                result.files.find((file) => file.filename === 'orders.yml')!
+                    .contents,
+            ) as {
+                models: Array<{
+                    meta?: {
+                        metrics?: Record<
+                            string,
+                            { urls?: Array<{ label: string; url: string }> }
+                        >;
+                    };
+                    columns?: Array<{
+                        name: string;
+                        meta?: {
+                            dimension?: {
+                                urls?: Array<{ label: string; url: string }>;
+                            };
+                        };
+                    }>;
+                }>;
+            }
+        ).models[0];
+
+        expect(orders.meta?.metrics?.total_revenue.urls).toEqual([
+            {
+                label: 'Revenue report',
+                url: 'https://example.com/revenue?v=${value.raw}',
+            },
+        ]);
+        expect(
+            orders.columns?.find((c) => c.name === 'account_number')?.meta
+                ?.dimension?.urls,
+        ).toEqual([
+            {
+                label: 'Open account',
+                url: 'https://example.com/accounts/${value.raw}',
+            },
+            {
+                label: 'Open conversation',
+                url: 'https://example.com/c/${row.orders.conversation_id.raw}',
+            },
+        ]);
+        expect(
+            orders.columns?.find((c) => c.name === 'status')?.meta?.dimension,
+        ).not.toHaveProperty('urls');
+
+        const index = indexOf(result.files);
+        expect(index).toContain('`urls:`');
+        expect(index).toMatch(/^orders {2}orders\.yml .* {2}urls=2/m);
+        expect((result as { urlModels?: unknown }).urlModels).toEqual([
+            { model: 'orders', fields: ['total_revenue', 'account_number'] },
+        ]);
+    });
+
     it('drops malformed AI hints without failing YAML generation', () => {
         const explore = {
             name: 'orders',

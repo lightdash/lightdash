@@ -6,6 +6,7 @@ import {
     type ThreadComposerQueryNode,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
+import { v4 as uuidv4 } from 'uuid';
 import { getModels, getTestContext } from '../../vitest.setup.integration';
 import {
     AiPromptTableName,
@@ -13,7 +14,11 @@ import {
     type AiPromptTable,
     type AiThreadTable,
 } from '../database/entities/ai';
-import { threadComposerQueryScope } from '../database/entities/composerQueryNodes';
+import {
+    composerSessionScope,
+    ComposerSessionsTableName,
+    threadComposerQueryScope,
+} from '../database/entities/composerQueryNodes';
 import { type AiAgentModel } from './AiAgentModel';
 
 const orders: ThreadComposerQueryNode = {
@@ -257,5 +262,98 @@ describe('AiAgentModel thread composer query nodes', () => {
                 nodeId: 'orders',
             }),
         ).toBeNull();
+    });
+});
+
+describe('AiAgentModel composer sessions', () => {
+    let database: Knex;
+    let model: AiAgentModel;
+    let owner: {
+        userUuid: string;
+        organizationUuid: string;
+        projectUuid: string;
+    };
+    const sessionUuids: string[] = [];
+
+    const createSession = async () => {
+        const sessionUuid = await model.createComposerSession(owner);
+        sessionUuids.push(sessionUuid);
+        return sessionUuid;
+    };
+
+    beforeAll(() => {
+        const ctx = getTestContext();
+        database = ctx.db;
+        model = getModels(ctx.app).aiAgentModel;
+        owner = {
+            userUuid: ctx.testUser.userUuid,
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            projectUuid: SEED_PROJECT.project_uuid,
+        };
+    });
+
+    afterAll(async () => {
+        await database(ComposerSessionsTableName)
+            .whereIn('composer_session_uuid', sessionUuids)
+            .delete();
+    });
+
+    it('lets its owner use a session in the project that started it', async () => {
+        const sessionUuid = await createSession();
+
+        expect(await model.useComposerSession({ sessionUuid, ...owner })).toBe(
+            true,
+        );
+    });
+
+    it('refuses a session to another user, organization or project, and an unknown id', async () => {
+        const sessionUuid = await createSession();
+
+        await expect(
+            model.useComposerSession({
+                sessionUuid,
+                ...owner,
+                userUuid: uuidv4(),
+            }),
+        ).resolves.toBe(false);
+        await expect(
+            model.useComposerSession({
+                sessionUuid,
+                ...owner,
+                organizationUuid: uuidv4(),
+            }),
+        ).resolves.toBe(false);
+        await expect(
+            model.useComposerSession({
+                sessionUuid,
+                ...owner,
+                projectUuid: uuidv4(),
+            }),
+        ).resolves.toBe(false);
+        await expect(
+            model.useComposerSession({ sessionUuid: uuidv4(), ...owner }),
+        ).resolves.toBe(false);
+        await expect(
+            model.useComposerSession({ sessionUuid: 'not-a-uuid', ...owner }),
+        ).resolves.toBe(false);
+    });
+
+    it('names the session in a conflicting definition error', async () => {
+        const sessionUuid = await createSession();
+        await model.registerComposerQueryNodes({
+            scope: composerSessionScope(sessionUuid),
+            nodes: [orders],
+            nodeColumns: {},
+        });
+
+        await expect(
+            model.registerComposerQueryNodes({
+                scope: composerSessionScope(sessionUuid),
+                nodes: [{ ...orders, limit: 10 }],
+                nodeColumns: {},
+            }),
+        ).rejects.toThrow(
+            'Node id "orders" already names a different node in this session ("Orders").',
+        );
     });
 });

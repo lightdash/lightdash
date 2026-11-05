@@ -184,6 +184,23 @@ class E2bSandboxHandle implements SandboxHandle {
                 normalizeError(error);
             }
         },
+        writeMany: async (
+            files: { path: string; contents: string | Uint8Array }[],
+        ): Promise<void> => {
+            try {
+                await this.sandbox.files.write(
+                    files.map(({ path, contents }) => ({
+                        path,
+                        data:
+                            typeof contents === 'string'
+                                ? contents
+                                : toArrayBuffer(contents),
+                    })),
+                );
+            } catch (error) {
+                normalizeError(error);
+            }
+        },
         remove: async (path: string): Promise<void> => {
             try {
                 await this.sandbox.files.remove(path);
@@ -263,7 +280,7 @@ export class E2bSandboxProvider implements SandboxProvider {
         const sandbox = await Sandbox.create(spec.templateRef, {
             timeoutMs: spec.timeoutMs,
             apiKey: this.apiKey,
-            lifecycle: { onTimeout: 'pause' },
+            lifecycle: { onTimeout: spec.onTimeout ?? 'pause' },
             network: {
                 allowOut: spec.egress.allow,
                 denyOut: [ALL_TRAFFIC],

@@ -1,7 +1,6 @@
 import {
     DbtError,
     SupportedDbtVersions,
-    type DbtExternalModelNode,
     type DbtRawModelNode,
     type WarehouseClient,
 } from '@lightdash/common';
@@ -268,19 +267,7 @@ describe('DbtCliClient environment', () => {
     });
 });
 
-describe('DbtCliClient external model nodes', () => {
-    const externalNode: DbtExternalModelNode = {
-        name: 'orders',
-        package_name: 'shared',
-        identifier: 'orders',
-        schema: 'public',
-        database: 'db',
-        relation_name: null,
-        version: null,
-        latest_version: null,
-        access: null,
-        depends_on_nodes: [],
-    };
+describe('DbtCliClient independent manifests', () => {
     beforeEach(() => {
         vi.resetAllMocks();
         vi.mocked(fs.mkdtemp).mockResolvedValue('/tmp/dbt_target_test');
@@ -306,55 +293,11 @@ describe('DbtCliClient external model nodes', () => {
             }),
         );
     });
-    it('writes the plugin, passes controlled paths and removes external selections', async () => {
-        const client = new DbtCliClient({
-            ...cliArgsWithoutVersion,
-            dbtVersion: SupportedDbtVersions.V1_7,
-            selector: 'package:analytics,tag:lightdash',
-            environment: {
-                PYTHONPATH: '/project',
-                LIGHTDASH_DBT_EXTERNAL_NODES: '/project.json',
-            },
-        });
-        const fetched = await client.getDbtManifest({
-            externalNodes: [externalNode],
-        });
-        expect(fs.writeFile).toHaveBeenCalledWith(
-            '/tmp/dbt_target_test/dbt_external_nodes/external_nodes.json',
-            JSON.stringify([externalNode]),
-            'utf8',
-        );
-        expect(execaMock.mock.calls[0][2].env).toMatchObject({
-            PYTHONPATH: '/tmp/dbt_target_test/dbt_external_nodes',
-            LIGHTDASH_DBT_EXTERNAL_NODES:
-                '/tmp/dbt_target_test/dbt_external_nodes/external_nodes.json',
-        });
-        expect(fetched.selectedModelIds).toEqual(['model.analytics.orders']);
-        await client.cleanup();
-        expect(fs.rm).toHaveBeenCalledWith('/tmp/dbt_target_test', {
-            recursive: true,
-            force: true,
-        });
-    });
-    it.each([SupportedDbtVersions.V1_4, SupportedDbtVersions.V1_5])(
-        'rejects managed external nodes on %s',
-        async (dbtVersion) => {
-            await expect(
-                new DbtCliClient({
-                    ...cliArgsWithoutVersion,
-                    dbtVersion,
-                }).getDbtManifest({ externalNodes: [externalNode] }),
-            ).rejects.toThrow(
-                'Cross-source dbt refs require dbt 1.6 or newer.',
-            );
-            expect(execaMock).not.toHaveBeenCalled();
-        },
-    );
     it('does not create a plugin without external nodes', async () => {
         await new DbtCliClient({
             ...cliArgsWithoutVersion,
             dbtVersion: SupportedDbtVersions.V1_5,
-        }).getDbtManifest({ externalNodes: [] });
+        }).getDbtManifest({});
         expect(fs.writeFile).not.toHaveBeenCalled();
         expect(execaMock.mock.calls[0][2].env).not.toHaveProperty('PYTHONPATH');
     });
@@ -468,144 +411,13 @@ describe.each(['local', 'git'] as const)('%s connection test', (source) => {
     });
 });
 
-describe('external node partial parsing', () => {
+describe('independent source partial parsing', () => {
     beforeEach(() => {
         vi.resetAllMocks();
         vi.mocked(fs.mkdtemp).mockResolvedValue(
             '/tmp/dbt_target_digest' as never,
         );
         execaMock.mockImplementation(cliMockImplementation.success);
-    });
-    it('invalidates partial parsing on payload changes and retains it for an identical payload', async () => {
-        vi.mocked(fs.readFile).mockResolvedValue(JSON.stringify(manifestMock));
-        const client = new DbtCliClient({
-            ...cliArgsWithoutVersion,
-            dbtVersion: SupportedDbtVersions.V1_9,
-            partialParseBaselinePath: null,
-        });
-        const node: DbtExternalModelNode = {
-            name: 'orders',
-            package_name: 'upstream',
-            identifier: 'orders',
-            schema: 'public',
-            database: null,
-            relation_name: null,
-            version: null,
-            latest_version: null,
-            access: 'public',
-            depends_on_nodes: [],
-        };
-        await client.getDbtManifest({ externalNodes: [node] });
-        expect(fs.rm).toHaveBeenCalledExactlyOnceWith(
-            '/tmp/dbt_target_digest/partial_parse.msgpack',
-            { force: true },
-        );
-        await client.getDbtManifest({ externalNodes: [node] });
-        expect(fs.rm).toHaveBeenCalledTimes(1);
-        await client.getDbtManifest({
-            externalNodes: [{ ...node, access: 'private' }],
-        });
-        expect(fs.rm).toHaveBeenCalledTimes(2);
-    });
-    it('reuses an identical payload across clients sharing a baseline and invalidates a changed payload', async () => {
-        const files = new Map<string, string>();
-        let nextTarget = 0;
-        vi.mocked(fs.mkdtemp).mockImplementation(async () => {
-            const target = `/tmp/shared_digest_${nextTarget}`;
-            nextTarget += 1;
-            return target as never;
-        });
-        vi.mocked(fs.readFile).mockImplementation(async (filename) => {
-            if (String(filename).endsWith('manifest.json'))
-                return JSON.stringify(manifestMock);
-            const content = files.get(String(filename));
-            if (content === undefined)
-                throw Object.assign(new Error('missing'), { code: 'ENOENT' });
-            return content;
-        });
-        vi.mocked(fs.writeFile).mockImplementation(
-            async (filename, content) => {
-                files.set(String(filename), String(content));
-            },
-        );
-        vi.mocked(fs.copyFile).mockImplementation(async (from, to) => {
-            const content = files.get(String(from));
-            if (content === undefined)
-                throw Object.assign(new Error('missing'), { code: 'ENOENT' });
-            files.set(String(to), content);
-        });
-        vi.mocked(fs.rename).mockImplementation(async (from, to) => {
-            files.set(String(to), files.get(String(from))!);
-            files.delete(String(from));
-        });
-        vi.mocked(fs.readdir).mockResolvedValue([]);
-        vi.mocked(fs.rm).mockImplementation(async (filename) => {
-            files.delete(String(filename));
-        });
-        const node: DbtExternalModelNode = {
-            name: 'm',
-            package_name: 'p',
-            identifier: 'm',
-            schema: 'public',
-            database: null,
-            relation_name: null,
-            version: null,
-            latest_version: null,
-            access: 'public',
-            depends_on_nodes: [],
-        };
-        const compile = async (
-            externalNode: DbtExternalModelNode,
-            target: number,
-            reused: boolean,
-        ) => {
-            execaMock.mockImplementation(async () => {
-                expect(
-                    files.has(
-                        `/tmp/shared_digest_${target}/partial_parse.msgpack`,
-                    ),
-                ).toBe(reused);
-                files.set(
-                    `/tmp/shared_digest_${target}/partial_parse.msgpack`,
-                    'parsed',
-                );
-                return cliMockImplementation.success();
-            });
-            const client = new DbtCliClient({
-                ...cliArgsWithoutVersion,
-                dbtVersion: SupportedDbtVersions.V1_9,
-                partialParseBaselinePath: '/tmp/shared.msgpack',
-            });
-            await client.getDbtManifest({ externalNodes: [externalNode] });
-            expect(client.partialParseSeeded).toBe(reused);
-            return client;
-        };
-        await compile(node, 0, false);
-        expect(files.has('/tmp/shared.msgpack.external_nodes.sha256')).toBe(
-            true,
-        );
-        vi.mocked(fs.rm).mockClear();
-        await compile(node, 1, true);
-        expect(fs.rm).not.toHaveBeenCalled();
-        const lastClient = await compile(
-            { ...node, access: 'private' },
-            2,
-            false,
-        );
-        expect(fs.rm).toHaveBeenCalledWith(
-            '/tmp/shared_digest_2/partial_parse.msgpack',
-            { force: true },
-        );
-        execaMock.mockImplementation(cliMockImplementation.success);
-        vi.mocked(fs.writeFile).mockClear();
-        await lastClient.getDbtManifest({ externalNodes: [] });
-        expect(
-            vi
-                .mocked(fs.writeFile)
-                .mock.calls.some(([filename]) =>
-                    String(filename).endsWith('external_nodes.sha256'),
-                ),
-        ).toBe(false);
     });
     it.each([null, '/tmp/baseline.msgpack'])(
         'does not read or write the digest or invalidate partial parsing without external nodes (baseline %s)',
@@ -619,7 +431,7 @@ describe('external node partial parsing', () => {
                 dbtVersion: SupportedDbtVersions.V1_9,
                 partialParseBaselinePath: baseline,
             });
-            await client.getDbtManifest({ externalNodes: [] });
+            await client.getDbtManifest({});
             expect(
                 vi
                     .mocked(fs.readFile)

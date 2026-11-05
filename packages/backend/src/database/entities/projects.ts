@@ -47,6 +47,10 @@ export type DbProject = {
     default_preview_expiration_hours: number;
     max_preview_expiration_hours: number;
     results_cache_ttl_seconds: number | null;
+    results_cache_generation: number;
+    results_cache_invalidated_at: Date | null;
+    results_cache_clear_cron: string | null;
+    results_cache_clear_next_run_at: Date | null;
     provisioning_source: string | null;
     agent_sql_scope: AgentSqlScope | null;
     playground_bundle_version: string | null;
@@ -96,6 +100,10 @@ type UpdateDbProject = Partial<
         | 'default_preview_expiration_hours'
         | 'max_preview_expiration_hours'
         | 'results_cache_ttl_seconds'
+        | 'results_cache_generation'
+        | 'results_cache_invalidated_at'
+        | 'results_cache_clear_cron'
+        | 'results_cache_clear_next_run_at'
         | 'provisioning_source'
         | 'agent_sql_scope'
         | 'playground_bundle_version'

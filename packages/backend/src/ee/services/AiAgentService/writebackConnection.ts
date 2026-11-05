@@ -8,12 +8,11 @@ export const isBitbucketCloudConnection = (
         connection.host_domain.trim().toLowerCase().replace(/\.$/, '') ===
             'bitbucket.org');
 
-export const getWritebackConnectionSupport = (connection: DbtProjectConfig) => {
-    const editRepo =
+export const getWritebackConnectionSupport = (
+    connection: DbtProjectConfig,
+) => ({
+    editDbtProject:
         connection.type === DbtProjectType.GITHUB ||
-        connection.type === DbtProjectType.GITLAB;
-    return {
-        editRepo,
-        editDbtProject: editRepo || isBitbucketCloudConnection(connection),
-    };
-};
+        connection.type === DbtProjectType.GITLAB ||
+        isBitbucketCloudConnection(connection),
+});

@@ -21,6 +21,7 @@ import type {
     FindContentSpaceMetadata,
     FindContentSpaceResult,
 } from '../types/aiAgentDependencies';
+import { toAbsoluteHref } from '../utils/absoluteHref';
 import type {
     ExecuteStructuredToolResult,
     ExecuteToolErrorResult,
@@ -108,6 +109,7 @@ const toSpaceItem = (
     childSpaceCount: space.childSpaceCount,
     appCount: space.appCount,
     directAccess: space.directAccess,
+    canEdit: space.canEdit,
     space: toSpaceMetadata(space.space),
 });
 
@@ -229,7 +231,7 @@ const toContentItem = (
                 uuid: content.uuid,
                 name: content.name,
                 slug: content.slug,
-                href: content.href,
+                href: toAbsoluteHref(siteUrl, content.href),
                 description: toDescription(
                     content.description,
                     toolDescriptionMaxChars,
@@ -379,6 +381,7 @@ const renderSpace = (space: ContentItemOf<'space'>) => (
         childSpaceCount={space.childSpaceCount}
         appCount={space.appCount}
         directAccess={space.directAccess}
+        canEdit={space.canEdit}
     >
         <name>{space.name}</name>
         {renderSpaceMetadata(space.space)}

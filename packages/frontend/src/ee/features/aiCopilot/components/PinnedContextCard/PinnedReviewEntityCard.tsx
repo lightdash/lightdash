@@ -44,7 +44,7 @@ const Row: FC<{
             icon={icon}
             size={13}
             color="dimmed"
-            style={{ marginTop: 2, flexShrink: 0 }}
+            className={styles.rowIcon}
         />
         <Box flex={1} miw={0}>
             {children}
@@ -71,7 +71,6 @@ const PullRequestRow: FC<{
                 target="_blank"
                 rel="noreferrer"
                 fz="xs"
-                c="ldGray.8"
                 lineClamp={2}
             >
                 {item.title ?? `#${item.prNumber ?? '?'}`}
@@ -95,9 +94,7 @@ const ProposedChangeRow: FC<{
     return (
         <Row icon={IconPencil}>
             <Text className={styles.eyebrow}>Proposed change</Text>
-            <Text fz="xs" c="ldGray.8">
-                {summary}
-            </Text>
+            <Text fz="xs">{summary}</Text>
             {objectRefs.length > 0 && (
                 <Text fz="xs" c="dimmed">
                     {objectRefs.join(', ')}
@@ -123,7 +120,7 @@ const ReviewFindingRow: FC<{
                 ) : undefined
             }
         >
-            <Text fz="xs" fw={500} c="ldGray.8">
+            <Text fz="xs" fw={500}>
                 {item.title}
             </Text>
             {hasEvidence && (
@@ -202,7 +199,6 @@ const PreviewEnvironmentRow: FC<{
                 target="_blank"
                 rel="noreferrer"
                 fz="xs"
-                c="ldGray.8"
             >
                 {item.projectName ?? 'Preview environment'}
             </Anchor>

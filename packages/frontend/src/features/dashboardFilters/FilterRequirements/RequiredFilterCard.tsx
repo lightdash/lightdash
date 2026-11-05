@@ -11,6 +11,7 @@ import {
 } from '@mantine/core';
 import {
     IconAlertTriangle,
+    IconAsterisk,
     IconCircleDashed,
     IconPlus,
 } from '@tabler/icons-react';
@@ -62,6 +63,8 @@ const RequiredFilterCard: FC<Props> = ({
     const [isAddingAlternative, setIsAddingAlternative] = useState(false);
 
     const isActive = !!filterRule.required || !!filterRule.requiredGroupId;
+    // withCard=false is the flag-on settings view, which marks required with an asterisk
+    const requiredIcon = withCard ? IconCircleDashed : IconAsterisk;
 
     const getField = useDashboardFilterField();
 
@@ -138,7 +141,7 @@ const RequiredFilterCard: FC<Props> = ({
             <Group justify="space-between" wrap="nowrap">
                 <Group gap={6} wrap="nowrap">
                     <MantineIcon
-                        icon={IconCircleDashed}
+                        icon={requiredIcon}
                         size="sm"
                         color={isActive ? 'yellow.7' : 'ldGray.6'}
                     />
@@ -169,7 +172,7 @@ const RequiredFilterCard: FC<Props> = ({
             )}
             {isOnlyMember && (
                 <Stack gap={6} mt="xs">
-                    <Text size="xs" c="ldGray.7">
+                    <Text size="xs" c="dimmed">
                         Viewers must set this filter to load the dashboard.
                     </Text>
                     {isSavedFilter && selectableFilters.length === 0 && (

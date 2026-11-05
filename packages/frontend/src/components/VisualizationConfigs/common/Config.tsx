@@ -30,13 +30,13 @@ const Section: FC<PropsWithChildren> = ({ children }) => (
 );
 
 const Heading: FC<PropsWithChildren> = ({ children }) => (
-    <Text c="ldGray.8" fz="sm" fw={600}>
+    <Text fz="sm" fw={600}>
         {children}
     </Text>
 );
 
 const Subheading: FC<PropsWithChildren> = ({ children }) => (
-    <Text c="ldGray.7" fz="sm" fw={600}>
+    <Text c="dimmed" fz="sm" fw={600}>
         {children}
     </Text>
 );

@@ -1,9 +1,12 @@
 import {
     DashboardTileTypes,
+    getMalformedParameterControlMessages,
+    ParameterError,
     type DashboardAsCode,
     type DashboardAsCodeUpsertResult,
     type DashboardConfig,
     type DashboardDAO,
+    type DashboardParameterControl,
     type DashboardTile,
     type DashboardTileAsCode,
     type DashboardTileTarget,
@@ -58,6 +61,7 @@ export const getTileSlugForTileUuid = (
 
 export const getFiltersWithTileSlugs = (
     dashboard: DashboardDAO,
+    tileSlugs?: Map<string, string>,
 ): Required<NonNullable<DashboardAsCode['filters']>> => ({
     ...dashboard.filters,
     dimensions: dashboard.filters.dimensions.map((filter) => ({
@@ -66,7 +70,9 @@ export const getFiltersWithTileSlugs = (
         tileTargets: Object.entries(filter.tileTargets ?? {}).reduce<
             Record<string, DashboardTileTarget>
         >((result, [tileUuid, target]) => {
-            const tileSlug = getTileSlugForTileUuid(dashboard, tileUuid);
+            const legacySlug = getTileSlugForTileUuid(dashboard, tileUuid);
+            const tileSlug =
+                legacySlug && (tileSlugs?.get(tileUuid) ?? legacySlug);
             return tileSlug ? { ...result, [tileSlug]: target } : result;
         }, {}),
     })),
@@ -107,6 +113,7 @@ export const getFiltersWithTileUuids = (
 
 export const getConfigWithDateZoomTileSlugs = (
     dashboard: DashboardDAO,
+    tileSlugs?: Map<string, string>,
 ): DashboardConfig | undefined => {
     const { config } = dashboard;
     if (!config?.dateZoomConfig) return config;
@@ -114,7 +121,9 @@ export const getConfigWithDateZoomTileSlugs = (
         config.dateZoomConfig.tileTargets ?? {},
     ).reduce<Record<string, DateZoomTileTarget>>(
         (result, [tileUuid, target]) => {
-            const tileSlug = getTileSlugForTileUuid(dashboard, tileUuid);
+            const legacySlug = getTileSlugForTileUuid(dashboard, tileUuid);
+            const tileSlug =
+                legacySlug && (tileSlugs?.get(tileUuid) ?? legacySlug);
             return tileSlug ? { ...result, [tileSlug]: target } : result;
         },
         {},
@@ -132,10 +141,12 @@ export const withTileWarnings = (
 ): DashboardAsCodeUpsertResult =>
     warnings.length > 0 ? { ...changes, warnings } : changes;
 
-export const getConfigWithDateZoomTileUuids = (
-    config: DashboardConfig,
+export const getConfigWithDateZoomTileUuids = <
+    T extends Pick<DashboardConfig, 'dateZoomConfig'>,
+>(
+    config: T,
     tiles: DashboardTileWithSlug[],
-): DashboardConfig => {
+): T => {
     if (!config.dateZoomConfig) return config;
     const tileTargets = Object.entries(
         config.dateZoomConfig.tileTargets ?? {},
@@ -155,5 +166,131 @@ export const getConfigWithDateZoomTileUuids = (
     return {
         ...config,
         dateZoomConfig: { ...config.dateZoomConfig, tileTargets },
+    };
+};
+
+const mapControlTileTargets = (
+    controls: DashboardParameterControl[],
+    mapTile: (
+        tile: string,
+        control: DashboardParameterControl,
+    ) => string | undefined,
+): DashboardParameterControl[] =>
+    controls.map((control) => ({
+        ...control,
+        parameters: Object.fromEntries(
+            Object.entries(control.parameters).map(([key, target]) => {
+                if (target === 'all') return [key, target];
+                const ids = 'only' in target ? target.only : target.except;
+                const mapped = ids.flatMap((id) => {
+                    const result = mapTile(id, control);
+                    return result === undefined ? [] : [result];
+                });
+                return [
+                    key,
+                    'only' in target ? { only: mapped } : { except: mapped },
+                ];
+            }),
+        ),
+    }));
+
+/** Each saved tile's slug by uuid, as a file names tiles. */
+export const getTileSlugsByUuid = (
+    tiles: DashboardTileWithSlug[],
+): Map<string, string> =>
+    new Map(
+        tiles.flatMap((tile) => {
+            const slug = tile.tileSlug ?? getTileContentSlug(tile);
+            return tile.uuid && slug ? [[tile.uuid, slug]] : [];
+        }),
+    );
+
+export const getParameterControlTileSlugs = (
+    dashboard: DashboardDAO,
+): Map<string, string> => {
+    const reserved = new Set(
+        dashboard.tiles.flatMap((tile) => {
+            const slug = getTileContentSlug(tile);
+            return slug ? [slug] : [];
+        }),
+    );
+    const used = new Set<string>();
+    const slugs = new Map<string, string>();
+    for (const tile of dashboard.tiles) {
+        const contentSlug = getTileContentSlug(tile);
+        const base = contentSlug ?? `tile-${tile.uuid}`;
+        let slug = getTileSlugForTileUuid(dashboard, tile.uuid) ?? base;
+        let suffix = 1;
+        while (used.has(slug) || (reserved.has(slug) && slug !== contentSlug)) {
+            slug = `${base}-${suffix}`;
+            suffix += 1;
+        }
+        used.add(slug);
+        slugs.set(tile.uuid, slug);
+    }
+    return slugs;
+};
+
+export const getConfigWithParameterControlTileSlugs = (
+    dashboard: DashboardDAO,
+    config: DashboardConfig | undefined,
+): DashboardConfig | undefined => {
+    if (!config?.parameterControls) return config;
+    const slugs = getParameterControlTileSlugs(dashboard);
+    return {
+        ...config,
+        parameterControls: mapControlTileTargets(
+            config.parameterControls,
+            (tileUuid) => slugs.get(tileUuid),
+        ),
+    };
+};
+
+export const getConfigWithParameterControlTileUuids = (
+    config: DashboardConfig,
+    tiles: DashboardTileWithSlug[],
+): DashboardConfig => {
+    if (config.parameterControls === undefined) return config;
+    if (!Array.isArray(config.parameterControls)) {
+        throw new ParameterError('Parameter controls must be a list');
+    }
+    const controlIds = new Set<string>();
+    const parameterControls = config.parameterControls.map((control) => {
+        if (typeof control !== 'object' || control === null) return control;
+        const id = control.id || uuidv4();
+        if (controlIds.has(id)) {
+            throw new ParameterError(
+                `Parameter control id ${id} is used by more than one control`,
+            );
+        }
+        controlIds.add(id);
+        return { ...control, id };
+    });
+    const malformed = getMalformedParameterControlMessages(parameterControls);
+    if (malformed.length) throw new ParameterError(malformed.join('. '));
+    return {
+        ...config,
+        parameterControls: mapControlTileTargets(
+            parameterControls,
+            (tileSlug, control) => {
+                const matches = tiles.filter(
+                    (tile) =>
+                        tile.tileSlug === tileSlug ||
+                        getTileContentSlug(tile) === tileSlug,
+                );
+                if (matches.length > 1) {
+                    throw new ParameterError(
+                        `Tile slug ${tileSlug} is ambiguous for parameter control "${control.label ?? Object.keys(control.parameters)[0] ?? 'parameter'}"`,
+                    );
+                }
+                const tileUuid = matches[0]?.uuid;
+                if (!tileUuid) {
+                    throw new ParameterError(
+                        `Tile with slug ${tileSlug} not found for parameter control "${control.label ?? Object.keys(control.parameters)[0] ?? 'parameter'}"`,
+                    );
+                }
+                return tileUuid;
+            },
+        ),
     };
 };

@@ -39,7 +39,6 @@ describe('RefreshTokenRotation', () => {
 
     test.each([
         ['project', null, 'oauth-refresh:project:row-1:'],
-        ['organization', null, 'oauth-refresh:organization:row-1:'],
         [
             'warehouseConnection',
             null,

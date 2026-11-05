@@ -508,7 +508,7 @@ test('revokes one grant atomically without changing another grant or unbound tok
             await database('oauth2_refresh_tokens')
                 .where('refresh_token', boundToken)
                 .first()
-        ).revoked_at,
+        )?.revoked_at,
     ).toBeInstanceOf(Date);
     await Promise.all(
         oauthTables.map(async (table) => {

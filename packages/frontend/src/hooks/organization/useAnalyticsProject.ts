@@ -2,6 +2,7 @@ import {
     type AnalyticsProjectStatus,
     type EnsureAnalyticsProjectResult,
     type ApiError,
+    type AnalyticsHistoryBackfillStatus,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
@@ -19,7 +20,55 @@ export const useAnalyticsProject = () => {
             }),
         enabled: !!organization?.organizationUuid,
         retry: false,
+        refetchInterval: (data) => {
+            const processing = data?.project?.processing;
+            if (data?.project && processing === null) return 30_000;
+            return (processing?.status === 'running' ||
+                processing?.status === 'partial') &&
+                Date.now() - new Date(processing.startedAt).getTime() <=
+                    4 * 60 * 60 * 1000
+                ? 30_000
+                : false;
+        },
     });
+};
+
+export const useAnalyticsHistoryBackfill = () => {
+    const lightdashApi = useLightdashApi();
+    const { data: organization } = useOrganization();
+    return useQuery<AnalyticsHistoryBackfillStatus, ApiError>({
+        queryKey: [
+            'analytics-history-backfill',
+            organization?.organizationUuid,
+        ],
+        queryFn: () =>
+            lightdashApi<AnalyticsHistoryBackfillStatus>({
+                url: '/org/analytics-project/backfill',
+                method: 'GET',
+            }),
+        enabled: !!organization?.organizationUuid,
+        retry: false,
+        staleTime: 30_000,
+        refetchInterval: (data) => (data?.running ? 2000 : false),
+    });
+};
+
+export const useBackfillAnalyticsHistory = () => {
+    const lightdashApi = useLightdashApi();
+    const queryClient = useQueryClient();
+    return useMutation<undefined, ApiError>(
+        () =>
+            lightdashApi<undefined>({
+                url: '/org/analytics-project/backfill',
+                method: 'POST',
+                body: undefined,
+            }),
+        {
+            retry: false,
+            onSuccess: () =>
+                queryClient.invalidateQueries(['analytics-history-backfill']),
+        },
+    );
 };
 
 const useInvalidateAnalyticsProject = () => {
@@ -27,6 +76,7 @@ const useInvalidateAnalyticsProject = () => {
     return () =>
         Promise.all([
             queryClient.invalidateQueries(['analytics-project']),
+            queryClient.invalidateQueries(['analytics-history-backfill']),
             queryClient.invalidateQueries(['projects']),
             queryClient.invalidateQueries(['user']),
         ]);

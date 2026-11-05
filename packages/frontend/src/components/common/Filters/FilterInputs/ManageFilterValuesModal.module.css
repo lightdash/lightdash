@@ -35,6 +35,7 @@
     position: absolute;
     left: 0;
     right: 0;
+    transform: translateY(var(--row-start));
 }
 
 .emptyState {

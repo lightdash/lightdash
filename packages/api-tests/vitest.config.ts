@@ -7,9 +7,6 @@ import { configDefaults, defineConfig } from 'vitest/config';
 const serialFiles = [
     'tests/aiAgentMarkerPostgres.test.ts',
     'tests/agentConnectSnowflakeStub.test.ts',
-    'tests/dataTimezone.test.ts',
-    'tests/queryTimezone.test.ts',
-    'tests/queryTimezoneBoundary.test.ts',
     'tests/userTimezone.test.ts',
     'tests/embedManagement.test.ts',
     'tests/embedChart.test.ts',
@@ -50,10 +47,9 @@ export default defineConfig({
                     include: ['tests/**/*.test.ts'],
                     exclude: [...configDefaults.exclude, ...serialFiles],
                     fileParallelism: true,
-                    // The preview pod is shared with the Cypress jobs; the
-                    // merge suite bounds this group, so more workers only add
-                    // contention.
-                    maxWorkers: 4,
+                    // The preview pod is shared with the Playwright jobs, so
+                    // this is a balance between idle workers and contention.
+                    maxWorkers: 6,
                     sequence: { groupOrder: 0 },
                 },
             },

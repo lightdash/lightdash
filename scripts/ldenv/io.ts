@@ -2,13 +2,15 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { execFile, spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { createHash } from 'node:crypto';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import {
     lstat,
     mkdir,
+    readdir,
     readFile,
     rename,
     rm,
+    stat,
     writeFile,
 } from 'node:fs/promises';
 import path from 'node:path';
@@ -222,6 +224,7 @@ async function lockSnapshot(lock: string): Promise<LockSnapshot | null> {
     };
 }
 function pidAlive(pid: number): boolean | null {
+    if (threadOfAnotherProcess(pid)) return false;
     try {
         process.kill(pid, 0);
         return true;
@@ -396,26 +399,96 @@ export async function foregroundWork<T>(work: () => Promise<T>): Promise<T> {
         'foreground',
         `${process.pid}-${randomUUID()}.json`,
     );
-    await writeJson(file, { pid: process.pid });
+    const identity = await currentProcessIdentity();
+    const lease: ForegroundLease = {
+        pid: process.pid,
+        start: identity?.start ?? null,
+    };
+    await writeJson(file, lease);
     try {
         return await priority.run('foreground', work);
     } finally {
         await rm(file, { force: true });
     }
 }
+type ForegroundLease = { pid: number; start?: string | null };
+const processStartSlackMs = 2000;
+export async function recordedProcessAlive(
+    pid: number | null | undefined,
+    record: { start?: string | null; recordedAt?: number | null },
+): Promise<boolean> {
+    if (!pid || !alive(pid)) return false;
+    const identity = await processIdentity(pid);
+    if (!identity) return true;
+    if (record.start) return identity.start === record.start;
+    const started = Date.parse(identity.start);
+    if (!Number.isFinite(started) || !Number.isFinite(record.recordedAt))
+        return true;
+    return started <= Number(record.recordedAt) + processStartSlackMs;
+}
+export type PidRecord = {
+    pid?: number | null;
+    startedAt?: string | null;
+    processStart?: string | null;
+};
+export const pidRecordAlive = (record: PidRecord | null): Promise<boolean> =>
+    recordedProcessAlive(record?.pid, {
+        start: record?.processStart,
+        recordedAt: record?.startedAt ? Date.parse(record.startedAt) : null,
+    });
+async function liveLease(file: string): Promise<boolean> {
+    let lease: ForegroundLease;
+    let recordedAt: number;
+    try {
+        [lease, recordedAt] = await Promise.all([
+            readJson<ForegroundLease>(file),
+            stat(file).then((stats) => stats.mtimeMs),
+        ]);
+    } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
+        throw error;
+    }
+    if (
+        await recordedProcessAlive(lease.pid, {
+            start: lease.start,
+            recordedAt,
+        })
+    )
+        return true;
+    await rm(file, { force: true });
+    return false;
+}
 export async function foregroundActive(): Promise<boolean> {
-    const leases = await listJson<{ pid: number }>(
-        path.join(home, 'foreground'),
+    const directory = path.join(home, 'foreground');
+    const names = await readdir(directory).catch(
+        (error: NodeJS.ErrnoException) => {
+            if (error.code === 'ENOENT') return [];
+            throw error;
+        },
     );
-    if (leases.some((lease) => alive(lease.pid))) return true;
+    const leases = await Promise.all(
+        names
+            .filter((name) => name.endsWith('.json'))
+            .map((name) => liveLease(path.join(directory, name))),
+    );
+    if (leases.some(Boolean)) return true;
     const instances = await listJson<Instance>(path.join(home, 'instances'));
-    return instances.some(
-        (instance) =>
-            instance.kind !== 'warming' &&
-            instance.kind !== 'spare' &&
-            (instance.phase === 'starting' || instance.phase === 'preparing') &&
-            alive(instance.monitorPid),
+    const monitors = await Promise.all(
+        instances
+            .filter(
+                (instance) =>
+                    instance.kind !== 'warming' &&
+                    instance.kind !== 'spare' &&
+                    (instance.phase === 'starting' ||
+                        instance.phase === 'preparing'),
+            )
+            .map((instance) =>
+                recordedProcessAlive(instance.monitorPid, {
+                    recordedAt: Date.parse(instance.updatedAt),
+                }),
+            ),
     );
+    return monitors.some(Boolean);
 }
 export async function yieldToForeground(): Promise<void> {
     if (priority.getStore() !== 'background' || sharedLock.getStore()) return;
@@ -579,8 +652,23 @@ export async function waitUntil(
     }
     throw new Error(`Timed out waiting for ${label}`);
 }
+export function threadGroupId(status: string): number | null {
+    const match = /^Tgid:\s*(\d+)\s*$/m.exec(status);
+    return match ? Number(match[1]) : null;
+}
+function threadOfAnotherProcess(pid: number): boolean {
+    if (process.platform !== 'linux') return false;
+    let status: string;
+    try {
+        status = readFileSync(`/proc/${pid}/status`, 'utf8');
+    } catch {
+        return false;
+    }
+    const group = threadGroupId(status);
+    return group !== null && group !== pid;
+}
 export function alive(pid: number | null): boolean {
-    if (!pid) return false;
+    if (!pid || threadOfAnotherProcess(pid)) return false;
     try {
         process.kill(pid, 0);
         return true;

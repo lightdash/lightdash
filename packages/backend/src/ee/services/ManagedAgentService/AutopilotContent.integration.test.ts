@@ -52,14 +52,14 @@ describe.skipIf(process.env.AUTOPILOT_CONTENT_EVAL !== 'true')(
             expect(process.env.NATS_ENABLED).toBe('false');
             expect(process.env.SCHEDULER_ENABLED).toBe('false');
             expect(process.env.RUDDERSTACK_ANALYTICS_DISABLED).toBe('true');
-            expect(
-                parseConfig().disabledFeatureFlags.has('analytics-project'),
-            ).toBe(true);
-            expect(
-                parseConfig().enabledFeatureFlags.has('analytics-project'),
-            ).toBe(false);
+            const config = parseConfig();
+            config.usageEvents = {
+                ...config.usageEvents,
+                enabled: false,
+                s3: null,
+            };
             app = new App({
-                lightdashConfig: parseConfig(),
+                lightdashConfig: config,
                 port: 0,
                 environment: 'development',
                 knexConfig,

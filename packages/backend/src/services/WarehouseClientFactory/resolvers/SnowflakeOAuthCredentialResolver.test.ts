@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     ForbiddenError,
     NotFoundError,
     SnowflakeAuthenticationType,
@@ -72,7 +71,7 @@ const selection = (): CredentialSelection<CreateSnowflakeCredentials> & {
     credentialKind: WarehouseCredentialKind.SHARED,
     aiPlan: null,
 });
-const setup = (enabled = true) => {
+const setup = () => {
     const { database, transaction, raw } = createDatabase();
     const coordinator = new RefreshTokenRotation({ database });
     const run = vi.spyOn(coordinator, 'run');
@@ -84,7 +83,9 @@ const setup = (enabled = true) => {
     };
     const deps = {
         refreshTokenRotation: coordinator,
-        featureFlagModel: { get: vi.fn().mockResolvedValue({ enabled }) },
+        featureFlagModel: {
+            get: vi.fn().mockResolvedValue({ enabled: false }),
+        },
         projectModel: {
             getSummary: vi.fn().mockResolvedValue(project),
             getOwnWarehouseCredentialsForProject: vi
@@ -92,12 +93,7 @@ const setup = (enabled = true) => {
                 .mockResolvedValue(credentials),
             rotateRefreshToken: vi.fn().mockResolvedValue(true),
         },
-        organizationWarehouseCredentialsModel: {
-            getByUuidWithSensitiveData: vi
-                .fn()
-                .mockResolvedValue({ organizationUuid: 'org', credentials }),
-            rotateRefreshToken: vi.fn().mockResolvedValue(true),
-        },
+
         userWarehouseCredentialsModel: {
             getByUuidWithSecrets: vi.fn().mockResolvedValue({ credentials }),
             rotateRefreshToken: vi.fn().mockResolvedValue(true),
@@ -171,10 +167,6 @@ describe('SnowflakeOAuthCredentialResolver', () => {
             null,
         ]);
         await expect(f.resolver.dispose()).resolves.toBeUndefined();
-        expect(f.deps.featureFlagModel.get).toHaveBeenCalledExactlyOnceWith({
-            user: { organizationUuid: 'org' },
-            featureFlagId: FeatureFlags.WarehouseOAuthRefreshLock,
-        });
     });
 
     test('save loads the person grant, retains its original refresh token and never writes', async () => {
@@ -218,7 +210,7 @@ describe('SnowflakeOAuthCredentialResolver', () => {
 
     test.each([
         'project',
-        'organization',
+
         'user',
         'warehouseConnection',
     ] as const)(
@@ -237,9 +229,7 @@ describe('SnowflakeOAuthCredentialResolver', () => {
             await f.resolver.resolve(input);
             const rotate = {
                 project: f.deps.projectModel.rotateRefreshToken,
-                organization:
-                    f.deps.organizationWarehouseCredentialsModel
-                        .rotateRefreshToken,
+
                 user: f.deps.userWarehouseCredentialsModel.rotateRefreshToken,
                 warehouseConnection:
                     f.deps.warehouseConnectionModel.rotateRefreshToken,
@@ -276,41 +266,33 @@ describe('SnowflakeOAuthCredentialResolver', () => {
         );
     });
 
-    test.each([true, false])(
-        'does not write an unchanged token with lock %s',
-        async (enabled) => {
-            const f = setup(enabled);
-            f.exchange.mockResolvedValue({
-                accessToken: 'fresh',
-                refreshToken: 'old-refresh',
-            });
-            await f.resolver.resolve(selection());
-            expect(
-                f.deps.projectModel.rotateRefreshToken,
-            ).not.toHaveBeenCalled();
-        },
-    );
+    test('does not write an unchanged token', async () => {
+        const f = setup();
+        f.exchange.mockResolvedValue({
+            accessToken: 'fresh',
+            refreshToken: 'old-refresh',
+        });
+        await f.resolver.resolve(selection());
+        expect(f.deps.projectModel.rotateRefreshToken).not.toHaveBeenCalled();
+    });
 
-    test.each([true, false])(
-        'logs and swallows persistence errors with lock %s',
-        async (enabled) => {
-            const f = setup(enabled);
-            f.deps.projectModel.rotateRefreshToken.mockRejectedValue(
-                new Error('write failed'),
-            );
-            expect(
-                (await f.resolver.resolve(selection())).clientCredentials.token,
-            ).toBe('fresh-access');
-            expect(f.deps.logger.error).toHaveBeenCalledWith(
-                'Failed to persist rotated OAuth refresh token',
-                {
-                    sourceKind: 'project',
-                    sourceUuid: 'project',
-                    error: 'write failed',
-                },
-            );
-        },
-    );
+    test('logs and swallows persistence errors', async () => {
+        const f = setup();
+        f.deps.projectModel.rotateRefreshToken.mockRejectedValue(
+            new Error('write failed'),
+        );
+        expect(
+            (await f.resolver.resolve(selection())).clientCredentials.token,
+        ).toBe('fresh-access');
+        expect(f.deps.logger.error).toHaveBeenCalledWith(
+            'Failed to persist rotated OAuth refresh token',
+            {
+                sourceKind: 'project',
+                sourceUuid: 'project',
+                error: 'write failed',
+            },
+        );
+    });
 
     test.each(['OAuth refresh token expired', 'invalid_grant'])(
         'preserves parsed Snowflake error: %s',
@@ -326,39 +308,34 @@ describe('SnowflakeOAuthCredentialResolver', () => {
         },
     );
 
-    test.each([true, false])(
-        'attributes grant expiry to the sent token with lock %s',
-        async (enabled) => {
-            const f = setup(enabled);
-            const input = selection();
-            f.deps.projectModel.getOwnWarehouseCredentialsForProject.mockResolvedValue(
-                {
-                    ...credentials,
-                    refreshToken: 'rotated-refresh',
-                },
-            );
-            f.exchange.mockRejectedValue({
-                data: JSON.stringify({ message: 'invalid_grant' }),
-            });
-            const mapped = new SnowflakeTokenError(
-                'Error refreshing snowflake token: invalid_grant',
-            );
-            await expect(f.resolver.resolve(input)).rejects.toThrow(mapped);
-            expect(f.exchange).toHaveBeenCalledExactlyOnceWith(
-                enabled ? 'rotated-refresh' : input.connection.refreshToken,
-                ...(enabled ? [OAUTH_REQUEST_TIMEOUT_MS] : []),
-            );
-            expect(
-                f.deps.attributeSharedSignInExpiry,
-            ).toHaveBeenCalledExactlyOnceWith(
-                'project',
-                enabled
-                    ? { ...input.connection, refreshToken: 'rotated-refresh' }
-                    : input.connection,
-                mapped,
-            );
-        },
-    );
+    test('attributes grant expiry to the sent token', async () => {
+        const f = setup();
+        const input = selection();
+        f.deps.projectModel.getOwnWarehouseCredentialsForProject.mockResolvedValue(
+            {
+                ...credentials,
+                refreshToken: 'rotated-refresh',
+            },
+        );
+        f.exchange.mockRejectedValue({
+            data: JSON.stringify({ message: 'invalid_grant' }),
+        });
+        const mapped = new SnowflakeTokenError(
+            'Error refreshing snowflake token: invalid_grant',
+        );
+        await expect(f.resolver.resolve(input)).rejects.toThrow(mapped);
+        expect(f.exchange).toHaveBeenCalledExactlyOnceWith(
+            'rotated-refresh',
+            OAUTH_REQUEST_TIMEOUT_MS,
+        );
+        expect(
+            f.deps.attributeSharedSignInExpiry,
+        ).toHaveBeenCalledExactlyOnceWith(
+            'project',
+            { ...input.connection, refreshToken: 'rotated-refresh' },
+            mapped,
+        );
+    });
 
     test('passes Lightdash errors through unchanged', async () => {
         const f = setup();
@@ -415,7 +392,7 @@ describe('SnowflakeOAuthCredentialResolver', () => {
     test.each([
         'project',
         'warehouseConnection',
-        'organization',
+
         'user',
     ] as const)(
         'refuses a changed or removed %s source without exchanging or writing',
@@ -426,9 +403,7 @@ describe('SnowflakeOAuthCredentialResolver', () => {
                     f.deps.projectModel.getOwnWarehouseCredentialsForProject,
                 warehouseConnection:
                     f.deps.warehouseConnectionModel.getOwnCredentials,
-                organization:
-                    f.deps.organizationWarehouseCredentialsModel
-                        .getByUuidWithSensitiveData,
+
                 user: f.deps.userWarehouseCredentialsModel.getByUuidWithSecrets,
             };
             const acquired = deferred<void>();
@@ -449,7 +424,7 @@ describe('SnowflakeOAuthCredentialResolver', () => {
             await vi.waitFor(() => expect(f.raw).toHaveBeenCalledTimes(2));
             expect(readers[kind]).not.toHaveBeenCalled();
             readers[kind].mockRejectedValue(
-                kind === 'organization' || kind === 'user'
+                kind === 'user'
                     ? new NotFoundError('Credential removed')
                     : new RefreshTokenSourceChangedError(),
             );
@@ -464,7 +439,7 @@ describe('SnowflakeOAuthCredentialResolver', () => {
             for (const model of [
                 f.deps.projectModel,
                 f.deps.warehouseConnectionModel,
-                f.deps.organizationWarehouseCredentialsModel,
+
                 f.deps.userWarehouseCredentialsModel,
             ]) {
                 expect(model.rotateRefreshToken).not.toHaveBeenCalled();
@@ -546,24 +521,7 @@ describe('SnowflakeOAuthCredentialResolver', () => {
         expect(f.exchange).toHaveBeenCalledTimes(1);
     });
 
-    test('lock off uses the submitted token and legacy CAS without a coordinator call', async () => {
-        const f = setup(false);
-        await f.resolver.resolve(selection());
-        expect(f.run).not.toHaveBeenCalled();
-        expect(
-            f.deps.projectModel.getOwnWarehouseCredentialsForProject,
-        ).not.toHaveBeenCalled();
-        expect(f.exchange).toHaveBeenCalledExactlyOnceWith('old-refresh');
-        expect(
-            f.deps.projectModel.rotateRefreshToken,
-        ).toHaveBeenCalledExactlyOnceWith(
-            'project',
-            'old-refresh',
-            'new-refresh',
-        );
-    });
-
-    test.each(['project', 'organization'] as const)(
+    test.each(['project'] as const)(
         'shares one %s row exchange between concurrent callers',
         async (kind) => {
             const f = setup();
@@ -589,10 +547,6 @@ describe('SnowflakeOAuthCredentialResolver', () => {
             await start;
             const second = f.resolver.resolve({
                 ...input,
-                projectUuid:
-                    kind === 'organization'
-                        ? 'other-project'
-                        : input.projectUuid,
                 connection: { ...input.connection, schema: 'other-schema' },
             });
             await vi.waitFor(() => expect(f.run).toHaveBeenCalledTimes(2));
@@ -608,10 +562,7 @@ describe('SnowflakeOAuthCredentialResolver', () => {
             expect(f.exchange).toHaveBeenCalledTimes(1);
             expect(f.transaction).toHaveBeenCalledTimes(1);
             expect(
-                kind === 'project'
-                    ? f.deps.projectModel.rotateRefreshToken
-                    : f.deps.organizationWarehouseCredentialsModel
-                          .rotateRefreshToken,
+                f.deps.projectModel.rotateRefreshToken,
             ).toHaveBeenCalledExactlyOnceWith(
                 'shared-row',
                 'old-refresh',
@@ -623,9 +574,9 @@ describe('SnowflakeOAuthCredentialResolver', () => {
 });
 
 describe('Snowflake OAuth refresh concurrency', () => {
-    test.each(['project', 'organization'] as const)(
+    test.each(['project'] as const)(
         'shares an exchange and write for concurrent callers on one %s row',
-        async (kind) => {
+        async () => {
             const f = setup();
             const exchanged = deferred<{
                 accessToken: string;
@@ -634,11 +585,7 @@ describe('Snowflake OAuth refresh concurrency', () => {
             f.exchange.mockReturnValue(exchanged.promise);
             const firstInput = selection();
             const secondInput = selection();
-            if (kind === 'organization') {
-                firstInput.owner = { kind, uuid: 'shared-org-row' };
-                secondInput.owner = { kind, uuid: 'shared-org-row' };
-                secondInput.projectUuid = 'another-project';
-            }
+
             secondInput.connection = {
                 ...secondInput.connection,
                 warehouse: 'other-warehouse',
@@ -659,10 +606,7 @@ describe('Snowflake OAuth refresh concurrency', () => {
             expect(
                 results.map((result) => result.clientCredentials.warehouse),
             ).toEqual(['warehouse', 'other-warehouse']);
-            const model =
-                kind === 'project'
-                    ? f.deps.projectModel
-                    : f.deps.organizationWarehouseCredentialsModel;
+            const model = f.deps.projectModel;
             expect(model.rotateRefreshToken).toHaveBeenCalledExactlyOnceWith(
                 firstInput.owner!.uuid,
                 'old-refresh',
@@ -713,3 +657,36 @@ describe('Snowflake OAuth refresh concurrency', () => {
         expect(f.transaction).toHaveBeenCalledTimes(2);
     });
 });
+
+test.each(['user', 'project', 'warehouseConnection', null] as const)(
+    'marks reauthentication only for a personal credential owner (%s)',
+    async (kind) => {
+        const f = setup();
+        f.exchange.mockRejectedValue({
+            data: JSON.stringify({ message: 'invalid_grant' }),
+        });
+        const getOwner = (): CredentialOwner | null => {
+            if (kind === null) {
+                return null;
+            }
+            if (kind === 'user') {
+                return {
+                    kind,
+                    uuid: 'row',
+                    purpose: UserWarehouseCredentialPurpose.DEFAULT,
+                };
+            }
+            return { kind, uuid: 'row' };
+        };
+        const owner = getOwner();
+        const error = await f.resolver
+            .resolve({ ...selection(), owner })
+            .catch((caught: unknown) => caught);
+        if (!(error instanceof SnowflakeTokenError)) {
+            throw new Error('Expected a Snowflake token failure');
+        }
+        expect(error.data.requiresUserReauthentication).toBe(
+            kind === 'user' ? true : undefined,
+        );
+    },
+);

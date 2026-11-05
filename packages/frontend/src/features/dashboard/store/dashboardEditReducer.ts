@@ -5,11 +5,12 @@ import {
     type AdditionalMetric,
     type Dashboard,
     type DashboardConfig,
+    type DashboardControlSection,
     type DateZoomConfig,
 } from '@lightdash/common';
 import { createAction, type UnknownAction } from '@reduxjs/toolkit';
-import isEqual from 'lodash/isEqual';
-import sortBy from 'lodash/sortBy';
+import { isEqual, sortBy } from 'es-toolkit/compat';
+import { removeSectionKeepingLines } from '../../dashboardControls/sections';
 
 /**
  * An unsaved edit of a saved setting. It applies only while the saved value
@@ -39,6 +40,9 @@ export type DashboardEditState = {
         DateGranularity | string | undefined
     > | null;
     hasDefaultDateZoomGranularityChanged: boolean;
+    /** Staged sections of the controls rail, in display order */
+    controlSections: DashboardControlSection[];
+    haveControlSectionsChanged: boolean;
 };
 
 export const initialDashboardEditState: DashboardEditState = {
@@ -57,6 +61,8 @@ export const initialDashboardEditState: DashboardEditState = {
     haveDateZoomGranularitiesChanged: false,
     defaultDateZoomGranularity: null,
     hasDefaultDateZoomGranularityChanged: false,
+    controlSections: [],
+    haveControlSectionsChanged: false,
 };
 
 // Sub-day granularities are offered only when an editor enables them
@@ -145,7 +151,41 @@ export const dashboardEditActions = {
     dropStaleDrafts: createAction<SavedDateZoomSettings>(
         'dashboardEdit/dropStaleDrafts',
     ),
+    /** Seeds the sections from the saved config unless they have staged edits */
+    syncControlSections: createAction<DashboardControlSection[]>(
+        'dashboardEdit/syncControlSections',
+    ),
+    setHaveControlSectionsChanged: createAction<boolean>(
+        'dashboardEdit/setHaveControlSectionsChanged',
+    ),
+    addControlSection: createAction<DashboardControlSection>(
+        'dashboardEdit/addControlSection',
+    ),
+    renameControlSection: createAction<DashboardControlSection>(
+        'dashboardEdit/renameControlSection',
+    ),
+    removeControlSection: createAction<string>(
+        'dashboardEdit/removeControlSection',
+    ),
+    /** The sections in a new order and lines (a drag or a keyboard move on the bar) */
+    arrangeControlSections: createAction<DashboardControlSection[]>(
+        'dashboardEdit/arrangeControlSections',
+    ),
+    /** `undefined` removes the key: the section follows the default again */
+    setControlSectionCollapsed: createAction<{
+        id: string;
+        collapsed: boolean | undefined;
+    }>('dashboardEdit/setControlSectionCollapsed'),
 };
+
+const withControlSections = (
+    state: DashboardEditState,
+    controlSections: DashboardControlSection[],
+): DashboardEditState => ({
+    ...state,
+    controlSections,
+    haveControlSectionsChanged: true,
+});
 
 const set = <K extends keyof DashboardEditState>(
     state: DashboardEditState,
@@ -262,6 +302,51 @@ export const dashboardEditReducer = (
                   dateZoomGranularities,
                   defaultDateZoomGranularity,
               };
+    }
+    if (dashboardEditActions.syncControlSections.match(action)) {
+        return state.haveControlSectionsChanged
+            ? state
+            : set(state, 'controlSections', action.payload);
+    }
+    if (dashboardEditActions.setHaveControlSectionsChanged.match(action)) {
+        return set(state, 'haveControlSectionsChanged', action.payload);
+    }
+    if (dashboardEditActions.addControlSection.match(action)) {
+        return withControlSections(state, [
+            ...state.controlSections,
+            action.payload,
+        ]);
+    }
+    if (dashboardEditActions.renameControlSection.match(action)) {
+        const { id, name } = action.payload;
+        return withControlSections(
+            state,
+            state.controlSections.map((section) =>
+                section.id === id ? { ...section, name } : section,
+            ),
+        );
+    }
+    if (dashboardEditActions.removeControlSection.match(action)) {
+        return withControlSections(
+            state,
+            removeSectionKeepingLines(state.controlSections, action.payload),
+        );
+    }
+    if (dashboardEditActions.setControlSectionCollapsed.match(action)) {
+        const { id, collapsed } = action.payload;
+        return withControlSections(
+            state,
+            state.controlSections.map((section) => {
+                if (section.id !== id) return section;
+                const { collapsed: previous, ...rest } = section;
+                return collapsed === undefined ? rest : { ...rest, collapsed };
+            }),
+        );
+    }
+    if (dashboardEditActions.arrangeControlSections.match(action)) {
+        return action.payload === state.controlSections
+            ? state
+            : withControlSections(state, action.payload);
     }
     return state;
 };

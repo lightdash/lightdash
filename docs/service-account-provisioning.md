@@ -6,9 +6,9 @@ own token. See [service accounts](./service-accounts.md) for the permission mode
 
 ## Bootstrap and inputs
 
-Requires a running, licensed instance with service accounts enabled, `curl`, `jq`,
-and Bash. Inject `LIGHTDASH_URL`, `LD_SETUP_SERVICE_ACCOUNT_TOKEN`, `PROJECT_UUID`,
-and a future ISO timestamp in `EXPIRES_AT` from your deployment job.
+Requires a running, licensed instance, `curl`, `jq`, and Bash. Inject
+`LIGHTDASH_URL`, `LD_SETUP_SERVICE_ACCOUNT_TOKEN`, `PROJECT_UUID`, and a future
+ISO timestamp in `EXPIRES_AT` from your deployment job.
 
 After initialization, remove the one-time `LD_SETUP_*` settings, including
 `LD_SETUP_SERVICE_ACCOUNT_TOKEN`, from the **instance's** configuration; retain

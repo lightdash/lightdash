@@ -28,7 +28,7 @@ import {
 import { CLI_VERSION, getUpdateInstructions } from '../../env';
 import GlobalState from '../../globalState';
 import * as styles from '../../styles';
-import { buildCredentialHeaders, buildRequestHeaders } from '../utils';
+import { buildCredentialHeaders } from '../utils';
 
 type LightdashApiProps = {
     method: 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'PUT';
@@ -277,24 +277,44 @@ export const lightdashRawApi = async ({
         connectionResponses.add(response);
         return response;
     }
-    if (!(config.context?.apiKey && config.context.serverUrl)) {
+    if (!config.context?.serverUrl) {
         throw new AuthorizationError(
             `Not logged in. Run 'lightdash login --help'`,
         );
     }
-    const headers = {
-        ...buildRequestHeaders(config.context.apiKey),
-        ...requestHeaders,
-    };
     const fullUrl = new URL(url, config.context.serverUrl).href;
+    let credential = await resolveCredential(config);
+    const send = () =>
+        fetchWithTimeout(fullUrl, {
+            method,
+            headers: {
+                ...buildCredentialHeaders(
+                    credential,
+                    config.context?.proxyAuthorization ?? null,
+                ),
+                ...requestHeaders,
+            },
+            body,
+            signal,
+        });
     GlobalState.debug(`> Making HTTP ${method} request to: ${fullUrl}`);
 
-    const response = await fetchWithTimeout(fullUrl, {
-        method,
-        headers,
-        body,
-        signal,
-    });
+    let response = await send();
+    if (
+        response.status === 401 &&
+        safeToRetry &&
+        method === 'GET' &&
+        body === undefined &&
+        credential.kind === 'personal_oauth'
+    ) {
+        if (response.body instanceof Readable) response.body.destroy();
+        credential = await resolveCredential(
+            config,
+            null,
+            credential.login.tokens.generation,
+        );
+        response = await send();
+    }
     GlobalState.debug(`> HTTP request returned status: ${response.status}`);
 
     if (!response.ok) {
@@ -370,12 +390,7 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
     signal,
     safeToRetry,
 }: LightdashApiProps): Promise<T> => {
-    if (
-        getAgentConnectionSelection() !== null &&
-        safeToRetry &&
-        method === 'GET' &&
-        body === undefined
-    ) {
+    if (safeToRetry && method === 'GET' && body === undefined) {
         return readApiResults<T>(
             await lightdashRawApi({ method, url, body, signal, safeToRetry }),
         );

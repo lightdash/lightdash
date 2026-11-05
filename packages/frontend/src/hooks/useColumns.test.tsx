@@ -11,6 +11,7 @@ import { MantineProvider } from '@mantine/core';
 import { type CellContext } from '@tanstack/react-table';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, test } from 'vitest';
+import barClasses from './TableCellBar.module.css';
 import {
     formatCellContent,
     formatResultsTableCell,
@@ -158,9 +159,7 @@ describe('getFormattedValueCell - Bar Chart Display', () => {
         const { container } = renderWithMantine(result as React.ReactElement);
 
         // Should have a bar element (div with grid display)
-        const gridContainer = container.querySelector(
-            'div[style*="grid-template-columns"]',
-        );
+        const gridContainer = container.querySelector(`.${barClasses.layout}`);
         expect(gridContainer).toBeTruthy();
 
         // Should have a bar element (the colored box)
@@ -441,9 +440,7 @@ describe('getFormattedValueCell - Bar Chart Display', () => {
         const { container } = renderWithMantine(result as React.ReactElement);
 
         // Should have the grid container but no colored bar for zero
-        const gridContainer = container.querySelector(
-            'div[style*="grid-template-columns"]',
-        );
+        const gridContainer = container.querySelector(`.${barClasses.layout}`);
         expect(gridContainer).toBeTruthy();
 
         // Should not have a bar element with width % for zero
@@ -539,8 +536,9 @@ describe('getFormattedValueCell - Bar Chart Display', () => {
             { value: 50, min: 0, max: 100, expected: 50 },
             { value: 100, min: 0, max: 100, expected: 100 },
             { value: 25, min: 0, max: 100, expected: 25 },
-            { value: 150, min: 100, max: 200, expected: 50 }, // Offset range
-            { value: 75, min: 50, max: 100, expected: 50 }, // Offset range
+            { value: 150, min: 100, max: 200, expected: 75 }, // Includes zero
+            { value: 75, min: 50, max: 100, expected: 75 }, // Includes zero
+            { value: 50, min: 50, max: 100, expected: 50 }, // Minimum retains magnitude
         ];
 
         testCases.forEach(({ value, min, max, expected }) => {
@@ -577,7 +575,7 @@ describe('getFormattedValueCell - Bar Chart Display', () => {
         });
     });
 
-    test('should handle edge case when range is zero', () => {
+    test('renders a full bar when all positive values are equal', () => {
         const context = createMockCellContext({
             columnId: 'revenue',
             value: {
@@ -595,11 +593,11 @@ describe('getFormattedValueCell - Bar Chart Display', () => {
         const result = getFormattedValueCell(context);
         const { container } = renderWithMantine(result as React.ReactElement);
 
-        const barElement = container.querySelector('div[style*="width: 0%"]');
-        // Should render with 0% width when range is zero
+        const barElement = container.querySelector('div[style*="width: 100%"]');
+        // Equal positive values still have a meaningful range from zero
         expect(barElement).toBeTruthy();
         const style = barElement?.getAttribute('style') || '';
-        expect(style).toContain('width: 0%');
+        expect(style).toContain('width: 100%');
         // Should have background color
         expect(style).toContain('background');
     });
@@ -623,9 +621,7 @@ describe('getFormattedValueCell - Bar Chart Display', () => {
         const { container } = renderWithMantine(result as React.ReactElement);
 
         // Should have the grid container
-        const gridContainer = container.querySelector(
-            'div[style*="grid-template-columns"]',
-        );
+        const gridContainer = container.querySelector(`.${barClasses.layout}`);
         expect(gridContainer).toBeTruthy();
 
         // Should have a bar element (even if very small, it should be 0.1% width)
@@ -667,9 +663,7 @@ describe('getFormattedValueCell - Bar Chart Display', () => {
         // An invisible sizer reserves space for the column's widest label
         const sizer = screen.getByText('1,700');
         expect(sizer).toBeInTheDocument();
-        expect(sizer.getAttribute('style') || '').toContain(
-            'visibility: hidden',
-        );
+        expect(sizer).toHaveClass(barClasses.sizer);
         expect(sizer).toHaveAttribute('aria-hidden', 'true');
     });
 

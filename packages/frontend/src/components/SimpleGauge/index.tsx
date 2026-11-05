@@ -1,4 +1,5 @@
 import { getGaugeSizes } from '@lightdash/visualization/editor';
+import { Box } from '@mantine/core';
 import { IconGauge } from '@tabler/icons-react';
 import { type ECharts } from 'echarts';
 import { type EChartsReactProps, type Opts } from 'echarts-for-react/lib/types';
@@ -16,18 +17,18 @@ import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import EChartsReact from '../EChartsReactWrapper';
 import {
+    useVisualizationInputs,
     useVisualizationServices,
-    useVisualizationState,
 } from '../LightdashVisualization/useVisualizationContext';
 
 const EmptyChart = () => (
-    <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
+    <Box h="100%" w="100%" py={50}>
         <SuboptimalState
             title="No data available"
             description="Query metrics and dimensions with results."
             icon={IconGauge}
         />
-    </div>
+    </Box>
 );
 
 type SimpleGaugeProps = Omit<EChartsReactProps, 'option'> & {
@@ -43,7 +44,7 @@ const EchartOptions: Opts = { renderer: 'svg' };
 const SimpleGauge: FC<SimpleGaugeProps> = memo(
     ({ onScreenshotReady, onScreenshotError, onChartReady, ...props }) => {
         const { chartRef } = useVisualizationServices();
-        const { isLoading } = useVisualizationState();
+        const { isLoading } = useVisualizationInputs();
         const [chartWidth, setChartWidth] = useState(0);
         const [chartHeight, setChartHeight] = useState(0);
 
@@ -112,6 +113,7 @@ const SimpleGauge: FC<SimpleGaugeProps> = memo(
                 <EChartsReact
                     ref={chartRef}
                     className={props.className}
+                    // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                     style={
                         props.$shouldExpand
                             ? {

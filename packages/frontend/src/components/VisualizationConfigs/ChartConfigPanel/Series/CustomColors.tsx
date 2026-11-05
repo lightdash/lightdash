@@ -20,6 +20,7 @@ import {
 import { useCallback, useMemo, useState, type FC } from 'react';
 import ColorSelector from '../../ColorSelector';
 import { ChartConditionalFormatting } from './ChartConditionalFormatting';
+import seriesClasses from './Series.module.css';
 
 const MAX_COLOR_VALUES = 50;
 const CUSTOM_COLOR_MODE = {
@@ -178,14 +179,7 @@ export const CustomColors: FC<Props> = ({
                                 Set all
                             </Text>
                         </Group>
-                        <Box
-                            bg="ldGray.1"
-                            p="xxs"
-                            py="xs"
-                            style={{
-                                borderRadius: 'var(--mantine-radius-sm)',
-                            }}
-                        >
+                        <Box className={seriesClasses.seriesList}>
                             <ScrollArea.Autosize mah={300}>
                                 <Stack gap="xs">
                                     {uniqueCategories.map(

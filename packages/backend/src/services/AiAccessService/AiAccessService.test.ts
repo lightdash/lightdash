@@ -79,12 +79,15 @@ import {
     type QueryHistoryModel,
     type QueryHistoryWithLineage,
 } from '../../models/QueryHistoryModel/QueryHistoryModel';
+import { createDatabase } from '../../models/RefreshTokenRotation/fakeKnex.mock';
+import { RefreshTokenRotation } from '../../models/RefreshTokenRotation/RefreshTokenRotation';
 import { type UserModel } from '../../models/UserModel';
 import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { getWarehouseIdentityFingerprint } from '../../utils/queryResultProducer';
 import { withNewWarehouseCredentialVersion } from '../../utils/warehouseCredentialVersion';
 import { sessionUser } from '../UserService.mock';
+import { aiServiceAccountCredentialResolvers } from '../WarehouseClientFactory/aiServiceAccountCredentialResolvers';
 import { connectionContextFromAccount } from '../WarehouseClientFactory/ConnectionContext';
 import {
     credentialResolution,
@@ -1060,51 +1063,80 @@ describe('AiAccessService', () => {
             { action: 'manage', subject: 'Organization' },
         ]);
 
-        test('refuses managed OAuth identity changes even with human admin access', async () => {
-            const { service, organizationSettings, organizationRules } =
-                setup();
-            const policy = vi
-                .spyOn(AgentCapabilityPolicyModel.prototype, 'get')
-                .mockResolvedValue({
-                    allowedGroupUuids: null,
-                    mode: 'managed',
-                    version: 1,
-                    allowedCapabilities: null,
-                    systemRoleMatrix: {} as never,
+        test.each(
+            (['managed', 'admission', 'people-only'] as const).flatMap((mode) =>
+                (['oauth', 'agent'] as const).map((actor) => ({ mode, actor })),
+            ),
+        )(
+            'refuses $actor identity changes in $mode mode with human admin access',
+            async ({ mode, actor }) => {
+                const { service, organizationSettings, organizationRules } =
+                    setup();
+                const policy = vi
+                    .spyOn(AgentCapabilityPolicyModel.prototype, 'get')
+                    .mockResolvedValue({
+                        allowedGroupUuids:
+                            mode === 'admission' ? ['allowed-group'] : null,
+                        mode: mode === 'managed' ? 'managed' : 'legacy',
+                        version: 1,
+                        allowedCapabilities: null,
+                        systemRoleMatrix: {} as never,
+                    });
+                const oauth = fromOauth(toSessionUser(admin), {
+                    accessToken: 'token',
+                    client: { id: 'agent' },
                 });
-            const oauth = fromOauth(toSessionUser(admin), {
-                accessToken: 'token',
-                client: { id: 'agent' },
-            });
-            const expected = {
-                refusal: {
-                    reason: 'agent_capability_denied',
-                    settingsUrl: '/generalSettings/agentIdentity',
-                },
-            };
-            await expect(
-                service.updateOrganizationSettings(oauth, {
-                    requireVerifiedAgentSessions: false,
-                }),
-            ).rejects.toMatchObject(expected);
-            await expect(
-                service.updateOrganizationRule(
-                    oauth,
-                    WarehouseTypes.SNOWFLAKE,
-                    { source: 'marked_person' } as never,
-                ),
-            ).rejects.toMatchObject(expected);
-            await expect(
-                service.saveSnowflakeAgentClient(oauth, {
-                    accountUrl: 'https://account.snowflakecomputing.com',
-                    clientId: 'client',
-                    clientSecret: 'secret',
-                }),
-            ).rejects.toMatchObject(expected);
-            expect(organizationSettings.upsert).not.toHaveBeenCalled();
-            expect(organizationRules.set).not.toHaveBeenCalled();
-            policy.mockRestore();
-        });
+                const caller = actor === 'oauth' ? oauth : admin;
+                const run = <T>(operation: () => Promise<T>) =>
+                    actor === 'oauth'
+                        ? operation()
+                        : agentExecutionContext.run(
+                              createAgentExecutionContext({
+                                  account: admin,
+                                  surface: AgentActorSurface.CLI,
+                                  clientId: 'lightdash-cli',
+                                  agentUuid: null,
+                                  agentIdentityEnabled: true,
+                              }),
+                              operation,
+                          );
+                const expected = {
+                    refusal: {
+                        reason: 'agent_capability_denied',
+                        settingsUrl: '/generalSettings/agentIdentity',
+                    },
+                };
+                await expect(
+                    run(() =>
+                        service.updateOrganizationSettings(caller, {
+                            requireVerifiedAgentSessions: false,
+                        }),
+                    ),
+                ).rejects.toMatchObject(expected);
+                await expect(
+                    run(() =>
+                        service.updateOrganizationRule(
+                            caller,
+                            WarehouseTypes.SNOWFLAKE,
+                            { source: 'marked_person' } as never,
+                        ),
+                    ),
+                ).rejects.toMatchObject(expected);
+                await expect(
+                    run(() =>
+                        service.saveSnowflakeAgentClient(caller, {
+                            accountUrl:
+                                'https://account.snowflakecomputing.com',
+                            clientId: 'client',
+                            clientSecret: 'secret',
+                        }),
+                    ),
+                ).rejects.toMatchObject(expected);
+                expect(organizationSettings.upsert).not.toHaveBeenCalled();
+                expect(organizationRules.set).not.toHaveBeenCalled();
+                policy.mockRestore();
+            },
+        );
 
         test.each([
             { previousRequired: false, required: true },
@@ -1208,17 +1240,41 @@ describe('AiAccessService', () => {
             expect(analytics.track).not.toHaveBeenCalled();
         });
 
-        test('does not save or track with the flag off', async () => {
-            const { service, organizationSettings, analytics, flags } = setup();
-            flags.get.mockResolvedValue({ enabled: false });
-            await expect(
-                service.updateOrganizationSettings(admin, {
-                    requireVerifiedAgentSessions: true,
-                }),
-            ).rejects.toMatchObject({ name: 'FeatureNotEnabledError' });
-            expect(organizationSettings.upsert).not.toHaveBeenCalled();
-            expect(analytics.track).not.toHaveBeenCalled();
-        });
+        test.each(['session', 'oauth'] as const)(
+            'does not save or track with the flag off for %s',
+            async (actor) => {
+                const {
+                    service,
+                    organizationSettings,
+                    organizationRules,
+                    analytics,
+                    flags,
+                } = setup();
+                const caller =
+                    actor === 'session'
+                        ? admin
+                        : fromOauth(toSessionUser(admin), {
+                              accessToken: 'token',
+                              client: { id: 'agent' },
+                          });
+                flags.get.mockResolvedValue({ enabled: false });
+                await expect(
+                    service.updateOrganizationSettings(caller, {
+                        requireVerifiedAgentSessions: true,
+                    }),
+                ).rejects.toMatchObject({ name: 'FeatureNotEnabledError' });
+                await expect(
+                    service.updateOrganizationRule(
+                        caller,
+                        WarehouseTypes.SNOWFLAKE,
+                        { source: 'marked_person' },
+                    ),
+                ).rejects.toBeInstanceOf(FeatureNotEnabledError);
+                expect(organizationRules.set).not.toHaveBeenCalled();
+                expect(organizationSettings.upsert).not.toHaveBeenCalled();
+                expect(analytics.track).not.toHaveBeenCalled();
+            },
+        );
 
         test('returns saved settings when tracking throws', async () => {
             const { service, analytics } = setup();
@@ -1374,7 +1430,6 @@ describe('AiAccessService', () => {
             expect(analytics.track).not.toHaveBeenCalled();
             expect(registry).toHaveBeenCalledWith(WarehouseTypes.SNOWFLAKE);
             expect(provider.missingPrerequisite).toHaveBeenCalledWith({
-                silentRefresh: true,
                 connection: { type: WarehouseTypes.SNOWFLAKE },
                 person: {
                     organizationUuid: 'org',
@@ -2200,6 +2255,15 @@ describe('AiAccessService', () => {
             isRegisteredUser: true,
             isServiceAccount: false,
         });
+    });
+    test('needs no identity in a project without a warehouse', async () => {
+        const { service, projects } = setup();
+        projects.getWarehouseCredentialsForBinding.mockRejectedValue(
+            new NotFoundError('No warehouse'),
+        );
+        expect(
+            await service.getMyAccess(viewer, 'project', null),
+        ).toMatchObject({ enabled: false, refusal: null, identity: null });
     });
     test('loads extra connection credentials in the project scope', async () => {
         const { service, connections, projects } = setup();
@@ -4903,7 +4967,9 @@ describe('silent refresh routing', () => {
                     featureFlagModel: {
                         get: vi.fn().mockResolvedValue({ enabled: false }),
                     },
-                    refreshTokenRotation: { run: vi.fn() },
+                    refreshTokenRotation: new RefreshTokenRotation({
+                        database: createDatabase().database,
+                    }),
                     snowflakeAgentClientResolver: {
                         resolve: vi
                             .fn()
@@ -4964,7 +5030,7 @@ describe('silent refresh routing', () => {
         ).rejects.toBe(error);
         expect(analytics.track).not.toHaveBeenCalled();
     });
-    test('does not read the kill switch or credentials with agent identity off', async () => {
+    test('does not read credentials with agent identity off', async () => {
         const { service, flags, credentials, organizationRules, provider } =
             setup();
         flags.get.mockResolvedValue({ enabled: false });
@@ -4979,33 +5045,17 @@ describe('silent refresh routing', () => {
         expect(organizationRules.get).not.toHaveBeenCalled();
         expect(provider.mint).not.toHaveBeenCalled();
     });
-    test.each([true, false])(
-        'passes resolved silent refresh %s to mint and status',
-        async (enabled) => {
-            const { service, flags, provider } = setup();
-            flags.get
-                .mockResolvedValueOnce({ enabled: true })
-                .mockResolvedValueOnce({ enabled });
-            await service.resolvePlan({ ...args, connection: snowflake });
-            expect(flags.get).toHaveBeenLastCalledWith({
-                user: { userUuid: 'user', organizationUuid: 'org' },
-                featureFlagId: FeatureFlags.AgentIdentitySilentRefresh,
-            });
-            expect(provider.mint).toHaveBeenCalledWith(
-                expect.objectContaining({ silentRefresh: enabled }),
-            );
-            flags.get
-                .mockResolvedValueOnce({ enabled: true })
-                .mockResolvedValueOnce({ enabled });
-            await service.getAiAccessForUser({
-                ...args,
-                connection: snowflake,
-            });
-            expect(provider.missingPrerequisite).toHaveBeenCalledWith(
-                expect.objectContaining({ silentRefresh: enabled }),
-            );
-        },
-    );
+    test('checks agent identity before mint and status', async () => {
+        const { service, flags, provider } = setup();
+        await service.resolvePlan({ ...args, connection: snowflake });
+        expect(flags.get).toHaveBeenCalledExactlyOnceWith({
+            user: { userUuid: 'user', organizationUuid: 'org' },
+            featureFlagId: FeatureFlags.AgentIdentity,
+        });
+        expect(provider.mint).toHaveBeenCalled();
+        await service.getAiAccessForUser({ ...args, connection: snowflake });
+        expect(provider.missingPrerequisite).toHaveBeenCalled();
+    });
 });
 
 describe('preview AI service account inheritance', () => {
@@ -5258,7 +5308,7 @@ describe('Databricks AI service account runtime', () => {
     } as const;
     const databricksConnection: CreateWarehouseCredentials = {
         type: WarehouseTypes.DATABRICKS,
-        serverHostName: 'workspace.example.com',
+        serverHostName: 'adb-123.4.azuredatabricks.net',
         httpPath: '/sql/preview',
         database: 'schema',
         personalAccessToken: 'project-pat',
@@ -5314,7 +5364,7 @@ describe('Databricks AI service account runtime', () => {
             expect(
                 exchangeDatabricksOAuthCredentials,
             ).toHaveBeenCalledExactlyOnceWith(
-                'workspace.example.com',
+                'adb-123.4.azuredatabricks.net',
                 'slot-id',
                 'slot-secret',
             );
@@ -5529,24 +5579,12 @@ describe('agent resolver refusal mapping', () => {
             AiAccessRefusalReason.SIGN_IN_EXPIRED,
         ],
         [
-            { kind: 'credential', classification: 'expired' },
-            AiAccessRefusalReason.SIGN_IN_EXPIRED,
-        ],
-        [
             { kind: 'client', classification: 'missing' },
             AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED,
         ],
         [
             { kind: 'refresh', classification: 'grant_gone' },
             AiAccessRefusalReason.SIGN_IN_EXPIRED,
-        ],
-        [
-            { kind: 'refresh', classification: 'legacy_grant_gone' },
-            AiAccessRefusalReason.SIGN_IN_EXPIRED,
-        ],
-        [
-            { kind: 'refresh', classification: 'legacy_failure' },
-            AiAccessRefusalReason.NEEDS_SIGN_IN,
         ],
         [
             { kind: 'refresh', classification: 'configuration' },
@@ -6510,6 +6548,41 @@ describe('preview ClickHouse AI service account inheritance', () => {
         );
         return f;
     };
+    test('refuses a mismatched execution destination before reading or combining any secrets', async () => {
+        const f = previewSetup();
+        const materialize = vi.spyOn(
+            aiServiceAccountCredentialResolvers,
+            'resolveCredentialSelection',
+        );
+        try {
+            await expect(
+                f.service.resolvePlan({
+                    ...args,
+                    connection: {
+                        ...clickhouseConnection,
+                        host: 'other.example.com',
+                    },
+                }),
+            ).rejects.toMatchObject({
+                inheritedFromProjectUuid: 'parent',
+                refusal: {
+                    reason: AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+                },
+            });
+            expect(
+                f.projects.getWarehouseCredentialsForBinding,
+            ).toHaveBeenCalledExactlyOnceWith('parent', {
+                kind: 'connection',
+                warehouseConnectionUuid: null,
+            });
+            expect(f.slots.getSecrets).not.toHaveBeenCalled();
+            expect(f.slots.getSlot).not.toHaveBeenCalled();
+            expect(materialize).not.toHaveBeenCalled();
+            expect(f.provider.mint).not.toHaveBeenCalled();
+        } finally {
+            materialize.mockRestore();
+        }
+    });
     test('carries parent generation and keeps preview settings and actor', async () => {
         const f = previewSetup();
         expect(
@@ -6517,7 +6590,7 @@ describe('preview ClickHouse AI service account inheritance', () => {
                 ...args,
                 connection: {
                     ...clickhouseConnection,
-                    host: 'preview.internal',
+                    host: clickhouseConnection.host,
                     schema: 'preview_analytics',
                 },
             }),
@@ -6527,7 +6600,7 @@ describe('preview ClickHouse AI service account inheritance', () => {
             sourceProjectUuid: 'parent',
             inheritedFromProjectUuid: 'parent',
             credentials: {
-                host: 'preview.internal',
+                host: clickhouseConnection.host,
                 schema: 'preview_analytics',
                 password: clickhouseSecrets.password,
             },

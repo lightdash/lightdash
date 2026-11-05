@@ -6,6 +6,7 @@ import {
 import { createAnalyticsExplores } from '../../services/ProjectService/analyticsProject/createAnalyticsExplores';
 import {
     analyticsContentAsCode,
+    analyticsDefaultSpace,
     analyticsSampleDashboards,
 } from './sampleContent';
 
@@ -13,6 +14,8 @@ describe('analytics sample content', () => {
     it('exports portable content-as-code with dashboard-owned chart references', () => {
         for (const { dashboard, charts } of analyticsContentAsCode) {
             expect(dashboard.version).toBe(1);
+            expect(dashboard.spaceSlug).toBe(analyticsDefaultSpace.slug);
+            expect(dashboard.verified).toBe(true);
             expect(
                 new Set(
                     dashboard.tiles

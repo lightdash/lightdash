@@ -72,7 +72,7 @@ export const AgentSuggestionChips = ({
                         variant="default"
                         size="xs"
                         className={classes.join(' ')}
-                        style={{ ['--chip-idx' as string]: idx }}
+                        style={{ '--chip-idx': idx }}
                         leftSection={renderLeftIcon(chip)}
                         rightSection={renderRightIcon(
                             chip,

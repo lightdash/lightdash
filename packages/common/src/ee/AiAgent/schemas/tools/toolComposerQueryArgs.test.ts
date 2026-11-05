@@ -10,12 +10,14 @@ import {
     toolComposerQueryNodeToSourceQuery,
 } from './toolComposerQueryArgs';
 
+const postHogConnectionUuid = '22222222-2222-4222-8222-222222222222';
+
 describe('toolComposerQueriesArgsSchema node titles', () => {
     const sqlNode = {
         sourceType: QuerySourceType.SQL,
         nodeId: 'signups',
         title: 'Signups by month',
-        description: null,
+        description: 'Counts new signups per calendar month.',
         sql: 'SELECT 1',
     };
     const args = (node: object) => ({
@@ -35,9 +37,16 @@ describe('toolComposerQueriesArgsSchema node titles', () => {
         ).toBe(true);
     });
 
-    it('accepts a null description', () => {
-        const parsed = toolComposerQueriesArgsSchema.parse(args(sqlNode));
-        expect(parsed.queries[0].description).toBeNull();
+    it('requires a description on every node', () => {
+        const { description, ...undescribed } = sqlNode;
+        expect(
+            toolComposerQueriesArgsSchema.safeParse(args(undescribed)).success,
+        ).toBe(false);
+        expect(
+            toolComposerQueriesArgsSchema.safeParse(
+                args({ ...sqlNode, description: null }),
+            ).success,
+        ).toBe(false);
     });
 });
 
@@ -202,7 +211,7 @@ describe('python composer nodes', () => {
         sourceType: QuerySourceType.PYTHON,
         nodeId: 'forecast',
         title: 'Revenue forecast',
-        description: null,
+        description: 'Test node.',
         code: 'def run(inputs, params):\n    return inputs["revenue"]',
         references: ['revenue'],
     };
@@ -226,10 +235,14 @@ describe('python composer nodes', () => {
 
     it('describes python nodes only when enabled', () => {
         expect(
-            getToolComposerQueriesDescription({ enablePythonNodes: false }),
+            getToolComposerQueriesDescription({
+                enablePythonNodes: false,
+            }),
         ).not.toContain('"python"');
         expect(
-            getToolComposerQueriesDescription({ enablePythonNodes: true }),
+            getToolComposerQueriesDescription({
+                enablePythonNodes: true,
+            }),
         ).toContain('"python"');
     });
 
@@ -244,7 +257,7 @@ describe('python composer nodes', () => {
             sourceType: QuerySourceType.PYTHON,
             nodeId: 'forecast',
             title: 'Revenue forecast',
-            description: undefined,
+            description: 'Test node.',
             code: pythonNode.code,
             references: ['revenue'],
             limit: DEFAULT_COMPOSER_QUERY_LIMIT,
@@ -276,6 +289,101 @@ describe('python composer nodes', () => {
     });
 });
 
+describe('composer api nodes', () => {
+    const hogql =
+        'SELECT toStartOfWeek(timestamp) AS week, count(DISTINCT person_id) AS wau FROM events GROUP BY week';
+    const apiNode = {
+        sourceType: QuerySourceType.API,
+        nodeId: 'weekly_active_users',
+        title: 'Weekly active users',
+        description: 'Counts distinct people per week in PostHog.',
+        connectionUuid: postHogConnectionUuid,
+        payload: { kind: 'query', query: hogql },
+    };
+    const args = {
+        title: null,
+        description: null,
+        terminalNodeId: null,
+        queries: [apiNode],
+    };
+
+    it('offers the api node only when enabled', () => {
+        expect(toolComposerQueriesArgsSchema.safeParse(args).success).toBe(
+            false,
+        );
+        expect(
+            createToolComposerQueriesArgsSchema({
+                enableApiNodes: true,
+            }).safeParse(args).success,
+        ).toBe(true);
+    });
+
+    it('keeps persisted api calls parseable', () => {
+        expect(
+            toolComposerQueriesArgsSchemaPersisted.safeParse(args).success,
+        ).toBe(true);
+    });
+
+    it('never offers api nodes to the agent, which queries live data sources through explores', () => {
+        expect(
+            getToolComposerQueriesDescription({ enablePythonNodes: true }),
+        ).not.toContain('"api"');
+    });
+
+    it('converts to an api source query', () => {
+        const [node] = createToolComposerQueriesArgsSchema({
+            enableApiNodes: true,
+        }).parse(args).queries;
+        if (node.sourceType !== QuerySourceType.API) {
+            throw new Error('expected an api node');
+        }
+        expect(toolComposerQueryNodeToSourceQuery(node)).toEqual({
+            sourceType: QuerySourceType.API,
+            nodeId: 'weekly_active_users',
+            title: 'Weekly active users',
+            description: 'Counts distinct people per week in PostHog.',
+            connectionUuid: postHogConnectionUuid,
+            payload: { kind: 'query', query: hogql },
+            limit: DEFAULT_COMPOSER_QUERY_LIMIT,
+        });
+    });
+
+    it('renders a partially streamed api node once its connection arrives', () => {
+        expect(
+            parsePartialToolComposerQueriesArgs({
+                queries: [
+                    {
+                        sourceType: QuerySourceType.API,
+                        nodeId: 'weekly_active_users',
+                    },
+                ],
+            }),
+        ).toBeNull();
+        expect(
+            parsePartialToolComposerQueriesArgs({
+                queries: [
+                    {
+                        sourceType: QuerySourceType.API,
+                        nodeId: 'weekly_active_users',
+                        connectionUuid: postHogConnectionUuid,
+                        payload: { kind: 'query', query: 'SELECT ev' },
+                    },
+                ],
+            })?.queries,
+        ).toEqual([
+            {
+                sourceType: QuerySourceType.API,
+                nodeId: 'weekly_active_users',
+                title: 'weekly_active_users',
+                description: null,
+                connectionUuid: postHogConnectionUuid,
+                payload: { kind: 'query', query: 'SELECT ev' },
+                limit: DEFAULT_COMPOSER_QUERY_LIMIT,
+            },
+        ]);
+    });
+});
+
 describe('composer node references', () => {
     const duckdbArgs = (references: unknown) => ({
         title: null,
@@ -286,7 +394,7 @@ describe('composer node references', () => {
                 sourceType: QuerySourceType.DUCKDB,
                 nodeId: 'summary',
                 title: 'Spend summary',
-                description: null,
+                description: 'Test node.',
                 sql: 'SELECT * FROM o',
                 references,
             },
@@ -315,7 +423,9 @@ describe('composer node references', () => {
 
     it('never mentions query ids in the description', () => {
         expect(
-            getToolComposerQueriesDescription({ enablePythonNodes: true }),
+            getToolComposerQueriesDescription({
+                enablePythonNodes: true,
+            }),
         ).not.toMatch(/query ?uuid|query id/i);
     });
 });
@@ -330,7 +440,7 @@ describe('semanticLayer node filters', () => {
                 sourceType: QuerySourceType.SEMANTIC_LAYER,
                 nodeId: 'revenue',
                 title: 'Revenue by customer',
-                description: null,
+                description: 'Test node.',
                 exploreName: 'orders',
                 dimensions: ['orders_customer_name'],
                 metrics: ['orders_total_revenue'],
@@ -387,6 +497,27 @@ describe('semanticLayer node filters', () => {
                 semanticArgs({ dimensions: '' }),
             ).success,
         ).toBe(false);
+    });
+
+    it('defaults omitted optional fields to null', () => {
+        const { sorts, ...node } = semanticArgs({
+            dimensions: 'orders_customer_name equals=Alice',
+        }).queries[0];
+        const parsed = toolComposerQueriesArgsSchema.parse({ queries: [node] });
+        expect(parsed).toMatchObject({
+            title: null,
+            description: null,
+            terminalNodeId: null,
+            queries: [
+                {
+                    filters: {
+                        dimensions: 'orders_customer_name equals=Alice',
+                        metrics: null,
+                    },
+                    sorts: null,
+                },
+            ],
+        });
     });
 });
 
@@ -462,7 +593,28 @@ describe('toolComposerQueriesArgsSchemaPersisted', () => {
                 limit: 500,
             }),
         );
-        expect(parsed.queries[0]).toMatchObject({ parameters: null });
+        expect(parsed.queries[0]).not.toHaveProperty('parameters');
+    });
+
+    it('parses nodes persisted with a null or missing description', () => {
+        const sqlNode = {
+            sourceType: QuerySourceType.SQL,
+            nodeId: 'signups',
+            title: 'Signups',
+            sql: 'SELECT 1',
+            limit: 500,
+        };
+        const parsed = toolComposerQueriesArgsSchemaPersisted.parse({
+            ...args(sqlNode),
+            queries: [
+                { ...sqlNode, description: null },
+                { ...sqlNode, nodeId: 'legacy' },
+            ],
+        });
+        expect(parsed.queries.map((node) => node.description)).toEqual([
+            null,
+            null,
+        ]);
     });
 });
 
@@ -471,13 +623,14 @@ describe('semanticLayer node parameters', () => {
         sourceType: QuerySourceType.SEMANTIC_LAYER as const,
         nodeId: 'orders',
         title: 'Orders',
-        description: null,
+        description: 'Test node.',
         exploreName: 'orders',
         dimensions: ['orders_status'],
         metrics: ['orders_count'],
         filters: null,
         sorts: null,
         limit: 500,
+        additionalMetrics: [],
     };
 
     it('accepts parameter values on the node', () => {

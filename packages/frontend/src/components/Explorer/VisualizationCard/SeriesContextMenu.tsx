@@ -15,6 +15,7 @@ import {
     useEffect,
     useMemo,
     useState,
+    type CSSProperties,
     type FC,
 } from 'react';
 import { useMergeSafe } from '../../../features/mergeQuery/context/useMerge';
@@ -27,11 +28,12 @@ import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
-import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
+import { useVisualizationInputs } from '../../LightdashVisualization/useVisualizationContext';
 import DrillDownMenuItem from '../../MetricQueryData/DrillDownMenuItem';
 import { useMetricQueryDataContext } from '../../MetricQueryData/useMetricQueryDataContext';
 import { getDataFromChartClick } from '../../MetricQueryData/utils';
 import { type EchartsSeriesClickEvent } from '../../SimpleChart';
+import classes from './SeriesContextMenu.module.css';
 
 export const SeriesContextMenu: FC<{
     echartsSeriesClickEvent: EchartsSeriesClickEvent | undefined;
@@ -50,7 +52,7 @@ export const SeriesContextMenu: FC<{
     const projectUuid = useProjectUuid();
 
     const { resultsData: { metricQuery } = {}, itemsMap } =
-        useVisualizationState();
+        useVisualizationInputs();
     const isMerged = !!useMergeSafe()?.mergeResults;
 
     const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
@@ -172,7 +174,6 @@ export const SeriesContextMenu: FC<{
             onClose={onClose}
             closeOnItemClick
             closeOnEscape
-            radius={0}
             position="right-start"
             offset={{
                 mainAxis: 0,
@@ -183,10 +184,13 @@ export const SeriesContextMenu: FC<{
                 <Menu.Target>
                     <div
                         onContextMenu={handleCancelContextMenu}
-                        style={{
-                            position: 'absolute',
-                            ...contextMenuTargetOffset,
-                        }}
+                        className={classes.contextMenuTarget}
+                        style={
+                            {
+                                '--menu-left': `${contextMenuTargetOffset?.left ?? 0}px`,
+                                '--menu-top': `${contextMenuTargetOffset?.top ?? 0}px`,
+                            } as CSSProperties
+                        }
                     />
                 </Menu.Target>
             </Portal>

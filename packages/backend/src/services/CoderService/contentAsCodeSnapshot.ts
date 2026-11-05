@@ -1,4 +1,5 @@
 import {
+    type AgentAsCodeKnowledgeDocument,
     type ChartAsCode,
     type DashboardAsCode,
     type SqlChartAsCode,
@@ -74,4 +75,19 @@ export const buildContentAsCodeSnapshot = (
         .update(JSON.stringify(snapshot))
         .digest('hex');
     return { snapshot, snapshotHash };
+};
+
+export const buildKnowledgeDocumentSnapshot = (
+    document: AgentAsCodeKnowledgeDocument,
+): ReturnType<typeof buildContentAsCodeSnapshot> => {
+    const snapshot = canonicalize(document) as Record<
+        string,
+        CanonicalJsonValue
+    >;
+    return {
+        snapshot,
+        snapshotHash: createHash('sha256')
+            .update(JSON.stringify(snapshot))
+            .digest('hex'),
+    };
 };

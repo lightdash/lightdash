@@ -4,24 +4,22 @@
 preview:
   - "packages/**/*"
   - "docker/**/*"
-  - "okteto.preview.yaml"
-
-# Previews divert their database from a pre-seeded snapshot of main; PRs that
-# change the seed data itself must migrate and seed from scratch instead
-preview_db_full:
-  - "examples/full-jaffle-shop-demo/**"
-  - "packages/backend/src/database/seeds/**"
-  - "packages/backend/src/ee/database/seeds/**"
+  - "rainbow.toml"
 
 cli:
   - ".github/workflows/post-release.yml"
   - "packages/cli/**/*"
-  - "packages/e2e/cypress/cli/**/*"
+  - "packages/e2e/tests/cli/**/*"
+  - "packages/e2e/support/**/*"
+  - "packages/e2e/playwright.config.ts"
   - "packages/common/**/*"
 
 frontend:
   - "packages/frontend/**/*"
-  - "packages/e2e/cypress/e2e/app/**/*"
+  - "packages/e2e/tests/app/**/*"
+  - "packages/e2e/tests/api/**/*"
+  - "packages/e2e/support/**/*"
+  - "packages/e2e/playwright.config.ts"
   - "packages/common/**/*"
 
 backend:
@@ -53,5 +51,8 @@ release_safety_api:
   - *openapi_surface
 
 timezone:
+  - "packages/e2e/tests/app/dates.spec.ts"
+  - "packages/e2e/support/**/*"
+  - "packages/e2e/playwright.config.ts"
   - "packages/frontend/src/components/common/TimeZonePicker/index.tsx"
   - "packages/common/src/types/timezone.ts"

@@ -8,6 +8,7 @@ import { type MergeQuery, type MetricSourcedMergeQuery } from '../mergeQuery';
 import type { MetricQueryRequest, SortField } from '../metricQuery';
 import type { PivotConfig } from '../pivot';
 import type {
+    ApiSourcePayload,
     ExternalSourceTableReference,
     QuerySourceTableName,
 } from '../querySources';
@@ -29,6 +30,13 @@ export type DateZoom = {
 export type ExecuteAsyncMetricQueryRequestParams =
     CommonExecuteQueryRequestParams & {
         query: Omit<MetricQueryRequest, 'csvLimit'>;
+        /**
+         * Export row limit, same contract as the saved-chart endpoints:
+         * - undefined: run with `query.limit`
+         * - null: all results, capped by the org's CSV cells limit
+         * - number: that many rows, capped by the org's CSV cells limit
+         */
+        limit?: number | null | undefined;
         dateZoom?: DateZoom;
         pivotConfiguration?: PivotConfiguration;
         // Filters whose target field is absent from the query's explore are
@@ -63,6 +71,12 @@ export type ExecuteAsyncDashboardChartRequestParams =
         dateZoom?: DateZoom;
         limit?: number | null | undefined;
         pivotResults?: boolean;
+        /**
+         * The keys this tile keeps as its own, sent with `parameters` when the
+         * app resolved the tile's parameter controls. A signed-in user's
+         * request is then used as sent, not resolved from the saved controls.
+         */
+        excludedParameterKeys?: string[];
         // Run the caller's own unpublished chart draft instead of the
         // published chart, so a tile matches what the author sees
         includeUnpublishedDraft?: boolean;
@@ -130,6 +144,14 @@ export type ExecuteAsyncComposeSqlQueryRequestParams =
         references?: Record<string, UUID>;
     };
 
+/** A query sent live to an external API; stored so query history shows what ran. */
+export type ExecuteAsyncApiQueryRequestParams =
+    CommonExecuteQueryRequestParams & {
+        connectionUuid: string;
+        payload: ApiSourcePayload;
+        limit?: number;
+    };
+
 /** Python `run(inputs, params)` over other async queries' results, executed in a sandbox. */
 export type ExecuteAsyncPythonQueryRequestParams =
     CommonExecuteQueryRequestParams & {
@@ -194,6 +216,8 @@ type ExecuteAsyncDashboardSqlChartCommonParams =
         dashboardFilters: DashboardFilters;
         dashboardSorts: SortField[];
         limit?: number;
+        /** As on the dashboard chart request */
+        excludedParameterKeys?: string[];
     };
 
 export type ExecuteAsyncDashboardSqlChartByUuidRequestParams =
@@ -247,6 +271,7 @@ export type ExecuteAsyncQueryRequestParams = (
     | ExecuteAsyncSqlQueryRequestParams
     | ExecuteAsyncComposeSqlQueryRequestParams
     | ExecuteAsyncPythonQueryRequestParams
+    | ExecuteAsyncApiQueryRequestParams
     | ExecuteAsyncSavedChartRequestParams
     | ExecuteAsyncDashboardChartRequestParams
     | ExecuteAsyncUnderlyingDataRequestParams

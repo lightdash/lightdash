@@ -1,5 +1,5 @@
 import { AiAgentWithContext } from '@lightdash/common';
-import { generateText, LanguageModel, Output } from 'ai';
+import { generateText, LanguageModel, ModelMessage, Output } from 'ai';
 import { z } from 'zod';
 import {
     emitAiUsage,
@@ -46,7 +46,60 @@ export type RouterDecision = {
     shouldSkipForwardingQuery: boolean;
 };
 
-export const ROUTER_SYSTEM_PROMPT = `You are an intelligent agent router for a data analytics platform. Your job is to select the most appropriate AI agent to handle a user's query.
+/** The dashboard or chart the user is looking at while asking. */
+export type RoutingAskedFrom = {
+    type: 'dashboard' | 'chart';
+    name: string;
+};
+
+export type RoutingCandidate = {
+    uuid: string;
+    name: string;
+    description: string | null;
+    instruction: string | null;
+    explores: string[];
+    questions: string[];
+};
+
+// The decisions provider receives this object as-is, so its field names are part of that request.
+export type RoutingContext = {
+    prompt: string;
+    askedFrom: RoutingAskedFrom | null;
+    instructions: string | null;
+    candidates: RoutingCandidate[];
+};
+
+const MAX_VERIFIED_QUESTIONS_PER_CANDIDATE = 5;
+
+export const buildRoutingContext = ({
+    candidates,
+    prompt,
+    askedFrom,
+    instructions,
+}: {
+    candidates: AiAgentWithContext[];
+    prompt: string;
+    askedFrom: RoutingAskedFrom | null;
+    instructions: string | null;
+}): RoutingContext => ({
+    prompt,
+    askedFrom,
+    instructions:
+        instructions && instructions.trim().length > 0 ? instructions : null,
+    candidates: candidates.map((agent) => ({
+        uuid: agent.uuid,
+        name: agent.name,
+        description: agent.description,
+        instruction: agent.instruction,
+        explores: agent.context.explores,
+        questions: agent.context.verifiedQuestions.slice(
+            0,
+            MAX_VERIFIED_QUESTIONS_PER_CANDIDATE,
+        ),
+    })),
+});
+
+const ROUTER_SYSTEM_PROMPT = `You are an intelligent agent router for a data analytics platform. Your job is to select the most appropriate AI agent to handle a user's query.
 
 All agents share the same core capabilities:
 - Specialized in data analytics and exploration
@@ -68,6 +121,7 @@ Available Agents:
 {{adminInstructions}}
 Selection Guidelines:
 - Choose the agent whose specialization best matches the query topic
+- When the user is asking from a dashboard or chart, treat its name as part of the query topic
 - Prioritize agents with relevant data access (explores)
 - Consider agents that have answered similar questions before
 - If no perfect match, choose the most general-purpose agent
@@ -83,22 +137,20 @@ Meta-Query Detection (shouldSkipForwardingQuery):
 
 You must select exactly ONE agent from the list above by providing its exact UUID.`;
 
-function buildAgentDescription(
-    agent: AiAgentWithContext,
-    index: number,
-): string {
+function renderCandidate(candidate: RoutingCandidate, index: number): string {
     const parts: Array<string | null> = [
-        `${index + 1}. **${agent.name}** (UUID: ${agent.uuid})`,
-        agent.description ? `   Description: ${agent.description}` : null,
-        agent.instruction
-            ? `   Custom Instructions: ${agent.instruction}`
+        `${index + 1}. **${candidate.name}** (UUID: ${candidate.uuid})`,
+        candidate.description
+            ? `   Description: ${candidate.description}`
             : null,
-        agent.context.explores.length > 0
-            ? `   Data Access: ${agent.context.explores.join(', ')}}`
+        candidate.instruction
+            ? `   Custom Instructions: ${candidate.instruction}`
             : null,
-        agent.context.verifiedQuestions.length > 0
-            ? `   Example Questions:\n${agent.context.verifiedQuestions
-                  .slice(0, 15)
+        candidate.explores.length > 0
+            ? `   Data Access: ${candidate.explores.join(', ')}`
+            : null,
+        candidate.questions.length > 0
+            ? `   Example Questions:\n${candidate.questions
                   .map((q) => `     - "${q}"`)
                   .join('\n')}`
             : null,
@@ -107,14 +159,8 @@ function buildAgentDescription(
     return parts.filter((part): part is string => part !== null).join('\n');
 }
 
-function buildAgentDescriptions(agents: AiAgentWithContext[]): string {
-    return agents
-        .map((agent, index) => buildAgentDescription(agent, index))
-        .join('\n\n');
-}
-
-function buildAdminInstructionsSection(instructions: string | null): string {
-    if (!instructions || instructions.trim().length === 0) {
+function renderAdminInstructions(instructions: string | null): string {
+    if (!instructions) {
         return '';
     }
     return `
@@ -124,13 +170,125 @@ ${instructions}
 `;
 }
 
-/**
- * Uses an LLM to select the most appropriate agent for a given user query.
- */
+export function renderRouterMessages(context: RoutingContext): ModelMessage[] {
+    const systemPrompt = ROUTER_SYSTEM_PROMPT.replace(
+        '{{candidates}}',
+        context.candidates.map(renderCandidate).join('\n\n'),
+    ).replace(
+        '{{adminInstructions}}',
+        renderAdminInstructions(context.instructions),
+    );
+    const askedFrom = context.askedFrom
+        ? `\nAsked from the ${context.askedFrom.type} "${context.askedFrom.name}".`
+        : '';
+    return [
+        { role: 'system', content: systemPrompt },
+        {
+            role: 'user',
+            content: `User Query: "${context.prompt}"${askedFrom}\n\nPlease select the best agent to handle this query and explain your reasoning.`,
+        },
+    ];
+}
+
+// The provider caps a choice question at 255 criteria, one of which is 'none'.
+const MAX_DECISION_CANDIDATES = 254;
+
+async function decideWithProvider(
+    decisions: AiDecisionClient,
+    context: RoutingContext,
+): Promise<RouterDecision | null> {
+    const answers = await decisions.evaluate({
+        operation: 'agent-routing',
+        state: context,
+        questions: {
+            agent: {
+                type: 'choice',
+                instructions:
+                    'Choose the agent whose instructions, accessible explores and examples best fit the request. When askedFrom is set, the dashboard or chart the user is looking at is part of the request. Follow the admin routing instructions when they identify a listed agent. Choose none when there is no clear match.',
+                criteria: {
+                    ...Object.fromEntries(
+                        context.candidates.map((c) => [c.uuid, c.name]),
+                    ),
+                    none: 'No clear match',
+                },
+            },
+            meta: {
+                type: 'noul',
+                instructions:
+                    'Is the user asking to see or choose available agents, rather than asking an agent to perform a task?',
+            },
+        },
+    });
+    if (!answers) return null;
+
+    const selected = confidentChoice(answers.agent);
+    const meta = decisionProbability(answers.meta);
+    const canForward =
+        selected !== null &&
+        selected !== 'none' &&
+        meta !== null &&
+        meta <= 0.15;
+    return {
+        selectedAgentUuid: canForward ? selected : null,
+        confidence: canForward ? 'high' : 'low',
+        reasoning: canForward
+            ? 'Matched the request to the agent’s scope.'
+            : 'Choose an agent to continue.',
+        // An ambiguous destination does not turn a real data question
+        // into a meta-query. Forward it after the user picks an agent.
+        shouldSkipForwardingQuery: meta === null || meta > 0.15,
+    };
+}
+
+async function decideWithModel({
+    model,
+    context,
+    telemetry,
+    unmatchedDecision,
+}: {
+    model: LanguageModel;
+    context: RoutingContext;
+    telemetry: AiCallAttribution | undefined;
+    unmatchedDecision: (selectedAgentUuid: string) => RouterDecision;
+}): Promise<RouterDecision> {
+    const telemetryConfig = getAiCallTelemetry({
+        functionId: 'selectAgent',
+        feature: 'agent-selector',
+        ...getLanguageModelAttribution(model),
+        ...telemetry,
+        keyManagement: telemetry?.keyManagement ?? null,
+    });
+    const result = await generateText({
+        model,
+        ...telemetryConfig,
+        output: Output.object({ schema: AgentSelectionSchema }),
+        allowSystemInMessages: true,
+        messages: renderRouterMessages(context),
+    });
+    emitAiUsage(telemetryConfig, languageModelUsageToTokens(result.usage));
+
+    const selection = result.output;
+    const exists = context.candidates.some(
+        (c) => c.uuid === selection.agentUuid,
+    );
+
+    if (!exists) {
+        return unmatchedDecision(selection.agentUuid);
+    }
+
+    return {
+        selectedAgentUuid: selection.agentUuid,
+        confidence: selection.confidence,
+        reasoning: selection.reasoning,
+        shouldSkipForwardingQuery: selection.shouldSkipForwardingQuery,
+    };
+}
+
 export async function selectAgent({
     model,
     candidates,
     prompt,
+    askedFrom = null,
     instructions = null,
     telemetry,
     decisions,
@@ -138,6 +296,7 @@ export async function selectAgent({
     model: LanguageModel;
     candidates: AiAgentWithContext[];
     prompt: string;
+    askedFrom?: RoutingAskedFrom | null;
     instructions?: string | null;
     telemetry?: AiCallAttribution;
     decisions?: AiDecisionClient;
@@ -155,109 +314,37 @@ export async function selectAgent({
         };
     }
 
-    if (decisions && candidates.length <= 254) {
-        const answers = await decisions.evaluate({
-            operation: 'agent-routing',
-            state: {
-                prompt,
-                instructions,
-                candidates: candidates.map((agent) => ({
-                    uuid: agent.uuid,
-                    name: agent.name,
-                    description: agent.description,
-                    instruction: agent.instruction,
-                    explores: agent.context.explores,
-                    questions: agent.context.verifiedQuestions.slice(0, 5),
-                })),
-            },
-            questions: {
-                agent: {
-                    type: 'choice',
-                    instructions:
-                        'Choose the agent whose instructions, accessible explores and examples best fit the request. Follow the admin routing instructions when they identify a listed agent. Choose none when there is no clear match.',
-                    criteria: {
-                        ...Object.fromEntries(
-                            candidates.map((c) => [c.uuid, c.name]),
-                        ),
-                        none: 'No clear match',
-                    },
-                },
-                meta: {
-                    type: 'noul',
-                    instructions:
-                        'Is the user asking to see or choose available agents, rather than asking an agent to perform a task?',
-                },
-            },
-        });
-        if (answers) {
-            const selected = confidentChoice(answers.agent);
-            const meta = decisionProbability(answers.meta);
-            const canForward =
-                selected !== null &&
-                selected !== 'none' &&
-                meta !== null &&
-                meta <= 0.15;
-            return {
-                selectedAgentUuid: canForward ? selected : null,
-                confidence: canForward ? 'high' : 'low',
-                reasoning: canForward
-                    ? 'Matched the request to the agent’s scope.'
-                    : 'Choose an agent to continue.',
-                // An ambiguous destination does not turn a real data question
-                // into a meta-query. Forward it after the user picks an agent.
-                shouldSkipForwardingQuery: meta === null || meta > 0.15,
-            };
-        }
+    const context = buildRoutingContext({
+        candidates,
+        prompt,
+        askedFrom,
+        instructions,
+    });
+
+    if (decisions && context.candidates.length <= MAX_DECISION_CANDIDATES) {
+        const decision = await decideWithProvider(decisions, context);
+        if (decision) return decision;
     }
 
-    const systemPrompt = ROUTER_SYSTEM_PROMPT.replace(
-        '{{candidates}}',
-        buildAgentDescriptions(candidates),
-    ).replace(
-        '{{adminInstructions}}',
-        buildAdminInstructionsSection(instructions),
-    );
-
-    const telemetryConfig = getAiCallTelemetry({
-        functionId: 'selectAgent',
-        feature: 'agent-selector',
-        ...getLanguageModelAttribution(model),
-        ...telemetry,
-        keyManagement: telemetry?.keyManagement ?? null,
-    });
-    const result = await generateText({
+    // Without a decisions provider the legacy fallback keeps picking the first agent.
+    return decideWithModel({
         model,
-        ...telemetryConfig,
-        output: Output.object({ schema: AgentSelectionSchema }),
-        allowSystemInMessages: true,
-        messages: [
-            { role: 'system', content: systemPrompt },
-            {
-                role: 'user',
-                content: `User Query: "${prompt}"\n\nPlease select the best agent to handle this query and explain your reasoning.`,
-            },
-        ],
+        context,
+        telemetry,
+        unmatchedDecision: (selectedAgentUuid) =>
+            decisions
+                ? {
+                      selectedAgentUuid: null,
+                      reasoning:
+                          'No accessible agent matched. Choose an agent to continue.',
+                      confidence: 'low',
+                      shouldSkipForwardingQuery: false,
+                  }
+                : {
+                      selectedAgentUuid: candidates[0].uuid,
+                      reasoning: `Selected agent "${selectedAgentUuid}" not found. Defaulting to first available agent.`,
+                      confidence: 'low',
+                      shouldSkipForwardingQuery: false,
+                  },
     });
-    emitAiUsage(telemetryConfig, languageModelUsageToTokens(result.usage));
-
-    const selection = result.output;
-    const exists = candidates.some((c) => c.uuid === selection.agentUuid);
-
-    if (!exists) {
-        return {
-            selectedAgentUuid: decisions ? null : candidates[0].uuid,
-            reasoning: decisions
-                ? 'No accessible agent matched. Choose an agent to continue.'
-                : `Selected agent "${selection.agentUuid}" not found. Defaulting to first available agent.`,
-            confidence: 'low',
-            shouldSkipForwardingQuery: false,
-        };
-    }
-
-    return {
-        selectedAgentUuid: selection.agentUuid,
-        confidence: selection.confidence,
-        reasoning: selection.reasoning,
-        shouldSkipForwardingQuery: selection.shouldSkipForwardingQuery,
-    };
 }

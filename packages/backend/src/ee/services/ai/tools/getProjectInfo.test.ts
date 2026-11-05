@@ -38,7 +38,6 @@ describe('getProjectInfo connection dialects', () => {
             warehouseType: WarehouseTypes.POSTGRES,
             connections,
             git: null,
-            previewDeployCi: null,
         }));
         expect(toolGetProjectInfoOutputSchema.safeParse(output).success).toBe(
             true,
@@ -82,7 +81,6 @@ describe('hostile connection names in project info', () => {
                 warehouseType,
                 connections: [connection],
                 git: null,
-                previewDeployCi: null,
             }));
             expect(output.result).toContain(
                 `Connection ${JSON.stringify(name)} (extra): ${warehouseType}`,

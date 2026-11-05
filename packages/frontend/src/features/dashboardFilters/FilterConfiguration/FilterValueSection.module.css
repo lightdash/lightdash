@@ -1,0 +1,4 @@
+.operatorRightSection {
+    justify-content: flex-end;
+    margin-right: var(--mantine-spacing-xs);
+}

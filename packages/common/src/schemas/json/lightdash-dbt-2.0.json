@@ -493,7 +493,8 @@
                                 "type": "array",
                                 "items": {
                                     "type": "string"
-                                }
+                                },
+                                "description": "Fields to include from the joined model. Use set references (ending with *) to include sets and a - prefix to exclude fields or sets. A list containing only exclusions includes every field except those excluded."
                             },
                             "relationship": {
                                 "type": "string",

@@ -10,13 +10,7 @@ import {
 } from '@mantine/core';
 import { IconHash } from '@tabler/icons-react';
 import { clsx } from 'clsx';
-import {
-    useCallback,
-    useState,
-    type CSSProperties,
-    type FC,
-    type KeyboardEvent,
-} from 'react';
+import { useCallback, useState, type FC, type KeyboardEvent } from 'react';
 import MantineIcon from '../common/MantineIcon';
 import classes from './ColorSelector.module.css';
 
@@ -36,6 +30,8 @@ interface Props {
     // custom value to clear.
     onColorReset?: () => void;
     resetLabel?: string;
+    // Called when the picker closes, e.g. to flush a debounced commit
+    onClose?: () => void;
     ariaLabel?: string;
     readOnly?: boolean;
     colorSwatchProps?: Omit<ColorSwatchProps, 'color'>;
@@ -50,6 +46,7 @@ const ColorSelector: FC<Props> = ({
     onColorChange,
     onColorReset,
     resetLabel = 'Reset color',
+    onClose,
     ariaLabel = 'Select color',
     readOnly = false,
     colorSwatchProps,
@@ -82,17 +79,9 @@ const ColorSelector: FC<Props> = ({
                   ? DEFAULT_PICKER_COLOR_WITH_ALPHA
                   : DEFAULT_PICKER_COLOR));
     const pickerColor = getPickerColor(rawPickerColor, withAlpha);
-    const colorSwatchStyle =
-        colorSwatchProps?.style &&
-        !Array.isArray(colorSwatchProps.style) &&
-        typeof colorSwatchProps.style === 'object'
-            ? colorSwatchProps.style
-            : {};
     const showGradient = !isInteractive && Boolean(secondaryColor);
-    const gradientStyle = showGradient
-        ? ({
-              '--cs-gradient': `linear-gradient(135deg, ${primarySwatchColor} 0%, ${primarySwatchColor} 50%, ${secondaryColor} 50%, ${secondaryColor} 100%)`,
-          } as CSSProperties)
+    const swatchGradient = showGradient
+        ? `linear-gradient(135deg, ${primarySwatchColor} 0%, ${primarySwatchColor} 50%, ${secondaryColor} 50%, ${secondaryColor} 100%)`
         : undefined;
     const handleSwatchClick = useCallback(() => {
         setIsOpen((opened) => !opened);
@@ -111,6 +100,7 @@ const ColorSelector: FC<Props> = ({
         <Popover
             withArrow
             opened={isOpen}
+            onClose={onClose}
             onChange={(opened) => {
                 setIsOpen(opened);
                 setDraftColor(opened ? (color ?? '') : undefined);
@@ -200,10 +190,7 @@ const ColorSelector: FC<Props> = ({
                     ? { colorOverlay: classes.colorOverlayGradient }
                     : undefined
             }
-            style={{
-                ...gradientStyle,
-                ...colorSwatchStyle,
-            }}
+            style={{ '--cs-gradient': swatchGradient }}
         />
     );
 };

@@ -93,7 +93,11 @@ vi.mock('../../../features/apps/hooks/useDeleteApp', () => ({
     useDeleteApp: () => ({ mutate: deleteApp }),
 }));
 vi.mock('../../../hooks/toaster/useToaster', () => ({
-    default: () => ({ showToastError, showToastSuccess }),
+    default: () => ({
+        showToastError,
+        showToastSuccess,
+        addToastError: vi.fn(),
+    }),
 }));
 vi.mock(
     '../../../features/chartTypes/builder/ChartTypeBuilderWorkspace',

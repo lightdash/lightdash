@@ -1,7 +1,5 @@
 import {
     getItemId,
-    getItemLabel,
-    getItemLabelWithoutTableName,
     interpolateUiString,
     isCustomDimension,
     isDimension,
@@ -27,6 +25,7 @@ import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import { FILTER_SELECT_LIMIT } from '../Filters/constants';
 import FieldIcon from '../Filters/FieldIcon';
 import classes from './FieldSelect.module.css';
+import { getFieldSelectLabel } from './fieldSelectLabel';
 import {
     ADD_TO_QUERY_GROUP_LABEL,
     MORE_OPTIONS_VALUE,
@@ -64,12 +63,6 @@ type FieldSelectProps<T extends Item = Item> = Omit<
     hasGrouping?: boolean;
     baseTable?: string;
     focusOnRender?: boolean;
-};
-
-const getLabel = (item: Item, hasGrouping: boolean) => {
-    return hasGrouping
-        ? getItemLabelWithoutTableName(item)
-        : getItemLabel(item);
 };
 
 const FieldSelectComponent = <T extends Item = Item>({
@@ -164,8 +157,8 @@ const FieldSelectComponent = <T extends Item = Item>({
                 return sortTimeFrames(a.timeInterval, b.timeInterval);
             }
 
-            return getLabel(a, hasGrouping).localeCompare(
-                getLabel(b, hasGrouping),
+            return getFieldSelectLabel(a, hasGrouping).localeCompare(
+                getFieldSelectLabel(b, hasGrouping),
             );
         };
 
@@ -220,7 +213,7 @@ const FieldSelectComponent = <T extends Item = Item>({
             const entry: FieldSelectItem = {
                 item: i,
                 value: getItemId(i),
-                label: getLabel(i, hasGrouping),
+                label: getFieldSelectLabel(i, hasGrouping),
                 description: isField(i) ? i.description : undefined,
                 disabled: inactiveItemIds.includes(getItemId(i)),
             };
@@ -256,7 +249,7 @@ const FieldSelectComponent = <T extends Item = Item>({
         const addEntries: FieldSelectItem[] = sortedAddItems.map((i) => ({
             item: i,
             value: getItemId(i),
-            label: getLabel(i, hasGrouping),
+            label: getFieldSelectLabel(i, hasGrouping),
             tablePrefix: hasGrouping
                 ? isField(i) && !isCustomDimension(i)
                     ? i.tableLabel
@@ -279,7 +272,7 @@ const FieldSelectComponent = <T extends Item = Item>({
             .map((i) => ({
                 item: i,
                 value: getItemId(i),
-                label: getLabel(i, hasGrouping),
+                label: getFieldSelectLabel(i, hasGrouping),
                 tablePrefix: hasGrouping
                     ? isField(i) && !isCustomDimension(i)
                         ? i.tableLabel
@@ -354,7 +347,7 @@ const FieldSelectComponent = <T extends Item = Item>({
                             span
                             fz="xs"
                             size={rest.size}
-                            style={{ wordBreak: 'normal' }}
+                            className={classes.optionLabel}
                         >
                             {fieldOption.tablePrefix && (
                                 <Text span inherit c="dimmed">

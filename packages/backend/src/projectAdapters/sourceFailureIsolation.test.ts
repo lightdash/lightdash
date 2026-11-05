@@ -1,9 +1,8 @@
-import { DbtError } from '@lightdash/common';
+import { DbtError, DbtManifestTextError } from '@lightdash/common';
 import { DbtSourceError } from '../dbt/DbtSourceError';
 import Logger from '../logging/logger';
 import { type ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { CompileInterruptedError } from '../scheduler/compileShutdown';
-import { DbtSourceDiskError } from './DbtSourceDiskPool';
 import {
     SourceFailureIsolation,
     validateDbtSourceManifest,
@@ -87,7 +86,6 @@ it('leaves primary failures fatal', async () => {
 
 it.each([
     new CompileInterruptedError(),
-    new DbtSourceDiskError(),
     new DOMException('cancelled', 'AbortError'),
     new DOMException('timed out', 'TimeoutError'),
     new DbtError('Found a cycle: model.a -> model.b'),
@@ -133,4 +131,25 @@ it('keeps the original source error out of serialized error fields', () => {
     expect(error.cause).toBe(cause);
     expect(Object.keys(error)).not.toContain('cause');
     expect(JSON.stringify(error)).not.toContain('synthetic-token');
+});
+
+it('isolates typed text validation failures even when the source name contains graph-error words', async () => {
+    const { isolation } = setup(2);
+    await expect(
+        isolation.skip(
+            'invalid',
+            'ambiguous source',
+            new DbtSourceError(
+                'wrapped',
+                new DbtManifestTextError(
+                    'Source "ambiguous source": U+0000 at manifest.metadata.',
+                ),
+            ),
+            'manifest',
+        ),
+    ).resolves.toBe(true);
+    expect(isolation.failedSourceUuids).toEqual(['invalid']);
+    expect(isolation.warnings).toEqual([
+        'Source "ambiguous source" failed: could not parse, list models, or validate the manifest; kept its 2 explores from the last successful refresh. Source "ambiguous source": U+0000 at manifest.metadata.',
+    ]);
 });

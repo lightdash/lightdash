@@ -158,7 +158,7 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
                             <Highlight
                                 truncate
                                 fz="xs"
-                                c="ldGray.7"
+                                c="dimmed"
                                 highlight={query ?? ''}
                             >
                                 {explore.name}
@@ -190,7 +190,7 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
                                 <Highlight
                                     truncate
                                     fz="xs"
-                                    c="ldGray.7"
+                                    c="dimmed"
                                     highlight={query ?? ''}
                                 >
                                     {explore.name}

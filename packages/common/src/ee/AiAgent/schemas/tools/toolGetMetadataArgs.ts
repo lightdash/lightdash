@@ -110,6 +110,16 @@ const getMetadataExploreFoundSchema = z.object({
     hint: z.string().nullable(),
     baseTable: z.string(),
     joinedTables: z.array(z.string()),
+    warehouseTables: z
+        .array(
+            z.object({
+                table: z.string(),
+                warehouseTable: z.string().nullable(),
+            }),
+        )
+        .describe(
+            'Warehouse table behind the base table and each joined table, as "database.schema.table"; null when the table reads custom SQL.',
+        ),
     requiredFilters: z.array(findExploresRequiredFilterSchema),
     parameters: z.array(getMetadataParameterSchema),
     baseDimensions: z.object({

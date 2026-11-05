@@ -84,7 +84,6 @@ const DashboardAnalysisAdapterBridge = () => {
         availability,
         // Dashboards analyse on demand; the core still looks up stored
         // analyses of the current view for free.
-        autoAnalyse: false,
         onNeedsAgent,
         onSourcesExpired,
     });

@@ -3,12 +3,12 @@
 ## Purpose & scope
 
 Pivoting touches five packages and a two-phase architecture, and the detailed
-mechanics live in package-level `CLAUDE.md` files. This doc maps the whole
+mechanics live in package-level `AGENTS.md` files. This doc maps the whole
 pipeline from one place so you can find your way around, then drill into the
 authoritative source for each stage.
 
 This file is the high-level overview — keep it at that altitude. The detailed
-mechanics live in the linked `CLAUDE.md` files; update those when the internals
+mechanics live in the linked `AGENTS.md` files; update those when the internals
 change.
 
 ## The one idea: pivoting is two-phase
@@ -36,10 +36,10 @@ Everything below hangs off this split.
 | Stage                     | What happens                                                                                                        | Key file(s)                                                                                                          | Authoritative deep dive                                                                                           |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | 1. Config                 | A chart's config becomes a SQL execution spec (`PivotConfiguration`).                                               | `packages/common/src/pivot/derivePivotConfigFromChart.ts`, `packages/common/src/types/pivot.ts`                      | (self-documented in code comments)                                                                                |
-| 2. SQL generation         | Wraps the base query; tags each row with `row_index` / `column_index` via `DENSE_RANK()`. Still flat rows out.      | `packages/backend/src/utils/QueryBuilder/PivotQueryBuilder.ts`                                                       | [`QueryBuilder/CLAUDE.md`](../packages/backend/src/utils/QueryBuilder/CLAUDE.md) (three CTE modes, anchor system) |
-| 3. Execute + transform    | Streams warehouse rows to S3 as JSONL; **spreads** value columns into wide columns keyed by the group-by values.    | `AsyncQueryService.runQueryAndTransformRows`, `packages/backend/src/services/AsyncQueryService/getPivotedColumns.ts` | [`AsyncQueryService/CLAUDE.md`](../packages/backend/src/services/AsyncQueryService/CLAUDE.md)                     |
-| 4. Reshape                | Turns the flat pivoted rows into the `PivotData` matrix, then flattens it for the table.                            | `packages/common/src/pivot/pivotQueryResults.ts` (`convertSqlPivotedRowsToPivotData`, `retrofitData`)                | [`PivotTable/CLAUDE.md`](../packages/frontend/src/components/common/PivotTable/CLAUDE.md)                         |
-| 5. Render                 | Renders `PivotData` / `pivotColumnInfo` as a TanStack table.                                                        | `packages/frontend/src/components/common/PivotTable/index.tsx`                                                       | [`PivotTable/CLAUDE.md`](../packages/frontend/src/components/common/PivotTable/CLAUDE.md)                         |
+| 2. SQL generation         | Wraps the base query; tags each row with `row_index` / `column_index` via `DENSE_RANK()`. Still flat rows out.      | `packages/backend/src/utils/QueryBuilder/PivotQueryBuilder.ts`                                                       | [`QueryBuilder/AGENTS.md`](../packages/backend/src/utils/QueryBuilder/AGENTS.md) (three CTE modes, anchor system) |
+| 3. Execute + transform    | Streams warehouse rows to S3 as JSONL; **spreads** value columns into wide columns keyed by the group-by values.    | `AsyncQueryService.runQueryAndTransformRows`, `packages/backend/src/services/AsyncQueryService/getPivotedColumns.ts` | [`AsyncQueryService/AGENTS.md`](../packages/backend/src/services/AsyncQueryService/AGENTS.md)                     |
+| 4. Reshape                | Turns the flat pivoted rows into the `PivotData` matrix, then flattens it for the table.                            | `packages/common/src/pivot/pivotQueryResults.ts` (`convertSqlPivotedRowsToPivotData`, `retrofitData`)                | [`PivotTable/AGENTS.md`](../packages/frontend/src/components/common/PivotTable/AGENTS.md)                         |
+| 5. Render                 | Renders `PivotData` / `pivotColumnInfo` as a TanStack table.                                                        | `packages/frontend/src/components/common/PivotTable/index.tsx`                                                       | [`PivotTable/AGENTS.md`](../packages/frontend/src/components/common/PivotTable/AGENTS.md)                         |
 | 6. CSV export (side-path) | Reloads the JSONL and exports CSV using the same pivot metadata — a parallel consumer, not part of the render path. | `packages/backend/src/services/PivotTableService/PivotTableService.ts`                                               | —                                                                                                                 |
 
 **Second config entry point:** the SQL Runner builds a `PivotConfiguration`
@@ -148,7 +148,7 @@ Cross-cutting terms only — fuller definitions live in the linked package docs.
   takes their exact value from the first rendered pivot group and removes their
   repeated pivot columns.
 - **anchor (column / row)** — the reference column/row used when sorting a pivot by
-  a metric value; see `QueryBuilder/CLAUDE.md`.
+  a metric value; see `QueryBuilder/AGENTS.md`.
 - **`PivotData` / `pivotColumnInfo`** — the matrix structure (`headerValues`,
   `indexValues`, `dataValues`, totals) and the flattened TanStack column metadata.
 - **`NULL_PIVOT_KEY`** — collision-safe placeholder used in a value column's
@@ -162,6 +162,6 @@ Cross-cutting terms only — fuller definitions live in the linked package docs.
 
 Deep dives — the authoritative source for each stage's detailed mechanics:
 
-- [`packages/backend/src/utils/QueryBuilder/CLAUDE.md`](../packages/backend/src/utils/QueryBuilder/CLAUDE.md) — SQL generation, CTE modes, anchors.
-- [`packages/frontend/src/components/common/PivotTable/CLAUDE.md`](../packages/frontend/src/components/common/PivotTable/CLAUDE.md) — `PivotData` structure and rendering.
-- [`packages/backend/src/services/AsyncQueryService/CLAUDE.md`](../packages/backend/src/services/AsyncQueryService/CLAUDE.md) — async execution and S3 streaming.
+- [`packages/backend/src/utils/QueryBuilder/AGENTS.md`](../packages/backend/src/utils/QueryBuilder/AGENTS.md) — SQL generation, CTE modes, anchors.
+- [`packages/frontend/src/components/common/PivotTable/AGENTS.md`](../packages/frontend/src/components/common/PivotTable/AGENTS.md) — `PivotData` structure and rendering.
+- [`packages/backend/src/services/AsyncQueryService/AGENTS.md`](../packages/backend/src/services/AsyncQueryService/AGENTS.md) — async execution and S3 streaming.

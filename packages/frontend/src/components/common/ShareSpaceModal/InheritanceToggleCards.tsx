@@ -2,6 +2,7 @@ import { Group, Paper, Stack, Text } from '@mantine/core';
 import { IconLock, IconUsersGroup } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../MantineIcon';
+import classes from './InheritanceToggleCards.module.css';
 import {
     InheritanceType,
     NestedInheritanceOptions,
@@ -37,14 +38,10 @@ const InheritanceToggleCards: FC<InheritanceToggleCardsProps> = ({
             <Paper
                 p="md"
                 radius="md"
-                style={{
-                    cursor: disabled ? 'default' : 'pointer',
-                    borderColor:
-                        value === InheritanceType.INHERIT
-                            ? 'var(--mantine-color-blue-6)'
-                            : undefined,
-                    borderWidth:
-                        value === InheritanceType.INHERIT ? 2 : undefined,
+                className={classes.card}
+                mod={{
+                    disabled,
+                    selected: value === InheritanceType.INHERIT,
                 }}
                 onClick={
                     disabled
@@ -70,14 +67,10 @@ const InheritanceToggleCards: FC<InheritanceToggleCardsProps> = ({
             <Paper
                 p="md"
                 radius="md"
-                style={{
-                    cursor: disabled ? 'default' : 'pointer',
-                    borderColor:
-                        value === InheritanceType.OWN_ONLY
-                            ? 'var(--mantine-color-blue-6)'
-                            : undefined,
-                    borderWidth:
-                        value === InheritanceType.OWN_ONLY ? 2 : undefined,
+                className={classes.card}
+                mod={{
+                    disabled,
+                    selected: value === InheritanceType.OWN_ONLY,
                 }}
                 onClick={
                     disabled

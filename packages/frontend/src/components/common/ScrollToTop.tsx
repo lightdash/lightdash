@@ -51,6 +51,7 @@ export const ScrollToTop: FC<ScrollToTopProps> = ({
                         radius="xl"
                         variant="default"
                         color="gray"
+                        // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                         style={transitionStyles}
                         onClick={handleScrollToTop}
                         aria-label="Scroll to top"

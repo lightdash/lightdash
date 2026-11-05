@@ -19,7 +19,6 @@ import { getDiscoverRepos } from './discoverRepos';
 import { getEditContent } from './editContent';
 import { getEditDbtProject } from './editDbtProject';
 import { getEditProjectContext } from './editProjectContext';
-import { getEditRepo } from './editRepo';
 import { getExploreRepo } from './exploreRepo';
 import { getExportChartAsCode } from './exportChartAsCode';
 import { getFindContent } from './findContent';
@@ -53,7 +52,6 @@ import { getRunSavedChart } from './runSavedChart';
 import { getRunSql } from './runSql';
 import { getSearchFieldValues } from './searchFieldValues';
 import { getSearchSemanticLayer } from './searchSemanticLayer';
-import { getSetupPreviewDeploy } from './setupPreviewDeploy';
 import { getUpdateUserName } from './updateUserName';
 import { getVisualize } from './visualize';
 
@@ -95,12 +93,19 @@ const makeAgentTools = (enableFilterExpressions = false) => {
         // Historical contract retained so persisted discoverFields calls still
         // parse and render, although the agent no longer executes this tool.
         discoverFields: agentToolDefinitionsByName.discoverFields.for('agent'),
-        createContent: getCreateContent({ createContent: noop }),
+        createContent: getCreateContent({
+            siteUrl: 'https://app.lightdash.cloud',
+            createContent: noop,
+        }),
         createScheduledDelivery: getCreateScheduledDelivery({
+            siteUrl: 'https://app.lightdash.cloud',
             createScheduledDelivery: noop,
         }),
         updateUserName: getUpdateUserName({ updateUserName: noopAsync }),
-        editContent: getEditContent({ editContent: noop }),
+        editContent: getEditContent({
+            siteUrl: 'https://app.lightdash.cloud',
+            editContent: noop,
+        }),
         findContent: getFindContent({
             findContent: noop,
             siteUrl: 'https://lightdash.example',
@@ -128,7 +133,10 @@ const makeAgentTools = (enableFilterExpressions = false) => {
             getKnowledgeDocumentContent: noop,
         }),
         getProjectInfo: getGetProjectInfo({ getProjectInfo: noop }),
-        listContent: getListContent({ listContent: noop }),
+        listContent: getListContent({
+            siteUrl: 'https://app.lightdash.cloud',
+            listContent: noop,
+        }),
         listKnowledgeDocuments: getListKnowledgeDocuments({
             listKnowledgeDocuments: noop,
         }),
@@ -150,12 +158,6 @@ const makeAgentTools = (enableFilterExpressions = false) => {
         editProjectContext: getEditProjectContext({
             editProjectContext: noop,
         }),
-        editRepo: getEditRepo({
-            editRepo: noop,
-        }),
-        setupPreviewDeploy: getSetupPreviewDeploy({
-            setupPreviewDeploy: noop,
-        }),
         exploreRepo: getExploreRepo({ exploreRepo: noop }),
         discoverRepos: getDiscoverRepos({ discoverRepos: noop }),
         listWorkstreams: getListWorkstreams({ listWorkstreams: noop }),
@@ -163,7 +165,10 @@ const makeAgentTools = (enableFilterExpressions = false) => {
         getPullRequestDiff: getGetPullRequestDiff({
             getPullRequestDiff: noop,
         }),
-        readContent: getReadContent({ readContent: noop }),
+        readContent: getReadContent({
+            siteUrl: 'https://app.lightdash.cloud',
+            readContent: noop,
+        }),
         runContentQuery: getRunContentQuery({
             enableDataAccess: true,
             getSavedChart: noop,
@@ -203,7 +208,6 @@ const makeAgentTools = (enableFilterExpressions = false) => {
             updateProgress: noopAsync,
         }),
         runSql: getRunSql({
-            hyphenatedIdentifiers: true,
             createOrUpdateArtifact: noop,
             enableDataAccess: true,
             slackLinksOnly: false,
@@ -246,6 +250,7 @@ const makeAgentTools = (enableFilterExpressions = false) => {
         }),
         visualize: getVisualize({
             getPrompt: noop,
+            getExplore: noop,
             listThreadComposerQueryNodes: noop,
             getThreadComposerNodeColumns: noop,
             runComposerQueries: noop,

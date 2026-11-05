@@ -189,7 +189,7 @@ const BuilderCanvas: FC<Props> = ({
                 <Stack gap="xl" align="center" className={classes.enter}>
                     <SkeletonBars projectUuid={projectUuid} />
                     <Stack gap={4} align="center">
-                        <Text size="md" fw={600} c="ldGray.8">
+                        <Text size="md" fw={600}>
                             Building your chart type…
                         </Text>
                         {clarifierUnavailable && (
@@ -202,7 +202,7 @@ const BuilderCanvas: FC<Props> = ({
                 </Stack>
             ) : isLoadingExisting ? null : failureMessage !== null ? (
                 <Stack gap="xs" align="center">
-                    <Text size="md" fw={600} c="ldGray.8">
+                    <Text size="md" fw={600}>
                         The build failed
                     </Text>
                     <Text fz="xs" c="dimmed" maw={400} ta="center" lh={1.5}>
@@ -220,7 +220,7 @@ const BuilderCanvas: FC<Props> = ({
                     inert={isClarifyRoundOpen}
                 >
                     <Stack gap="xs" align="center">
-                        <Title order={1} size="md" fw={600} c="ldGray.8">
+                        <Title order={1} size="md" fw={600}>
                             Create with Chart Studio
                         </Title>
                         <Text fz="xs" c="dimmed" maw={400} ta="center" lh={1.5}>

@@ -13,6 +13,7 @@ import {
     type CreateDucklakeDataPath,
     type CreateWarehouseCredentials,
 } from '@lightdash/common';
+import type { DbtTargetFile } from '../../services/WarehouseClientFactory/CredentialResolver';
 
 export interface TargetCase {
     name: string;
@@ -42,6 +43,12 @@ export const bigqueryAdc: CreateBigqueryCredentials = {
     executionProject: 'execution-project',
     threads: 9,
 };
+export const bigqueryWif: CreateBigqueryCredentials = {
+    ...bigqueryAdc,
+    authenticationType: BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION,
+    workloadIdentityProvider:
+        'projects/123456/locations/global/workloadIdentityPools/pool-id/providers/provider-id',
+};
 export const bigqueryAdcTarget = {
     type: 'bigquery',
     project: 'billing-project',
@@ -54,6 +61,26 @@ export const bigqueryAdcTarget = {
     execution_project: 'execution-project',
     method: 'oauth',
 };
+export const bigqueryOauthTarget = bigqueryAdcTarget;
+export const bigqueryWifFile = (
+    encodedAudience = 'https%3A%2F%2Fiam.googleapis.com%2Fprojects%2F123456%2Flocations%2Fglobal%2FworkloadIdentityPools%2Fpool-id%2Fproviders%2Fprovider-id',
+) =>
+    ({
+        name: 'bigquery-workload-identity.json',
+        environmentVariable: 'GOOGLE_APPLICATION_CREDENTIALS',
+        content: JSON.stringify({
+            type: 'external_account',
+            audience:
+                '//iam.googleapis.com/projects/123456/locations/global/workloadIdentityPools/pool-id/providers/provider-id',
+            subject_token_type: 'urn:ietf:params:oauth:token-type:jwt',
+            token_url: 'https://sts.googleapis.com/v1/token',
+            credential_source: {
+                url: `http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/identity?audience=${encodedAudience}&format=full`,
+                headers: { 'Metadata-Flavor': 'Google' },
+                format: { type: 'text' },
+            },
+        }),
+    }) satisfies DbtTargetFile;
 const bigqueryKeyfile = {
     type: 'service_account',
     project_id: 'key-project',

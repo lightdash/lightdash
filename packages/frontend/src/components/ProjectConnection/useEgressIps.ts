@@ -1,5 +1,4 @@
-import { FeatureFlags, parseEgressIps } from '@lightdash/common';
-import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
+import { parseEgressIps } from '@lightdash/common';
 import useApp from '../../providers/App/useApp';
 
 export const describeEgressIps = (count: number) =>
@@ -9,7 +8,5 @@ export const describeEgressIps = (count: number) =>
 
 export const useEgressIps = (): string[] => {
     const { health } = useApp();
-    const flag = useServerFeatureFlag(FeatureFlags.EgressIpNotice);
-    if (flag.data?.enabled === false) return [];
     return parseEgressIps(health.data?.staticIp);
 };

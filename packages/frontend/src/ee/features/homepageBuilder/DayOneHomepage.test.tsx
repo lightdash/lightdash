@@ -14,6 +14,9 @@ const { aiState, keySpaces, recentContents } = vi.hoisted(() => ({
     recentContents: { current: { contents: [{ uuid: 'recent-1' }] } },
 }));
 
+vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: () => ({ data: { enabled: false } }),
+}));
 vi.mock('./hooks/useKeySpaces', () => ({
     useKeySpaces: () => ({ spaces: keySpaces.current, isLoading: false }),
 }));

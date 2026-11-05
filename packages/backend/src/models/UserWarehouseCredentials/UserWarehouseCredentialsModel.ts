@@ -722,6 +722,7 @@ export class UserWarehouseCredentialsModel {
             if (!result.success) {
                 return new SnowflakeTokenError(
                     `Please reauthenticate to access snowflake`,
+                    { requiresUserReauthentication: true },
                 );
             }
         }

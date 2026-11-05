@@ -127,6 +127,10 @@
     margin-top: 10px;
 }
 
+.tableScrollableWrapper.dashboard ~ .tableFooter {
+    padding: 0 var(--mantine-spacing-xs);
+}
+
 .td,
 .footerCell {
     padding: 8.5px !important;

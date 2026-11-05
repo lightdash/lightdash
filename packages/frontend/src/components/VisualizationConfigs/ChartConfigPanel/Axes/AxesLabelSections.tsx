@@ -28,13 +28,21 @@ import {
     type Icon,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
+import {
+    selectCartesianDirtyChartType,
+    selectCartesianEchartsConfig,
+    selectCartesianLayout,
+    selectCartesianSeries,
+    useVisualizationSelector,
+    type VisualizationStoreState,
+} from '../../../../features/visualization/store';
+import { useCartesianEditorActions } from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { getAxisTypeFromField } from '../../../../hooks/echarts/useEchartsCartesianConfig';
 import MantineIcon from '../../../common/MantineIcon';
 import { NumberInput } from '../../../common/NumberInput';
-import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
-import { useVisualizationState } from '../../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../../common/Config';
 import { LabelEditor } from '../../common/LabelEditor';
+import classes from './AxesLabelSections.module.css';
 import { AxisMinInterval } from './AxisMinInterval';
 import { AxisMinMax } from './AxisMinMax';
 
@@ -45,7 +53,7 @@ const XAxisSortSelectItem: FC<{
 }> = ({ icon, label, mirrorIcon = false }) => (
     <Group gap="xs" wrap="nowrap">
         <MantineIcon
-            style={mirrorIcon ? { transform: 'rotateY(180deg)' } : undefined}
+            className={mirrorIcon ? classes.mirroredIcon : undefined}
             icon={icon}
         />
         <Text fz="xs">{label}</Text>
@@ -58,16 +66,23 @@ type Props = {
     itemsMap: ItemsMap | undefined;
 };
 
-export const AxesLabelSections: FC<Props> = ({ itemsMap }) => {
-    const { visualizationConfig } = useVisualizationState();
+const selectXAxes = (state: VisualizationStoreState) =>
+    selectCartesianEchartsConfig(state)?.xAxis;
+const selectYAxes = (state: VisualizationStoreState) =>
+    selectCartesianEchartsConfig(state)?.yAxis;
 
-    if (!isCartesianVisualizationConfig(visualizationConfig)) return null;
+export const AxesLabelSections: FC<Props> = ({ itemsMap }) => {
+    const dirtyLayout = useVisualizationSelector(selectCartesianLayout);
+    const series = useVisualizationSelector(selectCartesianSeries);
+    const xAxes = useVisualizationSelector(selectXAxes);
+    const yAxes = useVisualizationSelector(selectYAxes);
+    const dirtyChartType = useVisualizationSelector(
+        selectCartesianDirtyChartType,
+    );
 
     const granularityFields = Object.keys(getGranularityMapFromItems(itemsMap));
 
     const {
-        dirtyLayout,
-        dirtyEchartsConfig,
         setXAxisName,
         setYAxisName,
         setYMinValue,
@@ -84,8 +99,7 @@ export const AxesLabelSections: FC<Props> = ({ itemsMap }) => {
         setXAxisTreatAsCategory,
         setDataZoomAnchor,
         setDataZoomItemCount,
-        dirtyChartType,
-    } = visualizationConfig.chartConfig;
+    } = useCartesianEditorActions();
 
     const xAxisField =
         itemsMap && dirtyLayout?.xField
@@ -93,22 +107,20 @@ export const AxesLabelSections: FC<Props> = ({ itemsMap }) => {
             : undefined;
 
     const selectedAxisInSeries = Array.from(
-        new Set(
-            dirtyEchartsConfig?.series?.map(({ yAxisIndex }) => yAxisIndex),
-        ),
+        new Set(series?.map(({ yAxisIndex }) => yAxisIndex)),
     );
     const isAxisTheSameForAllSeries: boolean =
         selectedAxisInSeries.length === 1;
     const selectedAxisIndex = selectedAxisInSeries[0] || 0;
 
-    const [showFirstAxisRange, showSecondAxisRange] = (
-        dirtyEchartsConfig?.series || []
-    ).reduce<[boolean, boolean]>(
-        (acc, series) => {
+    const [showFirstAxisRange, showSecondAxisRange] = (series || []).reduce<
+        [boolean, boolean]
+    >(
+        (acc, serie) => {
             if (!itemsMap) return acc;
-            const seriesField = itemsMap[series.encode.yRef.field];
+            const seriesField = itemsMap[serie.encode.yRef.field];
             if (isNumericItem(seriesField)) {
-                acc[series.yAxisIndex || 0] = true;
+                acc[serie.yAxisIndex || 0] = true;
             }
             return acc;
         },
@@ -120,8 +132,7 @@ export const AxesLabelSections: FC<Props> = ({ itemsMap }) => {
     const canTreatXAxisAsCategory =
         isNumericItem(xAxisField) && !dirtyLayout?.flipAxes;
     const treatXAxisAsCategory =
-        canTreatXAxisAsCategory &&
-        !!dirtyEchartsConfig?.xAxis?.[0]?.treatAsCategory;
+        canTreatXAxisAsCategory && !!xAxes?.[0]?.treatAsCategory;
     const isXAxisCategory =
         getAxisTypeFromField(xAxisField) === 'category' || treatXAxisAsCategory;
 
@@ -168,7 +179,7 @@ export const AxesLabelSections: FC<Props> = ({ itemsMap }) => {
                         dirtyLayout?.flipAxes ? 'Y' : 'X'
                     }-axis label`}</Config.Heading>
                     <LabelEditor
-                        value={dirtyEchartsConfig?.xAxis?.[0]?.name ?? ''}
+                        value={xAxes?.[0]?.name ?? ''}
                         placeholder={
                             (xAxisField &&
                                 (getDateGroupLabelWithGranularity(xAxisField) ||
@@ -197,8 +208,8 @@ export const AxesLabelSections: FC<Props> = ({ itemsMap }) => {
                     {isNumericItem(xAxisField) && !treatXAxisAsCategory && (
                         <AxisMinMax
                             label={`Auto ${dirtyLayout?.flipAxes ? 'y' : 'x'}-axis range`}
-                            min={dirtyEchartsConfig?.xAxis?.[0]?.min}
-                            max={dirtyEchartsConfig?.xAxis?.[0]?.max}
+                            min={xAxes?.[0]?.min}
+                            max={xAxes?.[0]?.max}
                             setMin={(newValue) => setXMinValue(0, newValue)}
                             setMax={(newValue) => setXMaxValue(0, newValue)}
                         />
@@ -207,7 +218,7 @@ export const AxesLabelSections: FC<Props> = ({ itemsMap }) => {
                     {isNumericItem(xAxisField) && !treatXAxisAsCategory && (
                         <AxisMinInterval
                             label="Min tick interval"
-                            value={dirtyEchartsConfig?.xAxis?.[0]?.minInterval}
+                            value={xAxes?.[0]?.minInterval}
                             onChange={(newValue) =>
                                 setXMinInterval(0, newValue)
                             }
@@ -220,10 +231,8 @@ export const AxesLabelSections: FC<Props> = ({ itemsMap }) => {
                                 size="xs"
                                 label="Truncate x-axis"
                                 checked={
-                                    dirtyEchartsConfig?.xAxis?.[0]
-                                        ?.minOffset !== undefined ||
-                                    dirtyEchartsConfig?.xAxis?.[0]
-                                        ?.maxOffset !== undefined
+                                    xAxes?.[0]?.minOffset !== undefined ||
+                                    xAxes?.[0]?.maxOffset !== undefined
                                 }
                                 onChange={(e) => {
                                     if (e.target.checked) {
@@ -249,9 +258,7 @@ export const AxesLabelSections: FC<Props> = ({ itemsMap }) => {
                             <Select
                                 size="xs"
                                 allowDeselect={false}
-                                value={getXAxisSort(
-                                    dirtyEchartsConfig?.xAxis?.[0],
-                                )}
+                                value={getXAxisSort(xAxes?.[0])}
                                 onChange={(value) =>
                                     value && setXAxisSort(value as XAxisSort)
                                 }
@@ -273,10 +280,7 @@ export const AxesLabelSections: FC<Props> = ({ itemsMap }) => {
                                 <Config.Label>Rotation</Config.Label>
                                 <NumberInput
                                     size="xs"
-                                    defaultValue={
-                                        dirtyEchartsConfig?.xAxis?.[0].rotate ||
-                                        0
-                                    }
+                                    defaultValue={xAxes?.[0].rotate || 0}
                                     min={0}
                                     max={90}
                                     step={15}
@@ -295,15 +299,12 @@ export const AxesLabelSections: FC<Props> = ({ itemsMap }) => {
                             <Checkbox
                                 size="xs"
                                 label="Enable scrollable chart"
-                                checked={
-                                    dirtyEchartsConfig?.xAxis?.[0]
-                                        ?.enableDataZoom || false
-                                }
+                                checked={xAxes?.[0]?.enableDataZoom || false}
                                 onChange={(e) =>
                                     setScrollableChart(e.currentTarget.checked)
                                 }
                             />
-                            {dirtyEchartsConfig?.xAxis?.[0]?.enableDataZoom && (
+                            {xAxes?.[0]?.enableDataZoom && (
                                 <>
                                     <Group gap="xs">
                                         <Config.Label>
@@ -319,8 +320,8 @@ export const AxesLabelSections: FC<Props> = ({ itemsMap }) => {
                                                 { label: 'End', value: 'end' },
                                             ]}
                                             value={
-                                                dirtyEchartsConfig?.xAxis?.[0]
-                                                    ?.dataZoomAnchor ?? 'start'
+                                                xAxes?.[0]?.dataZoomAnchor ??
+                                                'start'
                                             }
                                             onChange={(value) =>
                                                 setDataZoomAnchor(
@@ -341,8 +342,8 @@ export const AxesLabelSections: FC<Props> = ({ itemsMap }) => {
                                             min={2}
                                             max={100}
                                             value={
-                                                dirtyEchartsConfig?.xAxis?.[0]
-                                                    ?.dataZoomItemCount ?? 10
+                                                xAxes?.[0]?.dataZoomItemCount ??
+                                                10
                                             }
                                             onNumberChange={(value) => {
                                                 if (value !== undefined)
@@ -364,14 +365,14 @@ export const AxesLabelSections: FC<Props> = ({ itemsMap }) => {
                     })`}</Config.Heading>
 
                     <LabelEditor
-                        value={dirtyEchartsConfig?.yAxis?.[0]?.name ?? ''}
+                        value={yAxes?.[0]?.name ?? ''}
                         placeholder={
                             getAxisName({
                                 isAxisTheSameForAllSeries,
                                 selectedAxisIndex,
                                 axisReference: 'yRef',
                                 axisIndex: 0,
-                                series: dirtyEchartsConfig?.series,
+                                series,
                                 itemsMap,
                             }) || 'Enter axis label'
                         }
@@ -381,8 +382,8 @@ export const AxesLabelSections: FC<Props> = ({ itemsMap }) => {
                     {showFirstAxisRange && (
                         <AxisMinMax
                             label={`Auto ${dirtyLayout?.flipAxes ? 'x' : 'y'}-axis range`}
-                            min={dirtyEchartsConfig?.yAxis?.[0]?.min}
-                            max={dirtyEchartsConfig?.yAxis?.[0]?.max}
+                            min={yAxes?.[0]?.min}
+                            max={yAxes?.[0]?.max}
                             setMin={(newValue) => setYMinValue(0, newValue)}
                             setMax={(newValue) => setYMaxValue(0, newValue)}
                         />
@@ -390,7 +391,7 @@ export const AxesLabelSections: FC<Props> = ({ itemsMap }) => {
                     {showFirstAxisRange && (
                         <AxisMinInterval
                             label="Min tick interval"
-                            value={dirtyEchartsConfig?.yAxis?.[0]?.minInterval}
+                            value={yAxes?.[0]?.minInterval}
                             onChange={(newValue) =>
                                 setYMinInterval(0, newValue)
                             }
@@ -406,14 +407,14 @@ export const AxesLabelSections: FC<Props> = ({ itemsMap }) => {
                     })`}</Config.Heading>
 
                     <LabelEditor
-                        value={dirtyEchartsConfig?.yAxis?.[1]?.name ?? ''}
+                        value={yAxes?.[1]?.name ?? ''}
                         placeholder={
                             getAxisName({
                                 isAxisTheSameForAllSeries,
                                 selectedAxisIndex,
                                 axisReference: 'yRef',
                                 axisIndex: 1,
-                                series: dirtyEchartsConfig?.series,
+                                series,
                                 itemsMap,
                             }) || 'Enter axis label'
                         }
@@ -424,8 +425,8 @@ export const AxesLabelSections: FC<Props> = ({ itemsMap }) => {
                     {showSecondAxisRange && (
                         <AxisMinMax
                             label={`Auto ${dirtyLayout?.flipAxes ? 'x' : 'y'}-axis range`}
-                            min={dirtyEchartsConfig?.yAxis?.[1]?.min}
-                            max={dirtyEchartsConfig?.yAxis?.[1]?.max}
+                            min={yAxes?.[1]?.min}
+                            max={yAxes?.[1]?.max}
                             setMin={(newValue) => setYMinValue(1, newValue)}
                             setMax={(newValue) => setYMaxValue(1, newValue)}
                         />
@@ -433,7 +434,7 @@ export const AxesLabelSections: FC<Props> = ({ itemsMap }) => {
                     {showSecondAxisRange && (
                         <AxisMinInterval
                             label="Min tick interval"
-                            value={dirtyEchartsConfig?.yAxis?.[1]?.minInterval}
+                            value={yAxes?.[1]?.minInterval}
                             onChange={(newValue) =>
                                 setYMinInterval(1, newValue)
                             }

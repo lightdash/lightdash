@@ -41,7 +41,8 @@ vi.mock('../LightdashVisualization/useVisualizationContext', () => {
         useVisualizationContext,
         useVisualizationServices: useVisualizationContext,
         useVisualizationLayout: useVisualizationContext,
-        useVisualizationState: useVisualizationContext,
+        useVisualizationInputs: useVisualizationContext,
+        useVisualizationConfig: () => mocks.context.current.visualizationConfig,
     };
 });
 

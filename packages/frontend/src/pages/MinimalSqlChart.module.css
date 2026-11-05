@@ -1,0 +1,7 @@
+.tableContainer {
+    overflow: auto;
+}
+
+.chart {
+    min-height: inherit;
+}

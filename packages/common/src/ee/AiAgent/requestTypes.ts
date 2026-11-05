@@ -37,7 +37,7 @@ export type AiChartRuntimeOverrides = {
 
 export type AiDashboardFilterRule = Omit<
     DashboardFilterRule,
-    'id' | 'tileTargets' | 'lockedTabUuids' | 'requiredGroupId'
+    'id' | 'tileTargets' | 'lockedTabUuids' | 'requiredGroupId' | 'sectionId'
 >;
 
 export type AiDashboardFilters = {
@@ -354,6 +354,14 @@ export type AiPromptContextItemInput =
           loc: string;
       }
     | {
+          // A composer pipeline node the user pointed at in a chart artifact
+          // version; node ids are thread-scoped. The server snapshots its title.
+          type: 'composer_node';
+          artifactUuid: string;
+          versionUuid: string;
+          nodeId: string;
+      }
+    | {
           // A thread restore: the new version and the ready one it copies.
           // System-only, never user-attached.
           type: 'data_app_restore';
@@ -512,6 +520,13 @@ export type AiPromptContextItem =
           loc: string;
           appSlug: string | null;
           displayName: string | null;
+      }
+    | {
+          type: 'composer_node';
+          artifactUuid: string;
+          versionUuid: string;
+          nodeId: string;
+          title: string;
       }
     | {
           type: 'data_app_restore';

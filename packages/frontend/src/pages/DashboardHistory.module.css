@@ -1,0 +1,8 @@
+.sidebar {
+    overflow-y: hidden;
+}
+
+.versionList {
+    flex-grow: 1;
+    overflow-y: auto;
+}

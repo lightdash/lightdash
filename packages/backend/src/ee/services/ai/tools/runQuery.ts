@@ -13,6 +13,7 @@ import {
     getValidAiQueryLimit,
     isCustomChartTypeSlugChartConfig,
     isSlackPrompt,
+    SnowflakeTokenError,
     toolRunQueryArgsSchemaTransformed,
     toolRunQueryExpressionArgsSchemaV2RejectingMerge,
     type AiArtifact,
@@ -801,12 +802,6 @@ export const getRunQuery = ({
                     };
                 }
 
-                const appliedParameters = getAppliedParameters(
-                    explore,
-                    projectParameterDefinitions,
-                    queryTool.queryConfig.parameters,
-                );
-
                 const requestedLimit = queryTool.queryConfig.limit;
                 const effectiveLimit = getValidAiQueryLimit(
                     requestedLimit,
@@ -829,6 +824,12 @@ export const getRunQuery = ({
                         queryTool.queryConfig.tableCalculations,
                     ),
                 };
+                const appliedParameters = getAppliedParameters(
+                    explore,
+                    projectParameterDefinitions,
+                    metricQuery,
+                    queryTool.queryConfig.parameters,
+                );
 
                 // Semantic checks advise the model; they must not reject a
                 // valid intermediate query. Overlap them with warehouse work.
@@ -900,6 +901,7 @@ export const getRunQuery = ({
                             summarizeAppliedParameters(
                                 explore,
                                 projectParameterDefinitions,
+                                metricQuery,
                                 queryTool.queryConfig.parameters,
                             ),
                         metadata: { status: 'success' },
@@ -1023,6 +1025,7 @@ export const getRunQuery = ({
                     summarizeAppliedParameters(
                         explore,
                         projectParameterDefinitions,
+                        metricQuery,
                         queryTool.queryConfig.parameters,
                     ) +
                     getExecutionStatsNote(queryResults.executionStats);
@@ -1173,7 +1176,10 @@ export const getRunQuery = ({
                     },
                 };
             } catch (e) {
-                if (e instanceof AiAccessRefusedError) {
+                if (
+                    e instanceof AiAccessRefusedError ||
+                    e instanceof SnowflakeTokenError
+                ) {
                     return toolErrorOutput(e, `Error running query.`);
                 }
                 const fieldAdvice =

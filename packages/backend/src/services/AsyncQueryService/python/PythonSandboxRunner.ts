@@ -11,6 +11,7 @@ import {
     SandboxCommandError,
     SandboxOutputLimitError,
     SandboxTimeoutError,
+    type AzureSandboxesConfig,
     type CloudRunSandboxesConfig,
     type SandboxHandle,
     type SandboxLogger,
@@ -119,7 +120,10 @@ export class PythonSandboxRunner {
                 e2bApiKey: appRuntime.e2bApiKey,
                 dockerImage: appRuntime.sandboxPythonDockerImage,
                 lambdaMicroVm: null,
-                azureSandboxes: null,
+                azureSandboxes:
+                    provider === 'azure-sandboxes'
+                        ? this.getAzureSandboxesConfig()
+                        : null,
                 gcpCloudRun:
                     provider === 'gcp-cloud-run'
                         ? this.getCloudRunConfig()
@@ -127,7 +131,7 @@ export class PythonSandboxRunner {
                 // One-shot sandboxes are never suspended; Docker and Cloud Run
                 // still require a store at construction.
                 snapshotStore:
-                    provider === 'e2b'
+                    provider === 'e2b' || provider === 'azure-sandboxes'
                         ? null
                         : new S3SnapshotStore({
                               lightdashConfig: this.lightdashConfig,
@@ -140,14 +144,14 @@ export class PythonSandboxRunner {
 
     private static getSupportedProvider(
         provider: LightdashConfig['appRuntime']['sandboxProvider'],
-    ): 'e2b' | 'docker' | 'gcp-cloud-run' {
+    ): 'e2b' | 'docker' | 'gcp-cloud-run' | 'azure-sandboxes' {
         switch (provider) {
             case 'e2b':
             case 'docker':
             case 'gcp-cloud-run':
+            case 'azure-sandboxes':
                 return provider;
             case 'lambda-microvm':
-            case 'azure-sandboxes':
                 throw new MissingConfigError(
                     `Python queries are not supported on the ${provider} sandbox provider yet`,
                 );
@@ -170,16 +174,58 @@ export class PythonSandboxRunner {
         return { sandboxUrl, sandboxSecret };
     }
 
+    private getAzureSandboxesConfig(): AzureSandboxesConfig {
+        const {
+            azureSandboxes,
+            azureSandboxesPythonGroup,
+            sandboxIdleTimeoutMs,
+        } = this.lightdashConfig.appRuntime;
+        if (
+            !azureSandboxes.subscriptionId ||
+            !azureSandboxes.resourceGroup ||
+            !azureSandboxesPythonGroup
+        ) {
+            throw new MissingConfigError(
+                'Azure Sandboxes is not configured (AZURE_SANDBOXES_SUBSCRIPTION_ID / AZURE_SANDBOXES_RESOURCE_GROUP / AZURE_SANDBOXES_PYTHON_GROUP)',
+            );
+        }
+        return {
+            subscriptionId: azureSandboxes.subscriptionId,
+            resourceGroup: azureSandboxes.resourceGroup,
+            region: azureSandboxes.region,
+            sandboxGroup: azureSandboxesPythonGroup,
+            apiVersion: azureSandboxes.apiVersion,
+            tokenScope: azureSandboxes.tokenScope,
+            resourceTier: azureSandboxes.resourceTier,
+            autoSuspendIdleSeconds: Math.floor(sandboxIdleTimeoutMs / 1000),
+        };
+    }
+
     private getTemplateRef(): string {
         const { appRuntime } = this.lightdashConfig;
-        switch (appRuntime.sandboxProvider) {
+        const provider = PythonSandboxRunner.getSupportedProvider(
+            appRuntime.sandboxProvider,
+        );
+        switch (provider) {
             case 'e2b':
                 return `${appRuntime.e2bPythonTemplateName}:${appRuntime.e2bPythonTemplateTag}`;
+            case 'docker':
+                return appRuntime.sandboxPythonDockerImage;
             // The gateway bakes in its image; the ref only feeds `version`.
             case 'gcp-cloud-run':
                 return CLOUD_RUN_PYTHON_TEMPLATE_REF;
+            case 'azure-sandboxes':
+                if (!appRuntime.azureSandboxesPythonDiskImage) {
+                    throw new MissingConfigError(
+                        'Azure python sandbox disk image is not configured (AZURE_SANDBOXES_PYTHON_DISK_IMAGE)',
+                    );
+                }
+                return appRuntime.azureSandboxesPythonDiskImage;
             default:
-                return appRuntime.sandboxPythonDockerImage;
+                return assertUnreachable(
+                    provider,
+                    `Unknown sandbox provider ${provider}`,
+                );
         }
     }
 
@@ -203,7 +249,11 @@ export class PythonSandboxRunner {
     async run(args: PythonSandboxRunArgs): Promise<PythonSandboxRunResult> {
         const { queryUuid, code, inputs, inputMeta, timeoutMs } = args;
         const provider = this.getProvider();
-        const spec = this.buildSpec(timeoutMs);
+        const batch = this.lightdashConfig.appRuntime.sandboxProvider === 'e2b';
+        const spec = {
+            ...this.buildSpec(timeoutMs),
+            ...(batch ? { onTimeout: 'kill' as const } : {}),
+        };
         const attributes = {
             'lightdash.queryUuid': queryUuid,
             'lightdash.sandboxProvider':
@@ -222,12 +272,8 @@ export class PythonSandboxRunner {
             'lightdash.sandboxId': handle.sandboxId,
         };
 
-        try {
-            await this.traceStage('compile', sandboxAttributes, () =>
-                PythonSandboxRunner.compile(handle, code),
-            );
-
-            await this.traceStage(
+        const writeInputs = () =>
+            this.traceStage(
                 'write_inputs',
                 {
                     ...sandboxAttributes,
@@ -238,8 +284,25 @@ export class PythonSandboxRunner {
                     ),
                 },
                 () =>
-                    PythonSandboxRunner.writeInputs(handle, inputs, inputMeta),
+                    batch
+                        ? PythonSandboxRunner.writeBatch(
+                              handle,
+                              code,
+                              inputs,
+                              inputMeta,
+                          )
+                        : PythonSandboxRunner.writeInputs(
+                              handle,
+                              inputs,
+                              inputMeta,
+                          ),
             );
+        try {
+            if (batch) await writeInputs();
+            await this.traceStage('compile', sandboxAttributes, () =>
+                PythonSandboxRunner.compile(handle, code, batch),
+            );
+            if (!batch) await writeInputs();
 
             const stdout = await this.traceStage(
                 'run',
@@ -267,27 +330,73 @@ export class PythonSandboxRunner {
             }
             throw error;
         } finally {
-            await this.traceStage('destroy', sandboxAttributes, async () => {
-                try {
-                    await provider.destroy(handle.sandboxId);
-                } catch (e) {
+            const destruction = this.traceStage(
+                'destroy',
+                sandboxAttributes,
+                async () => {
+                    try {
+                        await provider.destroy(handle.sandboxId);
+                    } catch (e) {
+                        this.logger.warn(
+                            `Python query ${queryUuid}: failed to destroy sandbox ${
+                                handle.sandboxId
+                            }: ${getErrorMessage(e)}`,
+                        );
+                    }
+                },
+            );
+            if (batch) {
+                void destruction.catch((error: unknown) =>
                     this.logger.warn(
-                        `Python query ${queryUuid}: failed to destroy sandbox ${
-                            handle.sandboxId
-                        }: ${getErrorMessage(e)}`,
-                    );
-                }
-            });
+                        `Python query ${queryUuid}: sandbox cleanup failed: ${getErrorMessage(error)}`,
+                    ),
+                );
+            } else {
+                await destruction;
+            }
         }
     }
 
-    /** Syntax errors surface here, before any data enters the sandbox. */
+    private static async writeBatch(
+        handle: SandboxHandle,
+        code: string,
+        inputs: PythonSandboxInput[],
+        inputMeta: PythonInputMeta,
+    ): Promise<void> {
+        const files = [
+            { path: PYTHON_MAIN_PATH, contents: code },
+            { path: PYTHON_RUNNER_PATH, contents: PYTHON_RUNNER_SOURCE },
+            ...inputs.map((input) => ({
+                path: `${PYTHON_INPUT_DIR}/${input.name}.jsonl`,
+                contents: input.jsonl,
+            })),
+            {
+                path: PYTHON_INPUT_META_PATH,
+                contents: JSON.stringify(inputMeta),
+            },
+            { path: `${PYTHON_OUTPUT_DIR}/.keep`, contents: '' },
+        ];
+        if (handle.files.writeMany) {
+            await handle.files.writeMany(files);
+        } else {
+            await Promise.all(
+                files.map(({ path, contents }) =>
+                    handle.files.write(path, contents),
+                ),
+            );
+        }
+    }
+
+    /** Syntax errors surface here; unbatched runs check before data enters the sandbox. */
     private static async compile(
         handle: SandboxHandle,
         code: string,
+        alreadyWritten: boolean,
     ): Promise<void> {
-        await handle.files.write(PYTHON_MAIN_PATH, code);
-        await handle.files.write(PYTHON_RUNNER_PATH, PYTHON_RUNNER_SOURCE);
+        if (!alreadyWritten) {
+            await handle.files.write(PYTHON_MAIN_PATH, code);
+            await handle.files.write(PYTHON_RUNNER_PATH, PYTHON_RUNNER_SOURCE);
+        }
         try {
             await handle.commands.run(
                 `python3 -I -m py_compile ${PYTHON_MAIN_PATH}`,

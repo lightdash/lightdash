@@ -1,5 +1,4 @@
 import { Input, Paper, Text } from '@mantine/core';
-import { useDebouncedValue } from '@mantine/hooks';
 import { type IDisposable, type languages } from 'monaco-editor';
 import {
     useCallback,
@@ -22,6 +21,7 @@ import {
     type OnMount,
 } from '../../MonacoEditor';
 import styles from './LabelEditor.module.css';
+import { useDebouncedDraft } from './useDebouncedDraft';
 
 const MONACO_DEFAULT_OPTIONS: EditorProps['options'] = {
     cursorBlinking: 'smooth',
@@ -125,23 +125,14 @@ export const LabelEditor: FC<LabelEditorProps> = ({
     );
 
     const { monaco: monacoTheme } = useEditorTheme();
-    const [localValue, setLocalValue] = useState(value);
-    const [debouncedValue] = useDebouncedValue(localValue, 500);
+    const [localValue, setLocalValue, flushLocalValue] = useDebouncedDraft(
+        value,
+        onChange,
+        { delay: 500 },
+    );
     const contentDisposableRef = useRef<IDisposable | null>(null);
     const completionDisposableRef = useRef<IDisposable | null>(null);
     const [editorHeight, setEditorHeight] = useState(calculateEditorHeight(1));
-
-    // Sync external value changes (e.g., reset)
-    useEffect(() => {
-        setLocalValue(value);
-    }, [value]);
-
-    // Push debounced value to parent
-    useEffect(() => {
-        if (debouncedValue !== value) {
-            onChange(debouncedValue);
-        }
-    }, [debouncedValue, onChange, value]);
 
     // Cleanup on unmount
     useEffect(() => {
@@ -220,12 +211,13 @@ export const LabelEditor: FC<LabelEditorProps> = ({
                 className={`${styles.editorWrapper} ${readOnly ? styles.editorWrapperReadOnly : ''}`}
                 radius="md"
                 pos="relative"
+                onBlur={flushLocalValue}
             >
                 {localValue.length === 0 && placeholder ? (
                     <Text
                         ml="sm"
                         pos="absolute"
-                        c="ldGray.5"
+                        c="dimmed"
                         fz="xs"
                         className={styles.placeholderText}
                     >

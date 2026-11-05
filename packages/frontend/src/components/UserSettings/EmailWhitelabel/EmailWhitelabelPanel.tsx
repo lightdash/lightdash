@@ -28,6 +28,7 @@ import EmptyStateLoader from '../../common/EmptyStateLoader';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
 import { SettingsPage } from '../../common/Settings/SettingsPage';
+import classes from './EmailWhitelabelPanel.module.css';
 
 const STATUS_BADGE: Record<
     OrganizationEmailWhitelabel['status'],
@@ -53,12 +54,7 @@ const toZoneRelativeName = (recordName: string, sendingDomain: string) => {
 
 const CopyValue: FC<{ value: string }> = ({ value }) => (
     <Group gap="xs" wrap="nowrap">
-        <Text
-            size="xs"
-            ff="monospace"
-            style={{ wordBreak: 'break-all' }}
-            flex={1}
-        >
+        <Text size="xs" ff="monospace" className={classes.recordValue} flex={1}>
             {value}
         </Text>
         <CopyActionIcon value={value} />

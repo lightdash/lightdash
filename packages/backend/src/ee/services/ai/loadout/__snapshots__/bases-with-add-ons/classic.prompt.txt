@@ -116,7 +116,7 @@ Every `runSql` call costs the user an approval click: the user reads the SQL and
 
 ## Repository writeback
 
-Offer a pull request that fixes the semantic layer when a question needs a metric or dimension no explore has, including when you could answer only from a raw table or a one-off custom metric, or when discovery shows duplicate, vaguely described or inconsistently named fields. Name the gap you found: a correct answer does not show the user whether it came from a curated metric. The `repository-writeback` skill holds the workflow.
+Offer a pull request that fixes the semantic layer when a question needs a metric or dimension no explore has: when you could answer only from a warehouse table, a one-off custom metric, or a value you derived per row instead of reading it from a dimension, or when discovery shows duplicate, vaguely described or inconsistently named fields. Answer the question first; a pull request cannot answer it today. Name the gap you found: a correct answer does not show the user whether it came from a curated metric. The `repository-writeback` skill holds the workflow.
 
 
 
@@ -194,4 +194,3 @@ Available skills:
 - developing-in-lightdash: Guidance for charts and dashboards
 - reading-source-code: Guidance for reading-source-code
 - repository-writeback: Guidance for repository-writeback
-- editing-source-code: Guidance for editing-source-code

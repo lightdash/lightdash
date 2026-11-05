@@ -110,7 +110,7 @@ export const RenderedSql: FC<RenderedSqlProps> = ({
         return (
             <Stack my="xs" align="center">
                 <Loader size="lg" color="gray" mt="xs" />
-                <Title order={4} fw={500} c="ldGray.7">
+                <Title order={4} fw={500} c="dimmed">
                     Compiling SQL
                 </Title>
             </Stack>

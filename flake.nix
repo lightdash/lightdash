@@ -108,7 +108,6 @@
 
               google-cloud-sdk
               kubectl
-              okteto
 
               natscli
 

@@ -20,6 +20,8 @@ export type UserAsCodeRole =
 export type UserAsCode = {
     version: 1;
     email: string;
+    firstName?: string;
+    lastName?: string;
     disabled: boolean;
     /** Primary organization role (system or custom). */
     role: UserAsCodeRole;

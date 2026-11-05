@@ -35,6 +35,7 @@ import { Knex } from 'knex';
 import { customAlphabet } from 'nanoid';
 import { setTimeout as abortableSleep } from 'node:timers/promises';
 import { DashboardsTableName } from '../../database/entities/dashboards';
+import { ProjectTableName } from '../../database/entities/projects';
 import {
     DbQueryHistory,
     DbQueryHistoryUpdate,
@@ -43,6 +44,11 @@ import {
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import { SavedSqlTableName } from '../../database/entities/savedSql';
 import KnexPaginate from '../../database/pagination';
+import {
+    pauseBetweenBatchesMs,
+    type RetentionCleanupOptions,
+    type RetentionCleanupResult,
+} from '../retentionCleanup';
 
 export type QueryHistoryWithLineage = QueryHistory & {
     duckdbExecutionReferences?: Record<string, string> | null;
@@ -109,6 +115,12 @@ function getQueryTriggerSafe(context: QueryExecutionContext): QueryTrigger {
         ] ?? QueryTrigger.INTERACTIVE
     );
 }
+
+export type CachedResultsContent = {
+    type: 'chart' | 'dashboard';
+    /** Every value the content may be recorded under (uuid and slug) */
+    identifiers: string[];
+};
 
 export class QueryHistoryModel {
     readonly database: Knex;
@@ -251,6 +263,11 @@ export class QueryHistoryModel {
                 error: null,
                 errored_at: null,
                 cache_key: queryHistory.cacheKey,
+                cache_generation: this.database.raw(
+                    `COALESCE((SELECT results_cache_generation FROM ${ProjectTableName} WHERE project_uuid = ?), 0)`,
+                    [queryHistory.projectUuid],
+                ) as unknown as number,
+                cache_invalidated_at: null,
                 pivot_configuration: queryHistory.pivotConfiguration,
                 pivot_values_columns: null,
                 pivot_total_column_count: null,
@@ -575,6 +592,12 @@ export class QueryHistoryModel {
         const result = await this.database(QueryHistoryTableName)
             .where('cache_key', cacheKey)
             .andWhere('project_uuid', projectUuid)
+            // Results from before the last project cache invalidation never match
+            .andWhereRaw(
+                `cache_generation = COALESCE((SELECT results_cache_generation FROM ${ProjectTableName} WHERE project_uuid = ?), 0)`,
+                [projectUuid],
+            )
+            .whereNull('cache_invalidated_at')
             .modify((query) => {
                 if (excludeAgentClaims) void query.whereNull('agent_identity');
                 if (excludeCacheHits) {
@@ -602,6 +625,7 @@ export class QueryHistoryModel {
             resultProducer: result.request_parameters?.resultProducer ?? null,
             totalRowCount: result.total_row_count,
             cacheKey: result.cache_key,
+            cacheGeneration: result.cache_generation,
             pivotValuesColumns: result.pivot_values_columns,
             pivotTotalColumnCount: result.pivot_total_column_count,
             resultsFileName: result.results_file_name,
@@ -611,6 +635,84 @@ export class QueryHistoryModel {
             columns: result.columns,
             originalColumns: result.original_columns,
         };
+    }
+
+    /**
+     * Stops results produced for a chart or dashboard from being served as
+     * cache hits, including any other query that shares their cache key.
+     */
+    async invalidateCachedResultsForContent(
+        projectUuid: string,
+        content: CachedResultsContent,
+        createdSince: Date,
+    ): Promise<number> {
+        const requestParameterKey =
+            content.type === 'chart' ? 'chartUuid' : 'dashboardUuid';
+        const contentCacheKeys = this.database(QueryHistoryTableName)
+            .distinct('cache_key')
+            .where('project_uuid', projectUuid)
+            .andWhere('created_at', '>', createdSince)
+            .whereRaw('request_parameters->>? = ANY(?)', [
+                requestParameterKey,
+                content.identifiers,
+            ]);
+        return this.invalidateCachedResultsByCacheKeys(
+            projectUuid,
+            contentCacheKeys,
+        );
+    }
+
+    /**
+     * Stops results produced for these explores from being served as cache
+     * hits, including any other query that shares their cache key.
+     */
+    async invalidateCachedResultsForExplores(
+        projectUuid: string,
+        exploreNames: string[],
+        createdSince: Date,
+    ): Promise<number> {
+        // The key is a literal so this matches the expression index
+        const exploreCacheKeys = this.database(QueryHistoryTableName)
+            .distinct('cache_key')
+            .where('project_uuid', projectUuid)
+            .andWhere('created_at', '>', createdSince)
+            .whereRaw(`metric_query->>'exploreName' = ANY(?)`, [exploreNames]);
+        return this.invalidateCachedResultsByCacheKeys(
+            projectUuid,
+            exploreCacheKeys,
+        );
+    }
+
+    private async invalidateCachedResultsByCacheKeys(
+        projectUuid: string,
+        cacheKeys: Knex.QueryBuilder,
+    ): Promise<number> {
+        return this.database(QueryHistoryTableName)
+            .where('project_uuid', projectUuid)
+            .whereNull('cache_invalidated_at')
+            .whereIn('cache_key', cacheKeys)
+            .update({ cache_invalidated_at: new Date() });
+    }
+
+    /**
+     * A cache hit found before a clear can insert its row after it, so the row
+     * takes the source's invalidation to avoid reviving the cleared results.
+     */
+    async inheritCacheInvalidation(
+        queryUuid: string,
+        sourceQueryUuid: string,
+        projectUuid: string,
+    ): Promise<void> {
+        await this.database(QueryHistoryTableName)
+            .where('query_uuid', queryUuid)
+            .andWhere('project_uuid', projectUuid)
+            .whereNull('cache_invalidated_at')
+            .update({
+                cache_invalidated_at: this.database(QueryHistoryTableName)
+                    .select('cache_invalidated_at')
+                    .where('query_uuid', sourceQueryUuid)
+                    .andWhere('project_uuid', projectUuid) as unknown as Date,
+            });
     }
 
     async getByQueryUuid(queryUuid: string): Promise<QueryHistory | undefined> {
@@ -898,24 +1000,37 @@ export class QueryHistoryModel {
 
     async cleanupBatch(
         cutoffDate: Date,
-        batchSize: number,
-        delayMs: number,
-        maxBatches?: number,
-        totalDeleted: number = 0,
-        batchCount: number = 0,
-    ): Promise<{ totalDeleted: number; batchCount: number }> {
-        // Get IDs to delete
+        options: RetentionCleanupOptions,
+    ): Promise<RetentionCleanupResult> {
+        return this.deleteExpiredBatches(cutoffDate, options, {
+            totalDeleted: 0,
+            batchCount: 0,
+        });
+    }
+
+    async countOlderThan(cutoffDate: Date): Promise<number> {
+        const [row] = await this.database(QueryHistoryTableName)
+            .where('created_at', '<', cutoffDate)
+            .count<{ count: string }[]>('query_uuid as count');
+        return Number(row?.count ?? 0);
+    }
+
+    private async deleteExpiredBatches(
+        cutoffDate: Date,
+        options: RetentionCleanupOptions,
+        progress: { totalDeleted: number; batchCount: number },
+    ): Promise<RetentionCleanupResult> {
+        const batchStartedAt = Date.now();
         const idsToDelete = await this.database(QueryHistoryTableName)
             .select('query_uuid')
             .where('created_at', '<', cutoffDate)
             .orderBy('created_at', 'asc')
-            .limit(batchSize);
+            .limit(options.batchSize);
 
         if (idsToDelete.length === 0) {
-            return { totalDeleted, batchCount };
+            return { ...progress, completed: true };
         }
 
-        // Delete by IDs
         const deletedCount = await this.database(QueryHistoryTableName)
             .whereIn(
                 'query_uuid',
@@ -923,38 +1038,22 @@ export class QueryHistoryModel {
             )
             .del();
 
-        if (deletedCount === 0) {
-            return { totalDeleted, batchCount };
+        const next = {
+            totalDeleted: progress.totalDeleted + deletedCount,
+            batchCount: progress.batchCount + 1,
+        };
+
+        if (deletedCount < options.batchSize) {
+            return { ...next, completed: true };
+        }
+        if (next.batchCount >= options.maxBatches) {
+            return { ...next, completed: false };
         }
 
-        const newTotalDeleted = totalDeleted + deletedCount;
-        const newBatchCount = batchCount + 1;
-
-        // Check if we've reached the maximum number of batches
-        if (maxBatches !== undefined && newBatchCount >= maxBatches) {
-            return { totalDeleted: newTotalDeleted, batchCount: newBatchCount };
-        }
-
-        // Add delay between batches to prevent database overload
-        if (deletedCount === batchSize) {
-            await new Promise<void>((resolve) => {
-                setTimeout(() => resolve(), delayMs);
-            });
-        }
-
-        // Continue with next batch if we deleted a full batch
-        if (deletedCount === batchSize) {
-            return this.cleanupBatch(
-                cutoffDate,
-                batchSize,
-                delayMs,
-                maxBatches,
-                newTotalDeleted,
-                newBatchCount,
-            );
-        }
-
-        return { totalDeleted: newTotalDeleted, batchCount: newBatchCount };
+        await sleep(
+            pauseBetweenBatchesMs(options, Date.now() - batchStartedAt),
+        );
+        return this.deleteExpiredBatches(cutoffDate, options, next);
     }
 
     /**

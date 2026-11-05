@@ -6,15 +6,50 @@ import {
     type Explore,
     type ParameterDefinitions,
 } from '@lightdash/common';
+import { getResultEntitlementFingerprint } from '../../utils/queryResultProducer';
 import {
     metricQueryMock,
     validExplore,
 } from '../ProjectService/ProjectService.mock';
 import {
     getQueryResultEntitlementFingerprint,
+    getQueryResultNodeKind,
     getQueryResultRequestParameters,
+    queryResultNodeRequiresRawSql,
     resolveResultEntitlementScope,
 } from './queryResultLineage';
+
+describe('live data source results', () => {
+    const parameters = {
+        connectionUuid: 'connection-uuid',
+        payload: { kind: 'query', query: 'select 1' },
+        limit: 500,
+        context: 'ai',
+        parameters: {},
+    } as unknown as ExecuteAsyncQueryRequestParams;
+    const controls = {
+        userAttributes: { region: ['eu'] },
+        intrinsicUserAttributes: { email: 'a@b.c' },
+    };
+
+    it('are api nodes that read without raw SQL', () => {
+        expect(getQueryResultNodeKind(parameters)).toBe('api');
+        expect(queryResultNodeRequiresRawSql(parameters)).toBe(false);
+    });
+
+    it('keep the fingerprint they had as explore-less semantic results', () => {
+        expect(
+            getQueryResultEntitlementFingerprint({
+                parameters,
+                controls,
+                explore: null,
+                metricQuery: metricQueryMock,
+            }),
+        ).toBe(
+            getResultEntitlementFingerprint(controls, null, metricQueryMock),
+        );
+    });
+});
 
 it('strips every server-owned result binding from client parameters', () => {
     const client = {

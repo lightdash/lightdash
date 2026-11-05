@@ -1,6 +1,7 @@
 import {
     DEFAULT_SPOTLIGHT_CONFIG,
     loadLightdashProjectConfig,
+    loadProjectContextFile,
 } from '@lightdash/common';
 import fs from 'fs/promises';
 import path from 'path';
@@ -51,4 +52,26 @@ export const readAndLoadLightdashProjectConfig = async (
         }
         throw e;
     }
+};
+
+// Returns the raw file so the server parses it with the same loader; parsing
+// here surfaces a readable error without a round trip.
+export const readProjectContextFile = async (
+    projectDir: string,
+): Promise<string | undefined> => {
+    const filePath = path.join(projectDir, 'lightdash.project_context.yml');
+    let fileContents: string;
+    try {
+        fileContents = await fs.readFile(filePath, 'utf8');
+    } catch (e) {
+        if (e instanceof Error && 'code' in e && e.code === 'ENOENT') {
+            GlobalState.debug(
+                `No lightdash.project_context.yml found in ${filePath}`,
+            );
+            return undefined;
+        }
+        throw e;
+    }
+    loadProjectContextFile(fileContents);
+    return fileContents;
 };

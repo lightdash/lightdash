@@ -33,7 +33,6 @@ const INTENT_SKILLS: Partial<Record<TurnIntent, readonly BuiltInSkillName[]>> =
         repository_change: [
             ...ADD_ONS.repoDiscovery.skills,
             ...ADD_ONS.writeback.skills,
-            ...ADD_ONS.codingAgent.skills,
         ],
     };
 

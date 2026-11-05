@@ -59,6 +59,12 @@ vi.mock('../../../../providers/App/useApp', () => ({
     }),
 }));
 vi.mock('../../../../hooks/useSnowflake', () => ({
+    useSnowflakeLoginPopup: () => ({
+        mutate: vi.fn(),
+        isLoading: false,
+        isSuccess: false,
+        error: null,
+    }),
     useSnowflakeAiLoginPopup: () => ({
         mutate: vi.fn(),
         isLoading: false,
@@ -70,9 +76,6 @@ vi.mock('../components/ChatElements/AgentChatDebugDrawer', () => ({
 }));
 vi.mock('../components/ChatElements/AiDocumentCards', () => ({
     default: () => null,
-}));
-vi.mock('../components/ChatElements/MessageModelIndicator', () => ({
-    MessageModelIndicator: () => null,
 }));
 vi.mock('../components/ChatElements/MessageTimingIndicator', () => ({
     MessageTimingIndicator: () => null,
@@ -227,5 +230,101 @@ describe('chat stream access refusals', () => {
         renderBubble();
         expect(screen.getByText('Something went wrong')).toBeVisible();
         expect(screen.getByRole('button', { name: 'Try again' })).toBeVisible();
+    });
+});
+
+describe('personal Snowflake recovery in chat', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mocks.enabled = false;
+        mocks.streamState.mockReturnValue(null);
+    });
+
+    it.each(['persisted', 'streaming', 'both'] as const)(
+        'offers one reconnect action for %s tool results with agent identity disabled',
+        (source) => {
+            const output = {
+                result: 'Snowflake sign-in expired',
+                metadata: {
+                    status: 'error',
+                    requiresSnowflakeReauthentication: true,
+                } as const,
+            };
+            if (source !== 'persisted') {
+                mocks.streamState.mockReturnValue({
+                    messageUuid: 'message',
+                    connection: { status: 'idle' },
+                    parts: [
+                        {
+                            type: 'toolCall',
+                            toolCallId: 'snowflake',
+                            toolName: 'runSql',
+                            toolResult: output,
+                        },
+                    ],
+                });
+            }
+            renderWithProviders(
+                <MemoryRouter>
+                    <AssistantBubble
+                        message={{
+                            ...message,
+                            status: 'idle',
+                            errorMessage: null,
+                            toolResults:
+                                source === 'streaming'
+                                    ? []
+                                    : [
+                                          {
+                                              ...output,
+                                              toolType: 'built-in',
+                                              toolName: 'runSql',
+                                              toolCallId: 'snowflake',
+                                              uuid: 'result',
+                                              promptUuid: 'message',
+                                              createdAt: new Date(),
+                                          },
+                                      ],
+                        }}
+                        hiddenSibling={null}
+                        isLastMessage
+                        projectUuid="project"
+                        agentUuid="agent"
+                    />
+                </MemoryRouter>,
+            );
+            expect(
+                screen.getAllByRole('button', {
+                    name: 'Re-authenticate with Snowflake',
+                }),
+            ).toHaveLength(1);
+            expect(
+                screen.queryByRole('button', { name: 'Connect agent' }),
+            ).not.toBeInTheDocument();
+        },
+    );
+
+    it('does not offer reconnect based on plain error text', () => {
+        mocks.streamState.mockReturnValue({
+            messageUuid: 'message',
+            connection: { status: 'idle' },
+            parts: [
+                {
+                    type: 'toolCall',
+                    toolCallId: 'snowflake',
+                    toolName: 'runSql',
+                    toolResult: {
+                        result: 'Your Snowflake sign-in has expired.',
+                        metadata: { status: 'error' },
+                    },
+                },
+            ],
+        });
+        renderBubble();
+        expect(
+            screen.queryByRole('button', {
+                name: 'Re-authenticate with Snowflake',
+            }),
+        ).not.toBeInTheDocument();
     });
 });

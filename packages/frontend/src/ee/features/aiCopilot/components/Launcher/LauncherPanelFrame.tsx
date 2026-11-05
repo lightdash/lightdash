@@ -17,7 +17,7 @@ import {
 } from './launcherPanelSize';
 import { useLauncherPanelSizeContext } from './LauncherPanelSizeContext';
 
-type Props = PropsWithChildren<{ style?: CSSProperties }>;
+type Props = PropsWithChildren<{ transitionStyle?: CSSProperties }>;
 
 // Arrow keys move the top-left corner, so left and up grow the panel.
 const KEY_DIRECTIONS: Record<string, readonly [number, number]> = {
@@ -51,7 +51,10 @@ const measure = (frame: HTMLElement) => {
     return { size, available };
 };
 
-export const LauncherPanelFrame: FC<Props> = ({ style, children }) => {
+export const LauncherPanelFrame: FC<Props> = ({
+    transitionStyle,
+    children,
+}) => {
     const { previewSize, commitSize, resizeHintSeen, markResizeHintSeen } =
         useLauncherPanelSizeContext();
     const frameRef = useRef<HTMLDivElement>(null);
@@ -126,7 +129,12 @@ export const LauncherPanelFrame: FC<Props> = ({ style, children }) => {
     };
 
     return (
-        <Box ref={frameRef} className={styles.panel} style={style}>
+        <Box
+            ref={frameRef}
+            className={styles.panel}
+            // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
+            style={transitionStyle}
+        >
             {children}
             <Tooltip
                 label="Drag to resize, double-click to reset"

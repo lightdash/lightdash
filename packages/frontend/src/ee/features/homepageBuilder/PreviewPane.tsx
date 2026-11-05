@@ -163,7 +163,7 @@ export const PreviewPane: FC<{
         return (
             <Stack align="center" gap="xs" p="xl">
                 <Text size="sm" c="dimmed">
-                    No published homepage applies — this viewer lands on the
+                    No published homepage applies, so this viewer gets the
                     day-one default.
                 </Text>
             </Stack>

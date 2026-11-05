@@ -198,6 +198,7 @@ export const withAnswerEvidence = (
         },
         runComposerQueries: async (args) => {
             const result = await dependencies.runComposerQueries(args);
+            if (result.status === 'failure') return result;
             evidence.record({
                 ...result.terminal,
                 fields: {},

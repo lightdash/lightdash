@@ -96,7 +96,7 @@ describe('Data app outcomes', () => {
             ('org','project','dashboard','app','Dashboard collision'),
             ('org','other-project','data_app','app','Other project app'),
             ('other-org','project','data_app','app','Other org app')`);
-        await db.run(`INSERT INTO lightdash_users VALUES
+        await db.run(`INSERT INTO lightdash_users (org_id, user_id, name) VALUES
             ('org','reader','Reader'),('org','issuer','Token issuer'),
             ('other-org','reader','Other org reader')`);
     });

@@ -4,6 +4,7 @@ import {
     type HomepageCollectionItemRef,
     type HomepageConfig,
     type HomepageRow,
+    type PinnedItems,
 } from '@lightdash/common';
 import { v4 as uuidv4 } from 'uuid';
 import { traitFor } from './blockLayout';
@@ -292,17 +293,40 @@ export const replaceBlock = (
     return withRows(config, rows);
 };
 
-// Keyed by uuid, not visible index: refs hidden by access filtering keep their slot.
-export const reorderCollectionItems = (
-    items: HomepageCollectionItemRef[],
+const moveByUuid = <T>(
+    items: T[],
+    uuidOf: (item: T) => string,
     activeUuid: string,
     overUuid: string,
-): HomepageCollectionItemRef[] => {
-    const from = items.findIndex((item) => item.uuid === activeUuid);
-    const to = items.findIndex((item) => item.uuid === overUuid);
+): T[] => {
+    const from = items.findIndex((item) => uuidOf(item) === activeUuid);
+    const to = items.findIndex((item) => uuidOf(item) === overUuid);
     if (from === -1 || to === -1 || from === to) return items;
     const next = [...items];
     const [moved] = next.splice(from, 1);
     next.splice(to, 0, moved);
     return next;
 };
+
+// Keyed by uuid, not visible index: refs hidden by access filtering keep their slot.
+export const reorderCollectionItems = (
+    items: HomepageCollectionItemRef[],
+    activeUuid: string,
+    overUuid: string,
+): HomepageCollectionItemRef[] =>
+    moveByUuid(items, (item) => item.uuid, activeUuid, overUuid);
+
+const withPinOrder = <T extends PinnedItems[number]>(
+    item: T,
+    pinnedListOrder: number,
+): T => ({ ...item, data: { ...item.data, pinnedListOrder } });
+
+// Renumbers the whole list so pins that share the default order stop tying.
+export const reorderPinnedItems = (
+    items: PinnedItems,
+    activeUuid: string,
+    overUuid: string,
+): PinnedItems =>
+    moveByUuid(items, (item) => item.data.uuid, activeUuid, overUuid).map(
+        withPinOrder,
+    );

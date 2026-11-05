@@ -5,7 +5,7 @@ this doc when you need to ship a data migration that touches `scoped_roles`.
 
 For the basics (how to add a new scope, which files to update, what the parity
 test enforces), see the **Authorization & Custom Roles** section in the root
-`CLAUDE.md`.
+`AGENTS.md`.
 
 ## Concepts glossary
 
@@ -54,7 +54,7 @@ migration `20260417111420_grant_custom_fields_to_custom_sql_roles.ts`.
 ### Step by step
 
 1. **Introduce the new scope**. Follow the 6-step checklist in the
-   *Authorization & Custom Roles* section of the root `CLAUDE.md` (types.ts,
+   *Authorization & Custom Roles* section of the root `AGENTS.md` (types.ts,
    scopes.ts, projectMemberAbility.ts, organizationMemberAbility.ts,
    roleToScopeMapping.ts, serviceAccountAbility.ts), plus add test fixtures.
    At this point the new scope exists but nothing checks it.

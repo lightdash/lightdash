@@ -1,5 +1,6 @@
 import { configureStore } from '@reduxjs/toolkit';
 import { aiAgentLauncherSlice } from './aiAgentLauncherSlice';
+import { aiAgentThreadComposerNodesSlice } from './aiAgentThreadComposerNodesSlice';
 import { aiAgentThreadElementRefsSlice } from './aiAgentThreadElementRefsSlice';
 import { aiAgentThreadModeSlice } from './aiAgentThreadModeSlice';
 import { aiAgentThreadStreamSlice } from './aiAgentThreadStreamSlice';
@@ -12,6 +13,7 @@ export const store = configureStore({
         aiAgentThreadStream: aiAgentThreadStreamSlice.reducer,
         aiAgentThreadMode: aiAgentThreadModeSlice.reducer,
         aiAgentThreadElementRefs: aiAgentThreadElementRefsSlice.reducer,
+        aiAgentThreadComposerNodes: aiAgentThreadComposerNodesSlice.reducer,
         aiArtifact: aiArtifactSlice.reducer,
         aiAgentLauncher: aiAgentLauncherSlice.reducer,
         createIssue: createIssueSlice.reducer,

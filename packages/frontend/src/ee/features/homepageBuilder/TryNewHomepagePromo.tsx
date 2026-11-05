@@ -32,7 +32,7 @@ import classes from './TryNewHomepagePromo.module.css';
 
 /** Miniature of the page each opening produces, in the gallery-card language:
  * mock content above, name below. The choice step doubles as the gallery. */
-const PresetCard: FC<{
+export const PresetCard: FC<{
     opening: HomepageOpening;
     greeting: string;
     // Without AI there is no alternative, so the single preview renders as a

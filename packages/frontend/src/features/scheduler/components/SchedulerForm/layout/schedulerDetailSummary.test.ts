@@ -36,6 +36,7 @@ const chartScheduler = (
         enabled: true,
         includeLinks: true,
         plainTextEmail: false,
+        useCachedResults: false,
         targets: [],
         ...overrides,
     }) as SchedulerAndTargets;

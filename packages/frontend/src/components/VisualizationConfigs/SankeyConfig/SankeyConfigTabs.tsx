@@ -11,36 +11,59 @@ import {
 } from '@lightdash/common';
 import { Stack, Text, SegmentedControl } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
+import {
+    selectSankeyEditor,
+    selectSankeyFieldPools,
+    selectSankeyHasCycle,
+    selectSankeyMetricFieldId,
+    selectSankeySourceFieldId,
+    selectSankeyTargetFieldId,
+    useVisualizationSelector,
+} from '../../../features/visualization/store';
+import { useSankeyEditorActions } from '../../../hooks/useSankeyChartConfig';
 import FieldSelect from '../../common/FieldSelect';
-import { isSankeyVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
+import { useVisualizationInputSelector } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
 import { VisualizationConfigTabs } from '../common/VisualizationConfigTabs';
 
 export const ConfigTabs: FC = memo(() => {
-    const { visualizationConfig } = useVisualizationState();
-
-    const isSankey = isSankeyVisualizationConfig(visualizationConfig);
+    const pools = useVisualizationInputSelector(selectSankeyFieldPools);
+    const sourceFieldId = useVisualizationInputSelector(
+        selectSankeySourceFieldId,
+    );
+    const targetFieldId = useVisualizationInputSelector(
+        selectSankeyTargetFieldId,
+    );
+    const metricFieldId = useVisualizationInputSelector(
+        selectSankeyMetricFieldId,
+    );
+    const hasCycle = useVisualizationInputSelector(selectSankeyHasCycle);
+    const nodeAlign = useVisualizationSelector(
+        (state) => selectSankeyEditor(state).nodeAlign,
+    );
+    const orient = useVisualizationSelector(
+        (state) => selectSankeyEditor(state).orient,
+    );
+    const nodeLayout = useVisualizationSelector(
+        (state) => selectSankeyEditor(state).nodeLayout,
+    );
+    const {
+        onSourceFieldChange,
+        onTargetFieldChange,
+        onMetricFieldChange,
+        onNodeAlignChange,
+        onOrientChange,
+        onNodeLayoutChange,
+    } = useSankeyEditorActions();
 
     const allDimensions = useMemo(
-        () => (isSankey ? Object.values(visualizationConfig.dimensions) : []),
-        [isSankey, visualizationConfig],
+        () => Object.values(pools.dimensions),
+        [pools],
     );
     const numericFields = useMemo(
-        () =>
-            isSankey ? Object.values(visualizationConfig.numericFields) : [],
-        [isSankey, visualizationConfig],
+        () => Object.values(pools.numericFields),
+        [pools],
     );
-
-    const sourceFieldId = isSankey
-        ? visualizationConfig.chartConfig.sourceFieldId
-        : null;
-    const targetFieldId = isSankey
-        ? visualizationConfig.chartConfig.targetFieldId
-        : null;
-    const metricFieldId = isSankey
-        ? visualizationConfig.chartConfig.metricFieldId
-        : null;
 
     const selectedSource = useMemo(() => {
         if (!sourceFieldId) return undefined;
@@ -69,24 +92,9 @@ export const ConfigTabs: FC = memo(() => {
         });
     }, [metricFieldId, numericFields]);
 
-    if (!isSankey) return null;
-
-    const {
-        onSourceFieldChange,
-        onTargetFieldChange,
-        onMetricFieldChange,
-        nodeAlign,
-        onNodeAlignChange,
-        orient,
-        onOrientChange,
-        nodeLayout,
-        onNodeLayoutChange,
-        data,
-    } = visualizationConfig.chartConfig;
-
     // Merging needs an acyclic graph, so cyclic data falls back to multi-step
     const effectiveLayout: SankeyNodeLayout =
-        nodeLayout === 'merged' && data.hasCycle ? 'multi-step' : nodeLayout;
+        nodeLayout === 'merged' && hasCycle ? 'multi-step' : nodeLayout;
 
     return (
         <VisualizationConfigTabs
@@ -222,7 +230,7 @@ export const ConfigTabs: FC = memo(() => {
                                             {
                                                 value: 'merged',
                                                 label: 'Merged',
-                                                disabled: data.hasCycle,
+                                                disabled: hasCycle,
                                             },
                                             {
                                                 value: 'direct',
@@ -235,7 +243,7 @@ export const ConfigTabs: FC = memo(() => {
                                             )
                                         }
                                     />
-                                    {data.hasCycle && (
+                                    {hasCycle && (
                                         <Text size="xs" c="dimmed" mt="xs">
                                             Merging isn't available for flows
                                             that loop back on themselves.

@@ -92,6 +92,7 @@ function buildService(
         dashboardAnalysisEnabled?: boolean;
         canViewDashboard?: boolean;
         queryContext?: QueryExecutionContext;
+        orgDefaultInstructions?: string | null;
     } = {},
 ) {
     const dataAppAnalysisModel = {
@@ -179,6 +180,9 @@ function buildService(
         getDataAppAnalysisLimits: vi
             .fn()
             .mockResolvedValue(DATA_APP_ANALYSIS_DEFAULT_LIMITS),
+        getDataAppAnalysisDefaultInstructions: vi
+            .fn()
+            .mockResolvedValue(overrides.orgDefaultInstructions ?? null),
     };
     const aiAgentModel = { deleteThread: vi.fn().mockResolvedValue(undefined) };
     const analytics = { track: vi.fn() };
@@ -919,6 +923,65 @@ describe('DataAppAnalysisService reuse', () => {
         expect(padded.contentHash).toBe(instructed.contentHash);
     });
 
+    it('applies the org default: joins the prompt before app instructions and forks the cache identity', async () => {
+        const bare = buildService();
+        await bare.service.detect(
+            account(),
+            'proj-1',
+            { kind: 'app', appUuid: 'app-1' },
+            { ...request, force: true },
+        );
+        const withDefault = buildService({
+            orgDefaultInstructions: 'Write in British English.',
+        });
+        await withDefault.service.detect(
+            account(),
+            'proj-1',
+            { kind: 'app', appUuid: 'app-1' },
+            { ...request, instructions: 'Use covenant-stage vocabulary.' },
+        );
+        expect(
+            withDefault.aiService.detectDataAppAnomalies,
+        ).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({
+                instructions:
+                    'Write in British English.\n\nUse covenant-stage vocabulary.',
+            }),
+        );
+        const [bareCall] = bare.dataAppAnalysisModel.create.mock.calls.map(
+            ([data]) => data as { contentHash: string },
+        );
+        const [defaultCall] =
+            withDefault.dataAppAnalysisModel.create.mock.calls.map(
+                ([data]) => data as { contentHash: string },
+            );
+        // Same rows, different org default → never reuses the stored analysis.
+        expect(defaultCall.contentHash).not.toBe(bareCall.contentHash);
+        // Lookup must miss on a hash computed without the org default.
+        expect(
+            withDefault.dataAppAnalysisModel.findLatestDetectByHash,
+        ).toHaveBeenCalledWith(
+            expect.objectContaining({ contentHash: defaultCall.contentHash }),
+        );
+    });
+
+    it('serves the org default alone when the app sends no instructions', async () => {
+        const { service, aiService } = buildService({
+            orgDefaultInstructions: 'Amounts in ZAR.',
+        });
+        await service.detect(
+            account(),
+            'proj-1',
+            { kind: 'app', appUuid: 'app-1' },
+            { ...request, force: true },
+        );
+        expect(aiService.detectDataAppAnomalies).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({ instructions: 'Amounts in ZAR.' }),
+        );
+    });
+
     it('rejects instructions beyond the length cap on detect and lookup', async () => {
         const { service, aiService } = buildService();
         const oversized = 'x'.repeat(2001);
@@ -1011,6 +1074,8 @@ describe('DataAppAnalysisService reuse', () => {
             request,
         );
         expect(analysis.analysisId).toBe('stored-1');
+        // A cached detect carries the viewer's own investigations, like lookup.
+        expect(analysis.investigations[0]?.investigationId).toBe('inv-1');
         expect(aiService.detectDataAppAnomalies).not.toHaveBeenCalled();
         expect(dataAppAnalysisModel.create).not.toHaveBeenCalled();
     });
@@ -1381,7 +1446,10 @@ describe('DataAppAnalysisService rate limits', () => {
                 { kind: 'app', appUuid: 'app-1' },
                 request,
             ),
-        ).resolves.toMatchObject({ analysisId: 'analysis-1' });
+        ).resolves.toMatchObject({
+            analysisId: 'analysis-1',
+            investigations: [],
+        });
         await expect(
             service.detect(
                 buildAccount(),
@@ -1934,6 +2002,31 @@ describe('DataAppAnalysisService.investigate', () => {
         );
     });
 
+    it("states the org's query budget and the recurring-cycle rule in the investigation prompt", async () => {
+        const { service, aiOrganizationSettingsService } =
+            buildInvestigateService();
+        aiOrganizationSettingsService.getDataAppAnalysisLimits.mockResolvedValue(
+            {
+                ...DATA_APP_ANALYSIS_DEFAULT_LIMITS,
+                investigateMaxWarehouseQueries: 7,
+            },
+        );
+        primeRunInvestigation(service, async () => 'explanation');
+        await service.runInvestigation(
+            jobPayload,
+            'job-1',
+            new Date('2026-09-15T10:00:00Z'),
+        );
+        const { createAgentThread } = (
+            service as unknown as {
+                aiAgentService: { createAgentThread: ReturnType<typeof vi.fn> };
+            }
+        ).aiAgentService;
+        const [, , { prompt }] = createAgentThread.mock.calls[0];
+        expect(prompt).toContain('up to 7 queries');
+        expect(prompt).toContain('four prior weeks');
+    });
+
     it('reports agent_unavailable as 403 instead of picking another agent', async () => {
         const { service, dataAppInvestigate } = buildInvestigateService({
             agentAccessible: false,
@@ -2302,5 +2395,234 @@ describe('DataAppAnalysisService dashboard target', () => {
             { kind: 'dashboard', targetUuid: 'dash-1' },
             buildAccount().user.id,
         );
+    });
+});
+
+describe('DataAppAnalysisService.investigateInstruction', () => {
+    function buildInstructionService(
+        overrides: { agentAccessible?: boolean } = {},
+    ) {
+        const base = buildService();
+        const dataAppInstructionInvestigate = vi
+            .fn()
+            .mockResolvedValue({ jobId: 'job-1' });
+        const getAgent =
+            overrides.agentAccessible === false
+                ? vi.fn().mockRejectedValue(new ForbiddenError('no access'))
+                : vi.fn().mockResolvedValue({ uuid: 'agent-1' });
+        const service = base.service as unknown as Record<string, unknown>;
+        service.schedulerClient = { dataAppInstructionInvestigate };
+        (service.aiAgentService as Record<string, unknown>).getAgent = getAgent;
+        return { ...base, dataAppInstructionInvestigate, getAgent };
+    }
+
+    const body = {
+        instruction: 'Investigate what drove the August revenue peak',
+        sources: [{ queryUuid: 'q1', label: 'Revenue by month' }],
+        agentUuid: 'agent-1',
+    };
+
+    it('queues a job with the trimmed instruction and sources', async () => {
+        const { service, dataAppInstructionInvestigate } =
+            buildInstructionService();
+        await expect(
+            service.investigateInstruction(
+                buildAccount(),
+                'proj-1',
+                { kind: 'app', appUuid: 'app-1' },
+                { ...body, instruction: `  ${body.instruction}  ` },
+            ),
+        ).resolves.toEqual({ jobId: 'job-1' });
+        expect(dataAppInstructionInvestigate).toHaveBeenCalledWith(
+            expect.objectContaining({
+                target: { kind: 'app', appUuid: 'app-1' },
+                instruction: body.instruction,
+                sources: body.sources,
+                agentUuid: 'agent-1',
+                projectUuid: 'proj-1',
+            }),
+        );
+    });
+
+    it('rejects an empty instruction without queueing', async () => {
+        const { service, dataAppInstructionInvestigate } =
+            buildInstructionService();
+        await expect(
+            service.investigateInstruction(
+                buildAccount(),
+                'proj-1',
+                { kind: 'app', appUuid: 'app-1' },
+                { ...body, instruction: '   ' },
+            ),
+        ).rejects.toBeInstanceOf(ParameterError);
+        expect(dataAppInstructionInvestigate).not.toHaveBeenCalled();
+    });
+
+    it('rejects an oversized instruction without queueing', async () => {
+        const { service, dataAppInstructionInvestigate } =
+            buildInstructionService();
+        await expect(
+            service.investigateInstruction(
+                buildAccount(),
+                'proj-1',
+                { kind: 'app', appUuid: 'app-1' },
+                { ...body, instruction: 'x'.repeat(2001) },
+            ),
+        ).rejects.toBeInstanceOf(ParameterError);
+        expect(dataAppInstructionInvestigate).not.toHaveBeenCalled();
+    });
+
+    it('rejects a request without sources', async () => {
+        const { service, dataAppInstructionInvestigate } =
+            buildInstructionService();
+        await expect(
+            service.investigateInstruction(
+                buildAccount(),
+                'proj-1',
+                { kind: 'app', appUuid: 'app-1' },
+                { ...body, sources: [] },
+            ),
+        ).rejects.toBeInstanceOf(ParameterError);
+        expect(dataAppInstructionInvestigate).not.toHaveBeenCalled();
+    });
+
+    it('refuses an agent the viewer cannot use', async () => {
+        const { service, dataAppInstructionInvestigate } =
+            buildInstructionService({ agentAccessible: false });
+        await expect(
+            service.investigateInstruction(
+                buildAccount(),
+                'proj-1',
+                { kind: 'app', appUuid: 'app-1' },
+                body,
+            ),
+        ).rejects.toMatchObject({ data: { code: 'agent_unavailable' } });
+        expect(dataAppInstructionInvestigate).not.toHaveBeenCalled();
+    });
+
+    it('shares the investigate rate and daily buckets', async () => {
+        const { service, dataAppAnalysisModel, dataAppInstructionInvestigate } =
+            buildInstructionService();
+        dataAppAnalysisModel.incrementRateCounter.mockResolvedValue(4);
+        await expect(
+            service.investigateInstruction(
+                buildAccount(),
+                'proj-1',
+                { kind: 'app', appUuid: 'app-1' },
+                body,
+            ),
+        ).rejects.toMatchObject({
+            statusCode: 429,
+            data: { code: 'rate_limited', operation: 'investigate' },
+        });
+        expect(dataAppInstructionInvestigate).not.toHaveBeenCalled();
+    });
+
+    const jobPayload = {
+        organizationUuid: 'org-1',
+        projectUuid: 'proj-1',
+        userUuid: 'user-1',
+        target: { kind: 'app' as const, appUuid: 'app-1' },
+        instruction: 'Investigate what drove the August revenue peak',
+        sources: [{ queryUuid: 'q1', label: 'Revenue by month' }],
+        agentUuid: 'agent-1',
+    };
+
+    function primeRun(service: DataAppAnalysisService, explanation: string) {
+        const logSchedulerJob = vi.fn().mockResolvedValue(undefined);
+        const create = vi.fn(async (data: Record<string, unknown>) => ({
+            data_app_analysis_uuid: 'inv-1',
+            ...data,
+        }));
+        const deps = service as unknown as Record<string, unknown>;
+        deps.userModel = {
+            findSessionUserAndOrgByUuid: vi.fn().mockResolvedValue(sessionUser),
+        };
+        deps.schedulerService = { logSchedulerJob };
+        (deps.dataAppAnalysisModel as Record<string, unknown>).create = create;
+        const createAgentThread = vi
+            .fn()
+            .mockResolvedValue({ uuid: 'thread-1' });
+        Object.assign(deps.aiAgentService as Record<string, unknown>, {
+            createAgentThread,
+            generateAgentThreadResponse: vi.fn(async () => explanation),
+        });
+        return { logSchedulerJob, create, createAgentThread };
+    }
+
+    it('runs the agent and persists the result under the viewer', async () => {
+        const { service } = buildInstructionService();
+        const { logSchedulerJob, create, createAgentThread } = primeRun(
+            service,
+            'August grew on partner campaigns.',
+        );
+
+        await service.runInstructionInvestigation(
+            jobPayload,
+            'job-1',
+            new Date('2026-11-03T10:00:00Z'),
+        );
+
+        expect(createAgentThread).toHaveBeenCalledWith(
+            expect.anything(),
+            'agent-1',
+            expect.objectContaining({
+                prompt: expect.stringContaining(jobPayload.instruction),
+                context: [{ type: 'data_app', appUuid: 'app-1' }],
+            }),
+            'data_app',
+        );
+        expect(create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                operation: 'investigate_instruction',
+                sources: jobPayload.sources,
+                result: expect.objectContaining({
+                    explanation: 'August grew on partner campaigns.',
+                    instruction: jobPayload.instruction,
+                    agentUuid: 'agent-1',
+                    threadUuid: 'thread-1',
+                    partial: false,
+                }),
+            }),
+        );
+        const completed = logSchedulerJob.mock.calls
+            .map(([log]) => log)
+            .find((log) => log.status === 'completed');
+        expect(completed?.details).toMatchObject({
+            investigationId: 'inv-1',
+            threadUuid: 'thread-1',
+        });
+    });
+
+    it('persists nothing once the run is aborted', async () => {
+        const { service } = buildInstructionService();
+        const abort = new AbortController();
+        const logSchedulerJob = vi.fn().mockResolvedValue(undefined);
+        const create = vi.fn();
+        const deps = service as unknown as Record<string, unknown>;
+        deps.userModel = {
+            findSessionUserAndOrgByUuid: vi.fn().mockResolvedValue(sessionUser),
+        };
+        deps.schedulerService = { logSchedulerJob };
+        (deps.dataAppAnalysisModel as Record<string, unknown>).create = create;
+        Object.assign(deps.aiAgentService as Record<string, unknown>, {
+            createAgentThread: vi.fn().mockResolvedValue({ uuid: 'thread-1' }),
+            generateAgentThreadResponse: vi.fn(async () => {
+                abort.abort();
+                return 'late explanation';
+            }),
+        });
+
+        await service.runInstructionInvestigation(
+            jobPayload,
+            'job-1',
+            new Date('2026-11-03T10:00:00Z'),
+            abort.signal,
+        );
+
+        expect(create).not.toHaveBeenCalled();
+        expect(logSchedulerJob.mock.calls.map(([log]) => log.status)).toEqual([
+            'started',
+        ]);
     });
 });

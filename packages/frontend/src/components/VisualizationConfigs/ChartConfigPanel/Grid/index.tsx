@@ -1,19 +1,23 @@
 import { defaultGrid } from '@lightdash/visualization/editor';
 import { type FC } from 'react';
-import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
-import { useVisualizationState } from '../../../LightdashVisualization/useVisualizationContext';
+import {
+    selectCartesianEchartsConfig,
+    useVisualizationSelector,
+    type VisualizationStoreState,
+} from '../../../../features/visualization/store';
+import { useCartesianEditorActions } from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { UnitInputsGrid } from '../common/UnitInputsGrid';
 
+const selectGrid = (state: VisualizationStoreState) =>
+    selectCartesianEchartsConfig(state)?.grid;
+
 export const Grid: FC = () => {
-    const { visualizationConfig } = useVisualizationState();
-
-    if (!isCartesianVisualizationConfig(visualizationConfig)) return null;
-
-    const { dirtyEchartsConfig, setGrid } = visualizationConfig.chartConfig;
+    const grid = useVisualizationSelector(selectGrid);
+    const { setGrid } = useCartesianEditorActions();
 
     const config = {
         ...defaultGrid,
-        ...dirtyEchartsConfig?.grid,
+        ...grid,
     };
 
     const handleUpdate = (position: string, newValue: string | undefined) => {

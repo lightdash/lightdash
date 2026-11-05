@@ -66,13 +66,10 @@ const PrivateRoute: FC<React.PropsWithChildren> = ({ children }) => {
         );
     }
 
-    // The user query only starts once the account comes back saying it is a
-    // registered user, and neither query retries — so "no data, no error" also
-    // covers a user query that will never run. Holding on that is a spinner
-    // with no way out, which is why the hold has to end wherever the chain has
-    // stopped progressing: the account errored (a blip on /user/account), or it
-    // resolved to someone the user query is never fetched for. Both fall
-    // through to the redirect below, as they did before the hold existed.
+    // The user query only starts once the account says it is a registered
+    // user, so "no data, no error" also covers a user query that will never
+    // run. End the hold once the account has errored (after its network
+    // retries) or resolved to someone the user query is never fetched for.
     const isUserStillResolving =
         !account.isError && (!account.data || account.data.isRegisteredUser());
 

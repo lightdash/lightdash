@@ -255,6 +255,10 @@ function buildService({
         }),
     };
     const service = new ExternalConnectionService({
+        projectModel: {
+            replaceApiSourceExplores: vi.fn(),
+            deleteApiSourceExplores: vi.fn(),
+        },
         allowedPrivateHostCidrs: {},
         appModel,
         appGenerateService,

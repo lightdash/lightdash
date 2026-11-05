@@ -1,6 +1,6 @@
 import { SEED_PROJECT, WarehouseTypes } from '@lightdash/common';
 import { ApiClient, Body } from '../helpers/api-client';
-import { login } from '../helpers/auth';
+import { loginWithPermissions } from '../helpers/auth';
 
 const CREATE_CREDENTIALS_MOCK = {
     name: 'prod auth',
@@ -66,10 +66,10 @@ async function updateCredentialsPreference(client: ApiClient, uuid: string) {
 }
 
 describe('User Warehouse Credentials API', () => {
-    let admin: Awaited<ReturnType<typeof login>>;
+    let admin: ApiClient;
 
     beforeAll(async () => {
-        admin = await login();
+        admin = (await loginWithPermissions('admin', [])).client;
     });
 
     beforeEach(async () => {

@@ -72,7 +72,6 @@ const LOGGED_OPERATIONS = new Set([
     'filter-value',
     'mcp-error',
     'model-routing',
-    'project-routing',
     'query-error',
     'query-intent',
     'query-plan-intent',

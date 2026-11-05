@@ -31,7 +31,7 @@ export type EnsureOrganizationOverrideOutcome =
     | 'already_enabled'
     | 'kept_disabled';
 
-type FeatureFlagQueryOptions = {
+export type FeatureFlagQueryOptions = {
     trx?: Knex;
     /** Set false for admin listings so they don't inflate flag-usage telemetry. */
     recordCheck?: boolean;
@@ -55,7 +55,6 @@ export class FeatureFlagModel {
         this.lightdashConfig = args.lightdashConfig;
         // Initialize the handlers for feature flag logic
         this.featureFlagHandlers = {
-            [FeatureFlags.EditYamlInUi]: this.getEditYamlInUiEnabled.bind(this),
             [FeatureFlags.EnableTimezoneSupport]:
                 this.getEnableTimezoneSupportEnabled.bind(this),
             [FeatureFlags.ResultsCacheEnabled]: (flagArgs, options) =>
@@ -64,22 +63,6 @@ export class FeatureFlagModel {
                     this.lightdashConfig.results.cacheEnabled,
                     options,
                 ),
-            [FeatureFlags.WarehouseOAuthRefreshLock]: (flagArgs, options) =>
-                this.getWithEnvFallback(flagArgs, true, options),
-            [FeatureFlags.AgentIdentitySilentRefresh]: (flagArgs, options) =>
-                this.getWithEnvFallback(flagArgs, true, options),
-            [FeatureFlags.SharedSignInExpiryMessage]: (flagArgs, options) =>
-                this.getWithEnvFallback(flagArgs, true, options),
-            [FeatureFlags.SharedSignInReconnect]: (flagArgs, options) =>
-                this.getWithEnvFallback(flagArgs, true, options),
-            [FeatureFlags.PreviewSsoCredentialSync]: (flagArgs, options) =>
-                this.getWithEnvFallback(flagArgs, true, options),
-            [FeatureFlags.AgentSqlScopeHyphenatedIdentifiers]: (
-                flagArgs,
-                options,
-            ) => this.getWithEnvFallback(flagArgs, true, options),
-            [FeatureFlags.EgressIpNotice]: (flagArgs, options) =>
-                this.getWithEnvFallback(flagArgs, true, options),
         };
     }
 
@@ -153,15 +136,6 @@ export class FeatureFlagModel {
         // 4. Check database (user override > org override > flag default)
         const dbResult = await this.tryGetFromDatabase(args, options);
         return dbResult ?? { id: args.featureFlagId, enabled: false };
-    }
-
-    private async getEditYamlInUiEnabled({
-        featureFlagId,
-    }: FeatureFlagLogicArgs) {
-        return {
-            id: featureFlagId,
-            enabled: this.lightdashConfig.editYamlInUi.enabled,
-        };
     }
 
     // On by default. Disable it instance-wide with

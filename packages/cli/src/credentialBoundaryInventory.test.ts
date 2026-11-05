@@ -97,3 +97,24 @@ it.each([
         expect(launches(current)).toMatchSnapshot();
     },
 );
+
+it('keeps remaining config API-key reads and legacy header calls explicit', async () => {
+    expect(
+        (await sources())
+            .flatMap(({ name, text }) =>
+                text
+                    .split('\n')
+                    .flatMap((line) =>
+                        /context\??\.apiKey|buildRequestHeaders\(/.test(line) &&
+                        !line.trim().startsWith('//')
+                            ? [{ name, line: line.trim() }]
+                            : [],
+                    ),
+            )
+            .sort(
+                (a, b) =>
+                    a.name.localeCompare(b.name) ||
+                    a.line.localeCompare(b.line),
+            ),
+    ).toMatchSnapshot();
+});

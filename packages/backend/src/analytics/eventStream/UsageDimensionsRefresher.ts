@@ -42,12 +42,18 @@ export class UsageDimensionsRefresher extends S3BaseClient {
         super(storage);
     }
 
-    async run(): Promise<DimensionRefreshSummary> {
+    async run(
+        onOrganizationFinished?: (
+            organizationUuid: string,
+            summary: DimensionRefreshSummary,
+        ) => void,
+    ): Promise<DimensionRefreshSummary> {
         const observedAt = new Date();
         const summary = { refreshed: 0, failed: 0 };
         try {
             // eslint-disable-next-line no-restricted-syntax
             for await (const organization of this.model.getOrganizations()) {
+                const organizationSummary = { refreshed: 0, failed: 0 };
                 for (const dimension of usageDimensionNames) {
                     try {
                         // eslint-disable-next-line no-await-in-loop
@@ -62,13 +68,19 @@ export class UsageDimensionsRefresher extends S3BaseClient {
                             observedAt,
                         );
                         summary.refreshed += 1;
+                        organizationSummary.refreshed += 1;
                     } catch (error) {
                         summary.failed += 1;
+                        organizationSummary.failed += 1;
                         Logger.error(
                             `Usage dimensions refresh failed for org_id=${organization.organization_uuid}/dim=${dimension}: ${getErrorMessage(error)}`,
                         );
                     }
                 }
+                onOrganizationFinished?.(
+                    organization.organization_uuid,
+                    organizationSummary,
+                );
             }
             Logger.info(
                 `Usage dimensions refresh: ${summary.refreshed} published, ${summary.failed} failed`,

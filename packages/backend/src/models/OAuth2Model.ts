@@ -2,6 +2,7 @@
 import {
     AuthorizationError,
     AuthTokenPrefix,
+    CLI_PERSONAL_SESSION_LIFETIME_SECONDS,
     TOKEN_EXCHANGE_GRANT_TYPE,
     UserWithOrganizationUuid,
     type AgentConnectionGrant,
@@ -195,13 +196,18 @@ export class OAuth2Model implements AuthorizationCodeModel {
         client: Client,
         user: UserWithOrganizationUuid,
     ): Promise<AuthorizationCode> {
+        const sessionExpiresAt =
+            client.id === DEFAULT_OAUTH_CLIENT_ID &&
+            code.agentConnectionGrantUuid == null
+                ? new Date(
+                      Date.now() + CLI_PERSONAL_SESSION_LIFETIME_SECONDS * 1000,
+                  )
+                : null;
         await this.database('oauth2_authorization_codes').insert({
             authorization_code: code.authorizationCode,
             expires_at: code.expiresAt,
             redirect_uri: code.redirectUri,
-            scope: Array.isArray(code.scope)
-                ? code.scope
-                : [code.scope].filter(Boolean),
+            scope: code.scope ?? [],
             client_id: client.id,
             user_id: user.userId,
             organization_uuid: user.organizationUuid,
@@ -209,6 +215,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
             code_challenge_method: code.codeChallengeMethod,
             resource: code.resource ?? null,
             agent_connection_grant_uuid: code.agentConnectionGrantUuid ?? null,
+            session_expires_at: sessionExpiresAt,
         });
 
         return {
@@ -222,12 +229,16 @@ export class OAuth2Model implements AuthorizationCodeModel {
             codeChallengeMethod: code.codeChallengeMethod,
             resource: code.resource ?? null,
             agentConnectionGrantUuid: code.agentConnectionGrantUuid ?? null,
+            sessionExpiresAt,
         };
     }
 
     async getAuthorizationCode(
         authorizationCode: string,
-    ): Promise<AuthorizationCode | false> {
+    ): Promise<
+        | (AuthorizationCode & Pick<OAuthTokenBinding, 'sessionExpiresAt'>)
+        | false
+    > {
         const candidates = getStoredTokenCandidates(authorizationCode);
         if (candidates.length === 0) return false;
         const result = await this.database('oauth2_authorization_codes')
@@ -280,11 +291,15 @@ export class OAuth2Model implements AuthorizationCodeModel {
                 result.agent_connection_grant_uuid ?? null,
             familyUuid: grant?.refreshFamilyUuid ?? null,
             authorizationCode,
+            sessionExpiresAt:
+                result.session_expires_at == null
+                    ? null
+                    : new Date(result.session_expires_at),
             expiresAt: new Date(result.expires_at),
             redirectUri: result.redirect_uri,
-            scope: result.scope,
-            codeChallenge: result.code_challenge,
-            codeChallengeMethod: result.code_challenge_method,
+            scope: result.scope ?? undefined,
+            codeChallenge: result.code_challenge ?? undefined,
+            codeChallengeMethod: result.code_challenge_method ?? undefined,
             resource: result.resource ?? null,
             client: {
                 id: result.client_id,
@@ -511,9 +526,10 @@ export class OAuth2Model implements AuthorizationCodeModel {
                         'Agent connection refresh binding is invalid',
                     );
                 const scopes = issued.scope ?? [];
+                const storedScopes = stored.scope ?? [];
                 if (
-                    scopes.length !== stored.scope.length ||
-                    scopes.some((scope) => !stored.scope.includes(scope))
+                    scopes.length !== storedScopes.length ||
+                    scopes.some((scope) => !storedScopes.includes(scope))
                 )
                     throw new OAuth2Server.InvalidScopeError(
                         'Agent connection scopes cannot change',
@@ -585,6 +601,33 @@ export class OAuth2Model implements AuthorizationCodeModel {
                 refreshTokenExpiresAt: clip(token.refreshTokenExpiresAt),
             };
         }
+        const sessionExpiresAt: Date | null =
+            token.sessionExpiresAt ??
+            (client.id === DEFAULT_OAUTH_CLIENT_ID &&
+            token.agentConnectionGrantUuid == null
+                ? new Date(
+                      Date.now() + CLI_PERSONAL_SESSION_LIFETIME_SECONDS * 1000,
+                  )
+                : null);
+        if (sessionExpiresAt !== null) {
+            if (sessionExpiresAt.getTime() <= Date.now())
+                throw new OAuth2Server.InvalidGrantError(
+                    'Session expired. Log in again.',
+                );
+            const clip = (expiry: Date | undefined) =>
+                new Date(
+                    Math.min(
+                        expiry?.getTime() ?? Infinity,
+                        sessionExpiresAt.getTime(),
+                    ),
+                );
+            issued = {
+                ...issued,
+                accessTokenExpiresAt: clip(issued.accessTokenExpiresAt),
+                refreshTokenExpiresAt: clip(issued.refreshTokenExpiresAt),
+            };
+        }
+        issued = { ...issued, sessionExpiresAt };
         await database('oauth2_access_tokens').insert({
             access_token: issued.accessToken,
             resource: issued.resource ?? null,
@@ -592,9 +635,8 @@ export class OAuth2Model implements AuthorizationCodeModel {
             agent_connection_grant_uuid:
                 issued.agentConnectionGrantUuid ?? null,
             expires_at: issued.accessTokenExpiresAt,
-            scope: Array.isArray(issued.scope)
-                ? issued.scope
-                : [issued.scope].filter(Boolean),
+            session_expires_at: sessionExpiresAt,
+            scope: issued.scope ?? [],
             client_id: client.id,
             user_id: user.userId,
             organization_uuid: user.organizationUuid,
@@ -608,9 +650,8 @@ export class OAuth2Model implements AuthorizationCodeModel {
                 agent_connection_grant_uuid:
                     issued.agentConnectionGrantUuid ?? null,
                 expires_at: issued.refreshTokenExpiresAt,
-                scope: Array.isArray(issued.scope)
-                    ? issued.scope
-                    : [issued.scope].filter(Boolean),
+                session_expires_at: sessionExpiresAt,
+                scope: issued.scope ?? [],
                 client_id: client.id,
                 user_id: user.userId,
                 organization_uuid: user.organizationUuid,
@@ -717,6 +758,16 @@ export class OAuth2Model implements AuthorizationCodeModel {
             return false;
         }
 
+        const sessionExpiresAt =
+            result.session_expires_at == null
+                ? null
+                : new Date(result.session_expires_at);
+        if (
+            sessionExpiresAt !== null &&
+            sessionExpiresAt.getTime() <= Date.now()
+        )
+            return false;
+
         if (result.agent_connection_grant_uuid != null) {
             try {
                 await this.getBoundGrant(
@@ -740,12 +791,13 @@ export class OAuth2Model implements AuthorizationCodeModel {
 
         return {
             accessToken,
+            sessionExpiresAt,
             familyUuid: result.family_uuid ?? null,
             agentConnectionGrantUuid:
                 result.agent_connection_grant_uuid ?? null,
             resource: result.resource ?? null,
             accessTokenExpiresAt: new Date(result.expires_at),
-            scope: result.scope,
+            scope: result.scope ?? undefined,
             client: {
                 id: result.client_id,
                 scopes: result.scopes ?? [],
@@ -875,15 +927,36 @@ export class OAuth2Model implements AuthorizationCodeModel {
             return false;
         }
 
+        const sessionExpiresAt =
+            result.session_expires_at == null
+                ? null
+                : new Date(result.session_expires_at);
+        if (
+            (sessionExpiresAt === null &&
+                result.client_id === DEFAULT_OAUTH_CLIENT_ID &&
+                result.agent_connection_grant_uuid == null) ||
+            (sessionExpiresAt !== null &&
+                sessionExpiresAt.getTime() <= Date.now())
+        )
+            throw new OAuth2Server.InvalidGrantError(
+                'Session expired. Log in again.',
+            );
+
         const token: Token = {
             accessToken: '',
+            sessionExpiresAt,
             refreshToken,
             resource: result.resource ?? null,
             familyUuid: result.family_uuid ?? null,
             agentConnectionGrantUuid:
                 result.agent_connection_grant_uuid ?? null,
-            refreshTokenExpiresAt: new Date(result.expires_at),
-            scope: result.scope,
+            refreshTokenExpiresAt: new Date(
+                Math.min(
+                    new Date(result.expires_at).getTime(),
+                    sessionExpiresAt?.getTime() ?? Infinity,
+                ),
+            ),
+            scope: result.scope ?? undefined,
             client: {
                 id: result.client_id,
                 scopes: result.scopes ?? [],

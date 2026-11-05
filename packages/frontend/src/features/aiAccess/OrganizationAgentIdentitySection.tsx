@@ -5,8 +5,9 @@ import {
     type OrganizationProject,
     type AiIdentitySource,
 } from '@lightdash/common';
-import { Box, Group, Stack, Text, Title } from '@mantine/core';
+import { Box, Group, Text } from '@mantine/core';
 import { useState } from 'react';
+import { SettingsSection } from '../../components/common/Settings/SettingLayout';
 import { SettingsCard } from '../../components/common/Settings/SettingsCard';
 import { AgentIdentityChip } from './AgentIdentityChip';
 import classes from './AgentIdentityChip.module.css';
@@ -171,9 +172,11 @@ export const OrganizationAgentIdentityCard = ({
         );
     }
     return (
-        <SettingsCard>
-            <Stack gap="md">
-                <Title order={5}>Identity</Title>
+        <SettingsSection
+            label="Identity"
+            description="Who agents run as when they query each warehouse."
+        >
+            <SettingsCard>
                 {rules.length === 0 ? (
                     <Text size="sm" c="dimmed">
                         No warehouses in use yet.
@@ -202,7 +205,7 @@ export const OrganizationAgentIdentityCard = ({
                         )}
                     </Group>
                 )}
-            </Stack>
-        </SettingsCard>
+            </SettingsCard>
+        </SettingsSection>
     );
 };

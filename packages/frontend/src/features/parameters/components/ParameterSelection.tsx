@@ -18,6 +18,7 @@ import { IconInfoCircle, IconPin, IconPinFilled } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { ParameterInput } from './ParameterInput';
+import classes from './ParameterSelection.module.css';
 import { ShadowedReservedNameWarning } from './ShadowedReservedNameWarning';
 
 type ParameterSelectionProps = {
@@ -104,7 +105,7 @@ export const ParameterSelection: FC<ParameterSelectionProps> = ({
                                     <Text
                                         size={size}
                                         fw={500}
-                                        style={{ overflowWrap: 'anywhere' }}
+                                        className={classes.label}
                                     >
                                         {parameters?.[paramKey]?.label ||
                                             paramKey}

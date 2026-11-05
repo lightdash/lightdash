@@ -13,6 +13,9 @@ import {
 import { useAiAgentStoreDispatch } from '../../store/hooks';
 import { AiComposerArtifactPanel } from './AiComposerArtifactPanel';
 
+// Message-query pipelines are not saved artifacts, so they can't be pinned.
+const NO_CHAT_NODES: ReadonlySet<string> = new Set();
+
 type Props = {
     pipelinePreview: QueryPipelinePreviewData;
 };
@@ -79,6 +82,8 @@ export const AiQueryPipelinePreviewPanel: FC<Props> = ({ pipelinePreview }) => {
             runError={run.error ?? null}
             onRerun={() => void run.refetch()}
             onSaveVizConfig={null}
+            chatNodeIds={NO_CHAT_NODES}
+            onAddToChat={null}
             onClose={() => dispatch(clearPreview())}
         />
     );

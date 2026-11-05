@@ -1,31 +1,23 @@
 import { ChartType } from '@lightdash/common';
-import { useEffect, useMemo, type FC } from 'react';
+import { memo, useMemo, type FC } from 'react';
 import useCustomVisualizationConfig from '../../hooks/useCustomVisualizationConfig';
 import {
     type VisualizationCustomConfigProps,
     type VisualizationCustomConfigType,
 } from './types';
+import { useEmitChartConfig } from './useEmitChartConfig';
 
 const VisualizationCustomConfig: FC<VisualizationCustomConfigProps> = ({
-    initialChartConfig,
-    resultsData,
     onChartConfigChange,
     children,
 }) => {
-    const customVisConfig = useCustomVisualizationConfig(
-        initialChartConfig,
-        resultsData,
-    );
+    const customVisConfig = useCustomVisualizationConfig();
 
-    useEffect(() => {
-        if (!onChartConfigChange || !customVisConfig) return;
-        onChartConfigChange({
-            type: ChartType.CUSTOM,
-            config: {
-                spec: customVisConfig.validConfig.spec,
-            },
-        });
-    }, [customVisConfig, onChartConfigChange]);
+    useEmitChartConfig(
+        ChartType.CUSTOM,
+        customVisConfig.validConfig,
+        onChartConfigChange,
+    );
 
     const visualizationConfig: VisualizationCustomConfigType = useMemo(
         () => ({
@@ -38,4 +30,5 @@ const VisualizationCustomConfig: FC<VisualizationCustomConfigProps> = ({
     return children({ visualizationConfig });
 };
 
-export default VisualizationCustomConfig;
+// Memoised so a resize skips it; an echoed config re-renders it, the memoised aggregate spares consumers
+export default memo(VisualizationCustomConfig);

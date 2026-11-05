@@ -176,3 +176,15 @@ test('uses the longest parent name for nested table keys and SQL aliases', () =>
         result.tables.second__orders__history__items.dimensions.id.table,
     ).toBe('second__orders__history__items');
 });
+
+test('preserves the explore label byte for byte during allocation', () => {
+    const source = {
+        name: '__model_001abc',
+        label: 'Keep __model_001abc exactly',
+        tables: {},
+    } as Explore;
+    expect(
+        rewriteAllocatedExplore(source, new Map([[source.name, 'orders']]))
+            .label,
+    ).toBe(source.label);
+});

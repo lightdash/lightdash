@@ -10,11 +10,23 @@ import {
 } from '@lightdash/common';
 import { Box, Grid, Group, Stack, Switch, Text, Tooltip } from '@mantine/core';
 import { IconHelpCircle } from '@tabler/icons-react';
+import { useMemo } from 'react';
+import {
+    selectTreemapEditor,
+    selectDimensionsAndNumericMetrics,
+    selectTreemapGroupFieldIds,
+    selectTreemapSelectedColorMetric,
+    selectTreemapSelectedSizeMetric,
+    useVisualizationSelector,
+} from '../../../features/visualization/store';
+import { useTreemapEditorActions } from '../../../hooks/useTreemapChartConfig';
 import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';
 import { NumberInput } from '../../common/NumberInput';
-import { isTreemapVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
+import {
+    useVisualizationInputs,
+    useVisualizationInputSelector,
+} from '../../LightdashVisualization/useVisualizationContext';
 import ColorSelector from '../ColorSelector';
 import { Config } from '../common/Config';
 import { GrabIcon } from '../common/GrabIcon';
@@ -22,32 +34,49 @@ import classes from './DndList.module.css';
 import { DraggablePortalHandler } from './DraggablePortalHandler';
 
 export const Layout: React.FC = () => {
-    const { visualizationConfig, itemsMap } = useVisualizationState();
-
-    if (!isTreemapVisualizationConfig(visualizationConfig)) return null;
-
-    const numericMetrics = Object.values(visualizationConfig.numericMetrics);
-
+    const { itemsMap } = useVisualizationInputs();
+    const pools = useVisualizationInputSelector(
+        selectDimensionsAndNumericMetrics,
+    );
+    const groupFieldIds = useVisualizationInputSelector(
+        selectTreemapGroupFieldIds,
+    );
+    const selectedSizeMetric = useVisualizationInputSelector(
+        selectTreemapSelectedSizeMetric,
+    );
+    const selectedColorMetric = useVisualizationInputSelector(
+        selectTreemapSelectedColorMetric,
+    );
+    const useDynamicColors = useVisualizationSelector(
+        (state) => selectTreemapEditor(state).useDynamicColors,
+    );
     const {
-        groupFieldIds,
         groupReorder,
-
-        selectedSizeMetric,
         sizeMetricChange,
-
-        useDynamicColors,
         toggleDynamicColors,
-        selectedColorMetric,
         colorMetricChange,
-        startColor,
-        endColor,
         onStartColorChange,
         onEndColorChange,
-        startColorThreshold,
         setStartColorThreshold,
-        endColorThreshold,
         setEndColorThreshold,
-    } = visualizationConfig.chartConfig;
+    } = useTreemapEditorActions();
+    const startColor = useVisualizationSelector(
+        (state) => selectTreemapEditor(state).startColor,
+    );
+    const endColor = useVisualizationSelector(
+        (state) => selectTreemapEditor(state).endColor,
+    );
+    const startColorThreshold = useVisualizationSelector(
+        (state) => selectTreemapEditor(state).startColorThreshold,
+    );
+    const endColorThreshold = useVisualizationSelector(
+        (state) => selectTreemapEditor(state).endColorThreshold,
+    );
+
+    const numericMetrics = useMemo(
+        () => Object.values(pools.numericMetrics),
+        [pools],
+    );
 
     const orderedDimensions = !itemsMap
         ? null
@@ -75,9 +104,6 @@ export const Layout: React.FC = () => {
                                               ? classes.itemDragging
                                               : ''
                                       }`}
-                                      style={{
-                                          ...provided.draggableProps.style,
-                                      }}
                                   >
                                       <Box className={classes.dragHandle}>
                                           <GrabIcon

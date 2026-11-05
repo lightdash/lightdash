@@ -132,7 +132,6 @@ const storyQueryClient = createQueryClient({
 
 [
     FeatureFlags.ExternalSources,
-    FeatureFlags.MultiSourceQuery,
     FeatureFlags.ComposeSqlRunner,
     FeatureFlags.AiThreadRetention,
 ].forEach((flag) => {

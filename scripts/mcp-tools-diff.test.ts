@@ -97,6 +97,14 @@ test('R4: input field type change is breaking', () => {
     assert.deepStrictEqual(r.changes, ['MCP tool `a`: input `x` type changed string → number']);
 });
 
+test('R4: a field that only gains types is NOT breaking', () => {
+    const r = diffSnapshots(
+        snap([tool('a', { x: 'string' }, [])]),
+        snap([tool('a', { x: ['string', 'null'] }, [])]),
+    );
+    assert.deepStrictEqual(r.changes, []);
+});
+
 test('equivalent nullable type encodings are NOT breaking', () => {
     const before = snap([tool('a', { x: ['boolean', 'null'] })]);
     const after = snap([{

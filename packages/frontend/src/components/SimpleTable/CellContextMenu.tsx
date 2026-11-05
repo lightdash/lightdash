@@ -11,7 +11,7 @@ import {
 import { Menu } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy, IconStack } from '@tabler/icons-react';
-import mapValues from 'lodash/mapValues';
+import { mapValues } from 'es-toolkit/compat';
 import { useCallback, useMemo, type FC } from 'react';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
@@ -24,14 +24,14 @@ import MantineIcon from '../common/MantineIcon';
 import { type CellContextMenuProps } from '../common/Table/types';
 import QuickFilterMenuItems from '../Explorer/QuickFilterMenuItems';
 import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
-import { useVisualizationState } from '../LightdashVisualization/useVisualizationContext';
+import { useVisualizationInputs } from '../LightdashVisualization/useVisualizationContext';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
 import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
 
 const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
     const { openUnderlyingDataModal, metricQuery, tableName } =
         useMetricQueryDataContext();
-    const { isEditMode, hasExplorerStore } = useVisualizationState();
+    const { isEditMode, hasExplorerStore } = useVisualizationInputs();
     const { showToastSuccess } = useToaster();
     const meta = cell.column.columnDef.meta;
     const item = meta?.item;

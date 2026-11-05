@@ -66,6 +66,7 @@ export const HeaderDroppable: FC<
                         ref={provided.innerRef}
                         {...provided.draggableProps}
                         {...provided.dragHandleProps}
+                        // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                         style={{
                             ...provided.draggableProps.style,
                             ...(!snapshot.isDragging && {

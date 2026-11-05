@@ -19,6 +19,7 @@ import {
     useEffect,
     useMemo,
     useRef,
+    useState,
     useSyncExternalStore,
 } from 'react';
 import type { Row } from './types';
@@ -75,6 +76,12 @@ export type InsightsPayload = {
     canContinue: boolean;
     error: string | null;
     anomalies: Insight[];
+    /**
+     * App-authored instruction investigations, keyed by the requestId the
+     * app sent with the action. Undefined on hosts that predate the
+     * capability — `useInvestigation` reads that as unavailable.
+     */
+    instructionInvestigations?: Record<string, InsightInvestigation>;
 };
 
 export type InsightsMessage = {
@@ -89,12 +96,21 @@ export type InsightsRequestMessage = {
     /** Author guidance the host forwards to the analysis model, set via
      *  `useInsights({ instructions })`. One string per app. */
     instructions?: string;
+    /** Set via `useInsights({ analyseOnLoad })`; absent = not declared. */
+    analyseOnLoad?: boolean;
 };
 
 export type InsightAction =
     | { action: 'analyse' }
     | { action: 'investigate'; anomalyId: string }
-    | { action: 'continue'; anomalyId: string };
+    | { action: 'continue'; anomalyId: string }
+    | {
+          action: 'investigate-instruction';
+          requestId: string;
+          instruction: string;
+          sources: { queryUuid: string; label: string | null }[];
+      }
+    | { action: 'continue-instruction'; requestId: string };
 
 export type InsightActionMessage = {
     type: 'lightdash:sdk:insight-action';
@@ -212,6 +228,20 @@ export const parseInsightsPayload = (
     }
     const anomalies = value.anomalies.map(parseInsight);
     if (anomalies.some((a) => a === null)) return null;
+    let instructionInvestigations:
+        | Record<string, InsightInvestigation>
+        | undefined;
+    if (isRecord(value.instructionInvestigations)) {
+        const parsed = Object.entries(value.instructionInvestigations).map(
+            ([requestId, investigation]) =>
+                [requestId, parseInvestigation(investigation)] as const,
+        );
+        instructionInvestigations = Object.fromEntries(
+            parsed.flatMap(([requestId, investigation]) =>
+                investigation ? [[requestId, investigation] as const] : [],
+            ),
+        );
+    }
     return {
         status: value.status as InsightsStatus,
         analysisId:
@@ -229,6 +259,9 @@ export const parseInsightsPayload = (
         canContinue: value.canContinue === true,
         error: typeof value.error === 'string' ? value.error : null,
         anomalies: anomalies as Insight[],
+        ...(instructionInvestigations !== undefined
+            ? { instructionInvestigations }
+            : {}),
     };
 };
 
@@ -245,12 +278,17 @@ let activeCleanup: (() => void) | null = null;
 let inUse = false;
 // App-wide author guidance for the analysis model; last writer wins.
 let authorInstructions: string | null = null;
+// App-wide analyse-on-load choice; null = not declared, last writer wins.
+let authorAnalyseOnLoad: boolean | null = null;
 
 const requestMessage = (): InsightsRequestMessage => ({
     type: INSIGHTS_REQUEST_MESSAGE,
     ...(inUse ? { inUse: true } : {}),
     ...(authorInstructions !== null
         ? { instructions: authorInstructions }
+        : {}),
+    ...(authorAnalyseOnLoad !== null
+        ? { analyseOnLoad: authorAnalyseOnLoad }
         : {}),
 });
 
@@ -265,6 +303,14 @@ export const setInsightInstructions = (value: string | undefined) => {
     const next = value?.trim() || null;
     if (next === authorInstructions) return;
     authorInstructions = next;
+    hostWindow?.postMessage(requestMessage(), '*');
+};
+
+/** Module-internal (exported for tests); `useInsights({ analyseOnLoad })` wraps it. */
+export const setInsightAnalyseOnLoad = (value: boolean | undefined) => {
+    const next = value ?? null;
+    if (next === authorAnalyseOnLoad) return;
+    authorAnalyseOnLoad = next;
     hostWindow?.postMessage(requestMessage(), '*');
 };
 
@@ -386,6 +432,9 @@ export type ViewInsightsOptions = {
      *  line or two of domain vocabulary. One string per app (the last value
      *  set wins); the host caps its length. */
     instructions?: string;
+    /** Analyse the view as soon as its queries settle, without a click.
+     *  A stored analysis of the same rows is reused. One value per app. */
+    analyseOnLoad?: boolean;
 };
 
 export type ViewInsights = InsightsPayload & {
@@ -471,6 +520,7 @@ export function useHostAiAvailable(): boolean {
  *
  *   const view = useInsights();               // executive summary + every anomaly
  *   const view = useInsights({ instructions: 'Use British English.' });
+ *   const view = useInsights({ analyseOnLoad: true });
  *   const orders = useLightdash(ordersQuery);
  *   const insights = useInsights(orders);     // anomalies on this chart's rows
  *
@@ -503,6 +553,22 @@ export function useInsights(
         declaredInstructionsRef.current = true;
         setInsightInstructions(instructions);
     }, [instructions]);
+    const analyseOnLoad =
+        source === undefined
+            ? (sourceOrOptions as ViewInsightsOptions | undefined)
+                  ?.analyseOnLoad
+            : undefined;
+    const declaredAnalyseOnLoadRef = useRef(false);
+    useEffect(() => {
+        if (analyseOnLoad === undefined) {
+            if (!declaredAnalyseOnLoadRef.current) return;
+            declaredAnalyseOnLoadRef.current = false;
+            setInsightAnalyseOnLoad(undefined);
+            return;
+        }
+        declaredAnalyseOnLoadRef.current = true;
+        setInsightAnalyseOnLoad(analyseOnLoad);
+    }, [analyseOnLoad]);
     const payload = useInsightsPayload();
     const investigate = useCallback(
         (anomalyId: string) =>
@@ -556,6 +622,141 @@ export function useInsights(
     };
 }
 
+// ---- Instruction investigations: author-written briefs for the agent ----
+
+export type InvestigationSource = {
+    /** The object returned by `useLightdash`. Entries still loading (no
+     *  query uuid yet) are skipped. */
+    result: {
+        queryUuid?: string | null;
+        lineage?: { 'data-ld-query'?: string };
+    } | null;
+    /** Shown to the agent as the section title; defaults to "Query N". */
+    label?: string;
+};
+
+export type InvestigationOptions = {
+    /** The brief. Author-written, may interpolate app state. */
+    instruction: string;
+    /** Results already loaded via `useLightdash`; the agent starts from
+     *  these and may run further read-only queries to test drivers. */
+    sources: InvestigationSource[];
+};
+
+export type Investigation = {
+    /** False outside a Lightdash host, on a host without the capability, or
+     *  while the viewer has no agent to run investigations with. */
+    available: boolean;
+    /** Ask the agent to carry out the instruction. One investigation per
+     *  hook instance; a re-run replaces the previous result. */
+    investigate: (options: InvestigationOptions) => void;
+    status: 'idle' | 'running' | 'ready' | 'error';
+    /** Markdown, once ready. */
+    explanation: string | null;
+    /** True when the query budget ran out before the agent finished. */
+    partial: boolean;
+    error: string | null;
+    /** False when the organisation keeps viewers at the explanation. */
+    canContinue: boolean;
+    /** Open the investigation's thread in Ask AI, once ready. */
+    continueInAskAi: () => void;
+};
+
+const investigationQueryUuid = (
+    result: InvestigationSource['result'],
+): string | null =>
+    result?.queryUuid ?? result?.lineage?.['data-ld-query'] ?? null;
+
+let investigationRequestCounter = 0;
+
+/**
+ * An agent investigation of an author-written instruction, rendered inside
+ * the app — e.g. a recommendation pill that reads "investigate what drove
+ * this" and shows the agent's findings underneath.
+ *
+ *   const orders = useLightdash(ordersQuery);
+ *   const investigation = useInvestigation();
+ *   // on click:
+ *   investigation.investigate({
+ *       instruction: 'What drove the August revenue peak?',
+ *       sources: [{ result: orders, label: 'Monthly revenue' }],
+ *   });
+ *
+ * The agent starts from the named sources and may run further read-only
+ * queries against the project — unlike `useAiPrompt`, which only sees the
+ * rows the app already loaded. Check `available` before rendering the
+ * control; the host applies the organisation's consent and permission gates.
+ */
+export function useInvestigation(): Investigation {
+    const payload = useInsightsPayload();
+    // Stable per hook instance: the host keys the pushed status on it.
+    const requestIdRef = useRef<string | null>(null);
+    if (requestIdRef.current === null) {
+        investigationRequestCounter += 1;
+        requestIdRef.current = `inv-${investigationRequestCounter}-${Math.random()
+            .toString(36)
+            .slice(2, 10)}`;
+    }
+    const requestId = requestIdRef.current;
+    // Covers the gap between posting the action and the host's next push.
+    const [requested, setRequested] = useState(false);
+
+    const hostSupports = payload.instructionInvestigations !== undefined;
+    const available =
+        payload.status !== 'unavailable' &&
+        hostSupports &&
+        payload.canInvestigate;
+
+    const hostState = payload.instructionInvestigations?.[requestId];
+
+    const investigate = useCallback(
+        (options: InvestigationOptions) => {
+            const sources = options.sources.flatMap(({ result, label }) => {
+                const queryUuid = investigationQueryUuid(result);
+                return queryUuid ? [{ queryUuid, label: label ?? null }] : [];
+            });
+            if (sources.length === 0) {
+                throw new Error(
+                    options.sources.length === 0
+                        ? 'useInvestigation: pass at least one useLightdash result as a source'
+                        : 'useInvestigation: no source has a queryUuid yet. Pass the object returned by useLightdash itself (const orders = useLightdash(q); sources: [{ result: orders }]) once it has loaded',
+                );
+            }
+            const instruction = options.instruction?.trim() ?? '';
+            if (instruction.length === 0) {
+                throw new Error('useInvestigation: an instruction is required');
+            }
+            setRequested(true);
+            postInsightAction({
+                action: 'investigate-instruction',
+                requestId,
+                instruction,
+                sources,
+            });
+        },
+        [requestId],
+    );
+
+    const continueInAskAi = useCallback(() => {
+        if (!payload.canContinue) return;
+        postInsightAction({ action: 'continue-instruction', requestId });
+    }, [payload.canContinue, requestId]);
+
+    const status: Investigation['status'] =
+        hostState?.status ?? (requested ? 'running' : 'idle');
+
+    return {
+        available,
+        investigate,
+        status,
+        explanation: hostState?.explanation ?? null,
+        partial: hostState?.partial ?? false,
+        error: hostState?.error ?? null,
+        canContinue: payload.canContinue && hostState?.status === 'ready',
+        continueInAskAi,
+    };
+}
+
 /** Report a mounted query for as long as the component is on screen. */
 export function useMountedQuery(queryUuid: string | null): void {
     useEffect(() => {
@@ -585,6 +786,7 @@ export function resetInsightsState(): void {
     hostWindow = null;
     inUse = false;
     authorInstructions = null;
+    authorAnalyseOnLoad = null;
     mounted.clear();
     flushScheduled = false;
 }

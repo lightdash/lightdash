@@ -8,9 +8,9 @@ import { getAiAccessRefusal } from '../../../../../features/aiAccess/errors';
 import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
 import { AiAccessCallout } from './AiAccessCallout';
-import { AiArtifactTableVisualization } from './AiArtifactTableVisualization';
 import { AiComposerChartVisualization } from './AiComposerChartVisualization';
 import { AiComposerResultError } from './AiComposerResultError';
+import { AiComposerResultTable } from './AiComposerResultTable';
 
 type Props = {
     projectUuid: string;
@@ -22,7 +22,6 @@ type Props = {
     onRerun: () => void;
     vizConfig: AllVizChartConfig;
     headerContent: ReactNode;
-    flush?: boolean;
 };
 
 // A displayed node result drawn as its viz config says: the table or a chart.
@@ -34,7 +33,6 @@ export const AiComposerArtifactVisualization: FC<Props> = ({
     onRerun,
     vizConfig,
     headerContent,
-    flush = false,
 }) => {
     const uiStrings = useUiStrings();
     const error = runError ?? results.error;
@@ -61,11 +59,11 @@ export const AiComposerArtifactVisualization: FC<Props> = ({
     const loadingMessage = uiStrings('aiAgent.composer.loadingResult');
     if (vizConfig.type === ChartKind.TABLE) {
         return (
-            <AiArtifactTableVisualization
+            <AiComposerResultTable
+                projectUuid={projectUuid}
                 results={results}
                 headerContent={headerContent}
                 loadingMessage={loadingMessage}
-                flush={flush}
             />
         );
     }

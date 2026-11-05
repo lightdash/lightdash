@@ -53,7 +53,6 @@ describe('Slack automatic agent routing', () => {
             isMultiAgentChannel: true,
             organizationUuid: 'organization',
             userUuid: 'user',
-            multiAgentProjectUuids: ['project'],
         });
         return { result, picker, postMessage };
     };

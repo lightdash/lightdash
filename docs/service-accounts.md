@@ -5,6 +5,9 @@ that authenticates as its own dedicated user record and acts on the
 organization's behalf. Use one for CI deploys, dashboards-as-code uploads,
 SCIM provisioning, scheduled scripts, etc.
 
+Service accounts are available on every instance with a valid licence. No
+feature flag or environment variable turns them on or off.
+
 For the broader authentication picture (sessions, PATs, SCIM, embed) see
 [`authentication-and-roles.md`](./authentication-and-roles.md).
 For deployment integrations and script templates, see

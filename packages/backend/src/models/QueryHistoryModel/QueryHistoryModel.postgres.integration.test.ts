@@ -95,8 +95,14 @@ describe('QueryHistoryModel (PostgreSQL)', () => {
     beforeEach(async () => {
         tx = await database.transaction();
         await tx.raw(
-            `CREATE TEMP TABLE query_history (query_uuid uuid, project_uuid uuid, status text, created_by_user_uuid text, created_by_account text, context text, created_at timestamptz DEFAULT clock_timestamp(), duckdb_execution jsonb, request_parameters jsonb, cache_key text, agent_identity jsonb, results_file_name text, results_created_at timestamptz, results_updated_at timestamptz, results_expires_at timestamptz, total_row_count bigint, columns jsonb) ON COMMIT DROP`,
+            `CREATE TEMP TABLE query_history (query_uuid uuid, project_uuid uuid, status text, created_by_user_uuid text, created_by_account text, context text, created_at timestamptz DEFAULT clock_timestamp(), duckdb_execution jsonb, request_parameters jsonb, metric_query jsonb, cache_key text, agent_identity jsonb, results_file_name text, results_created_at timestamptz, results_updated_at timestamptz, results_expires_at timestamptz, total_row_count bigint, columns jsonb, cache_generation integer NOT NULL DEFAULT 0, cache_invalidated_at timestamptz) ON COMMIT DROP`,
         );
+        await tx.raw(
+            `CREATE TEMP TABLE projects (project_uuid uuid, results_cache_generation integer NOT NULL DEFAULT 0) ON COMMIT DROP`,
+        );
+        await tx<{ project_uuid: string }>('projects').insert({
+            project_uuid: projectUuid,
+        });
         model = new QueryHistoryModel({ database: tx });
     });
     afterEach(async () => {
@@ -188,6 +194,67 @@ describe('QueryHistoryModel (PostgreSQL)', () => {
 
     it('runs no query without legs', async () => {
         expect(await cancel([])).toEqual([]);
+    });
+
+    describe('retention cleanup', () => {
+        const cutoff = new Date('2026-01-31T00:00:00Z');
+        const expired = new Date('2026-01-01T00:00:00Z');
+        const recent = new Date('2026-02-15T00:00:00Z');
+        const insertAt = (createdAt: Date, count: number) =>
+            tx<{
+                query_uuid: string;
+                project_uuid: string;
+                status: QueryHistoryStatus;
+                created_by_user_uuid: string;
+                context: QueryExecutionContext;
+                request_parameters: Record<string, never>;
+                created_at: Date;
+            }>('query_history').insert(
+                Array.from({ length: count }, () => ({
+                    query_uuid: randomUUID(),
+                    project_uuid: projectUuid,
+                    status: QueryHistoryStatus.READY,
+                    created_by_user_uuid: account.user.id,
+                    context: QueryExecutionContext.EXPLORE,
+                    request_parameters: {},
+                    created_at: createdAt,
+                })),
+            );
+        const remainingRows = () =>
+            tx<{ created_at: Date }>('query_history').select('created_at');
+        const generous = {
+            batchSize: 10,
+            delayMs: 0,
+            maxBatches: 10,
+        };
+
+        it('clears a backlog spanning many batches within the caps and keeps rows inside retention', async () => {
+            await insertAt(expired, 25);
+            await insertAt(recent, 5);
+
+            const result = await model.cleanupBatch(cutoff, generous);
+
+            expect(result).toMatchObject({ totalDeleted: 25, completed: true });
+            const rows = await remainingRows();
+            expect(rows).toHaveLength(5);
+            expect(rows.every((row) => row.created_at >= cutoff)).toBe(true);
+            expect(await model.countOlderThan(cutoff)).toBe(0);
+        });
+
+        it('stops at the batch cap and reports the backlog left behind', async () => {
+            await insertAt(expired, 25);
+
+            const result = await model.cleanupBatch(cutoff, {
+                ...generous,
+                maxBatches: 2,
+            });
+
+            expect(result).toMatchObject({
+                totalDeleted: 20,
+                completed: false,
+            });
+            expect(await model.countOlderThan(cutoff)).toBe(5);
+        });
     });
 
     describe('result cache provenance', () => {
@@ -309,6 +376,303 @@ describe('QueryHistoryModel (PostgreSQL)', () => {
                     excludeCacheHits: false,
                 }),
             ).resolves.toMatchObject({ queryUuid: newestAlias });
+        });
+
+        describe('after a chart or dashboard cache is invalidated', () => {
+            const tagRun = (
+                queryUuid: string,
+                tags: Record<string, string>,
+                cacheKey = 'cache-key',
+            ) =>
+                tx<DbQueryHistory>('query_history')
+                    .where('query_uuid', queryUuid)
+                    .update({
+                        cache_key: cacheKey,
+                        request_parameters: {
+                            sql: 'SELECT 1',
+                            resultProducer: producer,
+                            ...tags,
+                        },
+                    });
+            const invalidate = (type: 'chart' | 'dashboard', id: string) =>
+                model.invalidateCachedResultsForContent(
+                    projectUuid,
+                    { type, identifiers: [id] },
+                    new Date(Date.now() - 86400000),
+                );
+            const findLatest = (cacheKey = 'cache-key') =>
+                model.findMostRecentByCacheKey(cacheKey, projectUuid, {
+                    excludeAgentProduced: true,
+                });
+
+            it('expires every run that shares the chart cache key', async () => {
+                const chartRun = await insertCachedResult(
+                    null,
+                    new Date(Date.now()),
+                );
+                await tagRun(chartRun, { chartUuid: 'chart-a' });
+                // Same SQL from Explore, not tagged with the chart
+                await insertCachedResult(null, new Date(Date.now() + 1));
+
+                await expect(invalidate('chart', 'chart-a')).resolves.toBe(2);
+                await expect(findLatest()).resolves.toBeUndefined();
+
+                const fresh = await insertCachedResult(
+                    null,
+                    new Date(Date.now() + 2),
+                );
+                await expect(findLatest()).resolves.toMatchObject({
+                    queryUuid: fresh,
+                });
+            });
+
+            it('expires dashboard tiles and leaves other content cached', async () => {
+                const tile = await insertCachedResult(
+                    null,
+                    new Date(Date.now()),
+                );
+                await tagRun(tile, {
+                    chartUuid: 'chart-a',
+                    dashboardUuid: 'dashboard-a',
+                });
+                const otherChart = await insertCachedResult(
+                    null,
+                    new Date(Date.now()),
+                );
+                await tagRun(otherChart, { chartUuid: 'chart-b' }, 'other-key');
+
+                await expect(
+                    invalidate('dashboard', 'dashboard-a'),
+                ).resolves.toBe(1);
+                await expect(findLatest()).resolves.toBeUndefined();
+                await expect(findLatest('other-key')).resolves.toMatchObject({
+                    queryUuid: otherChart,
+                });
+            });
+        });
+
+        describe('after an explore cache is invalidated', () => {
+            const insertExploreRun = async (
+                exploreName: string,
+                cacheKey: string,
+                createdAt = new Date(),
+            ) => {
+                const queryUuid = await insertCachedResult(null, createdAt);
+                await tx<DbQueryHistory>('query_history')
+                    .where('query_uuid', queryUuid)
+                    .update({
+                        cache_key: cacheKey,
+                        metric_query: {
+                            exploreName,
+                        } as unknown as DbQueryHistory['metric_query'],
+                    });
+                return queryUuid;
+            };
+            const invalidate = (
+                exploreNames: string[],
+                createdSince = new Date(Date.now() - 86400000),
+            ) =>
+                model.invalidateCachedResultsForExplores(
+                    projectUuid,
+                    exploreNames,
+                    createdSince,
+                );
+            const findLatest = (cacheKey: string) =>
+                model.findMostRecentByCacheKey(cacheKey, projectUuid, {
+                    excludeAgentProduced: true,
+                });
+
+            it('expires listed explores and leaves other explores cached', async () => {
+                await insertExploreRun('orders', 'orders-key');
+                await insertExploreRun('payments', 'payments-key');
+                const customers = await insertExploreRun(
+                    'customers',
+                    'customers-key',
+                );
+
+                await expect(invalidate(['orders', 'payments'])).resolves.toBe(
+                    2,
+                );
+
+                await expect(findLatest('orders-key')).resolves.toBeUndefined();
+                await expect(
+                    findLatest('payments-key'),
+                ).resolves.toBeUndefined();
+                await expect(
+                    findLatest('customers-key'),
+                ).resolves.toMatchObject({ queryUuid: customers });
+            });
+
+            it('expires another explore that shares the cache key', async () => {
+                await insertExploreRun('orders', 'shared-key');
+                await insertExploreRun('orders_copy', 'shared-key');
+
+                await expect(invalidate(['orders'])).resolves.toBe(2);
+                await expect(findLatest('shared-key')).resolves.toBeUndefined();
+            });
+
+            it('caches again after the next run', async () => {
+                await insertExploreRun('orders', 'orders-key');
+                await invalidate(['orders']);
+
+                const fresh = await insertExploreRun('orders', 'orders-key');
+                await expect(findLatest('orders-key')).resolves.toMatchObject({
+                    queryUuid: fresh,
+                });
+            });
+
+            it('stops an in-flight query from repopulating the cache', async () => {
+                const running = await insertExploreRun('orders', 'orders-key');
+                await tx<DbQueryHistory>('query_history')
+                    .where('query_uuid', running)
+                    .update({
+                        status: QueryHistoryStatus.PENDING,
+                        results_file_name: null,
+                    });
+
+                await invalidate(['orders']);
+                await tx<DbQueryHistory>('query_history')
+                    .where('query_uuid', running)
+                    .update({
+                        status: QueryHistoryStatus.READY,
+                        results_file_name: 'late.jsonl',
+                    });
+
+                await expect(findLatest('orders-key')).resolves.toBeUndefined();
+            });
+
+            it('leaves runs older than the window and other projects unmarked', async () => {
+                await insertExploreRun(
+                    'orders',
+                    'old-key',
+                    new Date(Date.now() - 2 * 86400000),
+                );
+                const otherProject = await insert({
+                    project: randomUUID(),
+                });
+                await tx<DbQueryHistory>('query_history')
+                    .where('query_uuid', otherProject)
+                    .update({
+                        cache_key: 'other-project-key',
+                        metric_query: {
+                            exploreName: 'orders',
+                        } as unknown as DbQueryHistory['metric_query'],
+                    });
+
+                await expect(invalidate(['orders'])).resolves.toBe(0);
+            });
+
+            it('invalidates a cache hit inserted after the clear', async () => {
+                const source = await insertExploreRun('orders', 'orders-key');
+                await invalidate(['orders']);
+                const lateHit = await insertExploreRun('orders', 'orders-key');
+
+                await model.inheritCacheInvalidation(
+                    lateHit,
+                    source,
+                    projectUuid,
+                );
+
+                await expect(findLatest('orders-key')).resolves.toBeUndefined();
+            });
+
+            it('keeps a cache hit of results that were not cleared', async () => {
+                // Earlier than the hit, so a same-millisecond insert can't tie
+                const source = await insertExploreRun(
+                    'orders',
+                    'orders-key',
+                    new Date(Date.now() - 1000),
+                );
+                const hit = await insertExploreRun('orders', 'orders-key');
+
+                await model.inheritCacheInvalidation(hit, source, projectUuid);
+
+                await expect(findLatest('orders-key')).resolves.toMatchObject({
+                    queryUuid: hit,
+                });
+            });
+        });
+
+        describe('after the project cache is invalidated', () => {
+            const invalidate = () =>
+                tx('projects')
+                    .where('project_uuid', projectUuid)
+                    .increment('results_cache_generation', 1);
+            const setGeneration = (queryUuid: string, generation: number) =>
+                tx('query_history')
+                    .where('query_uuid', queryUuid)
+                    .update({ cache_generation: generation });
+            const findLatest = () =>
+                model.findMostRecentByCacheKey('cache-key', projectUuid, {
+                    excludeAgentProduced: true,
+                });
+
+            it('ignores results from the previous generation', async () => {
+                const original = await insertCachedResult(
+                    null,
+                    new Date(Date.now()),
+                );
+                await expect(findLatest()).resolves.toMatchObject({
+                    queryUuid: original,
+                    cacheGeneration: 0,
+                });
+
+                await invalidate();
+                await expect(findLatest()).resolves.toBeUndefined();
+
+                const fresh = await insertCachedResult(
+                    null,
+                    new Date(Date.now() + 1),
+                );
+                await setGeneration(fresh, 1);
+                await expect(findLatest()).resolves.toMatchObject({
+                    queryUuid: fresh,
+                    cacheGeneration: 1,
+                });
+            });
+
+            it('ignores a query that started before and finished after', async () => {
+                const inFlight = await insertCachedResult(
+                    null,
+                    new Date(Date.now()),
+                );
+                await invalidate();
+                await tx('query_history')
+                    .where('query_uuid', inFlight)
+                    .update({ results_updated_at: new Date(Date.now() + 1) });
+
+                await expect(findLatest()).resolves.toBeUndefined();
+            });
+
+            it('ignores newer cache hits that kept the old generation', async () => {
+                const now = Date.now();
+                const original = await insertCachedResult(null, new Date(now));
+                await invalidate();
+                await insertCachedResult(original, new Date(now + 1));
+
+                await expect(findLatest()).resolves.toBeUndefined();
+            });
+
+            it('leaves other projects cached', async () => {
+                const otherProject = randomUUID();
+                await tx<{ project_uuid: string }>('projects').insert({
+                    project_uuid: otherProject,
+                });
+                const other = await insert({
+                    status: QueryHistoryStatus.READY,
+                    project: otherProject,
+                });
+                await tx('query_history')
+                    .where('query_uuid', other)
+                    .update({ cache_key: 'cache-key' });
+                await invalidate();
+
+                await expect(
+                    model.findMostRecentByCacheKey('cache-key', otherProject, {
+                        excludeAgentProduced: true,
+                    }),
+                ).resolves.toMatchObject({ queryUuid: other });
+            });
         });
 
         it.each(['missing', 'null'] as const)(

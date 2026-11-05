@@ -1,6 +1,0 @@
-version: 2
-models:
-  - name: trino_calendar_copy
-    columns:
-      - name: calendar_date
-        meta: { dimension: { type: date } }

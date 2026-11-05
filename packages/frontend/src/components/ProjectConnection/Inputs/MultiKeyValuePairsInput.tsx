@@ -7,12 +7,13 @@ import {
     InputWrapper,
 } from '@mantine/core';
 import { IconHelpCircle, IconPlus, IconTrash } from '@tabler/icons-react';
-import get from 'lodash/get';
+import { get } from 'es-toolkit/compat';
 import { useState, type ReactNode } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import MantineIcon from '../../common/MantineIcon';
 import DocumentationHelpButton from '../../DocumentationHelpButton';
 import { useFormContext } from '../formContext';
+import classes from './MultiKeyValuePairsInput.module.css';
 
 type Props = {
     name: string;
@@ -49,17 +50,12 @@ export const MultiKeyValuePairsInput = ({
 
     return (
         <InputWrapper
-            styles={{
-                label: {
-                    display: 'flex',
-                    alignItems: 'center',
-                },
-            }}
+            classNames={{ label: classes.label }}
             label={
                 <>
                     {label}
 
-                    <div style={{ flex: 1 }}></div>
+                    <div className={classes.spacer}></div>
 
                     {documentationUrl && !labelHelp && (
                         <DocumentationHelpButton href={documentationUrl} />

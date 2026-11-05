@@ -327,79 +327,95 @@ export const MetricsBlockBuild: FC<BuildComponentProps> = ({
     const atLimit = block.config.items.length >= MAX_METRICS;
 
     return (
-        <Stack gap="xs">
-            <TextInput
-                label="Title"
-                size="xs"
-                fw={600}
-                value={block.config.title}
-                onChange={(e) =>
-                    onChange({
-                        ...block,
-                        config: {
-                            ...block.config,
-                            title: e.currentTarget.value,
-                        },
-                    })
+        <Stack gap={0}>
+            <BlockHeader
+                icon={IconChartDots}
+                title={block.config.title}
+                onTitleChange={(title) =>
+                    onChange({ ...block, config: { ...block.config, title } })
                 }
             />
-            <PageGrid itemSpan={itemSpan ?? null}>
-                {block.config.items.map((metricRef) => (
-                    <PageGridItem
-                        key={`${metricRef.tableName}-${metricRef.metricName}`}
+            {block.config.items.length === 0 ? (
+                <div className={classes.metricsEmpty}>
+                    {[0, 1, 2].map((i) => (
+                        <div key={i} className={classes.metricsGhost}>
+                            <span />
+                            <span />
+                        </div>
+                    ))}
+                    <Button
+                        className={classes.metricsEmptyCta}
+                        variant="default"
+                        size="xs"
+                        leftSection={<MantineIcon icon={IconHash} />}
+                        onClick={() => setIsPickerOpen(true)}
                     >
-                        <Card p="sm" h="100%">
-                            <Group
-                                gap="xs"
-                                wrap="nowrap"
-                                justify="space-between"
-                            >
-                                <Box miw={0}>
-                                    <Text size="sm" fw={500} truncate>
-                                        {metricRef.label}
-                                    </Text>
-                                    <Text size="xs" c="dimmed" truncate>
-                                        {metricRef.tableName}
-                                    </Text>
-                                </Box>
-                                <ActionIcon
-                                    size="sm"
-                                    aria-label={`Remove metric ${metricRef.label}`}
-                                    onClick={() =>
-                                        onChange({
-                                            ...block,
-                                            config: {
-                                                ...block.config,
-                                                items: block.config.items.filter(
-                                                    (item) =>
-                                                        item.metricName !==
-                                                            metricRef.metricName ||
-                                                        item.tableName !==
-                                                            metricRef.tableName,
-                                                ),
-                                            },
-                                        })
-                                    }
+                        Choose metrics
+                    </Button>
+                </div>
+            ) : (
+                <PageGrid itemSpan={itemSpan ?? null}>
+                    {block.config.items.map((metricRef) => (
+                        <PageGridItem
+                            key={`${metricRef.tableName}-${metricRef.metricName}`}
+                        >
+                            <Card p="sm" h="100%">
+                                <Group
+                                    gap="xs"
+                                    wrap="nowrap"
+                                    justify="space-between"
                                 >
-                                    <MantineIcon icon={IconX} />
-                                </ActionIcon>
-                            </Group>
-                        </Card>
-                    </PageGridItem>
-                ))}
-            </PageGrid>
-            <Button
-                variant="default"
-                size="xs"
-                w="fit-content"
-                disabled={atLimit}
-                leftSection={<MantineIcon icon={IconHash} />}
-                onClick={() => setIsPickerOpen(true)}
-            >
-                {atLimit
-                    ? `Metric limit reached (${MAX_METRICS})`
-                    : 'Choose metrics from catalog…'}
-            </Button>
+                                    <Box miw={0}>
+                                        <Text size="sm" fw={500} truncate>
+                                            {metricRef.label}
+                                        </Text>
+                                        <Text size="xs" c="dimmed" truncate>
+                                            {metricRef.tableName}
+                                        </Text>
+                                    </Box>
+                                    <ActionIcon
+                                        size="sm"
+                                        aria-label={`Remove metric ${metricRef.label}`}
+                                        onClick={() =>
+                                            onChange({
+                                                ...block,
+                                                config: {
+                                                    ...block.config,
+                                                    items: block.config.items.filter(
+                                                        (item) =>
+                                                            item.metricName !==
+                                                                metricRef.metricName ||
+                                                            item.tableName !==
+                                                                metricRef.tableName,
+                                                    ),
+                                                },
+                                            })
+                                        }
+                                    >
+                                        <MantineIcon icon={IconX} />
+                                    </ActionIcon>
+                                </Group>
+                            </Card>
+                        </PageGridItem>
+                    ))}
+                </PageGrid>
+            )}
+            {block.config.items.length > 0 && (
+                <Button
+                    mt="xs"
+                    variant="subtle"
+                    color="gray"
+                    size="xs"
+                    w="fit-content"
+                    disabled={atLimit}
+                    leftSection={<MantineIcon icon={IconPlus} />}
+                    onClick={() => setIsPickerOpen(true)}
+                >
+                    {atLimit
+                        ? `Metric limit reached (${MAX_METRICS})`
+                        : 'Add metric'}
+                </Button>
+            )}
             <MetricsPickerModal
                 opened={isPickerOpen}
                 onClose={() => setIsPickerOpen(false)}

@@ -27,8 +27,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import ChartColorMappingContextProvider from '../../hooks/useChartColorConfig/ChartColorMappingContextProvider';
 import { type InfiniteQueryResults } from '../../hooks/useQueryResults';
 import { renderWithProviders } from '../../testing/testUtils';
-import { isCartesianVisualizationConfig } from './types';
-import { useVisualizationContext } from './useVisualizationContext';
+import {
+    isCartesianVisualizationConfig,
+    isCustomVisualizationConfig,
+} from './types';
+import {
+    useEditedChartConfig,
+    useVisualizationContext,
+} from './useVisualizationContext';
 import VisualizationProvider, {
     type VisualizationProviderProps,
 } from './VisualizationProvider';
@@ -127,6 +133,7 @@ const counts = {
     mounts: 0,
 };
 let editXAxisName: ((name: string) => void) | undefined;
+let editCustomSpec: ((spec: string) => void) | undefined;
 
 const LoadingProbe = memo(() => {
     const value = useVisualizationContext().isLoading;
@@ -149,6 +156,9 @@ const ConfigProbe = memo(() => {
     counts.seriesColorIdentities.add(getSeriesColor);
     editXAxisName = isCartesianVisualizationConfig(visualizationConfig)
         ? visualizationConfig.chartConfig.setXAxisName
+        : undefined;
+    editCustomSpec = isCustomVisualizationConfig(visualizationConfig)
+        ? visualizationConfig.chartConfig.setVisSpec
         : undefined;
     useEffect(() => {
         counts.mounts += 1;
@@ -206,6 +216,7 @@ describe('VisualizationProvider render characterization', () => {
         counts.seriesColorIdentities = new Set();
         counts.mounts = 0;
         editXAxisName = undefined;
+        editCustomSpec = undefined;
     });
     afterEach(() => cleanup());
 
@@ -309,12 +320,14 @@ describe('VisualizationProvider render characterization', () => {
 
     describe('with an explorer-like feedback loop', () => {
         let resetToSaved: (() => void) | undefined;
+        let loadConfig: ((config: ChartConfig) => void) | undefined;
         let latestParentConfig: ChartConfig | undefined;
 
         const FeedbackParent: FC<{ initial: ChartConfig }> = ({ initial }) => {
             const [chartConfig, setChartConfig] = useState(initial);
             latestParentConfig = chartConfig;
             resetToSaved = () => setChartConfig(structuredClone(initial));
+            loadConfig = setChartConfig;
             return (
                 <VisualizationProvider
                     {...baseProps}
@@ -326,7 +339,7 @@ describe('VisualizationProvider render characterization', () => {
             );
         };
 
-        it('settles after mount and an edit costs extra provider passes', () => {
+        it('settles after mount and an edit costs one render per consumer', () => {
             render(<FeedbackParent initial={cartesianConfig} />);
             const before = renderedCounts();
             const colorIdentitiesBefore = counts.seriesColorIdentities.size;
@@ -339,10 +352,11 @@ describe('VisualizationProvider render characterization', () => {
                 latestParentConfig?.type === ChartType.CARTESIAN &&
                     latestParentConfig.config?.eChartsConfig.xAxis?.[0]?.name,
             ).toBe('Edited');
-            // One edit: the hook's own state render, then the parent's
-            // echoed config render, which also rebuilds the series colours.
-            expect(after.config - before.config).toBe(2);
-            expect(after.loading - before.loading).toBe(2);
+            // One edit: the store update renders each consumer once. The
+            // parent's echoed config no longer rebuilds the state context or
+            // the series colours (it used to cost a second render).
+            expect(after.config - before.config).toBe(1);
+            expect(after.loading - before.loading).toBe(1);
             expect(
                 counts.seriesColorIdentities.size - colorIdentitiesBefore,
             ).toBe(1);
@@ -362,6 +376,50 @@ describe('VisualizationProvider render characterization', () => {
                     latestParentConfig.config?.eChartsConfig.xAxis?.[0]?.name,
             ).toBe('Edited');
         });
+        describe('a custom chart whose spec loads after mount', () => {
+            const emptyCustom: ChartConfig = {
+                type: ChartType.CUSTOM,
+                config: {},
+            };
+            const spec = { mark: 'bar' };
+            const customSpec = (config: ChartConfig | undefined) =>
+                config?.type === ChartType.CUSTOM
+                    ? config.config?.spec
+                    : 'not custom';
+
+            it('takes the spec while the editor is untouched', () => {
+                render(<FeedbackParent initial={emptyCustom} />);
+
+                act(() =>
+                    loadConfig?.({ type: ChartType.CUSTOM, config: { spec } }),
+                );
+
+                expect(customSpec(latestParentConfig)).toEqual(spec);
+            });
+
+            it('mounts a chart whose saved spec is null', () => {
+                // Content as code can save a blank spec, which arrives as null
+                const nullSpec: ChartConfig = JSON.parse(
+                    '{"type":"custom","config":{"spec":null}}',
+                );
+                expect(() =>
+                    render(<FeedbackParent initial={nullSpec} />),
+                ).not.toThrow();
+            });
+
+            it('keeps an edit over a spec loaded afterwards', () => {
+                render(<FeedbackParent initial={emptyCustom} />);
+                act(() => editCustomSpec?.('{"mark":"line"}'));
+
+                act(() =>
+                    loadConfig?.({ type: ChartType.CUSTOM, config: { spec } }),
+                );
+
+                expect(customSpec(latestParentConfig)).toEqual({
+                    mark: 'line',
+                });
+            });
+        });
     });
 
     it('remounts the consumer subtree when the chart type changes', () => {
@@ -379,6 +437,51 @@ describe('VisualizationProvider render characterization', () => {
         );
 
         expect(counts.mounts).toBe(2);
+    });
+
+    describe('without a config owner', () => {
+        let edited: ChartConfig | undefined;
+        const EditedProbe: FC = () => {
+            edited = useEditedChartConfig();
+            return null;
+        };
+        const ui = (chartConfig: ChartConfig) => (
+            <VisualizationProvider {...baseProps} chartConfig={chartConfig}>
+                <EditedProbe />
+            </VisualizationProvider>
+        );
+
+        it('follows a big number config that changes without a remount', () => {
+            const bigNumber = (label: string): ChartConfig => ({
+                type: ChartType.BIG_NUMBER,
+                config: { selectedField: 'orders_total', label },
+            });
+            const { rerender } = render(ui(bigNumber('V1')));
+
+            rerender(ui(bigNumber('V2')));
+
+            expect(
+                edited?.type === ChartType.BIG_NUMBER && edited.config?.label,
+            ).toBe('V2');
+        });
+
+        it('follows a pie config that changes without a remount', () => {
+            const pie = (isDonut: boolean): ChartConfig => ({
+                type: ChartType.PIE,
+                config: {
+                    groupFieldIds: ['orders_order_date_month'],
+                    metricId: 'orders_total',
+                    isDonut,
+                },
+            });
+            const { rerender } = render(ui(pie(false)));
+
+            rerender(ui(pie(true)));
+
+            expect(
+                edited?.type === ChartType.PIE && edited.config?.isDonut,
+            ).toBe(true);
+        });
     });
 
     describe('instances and services', () => {

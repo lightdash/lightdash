@@ -1,12 +1,7 @@
-import { Stack } from '@mantine/core';
 import { useState } from 'react';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../components/common/InlineErrorState';
-import PageBreadcrumbs from '../../components/common/PageBreadcrumbs';
-import {
-    SettingsPage,
-    SettingsPageContainer,
-} from '../../components/common/Settings/SettingsPage';
+import { SettingsPage } from '../../components/common/Settings/SettingsPage';
 import { useAiOrganizationAdminSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 import { useOrganizationGroups } from '../../hooks/useOrganizationGroups';
 import { useProjects } from '../../hooks/useProjects';
@@ -84,7 +79,7 @@ const AgentSettingsContent = ({ access }: { access: AgentSettingsAccess }) => {
     if (!ready && waiting) return error ?? <EmptyStateLoader />;
     if (!identity.data || !policy.data || !projects.data) return error;
     return (
-        <Stack gap="lg">
+        <>
             {error}
             <OrganizationAgentIdentityCard
                 overview={identity.data}
@@ -104,7 +99,7 @@ const AgentSettingsContent = ({ access }: { access: AgentSettingsAccess }) => {
                 loadError={hasError}
                 mcpSettings={access.agentsMcp ? (settings.data ?? null) : null}
             />
-        </Stack>
+        </>
     );
 };
 export const AgentIdentitySettingsPage = ({
@@ -114,22 +109,12 @@ export const AgentIdentitySettingsPage = ({
 }) => {
     if (!access.agentsPage) return null;
     return (
-        <Stack gap="sm">
-            <SettingsPageContainer>
-                <PageBreadcrumbs
-                    size="sm"
-                    items={[
-                        { title: 'Organization settings' },
-                        { title: 'Agents', active: true },
-                    ]}
-                />
-            </SettingsPageContainer>
-            <SettingsPage
-                title="Agents"
-                description="Who agents run as, and what they may do. Agents are Ask AI, the Slack agent, MCP clients and the CLI."
-            >
-                <AgentSettingsContent access={access} />
-            </SettingsPage>
-        </Stack>
+        <SettingsPage
+            title="Agents"
+            breadcrumbs={[{ title: 'Organization settings' }]}
+            description="Who agents run as, and what they may do. Agents are Ask AI, the Slack agent, MCP clients and the CLI."
+        >
+            <AgentSettingsContent access={access} />
+        </SettingsPage>
     );
 };

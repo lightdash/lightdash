@@ -7,8 +7,8 @@ import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import EChartsReact from '../EChartsReactWrapper';
 import {
+    useVisualizationInputs,
     useVisualizationServices,
-    useVisualizationState,
 } from '../LightdashVisualization/useVisualizationContext';
 
 const EmptyChart = () => (
@@ -34,7 +34,7 @@ const EchartOptions: Opts = { renderer: 'svg' };
 const SimpleSankey: FC<SimpleSankeyProps> = memo(
     ({ onScreenshotReady, onScreenshotError, ...props }) => {
         const { chartRef } = useVisualizationServices();
-        const { isLoading, resultsData } = useVisualizationState();
+        const { isLoading, resultsData } = useVisualizationInputs();
 
         const sankeyChartOptions = useEchartsSankeyConfig(props.isInDashboard);
 
@@ -73,6 +73,7 @@ const SimpleSankey: FC<SimpleSankeyProps> = memo(
             <EChartsReact
                 ref={chartRef}
                 className={props.className}
+                // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                 style={
                     props.$shouldExpand
                         ? {

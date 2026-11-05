@@ -19,7 +19,10 @@ export const MyAgentConnectionsPanel = () => {
     const activeTab =
         params.get('tab') === 'warehouses' ? 'warehouses' : 'connections';
     return (
-        <SettingsPage title="My agent identity">
+        <SettingsPage
+            title="My agent identity"
+            description="See the agents connected to your account and who they run as on each warehouse. Some warehouses need you to sign in once."
+        >
             {connections.isError && (
                 <InlineErrorState
                     message={connections.error.error.message}

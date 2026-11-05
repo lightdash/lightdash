@@ -4,15 +4,7 @@ import {
     type DataAppActivityEvent,
     type DataAppGenerationUsage,
 } from '@lightdash/common';
-import {
-    Anchor,
-    Badge,
-    Group,
-    Stack,
-    Text,
-    Tooltip,
-    useMantineTheme,
-} from '@mantine/core';
+import { Anchor, Badge, Group, Stack, Text, Tooltip } from '@mantine/core';
 import { IconAppWindow, IconPuzzle } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useMemo, type FC } from 'react';
@@ -28,6 +20,7 @@ import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll';
 import { useIsTruncated } from '../../../hooks/useIsTruncated/index';
 import { useInfiniteDataAppActivity } from '../hooks/useDataAppActivity';
 import { useDataAppActivityFilters } from '../hooks/useDataAppActivityFilters';
+import classes from './DataAppActivityTable.module.css';
 import { DataAppActivityTopToolbar } from './DataAppActivityTopToolbar';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -49,7 +42,7 @@ const formatCost = (costUsd: number) =>
  * tracking, and those that never called the model, are unknown — not free.
  */
 const NotRecorded: FC = () => (
-    <Text fz="sm" c="ldGray.5">
+    <Text fz="sm" c="dimmed">
         -
     </Text>
 );
@@ -105,7 +98,6 @@ const PromptCell: FC<{ prompt: string }> = ({ prompt }) => {
 };
 
 export const DataAppActivityTable: FC = () => {
-    const theme = useMantineTheme();
     const filters = useDataAppActivityFilters();
 
     const {
@@ -203,7 +195,7 @@ export const DataAppActivityTable: FC = () => {
                                         isChartType ? IconPuzzle : IconAppWindow
                                     }
                                     color="dimmed"
-                                    style={{ flex: '0 0 auto' }}
+                                    className={classes.typeIcon}
                                 />
                             </Tooltip>
                             {row.original.appDeleted ? (
@@ -329,18 +321,7 @@ export const DataAppActivityTable: FC = () => {
             showSkeletons: isInitialLoading,
         },
         rowVirtualizerProps: { estimateSize: () => 72, overscan: 40 },
-        // Row metrics copied from the sibling admin tables (agents, threads,
-        // memories) so the settings tables stay visually consistent.
-        mantineTableBodyCellProps: {
-            h: 72,
-            style: {
-                padding: theme.spacing.md,
-                borderRight: 'none',
-                borderLeft: 'none',
-                borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                borderTop: 'none',
-            },
-        },
+        mantineTableBodyCellProps: { h: 72, p: 'md' },
         emptyState: {
             entityName: 'generations',
             emptyMessage: 'No data apps have been generated yet.',
@@ -350,22 +331,13 @@ export const DataAppActivityTable: FC = () => {
         },
         mantineTableContainerProps: {
             ref: tableContainerRef,
-            sx: {
-                maxHeight: 'calc(100dvh - 350px)',
-                minHeight: '600px',
-                display: 'flex',
-                flexDirection: 'column',
-            },
+            mah: 'calc(100dvh - 350px)',
+            mih: 600,
             onScroll,
         },
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: Boolean(flatData.length),
-            sx: {
-                flexGrow: 1,
-                display: 'flex',
-                flexDirection: 'column',
-            },
         },
         renderTopToolbar: () => (
             <DataAppActivityTopToolbar
