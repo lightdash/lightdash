@@ -76,6 +76,21 @@ describe('preview deletion and cache indexes on the migrated schema', () => {
         return rows[0];
     };
 
+    const cancelWhenWaiting = async (name: string): Promise<void> => {
+        const { rows } = await migrated.database.raw<{
+            rows: { pid: number }[];
+        }>(
+            `SELECT pg_cancel_backend(pid) AS pid FROM pg_stat_activity
+             WHERE wait_event_type = 'Lock' AND query ILIKE ?`,
+            [`%CREATE INDEX CONCURRENTLY%${name}%`],
+        );
+        if (rows.length > 0) return;
+        await new Promise((resolve) => {
+            setTimeout(resolve, 100);
+        });
+        await cancelWhenWaiting(name);
+    };
+
     test.each(indexes)(
         '$name is valid, idempotent, reversible and restores session settings',
         async ({ migration, table, name, columns }) => {
@@ -111,13 +126,17 @@ describe('preview deletion and cache indexes on the migrated schema', () => {
             const before = await settings();
             const blocker = await migrated.database.transaction();
             try {
-                // The writer lock makes CIC wait after committing its invalid catalog entry.
+                // The writer lock makes CIC wait after committing its invalid
+                // catalog entry. The build has no lock timeout, so cancel it
+                // once it is queued behind the blocker.
                 await blocker.raw('LOCK TABLE ?? IN ROW EXCLUSIVE MODE', [
                     table,
                 ]);
+                const cancelled = cancelWhenWaiting(name);
                 await expect(migration.up(database)).rejects.toMatchObject({
-                    code: '55P03',
+                    code: '57014',
                 });
+                await cancelled;
                 expect((await state(name))?.valid).toBe(false);
                 expect(await settings()).toEqual(before);
             } finally {
