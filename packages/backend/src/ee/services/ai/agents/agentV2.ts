@@ -160,6 +160,7 @@ import type {
     AiStreamAgentResponseArgs,
     UnavailableMcpServer,
 } from '../types/aiAgent';
+import { toAbsoluteHref } from '../utils/absoluteHref';
 import { AgentContext } from '../utils/AgentContext';
 import {
     AiAgentEmptyResponseError,
@@ -1249,6 +1250,7 @@ export const getDataAnswerFastResponse = (
 /** Ends a document write-up once the document saved without warnings. */
 export const getDocumentWriteFastResponse = (
     steps: ReadonlyArray<FastChartStep>,
+    siteUrl: string,
 ): string | null => {
     const documentCallIds = new Set(
         steps
@@ -1289,13 +1291,14 @@ export const getDocumentWriteFastResponse = (
     )
         return null;
     const name = metadata.name.replace(/[[\]\\]/g, '\\$&').trim();
-    return `Saved [${name || 'the document'}](${metadata.href}).`;
+    return `Saved [${name || 'the document'}](${toAbsoluteHref(siteUrl, metadata.href)}).`;
 };
 
 const getTurnFastResponse = (
     enableDataAnswerFastResponse: boolean,
     turnIntent: TurnIntent | null | undefined,
     steps: ReadonlyArray<FastChartStep>,
+    siteUrl: string,
 ) => {
     if (enableDataAnswerFastResponse && turnIntent === 'data_answer')
         return getDataAnswerFastResponse(steps);
@@ -1305,7 +1308,7 @@ const getTurnFastResponse = (
     if (turnIntent === 'data_app_create' || turnIntent === 'data_app_iterate')
         return getDataAppBuildFastResponse(steps);
     if (turnIntent === 'document_write')
-        return getDocumentWriteFastResponse(steps);
+        return getDocumentWriteFastResponse(steps, siteUrl);
     return null;
 };
 
@@ -3057,6 +3060,7 @@ const runGenerateAgentResponse = async ({
                         args.enableDataAnswerFastResponse,
                         preparedContext?.turnIntent,
                         steps,
+                        args.siteUrl,
                     ) !== null,
             ],
             abortSignal,
@@ -3297,6 +3301,7 @@ const runGenerateAgentResponse = async ({
                   args.enableDataAnswerFastResponse,
                   preparedContext?.turnIntent,
                   result.steps,
+                  args.siteUrl,
               ) ?? result.text);
 
         logger(
@@ -3499,6 +3504,7 @@ const runStreamAgentResponse = async ({
                         args.enableDataAnswerFastResponse,
                         preparedContext?.turnIntent,
                         steps,
+                        args.siteUrl,
                     ) !== null,
             ],
             providerOptions: args.providerOptions,
@@ -3665,6 +3671,7 @@ const runStreamAgentResponse = async ({
                                         toolResults: fastToolResults,
                                     },
                                 ],
+                                args.siteUrl,
                             );
                         }
                         logger(
@@ -3853,6 +3860,7 @@ const runStreamAgentResponse = async ({
                           args.enableDataAnswerFastResponse,
                           preparedContext?.turnIntent,
                           steps,
+                          args.siteUrl,
                       ) ?? modelResponse);
                 const completeResponse =
                     agentContext.responseBlocks.render(responseText);

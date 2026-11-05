@@ -3132,7 +3132,7 @@ describe('buildAgentMessages', () => {
         ).toBeNull();
     });
 
-    it('finishes a document write-up once the document saves cleanly', () => {
+    it('finishes a document write-up with an absolute link once the document saves cleanly', () => {
         const save = (
             output: unknown,
             input: unknown = { type: 'document' },
@@ -3143,6 +3143,7 @@ describe('buildAgentMessages', () => {
                 toolResults: [{ toolCallId: 'save-1', toolName, output }],
             },
         ];
+        const siteUrl = 'https://app.lightdash.cloud/';
         const saved = (warnings: string[] = []) => ({
             result: '<document />',
             metadata: {
@@ -3153,23 +3154,33 @@ describe('buildAgentMessages', () => {
             },
         });
 
-        expect(getDocumentWriteFastResponse(save(saved()))).toBe(
-            'Saved [Revenue \\[Q3\\]](/projects/p/documents/revenue).',
+        expect(getDocumentWriteFastResponse(save(saved()), siteUrl)).toBe(
+            'Saved [Revenue \\[Q3\\]](https://app.lightdash.cloud/projects/p/documents/revenue).',
         );
         expect(
             getDocumentWriteFastResponse(
                 save(saved(), { type: 'document' }, 'editContent'),
+                siteUrl,
             ),
-        ).toBe('Saved [Revenue \\[Q3\\]](/projects/p/documents/revenue).');
+        ).toBe(
+            'Saved [Revenue \\[Q3\\]](https://app.lightdash.cloud/projects/p/documents/revenue).',
+        );
         expect(
-            getDocumentWriteFastResponse(save(saved(['Chart 2 failed']))),
+            getDocumentWriteFastResponse(
+                save(saved(['Chart 2 failed'])),
+                siteUrl,
+            ),
         ).toBeNull();
         expect(
-            getDocumentWriteFastResponse(save(saved(), { type: 'chart' })),
+            getDocumentWriteFastResponse(
+                save(saved(), { type: 'chart' }),
+                siteUrl,
+            ),
         ).toBeNull();
         expect(
             getDocumentWriteFastResponse(
                 save({ result: 'failed', metadata: { status: 'error' } }),
+                siteUrl,
             ),
         ).toBeNull();
     });
