@@ -1680,7 +1680,7 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
 
     /**
      * Hit rate, warehouse time saved and recommendations for the project's
-     * results cache over the last 7 or 30 days.
+     * results cache over the last 7 or 30 days. Requires project admin access.
      * @summary Get results cache stats
      * @param days Number of days to include: 7 (default) or 30
      */
@@ -1706,7 +1706,7 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
 
     /**
      * Estimated hit rate for the next longer cache durations, replayed from
-     * the last 30 days of queries.
+     * the last 30 days of queries. Requires project admin access.
      * @summary Get results cache TTL projections
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])

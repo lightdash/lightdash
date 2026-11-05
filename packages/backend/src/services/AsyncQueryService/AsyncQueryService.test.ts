@@ -30892,7 +30892,7 @@ describe('findResultsCache miss reasons', () => {
 });
 
 describe('results cache stats', () => {
-    const build = (canUpdate: boolean) => {
+    const build = (canManage: boolean) => {
         const getResultsCacheRecommendationRows = vi.fn(async () => []);
         const service = getMockedAsyncQueryService(lightdashConfigMock, {
             queryHistoryModel: {
@@ -30921,14 +30921,18 @@ describe('results cache stats', () => {
         } as never);
         vi.spyOn(
             service as unknown as {
-                createAuditedAbility: () => { cannot: () => boolean };
+                createAuditedAbility: () => {
+                    cannot: (action: string) => boolean;
+                };
             },
             'createAuditedAbility',
-        ).mockReturnValue({ cannot: () => !canUpdate });
+        ).mockReturnValue({
+            cannot: (action: string) => action !== 'manage' || !canManage,
+        });
         return { service, getResultsCacheRecommendationRows };
     };
 
-    test('returns stats for project editors', async () => {
+    test('returns stats for project admins', async () => {
         const stats = await build(true).service.getResultsCacheStats(
             buildAccount(),
             'project',
@@ -30937,7 +30941,7 @@ describe('results cache stats', () => {
         expect(stats.summary).toMatchObject({ runs: 4, hits: 2, hitRate: 0.5 });
     });
 
-    test('forbids users who cannot update the project', async () => {
+    test('forbids users who cannot manage the project', async () => {
         await expect(
             build(false).service.getResultsCacheStats(
                 buildAccount(),

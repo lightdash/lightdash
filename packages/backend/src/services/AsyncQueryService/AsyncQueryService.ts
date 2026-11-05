@@ -16971,7 +16971,7 @@ export class AsyncQueryService extends ProjectService {
             await this.projectModel.getSummary(projectUuid);
         if (
             this.createAuditedAbility(account).cannot(
-                'update',
+                'manage',
                 subject('Project', { organizationUuid, projectUuid }),
             )
         ) {
