@@ -231,14 +231,6 @@ export enum FeatureFlags {
     QueryHistory = 'query-history',
 
     /**
-     * Semantic Studio, the internal name of the Semantic Layer page
-     * (/projects/{projectUuid}/semantic-layer): every kind of explore in one
-     * tree, with field details and live data source field editing. Off by
-     * default.
-     */
-    SemanticStudio = 'semantic-studio',
-
-    /**
      * Configurable retention for AI agent threads. Off by default; enabled
      * per-org on demand for enterprise customers.
      */

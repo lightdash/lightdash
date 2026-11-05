@@ -130,13 +130,8 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
             }),
         ) ?? false;
 
-    const semanticStudioFlag = useServerFeatureFlag(
-        FeatureFlags.SemanticStudio,
-    );
     const canOpenStudio =
-        semanticStudioFlag.data?.enabled === true &&
-        user.data?.ability &&
-        user.data.organizationUuid
+        user.data?.ability && user.data.organizationUuid
             ? canOpenSemanticStudio(
                   user.data.ability,
                   user.data.organizationUuid,
