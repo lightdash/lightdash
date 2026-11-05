@@ -295,16 +295,21 @@ const SqlRunnerNewPage = ({
 }) => {
     const projectUuid = useProjectUuid();
     const { data: project, isInitialLoading, error } = useProject(projectUuid);
-    const liveSourcesFlag = useServerFeatureFlag(FeatureFlags.ApiQuerySources);
+    const liveSourcesFlag = useServerFeatureFlag(FeatureFlags.ApiQuerySources, {
+        enabled: !!project && !project.warehouseConnection,
+    });
 
     if (error) return <ErrorState error={error.error} />;
-    if (isInitialLoading || !project || liveSourcesFlag.isInitialLoading) {
+    if (isInitialLoading || !project) {
         return <SuboptimalState title="Loading project" loading />;
     }
     if (project.provisioningSource === 'analytics') {
         return (
             <SuboptimalState title="SQL Runner is unavailable for managed analytics projects" />
         );
+    }
+    if (liveSourcesFlag.isInitialLoading) {
+        return <SuboptimalState title="Loading project" loading />;
     }
     if (!project.warehouseConnection && liveSourcesFlag.data?.enabled) {
         return (
