@@ -128,7 +128,7 @@
         "dev": "pnpm -r --stream --parallel -F common -F visualization -F warehouses -F backend -F frontend run dev",
         "build": "turbo run build --filter=@lightdash/common --filter=@lightdash/visualization --filter=@lightdash/warehouses --filter=backend --filter=@lightdash/frontend",
         "build-published-packages": "pnpm -r --stream --workspace-concurrency=1 -F common -F visualization -F warehouses -F query-sdk -F cli -F formula build && pnpm frontend-build-sdk",
-        "release-packages": "pnpm -r --stream --workspace-concurrency=1 -F common -F visualization -F warehouses -F query-sdk -F cli -F frontend release",
+        "release-packages": "pnpm -r publish -F @lightdash/common -F @lightdash/visualization -F @lightdash/warehouses -F @lightdash/query-sdk -F @lightdash/sdk -F @lightdash/cli --no-git-checks --access public",
         "start": "pnpm run backend-start",
         "prepare": "husky || true",
         "load:env": "dotenv -c -e .env.development.local",
