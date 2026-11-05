@@ -205,17 +205,16 @@ export const getDashboardWithSectionIds = (
         controlSections: _sections,
         ...config
     } = converted.config;
-    const parameterSections = { ...config.parameterSections };
+    const parameterSections = new Map(
+        Object.entries(config.parameterSections ?? {}),
+    );
     Object.entries(parameterSectionSlugs ?? {}).forEach(([key, slug]) => {
         const id = resolveSlug(slug);
-        if (
-            parameterSections[key] !== undefined &&
-            parameterSections[key] !== id
-        )
+        if (parameterSections.has(key) && parameterSections.get(key) !== id)
             throw new ParameterError(
                 `Conflicting section references for parameter "${key}"`,
             );
-        parameterSections[key] = id;
+        parameterSections.set(key, id);
     });
     return {
         ...converted,
@@ -225,7 +224,9 @@ export const getDashboardWithSectionIds = (
                 controlSections: resolved,
             }),
             ...((config.parameterSections !== undefined ||
-                parameterSectionSlugs !== undefined) && { parameterSections }),
+                parameterSectionSlugs !== undefined) && {
+                parameterSections: Object.fromEntries(parameterSections),
+            }),
         },
     };
 };

@@ -184,6 +184,23 @@ describe('dashboard section slugs', () => {
         expect(getDashboardWithSectionSlugs(restored)).toEqual(portable);
     });
 
+    it.each(['constructor', '__proto__'])(
+        'round-trips a section assignment for parameter %s',
+        (key) => {
+            const original = dashboard();
+            original.config!.parameterSections = Object.fromEntries([
+                [key, 'old-id'],
+            ]);
+            const restored = getDashboardWithSectionIds(
+                getDashboardWithSectionSlugs(original),
+                original.config as DashboardConfig,
+            );
+            expect(restored.config!.parameterSections).toEqual(
+                Object.fromEntries([[key, 'old-id']]),
+            );
+        },
+    );
+
     it('mints UUID v4 identities for new sections and accepts legacy IDs', () => {
         const fresh = getDashboardWithSectionIds(
             getDashboardWithSectionSlugs(dashboard()),
