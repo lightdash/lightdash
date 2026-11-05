@@ -665,46 +665,6 @@ describe('FeatureFlagModel', () => {
         });
     });
 
-    describe('ApiQuerySources follows new onboarding', () => {
-        const withNewOnboarding = {
-            enabledFeatureFlags: new Set<string>([FeatureFlags.NewOnboarding]),
-        };
-        const getLiveSources = (model: FeatureFlagModel) =>
-            model.get({
-                featureFlagId: FeatureFlags.ApiQuerySources,
-                user: dbUser,
-            });
-
-        it('turns on for orgs on the new onboarding', async () => {
-            const model = buildModel(withNewOnboarding, buildFakeDatabase({}));
-            expect((await getLiveSources(model)).enabled).toBe(true);
-        });
-
-        it('keeps an org override that turns it off', async () => {
-            const model = buildModel(
-                withNewOnboarding,
-                buildFakeDatabase({
-                    flag: { default_enabled: null },
-                    orgOverride: { enabled: false },
-                }),
-            );
-            expect((await getLiveSources(model)).enabled).toBe(false);
-        });
-
-        it('stays off without the new onboarding', async () => {
-            const model = buildModel({}, buildFakeDatabase({}));
-            expect((await getLiveSources(model)).enabled).toBe(false);
-        });
-
-        it('follows the flag default without the new onboarding', async () => {
-            const model = buildModel(
-                {},
-                buildFakeDatabase({ flag: { default_enabled: true } }),
-            );
-            expect((await getLiveSources(model)).enabled).toBe(true);
-        });
-    });
-
     describe('EnableTimezoneSupport defaults to on', () => {
         const withTimezoneSupport = (enableTimezoneSupport: boolean) => ({
             query: { ...lightdashConfigMock.query, enableTimezoneSupport },

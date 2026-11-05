@@ -31,7 +31,7 @@ export type EnsureOrganizationOverrideOutcome =
     | 'already_enabled'
     | 'kept_disabled';
 
-type FeatureFlagQueryOptions = {
+export type FeatureFlagQueryOptions = {
     trx?: Knex;
     /** Set false for admin listings so they don't inflate flag-usage telemetry. */
     recordCheck?: boolean;
@@ -63,8 +63,6 @@ export class FeatureFlagModel {
                     this.lightdashConfig.results.cacheEnabled,
                     options,
                 ),
-            [FeatureFlags.ApiQuerySources]:
-                this.getApiQuerySourcesEnabled.bind(this),
         };
     }
 
@@ -154,31 +152,6 @@ export class FeatureFlagModel {
             };
         }
         return this.getWithEnvFallback(args, true, options);
-    }
-
-    // Orgs on the new onboarding start from live sources, so they get them unless an override says otherwise
-    private async getApiQuerySourcesEnabled(
-        args: FeatureFlagLogicArgs,
-        options: FeatureFlagQueryOptions = {},
-    ): Promise<FeatureFlag> {
-        const override = await this.tryGetOverrideFromDatabase(args, options);
-        if (override) return override;
-        const newOnboarding = await this.resolve(
-            { ...args, featureFlagId: FeatureFlags.NewOnboarding },
-            options,
-        );
-        if (newOnboarding.enabled) {
-            return { id: args.featureFlagId, enabled: true };
-        }
-        // No override applies, so only the flag default is left
-        const flag = await (options.trx ?? this.database)(FeatureFlagsTableName)
-            .where('flag_id', args.featureFlagId)
-            .first()
-            .catch(() => undefined);
-        return {
-            id: args.featureFlagId,
-            enabled: flag?.default_enabled ?? false,
-        };
     }
 
     // DB value (user override → org override → flag default) wins. Falls
