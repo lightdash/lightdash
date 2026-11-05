@@ -322,7 +322,8 @@ const ChartTypeGallery = () => {
                             Chart Studio
                         </Title>
                         <Text fz="sm" c="dimmed" maw={560}>
-                            Show your data exactly the way you picture it.
+                            Chart types added here show up in the explorer's
+                            chart picker for everyone in this project.
                         </Text>
                     </Stack>
                     {/* The empty state carries its own CTAs. */}

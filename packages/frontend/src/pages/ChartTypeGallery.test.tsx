@@ -443,7 +443,7 @@ describe('ChartTypeGallery', () => {
 
         expect(screen.getByText('Bar race')).toBeInTheDocument();
         expect(
-            screen.getByText(/Show your data exactly the way you picture it/),
+            screen.getByText(/show up in the explorer's chart picker/),
         ).toBeInTheDocument();
         expect(document.title).toContain('Chart Studio');
         expect(
@@ -960,9 +960,7 @@ describe('ChartTypeGallery', () => {
         renderPage();
 
         expect(
-            await screen.findByText(
-                /Show your data exactly the way you picture it/,
-            ),
+            await screen.findByText(/show up in the explorer's chart picker/),
         ).toBeInTheDocument();
         expect(screen.queryByText('home')).not.toBeInTheDocument();
     });
@@ -1014,9 +1012,7 @@ describe('ChartTypeGallery', () => {
             ]),
         );
 
-        await screen.findByText(
-            /Show your data exactly the way you picture it/,
-        );
+        await screen.findByText(/show up in the explorer's chart picker/);
         expect(screen.queryByText('New chart type')).not.toBeInTheDocument();
     });
 
