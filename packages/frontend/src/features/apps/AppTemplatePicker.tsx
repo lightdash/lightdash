@@ -1,6 +1,8 @@
 import { type DataAppTemplate } from '@lightdash/common';
-import { Stack, Text, ThemeIcon } from '@mantine/core';
+import { Box, Group, Stack, Text } from '@mantine/core';
+import { IconCircleCheckFilled } from '@tabler/icons-react';
 import { type FC } from 'react';
+import MantineIcon from '../../components/common/MantineIcon';
 import { PolymorphicPaperButton } from '../../components/common/PolymorphicPaperButton';
 import classes from './AppTemplatePicker.module.css';
 import { PICKER_TEMPLATES } from './templates';
@@ -50,6 +52,7 @@ const AppTemplatePicker: FC<Props> = ({ selected, onSelectedChange }) => (
                     radius="md"
                     className={`${classes.card} ${isSelected ? classes.cardSelected : ''}`}
                     data-pos={index}
+                    data-blank={template.id === 'custom' || undefined}
                     aria-pressed={isSelected}
                     data-selected={isSelected ? 'true' : undefined}
                     onClick={() =>
@@ -64,17 +67,27 @@ const AppTemplatePicker: FC<Props> = ({ selected, onSelectedChange }) => (
                         ? createAppTourAction
                         : {})}
                 >
-                    <Stack gap="xs" align="flex-start">
-                        <ThemeIcon
-                            size="lg"
-                            radius="md"
-                            variant="light"
-                            color="gray"
-                            className={classes.cardIcon}
-                        >
-                            <Icon size={20} />
-                        </ThemeIcon>
-                        <Stack gap={4} className={classes.cardContent}>
+                    {isSelected && (
+                        <MantineIcon
+                            icon={IconCircleCheckFilled}
+                            size={18}
+                            className={classes.selectedMark}
+                            aria-hidden
+                        />
+                    )}
+                    <Box
+                        className={classes.thumb}
+                        data-layout={template.id}
+                        aria-hidden
+                    >
+                        <span />
+                        <span />
+                        <span />
+                        <span />
+                    </Box>
+                    <Stack gap={4} className={classes.cardContent}>
+                        <Group gap={6} wrap="nowrap">
+                            <Icon size={14} className={classes.cardIcon} />
                             <Text
                                 fw={600}
                                 size="sm"
@@ -82,10 +95,10 @@ const AppTemplatePicker: FC<Props> = ({ selected, onSelectedChange }) => (
                             >
                                 {template.title}
                             </Text>
-                            <Text size="xs" c="dimmed">
-                                {template.description}
-                            </Text>
-                        </Stack>
+                        </Group>
+                        <Text size="xs" className={classes.cardDescription}>
+                            {template.description}
+                        </Text>
                     </Stack>
                 </PolymorphicPaperButton>
             );

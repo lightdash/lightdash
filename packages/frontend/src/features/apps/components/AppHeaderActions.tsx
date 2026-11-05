@@ -1,8 +1,7 @@
 import { ActionIcon, Divider, Tooltip } from '@mantine/core';
-import { IconPencil, IconRefresh } from '@tabler/icons-react';
+import { IconExternalLink, IconPencil, IconRefresh } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { ShareLinkButton } from '../../../components/common/ShareLinkButton';
 import AppActionsMenu, { type AppActionsMenuProps } from './AppActionsMenu';
 
 type Props = Pick<
@@ -26,8 +25,10 @@ type Props = Pick<
     | 'capturedQueryCount'
 > & {
     onRefresh: () => void;
-    refreshDisabled: boolean;
-    onViewNetwork: () => void;
+    /** False until there is a preview to re-run; the button is hidden. */
+    refreshAvailable: boolean;
+    /** Queries/requests inspector, toggled from the overflow menu (the panel also closes itself). */
+    network: { open: boolean; queryCount: number; onToggle: () => void };
     /** Prominent edit affordance matching the dashboard header's pencil
      *  button — "Continue building" in the viewer. Pass null on surfaces
      *  that ARE the edit surface (the builder). */
@@ -39,6 +40,9 @@ type Props = Pick<
      *  and the overflow menu to match the dashboard header's ordering. Pass
      *  null on surfaces without it (the builder). */
     fullscreenToggle: ReactNode;
+    /** Opens the running app in a new tab. Pass null where the app is
+     *  already the page (the viewer). */
+    openUrl: string | null;
 };
 
 /**
@@ -51,11 +55,12 @@ type Props = Pick<
  */
 const AppHeaderActions: FC<Props> = ({
     onRefresh,
-    refreshDisabled,
-    onViewNetwork,
+    refreshAvailable,
+    network,
     onEdit,
     shareUrl,
     fullscreenToggle,
+    openUrl,
     ...menuProps
 }) => {
     return (
@@ -92,33 +97,63 @@ const AppHeaderActions: FC<Props> = ({
                     <Divider orientation="vertical" />
                 </>
             )}
-            <Tooltip
-                label="Refresh to re-run queries"
-                position="bottom"
-                openDelay={200}
-                transitionProps={{
-                    transition: 'fade',
-                    duration: 150,
-                }}
-            >
-                <ActionIcon
-                    variant="default"
-                    size="md"
-                    disabled={refreshDisabled}
-                    onClick={onRefresh}
-                    aria-label="Refresh"
+            {refreshAvailable && (
+                <Tooltip
+                    label="Refresh to re-run queries"
+                    position="bottom"
+                    openDelay={200}
+                    transitionProps={{
+                        transition: 'fade',
+                        duration: 150,
+                    }}
                 >
-                    <MantineIcon icon={IconRefresh} />
-                </ActionIcon>
-            </Tooltip>
-            {fullscreenToggle}
-            {shareUrl && (
-                <ShareLinkButton url={shareUrl} label="Copy link to the app" />
+                    <ActionIcon
+                        variant="subtle"
+                        color="gray"
+                        size="md"
+                        onClick={onRefresh}
+                        aria-label="Refresh"
+                    >
+                        <MantineIcon icon={IconRefresh} />
+                    </ActionIcon>
+                </Tooltip>
             )}
+            {openUrl && (
+                <Tooltip
+                    label="Open app in a new tab"
+                    position="bottom"
+                    openDelay={200}
+                >
+                    <ActionIcon
+                        component="a"
+                        href={openUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        variant="subtle"
+                        color="gray"
+                        size="md"
+                        aria-label="Open app"
+                    >
+                        <MantineIcon icon={IconExternalLink} />
+                    </ActionIcon>
+                </Tooltip>
+            )}
+            {fullscreenToggle}
             <AppActionsMenu
                 {...menuProps}
+                target={{ variant: 'subtle' }}
                 onRefresh={null}
-                viewNetwork={{ label: 'View network', onClick: onViewNetwork }}
+                shareMenu={{ copyUrl: shareUrl }}
+                viewNetwork={
+                    network.open || network.queryCount > 0
+                        ? {
+                              label: network.open
+                                  ? 'Hide queries'
+                                  : `Show queries (${network.queryCount})`,
+                              onClick: network.onToggle,
+                          }
+                        : null
+                }
             />
         </>
     );

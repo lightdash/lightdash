@@ -84,6 +84,7 @@ import {
     type AppCaptureThumbnailJobPayload,
     type AppChartReference,
     type AppClarification,
+    type AppClarifyResult,
     type AppDashboardReference,
     type AppExternalConnectionLink,
     type AppExternalConnectionReference,
@@ -7435,7 +7436,7 @@ export class AppGenerateService extends BaseService {
         charts?: AppChartReference[],
         dashboard?: AppDashboardReference,
         fileIds?: string[],
-    ): Promise<{ questions: string[] }> {
+    ): Promise<AppClarifyResult> {
         await this.assertAppsEnabled(user, template ?? null);
         AppGenerateService.assertChartTypeCreateInputs(template ?? null, {
             spaceUuid: undefined,
@@ -7470,7 +7471,7 @@ export class AppGenerateService extends BaseService {
             this.logger.info(
                 `Skipping app clarification: no LLM provider configured (${getErrorMessage(err)})`,
             );
-            return { questions: [] };
+            return { questions: [], items: [] };
         }
 
         const modelAttribution = getLanguageModelAttribution(
@@ -7503,12 +7504,27 @@ export class AppGenerateService extends BaseService {
         // rejects `maxItems` in the schema. The prompt already pins the
         // 1–4 cap and we slice client-side after the response.
         const clarifySchema = z.object({
-            questions: z.array(z.string()).describe(
-                // Deliberately says "what gets built", not "the app" — this
-                // description reaches the model alongside a system prompt
-                // that may be insisting it is building a viz, not an app.
-                '0–4 short clarifying questions, each a single sentence (5–15 words). Default to empty — only include questions whose answers would materially change what gets built.',
-            ),
+            questions: z
+                .array(
+                    z.object({
+                        question: z
+                            .string()
+                            .describe(
+                                'A single sentence (5–15 words) the user can answer in one short line.',
+                            ),
+                        options: z
+                            .array(z.string())
+                            .describe(
+                                '2–3 likely answers, 1–5 words each, most likely first. Empty only when no short answer fits.',
+                            ),
+                    }),
+                )
+                .describe(
+                    // Deliberately says "what gets built", not "the app" — this
+                    // description reaches the model alongside a system prompt
+                    // that may be insisting it is building a viz, not an app.
+                    '0–4 short clarifying questions. Default to empty — only include questions whose answers would materially change what gets built.',
+                ),
         });
 
         // Cap the LLM call so a stalled provider can't pin the chat input
@@ -7582,21 +7598,27 @@ export class AppGenerateService extends BaseService {
             this.logger.warn(
                 `App clarify failed after ${AppGenerateService.elapsed(start)}ms (project=${projectUuid}, template=${template ?? 'custom'}, llm=${llmProvider}): ${getErrorMessage(err)}`,
             );
-            return { questions: [] };
+            return { questions: [], items: [] };
         }
         emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
         const elapsedMs = AppGenerateService.elapsed(start);
 
-        const questions = output.questions
-            .map((q) => q.trim())
-            .filter((q) => q.length > 0)
+        const items = output.questions
+            .map((q) => ({
+                question: q.question.trim(),
+                options: q.options
+                    .map((o) => o.trim())
+                    .filter((o) => o.length > 0)
+                    .slice(0, 3),
+            }))
+            .filter((q) => q.question.length > 0)
             .slice(0, 4);
 
         this.logger.info(
-            `App clarify: ${questions.length} question(s) in ${elapsedMs}ms (project=${projectUuid}, template=${template ?? 'custom'}, llm=${llmProvider})`,
+            `App clarify: ${items.length} question(s) in ${elapsedMs}ms (project=${projectUuid}, template=${template ?? 'custom'}, llm=${llmProvider})`,
         );
 
-        return { questions };
+        return { questions: items.map((q) => q.question), items };
     }
 
     /**

@@ -421,7 +421,7 @@
 .reasoningPreview {
     flex: 1;
     min-width: 0;
-    color: var(--mantine-color-ldGray-6);
+    color: var(--mantine-color-ldGray-7);
 }
 
 .reasoningPreviewLive {

@@ -125,6 +125,7 @@ import type {
     ManagedAgentRuntimeInfo,
 } from '../ee';
 import type { ApiAiThreadFileResponse } from '../ee/AiAgent/threadFileTypes';
+import type { AppClarifyResult } from '../ee/apps/types';
 import type { DashboardPreAggregateAudit } from '../ee/preAggregates/audit';
 import type { ApiScimRequestLogListResponse } from '../ee/scim/requestLogs';
 import type { ApiQueryCostEstimateResponse } from '../utils/queryCostEstimate';
@@ -1420,6 +1421,7 @@ export type ApiFlashResults = Record<string, string[]>;
 
 type ApiResults =
     | ApiQueryCostEstimateResponse['results']
+    | AppClarifyResult
     | ReleaseHighlightsResult
     | AgentConnectionApprovalReviewResponse['results']
     | AgentConnectionApprovalDecisionResponse['results']

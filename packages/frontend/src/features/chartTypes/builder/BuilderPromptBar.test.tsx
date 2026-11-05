@@ -1740,9 +1740,7 @@ describe('BuilderPromptBar', () => {
             screen.getAllByText('Choosing a horizontal layout').length,
         ).toBeGreaterThan(0);
         expect(screen.getByText('Activity')).toBeInTheDocument();
-        expect(
-            screen.getAllByText('Updating Chart.tsx').length,
-        ).toBeGreaterThan(0);
+        expect(screen.getAllByText('Chart.tsx').length).toBeGreaterThan(0);
 
         view.rerender(
             promptBar({
@@ -1893,7 +1891,12 @@ describe('BuilderPromptBar', () => {
                 clarification: clarificationStub({
                     pending: {
                         prompt: 'show revenue split by team',
-                        questions: ['Over time, or one period?'],
+                        questions: [
+                            {
+                                question: 'Over time, or one period?',
+                                options: ['Over time', 'One period'],
+                            },
+                        ],
                     },
                     answers: [''],
                     answer,
@@ -1907,13 +1910,16 @@ describe('BuilderPromptBar', () => {
         );
         expect(composer).toBeDisabled();
         expect(screen.getByLabelText('Send')).toBeDisabled();
-        expect(screen.getByText('0 of 1 answered')).toBeInTheDocument();
 
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Over time' }),
+        );
+        expect(answer).toHaveBeenCalledWith(0, 'Over time');
         await userEvent.type(
-            screen.getByLabelText('Over time, or one period?'),
+            screen.getByPlaceholderText('Or type your own answer'),
             'monthly',
         );
-        expect(answer).toHaveBeenCalled();
+        expect(answer).toHaveBeenCalledWith(0, 'm');
 
         await userEvent.click(screen.getByRole('button', { name: 'Build' }));
 
@@ -1928,7 +1934,12 @@ describe('BuilderPromptBar', () => {
                 clarification: clarificationStub({
                     pending: {
                         prompt: 'show revenue split by team',
-                        questions: ['Over time, or one period?'],
+                        questions: [
+                            {
+                                question: 'Over time, or one period?',
+                                options: ['Over time', 'One period'],
+                            },
+                        ],
                     },
                     answers: [''],
                     build,
@@ -1936,7 +1947,7 @@ describe('BuilderPromptBar', () => {
             }),
         );
 
-        await userEvent.click(screen.getByText('Skip and build anyway'));
+        await userEvent.click(screen.getByText('Skip, use defaults'));
 
         expect(build).toHaveBeenCalledWith(true);
     });
