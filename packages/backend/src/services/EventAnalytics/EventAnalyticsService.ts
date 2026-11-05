@@ -4,6 +4,8 @@ import {
     ForbiddenError,
     getFieldMap,
     isExploreError,
+    resolveEventAnalyticsDateRange,
+    type EventNamesRequest,
     type Explore,
     type FunnelQueryRequest,
     type FunnelQueryResult,
@@ -22,6 +24,7 @@ import { BaseService } from '../BaseService';
 import type { ProjectService } from '../ProjectService/ProjectService';
 import {
     buildEventNamesSql,
+    compileEventAnalyticsFilterSql,
     getDimensionFromFieldMap,
 } from './eventAnalyticsSql';
 import { generateFunnelSql } from './funnelSql';
@@ -136,52 +139,55 @@ export class EventAnalyticsService extends BaseService {
         };
     }
 
-    /** Gets the distinct event names seen in the last 30 days. */
+    /** Gets the distinct event names seen in the request's date range. */
     async getEventNames(
         user: SessionUser,
         projectUuid: string,
-        exploreName: string,
-        eventDimensionId: string,
-        timestampFieldId: string,
+        request: EventNamesRequest,
     ): Promise<string[]> {
         return traceSpan(
             {
                 op: 'EventAnalyticsService.getEventNames',
                 name: 'EventAnalyticsService.getEventNames',
-                attributes: { projectUuid, exploreName },
+                attributes: { projectUuid, exploreName: request.exploreName },
             },
             async () => {
                 await this.assertCanQuery(user, projectUuid);
 
                 const { explore, sqlBuilder, binding } =
-                    await this.getExploreQueryContext(projectUuid, exploreName);
+                    await this.getExploreQueryContext(
+                        projectUuid,
+                        request.exploreName,
+                    );
                 const fieldMap = getFieldMap(explore);
-
-                const since = new Date();
-                since.setDate(since.getDate() - 30);
+                const { start, end } = resolveEventAnalyticsDateRange(
+                    request.dateRange,
+                );
 
                 const sql = buildEventNamesSql({
                     explore,
                     sqlBuilder,
                     eventField: getDimensionFromFieldMap(
                         fieldMap,
-                        eventDimensionId,
+                        request.eventNameFieldId,
                     ),
                     timestampField: getDimensionFromFieldMap(
                         fieldMap,
-                        timestampFieldId,
+                        request.timestampFieldId,
                     ),
-                    since,
+                    start,
+                    end,
+                    filterSql: compileEventAnalyticsFilterSql({
+                        filters: request.filters,
+                        explore,
+                        sqlBuilder,
+                        timezone: 'UTC',
+                    }),
                 });
 
-                const results = await this.projectService.runSqlQuery(
-                    user,
-                    projectUuid,
-                    sql,
-                    binding,
-                );
+                const rows = await this.runSql(user, projectUuid, sql, binding);
 
-                return results.rows
+                return rows
                     .map((row) => row.event_name)
                     .filter(
                         (value): value is string =>

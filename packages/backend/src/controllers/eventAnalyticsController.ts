@@ -4,17 +4,16 @@ import {
     ApiFunnelQueryResponse,
     ApiRetentionQueryResponse,
     assertRegisteredAccount,
+    EventNamesRequest,
     FunnelQueryRequest,
     RetentionQueryRequest,
 } from '@lightdash/common';
 import {
     Body,
-    Get,
     Middlewares,
     OperationId,
     Path,
     Post,
-    Query,
     Request,
     Response,
     Route,
@@ -31,23 +30,19 @@ import { BaseController } from './baseController';
 @Tags('Event analytics')
 export class EventAnalyticsController extends BaseController {
     /**
-     * Gets the distinct event names of an explore, scanning the last 30 days.
+     * Gets the distinct event names of an explore within a date range.
      * @summary Get event names
      * @param projectUuid The project UUID
-     * @param exploreName The explore to query
-     * @param eventDimensionId The dimension that holds event names
-     * @param timestampFieldId The timestamp dimension that bounds the scan
+     * @param body The explore, event and timestamp fields, and date range
      * @param req Express request
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Get('/event-names')
+    @Post('/event-names')
     @OperationId('GetEventNames')
     async getEventNames(
         @Path() projectUuid: string,
-        @Query() exploreName: string,
-        @Query() eventDimensionId: string,
-        @Query() timestampFieldId: string,
+        @Body() body: EventNamesRequest,
         @Request() req: express.Request,
     ): Promise<ApiEventNamesResponse> {
         assertRegisteredAccount(req.account);
@@ -55,13 +50,7 @@ export class EventAnalyticsController extends BaseController {
 
         const results = await this.services
             .getEventAnalyticsService()
-            .getEventNames(
-                toSessionUser(req.account),
-                projectUuid,
-                exploreName,
-                eventDimensionId,
-                timestampFieldId,
-            );
+            .getEventNames(toSessionUser(req.account), projectUuid, body);
 
         return { status: 'ok', results };
     }

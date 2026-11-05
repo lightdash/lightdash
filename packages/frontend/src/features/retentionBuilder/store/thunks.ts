@@ -1,6 +1,7 @@
 import {
     isApiError,
     type ApiErrorDetail,
+    type EventNamesRequest,
     type RetentionQueryResult,
 } from '@lightdash/common';
 import { createAsyncThunk } from '@reduxjs/toolkit';
@@ -10,24 +11,17 @@ import { buildRetentionQueryRequest } from '../utils/retentionConfig';
 
 export const fetchRetentionEventNames = createAsyncThunk<
     string[],
-    {
-        projectUuid: string;
-        exploreName: string;
-        eventDimensionId: string;
-        timestampFieldId: string;
-    },
-    { rejectValue: ApiErrorDetail }
+    EventNamesRequest,
+    { state: RootState; rejectValue: ApiErrorDetail }
 >(
     'retentionBuilder/fetchEventNames',
-    async (
-        { projectUuid, exploreName, eventDimensionId, timestampFieldId },
-        { rejectWithValue },
-    ) => {
+    async (request, { getState, rejectWithValue }) => {
+        const { projectUuid } = getState().retentionBuilder;
         try {
             return await sharedLightdashApi<string[]>({
-                url: `/projects/${projectUuid}/retention/event-names?exploreName=${exploreName}&eventDimensionId=${eventDimensionId}&timestampFieldId=${timestampFieldId}`,
-                method: 'GET',
-                body: undefined,
+                url: `/projects/${projectUuid}/event-analytics/event-names`,
+                method: 'POST',
+                body: JSON.stringify(request),
             });
         } catch (error) {
             if (isApiError(error)) {

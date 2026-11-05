@@ -1,10 +1,6 @@
+import { buildEventNamesRequest } from '../../eventAnalytics/utils/eventNames';
 import { buildFunnelQueryRequest } from '../utils/funnelChartConfig';
-import {
-    clearResults,
-    resetSteps,
-    setEventNameFieldId,
-    setExploreName,
-} from './funnelBuilderSlice';
+import { clearResults, resetSteps, setExploreName } from './funnelBuilderSlice';
 import { type startAppListening } from './listenerMiddleware';
 import { fetchEventNames, runFunnelQuery } from './thunks';
 
@@ -49,31 +45,28 @@ export const addFieldChangeInvalidationListener = (
     });
 };
 
-/** Fetches event names when the event field changes. */
+/** Fetches event names when the event field, date range, or filters change. */
 export const addEventFieldChangeListener = (
     startListening: typeof startAppListening,
 ) => {
     startListening({
-        actionCreator: setEventNameFieldId,
-        effect: async (action, listenerApi) => {
-            const state = listenerApi.getState();
-            const { projectUuid, exploreName, timestampFieldId } =
-                state.funnelBuilder;
-
-            if (
-                action.payload &&
-                projectUuid &&
-                exploreName &&
-                timestampFieldId
-            ) {
-                await listenerApi.dispatch(
-                    fetchEventNames({
-                        projectUuid,
-                        exploreName,
-                        eventDimensionId: action.payload,
-                        timestampFieldId,
-                    }),
-                );
+        predicate: (_, currentState, previousState) => {
+            const prev = previousState.funnelBuilder;
+            const curr = currentState.funnelBuilder;
+            return (
+                prev.eventNameFieldId !== curr.eventNameFieldId ||
+                prev.timestampFieldId !== curr.timestampFieldId ||
+                prev.dateRangePreset !== curr.dateRangePreset ||
+                prev.customDateRange !== curr.customDateRange ||
+                prev.filters !== curr.filters
+            );
+        },
+        effect: async (_, listenerApi) => {
+            const request = buildEventNamesRequest(
+                listenerApi.getState().funnelBuilder,
+            );
+            if (request) {
+                await listenerApi.dispatch(fetchEventNames(request));
             }
         },
     });

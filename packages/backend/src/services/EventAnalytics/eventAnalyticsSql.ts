@@ -129,23 +129,32 @@ type EventNamesSqlArgs = {
     sqlBuilder: WarehouseSqlBuilder;
     eventField: CompiledDimension;
     timestampField: CompiledDimension;
-    since: Date;
+    start: Date;
+    end: Date;
+    filterSql: string | null;
 };
 
-/** Builds the query for the distinct event names seen since a date. */
+/** Builds the query for the distinct event names seen in a date range. */
 export const buildEventNamesSql = ({
     explore,
     sqlBuilder,
     eventField,
     timestampField,
-    since,
+    start,
+    end,
+    filterSql,
 }: EventNamesSqlArgs): string => {
     const q = sqlBuilder.getFieldQuoteChar();
+    const predicates = [
+        `${eventField.compiledSql} IS NOT NULL`,
+        `${timestampField.compiledSql} >= ${sqlBuilder.castToTimestamp(start)}`,
+        `${timestampField.compiledSql} < ${sqlBuilder.castToTimestamp(end)}`,
+        ...(filterSql ? [filterSql] : []),
+    ];
     return `
 SELECT DISTINCT ${eventField.compiledSql} AS ${q}event_name${q}
 FROM ${getBaseTableFromSql(explore, sqlBuilder)}
-WHERE ${eventField.compiledSql} IS NOT NULL
-  AND ${timestampField.compiledSql} >= ${sqlBuilder.castToTimestamp(since)}
+WHERE ${predicates.join('\n  AND ')}
 ORDER BY ${q}event_name${q}
 LIMIT 1000
 `;

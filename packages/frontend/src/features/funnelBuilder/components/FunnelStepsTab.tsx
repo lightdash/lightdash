@@ -17,6 +17,7 @@ import {
     removeStep,
     selectConversionWindowUnit,
     selectConversionWindowValue,
+    selectEventNameFieldId,
     selectEventNames,
     selectEventNamesLoading,
     selectSteps,
@@ -39,6 +40,9 @@ export const FunnelStepsTab: FC = () => {
     const isLoadingEventNames = useAppSelector(selectEventNamesLoading);
     const conversionWindowValue = useAppSelector(selectConversionWindowValue);
     const conversionWindowUnit = useAppSelector(selectConversionWindowUnit);
+    const eventNameFieldId = useAppSelector(selectEventNameFieldId);
+    const noEvents =
+        !isLoadingEventNames && !!eventNameFieldId && eventNames.length === 0;
 
     return (
         <Stack gap="md">
@@ -47,6 +51,12 @@ export const FunnelStepsTab: FC = () => {
             </Text>
 
             {isLoadingEventNames && <Loader size="sm" />}
+            {noEvents && (
+                <Text size="sm" c="dimmed">
+                    No events in this date range. Widen the date range or choose
+                    another event name field.
+                </Text>
+            )}
 
             {steps.map((step, index) => {
                 const previousEventNames = steps

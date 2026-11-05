@@ -7,6 +7,7 @@ import {
     selectBornEvent,
     selectCohortType,
     selectCriteria,
+    selectEventNameFieldId,
     selectEventNames,
     selectEventNamesLoading,
     selectMode,
@@ -47,6 +48,9 @@ export const RetentionSettingsTab: FC = () => {
     const periods = useAppSelector(selectPeriods);
     const criteria = useAppSelector(selectCriteria);
     const mode = useAppSelector(selectMode);
+    const eventNameFieldId = useAppSelector(selectEventNameFieldId);
+    const noEvents =
+        !isLoadingEventNames && !!eventNameFieldId && eventNames.length === 0;
 
     const eventOptions = useMemo(
         () =>
@@ -74,6 +78,12 @@ export const RetentionSettingsTab: FC = () => {
                 </Text>
                 {isLoadingEventNames && <Loader size="xs" />}
             </Group>
+            {noEvents && (
+                <Text size="sm" c="dimmed">
+                    No events in this date range. Widen the date range or choose
+                    another event name field.
+                </Text>
+            )}
 
             <Select
                 label="Users who did"

@@ -2251,13 +2251,12 @@ describe('Multi runtime identity wiring on the real schema', () => {
 
             const eventNames = await funnelService(
                 sqlBuildingProjectService(),
-            ).getEventNames(
-                fixture.user,
-                fixture.projectUuid,
-                'extra_refunds',
-                'refunds_id',
-                'refunds_happened_at',
-            );
+            ).getEventNames(fixture.user, fixture.projectUuid, {
+                exploreName: 'extra_refunds',
+                eventNameFieldId: 'refunds_id',
+                timestampFieldId: 'refunds_happened_at',
+                dateRange: { type: 'preset', preset: 'last_30_days' },
+            });
 
             expect(eventNames).toEqual(['1']);
         });
@@ -2286,9 +2285,12 @@ describe('Multi runtime identity wiring on the real schema', () => {
                 funnelService(sqlBuildingProjectService()).getEventNames(
                     fixture.user,
                     fixture.projectUuid,
-                    'original_refunds',
-                    'refunds_id',
-                    'refunds_happened_at',
+                    {
+                        exploreName: 'original_refunds',
+                        eventNameFieldId: 'refunds_id',
+                        timestampFieldId: 'refunds_happened_at',
+                        dateRange: { type: 'preset', preset: 'last_30_days' },
+                    },
                 ),
             ).rejects.toThrow('relation "public.refunds" does not exist');
         });

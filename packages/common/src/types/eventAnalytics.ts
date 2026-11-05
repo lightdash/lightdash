@@ -70,6 +70,16 @@ export type EventAnalyticsQueryBase = EventAnalyticsFieldMapping & {
     breakdownDimensionId?: string;
 };
 
+/** Request for the distinct event names of an explore within a date range. */
+export type EventNamesRequest = Pick<
+    EventAnalyticsQueryBase,
+    | 'exploreName'
+    | 'eventNameFieldId'
+    | 'timestampFieldId'
+    | 'dateRange'
+    | 'filters'
+>;
+
 export type ApiEventNamesResponse = {
     status: 'ok';
     results: string[];

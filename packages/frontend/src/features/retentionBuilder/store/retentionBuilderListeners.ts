@@ -1,13 +1,10 @@
+import { buildEventNamesRequest } from '../../eventAnalytics/utils/eventNames';
 import { buildRetentionQueryRequest } from '../utils/retentionConfig';
 import { type startAppListening } from './listenerMiddleware';
-import {
-    clearResults,
-    setEventNameFieldId,
-    setExploreName,
-} from './retentionBuilderSlice';
+import { clearResults, setExploreName } from './retentionBuilderSlice';
 import { fetchRetentionEventNames, runRetentionQuery } from './thunks';
 
-/** Auto-run the query whenever the configuration is valid and changed. */
+/** Runs the query whenever the configuration changes and is complete. */
 export const addRetentionConfigChangeListener = (
     startListening: typeof startAppListening,
 ) => {
@@ -39,7 +36,7 @@ export const addRetentionConfigChangeListener = (
     });
 };
 
-/** Invalidate results when the explore changes. */
+/** Clears results when the explore changes. */
 export const addRetentionExploreChangeListener = (
     startListening: typeof startAppListening,
 ) => {
@@ -51,30 +48,28 @@ export const addRetentionExploreChangeListener = (
     });
 };
 
-/** Fetch event names when the event field changes. */
+/** Fetches event names when the event field, date range, or filters change. */
 export const addRetentionEventFieldChangeListener = (
     startListening: typeof startAppListening,
 ) => {
     startListening({
-        actionCreator: setEventNameFieldId,
-        effect: async (action, listenerApi) => {
-            const { projectUuid, exploreName, timestampFieldId } =
-                listenerApi.getState().retentionBuilder;
-
-            if (
-                action.payload &&
-                projectUuid &&
-                exploreName &&
-                timestampFieldId
-            ) {
-                await listenerApi.dispatch(
-                    fetchRetentionEventNames({
-                        projectUuid,
-                        exploreName,
-                        eventDimensionId: action.payload,
-                        timestampFieldId,
-                    }),
-                );
+        predicate: (_, currentState, previousState) => {
+            const prev = previousState.retentionBuilder;
+            const curr = currentState.retentionBuilder;
+            return (
+                prev.eventNameFieldId !== curr.eventNameFieldId ||
+                prev.timestampFieldId !== curr.timestampFieldId ||
+                prev.dateRangePreset !== curr.dateRangePreset ||
+                prev.customDateRange !== curr.customDateRange ||
+                prev.filters !== curr.filters
+            );
+        },
+        effect: async (_, listenerApi) => {
+            const request = buildEventNamesRequest(
+                listenerApi.getState().retentionBuilder,
+            );
+            if (request) {
+                await listenerApi.dispatch(fetchRetentionEventNames(request));
             }
         },
     });
