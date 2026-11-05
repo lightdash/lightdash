@@ -17,7 +17,7 @@ overrides:
   'form-data@4.0.2': 4.0.6
   validator: 13.15.23
   node-forge: 1.4.1
-  'glob@>=10.2.0 <10.5.0': 10.5.0
+  'glob@>=10.2.0 <10.5.0': 14.0.2
   jws: 4.0.1
   qs: 6.16.1
   hono: 4.13.11
@@ -33,7 +33,7 @@ overrides:
   handlebars: 4.7.9
   basic-ftp: 5.3.1
   'vite@>=7.0.0 <7.3.2': 7.3.7
-  systeminformation: 5.31.7
+  systeminformation: 5.33.16
   'path-to-regexp@0.1.12': 0.1.13
   'ajv@<6.14.0': 6.15.0
   'ajv@>=8.0.0 <8.18.0': 8.18.0
@@ -61,8 +61,8 @@ minimumReleaseAgeExclude:
   - dompurify@3.4.0 || 3.4.13
   # Renovate security update: yaml@2.8.3
   - yaml@2.8.3
-  # Renovate security update: systeminformation@5.31.6 || 5.31.7
-  - systeminformation@5.31.6 || 5.31.7
+  # Renovate security update: systeminformation@5.31.6 || 5.31.7 || 5.33.16
+  - systeminformation@5.31.6 || 5.31.7 || 5.33.16
   # Renovate security update: basic-ftp@5.3.1
   - basic-ftp@5.3.1
   # Renovate security update: uuid@11.1.1
@@ -71,8 +71,8 @@ minimumReleaseAgeExclude:
   - pm2@7.0.0
   # Renovate security update: sanitize-html@2.17.4 || 2.17.5 || 2.17.7
   - sanitize-html@2.17.4 || 2.17.5 || 2.17.7
-  # Renovate security update: nodemailer@8.0.5 || 9.0.1 || 9.1.1
-  - nodemailer@8.0.5 || 9.0.1 || 9.1.1
+  # Renovate security update: nodemailer@8.0.5 || 9.0.1 || 9.1.1 || 10.1.4
+  - nodemailer@8.0.5 || 9.0.1 || 9.1.1 || 10.1.4
   # Renovate security update: @tiptap/extension-link@2.10.4
   - "@tiptap/extension-link@2.10.4"
   # Renovate security update: @node-oauth/oauth2-server@5.3.0
@@ -118,6 +118,8 @@ minimumReleaseAgeExclude:
   - zod@4.6.6
   # Renovate security update: node-forge@1.4.1
   - node-forge@1.4.1
+  # Renovate security update: glob@14.0.2
+  - glob@14.0.2
   # Renovate security update: @opentelemetry/instrumentation-knex@0.65.0
   - "@opentelemetry/instrumentation-knex@0.65.0"
 
