@@ -1,0 +1,114 @@
+/* The same raised table and quiet rows as the rest of Semantic Layer. */
+
+.table {
+    display: flex;
+    flex-direction: column;
+    flex: none;
+    background: var(--mantine-color-body);
+    border: 1px solid
+        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-dark-4));
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.row {
+    display: grid;
+    grid-template-columns:
+        minmax(160px, 220px) minmax(0, 1fr) 96px 88px 112px
+        28px;
+    align-items: center;
+    gap: 12px;
+    min-height: 44px;
+    padding: 4px 8px 4px 12px;
+    border-bottom: 1px solid
+        light-dark(var(--mantine-color-ldGray-1), var(--mantine-color-dark-5));
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.row:last-child {
+    border-bottom: none;
+}
+
+.row:hover:not([data-head]) {
+    background: var(--mantine-color-default-hover);
+}
+
+.row:focus-visible {
+    outline: 2px solid var(--mantine-primary-color-filled);
+    outline-offset: -2px;
+}
+
+.row[data-head] {
+    min-height: 32px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--mantine-color-dimmed);
+    border-bottom-color: light-dark(
+        var(--mantine-color-ldGray-2),
+        var(--mantine-color-dark-4)
+    );
+    cursor: default;
+}
+
+.number {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.name {
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.target {
+    font-size: 12px;
+    color: var(--mantine-color-dimmed);
+}
+
+/* One source: what it reads and how it is used, above its fields. */
+
+.summary {
+    display: grid;
+    /* Two rows of four: what it reads, then how it is used. */
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1px;
+    flex: none;
+    background: light-dark(
+        var(--mantine-color-ldGray-1),
+        var(--mantine-color-dark-5)
+    );
+    border: 1px solid
+        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-dark-4));
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    padding: 10px 14px;
+    background: var(--mantine-color-body);
+}
+
+.statLabel {
+    font-size: 12px;
+    color: var(--mantine-color-dimmed);
+}
+
+.statValue {
+    font-size: 13px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+    .summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}

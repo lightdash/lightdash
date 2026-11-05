@@ -43,20 +43,6 @@ import {
 } from '../components/common/OnboardingVisuals';
 import { useOnboardingNavigate } from '../components/common/viewTransition';
 import { ConnectionFormSkeleton } from '../components/ProjectConnection/ConnectionFormSkeleton';
-import {
-    getApiSourceTarget,
-    getGoogleSignInUrl,
-    getGoogleSource,
-    type GoogleConnector,
-} from '../components/Settings/LiveDataSourcesPanel/googleConnection';
-import { GoogleSourcePickerModal } from '../components/Settings/LiveDataSourcesPanel/GoogleSourcePickerModal';
-import {
-    getPostHogSignInUrl,
-    toPostHogCreatePayload,
-    usePostHogConnectionForm,
-} from '../components/Settings/LiveDataSourcesPanel/postHogConnection';
-import { PostHogConnectionStep } from '../components/Settings/LiveDataSourcesPanel/PostHogConnectionStep';
-import { useLiveSourceSignInResult } from '../components/Settings/LiveDataSourcesPanel/useLiveSourceSignInResult';
 import { useWatchActiveAgentOnboardingRun } from '../ee/features/agentOnboarding/hooks/useWatchActiveAgentOnboardingRun';
 import { OnboardingDoneStep } from '../ee/features/agentOnboarding/OnboardingDoneStep';
 import { OnboardingRunActivity } from '../ee/features/agentOnboarding/OnboardingRunActivity';
@@ -64,8 +50,22 @@ import { useInstallStarterChartTypes } from '../features/chartTypes/hooks/useIns
 import { useCreateExternalConnection } from '../features/externalConnections/hooks/useCreateExternalConnection';
 import { useExternalConnections } from '../features/externalConnections/hooks/useExternalConnections';
 import { useLiveSourceFields } from '../features/externalConnections/hooks/useLiveSourceFields';
+import {
+    getApiSourceTarget,
+    getGoogleSignInUrl,
+    getGoogleSource,
+    type GoogleConnector,
+} from '../features/externalConnections/liveSources/googleConnection';
+import { GoogleSourcePickerModal } from '../features/externalConnections/liveSources/GoogleSourcePickerModal';
 import { getLiveSource } from '../features/externalConnections/liveSources/liveSourceCatalog';
 import { LiveSourceIcon } from '../features/externalConnections/liveSources/LiveSourceIcon';
+import {
+    getPostHogSignInUrl,
+    toPostHogCreatePayload,
+    usePostHogConnectionForm,
+} from '../features/externalConnections/liveSources/postHogConnection';
+import { PostHogConnectionStep } from '../features/externalConnections/liveSources/PostHogConnectionStep';
+import { useLiveSourceSignInResult } from '../features/externalConnections/liveSources/useLiveSourceSignInResult';
 import { useGetSlack } from '../hooks/slack/useSlack';
 import { useExplores } from '../hooks/useExplores';
 import { useOnboardingPageGuard } from '../hooks/useOnboardingPageGuard';

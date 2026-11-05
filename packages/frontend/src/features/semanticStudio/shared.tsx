@@ -11,6 +11,7 @@ import {
 } from '@lightdash/common';
 import {
     Anchor,
+    Autocomplete,
     Box,
     Button,
     Group,
@@ -70,6 +71,8 @@ import useHealth from '../../hooks/health/useHealth';
 import googleSheetsLogo from '../../svgs/google-sheets.svg';
 import { useUpdateLiveSourceFields } from '../externalConnections/hooks/useLiveSourceFields';
 import { AddDataModal } from '../externalSources/components/AddDataModal';
+import { isSameDraft, toFieldChange, toFieldDraft } from './fieldDraft';
+import { useLiveSourceActions } from './liveSources/liveSourceActions';
 import {
     getExplore,
     getSource,
@@ -261,8 +264,8 @@ const ADD_OPTIONS: {
     description: string;
     icon: ReactNode;
     /**
-     * The existing setup flow; ?add=true opens its add dialog. Without one,
-     * the option opens the Add data dialog right here.
+     * The existing setup flow. Without one, the option opens its add dialog
+     * right here.
      */
     path?: string;
     /** The flow lives in project settings, which not everyone can open. */
@@ -297,8 +300,6 @@ const ADD_OPTIONS: {
         kind: 'live',
         label: 'Live data source',
         description: 'Query an integration live',
-        path: '/generalSettings/projectManagement/:projectUuid/liveDataSources?add=true',
-        inSettings: true,
         icon: <KindIcon kind="live" size={18} />,
     },
 ];
@@ -307,12 +308,23 @@ type AddOption = (typeof ADD_OPTIONS)[number];
 
 /**
  * What a person can add: one warehouse per project, only kinds they manage,
- * and only through flows they can open. Files are added in place, so the
- * hook also owns the Add data dialog.
+ * and only through flows they can open. Files and live data sources are
+ * added in place, so the hook also owns the Add data dialog.
  */
 const useAddSource = (view: ViewModel, kind?: Kind) => {
     const { data: health } = useHealth();
+    const liveSources = useLiveSourceActions();
     const [isAddingData, setIsAddingData] = useState(false);
+    const isAvailable = (option: AddOption) => {
+        switch (option.key) {
+            case 'file':
+                return health?.externalSources.engineAvailable === true;
+            case 'live':
+                return liveSources !== null;
+            default:
+                return true;
+        }
+    };
     const hasWarehouse = view.project.sources.some(
         (source) => source.kind === 'modelled',
     );
@@ -321,13 +333,13 @@ const useAddSource = (view: ViewModel, kind?: Kind) => {
             (!kind || option.kind === kind) &&
             (option.key !== 'dbt' || !hasWarehouse) &&
             (!option.inSettings || view.canOpenSettings) &&
-            (option.path !== undefined ||
-                health?.externalSources.engineAvailable === true) &&
+            isAvailable(option) &&
             view.canManage(option.kind),
     );
     const pathOf = (option: AddOption) =>
         option.path ? addPath(view, option.path) : null;
-    const addData = () => setIsAddingData(true);
+    const addInPlace = (option: AddOption) =>
+        option.key === 'live' ? liveSources?.add() : setIsAddingData(true);
     const dialog = (
         <AddDataModal
             projectUuid={view.project.id}
@@ -338,7 +350,7 @@ const useAddSource = (view: ViewModel, kind?: Kind) => {
             }
         />
     );
-    return { options, pathOf, addData, dialog };
+    return { options, pathOf, addInPlace, dialog };
 };
 
 const addPath = (view: ViewModel, path: string) =>
@@ -348,7 +360,7 @@ export const AddSourceButton: FC<{
     view: ViewModel;
     kind?: Kind;
 }> = ({ view, kind }) => {
-    const { options, pathOf, addData, dialog } = useAddSource(view, kind);
+    const { options, pathOf, addInPlace, dialog } = useAddSource(view, kind);
     if (options.length === 0) return null;
     return (
         <>
@@ -389,7 +401,7 @@ export const AddSourceButton: FC<{
                         ) : (
                             <Menu.Item
                                 key={option.key}
-                                onClick={addData}
+                                onClick={() => addInPlace(option)}
                                 leftSection={option.icon}
                             >
                                 {content}
@@ -1031,28 +1043,19 @@ const CloseButton: FC<{ onClose: () => void }> = ({ onClose }) => (
     </Button>
 );
 
-const toDraft = (field: Field): FieldDraft => ({
-    label: field.label,
-    description: field.description,
-    aiHint: field.aiHint,
-    inUse: field.inUse,
-});
-
 export const FieldDetailModal: FC<{
     view: ViewModel;
     explore: Explore;
     field: Field;
+    /** The explore's groups, offered when moving the field to another. */
+    groups: string[];
     onClose: () => void;
-}> = ({ view, explore, field, onClose }) => {
+}> = ({ view, explore, field, groups, onClose }) => {
     const source = getSource(view.project, explore.sourceId);
-    const saved = toDraft(field);
+    const saved = toFieldDraft(field);
     // Drafts live in the view, so closing without saving keeps them.
     const draft = view.getDraft(explore, field) ?? saved;
-    const isSaved = (next: FieldDraft) =>
-        next.label === saved.label &&
-        next.description === saved.description &&
-        next.aiHint === saved.aiHint &&
-        next.inUse === saved.inUse;
+    const isSaved = (next: FieldDraft) => isSameDraft(next, saved);
     const setDraft = (next: FieldDraft) =>
         view.setDraft(explore, field, isSaved(next) ? null : next);
     const canEdit = view.canEditFields(explore);
@@ -1064,27 +1067,9 @@ export const FieldDetailModal: FC<{
         connectionUuid: source.connectionUuid ?? '',
     });
     const save = () => {
-        // Only what changed; an emptied label goes back to the integration's.
-        update.mutate(
-            [
-                {
-                    name: field.name,
-                    ...(draft.label !== saved.label
-                        ? { label: draft.label.trim() || null }
-                        : {}),
-                    ...(draft.description !== saved.description
-                        ? { description: draft.description }
-                        : {}),
-                    ...(draft.aiHint !== saved.aiHint
-                        ? { aiHint: draft.aiHint || null }
-                        : {}),
-                    ...(draft.inUse !== saved.inUse
-                        ? { inUse: draft.inUse }
-                        : {}),
-                },
-            ],
-            { onSuccess: discard },
-        );
+        update.mutate([toFieldChange(field.name, draft, saved)], {
+            onSuccess: discard,
+        });
     };
     const note =
         !canEdit && isLive ? (
@@ -1143,6 +1128,22 @@ export const FieldDetailModal: FC<{
                             }
                         />
                     </PropertyRow>
+                    {isLive && canEdit ? (
+                        <PropertyRow term="Group">
+                            <Autocomplete
+                                size="xs"
+                                aria-label="Group"
+                                placeholder="No group"
+                                data={groups}
+                                value={draft.group}
+                                limit={50}
+                                comboboxProps={{ withinPortal: true }}
+                                onChange={(group) =>
+                                    setDraft({ ...draft, group })
+                                }
+                            />
+                        </PropertyRow>
+                    ) : null}
                     {isLive ? (
                         <PropertyRow term="In use">
                             <Group className={classes.detailControl} gap={8}>
@@ -1181,7 +1182,7 @@ export const FieldDetailModal: FC<{
                             <Value>{field.tableLabel}</Value>
                         </PropertyRow>
                     ) : null}
-                    {field.group ? (
+                    {field.group && !(isLive && canEdit) ? (
                         <PropertyRow term="Group">
                             <Value>{field.group}</Value>
                         </PropertyRow>
@@ -1460,7 +1461,7 @@ export const SearchResultsList: FC<{
 // Empty project
 
 export const EmptyProject: FC<{ view: ViewModel }> = ({ view }) => {
-    const { options, pathOf, addData, dialog } = useAddSource(view);
+    const { options, pathOf, addInPlace, dialog } = useAddSource(view);
     return (
         <Paper variant="dotted" p="xl" maw={560} mx="auto" mt="xl">
             <Stack gap="md" align="center">
@@ -1496,7 +1497,7 @@ export const EmptyProject: FC<{ view: ViewModel }> = ({ view }) => {
                                             fz="sm"
                                             component="button"
                                             type="button"
-                                            onClick={addData}
+                                            onClick={() => addInPlace(option)}
                                         >
                                             Set up
                                         </Anchor>
