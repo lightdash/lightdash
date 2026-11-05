@@ -1361,14 +1361,21 @@ export class ProjectService
         organizationUuid: string,
         onboardingFlow: OnboardingFlow,
     ): Promise<void> {
-        await trackFirstQuery({
-            account,
-            organizationUuid,
-            onboardingFlow,
-            onboardingModel: this.onboardingModel,
-            userModel: this.userModel,
-            analytics: this.analytics,
-        });
+        // Analytics only: never fail the query
+        try {
+            await trackFirstQuery({
+                account,
+                organizationUuid,
+                onboardingFlow,
+                onboardingModel: this.onboardingModel,
+                userModel: this.userModel,
+                analytics: this.analytics,
+            });
+        } catch (error) {
+            this.logger.warn(
+                `Failed to track first query for organization ${organizationUuid}: ${getErrorMessage(error)}`,
+            );
+        }
     }
 
     protected async getOnboardingFlow(
@@ -5635,6 +5642,59 @@ export class ProjectService
         return new Date(Date.now() + clampedHours * 60 * 60 * 1000);
     }
 
+    // Onboarding can start from a live source and add the warehouse later.
+    // ponytail: fires on save, before the worker tests the connection, as project creation does.
+    private async trackWarehouseAddedToProject(
+        account: Account,
+        savedProject: Pick<
+            Project,
+            'projectUuid' | 'type' | 'provisioningSource'
+        > & { warehouseConnection?: unknown },
+    ): Promise<void> {
+        // Analytics only: never fail the save
+        try {
+            if (
+                savedProject.warehouseConnection ||
+                savedProject.type !== ProjectType.DEFAULT ||
+                savedProject.provisioningSource
+            ) {
+                return;
+            }
+            assertIsAccountWithOrg(account);
+            const { organizationUuid } = account.organization;
+            const onboardingFlow = await this.getOnboardingFlow({
+                userUuid: account.user.id,
+                organizationUuid,
+            });
+            if (onboardingFlow !== 'new') return;
+            const projects =
+                await this.projectModel.getAllByOrganizationUuid(
+                    organizationUuid,
+                );
+            const hasOtherWarehouse = projects.some(
+                (project) =>
+                    project.projectUuid !== savedProject.projectUuid &&
+                    project.type === ProjectType.DEFAULT &&
+                    !project.provisioningSource &&
+                    project.warehouseType,
+            );
+            if (hasOtherWarehouse) return;
+            this.analytics.trackAccount(account, {
+                event: 'onboarding.step_completed',
+                properties: {
+                    step: 'warehouse_connected',
+                    stepIndex: 4,
+                    onboardingFlow,
+                    organizationId: organizationUuid,
+                },
+            });
+        } catch (error) {
+            this.logger.warn(
+                `Failed to track warehouse added to project ${savedProject.projectUuid}: ${getErrorMessage(error)}`,
+            );
+        }
+    }
+
     private async trackProjectCreated(
         createProject: Pick<
             CreateProjectOptionalCredentials,
@@ -6672,6 +6732,9 @@ export class ProjectService
             userUuid: account.user.id,
             compilationSource: 'project_connection_form',
         });
+        if (updatedProject.warehouseConnection?.type) {
+            await this.trackWarehouseAddedToProject(account, savedProject);
+        }
         return {
             jobUuid: job.jobUuid,
         };
@@ -6821,6 +6884,9 @@ export class ProjectService
                         },
                     );
                 });
+        }
+        if (updatedProject.warehouseConnection?.type) {
+            await this.trackWarehouseAddedToProject(account, savedProject);
         }
     }
 

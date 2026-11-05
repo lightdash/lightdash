@@ -1809,6 +1809,157 @@ describe('AsyncQueryService', () => {
         });
     });
 
+    describe('first query tracking', () => {
+        const flagsOn = {
+            get: vi.fn(
+                async ({ featureFlagId }: { featureFlagId: string }) => ({
+                    id: featureFlagId,
+                    enabled: true,
+                }),
+            ),
+        } as unknown as FeatureFlagModel;
+        const firstQueryOnboardingModel = () => ({
+            getByOrganizationUuid: vi.fn(async () => ({ ranQueryAt: null })),
+            setRanQueryAtIfUnset: vi.fn(async () => true),
+        });
+        const runLiveSourceQuery = (
+            onboarding: Record<string, unknown>,
+            limit?: number,
+            featureFlagModel: FeatureFlagModel = flagsOn,
+        ) => {
+            const now = new Date();
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                featureFlagModel,
+                onboardingModel: onboarding,
+                queryHistoryModel: {
+                    create: vi.fn(async () => ({ queryUuid: 'api-uuid' })),
+                    findMostRecentByCacheKey: vi.fn(async () => ({
+                        queryHistory: {
+                            status: QueryHistoryStatus.READY,
+                            warehouseExecutionTimeMs: 254,
+                        },
+                        totalRowCount: 3,
+                        resultsFileName: 'api-results.jsonl',
+                        resultsCreatedAt: now,
+                        resultsUpdatedAt: now,
+                        resultsExpiresAt: null,
+                        columns: null,
+                    })),
+                    recordResultProducer: vi.fn(),
+                    update: vi.fn(),
+                } as unknown as QueryHistoryModel,
+            } as never);
+            vi.spyOn(service, 'getUserAttributes').mockResolvedValue({
+                userAttributes: {},
+                intrinsicUserAttributes: {},
+            });
+            return service.executeAsyncApiQuery({
+                account: sessionAccount,
+                projectUuid,
+                context: QueryExecutionContext.AI,
+                connectionUuid: 'connection-uuid',
+                connector: {
+                    describe: () => ({ connector: 'posthog' }),
+                    execute: vi.fn(),
+                    usage: () => ({
+                        apiCalls: 0,
+                        responseBytes: 0,
+                        providerStatus: null,
+                    }),
+                    logCall: vi.fn(async () => undefined),
+                } as never,
+                payload: { kind: 'query', query: 'select 1' },
+                limit,
+            });
+        };
+
+        test('counts a live source query as the first query', async () => {
+            const onboarding = firstQueryOnboardingModel();
+            await expect(runLiveSourceQuery(onboarding)).resolves.toEqual({
+                queryUuid: 'api-uuid',
+            });
+            expect(onboarding.setRanQueryAtIfUnset).toHaveBeenCalledTimes(1);
+        });
+
+        test('does not count a live source query rejected by validation', async () => {
+            const onboarding = firstQueryOnboardingModel();
+            await expect(runLiveSourceQuery(onboarding, -1)).rejects.toThrow(
+                'limit must be a positive integer',
+            );
+            expect(onboarding.setRanQueryAtIfUnset).not.toHaveBeenCalled();
+        });
+
+        test('a tracking failure does not fail the query', async () => {
+            const onboarding = {
+                getByOrganizationUuid: vi.fn(async () => {
+                    throw new Error('onboarding table unavailable');
+                }),
+                setRanQueryAtIfUnset: vi.fn(async () => true),
+            };
+            await expect(runLiveSourceQuery(onboarding)).resolves.toEqual({
+                queryUuid: 'api-uuid',
+            });
+        });
+
+        test('a feature flag failure while tracking does not fail the query', async () => {
+            const onboarding = firstQueryOnboardingModel();
+            const failingFlags = {
+                get: vi.fn(
+                    async ({ featureFlagId }: { featureFlagId: string }) => {
+                        if (featureFlagId === FeatureFlags.NewOnboarding) {
+                            throw new Error('flag lookup failed');
+                        }
+                        return { id: featureFlagId, enabled: true };
+                    },
+                ),
+            } as unknown as FeatureFlagModel;
+            await expect(
+                runLiveSourceQuery(onboarding, undefined, failingFlags),
+            ).resolves.toEqual({ queryUuid: 'api-uuid' });
+            expect(onboarding.setRanQueryAtIfUnset).not.toHaveBeenCalled();
+        });
+
+        test('does not count an external query rejected by its checks', async () => {
+            const onboarding = firstQueryOnboardingModel();
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                featureFlagModel: flagsOn,
+                onboardingModel: onboarding,
+                externalSourceTableResolver: vi.fn(async () => ({
+                    external_source_scope: ExternalSourceScope.ATTACHMENT,
+                    external_source_created_by_user_uuid: 'another-user',
+                })),
+            } as never);
+            await expect(
+                service.executeAsyncExternalSqlQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    context: QueryExecutionContext.AI,
+                    sql: 'SELECT * FROM attachment',
+                    tables: { attachment: 'table-uuid' },
+                }),
+            ).rejects.toThrow('This attachment belongs to another user');
+            expect(onboarding.getByOrganizationUuid).not.toHaveBeenCalled();
+        });
+
+        test('does not count a DuckDB source query rejected by its checks', async () => {
+            const onboarding = firstQueryOnboardingModel();
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                featureFlagModel: flagsOn,
+                onboardingModel: onboarding,
+            } as never);
+            await expect(
+                service.executeAsyncDuckdbSourceQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    context: QueryExecutionContext.EXPLORE,
+                    sql: "SELECT * FROM read_parquet('secret.parquet')",
+                    plan: {} as never,
+                }),
+            ).rejects.toThrow(ParameterError);
+            expect(onboarding.getByOrganizationUuid).not.toHaveBeenCalled();
+        });
+    });
+
     describe('executeAsyncApiQuery result reuse', () => {
         test('keeps the original fetch time when reusing a live result', async () => {
             const now = new Date();
