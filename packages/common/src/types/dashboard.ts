@@ -248,6 +248,8 @@ export type DateZoomControl = {
 };
 
 export type DashboardControlSection = {
+    /** Portable identity supplied by content as code. */
+    slug?: string;
     /** uuid, stable across dashboard versions */
     id: string;
     name: string;

@@ -227,6 +227,10 @@ import {
     getScheduledDeliveryTargetKey,
     getScheduledDeliveryTargetsAsCode,
 } from './scheduledContent';
+import {
+    getDashboardWithSectionIds,
+    getDashboardWithSectionSlugs,
+} from './sectionSlugs';
 
 type RuntimeChartAsCode = Omit<ChartAsCode, 'chartConfig'> & {
     chartConfig: ChartConfig;
@@ -1972,6 +1976,7 @@ export class CoderService extends BaseService {
         dashboard: DashboardDAO,
         spaceSummary: Pick<SpaceSummaryBase, 'uuid' | 'name' | 'path'>[],
         verificationMap: Map<string, ContentVerificationInfo>,
+        useSectionSlugs = false,
     ): DashboardAsCode {
         const contentSpace = spaceSummary.find(
             (space) => space.uuid === dashboard.spaceUuid,
@@ -2166,7 +2171,9 @@ export class CoderService extends BaseService {
             verification: verificationMap.get(dashboard.uuid) ?? null,
         };
 
-        return dashboardAsCode;
+        return useSectionSlugs
+            ? getDashboardWithSectionSlugs(dashboardAsCode)
+            : dashboardAsCode;
     }
 
     private static convertTabsWithSlugsToUuids(
@@ -2728,7 +2735,9 @@ export class CoderService extends BaseService {
             );
 
         const controlsEnabled = dashboardsWithAccess.some(
-            (dashboard) => dashboard.config?.parameterControls !== undefined,
+            (dashboard) =>
+                dashboard.config?.parameterControls !== undefined ||
+                dashboard.config?.controlSections !== undefined,
         )
             ? await this.dashboardService.areDashboardControlsEnabled(
                   user,
@@ -2741,6 +2750,7 @@ export class CoderService extends BaseService {
                     dashboard,
                     spaces,
                     dashboardVerificationMap,
+                    controlsEnabled,
                 );
             }
             const { parameterControls: _ignored, ...config } = dashboard.config;
@@ -2748,6 +2758,7 @@ export class CoderService extends BaseService {
                 { ...dashboard, config },
                 spaces,
                 dashboardVerificationMap,
+                controlsEnabled,
             );
         });
 
@@ -3637,7 +3648,35 @@ export class CoderService extends BaseService {
         return this.makeChartAsCodePortable(projectUuid, chartAsCode);
     }
 
+    private async transformDashboardForExport(
+        user: SessionUser,
+        dashboard: DashboardDAO,
+        spaces: Pick<SpaceSummaryBase, 'uuid' | 'name' | 'path'>[],
+        verificationMap: Map<string, ContentVerificationInfo>,
+    ): Promise<DashboardAsCode> {
+        const controlsEnabled =
+            dashboard.config?.parameterControls !== undefined ||
+            dashboard.config?.controlSections !== undefined
+                ? await this.dashboardService.areDashboardControlsEnabled(
+                      user,
+                      dashboard.organizationUuid,
+                  )
+                : false;
+        const { parameterControls, ...config } = dashboard.config ?? {
+            isDateZoomDisabled: false,
+        };
+        return CoderService.transformDashboard(
+            !controlsEnabled && parameterControls !== undefined
+                ? { ...dashboard, config }
+                : dashboard,
+            spaces,
+            verificationMap,
+            controlsEnabled,
+        );
+    }
+
     async getCurrentDashboardAsCode(
+        user: SessionUser,
         dashboardUuid: string,
     ): Promise<DashboardAsCode> {
         const dashboard =
@@ -3650,7 +3689,8 @@ export class CoderService extends BaseService {
                 ContentType.DASHBOARD,
                 [dashboard.uuid],
             );
-        return CoderService.transformDashboard(
+        return this.transformDashboardForExport(
+            user,
             dashboard,
             spaces,
             verificationMap,
@@ -3682,6 +3722,7 @@ export class CoderService extends BaseService {
     // Drafts review: render the dashboard's as-code document with an
     // unpublished draft's fields applied on top of the published version
     async getDashboardAsCodeWithOverlay(
+        user: SessionUser,
         dashboardUuid: string,
         overlay: object,
     ): Promise<DashboardAsCode> {
@@ -3713,7 +3754,12 @@ export class CoderService extends BaseService {
                 ContentType.DASHBOARD,
                 [merged.uuid],
             );
-        return CoderService.transformDashboard(merged, spaces, verificationMap);
+        return this.transformDashboardForExport(
+            user,
+            merged,
+            spaces,
+            verificationMap,
+        );
     }
 
     // The repo's content_as_code flags travel with uploads; stamping them as
@@ -3849,7 +3895,8 @@ export class CoderService extends BaseService {
             await this.recordAppliedSnapshot(
                 projectUuid,
                 ContentAsCodeType.DASHBOARD,
-                CoderService.transformDashboard(
+                await this.transformDashboardForExport(
+                    user,
                     dashboard,
                     spaces,
                     verificationMap,
@@ -5711,13 +5758,17 @@ export class CoderService extends BaseService {
                 };
             }
         }
+        const dashboardWithResolvedSections = getDashboardWithSectionIds(
+            dashboardWithDefaults,
+            existingDashboard?.config,
+        );
         const { tabs: tabsWithUuids, tabUuidsBySlug } =
             CoderService.convertTabsWithSlugsToUuids(
-                dashboardWithDefaults.tabs,
+                dashboardWithResolvedSections.tabs,
                 existingDashboard?.tabs,
             );
         let dashboardWithResolvedTabs = {
-            ...dashboardWithDefaults,
+            ...dashboardWithResolvedSections,
             tabs: tabsWithUuids,
         };
         const { tiles: resolvedTiles, warnings: tileWarnings } =
