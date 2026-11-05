@@ -247,6 +247,7 @@ const ChartTypeBuilderWorkspace: FC<Props> = ({
                             {(style) => (
                                 <Box
                                     className={classes.historyContent}
+                                    // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                                     style={style}
                                 >
                                     <VersionHistoryPanel

@@ -32,7 +32,7 @@ export const SchedulerNextRuns: FC = () => {
                             wrap="nowrap"
                             gap="xs"
                         >
-                            <Text size="sm" fw={500} c="ldGray.7">
+                            <Text size="sm" fw={500} c="dimmed">
                                 {run.label}
                             </Text>
                             <Text size="xs" c="dimmed">

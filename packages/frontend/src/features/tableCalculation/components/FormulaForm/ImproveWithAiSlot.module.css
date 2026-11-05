@@ -9,7 +9,7 @@
     padding: 2px 8px 3px;
 
     border-radius: 4px;
-    border: 1px solid var(--mantine-color-gray-3);
+    border: 1px solid var(--mantine-color-ldGray-3);
     box-shadow: 0 1px 0 0 var(--mantine-color-ldGray-3);
     background-color: var(--mantine-color-body);
     color: var(--mantine-color-text);
@@ -22,11 +22,6 @@
 
     cursor: pointer;
     z-index: 2;
-
-    @mixin dark {
-        background-color: var(--mantine-color-ldDark-3);
-        border-color: var(--mantine-color-ldDark-5);
-    }
 }
 
 .trigger:hover:not(:disabled) {

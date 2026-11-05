@@ -22,13 +22,12 @@ import {
     useMemo,
     useRef,
     useState,
-    type CSSProperties,
     type FC,
 } from 'react';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { JsonCellModal } from '../../JsonViewer/JsonCellViewer';
 import { type JsonCellValue } from '../../JsonViewer/utils';
-import { Td } from '../Table.styles';
+import { Td, type CellStyleProps } from '../Table.styles';
 import { type CellContextMenuProps } from '../types';
 import bodyCellStyles from './BodyCell.module.css';
 import CellMenu from './CellMenu';
@@ -41,7 +40,7 @@ interface CommonBodyCellProps {
     hasData: boolean;
     cellContextMenu?: FC<React.PropsWithChildren<CellContextMenuProps>>;
     className?: string;
-    style?: CSSProperties;
+    styleProps?: CellStyleProps;
     backgroundColor?: string;
     fontColor?: string;
     textStyle?: ConditionalFormattingTextStyle;
@@ -64,7 +63,7 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
     isNumericItem,
     index,
     isLargeText = false,
-    style,
+    styleProps,
     tooltipContent,
     minimal = false,
     rowSpan,
@@ -170,7 +169,7 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
                     isMerged && bodyCellStyles.mergedDimCell,
                 )}
                 rowSpan={isMerged ? rowSpan : undefined}
-                style={style}
+                {...styleProps}
                 $rowIndex={index}
                 $isSelected={isMenuOpen}
                 $isLargeText={isLargeText}

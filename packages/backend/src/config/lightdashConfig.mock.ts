@@ -127,16 +127,13 @@ export const lightdashConfigMock: LightdashConfig = {
     dbt: {
         environmentVariableAllowlist: [],
         sourceFetchConcurrency: undefined,
-        crossSourceMaxPasses: 3,
         sourceFetchDiskBudgetBytes: undefined,
         sourceFetchDiskPerSourceBytes: 256 * 1024 ** 2,
-        crossSourcePrepareTimeoutMs: 180000,
-        crossSourceLsTimeoutMs: 300000,
-        crossSourceResolutionTimeoutMs: 1200000,
     },
     dashboard: {
         maxTilesPerTab: 50,
         maxTabsPerDashboard: 20,
+        maxConcurrentTileQueries: null,
         disableSentryTracking: false,
     },
     database: {
@@ -201,6 +198,7 @@ export const lightdashConfigMock: LightdashConfig = {
         },
     },
     staticAssets: {},
+    uploads: { s3: null },
     natsWorker: {
         enabled: false,
         url: undefined,
@@ -231,7 +229,7 @@ export const lightdashConfigMock: LightdashConfig = {
                 retentionDays: 30,
                 batchSize: 1000,
                 delayMs: 100,
-                maxBatches: 100,
+                maxBatches: 300,
                 schedule: '0 2 * * *',
             },
         },
@@ -239,6 +237,16 @@ export const lightdashConfigMock: LightdashConfig = {
             cleanup: {
                 enabled: true,
                 retentionDays: 30,
+                batchSize: 1000,
+                delayMs: 100,
+                maxBatches: 100,
+            },
+        },
+        appStateHistory: {
+            cleanup: {
+                enabled: true,
+                retentionDays: 90,
+                keepVersions: 50,
                 batchSize: 1000,
                 delayMs: 100,
                 maxBatches: 100,
@@ -387,6 +395,12 @@ export const lightdashConfigMock: LightdashConfig = {
         clientSecret: undefined,
         redirectDomain: 'test',
     },
+    liveSources: {
+        posthog: {
+            oauthClientId: undefined,
+            oauthClientSecret: undefined,
+        },
+    },
     headlessBrowser: {
         internalLightdashHost: 'https://test.lightdash.cloud',
         internalLightdashHostIgnoreHttpsErrors: false,
@@ -400,9 +414,6 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     appearance: {},
     microsoftTeams: {
-        enabled: false,
-    },
-    organizationWarehouseCredentials: {
         enabled: false,
     },
     athenaWarehouseIamRoleAuth: {
@@ -422,16 +433,12 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     aiWriteback: {
         legacyAnthropicApiKey: null,
-        codingAgentMaxRepoSizeMb: 500,
     },
     mcp: {
         enabled: true,
         runSqlMaxLimit: 5000,
     },
     customRoles: {
-        enabled: false,
-    },
-    editYamlInUi: {
         enabled: false,
     },
     funnelBuilder: {
@@ -530,8 +537,6 @@ export const lightdashConfigMock: LightdashConfig = {
         sandboxPythonDockerImage: 'lightdash-python-runner:local',
         e2bPythonTemplateName: 'lightdash-python-runner',
         e2bPythonTemplateTag: '',
-        e2bPythonWarmTemplateName: 'lightdash-python-runner-warm',
-        e2bPythonWarmTemplateTag: '',
         sandboxAgentOnboardingDockerImage: 'lightdash-agent-onboarding:local',
         sandboxIdleTimeoutMs: 30 * 60 * 1000,
         sandboxSnapshotRetentionMs: 7 * 24 * 60 * 60 * 1000,
@@ -559,6 +564,8 @@ export const lightdashConfigMock: LightdashConfig = {
         azureSandboxesDataAppDiskImage: null,
         azureSandboxesAiWritebackGroup: null,
         azureSandboxesAiWritebackDiskImage: null,
+        azureSandboxesPythonGroup: null,
+        azureSandboxesPythonDiskImage: null,
         gcpCloudRun: {
             sandboxUrl: null,
             sandboxSecret: null,
@@ -569,8 +576,6 @@ export const lightdashConfigMock: LightdashConfig = {
         },
         e2bAgentOnboardingTemplateName: 'lightdash-agent-onboarding',
         e2bAgentOnboardingTemplateTag: 'test',
-        e2bCodingAgentTemplateName: 'lightdash-ai-coding-agent',
-        e2bCodingAgentTemplateTag: '',
         otel: {
             enabled: false,
             endpoint: '',

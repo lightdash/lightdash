@@ -12,12 +12,18 @@ import { IconCopy } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useLocation } from 'react-router';
 import { FilterDashboardTo } from '../../features/dashboardFilters/FilterDashboardTo';
+import {
+    selectPieGroupFieldIds,
+    selectPieSelectedMetric,
+} from '../../features/visualization/store';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import MantineIcon from '../common/MantineIcon';
 import { UnderlyingDataMenuItem } from '../DashboardTiles/UnderlyingDataMenuItem';
-import { isPieVisualizationConfig } from '../LightdashVisualization/types';
-import { useVisualizationState } from '../LightdashVisualization/useVisualizationContext';
+import {
+    useVisualizationInputs,
+    useVisualizationInputSelector,
+} from '../LightdashVisualization/useVisualizationContext';
 import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
 
 export type PieChartContextMenuProps = {
@@ -40,24 +46,23 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
     canViewUnderlyingData,
 }) => {
     const projectUuid = useProjectUuid();
-    const { visualizationConfig } = useVisualizationState();
+    const groupFieldIds = useVisualizationInputSelector(selectPieGroupFieldIds);
+    const selectedMetric = useVisualizationInputSelector(
+        selectPieSelectedMetric,
+    );
     const location = useLocation();
     const isDashboardPage = location.pathname.includes('/dashboards');
 
     const { showToastSuccess } = useToaster();
     const clipboard = useClipboard({ timeout: 200 });
     const metricQueryData = useMetricQueryDataContext(true);
-    const { itemsMap } = useVisualizationState();
+    const { itemsMap } = useVisualizationInputs();
 
     if (!value || !metricQueryData || !projectUuid) {
         return null;
     }
 
     const { openUnderlyingDataModal, metricQuery } = metricQueryData;
-
-    if (!isPieVisualizationConfig(visualizationConfig)) return null;
-
-    const { chartConfig } = visualizationConfig;
 
     const handleCopy = () => {
         if (value) {
@@ -69,21 +74,22 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
     };
 
     const handleOpenUnderlyingDataModal = () => {
-        if (!chartConfig.selectedMetric) return;
+        if (!selectedMetric) return;
 
-        const fieldValues = chartConfig.groupFieldIds.reduce<
-            Record<string, ResultValue>
-        >((acc, fieldId) => {
-            if (!fieldId) return acc;
+        const fieldValues = groupFieldIds.reduce<Record<string, ResultValue>>(
+            (acc, fieldId) => {
+                if (!fieldId) return acc;
 
-            const fieldValue = rows?.[0]?.[fieldId]?.value;
-            if (!fieldValue) return acc;
+                const fieldValue = rows?.[0]?.[fieldId]?.value;
+                if (!fieldValue) return acc;
 
-            return { ...acc, [fieldId]: fieldValue };
-        }, {});
+                return { ...acc, [fieldId]: fieldValue };
+            },
+            {},
+        );
 
         openUnderlyingDataModal({
-            item: chartConfig.selectedMetric,
+            item: selectedMetric,
             value,
             fieldValues,
         });
@@ -116,7 +122,6 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
             onClose={onClose}
             closeOnItemClick
             closeOnEscape
-            radius={0}
             position="right-start"
             offset={{
                 mainAxis: 0,
@@ -126,10 +131,9 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
             <Portal>
                 <Menu.Target>
                     <Box
-                        style={{
-                            position: 'absolute',
-                            ...(menuPosition ?? {}),
-                        }}
+                        pos="absolute"
+                        left={menuPosition?.left}
+                        top={menuPosition?.top}
                     />
                 </Menu.Target>
             </Portal>

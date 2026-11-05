@@ -123,17 +123,20 @@ const makeMcpService = (
     featureFlagService = {
         get: vi.fn().mockResolvedValue({ enabled: false }),
     },
+    canAuthorContent = true,
 ): McpService =>
     new McpService({
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         aiAgentService: {},
         aiAgentToolsService: {
+            canAuthorContent: vi.fn().mockResolvedValue(canAuthorContent),
             createRuntime: vi.fn(),
             listMcpSkillResources: () => BuiltInSkills.listMcpResources(),
             getMcpSkillResourceBody: (uri: string) =>
                 BuiltInSkills.getMcpResourceBody(uri),
         },
         aiOrganizationSettingsService: {
+            getMcpProjectAccess: vi.fn().mockResolvedValue({ mode: 'all' }),
             isMcpContentWritesEnabled: vi
                 .fn()
                 .mockResolvedValue(mcpContentWritesEnabled),
@@ -201,6 +204,7 @@ const registrationOnlyFeatures = {
     dataAppBuildsEnabled: true,
     chartTypeBuildsEnabled: true,
     customChartTypesEnabled: true,
+    queryEnabled: true,
 } satisfies Omit<
     McpServerToolOptions['featureAvailability'],
     keyof typeof defaultMcpAnalystPromptOptions
@@ -837,6 +841,7 @@ describe('MCP tool contracts', () => {
             makeMcpServerOptions({
                 runSqlEnabled: true,
                 runMetricQueryEnabled: true,
+                queryEnabled: true,
                 dataAppBuildsEnabled: true,
                 chartTypeBuildsEnabled: true,
                 customChartTypesEnabled: true,
@@ -1329,41 +1334,42 @@ describe('MCP tool contracts', () => {
 
     it.each<{
         settingEnabled: boolean;
-        rules: ConstructorParameters<typeof Ability<PossibleAbilities>>[0];
+        canAuthorContent: boolean;
         expected: boolean;
     }>([
-        {
-            settingEnabled: false,
-            rules: [{ action: 'create', subject: 'ContentAsCode' }],
-            expected: false,
-        },
-        {
-            settingEnabled: true,
-            rules: [],
-            expected: false,
-        },
-        {
-            settingEnabled: true,
-            rules: [{ action: 'create', subject: 'ContentAsCode' }],
-            expected: true,
-        },
-        {
-            settingEnabled: true,
-            rules: [{ action: 'manage', subject: 'ContentAsCode' }],
-            expected: true,
-        },
+        { settingEnabled: false, canAuthorContent: true, expected: false },
+        { settingEnabled: true, canAuthorContent: false, expected: false },
+        { settingEnabled: true, canAuthorContent: true, expected: true },
     ])(
-        'gates MCP content tools by setting and permission',
-        async ({ settingEnabled, rules, expected }) => {
-            const mcpService = makeMcpService(settingEnabled);
-            const user: SessionUser = {
-                ...defaultSessionUser,
-                ability: new Ability<PossibleAbilities>(rules),
-            };
-
-            await expect(mcpService.isContentToolsEnabled(user)).resolves.toBe(
-                expected,
+        'gates MCP content tools by the setting and whether the user can save content',
+        async ({ settingEnabled, canAuthorContent, expected }) => {
+            const mcpService = makeMcpService(
+                settingEnabled,
+                undefined,
+                canAuthorContent,
             );
+
+            await expect(
+                mcpService.isContentToolsEnabled(
+                    defaultSessionUser,
+                    'project-uuid',
+                ),
+            ).resolves.toBe(expected);
         },
     );
+
+    it('checks the pinned project when deciding whether content tools are offered', async () => {
+        const mcpService = makeMcpService();
+        await mcpService.isContentToolsEnabled(
+            defaultSessionUser,
+            'project-uuid',
+        );
+        expect(
+            mcpService['aiAgentToolsService'].canAuthorContent,
+        ).toHaveBeenCalledWith({
+            user: defaultSessionUser,
+            projectUuid: 'project-uuid',
+            spaceUuids: null,
+        });
+    });
 });

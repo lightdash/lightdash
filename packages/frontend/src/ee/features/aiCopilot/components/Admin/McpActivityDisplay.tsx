@@ -5,7 +5,7 @@ import { StatusIndicator } from '../StatusIndicator';
 
 export const ToolNamePill: FC<{ name: string }> = ({ name }) => (
     <Paper px="xs" maw="100%" display="inline-block">
-        <Text fz="xs" ff="monospace" c="ldGray.8" truncate>
+        <Text fz="xs" ff="monospace" truncate>
             {name}
         </Text>
     </Paper>

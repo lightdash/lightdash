@@ -1,6 +1,7 @@
 import { Box, Image, Popover, Stack } from '@mantine/core';
 import { useEffect, useState, type FC, type ReactNode } from 'react';
 import { useAppThumbnailUrl } from '../hooks/useAppThumbnail';
+import classes from './AppThumbnailHoverCard.module.css';
 
 const THUMBNAIL_HOVER_DELAY_MS = 300;
 
@@ -117,7 +118,7 @@ const AppThumbnailHoverCard: FC<AppThumbnailHoverCardProps> = ({
                 <Popover.Dropdown
                     px="sm"
                     py="sm"
-                    style={{ pointerEvents: 'none' }}
+                    className={classes.passThrough}
                 >
                     {thumbnailUrl ? (
                         <Stack gap="sm" w={320}>

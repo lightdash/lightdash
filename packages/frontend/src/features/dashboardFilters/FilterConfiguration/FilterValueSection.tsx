@@ -27,6 +27,7 @@ import { getPlaceholderByFilterTypeAndOperator } from '../../../components/commo
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useApp from '../../../providers/App/useApp';
+import classes from './FilterValueSection.module.css';
 import {
     getFilterRuleWithDefaultValueEnabled,
     getFilterRuleWithOperator,
@@ -40,6 +41,46 @@ type Props = {
     filterRule: DashboardFilterRule;
     popoverProps?: Omit<PopoverProps, 'children'>;
     onChangeFilterRule: (value: DashboardFilterRule) => void;
+};
+
+/** A viewer's X beside the value: back to any value. */
+export const ClearToAnyValueButton: FC<{
+    filterType: FilterType;
+    filterRule: DashboardFilterRule;
+    onChangeFilterRule: (value: DashboardFilterRule) => void;
+}> = ({ filterType, filterRule, onChangeFilterRule }) => {
+    const getUiString = useUiStrings();
+    return (
+        <Tooltip
+            label={getUiString(
+                filterRule.disabled
+                    ? 'filters.config.alreadyAnyValue'
+                    : (filterRule.values?.length ?? 0) === 0
+                      ? 'filters.config.noValueToClear'
+                      : 'filters.config.clearToAnyValue',
+            )}
+        >
+            <ActionIcon
+                size="sm"
+                mt={4}
+                disabled={
+                    filterRule.disabled ||
+                    (filterRule.values?.length ?? 0) === 0
+                }
+                onClick={() =>
+                    onChangeFilterRule({
+                        ...filterRule,
+                        values: [],
+                        ...(filterType === FilterType.DATE
+                            ? { settings: undefined }
+                            : {}),
+                    })
+                }
+            >
+                <MantineIcon icon={IconX} />
+            </ActionIcon>
+        </Tooltip>
+    );
 };
 
 // The value part of the settings form: operator, value and default value
@@ -121,12 +162,7 @@ export const FilterValueSection: FC<Props> = ({
                 )}
                 rightSectionWidth={140}
                 rightSectionPointerEvents="all"
-                rightSectionProps={{
-                    style: {
-                        justifyContent: 'flex-end',
-                        marginRight: '8px',
-                    },
-                }}
+                rightSectionProps={{ className: classes.operatorRightSection }}
                 rightSection={
                     supportsSingleValue(filterType, filterRule.operator) &&
                     isEditMode && (
@@ -196,35 +232,11 @@ export const FilterValueSection: FC<Props> = ({
                             FilterOperator.NULL,
                             FilterOperator.NOT_NULL,
                         ].includes(filterRule.operator) && (
-                            <Tooltip
-                                label={getUiString(
-                                    filterRule.disabled
-                                        ? 'filters.config.alreadyAnyValue'
-                                        : (filterRule.values?.length ?? 0) === 0
-                                          ? 'filters.config.noValueToClear'
-                                          : 'filters.config.clearToAnyValue',
-                                )}
-                            >
-                                <ActionIcon
-                                    size="sm"
-                                    mt={4}
-                                    disabled={
-                                        filterRule.disabled ||
-                                        (filterRule.values?.length ?? 0) === 0
-                                    }
-                                    onClick={() =>
-                                        onChangeFilterRule({
-                                            ...filterRule,
-                                            values: [],
-                                            ...(filterType === FilterType.DATE
-                                                ? { settings: undefined }
-                                                : {}),
-                                        })
-                                    }
-                                >
-                                    <MantineIcon icon={IconX} />
-                                </ActionIcon>
-                            </Tooltip>
+                            <ClearToAnyValueButton
+                                filterType={filterType}
+                                filterRule={filterRule}
+                                onChangeFilterRule={onChangeFilterRule}
+                            />
                         )}
                 </Group>
             )}

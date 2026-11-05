@@ -3,7 +3,8 @@
 }
 
 @media (hover: none), (width < $mantine-breakpoint-sm) {
-    .form :global(.mantine-Button-root) {
+    .cancelButton,
+    .submitButton {
         min-height: 44px;
     }
 }

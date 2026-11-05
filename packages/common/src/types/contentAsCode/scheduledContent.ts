@@ -47,6 +47,8 @@ type ScheduledDeliveryAsCodeBase = {
     includeLinks: boolean;
     /** Optional so files written before plain-text mode still upload. */
     plainTextEmail?: boolean;
+    /** Optional so files written before this setting still upload. */
+    useCachedResults?: boolean;
     targets: ScheduledDeliveryTargetAsCode[];
     downloadedAt?: Date;
 };
@@ -115,6 +117,8 @@ export type AlertAsCode = {
     includeLinks: boolean;
     /** Optional so files written before plain-text mode still upload. */
     plainTextEmail?: boolean;
+    /** Optional so files written before this setting still upload. */
+    useCachedResults?: boolean;
     targets: ScheduledDeliveryTargetAsCode[];
     resource: {
         type: 'chart';
@@ -157,6 +161,8 @@ type GoogleSheetsSyncAsCodeBase = {
     includeLinks: boolean;
     /** Optional so files written before plain-text mode still upload. */
     plainTextEmail?: boolean;
+    /** Optional so files written before this setting still upload. */
+    useCachedResults?: boolean;
     destination: {
         spreadsheetId: string;
         spreadsheetName: string;

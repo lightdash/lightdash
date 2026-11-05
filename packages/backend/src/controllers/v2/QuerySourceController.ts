@@ -38,7 +38,7 @@ export class QuerySourceController extends BaseController {
      * Lists the query sources registered for this deployment. Every source
      * supports the same operations: scan its schema, and submit queries that
      * return a queryUuid whose results are fetched with the standard async
-     * query results endpoint. Requires the multi-source-query feature flag.
+     * query results endpoint. Requires the compose-sql-runner feature flag.
      * @summary List query sources
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -134,6 +134,7 @@ export class QuerySourceController extends BaseController {
                 // HTTP API resolves attributes from the account alone
                 userAttributeOverrides: {},
                 invalidateCache: body.invalidateCache ?? false,
+                aiAttribution: null,
             });
         return { status: 'ok', results };
     }
@@ -144,8 +145,6 @@ export class QuerySourceController extends BaseController {
      * error message for failed queries. Poll this after Execute source
      * queries; fetch each ready query's rows with the standard async query
      * results endpoint. Statuses are visible to the query creator only.
-     * With waitMs, waits up to 10000ms for all queries to become terminal when
-     * the organization has composer-optimization-query-push-readiness enabled.
      * @summary Get source query status
      */
     @Middlewares([
@@ -162,29 +161,11 @@ export class QuerySourceController extends BaseController {
         @Path() projectUuid: string,
         @Query() queryUuids: UUID[],
         @Request() req: express.Request,
-        @Query() waitMs?: number,
     ): Promise<ApiSuccess<ApiGetSourceQueryStatusResults>> {
         this.setStatus(200);
-        const abortController = new AbortController();
-        const abort = () => abortController.abort();
-        req.once('aborted', abort);
-        req.res?.once('close', abort);
-        if (req.aborted || req.res?.destroyed) abort();
-        try {
-            const results = await this.services
-                .getQuerySourceService()
-                .getSourceQueryStatuses(
-                    req.account!,
-                    projectUuid,
-                    queryUuids,
-                    waitMs === undefined
-                        ? undefined
-                        : { waitMs, signal: abortController.signal },
-                );
-            return { status: 'ok', results };
-        } finally {
-            req.off('aborted', abort);
-            req.res?.off('close', abort);
-        }
+        const results = await this.services
+            .getQuerySourceService()
+            .getSourceQueryStatuses(req.account!, projectUuid, queryUuids);
+        return { status: 'ok', results };
     }
 }

@@ -4,13 +4,18 @@ import useEmbed from '../../ee/providers/Embed/useEmbed';
 import {
     dashboardParametersActions,
     selectDashboardParameterReferences,
+    selectParameterControls,
+    selectParameterPicks,
     selectParameterValues,
     selectSavedParameters,
     useDashboardDispatch,
     useDashboardSelector,
 } from '../../features/dashboard/store';
 import { useParameters } from '../../features/parameters';
-import { getDashboardParameterOverrides } from './dashboardParametersUrl';
+import {
+    getDashboardParameterOverrides,
+    getPickedParameterOverrides,
+} from './dashboardParametersUrl';
 
 type Props = {
     projectUuid: string | undefined;
@@ -29,6 +34,8 @@ const DashboardParametersSync: FC<Props> = ({ projectUuid, isEditMode }) => {
 
     const parameterValues = useDashboardSelector(selectParameterValues);
     const savedParameters = useDashboardSelector(selectSavedParameters);
+    const parameterControls = useDashboardSelector(selectParameterControls);
+    const parameterPicks = useDashboardSelector(selectParameterPicks);
     const dashboardParameterReferences = useDashboardSelector(
         selectDashboardParameterReferences,
     );
@@ -40,10 +47,13 @@ const DashboardParametersSync: FC<Props> = ({ projectUuid, isEditMode }) => {
 
         const currentParams = new URLSearchParams(search);
         const newParams = new URLSearchParams(search);
-        const overrides = getDashboardParameterOverrides(
-            parameterValues,
-            savedParameters,
-        );
+        const overrides =
+            parameterControls === null
+                ? getDashboardParameterOverrides(
+                      parameterValues,
+                      savedParameters,
+                  )
+                : getPickedParameterOverrides(parameterPicks);
 
         if (Object.keys(overrides).length === 0) {
             newParams.delete('parameters');
@@ -61,6 +71,8 @@ const DashboardParametersSync: FC<Props> = ({ projectUuid, isEditMode }) => {
         embed.mode,
         isEditMode,
         navigate,
+        parameterControls,
+        parameterPicks,
         parameterValues,
         pathname,
         savedParameters,

@@ -10,7 +10,7 @@
         "addsSkills": []
     },
     "contentTools": {
-        "description": "Edit and create saved charts and dashboards",
+        "description": "Edit and create saved charts and dashboards, or Documents alone",
         "addsTools": [
             "createContent",
             "editContent",
@@ -35,7 +35,7 @@
         "addsSkills": []
     },
     "legacyDashboards": {
-        "description": "Read dashboard charts when content tools are off",
+        "description": "Read dashboard charts when content reads are off",
         "addsTools": [
             "getDashboardCharts"
         ],
@@ -97,19 +97,6 @@
             "repository-writeback"
         ]
     },
-    "codingAgent": {
-        "description": "Edit any writable repository through pull requests",
-        "addsTools": [
-            "editRepo",
-            "loadSkill"
-        ],
-        "addsSections": [
-            "skills"
-        ],
-        "addsSkills": [
-            "editing-source-code"
-        ]
-    },
     "pullRequests": {
         "description": "List, inspect and close the pull requests of a thread",
         "addsTools": [
@@ -134,14 +121,6 @@
         "addsSkills": [
             "reading-source-code"
         ]
-    },
-    "previewDeploySetup": {
-        "description": "Set up preview deploys for the dbt project",
-        "addsTools": [
-            "setupPreviewDeploy"
-        ],
-        "addsSections": [],
-        "addsSkills": []
     },
     "editProjectContext": {
         "description": "Change the project context pull request in review threads",

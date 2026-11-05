@@ -1,5 +1,4 @@
 import {
-    CommercialFeatureFlags,
     type ApiError,
     type CreateProjectHomepageRequest,
     type HomepageAssignment,
@@ -14,7 +13,6 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { type LightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
-import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 import { ANNOUNCEMENTS_QUERY_KEY } from './useAnnouncements';
 import { useOrgHomepageSettings } from './useOrgHomepageSettings';
@@ -148,18 +146,14 @@ const updateGroupPrioritiesApi = async (
         body: JSON.stringify({ groupUuids }),
     });
 
+// The server defaults to enabled; an unlicensed instance has no settings
+// endpoint, so the failed request leaves this off. Must match the backend
+// rule in ProjectHomepageService.isHomepageEnabled.
 export const useHomepageBuilderFlag = () => {
-    const { data: flag, isLoading: isFlagLoading } = useServerFeatureFlag(
-        CommercialFeatureFlags.HomepageBuilder,
-    );
-    // Homepage v2 is on when the org opted in via settings OR the commercial
-    // flag is set — the flag remains as the legacy path/kill-switch while the
-    // opt-in flow rolls out. Must match the backend rule in
-    // ProjectHomepageService.isHomepageEnabled.
     const settings = useOrgHomepageSettings();
     return {
-        isEnabled: !!flag?.enabled || !!settings.data?.enabled,
-        isLoading: isFlagLoading || settings.isInitialLoading,
+        isEnabled: !!settings.data?.enabled,
+        isLoading: settings.isInitialLoading,
     };
 };
 

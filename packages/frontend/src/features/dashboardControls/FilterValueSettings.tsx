@@ -1,110 +1,118 @@
 import {
+    FilterType,
     type DashboardFilterableField,
     type DashboardFilterRule,
-    type FilterType,
 } from '@lightdash/common';
-import { Stack, Text } from '@mantine/core';
-import { useEffect, useRef, useState, type FC } from 'react';
+import { Box, Group, Stack, Text } from '@mantine/core';
+import { type FC } from 'react';
+import FilterInputComponent from '../../components/common/Filters/FilterInputs';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
-import { FilterValueSection } from '../dashboardFilters/FilterConfiguration/FilterValueSection';
-import {
-    getFilterRuleWithDisabledState,
-    isLockedRequiredMissingValue,
-} from '../dashboardFilters/FilterConfiguration/utils';
-import classes from './ControlSidebar.module.css';
-import { isDefaultValueIncomplete } from './sidebarState';
+import { ClearToAnyValueButton } from '../dashboardFilters/FilterConfiguration/FilterValueSection';
+import classes from './FilterEditor.module.css';
+import { type useRuleEdits } from './useRuleEdits';
 
 type Props = {
-    /** A viewer's form: no default switch, and no value reads "any value". */
-    isEditMode: boolean;
-    /** A viewer's new filter: the shipped "Value" label above the form. */
-    isCreatingNew: boolean;
-    filterType: FilterType;
+    rule: DashboardFilterRule;
     field: DashboardFilterableField | null;
-    filterRule: DashboardFilterRule;
-    onChange: (next: DashboardFilterRule) => void;
+    filterType: FilterType;
+    isViewer: boolean;
+    /** A viewer's new filter: the shipped "Value" label above the value. */
+    isCreatingNew: boolean;
+    /** The viewer's "manage Explore" ability, which gates the clear X. */
+    canManageExplore: boolean;
+    edits: ReturnType<typeof useRuleEdits>;
 };
 
-const getInputs = (root: HTMLElement | null): HTMLInputElement[] => [
-    ...(root?.querySelectorAll('input') ?? []),
-];
-
-// The value section of the shipped settings form. No Apply:
-// each edit is written at once, except the one the shipped Apply refuses
+// The shipped value input on its own (the operator is in the header), with
+// the viewer's clear X and the reason a locked, required filter keeps a value
 export const FilterValueSettings: FC<Props> = ({
-    isEditMode,
-    isCreatingNew,
-    filterType,
+    rule,
     field,
-    filterRule,
-    onChange,
+    filterType,
+    isViewer,
+    isCreatingNew,
+    canManageExplore,
+    edits,
 }) => {
     const getUiString = useUiStrings();
-    const isLockedAndRequired =
-        !!filterRule.lockedTabUuids?.length && !!filterRule.required;
-    const root = useRef<HTMLDivElement>(null);
-    // Counts the refused edits: the form is remounted on each one, so its
-    // inputs show the value the rule kept and not the one that was refused
-    const [refusals, setRefusals] = useState(0);
-    const [wasRefused, setWasRefused] = useState(false);
-    const refocusIndex = useRef(-1);
-    const handleChange = (next: DashboardFilterRule) => {
-        const written = getFilterRuleWithDisabledState(next, isEditMode);
-        // A rule already in that state can still be edited out of it
-        if (
-            isLockedRequiredMissingValue(written) &&
-            !isLockedRequiredMissingValue(filterRule)
-        ) {
-            refocusIndex.current = getInputs(root.current).findIndex(
-                (input) => input === document.activeElement,
-            );
-            setRefusals((count) => count + 1);
-            setWasRefused(true);
-            return;
-        }
-        setWasRefused(false);
-        onChange(written);
-    };
-
-    // Focus is a DOM matter: the remount took it from the input in use. A
-    // typed one has its text selected, so typing replaces the kept value
-    useEffect(() => {
-        const input = getInputs(root.current)[refocusIndex.current];
-        refocusIndex.current = -1;
-        if (input === undefined) return;
-        input.focus();
-        if (!input.readOnly) input.select();
-    }, [refusals]);
-
+    const { root, refusals, resets, handleChange } = edits;
+    const hasRequirement = !!rule.required || !!rule.requiredGroupId;
     return (
-        <Stack gap="xs" ref={root}>
-            <Stack key={refusals} gap="xs" className={classes.valueForm}>
-                <FilterValueSection
-                    isEditMode={isEditMode}
-                    isCreatingNew={isCreatingNew}
-                    filterType={filterType}
-                    field={field ?? undefined}
-                    filterRule={filterRule}
-                    onChangeFilterRule={handleChange}
-                />
-            </Stack>
-            {isLockedAndRequired && (
-                // A new node per refusal, so each one is announced
-                <Text
-                    key={wasRefused ? refusals : 'at-rest'}
-                    size="xs"
-                    c={wasRefused ? 'red' : 'dimmed'}
-                    fw={wasRefused ? 500 : undefined}
-                    role={wasRefused ? 'alert' : undefined}
-                >
-                    {getUiString('filters.config.applyLockedRequiredTooltip')}
+        <Stack ref={root} gap="xs" className={classes.content}>
+            {isViewer && isCreatingNew && (
+                <Text size="xs" fw={500}>
+                    {getUiString('filters.config.valueLabel')}
                 </Text>
             )}
-            {isEditMode && isDefaultValueIncomplete(filterRule) && (
-                <Text size="xs" c="dimmed">
-                    Set a value, or the default stays off.
-                </Text>
-            )}
+            <Group
+                key={`${refusals}-${resets}`}
+                gap="xs"
+                wrap="nowrap"
+                align="flex-start"
+            >
+                <Box flex={1} miw={0} className={classes.valueForm}>
+                    <FilterInputComponent
+                        filterType={filterType}
+                        field={field ?? undefined}
+                        // Shown enabled: no value is any value
+                        rule={
+                            !isViewer && rule.disabled
+                                ? { ...rule, disabled: false }
+                                : rule
+                        }
+                        popoverProps={
+                            // An open list would cover Apply: shut on focus
+                            // and closed on pick. Only the string inputs read
+                            // it; date pickers would hand it to their DOM
+                            filterType === FilterType.STRING
+                                ? {
+                                      closeListOnPick: true,
+                                      openListOnFocus: false,
+                                  }
+                                : undefined
+                        }
+                        onChange={(next) =>
+                            handleChange(next as DashboardFilterRule)
+                        }
+                    />
+                </Box>
+                {isViewer && canManageExplore && !hasRequirement && (
+                    <ClearToAnyValueButton
+                        filterType={filterType}
+                        filterRule={rule}
+                        onChangeFilterRule={handleChange}
+                    />
+                )}
+            </Group>
+            <LockedRequiredNote
+                rule={rule}
+                edits={edits}
+                className={undefined}
+            />
         </Stack>
+    );
+};
+
+/** Why a locked, required filter keeps a value; an alert on each refused edit. */
+export const LockedRequiredNote: FC<{
+    rule: DashboardFilterRule;
+    edits: ReturnType<typeof useRuleEdits>;
+    /** Its own padding where no value section holds it. */
+    className: string | undefined;
+}> = ({ rule, edits: { refusals, wasRefused }, className }) => {
+    const getUiString = useUiStrings();
+    if (!rule.lockedTabUuids?.length || !rule.required) return null;
+    return (
+        // A new node per refusal, so each one is announced
+        <Text
+            key={wasRefused ? refusals : 'at-rest'}
+            fz="xs"
+            c={wasRefused ? 'red' : 'dimmed'}
+            fw={wasRefused ? 500 : undefined}
+            role={wasRefused ? 'alert' : undefined}
+            className={className}
+        >
+            {getUiString('filters.config.applyLockedRequiredTooltip')}
+        </Text>
     );
 };

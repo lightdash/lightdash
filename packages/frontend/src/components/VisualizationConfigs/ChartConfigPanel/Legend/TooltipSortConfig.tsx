@@ -1,8 +1,12 @@
 import { TooltipSortByOptions, type TooltipSortBy } from '@lightdash/common';
 import { Group, Select } from '@mantine/core';
 import { type FC } from 'react';
-import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
-import { useVisualizationState } from '../../../LightdashVisualization/useVisualizationContext';
+import {
+    selectCartesianEditor,
+    useVisualizationSelector,
+    type VisualizationStoreState,
+} from '../../../../features/visualization/store';
+import { useCartesianEditorActions } from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { Config } from '../../common/Config';
 
 const TOOLTIP_SORT_OPTIONS = [
@@ -15,12 +19,12 @@ const TOOLTIP_SORT_OPTIONS = [
     { value: TooltipSortByOptions.VALUE_ASCENDING, label: 'Value (ascending)' },
 ];
 
+const selectTooltipSort = (state: VisualizationStoreState) =>
+    selectCartesianEditor(state).tooltipSort;
+
 export const TooltipSortConfig: FC = () => {
-    const { visualizationConfig } = useVisualizationState();
-
-    if (!isCartesianVisualizationConfig(visualizationConfig)) return null;
-
-    const { tooltipSort, setTooltipSort } = visualizationConfig.chartConfig;
+    const tooltipSort = useVisualizationSelector(selectTooltipSort);
+    const { setTooltipSort } = useCartesianEditorActions();
 
     const handleChange = (value: string | null) => {
         if (value === null || value === TooltipSortByOptions.DEFAULT) {

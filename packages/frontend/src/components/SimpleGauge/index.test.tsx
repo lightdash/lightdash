@@ -23,7 +23,7 @@ vi.mock('../LightdashVisualization/useVisualizationContext', () => {
         useVisualizationContext,
         useVisualizationServices: useVisualizationContext,
         useVisualizationLayout: useVisualizationContext,
-        useVisualizationState: useVisualizationContext,
+        useVisualizationInputs: useVisualizationContext,
     };
 });
 const gaugeConfigCalls = vi.hoisted(() => [] as object[]);

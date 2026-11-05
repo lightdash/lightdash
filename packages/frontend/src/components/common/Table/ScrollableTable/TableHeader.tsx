@@ -1,8 +1,8 @@
 import { Draggable } from '@hello-pangea/dnd';
 import { isField, isTableCalculation } from '@lightdash/common';
-import { Tooltip, useMantineTheme } from '@mantine/core';
+import { Tooltip } from '@mantine/core';
 import { flexRender } from '@tanstack/react-table';
-import isEqual from 'lodash/isEqual';
+import { isEqual } from 'es-toolkit/compat';
 import React, { useEffect, type FC } from 'react';
 import { ROW_NUMBER_COLUMN_ID } from '../constants';
 import { getGroupedDimensionColumnIds } from '../getGroupedDimensionColumnIds';
@@ -41,7 +41,6 @@ const TableHeader: FC<TableHeaderProps> = ({
     minimal = false,
     showSubtotals = true,
 }) => {
-    const theme = useMantineTheme();
     const { table, headerContextMenu, columns, onColumnWidthChange } =
         useTableContext();
     const HeaderContextMenu = headerContextMenu;
@@ -119,13 +118,9 @@ const TableHeader: FC<TableHeaderProps> = ({
                                 <Th
                                     key={header.id}
                                     colSpan={header.colSpan}
-                                    style={{
-                                        ...meta?.style,
-                                        width: meta?.width,
-                                        backgroundColor:
-                                            meta?.bgColor ??
-                                            theme.colors.ldGray[0],
-                                    }}
+                                    {...meta?.styleProps}
+                                    w={meta?.width}
+                                    bg={meta?.bgColor ?? 'ldGray.0'}
                                     className={meta?.className}
                                     {...(meta?.item &&
                                     isTableCalculation(meta.item)
@@ -145,6 +140,7 @@ const TableHeader: FC<TableHeaderProps> = ({
                                                     ref={provided.innerRef}
                                                     {...provided.draggableProps}
                                                     {...provided.dragHandleProps}
+                                                    // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                                                     style={{
                                                         ...provided
                                                             .draggableProps

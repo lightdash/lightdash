@@ -9,6 +9,7 @@ import { z } from 'zod';
 import {
     getSlackTableBlocks,
     SLACK_TABLE_MAX_ROWS,
+    splitSlackTableMessage,
     type SlackTablePreview,
 } from './slackTableBlocks';
 
@@ -268,6 +269,34 @@ describe('getSlackTableBlocks', () => {
         expect(blocks[0]).toMatchObject({
             text: { text: expect.stringContaining('No complete row fits') },
             accessory: { text: { text: 'Open agent thread' } },
+        });
+    });
+});
+
+describe('splitSlackTableMessage', () => {
+    it('moves native tables and everything after them into their own message', () => {
+        const citation = { type: 'rich_text', elements: [] };
+        const unavailable = getSlackTableBlocks([
+            preview([], { blockId: 'table-0', status: 'unavailable' }),
+        ]);
+        const tables = getSlackTableBlocks([
+            preview([{ month: 'September', revenue: 1200 }]),
+        ]);
+        const card = { type: 'carousel', elements: [] };
+
+        expect(
+            splitSlackTableMessage([citation, ...unavailable, ...tables, card]),
+        ).toEqual({
+            withAnswer: [citation, ...unavailable],
+            tableMessage: [...tables, card],
+        });
+    });
+
+    it('keeps every block with the answer when there is no native table', () => {
+        const blocks = [{ type: 'carousel', elements: [] }];
+        expect(splitSlackTableMessage(blocks)).toEqual({
+            withAnswer: blocks,
+            tableMessage: null,
         });
     });
 });

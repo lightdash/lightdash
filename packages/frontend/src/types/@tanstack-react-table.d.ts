@@ -4,6 +4,7 @@ import {
     type VizColumnsConfig,
 } from '@lightdash/common';
 import { type MouseEventHandler } from 'react';
+import { type CellStyleProps } from '../components/common/Table/Table.styles';
 import { type Sort } from '../components/common/Table/types';
 import { type ColumnStatsMap } from '../components/DataViz/utils/columnStats';
 
@@ -19,7 +20,7 @@ declare module '@tanstack/react-table' {
         bgColor?: string;
         sort?: Sort;
         className?: string;
-        style?: CSSProperties;
+        styleProps?: CellStyleProps;
         frozen?: boolean;
         frozenLayout?: { left: number; isLast: boolean };
         isVisible?: boolean;

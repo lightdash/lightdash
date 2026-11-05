@@ -19,7 +19,7 @@ import {
     type SourceQuery,
     type SourceQuerySubmission,
 } from '@lightdash/common';
-import { setTimeout as delay } from 'node:timers/promises';
+import type { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { sourceRequiresRawSql } from '../../auth/agentConnectionGrants/operationContracts';
 import { grantAllowsCapabilities } from '../../auth/agentConnectionGrants/resourceConstraints';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
@@ -36,6 +36,7 @@ import type { DocumentQueryContext } from '../DocumentService/DocumentQueryConte
 import type { QuerySourceRegistry } from './QuerySourceRegistry';
 import type {
     QuerySourceClient,
+    SourceQueryAiAttribution,
     SourceQueryExecutionContext,
     SourceQuerySubmissionResult,
 } from './types';
@@ -53,6 +54,7 @@ type QuerySourceServiceArguments = {
         AgentPermissionService,
         'loadRequest' | 'assertOperationWithRequest'
     >;
+    analytics: LightdashAnalytics;
     projectModel: ProjectModel;
     queryHistoryModel: QueryHistoryModel;
     featureFlagModel: FeatureFlagModel;
@@ -69,13 +71,6 @@ type ValidatedQuery = {
 
 const MAX_QUERIES = 25;
 const MAX_STATUS_QUERY_UUIDS = 50;
-const MAX_STATUS_WAIT_MS = 10_000;
-const STATUS_WAIT_INTERVAL_MS = 50;
-const RUNNING_QUERY_STATUSES: ReadonlySet<QueryHistoryStatus> = new Set([
-    QueryHistoryStatus.PENDING,
-    QueryHistoryStatus.QUEUED,
-    QueryHistoryStatus.EXECUTING,
-]);
 const NODE_ID_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]{0,62}$/;
 const UUID_PATTERN =
     /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
@@ -103,12 +98,15 @@ export class QuerySourceService extends BaseService {
 
     private readonly registry: QuerySourceRegistry;
 
+    private readonly analytics: LightdashAnalytics;
+
     private readonly getAgentPermissionService: QuerySourceServiceArguments['getAgentPermissionService'];
 
     private readonly getAsyncQueryService: QuerySourceServiceArguments['getAsyncQueryService'];
 
     constructor(args: QuerySourceServiceArguments) {
         super({ serviceName: 'QuerySourceService' });
+        this.analytics = args.analytics;
         this.getAsyncQueryService = args.getAsyncQueryService;
         this.projectModel = args.projectModel;
         this.queryHistoryModel = args.queryHistoryModel;
@@ -204,7 +202,7 @@ export class QuerySourceService extends BaseService {
         }
     }
 
-    private async throwIfMultiSourceQueryDisabled(
+    private async throwIfComposeSqlRunnerDisabled(
         account: Account,
     ): Promise<void> {
         assertIsAccountWithOrg(account);
@@ -213,7 +211,7 @@ export class QuerySourceService extends BaseService {
                 userUuid: account.user.id,
                 organizationUuid: account.organization.organizationUuid,
             },
-            featureFlagId: FeatureFlags.MultiSourceQuery,
+            featureFlagId: FeatureFlags.ComposeSqlRunner,
         });
         if (!enabled) {
             throw new ForbiddenError('Multi-source queries are not enabled');
@@ -246,7 +244,7 @@ export class QuerySourceService extends BaseService {
         account: Account,
         projectUuid: string,
     ): Promise<ApiListQuerySourcesResults> {
-        await this.throwIfMultiSourceQueryDisabled(account);
+        await this.throwIfComposeSqlRunnerDisabled(account);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         const ability = this.createAuditedAbility(account);
@@ -274,7 +272,7 @@ export class QuerySourceService extends BaseService {
         projectUuid: string,
         sourceType: QuerySourceType,
     ): Promise<ApiScanQuerySourceSchemaResults> {
-        await this.throwIfMultiSourceQueryDisabled(account);
+        await this.throwIfComposeSqlRunnerDisabled(account);
         const source = this.registry.get(sourceType);
         await this.throwIfSourcesDisabled(account, [source]);
         if (source.definition.sourceType === QuerySourceType.SQL) {
@@ -426,13 +424,15 @@ export class QuerySourceService extends BaseService {
         parameters,
         userAttributeOverrides,
         invalidateCache,
+        aiAttribution,
     }: SourceQueryExecutionContext & {
         account: Account;
         projectUuid: string;
         queries: SourceQuery[];
         context: QueryExecutionContext;
+        aiAttribution: SourceQueryAiAttribution | null;
     }): Promise<ApiExecuteSourceQueriesResults> {
-        await this.throwIfMultiSourceQueryDisabled(account);
+        await this.throwIfComposeSqlRunnerDisabled(account);
         await this.throwIfCannotRunQueries(account, projectUuid);
 
         const submitted = await this.submitQueries({
@@ -445,6 +445,7 @@ export class QuerySourceService extends BaseService {
             userAttributeOverrides,
             invalidateCache,
             plans: {},
+            aiAttribution,
         });
         return {
             queries: submitted.queries.map(
@@ -474,6 +475,7 @@ export class QuerySourceService extends BaseService {
         invalidateCache,
         plans,
         documentQueryContext,
+        aiAttribution,
     }: SourceQueryExecutionContext & {
         documentQueryContext?: DocumentQueryContext;
         account: Account;
@@ -481,6 +483,7 @@ export class QuerySourceService extends BaseService {
         queries: SourceQuery[];
         context: QueryExecutionContext;
         plans: Record<string, DuckdbQueryPlan>;
+        aiAttribution: SourceQueryAiAttribution | null;
     }): Promise<{ queries: InternalSourceQuerySubmission[] }> {
         const ordered = this.validateQueries(queries, plans);
         QuerySourceService.assertPlansNameDuckdbNodes(ordered, plans);
@@ -533,7 +536,45 @@ export class QuerySourceService extends BaseService {
             });
         }
 
+        this.trackSubmitted(
+            account,
+            projectUuid,
+            context,
+            aiAttribution,
+            submissions,
+        );
         return { queries: submissions };
+    }
+
+    private trackSubmitted(
+        account: Account,
+        projectUuid: string,
+        context: QueryExecutionContext,
+        aiAttribution: SourceQueryAiAttribution | null,
+        submissions: InternalSourceQuerySubmission[],
+    ): void {
+        const { organizationUuid } = account.organization;
+        if (!organizationUuid) return;
+        const count = (sourceType: QuerySourceType) =>
+            submissions.filter((s) => s.sourceType === sourceType).length;
+        this.analytics.trackAccount(account, {
+            event: 'query_sources.submitted',
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                context,
+                aiAgentId: aiAttribution?.aiAgentUuid ?? null,
+                threadId: aiAttribution?.threadUuid ?? null,
+                promptId: aiAttribution?.promptUuid ?? null,
+                nodeCount: submissions.length,
+                semanticLayerNodeCount: count(QuerySourceType.SEMANTIC_LAYER),
+                sqlNodeCount: count(QuerySourceType.SQL),
+                duckdbNodeCount: count(QuerySourceType.DUCKDB),
+                externalNodeCount: count(QuerySourceType.EXTERNAL),
+                pythonNodeCount: count(QuerySourceType.PYTHON),
+                apiNodeCount: count(QuerySourceType.API),
+            },
+        });
     }
 
     /** A plan on anything but a duckdb node is a caller bug, not a user error. */
@@ -561,62 +602,8 @@ export class QuerySourceService extends BaseService {
         account: Account,
         projectUuid: string,
         queryUuids: string[],
-        wait?: { waitMs: number; signal: AbortSignal },
     ): Promise<ApiGetSourceQueryStatusResults> {
-        const waitMs = Math.min(wait?.waitMs ?? 0, MAX_STATUS_WAIT_MS);
-        const deadline = Date.now() + waitMs;
-        const results = await this.readSourceQueryStatuses(
-            account,
-            projectUuid,
-            queryUuids,
-        );
-        const runningUuids = (
-            statuses: { queryUuid: string; status: QueryHistoryStatus }[],
-        ) =>
-            statuses
-                .filter(({ status }) => RUNNING_QUERY_STATUSES.has(status))
-                .map(({ queryUuid }) => queryUuid);
-        let running = runningUuids(results.statuses);
-        if (!wait || !(waitMs > 0) || running.length === 0) return results;
-
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
-        const { enabled } = await this.featureFlagModel.get({
-            user: { organizationUuid },
-            featureFlagId: FeatureFlags.ComposerOptimizationQueryPushReadiness,
-        });
-        if (!enabled) return results;
-
-        const initiallyRunning = running.length;
-        while (running.length > 0 && Date.now() < deadline) {
-            // eslint-disable-next-line no-await-in-loop
-            const slept = await delay(
-                Math.min(STATUS_WAIT_INTERVAL_MS, deadline - Date.now()),
-                true,
-                { signal: wait.signal },
-            ).catch(() => false);
-            // Disconnected client: nobody reads the response
-            if (!slept) return results;
-            // Only re-read running rows; the final full read repeats all checks
-            // eslint-disable-next-line no-await-in-loop
-            const histories = await Promise.all(
-                running.map((queryUuid) =>
-                    this.queryHistoryModel.get(queryUuid, projectUuid, account),
-                ),
-            );
-            running = runningUuids(histories);
-        }
-        return running.length < initiallyRunning
-            ? this.readSourceQueryStatuses(account, projectUuid, queryUuids)
-            : results;
-    }
-
-    private async readSourceQueryStatuses(
-        account: Account,
-        projectUuid: string,
-        queryUuids: string[],
-    ): Promise<ApiGetSourceQueryStatusResults> {
-        await this.throwIfMultiSourceQueryDisabled(account);
+        await this.throwIfComposeSqlRunnerDisabled(account);
         if (queryUuids.length === 0) {
             throw new ParameterError('Provide at least one query uuid');
         }
@@ -663,8 +650,14 @@ export class QuerySourceService extends BaseService {
                         projectUuid,
                         error: queryHistory.error,
                         projectModel: this.projectModel,
-                        featureFlagModel: this.featureFlagModel,
                     }),
+                    totalRowCount: queryHistory.totalRowCount,
+                    warehouseExecutionTimeMs:
+                        queryHistory.warehouseExecutionTimeMs,
+                    columns:
+                        queryHistory.status === QueryHistoryStatus.READY
+                            ? queryHistory.columns
+                            : null,
                 };
                 return status;
             }),

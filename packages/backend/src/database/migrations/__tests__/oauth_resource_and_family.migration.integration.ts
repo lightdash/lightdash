@@ -12,7 +12,7 @@ afterAll(async () => {
     await migrated?.destroy();
 });
 
-it('adds nullable resource and family columns and valid family indexes on the real schema', async () => {
+it('adds nullable resource, family and session columns and valid family indexes on the real schema', async () => {
     const { database } = migrated;
     await up(database);
     await Promise.all(
@@ -22,6 +22,11 @@ it('adds nullable resource and family columns and valid family indexes on the re
             'oauth2_refresh_tokens',
         ].map(async (table) => {
             const columns = await database(table).columnInfo();
+            expect(columns.session_expires_at).toMatchObject({
+                type: 'timestamp with time zone',
+                nullable: true,
+                defaultValue: null,
+            });
             expect(columns.resource).toMatchObject({
                 type: 'text',
                 nullable: true,

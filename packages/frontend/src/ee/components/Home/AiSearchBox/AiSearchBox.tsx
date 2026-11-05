@@ -236,14 +236,10 @@ const AiSearchBoxInner: FC<Props> = ({
                                         className={styles.askAiSection}
                                         gap="xs"
                                         wrap="nowrap"
-                                        style={{ overflow: 'hidden' }}
                                         align="flex-start"
                                     >
                                         <AiAgentIcon
-                                            style={{
-                                                flexShrink: 0,
-                                                marginTop: 4,
-                                            }}
+                                            className={styles.askAiIcon}
                                             size={14}
                                         />
                                         <Text
@@ -310,7 +306,7 @@ const AiSearchBoxInner: FC<Props> = ({
                                     >
                                         <Group gap={2}>
                                             {isTrial && (
-                                                <Text size="xs" c="ldGray.8">
+                                                <Text size="xs">
                                                     You are trialing the AI
                                                     Agents feature.
                                                 </Text>
@@ -324,7 +320,7 @@ const AiSearchBoxInner: FC<Props> = ({
                                 ) : showAgentSetupPrompt && isTrial ? (
                                     <Group gap="xs">
                                         <AiAgentIcon size={14} />
-                                        <Text size="xs" c="ldGray.8">
+                                        <Text size="xs">
                                             You are trialing the AI Agents
                                             feature.
                                         </Text>

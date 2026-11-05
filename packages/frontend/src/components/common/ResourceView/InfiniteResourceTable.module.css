@@ -9,3 +9,25 @@
 .searchInput:focus-visible {
     border-color: var(--mantine-color-blue-5);
 }
+
+/* The container keeps a min-height for infinite scroll, so the last row ends without a rule. */
+.table tbody tr:last-of-type td {
+    border-bottom: 0;
+}
+
+.searchInput {
+    height: 32px;
+    width: 100%;
+    text-overflow: ellipsis;
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 400;
+    color: var(--mantine-color-ldGray-8);
+}
+
+.bottomToolbar {
+    border-top: 1px solid var(--mantine-color-ldGray-3);
+}
+
+.itemName {
+    overflow-wrap: anywhere;
+}

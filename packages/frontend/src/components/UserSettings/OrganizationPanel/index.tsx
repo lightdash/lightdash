@@ -1,11 +1,12 @@
 import { getOrganizationNameSchema } from '@lightdash/common';
-import { Button, Flex, Stack, TextInput } from '@mantine/core';
+import { Button, Group, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useEffect, type FC } from 'react';
 import { z } from 'zod';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useOrganizationUpdateMutation } from '../../../hooks/organization/useOrganizationUpdateMutation';
+import { SettingRow } from '../../common/Settings/SettingLayout';
 
 const validationSchema = z.object({
     organizationName: getOrganizationNameSchema(),
@@ -50,33 +51,42 @@ const OrganizationPanel: FC = () => {
     });
 
     return (
-        <form onSubmit={handleOnSubmit}>
-            <Stack>
-                <TextInput
-                    label="Organization name"
-                    required
-                    placeholder="Lightdash"
-                    disabled={isLoading}
-                    {...form.getInputProps('organizationName')}
-                />
-
-                <Flex justify="flex-end" gap="sm">
-                    {form.isDirty() && !isOrganizationUpdateLoading && (
-                        <Button variant="outline" onClick={() => form.reset()}>
-                            Cancel
+        <SettingRow
+            title="Organization name"
+            description="Shown to members across the workspace and in invitations."
+            control={
+                <form onSubmit={handleOnSubmit}>
+                    <Group gap="xs" align="flex-start">
+                        <TextInput
+                            aria-label="Organization name"
+                            size="xs"
+                            w={260}
+                            required
+                            placeholder="Lightdash"
+                            disabled={isLoading}
+                            {...form.getInputProps('organizationName')}
+                        />
+                        {form.isDirty() && !isOrganizationUpdateLoading && (
+                            <Button
+                                size="xs"
+                                variant="default"
+                                onClick={() => form.reset()}
+                            >
+                                Cancel
+                            </Button>
+                        )}
+                        <Button
+                            size="xs"
+                            type="submit"
+                            disabled={isLoading || !form.isDirty()}
+                            loading={isLoading}
+                        >
+                            Update
                         </Button>
-                    )}
-
-                    <Button
-                        type="submit"
-                        disabled={isLoading || !form.isDirty()}
-                        loading={isLoading}
-                    >
-                        Update
-                    </Button>
-                </Flex>
-            </Stack>
-        </form>
+                    </Group>
+                </form>
+            }
+        />
     );
 };
 

@@ -27,10 +27,11 @@ import { DbtCliClient } from '../../dbt/dbtCliClient';
 import { CLOUD_CREDENTIAL_ENVIRONMENT_VARIABLE_KEYS } from '../../dbt/dbtProcessEnvironment';
 import { profileFromCredentials } from '../../dbt/profiles';
 import { bigqueryAdc, bigqueryAdcTarget } from '../../dbt/targets/targets.mock';
-import { type OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
 import { type ProjectDbtSourcesModel } from '../../models/ProjectDbtSourcesModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { singleRouteProjectModelMethods } from '../../models/ProjectModel/ProjectModel.mock';
+import { createDatabase } from '../../models/RefreshTokenRotation/fakeKnex.mock';
+import { RefreshTokenRotation } from '../../models/RefreshTokenRotation/RefreshTokenRotation';
 import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { type WarehouseConnectionCompileModel } from '../../models/WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
 import { DbtLocalCredentialsProjectAdapter } from '../../projectAdapters/dbtLocalCredentialsProjectAdapter';
@@ -39,7 +40,6 @@ import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder
 import { UserService } from '../UserService';
 import { connectionContextFromUser } from '../WarehouseClientFactory/ConnectionContext';
 import type { CredentialResolver } from '../WarehouseClientFactory/CredentialResolver';
-import { organizationCredentialStorage } from './organizationCredentialStorage.mock';
 import { type CheckGoogleRefreshToken } from './previewBigquerySsoCredentials';
 import { ProjectService, type ProjectServiceArguments } from './ProjectService';
 import { projectWithSensitiveFields, user } from './ProjectService.mock';
@@ -73,6 +73,12 @@ vi.mock('@lightdash/warehouses', async (importOriginal) => ({
     warehouseClientFromCredentials: vi.fn(),
 }));
 
+vi.mock('../../auth/databricksOAuthRefresh', () => ({
+    refreshDatabricksOAuthTokenWithDeadline: (
+        ...args: Parameters<typeof refreshDatabricksOAuthToken>
+    ) => refreshDatabricksOAuthToken(...args),
+}));
+
 const databricks = (
     authenticationType = DatabricksAuthenticationType.OAUTH_M2M,
 ): CreateDatabricksCredentials => ({
@@ -100,23 +106,21 @@ const snowflake = (): CreateSnowflakeCredentials => ({
 
 const setup = (
     credentials: CreateWarehouseCredentials,
-    {
-        enabled = true,
-        organizationUuid = null,
-    }: { enabled?: boolean; organizationUuid?: string | null } = {},
+    { enabled = true }: { enabled?: boolean } = {},
 ) => {
     const project = {
         ...projectWithSensitiveFields,
         warehouseConnection: credentials,
-        organizationWarehouseCredentialsUuid: organizationUuid,
     };
     const projectModel = {
         ...singleRouteProjectModelMethods,
+        getOwnWarehouseCredentialsForProject: vi.fn(
+            async (): Promise<CreateWarehouseCredentials> =>
+                project.warehouseConnection,
+        ),
         getWithSensitiveFields: vi.fn(async () => project),
         getWarehouseCredentialsForProject: vi.fn(async () => credentials),
-        getProjectWarehouseConfig: vi.fn(async () => ({
-            organizationWarehouseCredentialsUuid: organizationUuid,
-        })),
+        getProjectWarehouseConfig: vi.fn(async () => ({})),
         getSummary: vi.fn(async () => project),
         getDbtSourceIdentity: vi.fn(async () => ({
             dbtSourceUuid: 'primary-source',
@@ -137,23 +141,37 @@ const setup = (
         ),
     };
     const userWarehouseCredentialsModel = {
+        getByUuidWithSecrets: vi.fn(
+            async (): Promise<
+                Awaited<
+                    ReturnType<
+                        UserWarehouseCredentialsModel['getByUuidWithSecrets']
+                    >
+                >
+            > =>
+                userWarehouseCredentialsModel.findForProjectWithSecrets.mock.results.at(
+                    -1,
+                )?.value,
+        ),
         findForProjectWithSecrets:
             vi.fn<UserWarehouseCredentialsModel['findForProjectWithSecrets']>(),
         rotateRefreshToken: vi.fn(async () => undefined),
     };
-    const organizationWarehouseCredentialsModel = {
-        rotateRefreshToken: vi.fn<
-            OrganizationWarehouseCredentialsModel['rotateRefreshToken']
-        >(async () => true),
-    };
     const warehouseConnectionModel = {
+        getOwnCredentials: vi.fn(
+            async (): Promise<CreateWarehouseCredentials> =>
+                (
+                    await warehouseConnectionModel.getExtraCredentialSource.mock.results.at(
+                        -1,
+                    )?.value
+                )?.credentials,
+        ),
         getProject: vi.fn(async () => ({
             projectUuid: project.projectUuid,
             organizationUuid: project.organizationUuid,
         })),
         getExtraCredentialSource: vi.fn(async () => ({
             credentials,
-            organizationWarehouseCredentialsUuid: organizationUuid,
         })),
         rotateRefreshToken: vi.fn(async () => undefined),
     };
@@ -176,7 +194,9 @@ const setup = (
     };
     const service = new ProjectService({
         analytics: { track: vi.fn() },
-        refreshTokenRotation: { run: vi.fn() },
+        refreshTokenRotation: new RefreshTokenRotation({
+            database: createDatabase().database,
+        }),
         lightdashConfig: {
             ...lightdashConfigMock,
             warehouseClient: {
@@ -188,7 +208,6 @@ const setup = (
         projectDbtSourcesModel,
         warehouseConnectionCompileModel,
         userWarehouseCredentialsModel,
-        organizationWarehouseCredentialsModel,
         warehouseConnectionModel,
         userOAuthGrantsModel,
         featureFlagModel,
@@ -234,7 +253,6 @@ const setup = (
         projectDbtSourcesModel,
         warehouseConnectionCompileModel,
         userWarehouseCredentialsModel,
-        organizationWarehouseCredentialsModel,
         warehouseConnectionModel,
         userOAuthGrantsModel,
         prepare,
@@ -286,94 +304,6 @@ afterEach(() => {
 });
 
 describe('compile credential resolution', () => {
-    it('compile reads the rotated organisation token within the project cache TTL', async () => {
-        const f = setup(snowflake(), {
-            organizationUuid: 'org-credential-uuid',
-        });
-        const storage = organizationCredentialStorage(
-            { ...snowflake(), refreshToken: 'R0' },
-            f.project.organizationUuid,
-        );
-        storage.tracker.on.select('warehouse_credentials').response([
-            {
-                organization_warehouse_credentials_uuid: 'org-credential-uuid',
-                organization_uuid: f.project.organizationUuid,
-                playground_bundle_version: null,
-            },
-        ]);
-        const model = new ProjectModel({
-            database: storage.database,
-            encryptionUtil: storage.encryptionUtil,
-            lightdashConfig: lightdashConfigMock,
-        });
-        f.projectModel.getWarehouseCredentialsForProject.mockImplementation(
-            () =>
-                model.getWarehouseCredentialsForProject(f.project.projectUuid),
-        );
-        vi.spyOn(
-            f.projectModel,
-            'getWarehouseCredentialsForProjectUncached',
-        ).mockImplementation(() =>
-            model.getWarehouseCredentialsForProjectUncached(
-                f.project.projectUuid,
-            ),
-        );
-        f.organizationWarehouseCredentialsModel.rotateRefreshToken.mockImplementation(
-            (...args) => storage.model.rotateRefreshToken(...args),
-        );
-        const consumed = new Set<string>();
-        vi.mocked(UserService.generateSnowflakeAccessToken).mockImplementation(
-            async (token) => {
-                if (consumed.has(token))
-                    throw new Error('Refresh token already consumed');
-                consumed.add(token);
-                return {
-                    accessToken: 'refreshed-snowflake',
-                    refreshToken: token === 'R0' ? 'R1' : 'R2',
-                };
-            },
-        );
-        try {
-            expect(
-                await model.getWarehouseCredentialsForProject(
-                    f.project.projectUuid,
-                ),
-            ).toMatchObject({ refreshToken: 'R0' });
-            await f.prepare();
-            expect(storage.rotate).toHaveBeenCalledExactlyOnceWith(
-                'org-credential-uuid',
-                'R0',
-                'R1',
-            );
-            expect(
-                (
-                    await storage.model.getByUuidWithSensitiveData(
-                        'org-credential-uuid',
-                    )
-                ).credentials,
-            ).toMatchObject({ refreshToken: 'R1' });
-            expect(
-                await model.getWarehouseCredentialsForProject(
-                    f.project.projectUuid,
-                ),
-            ).toMatchObject({ refreshToken: 'R0' });
-            await expect.soft(f.prepare()).resolves.toMatchObject({
-                warehouseCredentials: { refreshToken: 'R2' },
-            });
-            expect(
-                UserService.generateSnowflakeAccessToken,
-            ).toHaveBeenNthCalledWith(2, 'R1');
-            expect(storage.rotate).toHaveBeenNthCalledWith(
-                2,
-                'org-credential-uuid',
-                'R1',
-                'R2',
-            );
-        } finally {
-            await storage.database.destroy();
-        }
-    });
-
     it.each([
         DatabricksAuthenticationType.OAUTH_M2M,
         DatabricksAuthenticationType.OAUTH_U2M,
@@ -389,6 +319,7 @@ describe('compile credential resolution', () => {
             f.project.projectUuid,
             'project-refresh',
             'rotated-refresh',
+            expect.anything(),
         );
         expect(refreshDatabricksOAuthToken).toHaveBeenCalledTimes(1);
         expect(
@@ -409,6 +340,8 @@ describe('compile credential resolution', () => {
             'user-credential-uuid',
             'user-refresh',
             'rotated-refresh',
+            undefined,
+            expect.anything(),
         );
         expect(prepared.warehouseCredentials).toMatchObject({
             token: 'refreshed-access',
@@ -436,31 +369,6 @@ describe('compile credential resolution', () => {
         expect(refreshDatabricksOAuthToken).not.toHaveBeenCalled();
     });
 
-    it('persists organisation Snowflake rotation to the organisation exactly once', async () => {
-        const f = setup(
-            { ...snowflake(), refreshToken: 'org-refresh' },
-            { organizationUuid: 'org-credential-uuid' },
-        );
-        expect((await f.prepare()).warehouseCredentials).toMatchObject({
-            token: 'refreshed-snowflake',
-            refreshToken: 'rotated-snowflake',
-        });
-        expect(
-            f.organizationWarehouseCredentialsModel.rotateRefreshToken,
-        ).toHaveBeenCalledExactlyOnceWith(
-            'org-credential-uuid',
-            'org-refresh',
-            'rotated-snowflake',
-        );
-        expect(f.projectModel.rotateRefreshToken).not.toHaveBeenCalled();
-        expect(
-            UserService.generateSnowflakeAccessToken,
-        ).toHaveBeenCalledExactlyOnceWith('org-refresh');
-        expect(
-            f.userWarehouseCredentialsModel.findForProjectWithSecrets,
-        ).not.toHaveBeenCalled();
-    });
-
     it.each([false, true])(
         'uses stored Snowflake credentials without a user grant when requireUserCredentials is %s',
         async (requireUserCredentials) => {
@@ -470,7 +378,7 @@ describe('compile credential resolution', () => {
             });
             expect(
                 UserService.generateSnowflakeAccessToken,
-            ).toHaveBeenCalledExactlyOnceWith('stored-refresh');
+            ).toHaveBeenCalledExactlyOnceWith('stored-refresh', 30_000);
             expect(
                 f.userWarehouseCredentialsModel.findForProjectWithSecrets,
             ).not.toHaveBeenCalled();
@@ -524,23 +432,8 @@ describe('compile credential resolution', () => {
             f.project.projectUuid,
             'project-refresh',
             'rotated-refresh',
+            expect.anything(),
         );
-    });
-
-    it('does not use a personal fallback for organisation U2M credentials', async () => {
-        const f = setup(
-            {
-                ...databricks(DatabricksAuthenticationType.OAUTH_U2M),
-                refreshToken: undefined,
-            },
-            { organizationUuid: 'org-credential-uuid' },
-        );
-        setUserFallback(f);
-        await expect(f.prepare()).rejects.toThrow('No refresh token available');
-        expect(
-            f.userWarehouseCredentialsModel.findForProjectWithSecrets,
-        ).not.toHaveBeenCalled();
-        expect(refreshDatabricksOAuthToken).not.toHaveBeenCalled();
     });
 
     it('does not use a personal fallback for extra U2M credentials', async () => {
@@ -619,20 +512,8 @@ describe('compile credential resolution', () => {
                                 ? 'rejected'
                                 : 'valid',
                     );
-                    const featureFlagGet = vi.fn(
-                        async ({
-                            featureFlagId,
-                        }: {
-                            featureFlagId: FeatureFlags;
-                        }) => ({
-                            enabled:
-                                featureFlagId ===
-                                FeatureFlags.PreviewSsoCredentialSync,
-                        }),
-                    );
                     Object.assign(f.service, {
                         checkGoogleRefreshToken: checkRefreshToken,
-                        featureFlagModel: { get: featureFlagGet },
                     });
                     let stored: CreateWarehouseCredentials = stale;
                     const readBinding = vi.fn<
@@ -703,10 +584,6 @@ describe('compile credential resolution', () => {
                     expect(
                         f.projectModel.getSummary,
                     ).toHaveBeenCalledExactlyOnceWith(f.project.projectUuid);
-                    expect(featureFlagGet).toHaveBeenCalledWith({
-                        user: { organizationUuid: f.project.organizationUuid },
-                        featureFlagId: FeatureFlags.PreviewSsoCredentialSync,
-                    });
                     expect(
                         getPreviewOwnsCredentials,
                     ).toHaveBeenCalledExactlyOnceWith(f.project.projectUuid);
@@ -771,15 +648,18 @@ describe('compile credential resolution', () => {
     it.each([
         DatabricksAuthenticationType.OAUTH_M2M,
         DatabricksAuthenticationType.OAUTH_U2M,
-    ])('switch off keeps missing %s project rotation writes', async (auth) => {
-        const f = setup(databricks(auth), { enabled: false });
-        expect((await f.prepare()).warehouseCredentials).toMatchObject({
-            token: 'refreshed-access',
-        });
-        expect(f.projectModel.rotateRefreshToken).not.toHaveBeenCalled();
-    });
+    ])(
+        'standalone compile resolution off still rotates %s project credentials',
+        async (auth) => {
+            const f = setup(databricks(auth), { enabled: false });
+            expect((await f.prepare()).warehouseCredentials).toMatchObject({
+                token: 'refreshed-access',
+            });
+            expect(f.projectModel.rotateRefreshToken).toHaveBeenCalledOnce();
+        },
+    );
 
-    it('switch off keeps unchecked U2M fallback and missing user rotation write', async () => {
+    it('standalone compile resolution off keeps U2M fallback and rotates the user row', async () => {
         const f = setup(
             {
                 ...databricks(DatabricksAuthenticationType.OAUTH_U2M),
@@ -793,25 +673,7 @@ describe('compile credential resolution', () => {
         });
         expect(
             f.userWarehouseCredentialsModel.rotateRefreshToken,
-        ).not.toHaveBeenCalled();
-    });
-
-    it('switch off attempts organisation Snowflake rotation on the project', async () => {
-        const f = setup(
-            { ...snowflake(), refreshToken: 'org-refresh' },
-            { enabled: false, organizationUuid: 'org-credential-uuid' },
-        );
-        await f.prepare();
-        expect(
-            f.projectModel.rotateRefreshToken,
-        ).toHaveBeenCalledExactlyOnceWith(
-            f.project.projectUuid,
-            'org-refresh',
-            'rotated-snowflake',
-        );
-        expect(
-            f.organizationWarehouseCredentialsModel.rotateRefreshToken,
-        ).not.toHaveBeenCalled();
+        ).toHaveBeenCalledOnce();
     });
 
     it.each([true, false])(
@@ -885,7 +747,6 @@ describe('compile credential resolution', () => {
                         token: 'extra-access',
                         refreshToken: 'extra-refresh',
                     },
-                    organizationWarehouseCredentialsUuid: null,
                 },
             );
             vi.mocked(
@@ -1017,6 +878,7 @@ describe('compile credential resolution', () => {
                 'extra-uuid',
                 'extra-refresh',
                 'rotated-extra-refresh',
+                expect.anything(),
             );
             expect(
                 f.projectModel.rotateRefreshToken,
@@ -1024,6 +886,7 @@ describe('compile credential resolution', () => {
                 f.project.projectUuid,
                 'stored-refresh',
                 'rotated-stored-refresh',
+                expect.anything(),
             );
             expect(
                 f.userWarehouseCredentialsModel.findForProjectWithSecrets,
@@ -1053,6 +916,7 @@ describe('compile credential resolution', () => {
                     'extra-uuid',
                     credentials.refreshToken,
                     rotated,
+                    expect.anything(),
                 );
                 expect(
                     f.projectModel.rotateRefreshToken,
@@ -1067,31 +931,6 @@ describe('compile credential resolution', () => {
                 ).toHaveBeenCalledTimes(1);
             },
         );
-        it('rotates an organisation-backed extra on the organisation once', async () => {
-            const f = setup(
-                {
-                    ...snowflake(),
-                    refreshToken: 'org-refresh',
-                    requireUserCredentials: true,
-                },
-                { enabled, organizationUuid: 'org-credential-uuid' },
-            );
-            await f.extra();
-            expect(
-                f.organizationWarehouseCredentialsModel.rotateRefreshToken,
-            ).toHaveBeenCalledExactlyOnceWith(
-                'org-credential-uuid',
-                'org-refresh',
-                'rotated-snowflake',
-            );
-            expect(
-                f.warehouseConnectionModel.rotateRefreshToken,
-            ).not.toHaveBeenCalled();
-            expect(f.projectModel.rotateRefreshToken).not.toHaveBeenCalled();
-            expect(
-                UserService.generateSnowflakeAccessToken,
-            ).toHaveBeenCalledTimes(1);
-        });
     });
 });
 

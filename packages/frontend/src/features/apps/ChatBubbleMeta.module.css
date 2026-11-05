@@ -5,12 +5,10 @@
 }
 
 .name {
-    @mixin light {
-        color: var(--mantine-color-indigo-7);
-    }
-    @mixin dark {
-        color: var(--mantine-color-indigo-3);
-    }
+    color: light-dark(
+        var(--mantine-color-indigo-7),
+        var(--mantine-color-indigo-3)
+    );
 }
 
 .time {

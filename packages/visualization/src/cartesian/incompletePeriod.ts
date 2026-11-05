@@ -101,6 +101,28 @@ export const getIncompletePeriodRowIndexes = ({
     return indexes;
 };
 
+/** Checks whether any x value falls in the unfinished current period of the x field. */
+export const hasIncompletePeriod = ({
+    field,
+    xValues,
+    timezone,
+    now,
+}: {
+    field: ItemsMap[string] | undefined;
+    xValues: unknown[];
+    timezone: string | undefined;
+    now: Date;
+}): boolean =>
+    isIncompletePeriodEligible(field) &&
+    isDimension(field) &&
+    getIncompletePeriodRowIndexes({
+        rows: xValues.map((x) => ({ x })),
+        xKey: 'x',
+        field,
+        timezone,
+        now,
+    }).size > 0;
+
 // Gets the fallback hex of a `var(--name, #hex)` color, because the pattern image can't read CSS variables.
 const toPatternColor = (color: string) =>
     /^var\(.*,\s*(#[0-9a-fA-F]{3,8})\s*\)$/.exec(color)?.[1] ?? color;

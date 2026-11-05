@@ -1,4 +1,4 @@
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { createGoogle } from '@ai-sdk/google';
 import { generateText, streamText } from 'ai';
 import { MockLanguageModelV3 } from 'ai/test';
 import {
@@ -10,7 +10,7 @@ import type { ModelPreset } from './presets';
 const mockGoogleInteractions = vi.hoisted(() => vi.fn());
 
 vi.mock('@ai-sdk/google', () => ({
-    createGoogleGenerativeAI: vi.fn(() => ({
+    createGoogle: vi.fn(() => ({
         interactions: mockGoogleInteractions,
     })),
 }));
@@ -74,7 +74,7 @@ describe('getGoogleGeminiModel', () => {
             preset,
         );
 
-        expect(createGoogleGenerativeAI).toHaveBeenCalledWith({
+        expect(createGoogle).toHaveBeenCalledWith({
             apiKey: 'fake-gemini-key',
             baseURL: 'https://gateway.example/google/v1beta',
         });

@@ -5,6 +5,7 @@ import { useGetSlack } from '../../../../hooks/slack/useSlack';
 import SlackSvg from '../../../../svgs/slack.svg?react';
 import { SlackStates } from '../types';
 import { SchedulerFormSlackError } from './SchedulerFormSlackError';
+import classes from './SchedulerWebhookPill.module.css';
 
 type Props = {
     value: string[];
@@ -39,11 +40,9 @@ export const SchedulerFormSlackInput: FC<Props> = ({
             {!hideIcon && (
                 <Box pt="xxs">
                     <SlackSvg
-                        style={{
-                            margin: '5px 2px',
-                            width: '20px',
-                            height: '20px',
-                        }}
+                        className={classes.destinationIcon}
+                        width={20}
+                        height={20}
                     />
                 </Box>
             )}

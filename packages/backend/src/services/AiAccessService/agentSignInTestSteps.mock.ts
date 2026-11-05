@@ -15,7 +15,6 @@ import {
 import { type AiAccessEvaluation } from './AiAccessService';
 
 export type AiMintArgs<T extends CreateWarehouseCredentials> = {
-    silentRefresh: boolean;
     connection: T;
     person: { organizationUuid: string; userUuid: string; email: string };
 };
@@ -73,10 +72,9 @@ export const agentSignInResolverMock = (
             );
         return null;
     },
-    inspect: async (person, silentRefresh) => {
+    inspect: async (person) => {
         const reason = await steps().missingPrerequisite({
             person,
-            silentRefresh,
             connection: {
                 type: WarehouseTypes.SNOWFLAKE,
             } as CreateSnowflakeCredentials,
@@ -89,7 +87,7 @@ export const agentSignInResolverMock = (
         if (reason === AiAccessRefusalReason.SIGN_IN_EXPIRED)
             return new AgentCredentialResolutionError({
                 kind: 'credential',
-                classification: 'expired',
+                classification: 'binding_mismatch',
             });
         if (reason === AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED)
             return new AgentCredentialResolutionError({
@@ -118,7 +116,6 @@ export const agentSignInResolverMock = (
         const resolved = await selected.mint({
             connection: input.connection,
             person: input.stored.person,
-            silentRefresh: input.stored.silentRefresh,
             organizationUuid: input.stored.person.organizationUuid,
             evaluationKind:
                 input.context.aiAccess === 'diagnostic'

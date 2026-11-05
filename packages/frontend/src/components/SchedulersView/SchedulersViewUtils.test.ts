@@ -33,6 +33,7 @@ const base = {
     enabled: true,
     includeLinks: true,
     plainTextEmail: false,
+    useCachedResults: false,
     projectUuid: PROJECT_UUID,
     targets: [],
 };

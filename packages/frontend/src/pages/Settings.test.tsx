@@ -90,13 +90,6 @@ const renderSettings = (
         queryClient.setQueryData(['feature-flag', id], { id, enabled: false });
     });
     if (isAnalyticsProject) {
-        queryClient.setQueryData(
-            ['feature-flag', FeatureFlags.AnalyticsProject],
-            {
-                id: FeatureFlags.AnalyticsProject,
-                enabled: true,
-            },
-        );
         queryClient.setQueryData(['analytics-project'], { project: null });
     }
     if (agentIdentityEnabled === null) {
@@ -149,6 +142,7 @@ const renderSettings = (
         </QueryClientProvider>,
         {
             health: {
+                hasManagedAnalytics: isAnalyticsProject,
                 softDelete: { enabled: isSoftDeleteEnabled, retentionDays: 30 },
                 dataApps: {
                     previewOrigin: null,

@@ -1,7 +1,7 @@
 import { FeatureFlags } from '@lightdash/common';
-import { Button } from '@mantine/core';
+import { Box, Button } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import isEqual from 'lodash/isEqual';
+import { isEqual } from 'es-toolkit/compat';
 import {
     lazy,
     memo,
@@ -297,9 +297,9 @@ const SavedExplorer = () => {
     // Early return if no data yet
     if (isInitialLoading || !data) {
         return (
-            <div style={{ marginTop: '20px' }}>
+            <Box mt="lg">
                 <SuboptimalState title="Loading..." loading />
-            </div>
+            </Box>
         );
     }
 

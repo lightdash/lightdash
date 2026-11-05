@@ -389,7 +389,7 @@ export const AiAgentNewThreadMcpConnections: FC<Props> = ({
                             {sectionSummary}
                         </Text>
                         {connectionNote && (
-                            <Text size="xs" c="ldGray.5">
+                            <Text size="xs" c="dimmed">
                                 {connectionNote}
                             </Text>
                         )}

@@ -19,6 +19,7 @@ import { ErrorBoundary } from '@/lib/ErrorBoundary';
 import './index.css';
 import './chart-overrides.css';
 import App from './App';
+import { initPdfExportHandler } from '@/lib/pdfExport';
 import initScreenshotHandler from './screenshotHandler';
 
 const queryClient = new QueryClient({
@@ -33,6 +34,7 @@ const queryClient = new QueryClient({
 const lightdash = createClient();
 
 initScreenshotHandler();
+initPdfExportHandler();
 
 // A chart type renders in a frame the size of its tile; a page app grows.
 // Only a chart type receives a viz context, so mark the document for index.css.

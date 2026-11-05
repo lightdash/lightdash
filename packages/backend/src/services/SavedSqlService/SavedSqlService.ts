@@ -28,8 +28,8 @@ import {
     VIZ_DEFAULT_AGGREGATION,
     type Account,
 } from '@lightdash/common';
+import { uniq } from 'es-toolkit/compat';
 import { Knex } from 'knex';
-import { uniq } from 'lodash';
 import {
     CreateSqlChartVersionEvent,
     LightdashAnalytics,

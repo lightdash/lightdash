@@ -142,6 +142,17 @@ const assertOAuthAgentOperation = async (req: Request): Promise<void> => {
             : null;
     if (grantProjectUuids !== null && scopeOperation !== null)
         assertOAuthScopeOperation(account, scopeOperation);
+    // Personal CLI logins skip REST agent admission like PATs; OAuth scopes
+    // and human-only guards still apply. MCP requires its own scopes and policy.
+    if (
+        account.authentication.clientId ===
+            AGENT_CLIENT_IDS[AgentActorSurface.CLI] &&
+        account.authentication.agentConnectionGrant === null
+    ) {
+        if (scopeOperation !== null)
+            assertOAuthScopeOperation(account, scopeOperation);
+        return;
+    }
     if (isMcpRequest(req)) return;
     const service = req.services.getAgentPermissionService();
     const request = await service.loadRequest(

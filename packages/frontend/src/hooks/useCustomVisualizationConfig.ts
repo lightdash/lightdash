@@ -1,68 +1,47 @@
 import { type CustomVis } from '@lightdash/common';
+import { useCallback, useMemo } from 'react';
+import { useVisualizationInputSelector } from '../components/LightdashVisualization/useVisualizationContext';
 import {
-    buildCustomVisualizationData,
-    parseCustomVisualizationSpec,
-    serializeCustomVisualizationSpec,
-} from '@lightdash/visualization/editor';
-import { useEffect, useMemo, useState } from 'react';
-import { type InfiniteQueryResults } from './useQueryResults';
+    customEditorActions,
+    selectCustomEditor,
+    selectCustomValidConfig,
+    selectCustomVisualizationData,
+    useVisualizationDispatch,
+    useVisualizationSelector,
+} from '../features/visualization/store';
 
 export interface CustomVisualizationConfigAndData {
     validConfig: CustomVis;
     visSpec?: string;
     setVisSpec: (spec: string) => void;
-    // TODO: do we need to type this better?
     series: {
         [k: string]: unknown;
     }[];
     fields?: string[];
 }
 
-const useCustomVisualizationConfig = (
-    chartConfig: CustomVis | undefined,
-    resultsData: InfiniteQueryResults | undefined,
-): CustomVisualizationConfigAndData => {
-    const [visSpec, setVisSpec] = useState<string | undefined>();
-    const [visSpecObject, setVisSpecObject] = useState<CustomVis['spec']>();
-
-    // Set initial value
-    useEffect(() => {
-        if (chartConfig?.spec && !visSpec) {
-            const serialized = serializeCustomVisualizationSpec(
-                chartConfig?.spec,
-            );
-            if (serialized !== undefined) setVisSpec(serialized);
-        }
-    }, [chartConfig?.spec, visSpec]);
-
-    // Update object when spec changes
-    useEffect(() => {
-        if (visSpec) {
-            const parsed = parseCustomVisualizationSpec(visSpec);
-            if (parsed !== undefined) setVisSpecObject(parsed);
-        }
-    }, [visSpec]);
-
-    const rows = useMemo(() => resultsData?.rows, [resultsData]);
-
-    const { series, fields } = useMemo(
-        () => buildCustomVisualizationData(rows ? { rows } : undefined),
-        [rows],
+/** Stable setter for the spec text; the last text that parses becomes the spec */
+export const useSetCustomVisSpec = () => {
+    const dispatch = useVisualizationDispatch();
+    return useCallback(
+        (spec: string) => dispatch(customEditorActions.specChanged(spec)),
+        [dispatch],
     );
+};
 
-    const validConfig = useMemo(
-        () => ({ spec: visSpecObject }),
-        [visSpecObject],
+/** Everything the custom chart body reads, re-rendering on every edit */
+const useCustomVisualizationConfig = (): CustomVisualizationConfigAndData => {
+    const visSpec = useVisualizationSelector(
+        (state) => selectCustomEditor(state).visSpec,
     );
+    const validConfig = useVisualizationSelector(selectCustomValidConfig);
+    const { series, fields } = useVisualizationInputSelector(
+        selectCustomVisualizationData,
+    );
+    const setVisSpec = useSetCustomVisSpec();
 
     return useMemo(
-        () => ({
-            validConfig,
-            visSpec,
-            setVisSpec,
-            series,
-            fields,
-        }),
+        () => ({ validConfig, visSpec, setVisSpec, series, fields }),
         [validConfig, visSpec, setVisSpec, series, fields],
     );
 };

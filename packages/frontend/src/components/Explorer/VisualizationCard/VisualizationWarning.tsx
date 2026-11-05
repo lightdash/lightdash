@@ -6,9 +6,9 @@ import {
     type MetricQuery,
     type PivotConfiguration,
 } from '@lightdash/common';
-import { Badge, List, Tooltip } from '@mantine/core';
+import { Box, List, Tooltip } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
-import isEqual from 'lodash/isEqual';
+import { isEqual } from 'es-toolkit/compat';
 import { useMemo, type FC } from 'react';
 import { type InfiniteQueryResults } from '../../../hooks/useQueryResults';
 import MantineIcon from '../../common/MantineIcon';
@@ -141,13 +141,14 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
             }
             position={'bottom'}
         >
-            <Badge
-                leftSection={<MantineIcon icon={IconAlertCircle} size={'sm'} />}
-                color="yellow"
-                variant="outline"
+            <Box
+                component="span"
+                role="img"
+                aria-label="Results may be incorrect"
+                display="inline-flex"
             >
-                Results may be incorrect
-            </Badge>
+                <MantineIcon icon={IconAlertCircle} color="yellow" size="lg" />
+            </Box>
         </Tooltip>
     );
 };

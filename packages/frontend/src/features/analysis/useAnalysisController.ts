@@ -34,7 +34,7 @@ export const useAnalysisController = ({
     sources,
     inFlight,
     availability,
-    autoAnalyse,
+    autoAnalyse = false,
     instructions = null,
     onNeedsAgent,
     onSourcesExpired,
@@ -46,8 +46,8 @@ export const useAnalysisController = ({
     sources: DataAppAnalysisSource[];
     inFlight: boolean;
     availability: DataAppAnalysisAvailability;
-    /** Already resolved against the org default. */
-    autoAnalyse: boolean;
+    /** Run detect on a quiet view that has no stored analysis. */
+    autoAnalyse?: boolean;
     /** Author guidance for the model. */
     instructions?: string | null;
     /** Called when an investigation is asked for but no agent is picked yet. */
@@ -122,7 +122,7 @@ export const useAnalysisController = ({
         [agentByTarget, targetUuid, setAgentByTarget],
     );
 
-    const { investigations, investigate } = analysis;
+    const { investigations, investigate, investigateInstruction } = analysis;
 
     const investigateAnomaly = useCallback(
         (anomalyId: string) => {
@@ -133,6 +133,26 @@ export const useAnalysisController = ({
             void investigate(anomalyId, selectedAgentUuid);
         },
         [investigate, onNeedsAgent, selectedAgentUuid],
+    );
+
+    const investigateAppInstruction = useCallback(
+        (
+            requestId: string,
+            instruction: string,
+            sourcesToInvestigate: DataAppAnalysisSource[],
+        ) => {
+            if (!selectedAgentUuid) {
+                onNeedsAgent();
+                return;
+            }
+            void investigateInstruction(
+                requestId,
+                instruction,
+                sourcesToInvestigate,
+                selectedAgentUuid,
+            );
+        },
+        [investigateInstruction, onNeedsAgent, selectedAgentUuid],
     );
 
     // The launcher only shows threads it knows about, so dock it first.
@@ -170,6 +190,39 @@ export const useAnalysisController = ({
         ],
     );
 
+    const { instructionInvestigations } = analysis;
+    const continueInstructionInAskAi = useCallback(
+        (requestId: string) => {
+            if (!canContinueInAskAi) return;
+            const investigation = instructionInvestigations[requestId];
+            if (investigation?.status !== 'ready') return;
+            const { threadUuid, agentUuid, instruction } =
+                investigation.investigation;
+            if (openThread) {
+                openThread({ threadUuid, agentUuid });
+                return;
+            }
+            if (projectUuid) {
+                launcherDock?.addItem(projectUuid, {
+                    threadId: threadUuid,
+                    agentUuid,
+                    title: instruction,
+                    createdAt: Date.now(),
+                });
+            }
+            aiAgentStore.dispatch(
+                openPanel({ threadId: threadUuid, agentUuid }),
+            );
+        },
+        [
+            canContinueInAskAi,
+            instructionInvestigations,
+            launcherDock,
+            openThread,
+            projectUuid,
+        ],
+    );
+
     return {
         ...analysis,
         agents,
@@ -179,7 +232,9 @@ export const useAnalysisController = ({
         rememberedAgentMissing,
         selectAgent,
         investigateAnomaly,
+        investigateAppInstruction,
         continueInAskAi,
+        continueInstructionInAskAi,
         canContinueInAskAi,
     };
 };

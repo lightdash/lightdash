@@ -19,7 +19,9 @@ import ExportSelector from '../../ExportSelector';
 import { isTableVisualizationConfig } from '../../LightdashVisualization/types';
 import {
     useVisualizationServices,
-    useVisualizationState,
+    useEditedChartConfig,
+    useVisualizationConfig,
+    useVisualizationInputs,
 } from '../../LightdashVisualization/useVisualizationContext';
 import {
     COLLAPSABLE_CARD_ACTION_ICON_PROPS,
@@ -50,13 +52,10 @@ export type ChartDownloadMenuProps = {
 const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
     ({ getDownloadQueryUuid, getGsheetLink, projectUuid, chartName }) => {
         const { chartRef } = useVisualizationServices();
-        const {
-            visualizationConfig,
-            resultsData,
-            pivotDimensions,
-            chartConfig,
-            columnOrder,
-        } = useVisualizationState();
+        const visualizationConfig = useVisualizationConfig();
+        const chartConfig = useEditedChartConfig();
+        const { resultsData, pivotDimensions, columnOrder } =
+            useVisualizationInputs();
 
         const eChartsOptions = useEchartsCartesianConfig();
 

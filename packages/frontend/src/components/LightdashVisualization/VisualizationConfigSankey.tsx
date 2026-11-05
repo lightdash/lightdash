@@ -1,44 +1,28 @@
 import { ChartType } from '@lightdash/common';
-import { getSankeyFields } from '@lightdash/visualization/editor';
-import { useEffect, useMemo, type FC } from 'react';
+import { memo, useMemo, type FC } from 'react';
+import { selectSankeyFieldPools } from '../../features/visualization/store';
 import useSankeyChartConfig from '../../hooks/useSankeyChartConfig';
 import {
     type VisualizationConfigSankeyProps,
     type VisualizationConfigSankeyType,
 } from './types';
+import { useEmitChartConfig } from './useEmitChartConfig';
+import { useVisualizationInputSelector } from './useVisualizationContext';
 
 const VisualizationConfigSankey: FC<VisualizationConfigSankeyProps> = ({
-    resultsData,
-    initialChartConfig,
     onChartConfigChange,
-    itemsMap,
-    colorPalette,
     children,
-    tableCalculationsMetadata,
 }) => {
-    const { dimensions, numericFields } = useMemo(
-        () => getSankeyFields(itemsMap),
-        [itemsMap],
+    const { dimensions, numericFields } = useVisualizationInputSelector(
+        selectSankeyFieldPools,
     );
+    const sankeyChartConfig = useSankeyChartConfig();
 
-    const sankeyChartConfig = useSankeyChartConfig(
-        resultsData,
-        initialChartConfig,
-        itemsMap,
-        dimensions,
-        numericFields,
-        colorPalette,
-        tableCalculationsMetadata,
+    useEmitChartConfig(
+        ChartType.SANKEY,
+        sankeyChartConfig.validConfig,
+        onChartConfigChange,
     );
-
-    useEffect(() => {
-        if (!onChartConfigChange || !sankeyChartConfig.validConfig) return;
-
-        onChartConfigChange({
-            type: ChartType.SANKEY,
-            config: sankeyChartConfig.validConfig,
-        });
-    }, [sankeyChartConfig, onChartConfigChange]);
 
     const visualizationConfig: VisualizationConfigSankeyType = useMemo(
         () => ({
@@ -53,4 +37,5 @@ const VisualizationConfigSankey: FC<VisualizationConfigSankeyProps> = ({
     return children({ visualizationConfig });
 };
 
-export default VisualizationConfigSankey;
+// Memoised so a resize skips it; an echoed config re-renders it, the memoised aggregate spares consumers
+export default memo(VisualizationConfigSankey);

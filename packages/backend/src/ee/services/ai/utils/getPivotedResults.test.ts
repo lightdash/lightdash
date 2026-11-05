@@ -223,24 +223,24 @@ describe('getPivotedResults', () => {
         // Column order is DuckDB's: group-by columns first, then one block per pivot value
         expect(Object.keys(row)).toEqual([
             'day',
-            'placed_"first"(count)',
-            'placed_"first"(ratio)',
-            'placed_"first"(flag)',
-            'placed_"first"(note)',
-            'shipped_"first"(count)',
-            'shipped_"first"(ratio)',
-            'shipped_"first"(flag)',
-            'shipped_"first"(note)',
+            'placed_0',
+            'placed_1',
+            'placed_2',
+            'placed_3',
+            'shipped_0',
+            'shipped_1',
+            'shipped_2',
+            'shipped_3',
         ]);
         // DATE -> Date, BIGINT -> bigint, DOUBLE -> number, BOOLEAN -> boolean,
         // VARCHAR -> string, SQL NULL -> null
         expect(row.day).toEqual(new Date('2024-01-01T00:00:00.000Z'));
-        expect(row['placed_"first"(count)']).toBe(100n);
-        expect(row['placed_"first"(ratio)']).toBe(12.5);
-        expect(row['placed_"first"(flag)']).toBe(true);
-        expect(row['placed_"first"(note)']).toBe('a');
-        expect(row['shipped_"first"(flag)']).toBe(false);
-        expect(row['shipped_"first"(note)']).toBeNull();
+        expect(row.placed_0).toBe(100n);
+        expect(row.placed_1).toBe(12.5);
+        expect(row.placed_2).toBe(true);
+        expect(row.placed_3).toBe('a');
+        expect(row.shipped_2).toBe(false);
+        expect(row.shipped_3).toBeNull();
     });
 
     it('should convert ISO-8601 dimension strings to Date', async () => {
@@ -382,28 +382,44 @@ describe('getPivotedResults secondary axis', () => {
     ];
     const sorts = [{ fieldId: 'orders_order_date', descending: false }];
 
-    it('keeps the secondary metric as one group-by column labelled by its field', async () => {
+    it('pivots the secondary metric per group, one row per x in input order', async () => {
         const result = await getPivotedResults(
-            rows,
+            [row('2024-02-01', 'placed', 7), ...rows.slice(0, 2)],
             fieldsMap,
             ['orders_status'],
             ['orders_count'],
             ['orders_revenue'],
-            sorts,
+            [],
         );
 
-        expect(result.metrics).toEqual(['placed', 'shipped']);
-        expect(result.secondaryMetrics).toEqual(['orders_revenue']);
+        expect(result.metrics).toEqual(['placed_0', 'shipped_0']);
+        expect(result.secondaryMetrics).toEqual(['placed_1', 'shipped_1']);
         expect(result.labels).toEqual({
-            placed: 'placed',
-            shipped: 'shipped',
-            orders_revenue: 'Revenue',
+            placed_0: '[placed] Count',
+            shipped_0: '[shipped] Count',
+            placed_1: '[placed] Revenue',
+            shipped_1: '[shipped] Revenue',
         });
-        expect(result.results[0]).toHaveProperty('orders_revenue');
+        expect(result.results).toEqual([
+            {
+                orders_order_date: new Date('2024-02-01T00:00:00.000Z'),
+                placed_0: 7n,
+                placed_1: 70n,
+                shipped_0: null,
+                shipped_1: null,
+            },
+            {
+                orders_order_date: new Date('2024-01-01T00:00:00.000Z'),
+                placed_0: 3n,
+                placed_1: 30n,
+                shipped_0: 5n,
+                shipped_1: 50n,
+            },
+        ]);
     });
 
     it.each(['bar', 'line'] as const)(
-        'draws the Slack %s chart secondary series from that column',
+        'draws the Slack %s chart secondary series per group',
         async (defaultVizType) => {
             const tool = {
                 title: 'Orders',
@@ -442,9 +458,10 @@ describe('getPivotedResults secondary axis', () => {
                     encode.y,
                 ]),
             ).toEqual([
-                ['placed', 0, 'placed'],
-                ['shipped', 0, 'shipped'],
-                ['Revenue', 1, 'orders_revenue'],
+                ['[placed] Count', 0, 'placed_0'],
+                ['[shipped] Count', 0, 'shipped_0'],
+                ['[placed] Revenue', 1, 'placed_1'],
+                ['[shipped] Revenue', 1, 'shipped_1'],
             ]);
         },
     );

@@ -202,7 +202,10 @@ const hardenMcpInputSchema = (inputSchema: unknown): unknown => {
             if (totalChars > MCP_TOOL_SCHEMA_MAX_CHARS) {
                 throw new McpPayloadTooLargeError();
             }
-            if (/\p{Cc}|\p{Cf}/u.test(value)) {
+            // Tab, newline and carriage return are ordinary formatting in
+            // schema descriptions (Notion ships them); only other control
+            // and format characters are rejected.
+            if (/(?![\t\n\r])[\p{Cc}\p{Cf}]/u.test(value)) {
                 throw new McpPayloadTooLargeError();
             }
             if (key === '$comment') return undefined;

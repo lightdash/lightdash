@@ -4,18 +4,9 @@
     overflow: hidden;
     padding: 0;
     border-radius: 0;
-
-    @mixin light {
-        background-color: transparent;
-        border: none;
-        box-shadow: none;
-    }
-
-    @mixin dark {
-        background-color: transparent;
-        border: none;
-        box-shadow: none;
-    }
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
 }
 
 .sidebarSurface[data-collapsed='true'] {
@@ -23,18 +14,9 @@
     align-items: center;
     padding: 0;
     overflow: visible;
-
-    @mixin light {
-        background-color: transparent;
-        border-color: transparent;
-        box-shadow: none;
-    }
-
-    @mixin dark {
-        background-color: transparent;
-        border-color: transparent;
-        box-shadow: none;
-    }
+    background-color: transparent;
+    border-color: transparent;
+    box-shadow: none;
 }
 
 .threadList {

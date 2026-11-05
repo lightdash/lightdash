@@ -16,6 +16,7 @@ import {
     type SourceQuery,
 } from '@lightdash/common';
 import type { Mock } from 'vitest';
+import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { fromOauth } from '../../auth/account/account';
 import {
     buildAccount,
@@ -44,6 +45,7 @@ import { SemanticLayerQuerySource } from './sources/SemanticLayerQuerySource';
 import { SqlQuerySource } from './sources/SqlQuerySource';
 import type {
     QuerySourceClient,
+    SourceQueryAiAttribution,
     SourceQueryExecutionContext,
     SubmitSourceQueryArgs,
 } from './types';
@@ -52,10 +54,13 @@ const account = buildAccount();
 const projectUuid = '11111111-1111-4111-8111-111111111111';
 const otherProjectUuid = '22222222-2222-4222-8222-222222222222';
 const organizationUuid = 'test-org-uuid';
-const executionContext: SourceQueryExecutionContext = {
+const executionContext: SourceQueryExecutionContext & {
+    aiAttribution: SourceQueryAiAttribution | null;
+} = {
     parameters: {},
     userAttributeOverrides: {},
     invalidateCache: false,
+    aiAttribution: null,
 };
 
 const createFakeSource = (
@@ -113,6 +118,7 @@ const createService = (registry: QuerySourceRegistry) => {
 
     const assertCanReadStoredResults = vi.fn().mockResolvedValue(undefined);
     const service = new QuerySourceService({
+        analytics: analyticsMock,
         getAsyncQueryService: () => ({ assertCanReadStoredResults }),
         getAgentPermissionService: () => mocks.permissions,
         projectModel: mocks.projectModel as unknown as ProjectModel,
@@ -299,6 +305,53 @@ describe('QuerySourceService', () => {
             );
         });
 
+        it('tracks which source types a batch combined, and for which prompt', async () => {
+            const fakes = createRegistryWithFakes();
+            const { service } = createService(fakes.registry);
+            const trackAccount = vi.spyOn(analyticsMock, 'trackAccount');
+
+            await service.executeSourceQueries({
+                ...executionContext,
+                aiAttribution: {
+                    aiAgentUuid: 'agent-uuid',
+                    threadUuid: 'thread-uuid',
+                    promptUuid: 'prompt-uuid',
+                },
+                account,
+                projectUuid,
+                queries: [
+                    {
+                        nodeId: 'orders',
+                        sourceType: QuerySourceType.SQL,
+                        sql: 'SELECT 1',
+                    },
+                    {
+                        nodeId: 'merged',
+                        sourceType: QuerySourceType.DUCKDB,
+                        sql: 'SELECT * FROM orders',
+                        references: ['orders'],
+                    },
+                ],
+                context: QueryExecutionContext.MULTI_SOURCE_QUERY,
+            });
+
+            expect(trackAccount).toHaveBeenCalledWith(account, {
+                event: 'query_sources.submitted',
+                properties: expect.objectContaining({
+                    projectId: projectUuid,
+                    context: QueryExecutionContext.MULTI_SOURCE_QUERY,
+                    aiAgentId: 'agent-uuid',
+                    threadId: 'thread-uuid',
+                    promptId: 'prompt-uuid',
+                    nodeCount: 2,
+                    sqlNodeCount: 1,
+                    duckdbNodeCount: 1,
+                    apiNodeCount: 0,
+                }),
+            });
+            trackAccount.mockRestore();
+        });
+
         it('submits in dependency order, rewriting node references to queryUuids', async () => {
             const fakes = createRegistryWithFakes();
             const { service } = createService(fakes.registry);
@@ -376,6 +429,7 @@ describe('QuerySourceService', () => {
                 parameters: { region: 'EU' },
                 userAttributeOverrides: { tenant: ['acme'] },
                 invalidateCache: true,
+                aiAttribution: null,
                 queries: [
                     {
                         nodeId: 'orders',
@@ -590,178 +644,6 @@ describe('QuerySourceService', () => {
     });
 
     describe('getSourceQueryStatuses', () => {
-        it.each([
-            QueryHistoryStatus.READY,
-            QueryHistoryStatus.ERROR,
-            QueryHistoryStatus.CANCELLED,
-            QueryHistoryStatus.EXPIRED,
-        ])('held request returns on terminal status %s', async (status) => {
-            const { service, mocks } = createService(
-                createRegistryWithFakes().registry,
-            );
-            mocks.queryHistoryModel.get
-                .mockResolvedValueOnce({
-                    queryUuid: 'query',
-                    status: QueryHistoryStatus.EXECUTING,
-                    error: null,
-                })
-                .mockResolvedValue({ queryUuid: 'query', status, error: null });
-            const result = await service.getSourceQueryStatuses(
-                account,
-                projectUuid,
-                ['query'],
-                {
-                    waitMs: 1000,
-                    signal: new AbortController().signal,
-                },
-            );
-            expect(result.statuses[0].status).toBe(status);
-            expect(mocks.queryHistoryModel.get).toHaveBeenCalledTimes(3);
-            expect(mocks.featureFlagModel.get).toHaveBeenCalledWith({
-                user: { organizationUuid },
-                featureFlagId:
-                    FeatureFlags.ComposerOptimizationQueryPushReadiness,
-            });
-        });
-
-        it('returns latest statuses on timeout', async () => {
-            const { service, mocks } = createService(
-                createRegistryWithFakes().registry,
-            );
-            mocks.queryHistoryModel.get.mockResolvedValue({
-                queryUuid: 'query',
-                status: QueryHistoryStatus.EXECUTING,
-                error: null,
-            });
-            const started = Date.now();
-            const result = await service.getSourceQueryStatuses(
-                account,
-                projectUuid,
-                ['query'],
-                {
-                    waitMs: 60,
-                    signal: new AbortController().signal,
-                },
-            );
-            expect(Date.now() - started).toBeGreaterThanOrEqual(60);
-            expect(result.statuses[0].status).toBe(
-                QueryHistoryStatus.EXECUTING,
-            );
-            expect(
-                mocks.queryHistoryModel.get.mock.calls.length,
-            ).toBeGreaterThan(1);
-        });
-
-        it('caps the wait deadline at ten seconds', async () => {
-            const { service, mocks } = createService(
-                createRegistryWithFakes().registry,
-            );
-            const clock = vi.spyOn(Date, 'now').mockReturnValue(0);
-            mocks.queryHistoryModel.get.mockResolvedValue({
-                queryUuid: 'query',
-                status: QueryHistoryStatus.EXECUTING,
-                error: null,
-            });
-            mocks.featureFlagModel.get.mockImplementation(
-                async ({ featureFlagId }) => {
-                    if (
-                        featureFlagId ===
-                        FeatureFlags.ComposerOptimizationQueryPushReadiness
-                    )
-                        clock.mockReturnValue(10000);
-                    return { enabled: true };
-                },
-            );
-            try {
-                await service.getSourceQueryStatuses(
-                    account,
-                    projectUuid,
-                    ['query'],
-                    {
-                        waitMs: 60000,
-                        signal: new AbortController().signal,
-                    },
-                );
-                expect(mocks.queryHistoryModel.get).toHaveBeenCalledOnce();
-            } finally {
-                clock.mockRestore();
-            }
-        });
-
-        it('ignores waitMs when flag is off', async () => {
-            const { service, mocks } = createService(
-                createRegistryWithFakes().registry,
-            );
-            mocks.featureFlagModel.get.mockImplementation(
-                async ({ featureFlagId }) => ({
-                    enabled:
-                        featureFlagId !==
-                        FeatureFlags.ComposerOptimizationQueryPushReadiness,
-                }),
-            );
-            mocks.queryHistoryModel.get.mockResolvedValue({
-                queryUuid: 'query',
-                status: QueryHistoryStatus.EXECUTING,
-                error: null,
-            });
-            await service.getSourceQueryStatuses(
-                account,
-                projectUuid,
-                ['query'],
-                {
-                    waitMs: 10000,
-                    signal: new AbortController().signal,
-                },
-            );
-            expect(mocks.queryHistoryModel.get).toHaveBeenCalledOnce();
-        });
-
-        it('cancels the wait and stops checking after disconnect', async () => {
-            const { service, mocks } = createService(
-                createRegistryWithFakes().registry,
-            );
-            mocks.queryHistoryModel.get.mockResolvedValue({
-                queryUuid: 'query',
-                status: QueryHistoryStatus.EXECUTING,
-                error: null,
-            });
-            const controller = new AbortController();
-            const result = service.getSourceQueryStatuses(
-                account,
-                projectUuid,
-                ['query'],
-                {
-                    waitMs: 10000,
-                    signal: controller.signal,
-                },
-            );
-            await vi.waitFor(
-                () =>
-                    expect(mocks.featureFlagModel.get).toHaveBeenCalledWith(
-                        expect.objectContaining({
-                            featureFlagId:
-                                FeatureFlags.ComposerOptimizationQueryPushReadiness,
-                        }),
-                    ),
-                { interval: 1 },
-            );
-            controller.abort();
-            await expect(result).resolves.toEqual({
-                statuses: [
-                    {
-                        queryUuid: 'query',
-                        status: QueryHistoryStatus.EXECUTING,
-                        error: null,
-                    },
-                ],
-            });
-            const checks = mocks.queryHistoryModel.get.mock.calls.length;
-            await new Promise((resolve) => {
-                setTimeout(resolve, 70);
-            });
-            expect(mocks.queryHistoryModel.get).toHaveBeenCalledTimes(checks);
-        });
-
         it('refuses protected status and error before emitting a batch', async () => {
             const { service, mocks, assertCanReadStoredResults } =
                 createService(createRegistryWithFakes().registry);
@@ -888,9 +770,12 @@ describe('QuerySourceService', () => {
             await expect(result).rejects.toThrow('revoked');
         });
 
-        it('returns the standard status per query uuid', async () => {
+        it('returns the standard status, row count and result columns per query uuid', async () => {
             const fakes = createRegistryWithFakes();
             const { service, mocks } = createService(fakes.registry);
+            const columns = {
+                total: { reference: 'total', type: DimensionType.NUMBER },
+            };
             mocks.queryHistoryModel.get.mockImplementation(
                 async (queryUuid: string) => ({
                     queryUuid,
@@ -899,6 +784,10 @@ describe('QuerySourceService', () => {
                             ? QueryHistoryStatus.ERROR
                             : QueryHistoryStatus.READY,
                     error: queryUuid === 'failed-uuid' ? 'boom' : null,
+                    totalRowCount: queryUuid === 'failed-uuid' ? null : 42,
+                    warehouseExecutionTimeMs:
+                        queryUuid === 'failed-uuid' ? null : 120,
+                    columns: queryUuid === 'failed-uuid' ? null : columns,
                 }),
             );
 
@@ -913,11 +802,17 @@ describe('QuerySourceService', () => {
                     queryUuid: 'ok-uuid',
                     status: QueryHistoryStatus.READY,
                     error: null,
+                    totalRowCount: 42,
+                    warehouseExecutionTimeMs: 120,
+                    columns,
                 },
                 {
                     queryUuid: 'failed-uuid',
                     status: QueryHistoryStatus.ERROR,
                     error: 'boom',
+                    totalRowCount: null,
+                    warehouseExecutionTimeMs: null,
+                    columns: null,
                 },
             ]);
         });
@@ -953,11 +848,6 @@ describe('python query source gating', () => {
         );
         return { ...fakes, executeAsyncPythonQuery };
     };
-    const flagsOnExcept =
-        (disabled: FeatureFlags | null) =>
-        async ({ featureFlagId }: { featureFlagId: FeatureFlags }) => ({
-            enabled: featureFlagId !== disabled,
-        });
     const pipeline: SourceQuery[] = [
         { nodeId: 'orders', sourceType: QuerySourceType.SQL, sql: 'SELECT 1' },
         {
@@ -967,42 +857,6 @@ describe('python query source gating', () => {
             references: ['orders'],
         },
     ];
-
-    it('lists python only when the compose SQL runner flag is on', async () => {
-        const { registry } = createRegistry();
-        const { service, mocks } = createService(registry);
-        const listed = async () =>
-            (await service.listSources(account, projectUuid)).sources.map(
-                (source) => source.sourceType,
-            );
-
-        expect(await listed()).toContain(QuerySourceType.PYTHON);
-        mocks.featureFlagModel.get.mockImplementation(
-            flagsOnExcept(FeatureFlags.ComposeSqlRunner),
-        );
-        expect(await listed()).not.toContain(QuerySourceType.PYTHON);
-    });
-
-    it('refuses a python pipeline before submitting any node when python is off', async () => {
-        const { registry, sqlSource, executeAsyncPythonQuery } =
-            createRegistry();
-        const { service, mocks } = createService(registry);
-        mocks.featureFlagModel.get.mockImplementation(
-            flagsOnExcept(FeatureFlags.ComposeSqlRunner),
-        );
-
-        await expect(
-            service.executeSourceQueries({
-                ...executionContext,
-                account,
-                projectUuid,
-                queries: pipeline,
-                context: QueryExecutionContext.AI,
-            }),
-        ).rejects.toThrow('python queries are not enabled');
-        expect(sqlSource.submitQuery).not.toHaveBeenCalled();
-        expect(executeAsyncPythonQuery).not.toHaveBeenCalled();
-    });
 
     it('submits a python node after the nodes it references', async () => {
         const { registry, executeAsyncPythonQuery } = createRegistry();
@@ -1536,6 +1390,7 @@ describe('composer pipelines return the standard results interface', () => {
             parameters: { region: 'EU' },
             userAttributeOverrides: {},
             invalidateCache: true,
+            aiAttribution: null,
             queries: [duckdbNode],
         });
         expect(

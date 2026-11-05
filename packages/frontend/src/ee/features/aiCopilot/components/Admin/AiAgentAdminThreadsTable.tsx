@@ -57,6 +57,7 @@ import {
 } from '../../hooks/useAiAgentAdmin';
 import { useAiAgentAdminFilters } from '../../hooks/useAiAgentAdminFilters';
 import { AgentNamePill } from '../AgentNamePill';
+import adminClasses from './AdminTable.module.css';
 import { AiAgentAdminTopToolbar } from './AiAgentAdminTopToolbar';
 import {
     getThreadReviewHeadline,
@@ -367,12 +368,7 @@ const AiAgentAdminThreadsTable = ({
                 return (
                     <Group gap="two">
                         {isSlack ? (
-                            <SlackSvg
-                                style={{
-                                    width: '12px',
-                                    height: '12px',
-                                }}
-                            />
+                            <SlackSvg width={12} height={12} />
                         ) : (
                             <MantineIcon
                                 icon={IconMessageCircleStar}
@@ -393,7 +389,7 @@ const AiAgentAdminThreadsTable = ({
                                 {label}
                             </Anchor>
                         ) : (
-                            <Text fz="xs" c="ldGray.7" fw={500}>
+                            <Text fz="xs" c="dimmed" fw={500}>
                                 {label}
                             </Text>
                         )}
@@ -505,7 +501,7 @@ const AiAgentAdminThreadsTable = ({
                     !latestReviewItem
                 ) {
                     return (
-                        <Text fz="xs" c="ldGray.5" fw={500}>
+                        <Text fz="xs" c="dimmed" fw={500}>
                             Clean
                         </Text>
                     );
@@ -577,7 +573,7 @@ const AiAgentAdminThreadsTable = ({
             Cell: ({ row }) => {
                 const thread = row.original;
                 return (
-                    <Text fz="sm" c="ldGray.7">
+                    <Text fz="sm" c="dimmed">
                         {new Date(thread.createdAt).toLocaleDateString()}
                     </Text>
                 );
@@ -600,77 +596,15 @@ const AiAgentAdminThreadsTable = ({
         enableTopToolbar: true,
         mantineTableContainerProps: {
             ref: tableContainerRef,
-            sx: {
-                maxHeight: 'calc(100dvh - 350px)',
-                minHeight: '600px',
-                display: 'flex',
-                flexDirection: 'column',
-            },
+            mah: 'calc(100dvh - 350px)',
+            mih: 600,
             onScroll,
         },
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: Boolean(flatData.length),
-            sx: {
-                flexGrow: 1,
-                display: 'flex',
-                flexDirection: 'column',
-            },
         },
-        mantineTableHeadCellProps: (props) => {
-            const isAnyColumnResizing = props.table
-                .getAllColumns()
-                .some((c) => c.getIsResizing());
-
-            const isLastColumn =
-                props.table.getAllColumns().indexOf(props.column) ===
-                props.table.getAllColumns().length - 1;
-
-            const canResize = props.column.getCanResize();
-
-            return {
-                bg: 'ldGray.0',
-                h: '3xl',
-                pos: 'relative',
-                style: {
-                    userSelect: 'none',
-                    padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
-                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderRight: props.column.getIsResizing()
-                        ? `2px solid ${theme.colors.blue[3]}`
-                        : `1px solid ${
-                              isLastColumn
-                                  ? 'transparent'
-                                  : theme.colors.ldGray[2]
-                          }`,
-                    borderTop: 'none',
-                    borderLeft: 'none',
-                },
-                sx: {
-                    justifyContent: 'center',
-                    '&:hover': canResize
-                        ? {
-                              borderRight: !isAnyColumnResizing
-                                  ? `2px solid ${theme.colors.blue[3]} !important`
-                                  : undefined,
-                              transition: `border-right ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
-                          }
-                        : {},
-                },
-            };
-        },
-        mantineTableBodyProps: {
-            sx: {
-                flexGrow: 1,
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                'tr:last-of-type > td': {
-                    borderBottom: 'none',
-                    borderLeft: 'none !important',
-                },
-            },
-        },
+        mantineTableHeadCellProps: { px: 'xl' },
         mantineTableBodyRowProps: ({ row, table: mantineTable }) => {
             // Don't apply custom styling during skeleton loading
             if (mantineTable.getState().showSkeletons) {
@@ -681,12 +615,7 @@ const AiAgentAdminThreadsTable = ({
             const isSelected = selectedThread?.uuid === thread.uuid;
 
             return {
-                style: {
-                    cursor: 'pointer',
-                    backgroundColor: isSelected
-                        ? theme.colors.ldGray[1]
-                        : undefined,
-                },
+                'data-selected': isSelected || undefined,
                 onClick: () => {
                     setSelectedThread?.(thread);
                     if (onThreadSelect) {
@@ -699,23 +628,7 @@ const AiAgentAdminThreadsTable = ({
                 },
             };
         },
-        mantineTableBodyCellProps: () => {
-            return {
-                h: 72,
-                style: {
-                    padding: `${theme.spacing.md} ${theme.spacing.xl}`,
-                    borderRight: 'none',
-                    borderLeft: 'none',
-                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderTop: 'none',
-                },
-                sx: {
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    flexShrink: 0,
-                },
-            };
-        },
+        mantineTableBodyCellProps: { h: 72, py: 'md', px: 'xl' },
         renderTopToolbar: () => (
             <AiAgentAdminTopToolbar
                 search={search}
@@ -746,17 +659,13 @@ const AiAgentAdminThreadsTable = ({
                 fz="xs"
                 fw={500}
                 color="ldGray.8"
-                style={{
-                    borderTop: `1px solid ${theme.colors.ldGray[3]}`,
-                }}
+                className={adminClasses.loadMoreFooter}
             >
                 {isFetching ? (
-                    <Text c="ldGray.8" fz="xs">
-                        Loading more...
-                    </Text>
+                    <Text fz="xs">Loading more...</Text>
                 ) : (
                     <Group gap="two">
-                        <Text fz="xs" c="ldGray.8">
+                        <Text fz="xs">
                             {hasNextPage
                                 ? 'Scroll for more results'
                                 : 'All results loaded'}

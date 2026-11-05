@@ -770,6 +770,133 @@ describe('useAppSdkBridge', () => {
         );
     });
 
+    describe('space-charts virtual route', () => {
+        const SPACE_CHARTS_PATH = '/__sdk/space-charts';
+        const postSpaceCharts = (body: unknown) =>
+            dispatchFetchMessage({
+                type: 'lightdash:sdk:fetch',
+                id: POST_ID,
+                method: 'POST',
+                path: SPACE_CHARTS_PATH,
+                body,
+            });
+        // The space-charts handler checks `res.ok` (unlike the SDK fetch
+        // pipeline, which reads the envelope's `status`).
+        const mockSpacesFetchOk = (json: Record<string, unknown>) =>
+            (fetch as Mock).mockResolvedValueOnce({
+                ok: true,
+                json: async () => json,
+                status: 200,
+            } as Response);
+
+        it('resolves a slug and answers only the trimmed chart list', async () => {
+            renderBridge(() => undefined);
+            const postMessageSpy = vi.spyOn(window, 'postMessage');
+
+            mockSpacesFetchOk({
+                status: 'ok',
+                results: [{ uuid: 'space-1', slug: 'sales', access: ['x'] }],
+            });
+            mockSpacesFetchOk({
+                status: 'ok',
+                results: {
+                    uuid: 'space-1',
+                    name: 'Sales',
+                    slug: 'sales',
+                    access: [{ userUuid: 'secret' }],
+                    queries: [
+                        {
+                            uuid: 'chart-1',
+                            name: 'Revenue',
+                            description: null,
+                            chartKind: 'line',
+                            slug: 'revenue',
+                            updatedAt: '2026-10-29T00:00:00.000Z',
+                            updatedByUser: { userUuid: 'secret' },
+                        },
+                    ],
+                },
+            });
+
+            postSpaceCharts({ space: 'sales' });
+
+            await vi.waitFor(() =>
+                expect(postMessageSpy).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        type: 'lightdash:sdk:fetch-response',
+                        id: POST_ID,
+                        result: {
+                            space: {
+                                uuid: 'space-1',
+                                name: 'Sales',
+                                slug: 'sales',
+                            },
+                            charts: [
+                                {
+                                    uuid: 'chart-1',
+                                    name: 'Revenue',
+                                    description: null,
+                                    chartKind: 'line',
+                                    slug: 'revenue',
+                                    updatedAt: '2026-10-29T00:00:00.000Z',
+                                },
+                            ],
+                        },
+                    }),
+                    '*',
+                ),
+            );
+            expect(fetch).toHaveBeenCalledWith(
+                `/api/v1/projects/${PROJECT_UUID}/spaces`,
+                expect.objectContaining({ method: 'GET' }),
+            );
+            expect(fetch).toHaveBeenCalledWith(
+                `/api/v1/projects/${PROJECT_UUID}/spaces/space-1`,
+                expect.objectContaining({ method: 'GET' }),
+            );
+        });
+
+        it('answers uniformly empty for an unknown or inaccessible space', async () => {
+            renderBridge(() => undefined);
+            const postMessageSpy = vi.spyOn(window, 'postMessage');
+
+            mockSpacesFetchOk({ status: 'ok', results: [] });
+            postSpaceCharts({ space: 'not-mine' });
+
+            await vi.waitFor(() =>
+                expect(postMessageSpy).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        type: 'lightdash:sdk:fetch-response',
+                        id: POST_ID,
+                        result: { space: null, charts: [] },
+                    }),
+                    '*',
+                ),
+            );
+            // Only the (viewer-scoped) list was consulted; no probe fetch.
+            expect(fetch).toHaveBeenCalledTimes(1);
+        });
+
+        it('rejects a malformed request without fetching', async () => {
+            renderBridge(() => undefined);
+            const postMessageSpy = vi.spyOn(window, 'postMessage');
+
+            postSpaceCharts({ space: '  ' });
+
+            await vi.waitFor(() =>
+                expect(postMessageSpy).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        type: 'lightdash:sdk:fetch-response',
+                        id: POST_ID,
+                        error: 'Invalid space-charts request.',
+                    }),
+                    '*',
+                ),
+            );
+            expect(fetch).not.toHaveBeenCalled();
+        });
+    });
+
     it.each([false, true])(
         'blocks SDK routes aimed at a different project (viz mode: %s)',
         async (dataAppVizMode) => {
@@ -1953,7 +2080,11 @@ describe('color scheme push', () => {
         postSpy.mockClear();
         result.current.handleIframeLoad();
         expect(postSpy.mock.calls.map(([message]) => message)).toEqual([
-            { type: 'lightdash:sdk:ready', appUuid: APP_UUID },
+            {
+                type: 'lightdash:sdk:ready',
+                appUuid: APP_UUID,
+                spaceCharts: true,
+            },
             { type: APP_SDK_COLOR_SCHEME_MESSAGE, colorScheme: 'dark' },
             // No insights supplied: the host says so instead of staying silent.
             {
@@ -2068,6 +2199,7 @@ describe('delivery-render flag on the ready handshake', () => {
             type: 'lightdash:sdk:ready',
             deliveryRender: true,
             appUuid: APP_UUID,
+            spaceCharts: true,
         });
     });
 
@@ -2081,6 +2213,7 @@ describe('delivery-render flag on the ready handshake', () => {
         expect(postSpy.mock.calls[0][0]).toEqual({
             type: 'lightdash:sdk:ready',
             appUuid: APP_UUID,
+            spaceCharts: true,
         });
     });
 });

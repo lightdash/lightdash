@@ -13,10 +13,8 @@ export type AddOnName =
     | 'generateDataApp'
     | 'sqlCatalog'
     | 'writeback'
-    | 'codingAgent'
     | 'pullRequests'
     | 'repoDiscovery'
-    | 'previewDeploySetup'
     | 'editProjectContext'
     | 'readAttachments'
     | 'intentRouting'
@@ -62,9 +60,7 @@ export const AGENT_TOOL_NAMES = [
     'listDataAppConnections',
     'editDbtProject',
     'editProjectContext',
-    'editRepo',
     'syncDbtProject',
-    'setupPreviewDeploy',
     'exploreRepo',
     'readAttachments',
     'discoverRepos',
@@ -93,7 +89,6 @@ export const BUILT_IN_SKILL_NAMES = [
     'developing-in-lightdash',
     'reading-source-code',
     'repository-writeback',
-    'editing-source-code',
 ] as const;
 
 export type BuiltInSkillName = (typeof BUILT_IN_SKILL_NAMES)[number];
@@ -133,13 +128,13 @@ export type LoadoutInput = Pick<
     | 'enableComposerQueries'
     | 'canRunSql'
     | 'canCreateDashboards'
+    | 'canCreateScheduledDeliveries'
+    | 'enableContentReads'
     | 'enableContentTools'
     | 'enableDocuments'
     | 'enableGenerateDataApp'
     | 'enableAiWriteback'
-    | 'enableCodingAgent'
     | 'enableRepoDiscovery'
-    | 'enablePreviewDeploySetup'
     | 'enableEditProjectContext'
     | 'enableReadAttachments'
     | 'customSkills'

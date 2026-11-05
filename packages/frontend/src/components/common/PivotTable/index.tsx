@@ -48,8 +48,7 @@ import {
     type Row,
 } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import isEqual from 'lodash/isEqual';
-import last from 'lodash/last';
+import { isEqual, last } from 'es-toolkit/compat';
 import { readableColor } from 'polished';
 import React, {
     useCallback,
@@ -117,7 +116,7 @@ const getStickyCellProps = (frozen: FrozenColumnEntry | undefined) => {
         className: `${pivotStyles.stickyColumn}${
             frozen.isLast ? ` ${pivotStyles.stickyColumnLast}` : ''
         }`,
-        style: { left: frozen.left },
+        stickyLeft: `${frozen.left}px`,
     };
 };
 
@@ -127,7 +126,7 @@ const getStickyHeaderProps = (frozen: FrozenColumnEntry | undefined) => {
         className: `${pivotStyles.stickyColumn} ${pivotStyles.stickyHeaderColumn}${
             frozen.isLast ? ` ${pivotStyles.stickyColumnLast}` : ''
         }`,
-        style: { left: frozen.left },
+        stickyLeft: `${frozen.left}px`,
     };
 };
 
@@ -1265,14 +1264,7 @@ const PivotTable: FC<PivotTableProps> = ({
             {hasCustomWidths && (
                 <colgroup>
                     {colWidths.map((cw, i) => (
-                        <col
-                            key={i}
-                            style={
-                                cw !== undefined
-                                    ? { width: `${cw}px` }
-                                    : undefined
-                            }
-                        />
+                        <Box component="col" key={i} w={cw} />
                     ))}
                 </colgroup>
             )}
@@ -1290,17 +1282,14 @@ const PivotTable: FC<PivotTableProps> = ({
                                       frozenLayout.size > 0
                                           ? {
                                                 className: `${pivotStyles.stickyColumn} ${pivotStyles.stickyHeaderColumn}`,
-                                                style: { left: 0 },
                                             }
                                           : ({} as {
                                                 className?: string;
-                                                style?: React.CSSProperties;
                                             });
                                   return headerRowIndex <
                                       data.headerValues.length - 1 ? (
                                       <Table.Cell
                                           className={rowNumberSticky.className}
-                                          style={rowNumberSticky.style}
                                           isMinimal={isMinimal}
                                           w={rowNumberWidth}
                                           miw={rowNumberWidth}
@@ -1309,7 +1298,6 @@ const PivotTable: FC<PivotTableProps> = ({
                                   ) : (
                                       <Table.CellHead
                                           className={rowNumberSticky.className}
-                                          style={rowNumberSticky.style}
                                           isMinimal={isMinimal}
                                           w={rowNumberWidth}
                                           miw={rowNumberWidth}
@@ -1427,7 +1415,10 @@ const PivotTable: FC<PivotTableProps> = ({
                                     <Table.Cell
                                         key={`title-${headerRowIndex}-${titleFieldIndex}`}
                                         className={titleStickyProps.className}
-                                        style={titleStickyProps.style}
+                                        style={{
+                                            '--sticky-left':
+                                                titleStickyProps.stickyLeft,
+                                        }}
                                         isMinimal={isMinimal}
                                         withMinimalWidth={
                                             !hasCustomWidths && !titleWidth
@@ -1446,7 +1437,10 @@ const PivotTable: FC<PivotTableProps> = ({
                                                 .filter(Boolean)
                                                 .join(' ') || undefined
                                         }
-                                        style={titleStickyProps.style}
+                                        style={{
+                                            '--sticky-left':
+                                                titleStickyProps.stickyLeft,
+                                        }}
                                         withAlignRight={isHeaderTitle}
                                         isMinimal={isMinimal}
                                         withMinimalWidth={
@@ -1679,7 +1673,10 @@ const PivotTable: FC<PivotTableProps> = ({
                                 <Table.CellHead
                                     key={`header-${headerRowIndex}-${headerColIndex}`}
                                     className={cellClassName || undefined}
-                                    style={headerValueStickyProps.style}
+                                    style={{
+                                        '--sticky-left':
+                                            headerValueStickyProps.stickyLeft,
+                                    }}
                                     isMinimal={isMinimal}
                                     withBoldFont={isLabel}
                                     withTooltip={description}
@@ -1858,11 +1855,9 @@ const PivotTable: FC<PivotTableProps> = ({
                                             ? {
                                                   className:
                                                       pivotStyles.stickyColumn,
-                                                  style: { left: 0 },
                                               }
                                             : ({} as {
                                                   className?: string;
-                                                  style?: React.CSSProperties;
                                               });
                                     return (
                                         <Table.Cell
@@ -1871,7 +1866,6 @@ const PivotTable: FC<PivotTableProps> = ({
                                             className={
                                                 rowNumberStickyBody.className
                                             }
-                                            style={rowNumberStickyBody.style}
                                             isMinimal={isMinimal}
                                             w={rowNumberWidth}
                                             miw={rowNumberWidth}
@@ -2260,7 +2254,10 @@ const PivotTable: FC<PivotTableProps> = ({
                                                   }`
                                                 : stickyCellProps.className
                                         }
-                                        style={stickyCellProps.style}
+                                        style={{
+                                            '--sticky-left':
+                                                stickyCellProps.stickyLeft,
+                                        }}
                                         isMinimal={isMinimal}
                                         withAlignRight={isNumericItem(item)}
                                         w={cellWidth}
@@ -2386,24 +2383,11 @@ const PivotTable: FC<PivotTableProps> = ({
                                                     <Button
                                                         size="compact-xs"
                                                         variant="subtle"
-                                                        styles={(theme) => ({
-                                                            root: {
-                                                                height: 'unset',
-                                                                paddingLeft:
-                                                                    theme
-                                                                        .spacing
-                                                                        .two,
-                                                                paddingRight:
-                                                                    theme
-                                                                        .spacing
-                                                                        .xxs,
-                                                                fontFeatureSettings:
-                                                                    "'tnum'",
-                                                            },
-                                                            section: {
-                                                                marginRight: 0,
-                                                            },
-                                                        })}
+                                                        classNames={{
+                                                            root: pivotStyles.groupToggleButton,
+                                                            section:
+                                                                pivotStyles.groupToggleSection,
+                                                        }}
                                                         onClick={(
                                                             e: React.MouseEvent<HTMLButtonElement>,
                                                         ) => {
@@ -2421,11 +2405,10 @@ const PivotTable: FC<PivotTableProps> = ({
                                                                 }
                                                             />
                                                         }
-                                                        style={{
-                                                            color:
-                                                                fontColor ??
-                                                                'inherit',
-                                                        }}
+                                                        c={
+                                                            fontColor ??
+                                                            'inherit'
+                                                        }
                                                     >
                                                         {`(${
                                                             isMetricSubtotal
@@ -2512,19 +2495,14 @@ const PivotTable: FC<PivotTableProps> = ({
                                                   ? {
                                                         className:
                                                             pivotStyles.stickyColumn,
-                                                        style: { left: 0 },
                                                     }
                                                   : ({} as {
                                                         className?: string;
-                                                        style?: React.CSSProperties;
                                                     });
                                           return (
                                               <Table.Cell
                                                   className={
                                                       footerRowNumberSticky.className
-                                                  }
-                                                  style={
-                                                      footerRowNumberSticky.style
                                                   }
                                                   w={rowNumberWidth}
                                                   miw={rowNumberWidth}
@@ -2553,7 +2531,10 @@ const PivotTable: FC<PivotTableProps> = ({
                                                 className={
                                                     footerStickyProps.className
                                                 }
-                                                style={footerStickyProps.style}
+                                                style={{
+                                                    '--sticky-left':
+                                                        footerStickyProps.stickyLeft,
+                                                }}
                                                 isMinimal={isMinimal}
                                                 withAlignRight
                                                 withBoldFont
@@ -2568,7 +2549,10 @@ const PivotTable: FC<PivotTableProps> = ({
                                                 className={
                                                     footerStickyProps.className
                                                 }
-                                                style={footerStickyProps.style}
+                                                style={{
+                                                    '--sticky-left':
+                                                        footerStickyProps.stickyLeft,
+                                                }}
                                                 isMinimal={isMinimal}
                                             />
                                         );

@@ -12,6 +12,7 @@ import Logger from '../../../logging/logger';
 import { AiAgentModel } from '../../models/AiAgentModel';
 import { getAiAccessRefusalBlocks } from '../ai/utils/getSlackBlocks';
 import { getSlackArtifactCardBlockId } from '../ai/utils/slackArtifactImages';
+import { getSlackTableBlocks } from '../ai/utils/slackTableBlocks';
 import { AiAgentService } from './AiAgentService';
 
 const retryBlock = {
@@ -1293,5 +1294,52 @@ describe.each([false, true])(
                 },
             );
         });
+
+        it.each([false, true])(
+            'posts native tables apart from the markdown answer (card: %s)',
+            async (card) => {
+                const h = setup({ card, refusals: [] });
+                const citation = { type: 'rich_text', elements: [] };
+                const table = getSlackTableBlocks([
+                    {
+                        blockId: 'table-1',
+                        title: 'Usage',
+                        url: siteUrl,
+                        status: 'ready',
+                        queryResults: { rows: [{ users: 'x' }], fields: {} },
+                        truncated: false,
+                    },
+                ]);
+                const chartCard = { type: 'card', block_id: 'chart-1' };
+                h.finalBlocks.mockResolvedValue([
+                    citation,
+                    ...table,
+                    chartCard,
+                ]);
+
+                await h.service.replyToSlackPrompt('prompt-1');
+
+                const answer = card
+                    ? h.stopAgentStream.mock.calls[0][0].chunks
+                    : h.postMessage.mock.calls[0][0].blocks;
+                expect(answer).toEqual(
+                    card
+                        ? [
+                              {
+                                  type: 'blocks',
+                                  blocks: [
+                                      { type: 'markdown', text: 'Answer' },
+                                      citation,
+                                  ],
+                              },
+                          ]
+                        : [{ type: 'markdown', text: 'Answer' }, citation],
+                );
+                expect(h.postMessage.mock.calls.at(-1)?.[0].blocks).toEqual([
+                    ...table,
+                    chartCard,
+                ]);
+            },
+        );
     },
 );

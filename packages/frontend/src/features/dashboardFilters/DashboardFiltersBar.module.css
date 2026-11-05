@@ -4,6 +4,12 @@
     width: 100%;
 }
 
+.parameters {
+    flex: 0 1 auto;
+    max-width: 50%;
+    min-width: 0;
+}
+
 .drawerContent {
     composes: scrollContent from '../../components/common/SidebarDrawer.module.css';
 }
@@ -22,13 +28,15 @@
     }
 
     .bar > *,
-    .filters > * {
+    .filters > *,
+    .parameters > * {
         min-width: 0;
         max-width: 100%;
         width: 100%;
     }
 
-    .filters {
+    .filters,
+    .parameters {
         flex-direction: column;
         align-items: stretch;
         gap: 8px;

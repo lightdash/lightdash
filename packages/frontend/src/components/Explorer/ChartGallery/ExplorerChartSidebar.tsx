@@ -35,7 +35,7 @@ import {
 } from '../../common/ChartGallery/ChartGalleryContext';
 import MantineIcon from '../../common/MantineIcon';
 import { isDataAppVizVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
+import { useVisualizationConfig } from '../../LightdashVisualization/useVisualizationContext';
 import VisualizationConfig from '../VisualizationCard/VisualizationConfig';
 import AddChartTypeMenu from './AddChartTypeMenu';
 import ExplorerChartTypeGallery, {
@@ -87,7 +87,7 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
         onClose();
     };
     const projectUuid = useProjectUuid();
-    const { visualizationConfig } = useVisualizationState();
+    const visualizationConfig = useVisualizationConfig();
     const { getSelectedChartTypeItem } = useChartTypeOptions();
     const dataAppVizUuid = isDataAppVizVisualizationConfig(visualizationConfig)
         ? visualizationConfig.chartConfig.dataAppVizUuid

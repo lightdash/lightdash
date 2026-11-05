@@ -92,12 +92,7 @@ const ChartTypeBuilderHeader: FC<Props> = ({
                 </Button>
                 {(app || isCreating) && (
                     <>
-                        <Text
-                            className={classes.studioLabel}
-                            fz="sm"
-                            fw={600}
-                            c="ldGray.8"
-                        >
+                        <Text className={classes.studioLabel} fz="sm" fw={600}>
                             Chart Studio
                         </Text>
                         {(hasName || isNamePending) && (

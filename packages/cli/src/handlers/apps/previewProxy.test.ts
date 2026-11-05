@@ -3,6 +3,7 @@ import * as http from 'http';
 import {
     PREVIEW_PROXY_NONCE_HEADER,
     startPreviewProxy,
+    type CompiledQueryLogEntry,
     type PreviewProxyHandle,
 } from './previewProxy';
 
@@ -137,6 +138,27 @@ describe('startPreviewProxy', () => {
         expect(forwarded.headers.authorization).toBe(AUTHORIZATION);
         // …and the run-scoped nonce never travels upstream.
         expect(forwarded.headers[PREVIEW_PROXY_NONCE_HEADER]).toBeUndefined();
+    });
+
+    it('resolves a fresh upstream credential for each forwarded request', async () => {
+        await proxy.close();
+        let accessToken = 'first';
+        const resolveAuthorization = vi.fn(async () => `Bearer ${accessToken}`);
+        proxy = await startPreviewProxy({
+            upstreamUrl: upstream.url,
+            authorization: 'Bearer stale',
+            resolveAuthorization,
+            projectUuid: PROJECT_UUID,
+            nonce: NONCE,
+        });
+        const route = `/api/v2/projects/${PROJECT_UUID}/query/some-query-uuid`;
+        await proxyFetch(route);
+        accessToken = 'second';
+        await proxyFetch(route);
+        expect(
+            upstream.seen.map(({ headers }) => headers.authorization),
+        ).toEqual(['Bearer first', 'Bearer second']);
+        expect(resolveAuthorization).toHaveBeenCalledTimes(2);
     });
 
     it('stamps the signed-download header on schedule-download and nothing else', async () => {
@@ -347,6 +369,182 @@ describe('startPreviewProxy', () => {
 
             expect(res.status).toBe(401);
             expect(upstream.seen).toHaveLength(0);
+        });
+    });
+
+    describe('onCompiledQuery (--show-sql)', () => {
+        let entries: CompiledQueryLogEntry[];
+
+        const startShowSqlProxy = async () => {
+            await proxy.close();
+            entries = [];
+            proxy = await startPreviewProxy({
+                upstreamUrl: upstream.url,
+                authorization: AUTHORIZATION,
+                projectUuid: PROJECT_UUID,
+                nonce: NONCE,
+                onCompiledQuery: (entry) => entries.push(entry),
+            });
+        };
+
+        const runMetricQuery = (body: unknown) =>
+            proxyFetch(`/api/v2/projects/${PROJECT_UUID}/query/metric-query`, {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify(body),
+            });
+
+        const waitForEntries = async (count: number) => {
+            for (let i = 0; i < 50 && entries.length < count; i += 1) {
+                // eslint-disable-next-line no-await-in-loop
+                await new Promise((r) => {
+                    setTimeout(r, 20);
+                });
+            }
+        };
+
+        beforeEach(startShowSqlProxy);
+
+        it('forwards the query unchanged and reports the compiled SQL', async () => {
+            upstream.setReply((req) =>
+                req.url.includes('/compileQuery')
+                    ? {
+                          status: 200,
+                          body: {
+                              status: 'ok',
+                              results: {
+                                  query: 'SELECT 1',
+                                  parameterReferences: [],
+                              },
+                          },
+                      }
+                    : { status: 200, body: { status: 'ok' } },
+            );
+
+            const body = {
+                query: {
+                    exploreName: 'orders',
+                    dimensions: ['orders_status'],
+                    metrics: ['orders_total'],
+                },
+                parameters: { region: 'EU' },
+                usePreAggregateCache: false,
+                pivotConfiguration: { indexColumn: [] },
+            };
+            const res = await runMetricQuery(body);
+            expect(res.status).toBe(200);
+            await waitForEntries(1);
+
+            const queryRequests = upstream.seen.filter((req) =>
+                req.url.endsWith('/query/metric-query'),
+            );
+            expect(queryRequests).toHaveLength(1);
+            expect(queryRequests[0].body).toBe(JSON.stringify(body));
+            expect(queryRequests[0].headers.authorization).toBe(AUTHORIZATION);
+
+            const compileRequests = upstream.seen.filter((req) =>
+                req.url.includes('/compileQuery'),
+            );
+            expect(compileRequests).toHaveLength(1);
+            expect(compileRequests[0].url).toBe(
+                `/api/v1/projects/${PROJECT_UUID}/explores/orders/compileQuery`,
+            );
+            expect(JSON.parse(compileRequests[0].body)).toEqual({
+                ...body.query,
+                parameters: body.parameters,
+                usePreAggregateCache: false,
+                pivotConfiguration: { indexColumn: [] },
+            });
+            expect(compileRequests[0].headers.authorization).toBe(
+                AUTHORIZATION,
+            );
+
+            expect(entries).toEqual([
+                {
+                    exploreName: 'orders',
+                    dimensions: ['orders_status'],
+                    metrics: ['orders_total'],
+                    compiledSql: 'SELECT 1',
+                    compilationErrors: [],
+                    runtimeOnlyTransformations: [],
+                },
+            ]);
+        });
+
+        it('flags date zoom and dashboard filters as runtime-only', async () => {
+            await runMetricQuery({
+                query: { exploreName: 'orders', dimensions: [], metrics: [] },
+                dateZoom: { granularity: 'month' },
+                dashboardFilters: {
+                    dimensions: [{ id: 'f1' }],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+            });
+            await waitForEntries(1);
+
+            expect(entries).toHaveLength(1);
+            expect(entries[0].runtimeOnlyTransformations).toEqual([
+                'date zoom',
+                'dashboard filters',
+            ]);
+        });
+
+        it('does not flag empty dashboard filters', async () => {
+            await runMetricQuery({
+                query: { exploreName: 'orders', dimensions: [], metrics: [] },
+                dashboardFilters: {
+                    dimensions: [],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+            });
+            await waitForEntries(1);
+
+            expect(entries).toHaveLength(1);
+            expect(entries[0].runtimeOnlyTransformations).toEqual([]);
+        });
+
+        it('reports a null SQL entry when compilation fails upstream', async () => {
+            upstream.setReply((req) =>
+                req.url.includes('/compileQuery')
+                    ? { status: 403, body: { status: 'error' } }
+                    : { status: 200, body: { status: 'ok' } },
+            );
+
+            await runMetricQuery({
+                query: { exploreName: 'orders', dimensions: [], metrics: [] },
+            });
+            await waitForEntries(1);
+
+            expect(entries).toEqual([
+                {
+                    exploreName: 'orders',
+                    dimensions: [],
+                    metrics: [],
+                    compiledSql: null,
+                    compilationErrors: [],
+                    runtimeOnlyTransformations: [],
+                },
+            ]);
+        });
+
+        it('ignores bodies without a usable metric query', async () => {
+            await runMetricQuery({ not: 'a query' });
+            await waitForEntries(1);
+
+            expect(entries).toHaveLength(0);
+            // The query itself is still forwarded untouched.
+            expect(
+                upstream.seen.filter((req) =>
+                    req.url.endsWith('/query/metric-query'),
+                ),
+            ).toHaveLength(1);
+            expect(
+                upstream.seen.filter((req) =>
+                    req.url.includes('/compileQuery'),
+                ),
+            ).toHaveLength(0);
         });
     });
 });

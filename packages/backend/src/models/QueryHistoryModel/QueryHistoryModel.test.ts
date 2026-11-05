@@ -104,7 +104,12 @@ describe('QueryHistoryModel', () => {
                 ).resolves.toMatchObject({ resultsFileName: expectedFile });
                 expect(tracker.history.select).toHaveLength(1);
                 const query = tracker.history.select[0];
-                expect(query.bindings).toEqual(['shared-key', 'project', 1]);
+                expect(query.bindings).toEqual([
+                    'shared-key',
+                    'project',
+                    'project',
+                    1,
+                ]);
                 expect(query.sql).toContain('order by "created_at" desc limit');
                 expect(
                     query.sql.includes(

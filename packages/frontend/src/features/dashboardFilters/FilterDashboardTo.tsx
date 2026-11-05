@@ -6,7 +6,7 @@ import {
 } from '@lightdash/common';
 import { Group, Menu, Text } from '@mantine/core';
 import { IconFilter, IconFilterX } from '@tabler/icons-react';
-import isNil from 'lodash/isNil';
+import { isNil } from 'es-toolkit/compat';
 import { Fragment, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import TruncatedText from '../../components/common/TruncatedText';

@@ -1,36 +1,23 @@
 import { ChartType } from '@lightdash/common';
-import { useEffect, useMemo, type FC } from 'react';
+import { memo, useMemo, type FC } from 'react';
 import useBigNumberConfig from '../../hooks/useBigNumberConfig';
 import {
     type VisualizationBigNumberConfigProps,
     type VisualizationConfigBigNumber,
 } from './types';
+import { useEmitChartConfig } from './useEmitChartConfig';
 
 const VisualizationBigNumberConfig: FC<VisualizationBigNumberConfigProps> = ({
-    itemsMap,
-    resultsData,
-    initialChartConfig,
     onChartConfigChange,
     children,
-    tableCalculationsMetadata,
-    parameters,
 }) => {
-    const bigNumberConfig = useBigNumberConfig(
-        initialChartConfig,
-        resultsData,
-        itemsMap,
-        tableCalculationsMetadata,
-        parameters,
+    const bigNumberConfig = useBigNumberConfig();
+
+    useEmitChartConfig(
+        ChartType.BIG_NUMBER,
+        bigNumberConfig.validConfig,
+        onChartConfigChange,
     );
-
-    useEffect(() => {
-        if (!onChartConfigChange || !bigNumberConfig.validConfig) return;
-
-        onChartConfigChange({
-            type: ChartType.BIG_NUMBER,
-            config: bigNumberConfig.validConfig,
-        });
-    }, [bigNumberConfig, onChartConfigChange]);
 
     const visualizationConfig: VisualizationConfigBigNumber = useMemo(
         () => ({
@@ -43,4 +30,5 @@ const VisualizationBigNumberConfig: FC<VisualizationBigNumberConfigProps> = ({
     return children({ visualizationConfig });
 };
 
-export default VisualizationBigNumberConfig;
+// Memoised so a resize skips it; an echoed config re-renders it, the memoised aggregate spares consumers
+export default memo(VisualizationBigNumberConfig);

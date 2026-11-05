@@ -1,4 +1,5 @@
 import { Button, Flex, Popover, Text } from '@mantine/core';
+import { useWindowEvent } from '@mantine/hooks';
 import { useCallback, type FC, type PropsWithChildren } from 'react';
 import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
 
@@ -17,6 +18,11 @@ const MultiValuePastePopUp: FC<PropsWithChildren<Props>> = ({
     children,
 }) => {
     const getUiString = useUiStrings();
+    // Handle Escape here: focus stays in the caller's input
+    useWindowEvent('keydown', (event) => {
+        if (opened && event.key === 'Escape' && !event.defaultPrevented)
+            onClose();
+    });
     const onSingleValueClick = useCallback(() => {
         onSingleValue();
         onClose();
@@ -30,7 +36,9 @@ const MultiValuePastePopUp: FC<PropsWithChildren<Props>> = ({
     return (
         <Popover
             opened={opened}
-            onClose={onClose}
+            onChange={(isOpened) => {
+                if (!isOpened) onClose();
+            }}
             position="top-start"
             withArrow
             arrowPosition="side"

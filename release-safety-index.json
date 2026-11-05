@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1",
-  "generatedAt": "2026-10-24T14:13:06.776Z",
+  "generatedAt": "2026-11-05T11:29:32.791Z",
   "backfillFloorVersion": "0.1893.0",
   "entries": [
     {
@@ -46309,6 +46309,2096 @@
       "version": "3.53.3",
       "previousVersion": "3.53.2",
       "releaseDate": "2026-10-24T14:13:06.764Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.53.4",
+      "previousVersion": "3.53.3",
+      "releaseDate": "2026-10-24T14:22:30.025Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.53.5",
+      "previousVersion": "3.53.4",
+      "releaseDate": "2026-10-24T17:41:36.894Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.53.6",
+      "previousVersion": "3.53.5",
+      "releaseDate": "2026-10-24T17:51:36.399Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.53.7",
+      "previousVersion": "3.53.6",
+      "releaseDate": "2026-10-26T08:00:03.296Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.53.8",
+      "previousVersion": "3.53.7",
+      "releaseDate": "2026-10-26T08:16:53.381Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.53.9",
+      "previousVersion": "3.53.8",
+      "releaseDate": "2026-10-26T08:55:13.687Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.53.10",
+      "previousVersion": "3.53.9",
+      "releaseDate": "2026-10-26T09:01:51.776Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.53.11",
+      "previousVersion": "3.53.10",
+      "releaseDate": "2026-10-26T11:29:17.026Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.54.0",
+      "previousVersion": "3.53.11",
+      "releaseDate": "2026-10-26T11:45:15.856Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.55.0",
+      "previousVersion": "3.54.0",
+      "releaseDate": "2026-10-26T12:03:39.869Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.55.1",
+      "previousVersion": "3.55.0",
+      "releaseDate": "2026-10-26T12:11:35.313Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.55.2",
+      "previousVersion": "3.55.1",
+      "releaseDate": "2026-10-26T12:19:14.802Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.56.0",
+      "previousVersion": "3.55.2",
+      "releaseDate": "2026-10-26T12:38:03.171Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.56.1",
+      "previousVersion": "3.56.0",
+      "releaseDate": "2026-10-26T14:03:45.584Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.57.0",
+      "previousVersion": "3.56.1",
+      "releaseDate": "2026-10-26T14:18:30.868Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.57.1",
+      "previousVersion": "3.57.0",
+      "releaseDate": "2026-10-26T15:04:33.901Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.58.0",
+      "previousVersion": "3.57.1",
+      "releaseDate": "2026-10-26T15:17:38.528Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.59.0",
+      "previousVersion": "3.58.0",
+      "releaseDate": "2026-10-26T15:54:09.494Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.59.1",
+      "previousVersion": "3.59.0",
+      "releaseDate": "2026-10-26T16:00:29.979Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.59.2",
+      "previousVersion": "3.59.1",
+      "releaseDate": "2026-10-26T16:07:34.299Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.60.0",
+      "previousVersion": "3.59.2",
+      "releaseDate": "2026-10-26T16:54:38.162Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.60.1",
+      "previousVersion": "3.60.0",
+      "releaseDate": "2026-10-26T22:26:37.498Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.61.0",
+      "previousVersion": "3.60.1",
+      "releaseDate": "2026-10-26T22:33:48.455Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.62.0",
+      "previousVersion": "3.61.0",
+      "releaseDate": "2026-10-27T07:44:38.973Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.63.0",
+      "previousVersion": "3.62.0",
+      "releaseDate": "2026-10-27T08:54:36.251Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.63.1",
+      "previousVersion": "3.63.0",
+      "releaseDate": "2026-10-27T09:05:20.602Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.64.0",
+      "previousVersion": "3.63.1",
+      "releaseDate": "2026-10-27T09:26:04.176Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.65.0",
+      "previousVersion": "3.64.0",
+      "releaseDate": "2026-10-27T11:07:15.921Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.65.1",
+      "previousVersion": "3.65.0",
+      "releaseDate": "2026-10-27T11:16:08.317Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.65.2",
+      "previousVersion": "3.65.1",
+      "releaseDate": "2026-10-27T11:54:15.879Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.66.0",
+      "previousVersion": "3.65.2",
+      "releaseDate": "2026-10-27T12:12:24.190Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.67.0",
+      "previousVersion": "3.66.0",
+      "releaseDate": "2026-10-27T12:18:15.607Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.68.0",
+      "previousVersion": "3.67.0",
+      "releaseDate": "2026-10-27T12:32:45.565Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.68.1",
+      "previousVersion": "3.68.0",
+      "releaseDate": "2026-10-27T12:51:44.642Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.68.2",
+      "previousVersion": "3.68.1",
+      "releaseDate": "2026-10-27T13:26:41.340Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.68.3",
+      "previousVersion": "3.68.2",
+      "releaseDate": "2026-10-27T14:36:11.364Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.68.4",
+      "previousVersion": "3.68.3",
+      "releaseDate": "2026-10-27T14:49:26.619Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.68.5",
+      "previousVersion": "3.68.4",
+      "releaseDate": "2026-10-27T15:14:02.219Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.68.6",
+      "previousVersion": "3.68.5",
+      "releaseDate": "2026-10-27T15:23:12.383Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.68.7",
+      "previousVersion": "3.68.6",
+      "releaseDate": "2026-10-27T15:31:15.306Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.69.0",
+      "previousVersion": "3.68.7",
+      "releaseDate": "2026-10-27T15:36:38.692Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.69.1",
+      "previousVersion": "3.69.0",
+      "releaseDate": "2026-10-27T16:07:42.863Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.69.2",
+      "previousVersion": "3.69.1",
+      "releaseDate": "2026-10-27T16:18:14.093Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.69.3",
+      "previousVersion": "3.69.2",
+      "releaseDate": "2026-10-27T16:51:31.568Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.70.0",
+      "previousVersion": "3.69.3",
+      "releaseDate": "2026-10-27T17:44:47.082Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.71.0",
+      "previousVersion": "3.70.0",
+      "releaseDate": "2026-10-27T18:07:15.770Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.72.0",
+      "previousVersion": "3.71.0",
+      "releaseDate": "2026-10-27T18:33:49.496Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.73.0",
+      "previousVersion": "3.72.0",
+      "releaseDate": "2026-10-27T18:42:55.157Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.73.1",
+      "previousVersion": "3.73.0",
+      "releaseDate": "2026-10-27T20:12:30.030Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.73.2",
+      "previousVersion": "3.73.1",
+      "releaseDate": "2026-10-27T21:32:04.818Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.73.3",
+      "previousVersion": "3.73.2",
+      "releaseDate": "2026-10-27T23:26:03.716Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.74.0",
+      "previousVersion": "3.73.3",
+      "releaseDate": "2026-10-28T08:50:33.903Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.75.0",
+      "previousVersion": "3.74.0",
+      "releaseDate": "2026-10-28T09:12:54.119Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.75.1",
+      "previousVersion": "3.75.0",
+      "releaseDate": "2026-10-28T09:46:09.129Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.75.2",
+      "previousVersion": "3.75.1",
+      "releaseDate": "2026-10-28T11:36:35.086Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.76.0",
+      "previousVersion": "3.75.2",
+      "releaseDate": "2026-10-28T12:04:29.764Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.76.1",
+      "previousVersion": "3.76.0",
+      "releaseDate": "2026-10-28T12:22:57.294Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.76.2",
+      "previousVersion": "3.76.1",
+      "releaseDate": "2026-10-28T12:43:24.747Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.76.3",
+      "previousVersion": "3.76.2",
+      "releaseDate": "2026-10-28T12:57:19.633Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.77.0",
+      "previousVersion": "3.76.3",
+      "releaseDate": "2026-10-28T13:06:34.909Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.78.0",
+      "previousVersion": "3.77.0",
+      "releaseDate": "2026-10-28T13:13:58.412Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.78.1",
+      "previousVersion": "3.78.0",
+      "releaseDate": "2026-10-28T14:01:51.614Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.78.2",
+      "previousVersion": "3.78.1",
+      "releaseDate": "2026-10-28T14:29:59.511Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.78.3",
+      "previousVersion": "3.78.2",
+      "releaseDate": "2026-10-28T14:39:22.352Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.79.0",
+      "previousVersion": "3.78.3",
+      "releaseDate": "2026-10-28T15:17:19.225Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.79.1",
+      "previousVersion": "3.79.0",
+      "releaseDate": "2026-10-28T15:26:51.820Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.80.0",
+      "previousVersion": "3.79.1",
+      "releaseDate": "2026-10-28T15:37:14.770Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.81.0",
+      "previousVersion": "3.80.0",
+      "releaseDate": "2026-10-28T15:47:18.142Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.82.0",
+      "previousVersion": "3.81.0",
+      "releaseDate": "2026-10-28T16:39:19.263Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.83.0",
+      "previousVersion": "3.82.0",
+      "releaseDate": "2026-10-28T16:48:20.140Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.84.0",
+      "previousVersion": "3.83.0",
+      "releaseDate": "2026-10-28T16:58:03.836Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.85.0",
+      "previousVersion": "3.84.0",
+      "releaseDate": "2026-10-28T17:16:02.499Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.86.0",
+      "previousVersion": "3.85.0",
+      "releaseDate": "2026-10-28T17:21:23.182Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.87.0",
+      "previousVersion": "3.86.0",
+      "releaseDate": "2026-10-28T17:34:09.680Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.88.0",
+      "previousVersion": "3.87.0",
+      "releaseDate": "2026-10-28T17:40:58.656Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.89.0",
+      "previousVersion": "3.88.0",
+      "releaseDate": "2026-10-28T18:10:46.386Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.90.0",
+      "previousVersion": "3.89.0",
+      "releaseDate": "2026-10-28T18:23:17.668Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.91.0",
+      "previousVersion": "3.90.0",
+      "releaseDate": "2026-10-28T18:45:12.173Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.92.0",
+      "previousVersion": "3.91.0",
+      "releaseDate": "2026-10-28T21:28:32.315Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.92.1",
+      "previousVersion": "3.92.0",
+      "releaseDate": "2026-10-28T21:41:49.891Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.93.0",
+      "previousVersion": "3.92.1",
+      "releaseDate": "2026-10-28T22:29:22.642Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.93.1",
+      "previousVersion": "3.93.0",
+      "releaseDate": "2026-10-29T07:32:08.916Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.93.2",
+      "previousVersion": "3.93.1",
+      "releaseDate": "2026-10-29T08:27:36.733Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.93.3",
+      "previousVersion": "3.93.2",
+      "releaseDate": "2026-10-29T08:48:30.405Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.93.4",
+      "previousVersion": "3.93.3",
+      "releaseDate": "2026-10-29T08:55:56.524Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.93.5",
+      "previousVersion": "3.93.4",
+      "releaseDate": "2026-10-29T09:07:56.717Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.93.6",
+      "previousVersion": "3.93.5",
+      "releaseDate": "2026-10-29T09:49:39.236Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.94.0",
+      "previousVersion": "3.93.6",
+      "releaseDate": "2026-10-29T11:24:01.284Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.94.1",
+      "previousVersion": "3.94.0",
+      "releaseDate": "2026-10-29T12:03:42.664Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.95.0",
+      "previousVersion": "3.94.1",
+      "releaseDate": "2026-10-29T12:54:07.839Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.95.1",
+      "previousVersion": "3.95.0",
+      "releaseDate": "2026-10-29T13:38:50.047Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.95.2",
+      "previousVersion": "3.95.1",
+      "releaseDate": "2026-10-29T14:16:28.847Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.96.0",
+      "previousVersion": "3.95.2",
+      "releaseDate": "2026-10-29T14:25:08.807Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.96.1",
+      "previousVersion": "3.96.0",
+      "releaseDate": "2026-10-29T15:20:43.437Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.97.0",
+      "previousVersion": "3.96.1",
+      "releaseDate": "2026-10-29T15:33:44.252Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.98.0",
+      "previousVersion": "3.97.0",
+      "releaseDate": "2026-10-29T16:52:55.476Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.98.1",
+      "previousVersion": "3.98.0",
+      "releaseDate": "2026-10-29T17:26:22.626Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.99.0",
+      "previousVersion": "3.98.1",
+      "releaseDate": "2026-10-29T17:33:06.688Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.100.0",
+      "previousVersion": "3.99.0",
+      "releaseDate": "2026-10-29T17:38:11.537Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.101.0",
+      "previousVersion": "3.100.0",
+      "releaseDate": "2026-10-29T17:44:02.136Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.102.0",
+      "previousVersion": "3.101.0",
+      "releaseDate": "2026-10-29T17:50:24.097Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.103.0",
+      "previousVersion": "3.102.0",
+      "releaseDate": "2026-10-29T17:59:14.607Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.104.0",
+      "previousVersion": "3.103.0",
+      "releaseDate": "2026-10-29T18:05:22.396Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.104.1",
+      "previousVersion": "3.104.0",
+      "releaseDate": "2026-10-29T18:27:04.087Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.104.2",
+      "previousVersion": "3.104.1",
+      "releaseDate": "2026-10-29T18:35:07.801Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.105.0",
+      "previousVersion": "3.104.2",
+      "releaseDate": "2026-10-29T18:48:40.037Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.105.1",
+      "previousVersion": "3.105.0",
+      "releaseDate": "2026-10-29T22:10:39.525Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.106.0",
+      "previousVersion": "3.105.1",
+      "releaseDate": "2026-10-29T23:06:18.112Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.106.1",
+      "previousVersion": "3.106.0",
+      "releaseDate": "2026-10-30T07:49:24.417Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.107.0",
+      "previousVersion": "3.106.1",
+      "releaseDate": "2026-10-30T08:09:08.994Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.108.0",
+      "previousVersion": "3.107.0",
+      "releaseDate": "2026-10-30T08:51:23.891Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.108.1",
+      "previousVersion": "3.108.0",
+      "releaseDate": "2026-10-30T09:01:35.022Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.108.2",
+      "previousVersion": "3.108.1",
+      "releaseDate": "2026-10-30T09:41:46.929Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.108.3",
+      "previousVersion": "3.108.2",
+      "releaseDate": "2026-10-30T09:48:39.345Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.108.4",
+      "previousVersion": "3.108.3",
+      "releaseDate": "2026-10-30T11:53:53.699Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.109.0",
+      "previousVersion": "3.108.4",
+      "releaseDate": "2026-10-30T12:24:35.827Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.109.1",
+      "previousVersion": "3.109.0",
+      "releaseDate": "2026-10-30T15:07:15.291Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.110.0",
+      "previousVersion": "3.109.1",
+      "releaseDate": "2026-10-30T16:03:03.183Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.111.0",
+      "previousVersion": "3.110.0",
+      "releaseDate": "2026-10-30T16:21:57.435Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.112.0",
+      "previousVersion": "3.111.0",
+      "releaseDate": "2026-10-30T16:44:56.685Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.113.0",
+      "previousVersion": "3.112.0",
+      "releaseDate": "2026-10-30T16:56:10.329Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.114.0",
+      "previousVersion": "3.113.0",
+      "releaseDate": "2026-10-30T17:19:00.627Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.114.1",
+      "previousVersion": "3.114.0",
+      "releaseDate": "2026-10-30T18:44:38.076Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.114.2",
+      "previousVersion": "3.114.1",
+      "releaseDate": "2026-10-30T19:31:19.334Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.115.0",
+      "previousVersion": "3.114.2",
+      "releaseDate": "2026-10-30T20:30:00.370Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.116.0",
+      "previousVersion": "3.115.0",
+      "releaseDate": "2026-10-31T00:48:38.722Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.117.0",
+      "previousVersion": "3.116.0",
+      "releaseDate": "2026-11-02T08:12:03.268Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.118.0",
+      "previousVersion": "3.117.0",
+      "releaseDate": "2026-11-02T08:41:25.495Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.118.1",
+      "previousVersion": "3.118.0",
+      "releaseDate": "2026-11-02T09:48:28.362Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.118.2",
+      "previousVersion": "3.118.1",
+      "releaseDate": "2026-11-02T10:18:40.665Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.118.3",
+      "previousVersion": "3.118.2",
+      "releaseDate": "2026-11-02T10:47:14.576Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.119.0",
+      "previousVersion": "3.118.3",
+      "releaseDate": "2026-11-02T10:59:40.501Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.120.0",
+      "previousVersion": "3.119.0",
+      "releaseDate": "2026-11-02T11:22:00.600Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.120.1",
+      "previousVersion": "3.120.0",
+      "releaseDate": "2026-11-02T11:35:29.791Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.120.2",
+      "previousVersion": "3.120.1",
+      "releaseDate": "2026-11-02T11:45:57.021Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.121.0",
+      "previousVersion": "3.120.2",
+      "releaseDate": "2026-11-02T12:19:05.884Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.121.1",
+      "previousVersion": "3.121.0",
+      "releaseDate": "2026-11-02T12:32:01.200Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.122.0",
+      "previousVersion": "3.121.1",
+      "releaseDate": "2026-11-02T13:05:39.705Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.122.1",
+      "previousVersion": "3.122.0",
+      "releaseDate": "2026-11-02T13:13:05.804Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.122.2",
+      "previousVersion": "3.122.1",
+      "releaseDate": "2026-11-02T13:37:24.402Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.122.3",
+      "previousVersion": "3.122.2",
+      "releaseDate": "2026-11-02T13:59:14.328Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.123.0",
+      "previousVersion": "3.122.3",
+      "releaseDate": "2026-11-02T14:17:11.796Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.124.0",
+      "previousVersion": "3.123.0",
+      "releaseDate": "2026-11-02T15:35:10.912Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.125.0",
+      "previousVersion": "3.124.0",
+      "releaseDate": "2026-11-02T16:29:17.570Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.126.0",
+      "previousVersion": "3.125.0",
+      "releaseDate": "2026-11-02T16:34:39.294Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.126.1",
+      "previousVersion": "3.126.0",
+      "releaseDate": "2026-11-02T16:56:35.323Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.127.0",
+      "previousVersion": "3.126.1",
+      "releaseDate": "2026-11-02T17:33:13.417Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.127.1",
+      "previousVersion": "3.127.0",
+      "releaseDate": "2026-11-02T20:19:39.359Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.128.0",
+      "previousVersion": "3.127.1",
+      "releaseDate": "2026-11-02T21:57:33.641Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.128.1",
+      "previousVersion": "3.128.0",
+      "releaseDate": "2026-11-03T04:49:20.562Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.128.2",
+      "previousVersion": "3.128.1",
+      "releaseDate": "2026-11-03T08:13:11.897Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.128.3",
+      "previousVersion": "3.128.2",
+      "releaseDate": "2026-11-03T08:21:18.963Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.128.4",
+      "previousVersion": "3.128.3",
+      "releaseDate": "2026-11-03T08:41:07.497Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.128.5",
+      "previousVersion": "3.128.4",
+      "releaseDate": "2026-11-03T09:13:15.466Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.128.6",
+      "previousVersion": "3.128.5",
+      "releaseDate": "2026-11-03T09:49:01.698Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.128.7",
+      "previousVersion": "3.128.6",
+      "releaseDate": "2026-11-03T10:48:31.540Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.129.0",
+      "previousVersion": "3.128.7",
+      "releaseDate": "2026-11-03T10:56:31.539Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.130.0",
+      "previousVersion": "3.129.0",
+      "releaseDate": "2026-11-03T11:14:10.998Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.130.1",
+      "previousVersion": "3.130.0",
+      "releaseDate": "2026-11-03T11:43:27.639Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.131.0",
+      "previousVersion": "3.130.1",
+      "releaseDate": "2026-11-03T11:51:29.423Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.131.1",
+      "previousVersion": "3.131.0",
+      "releaseDate": "2026-11-03T12:00:27.344Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.132.0",
+      "previousVersion": "3.131.1",
+      "releaseDate": "2026-11-03T12:41:57.684Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.133.0",
+      "previousVersion": "3.132.0",
+      "releaseDate": "2026-11-03T12:50:14.113Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.133.1",
+      "previousVersion": "3.133.0",
+      "releaseDate": "2026-11-03T13:35:32.571Z",
+      "rollingUpdateSafe": false,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.134.0",
+      "previousVersion": "3.133.1",
+      "releaseDate": "2026-11-03T13:54:51.412Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.134.1",
+      "previousVersion": "3.134.0",
+      "releaseDate": "2026-11-03T14:10:11.472Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.135.0",
+      "previousVersion": "3.134.1",
+      "releaseDate": "2026-11-03T14:22:59.824Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.135.1",
+      "previousVersion": "3.135.0",
+      "releaseDate": "2026-11-03T14:30:04.264Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.135.2",
+      "previousVersion": "3.135.1",
+      "releaseDate": "2026-11-03T14:55:19.615Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.136.0",
+      "previousVersion": "3.135.2",
+      "releaseDate": "2026-11-03T15:54:41.444Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.136.1",
+      "previousVersion": "3.136.0",
+      "releaseDate": "2026-11-03T16:00:26.961Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.136.2",
+      "previousVersion": "3.136.1",
+      "releaseDate": "2026-11-03T16:20:50.351Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.137.0",
+      "previousVersion": "3.136.2",
+      "releaseDate": "2026-11-03T16:31:49.063Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.137.1",
+      "previousVersion": "3.137.0",
+      "releaseDate": "2026-11-03T17:21:29.165Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.138.0",
+      "previousVersion": "3.137.1",
+      "releaseDate": "2026-11-03T17:41:50.869Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.139.0",
+      "previousVersion": "3.138.0",
+      "releaseDate": "2026-11-03T17:47:39.616Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.140.0",
+      "previousVersion": "3.139.0",
+      "releaseDate": "2026-11-03T18:06:22.627Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.141.0",
+      "previousVersion": "3.140.0",
+      "releaseDate": "2026-11-03T18:20:34.564Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.142.0",
+      "previousVersion": "3.141.0",
+      "releaseDate": "2026-11-03T18:33:30.043Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.142.1",
+      "previousVersion": "3.142.0",
+      "releaseDate": "2026-11-03T22:56:06.736Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.143.0",
+      "previousVersion": "3.142.1",
+      "releaseDate": "2026-11-04T11:05:55.104Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.144.0",
+      "previousVersion": "3.143.0",
+      "releaseDate": "2026-11-04T11:31:15.981Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.144.1",
+      "previousVersion": "3.144.0",
+      "releaseDate": "2026-11-04T11:44:38.086Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.145.0",
+      "previousVersion": "3.144.1",
+      "releaseDate": "2026-11-04T12:28:12.874Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.146.0",
+      "previousVersion": "3.145.0",
+      "releaseDate": "2026-11-04T13:00:22.155Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.146.1",
+      "previousVersion": "3.146.0",
+      "releaseDate": "2026-11-04T13:08:20.673Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.146.2",
+      "previousVersion": "3.146.1",
+      "releaseDate": "2026-11-04T13:21:14.040Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.147.0",
+      "previousVersion": "3.146.2",
+      "releaseDate": "2026-11-04T13:27:41.942Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.148.0",
+      "previousVersion": "3.147.0",
+      "releaseDate": "2026-11-04T14:04:23.875Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.148.1",
+      "previousVersion": "3.148.0",
+      "releaseDate": "2026-11-04T14:14:18.098Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.148.2",
+      "previousVersion": "3.148.1",
+      "releaseDate": "2026-11-04T14:26:57.899Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.148.3",
+      "previousVersion": "3.148.2",
+      "releaseDate": "2026-11-04T14:45:45.635Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.149.0",
+      "previousVersion": "3.148.3",
+      "releaseDate": "2026-11-04T14:49:45.749Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.149.1",
+      "previousVersion": "3.149.0",
+      "releaseDate": "2026-11-04T15:30:25.381Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.150.0",
+      "previousVersion": "3.149.1",
+      "releaseDate": "2026-11-04T16:34:58.240Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.151.0",
+      "previousVersion": "3.150.0",
+      "releaseDate": "2026-11-04T17:38:57.636Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.151.1",
+      "previousVersion": "3.151.0",
+      "releaseDate": "2026-11-04T18:40:32.446Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.152.0",
+      "previousVersion": "3.151.1",
+      "releaseDate": "2026-11-04T18:49:49.534Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.153.0",
+      "previousVersion": "3.152.0",
+      "releaseDate": "2026-11-04T19:36:33.333Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.153.1",
+      "previousVersion": "3.153.0",
+      "releaseDate": "2026-11-04T19:41:19.175Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.154.0",
+      "previousVersion": "3.153.1",
+      "releaseDate": "2026-11-04T21:33:09.616Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.154.1",
+      "previousVersion": "3.154.0",
+      "releaseDate": "2026-11-05T05:18:08.661Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.154.2",
+      "previousVersion": "3.154.1",
+      "releaseDate": "2026-11-05T06:47:17.462Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.154.3",
+      "previousVersion": "3.154.2",
+      "releaseDate": "2026-11-05T07:00:25.478Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.155.0",
+      "previousVersion": "3.154.3",
+      "releaseDate": "2026-11-05T09:22:41.099Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.156.0",
+      "previousVersion": "3.155.0",
+      "releaseDate": "2026-11-05T09:38:52.009Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.156.1",
+      "previousVersion": "3.156.0",
+      "releaseDate": "2026-11-05T10:31:00.014Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.156.2",
+      "previousVersion": "3.156.1",
+      "releaseDate": "2026-11-05T11:18:33.823Z",
+      "rollingUpdateSafe": true,
+      "requiredStops": [],
+      "minPreviousVersion": "2.497.1",
+      "backfilled": false,
+      "syntheticRequiredStop": false
+    },
+    {
+      "version": "3.157.0",
+      "previousVersion": "3.156.2",
+      "releaseDate": "2026-11-05T11:29:32.769Z",
       "rollingUpdateSafe": true,
       "requiredStops": [],
       "minPreviousVersion": "2.497.1",

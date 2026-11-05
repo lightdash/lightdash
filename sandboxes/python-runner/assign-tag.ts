@@ -25,14 +25,11 @@ const requireEnv = (name: string): string => {
     return value;
 };
 
-const envPrefix = process.argv.includes('--warm')
-    ? 'E2B_PYTHON_WARM_TEMPLATE'
-    : 'E2B_PYTHON_TEMPLATE';
 const apiKey = requireEnv('E2B_API_KEY');
-const templateName = requireEnv(`${envPrefix}_NAME`);
-const newTag = requireEnv(`${envPrefix}_TAG`);
-const sourceTag = requireEnv(`${envPrefix}_SOURCE_TAG`);
-const extraTags = (process.env[`${envPrefix}_EXTRA_TAGS`] || '')
+const templateName = requireEnv('E2B_PYTHON_TEMPLATE_NAME');
+const newTag = requireEnv('E2B_PYTHON_TEMPLATE_TAG');
+const sourceTag = requireEnv('E2B_PYTHON_TEMPLATE_SOURCE_TAG');
+const extraTags = (process.env.E2B_PYTHON_TEMPLATE_EXTRA_TAGS || '')
     .split(',')
     .map((t) => t.trim())
     .filter(Boolean);

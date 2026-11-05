@@ -1,5 +1,6 @@
 import {
     AthenaAuthenticationType,
+    BigqueryAuthenticationType,
     DatabricksAuthenticationType,
     DatabricksTokenError,
     DuckdbConnectionType,
@@ -257,58 +258,67 @@ describe('BIGQUERY', () => {
         ]);
     });
 
-    test('composes only personal identity and preserves connection policy', () => {
-        const connection = {
-            type: WarehouseTypes.BIGQUERY,
-            project: 'connection-project',
-            dataset: 'connection-dataset',
-            timeoutSeconds: 10,
-            priority: 'batch',
-            retries: 2,
-            location: 'connection-location',
-            maximumBytesBilled: 123,
-            executionProject: 'connection-execution',
-            authenticationType: 'adc',
-            keyfileContents: { private_key: 'connection-key' },
-            requireUserCredentials: true,
-        } as CreateWarehouseCredentials;
-        const stored = {
-            ...maliciousExtras,
-            type: WarehouseTypes.BIGQUERY,
-            keyfileContents: {
-                type: 'authorized_user',
-                client_id: 'personal-client',
-                refresh_token: 'personal-refresh',
-            },
-        };
-        const originalConnection = structuredClone(connection);
-        const originalStored = structuredClone(stored);
-        const personal = project(stored);
-        const originalPersonal = structuredClone(personal);
-        expect(
-            composePersonalWarehouseCredentials(connection, personal),
-        ).toEqual({
-            type: WarehouseTypes.BIGQUERY,
-            project: 'connection-project',
-            dataset: 'connection-dataset',
-            timeoutSeconds: 10,
-            priority: 'batch',
-            retries: 2,
-            location: 'connection-location',
-            maximumBytesBilled: 123,
-            executionProject: 'connection-execution',
-            authenticationType: 'sso',
-            keyfileContents: {
-                type: 'authorized_user',
-                client_id: 'personal-client',
-                refresh_token: 'personal-refresh',
-            },
-            requireUserCredentials: true,
-        });
-        expect(connection).toEqual(originalConnection);
-        expect(stored).toEqual(originalStored);
-        expect(personal).toEqual(originalPersonal);
-    });
+    test.each([
+        BigqueryAuthenticationType.ADC,
+        BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION,
+    ])(
+        'composes only personal identity and preserves %s connection policy',
+        (authenticationType) => {
+            const connection = {
+                type: WarehouseTypes.BIGQUERY,
+                project: 'connection-project',
+                dataset: 'connection-dataset',
+                timeoutSeconds: 10,
+                priority: 'batch',
+                retries: 2,
+                location: 'connection-location',
+                maximumBytesBilled: 123,
+                executionProject: 'connection-execution',
+                authenticationType,
+                workloadIdentityProvider:
+                    'projects/123/locations/global/workloadIdentityPools/pool-id/providers/provider-id',
+                workloadIdentityAudience: 'custom-audience',
+                keyfileContents: { private_key: 'connection-key' },
+                requireUserCredentials: true,
+            } satisfies CreateWarehouseCredentials;
+            const stored = {
+                ...maliciousExtras,
+                type: WarehouseTypes.BIGQUERY,
+                keyfileContents: {
+                    type: 'authorized_user',
+                    client_id: 'personal-client',
+                    refresh_token: 'personal-refresh',
+                },
+            };
+            const originalConnection = structuredClone(connection);
+            const originalStored = structuredClone(stored);
+            const personal = project(stored);
+            const originalPersonal = structuredClone(personal);
+            expect(
+                composePersonalWarehouseCredentials(connection, personal),
+            ).toEqual({
+                type: WarehouseTypes.BIGQUERY,
+                project: 'connection-project',
+                dataset: 'connection-dataset',
+                timeoutSeconds: 10,
+                priority: 'batch',
+                retries: 2,
+                location: 'connection-location',
+                maximumBytesBilled: 123,
+                executionProject: 'connection-execution',
+                authenticationType: 'sso',
+                keyfileContents: {
+                    type: 'authorized_user',
+                    client_id: 'personal-client',
+                    refresh_token: 'personal-refresh',
+                },
+                requireUserCredentials: true,
+            });
+            expect(connection).toEqual(originalConnection);
+            expect(stored).toEqual(originalStored);
+            expect(personal).toEqual(originalPersonal);
+        },
+    );
 });
 
 describe('DATABRICKS', () => {

@@ -64,6 +64,7 @@ import { FavoriteActionIcon } from '../../common/FavoriteActionIcon';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
 import ChartUpdateModal from '../../common/modal/ChartUpdateModal';
+import { Z_INDEX_FLOATING } from '../../common/Page/constants';
 import {
     HeaderActions,
     HeaderBreadcrumbs,
@@ -83,6 +84,7 @@ import ShareShortLinkButton from '../../common/ShareShortLinkButton';
 import ExploreFromHereButton from '../../ExploreFromHereButton';
 import ChartActionsMenu from './ChartActionsMenu';
 import ChartEditActions from './ChartEditActions';
+import classes from './SavedChartsHeader.module.css';
 import { TitleBreadCrumbs } from './TitleBreadcrumbs';
 import { useVerifiedChartSavePending } from './useVerifiedChartSavePending';
 
@@ -228,6 +230,10 @@ const SavedChartsHeader: FC = () => {
         savedChart?.uuid,
     );
     const chartViewStats = useChartViewStats(savedChart?.uuid);
+    const managedFromRepository = savedChart?.managedFromRepository && {
+        contentType: 'chart' as const,
+        source: savedChart.managedFromRepository,
+    };
 
     const schedulerDeepLink = useSchedulerDeepLink();
 
@@ -494,13 +500,11 @@ const SavedChartsHeader: FC = () => {
                                                 ? `Verified by ${savedChart.verification.verifiedBy.firstName} ${savedChart.verification.verifiedBy.lastName}`
                                                 : 'Verified'
                                         }
-                                        zIndex={10000}
+                                        zIndex={Z_INDEX_FLOATING}
                                     >
                                         <IconCircleCheckFilled
                                             size={16}
-                                            style={{
-                                                color: 'var(--mantine-color-green-6)',
-                                            }}
+                                            className={classes.verifiedIcon}
                                             {...verifiedTourProps}
                                         />
                                     </Tooltip>
@@ -566,6 +570,9 @@ const SavedChartsHeader: FC = () => {
                                             title={savedChart.name}
                                             description={savedChart.description}
                                             slug={savedChart.slug}
+                                            managedFromRepository={
+                                                managedFromRepository
+                                            }
                                             updatedAt={savedChart.updatedAt}
                                             spaceName={savedChart.spaceName}
                                             spaceUuid={savedChart.spaceUuid}
@@ -815,6 +822,7 @@ const SavedChartsHeader: FC = () => {
                         title={savedChart.name}
                         description={savedChart.description}
                         slug={savedChart.slug}
+                        managedFromRepository={managedFromRepository}
                         updatedAt={savedChart.updatedAt}
                         spaceName={savedChart.spaceName}
                         spaceUuid={savedChart.spaceUuid}

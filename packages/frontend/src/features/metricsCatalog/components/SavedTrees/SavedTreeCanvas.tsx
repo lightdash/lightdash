@@ -517,7 +517,7 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
                     mih={60}
                 >
                     <Group gap="sm" wrap="nowrap">
-                        <Text fz="sm" fw={600} c="ldGray.7">
+                        <Text fz="sm" fw={600} c="dimmed">
                             {treeDetails.name}
                         </Text>
                         {lockByOther && (

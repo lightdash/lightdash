@@ -54,7 +54,7 @@ export const LeaveOrganizationPanel: FC<{ showDeleteAction?: boolean }> = ({
             {button}
             {isOnlyAdmin ? (
                 <>
-                    <Text fz="sm" c="dimmed" maw={360} ta="right">
+                    <Text fz="xs" c="dimmed" maw={360} ta="right">
                         {orgUsers?.length === 1
                             ? 'You are the only member. To leave, permanently delete this organization and its content.'
                             : 'You are the only admin. Add or promote another admin before leaving. To remove this workspace instead, delete the organization.'}

@@ -19,6 +19,7 @@ import { exportChartImageHandler } from './handlers/exportChartImage';
 import { listProjectsHandler } from './handlers/listProjects';
 import { isApiKeyEnvVarShadowing, login } from './handlers/login';
 import { generatePersonalAccessToken } from './handlers/login/pat';
+import { logout } from './handlers/logout';
 import { loginWithOauth } from './handlers/oauthLogin';
 import { preAggregateAuditHandler } from './handlers/preAggregateAudit';
 import {
@@ -65,6 +66,7 @@ it.each([
     ['pre-aggregate audit', preAggregateAuditHandler, false],
     ['create project', createProject, false],
     ['login', login, true],
+    ['logout', logout, true],
     ['login env warning', isApiKeyEnvVarShadowing, true],
     ['PAT', generatePersonalAccessToken, true],
     ['OAuth', loginWithOauth, true],

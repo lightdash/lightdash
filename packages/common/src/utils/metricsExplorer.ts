@@ -1,9 +1,7 @@
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
 import weekOfYear from 'dayjs/plugin/weekOfYear';
-import { type Dictionary } from 'lodash';
-import groupBy from 'lodash/groupBy';
-import mapKeys from 'lodash/mapKeys';
+import { groupBy, mapKeys } from 'es-toolkit/compat';
 import { v4 as uuidv4 } from 'uuid';
 import { castDateLiteral } from '../compiler/filtersCompiler';
 import { type AnyType } from '../types/any';
@@ -331,7 +329,7 @@ export const getMetricExplorerDataPoints = (
 };
 
 function offsetWeekCompareDates(
-    groupByCompareMetricRows: Dictionary<ResultRow[]>,
+    groupByCompareMetricRows: Record<string, ResultRow[]>,
     timeFrame: TimeFrames.WEEK,
 ) {
     return Object.fromEntries(

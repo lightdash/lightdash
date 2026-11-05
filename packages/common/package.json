@@ -1,6 +1,6 @@
 {
   "name": "@lightdash/common",
-  "version": "3.53.3",
+  "version": "3.157.0",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -73,7 +73,6 @@
     "@casl/ability": "6.8.0",
     "@mastra/schema-compat": "0.11.2",
     "@sidvind/better-ajv-errors": "7.0.0",
-    "@types/lodash": "4.14.202",
     "ai": "7.0.106",
     "ajv": "8.18.0",
     "ajv-errors": "3.0.0",
@@ -84,10 +83,10 @@
     "dayjs": "1.11.10",
     "dependency-graph": "0.11.0",
     "echarts": "5.6.0",
+    "es-toolkit": "1.53.1",
     "handlebars": "4.7.9",
     "js-yaml": "4.3.2",
     "liquidjs": "10.27.2",
-    "lodash": "4.18.1",
     "moment": "2.29.4",
     "moment-timezone": "0.5.48",
     "numfmt": "3.2.1",
@@ -97,7 +96,7 @@
     "type-fest": "4.32.0",
     "uuid": "11.1.1",
     "yaml": "2.8.3",
-    "zod": "4.4.3"
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@babel/types": "7.29.0",

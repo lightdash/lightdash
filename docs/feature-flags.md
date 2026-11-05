@@ -338,51 +338,13 @@ before saving.
 
 ### Snowflake silent agent refresh
 
-`agent-identity-silent-refresh` is a default-on defect-fix kill switch. The
-handler uses the standard database resolver with a true fallback. Console user
-and organisation overrides and instance defaults apply. The generic ENV lists
-have the precedence described above; there is no per-feature ENV setting.
-
-The flag is resolved for the requesting user and organisation only after
-`agent-identity` is enabled and a Snowflake agent sign-in provider is selected.
-Other identity sources and disabled agent identity add no flag or credential
-reads. It affects query refresh and side-effect-free connection status checks.
-
-When on, the OAuth endpoint decides whether the grant is alive. Successful
-refreshes update the token and grant deadline together through a guarded write.
+With `agent-identity` enabled and a Snowflake agent sign-in provider selected,
+the OAuth endpoint decides whether the grant is alive. Successful refreshes
+update the token and grant deadline together through a guarded write.
 Temporary failures keep credentials and return a retryable error. A confirmed
-`invalid_grant` refusal emits expiry analytics on query evaluations. When off,
-the stored-deadline checks and legacy refresh-error mapping apply.
-
-Console changes affect the next resolution without a restart. ENV changes need
-a process restart. Disabling this flag does not undo token rotations or revoke
-issued tokens. It does not change non-agent Snowflake authentication.
-
-### Warehouse OAuth refresh locking
-
-`warehouse-oauth-refresh-lock` is a default-on kill switch. When it is on, a
-Snowflake or Databricks OAuth refresh runs one at a time per credential row.
-Databricks U2M and M2M refresh-token grants use the lock. M2M client-credentials
-grants and submitted credentials without a stored owner stay unlocked. Callers
-in one process share one refresh. A PostgreSQL advisory
-transaction lock serializes refreshes of the row across processes, and the
-waiter refreshes with the rotated token that the first caller saved.
-
-Callers resolve the flag for the credential's organisation, without a user
-UUID, so personal overrides do not apply. Instance defaults, organisation
-overrides and the generic ENV precedence apply.
-
-At most a quarter of the pool, minimum one, holds a refresh lock at
-one time in each process. A caller waits up to 30 seconds for a slot and up to
-5 seconds for the advisory lock. The guarded token write can wait longer for a
-database row lock. Token requests close their sockets after 30 seconds
-of inactivity. A timeout returns a retryable refresh error.
-
-Console changes apply to the next refresh. Turning the flag off restores the
-previous refresh behavior inside the resolver: no locked reread or request
-deadline, with the legacy rotation-write policy. It does not undo rotations or
-enable a disabled preview credential-resolution path. ENV changes need a process
-restart.
+`invalid_grant` refusal emits expiry analytics on query evaluations.
+Side-effect-free connection status checks do not reject a sign-in solely because
+its stored deadline has passed. Non-agent Snowflake authentication is unchanged.
 
 ### OAuth scope enforcement
 
@@ -446,12 +408,20 @@ apply. Compile, test-and-compile, preview projects and scheduler workers use the
 same policy. Console changes apply to the next policy resolution. The generic
 ENV lists use the precedence above and need an API and worker restart.
 
-When enabled, local dbt compilation refuses authentication modes that depend on
-the server's cloud identity. Use an explicit key or a person's sign-in instead.
-The dbt child process also stops inheriting the cloud credential variables in
-`CLOUD_CREDENTIAL_ENVIRONMENT_VARIABLE_KEYS`, including those in the machine
-allowlist. Project environment variables and target-injected credentials remain
-available. The server environment does not change.
+When enabled, local dbt compilation refuses ambient authentication modes.
+Use an explicit key, a person's sign-in or BigQuery workload identity federation
+instead. The dbt child process also stops inheriting the cloud credential
+variables in `CLOUD_CREDENTIAL_ENVIRONMENT_VARIABLE_KEYS`, including those in
+the machine allowlist. Project environment variables and target-injected
+credentials remain available. The server environment does not change.
+
+BigQuery workload identity federation counts as explicit credentials because its
+provider is configured per project and its federated principal is scoped by the
+customer's workload identity pool. The dbt child receives a generated
+`external_account` file through `GOOGLE_APPLICATION_CREDENTIALS`, without a
+service account key or inherited Application Default Credentials (ADC). Its
+subject token still comes from the server's Google identity, so
+`bigquery-workload-identity-auth` must stay off on shared instances.
 
 Disabling the flag restores the existing profile and child-environment behaviour.
 It does not change credential selection, revoke credentials or stop work already
@@ -478,74 +448,3 @@ An existing extra cannot change its type with either flag value; add a new
 connection instead. It does not remove
 saved connections or change query execution. Mixed-type extras keep their own
 user-credential requirement; same-type extras still inherit the original's.
-
-### DuckDB column probe
-
-`composer-optimization-duckdb-column-probe` is off by default on Cloud,
-self-hosted and previews. DuckDB queries that discover their output columns
-resolve it for the project's organization, without a user override, through
-`FeatureFlagModel`: on the worker before execution, and at submission for pivot
-preflight. Console changes apply to the next resolution; ENV changes require an
-API/worker restart.
-
-When enabled, `DESCRIBE` binds the SQL instead of running it with `LIMIT 1`.
-Syntax and binding errors still fail column resolution; runtime-only errors,
-such as failed casts, surface during execution instead. Zero-row results keep
-their columns. The `duckdb.query.resolve_columns` span reports
-`lightdash.columnsMode=describe`.
-
-### Python warm template
-
-`composer-optimization-python-warm-template` is off by default on Cloud,
-self-hosted and previews. Each Python query resolves it for the project's
-organization through `FeatureFlagModel`, without a user override. The standard
-ENV/database precedence above applies. Console changes affect the next query;
-ENV changes require an API/worker restart.
-
-When enabled with the E2B provider, queries use `E2B_PYTHON_WARM_TEMPLATE_NAME`
-(default `lightdash-python-runner-warm`) and `E2B_PYTHON_WARM_TEMPLATE_TAG`
-(default running version). The template must be published in the configured E2B
-region. Other providers retain their normal image. The actual template is part
-of the Python results cache key and `lightdash.templateRef` trace attribute.
-Disabling restores the cold template for subsequent queries; in-flight queries
-finish with their selected template.
-
-### Python batched sandbox calls
-
-`composer-optimization-python-batch-sandbox-calls` is off by default on Cloud,
-self-hosted and previews. Python queries resolve it for the project's organization
-in parallel with the warm-template flag, without a user override. Standard
-ENV/database precedence applies. Console changes affect the next query; ENV
-changes require an API/worker restart. Both flags combine independently. This
-experiment only changes E2B execution.
-
-One SDK multi-file write uploads code, harness, inputs and metadata and creates
-the output directory. Output still uses bounded file reads: a stdout envelope
-would compete with user logs for the 1 MiB command limit and require escaping
-and fallback framing. Destruction starts in finally without blocking results;
-errors are logged. Single-use E2B sandboxes use kill-on-timeout as a backstop
-if cleanup fails or the worker exits, bounding a leak to the run timeout plus
-60 seconds. No new template is needed. Disabling restores awaited cleanup and
-ordinary writes for subsequent queries.
-
-### Composer query readiness
-
-`composer-optimization-query-push-readiness` is off by default on Cloud,
-self-hosted and previews. The composer batch status endpoint accepts `waitMs`,
-clamped to 0–10000ms. With the flag on, it checks query history every 50ms until
-all requested queries are terminal or the deadline expires, returning the same
-response shape. Without the flag, or without a positive wait, responses remain
-immediate. Result retrieval and MCP internal polling are unchanged.
-
-The API resolves the project's organization through `FeatureFlagModel`, without
-a user override. Console changes affect the next wait request; disabling does
-not cancel an existing wait. Standard ENV precedence applies; ENV changes need
-an API restart. No separate ENV setting or worker change is required.
-
-Query history is shared across API and worker pods. It has no completion
-notification; NATS currently dispatches jobs only. The short server-side checks
-work across pods without holding a database connection between checks. Checks
-re-read only still-running query history rows; the response comes from one
-final full status read. Client disconnect cancels the sleep, stops checks and
-returns without an error. Held HTTP connections and up to 20 single-row reads
-per running query per second increase API and database load.

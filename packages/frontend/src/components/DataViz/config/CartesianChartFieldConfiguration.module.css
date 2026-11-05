@@ -1,0 +1,4 @@
+.groupedField {
+    padding-left: var(--mantine-spacing-xs);
+    border-left: 1px solid var(--mantine-color-ldGray-3);
+}

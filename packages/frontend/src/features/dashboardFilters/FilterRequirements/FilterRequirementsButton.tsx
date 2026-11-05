@@ -16,7 +16,14 @@ import {
 import { useDisclosure } from '@mantine/hooks';
 import { IconInfoCircle, IconPlus, IconTrash } from '@tabler/icons-react';
 import { clsx } from 'clsx';
-import { Fragment, useCallback, useMemo, useState, type FC } from 'react';
+import {
+    Fragment,
+    useCallback,
+    useMemo,
+    useState,
+    type FC,
+    type ReactElement,
+} from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import FieldIcon from '../../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -118,7 +125,21 @@ const RuleCard: FC<RuleCardProps> = ({
     </Stack>
 );
 
-const FilterRequirementsButton: FC = () => {
+type Props = {
+    /**
+     * Anchors the popover to another element in place of the "Filter rules"
+     * button (default: the button). Must take a ref. `close` discards staged
+     * edits, as the button's second click does.
+     */
+    renderTarget?: (target: {
+        open: () => void;
+        close: () => void;
+        isOpen: boolean;
+        requirementCount: number;
+    }) => ReactElement;
+};
+
+const FilterRequirementsButton: FC<Props> = ({ renderTarget }) => {
     const [isLocalPopoverOpen, { open: openLocal, close: closeLocal }] =
         useDisclosure(false);
     const popovers = useFilterBarPopovers();
@@ -356,26 +377,38 @@ const FilterRequirementsButton: FC = () => {
             arrowOffset={14}
         >
             <Popover.Target>
-                <Button
-                    size="xs"
-                    variant="default"
-                    radius={100}
-                    className={clsx(
-                        classes.requirementsButton,
-                        requirementCount > 0 &&
-                            classes.requirementsButtonActive,
-                    )}
-                    rightSection={
-                        requirementCount > 0 ? (
-                            <Badge size="xs" color="yellow" autoContrast circle>
-                                {requirementCount}
-                            </Badge>
-                        ) : undefined
-                    }
-                    onClick={() => (isPopoverOpen ? handleClose() : open())}
-                >
-                    Filter rules
-                </Button>
+                {renderTarget?.({
+                    open,
+                    close: handleClose,
+                    isOpen: isPopoverOpen,
+                    requirementCount,
+                }) ?? (
+                    <Button
+                        size="xs"
+                        variant="default"
+                        radius={100}
+                        className={clsx(
+                            classes.requirementsButton,
+                            requirementCount > 0 &&
+                                classes.requirementsButtonActive,
+                        )}
+                        rightSection={
+                            requirementCount > 0 ? (
+                                <Badge
+                                    size="xs"
+                                    color="yellow"
+                                    autoContrast
+                                    circle
+                                >
+                                    {requirementCount}
+                                </Badge>
+                            ) : undefined
+                        }
+                        onClick={() => (isPopoverOpen ? handleClose() : open())}
+                    >
+                        Filter rules
+                    </Button>
+                )}
             </Popover.Target>
 
             <Popover.Dropdown p={0}>

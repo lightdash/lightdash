@@ -3,6 +3,7 @@ import { IconArrowUpRight, IconBrandSlack } from '@tabler/icons-react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { RoadmapRailRow } from './RoadmapDetails';
 import styles from './RoadmapDetails.module.css';
+import classes from './RoadmapSlackThreads.module.css';
 
 type Props = { urls: string[] };
 
@@ -44,7 +45,7 @@ export function RoadmapSlackThreads({ urls }: Props) {
                     {urls.length}
                 </Button>
             </Menu.Target>
-            <Menu.Dropdown mah={240} style={{ overflowY: 'auto' }}>
+            <Menu.Dropdown mah={240} className={classes.dropdown}>
                 {urls.map((url, index) => (
                     <Menu.Item
                         key={url}

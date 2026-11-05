@@ -169,7 +169,6 @@ describe('trusted surface to persisted chart identity', () => {
                 admin_only: false,
                 model_config: null,
                 ai_organization_provider_credential_uuid: null,
-                is_system: false,
                 version: 1,
                 thread_retention_hours: null,
             })
@@ -372,6 +371,9 @@ describe('trusted surface to persisted chart identity', () => {
                 aiOrganizationSettingsService: {
                     isMcpEnabled: vi.fn().mockResolvedValue(true),
                     isMcpContentWritesEnabled: vi.fn().mockResolvedValue(true),
+                    getMcpProjectAccess: vi
+                        .fn()
+                        .mockResolvedValue({ mode: 'all' }),
                 },
                 aiAgentSkillService: {
                     listMcpSkills: vi.fn().mockResolvedValue([]),
@@ -466,6 +468,7 @@ describe('trusted surface to persisted chart identity', () => {
             aiOrganizationSettingsService: {
                 isMcpEnabled: vi.fn().mockResolvedValue(true),
                 isAiAgentMemoryEnabled: vi.fn().mockResolvedValue(false),
+                isAiAgentReviewsEnabled: vi.fn().mockResolvedValue(false),
             },
             orgAiCopilotConfigResolver: {
                 isOrgBedrockRouted: vi.fn().mockResolvedValue(false),
@@ -504,12 +507,7 @@ describe('trusted surface to persisted chart identity', () => {
             },
             'getPromptDecisionClient',
         ).mockResolvedValue(undefined);
-        vi.spyOn(
-            service as unknown as {
-                canCreateDashboardsInProject: () => Promise<boolean>;
-            },
-            'canCreateDashboardsInProject',
-        ).mockResolvedValue(true);
+        vi.spyOn(f.tools, 'canAuthorContent').mockResolvedValue(true);
         vi.spyOn(
             service as unknown as {
                 getAgentRuntimeMcpServers: () => Promise<[]>;
@@ -519,6 +517,7 @@ describe('trusted surface to persisted chart identity', () => {
         vi.mocked(generateAgentResponse).mockImplementation(
             async ({ dependencies }) => {
                 const tool = getCreateContent({
+                    siteUrl: 'https://app.lightdash.cloud',
                     createContent: dependencies.createContent,
                     sqlChartSaving: { mode: 'client_approved' },
                 });

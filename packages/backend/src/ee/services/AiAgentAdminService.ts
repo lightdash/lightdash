@@ -41,6 +41,7 @@ import {
     ForbiddenError,
     getErrorMessage,
     getReviewItemProjectContextEntry,
+    isAiAdminScopedProjectType,
     isHiddenAiAgentReviewRootCause,
     isToolEditDbtProjectResult,
     isValidRetentionWindowHours,
@@ -567,6 +568,8 @@ export class AiAgentAdminService extends BaseService {
      * (not `view`) is deliberate: org `view:AiAgent`/`view:OrganizationAiAgent`
      * is granted org-wide down to interactive_viewer, so a `view` check would
      * hand every interactive_viewer full cross-project org-wide admin reads.
+     * Preview and training projects never count: their access is a copy taken
+     * at creation, so a stale grant there must not open org-wide admin reads.
      * Throws when the principal has neither org nor any project AI-admin access.
      */
     private async resolveReadScope(
@@ -586,6 +589,7 @@ export class AiAgentAdminService extends BaseService {
         const projects =
             await this.projectModel.getAllByOrganizationUuid(organizationUuid);
         const projectUuids = projects
+            .filter((project) => isAiAdminScopedProjectType(project.type))
             .filter((project) =>
                 ability.can(
                     'manage',
@@ -2814,13 +2818,6 @@ export class AiAgentAdminService extends BaseService {
                     await this.aiAgentReviewClassifierModel.getThreadWritebackPullRequests(
                         [workThreadUuid],
                     );
-                // "Latest wins": a remediation thread is forced to
-                // editDbtProject above (single dbt repo), so it opens at most
-                // one PR per run and `[0]` (newest first) is the PR this run
-                // produced. If this is ever switched to the general editRepo
-                // tool (multi-repo, multiple PRs per turn), this selection
-                // would silently drop all but the newest PR — handle every
-                // entry instead of taking `[0]`.
                 prUrl =
                     writebackOutcome.prUrl ??
                     writebackPrs.get(workThreadUuid)?.[0]?.prUrl ??

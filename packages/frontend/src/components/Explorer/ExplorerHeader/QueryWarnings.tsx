@@ -14,6 +14,7 @@ import { Fragment, useState, type FC } from 'react';
 import rehypeExternalLinks from 'rehype-external-links';
 import MantineIcon from '../../common/MantineIcon';
 import PaginateControl from '../../common/PaginateControl';
+import classes from './ExplorerHeader.module.css';
 
 const WARNINGS_PER_PAGE = 3;
 
@@ -67,9 +68,7 @@ const QueryWarnings: FC<QueryWarningsProps> = ({ queryWarnings }) => {
                                                 { target: '_blank' },
                                             ],
                                         ]}
-                                        style={{
-                                            fontSize: 'small',
-                                        }}
+                                        className={classes.warningMarkdown}
                                     />
                                 </Box>
                                 {index < array.length - 1 && (

@@ -1,3 +1,4 @@
+import { validateUserName } from '../../utils/userName';
 import { ParameterError } from '../errors';
 import type { GroupAsCode } from '../groups';
 import type { CustomRoleAsCode, RoleLevel } from '../roles';
@@ -179,9 +180,22 @@ export const parseUserAsCode = (input: unknown, source: string): UserAsCode => {
         value.additionalRoles === undefined
             ? undefined
             : parseAdditionalUserRoles(value.additionalRoles, source);
+    const names: Pick<UserAsCode, 'firstName' | 'lastName'> = {};
+    for (const key of ['firstName', 'lastName'] as const) {
+        const name = value[key];
+        if (name !== undefined) {
+            if (typeof name !== 'string' || !validateUserName(name)) {
+                throw new ParameterError(
+                    `Invalid user file "${source}": ${key} must be a string without < or >`,
+                );
+            }
+            names[key] = name.trim();
+        }
+    }
     return {
         version: CONTENT_AS_CODE_VERSION,
         email: requireString(value, 'email', 'user', source),
+        ...names,
         disabled: value.disabled,
         role: parseUserRole(value.role, source),
         ...(additionalRoles ? { additionalRoles } : {}),

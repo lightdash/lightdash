@@ -1,7 +1,9 @@
 import { Ability } from '@casl/ability';
 import {
     DashboardTileTypes,
+    FilterOperator,
     type Dashboard,
+    type DashboardFilterRule,
     type DashboardTab,
     type DashboardTile,
     type PossibleAbilities,
@@ -13,6 +15,10 @@ import { type Layout } from 'react-grid-layout';
 import { createMemoryRouter, RouterProvider, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type LightdashApi } from '../api';
+import {
+    dashboardParametersActions,
+    useDashboardDispatch,
+} from '../features/dashboard/store';
 import { AbilityContext } from '../providers/Ability/context';
 import { manageChartRule } from '../testing/savedChartResponse.mock';
 import { renderWithProviders } from '../testing/testUtils';
@@ -86,6 +92,10 @@ const server = vi.hoisted(() => ({
     dashboard: undefined as unknown,
     patchResponse: undefined as unknown,
     patchError: undefined as unknown,
+    // The dashboard controls flag's request has not answered yet
+    isControlsFlagPending: false,
+    isControlsFlagOn: false,
+    flagListeners: new Set<() => void>(),
 }));
 
 vi.mock('../api');
@@ -149,9 +159,34 @@ type TabsProps = {
         mapping?: Record<string, string>,
     ) => void;
 };
+const TestControlButton = () => {
+    const dispatch = useDashboardDispatch();
+    return (
+        <button
+            type="button"
+            onClick={() =>
+                dispatch(
+                    dashboardParametersActions.setParameterControls([
+                        {
+                            id: 'unset-control',
+                            label: null,
+                            value: null,
+                            valueType: { type: 'string', multiple: false },
+                            parameters: { status: 'all' },
+                        },
+                    ]),
+                )
+            }
+        >
+            Add unset control
+        </button>
+    );
+};
+
 vi.mock('../features/dashboardTabs', () => ({
     default: (props: TabsProps) => (
         <div>
+            <TestControlButton />
             <output data-testid="tiles">
                 {JSON.stringify(props.dashboardTiles ?? null)}
             </output>
@@ -234,9 +269,29 @@ vi.mock('../features/dashboardTabs', () => ({
 vi.mock('../components/DashboardTiles/DashboardChartEditorModal', () => ({
     default: () => null,
 }));
-vi.mock('../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: () => ({ data: { enabled: false } }),
-}));
+vi.mock('../hooks/useServerOrClientFeatureFlag', async () => {
+    const { useSyncExternalStore } = await import('react');
+    const subscribe = (listener: () => void) => {
+        server.flagListeners.add(listener);
+        return () => server.flagListeners.delete(listener);
+    };
+    return {
+        useServerFeatureFlag: (featureFlagId: string) => {
+            const isPending = useSyncExternalStore(
+                subscribe,
+                () => server.isControlsFlagPending,
+            );
+            if (featureFlagId !== 'dashboard-controls')
+                return { data: { enabled: false }, isInitialLoading: false };
+            return isPending
+                ? { data: undefined, isInitialLoading: true }
+                : {
+                      data: { enabled: server.isControlsFlagOn },
+                      isInitialLoading: false,
+                  };
+        },
+    };
+});
 vi.mock('../features/contentAsCode/hooks/useContentDrafts', () => ({
     useReopenDraftMutation: () => ({ mutate: vi.fn(), isLoading: false }),
     useRebaseDraftMutation: () => ({ mutate: vi.fn(), isLoading: false }),
@@ -364,6 +419,8 @@ beforeEach(() => {
     server.dashboard = makeDashboard();
     server.patchError = undefined;
     server.patchResponse = undefined;
+    server.isControlsFlagPending = false;
+    server.isControlsFlagOn = false;
     mockedApi.mockReset();
     mockedApi.mockImplementation((async ({ url: requestUrl, method, body }) => {
         if (
@@ -690,5 +747,95 @@ describe('edit lifecycle: refetches and drafts', () => {
             'You have unsaved changes to your dashboard! Are you sure you want to leave without saving?',
         );
         addListener.mockRestore();
+    });
+});
+
+describe('dashboard controls flag', () => {
+    it('marks an unset parameter control as a change and saves it', async () => {
+        server.isControlsFlagOn = true;
+        server.dashboard = makeDashboard({
+            config: { isDateZoomDisabled: false, parameterControls: [] },
+        });
+        renderDashboard(`${DASHBOARD_PATH}/edit`);
+        await waitForLoaded();
+        expect(changed()).toBe('false');
+
+        await click('Add unset control');
+        expect(changed()).toBe('true');
+        await click('Save');
+        await waitFor(() => expect(patches()).toHaveLength(1));
+        expect(patches()[0].config.parameterControls).toEqual([
+            {
+                id: 'unset-control',
+                label: null,
+                value: null,
+                valueType: { type: 'string', multiple: false },
+                parameters: { status: 'all' },
+            },
+        ]);
+        expect(patches()[0].parameters).toEqual({});
+    });
+
+    it('ignores parameter control edits when the flag is off', async () => {
+        renderDashboard(`${DASHBOARD_PATH}/edit`);
+        await waitForLoaded();
+        await click('Add unset control');
+        expect(changed()).toBe('false');
+    });
+    const required: DashboardFilterRule = {
+        id: 'required-filter',
+        label: undefined,
+        target: { fieldId: 'orders_status', tableName: 'orders' },
+        operator: FilterOperator.EQUALS,
+        values: ['completed'],
+        required: true,
+    };
+    const saveWithRequiredFilter = async () => {
+        server.dashboard = makeDashboard({
+            filters: {
+                dimensions: [required],
+                metrics: [],
+                tableCalculations: [],
+            },
+        });
+        renderDashboard(`${DASHBOARD_PATH}/edit`);
+        await waitForLoaded();
+        await click('Drag tile-1');
+        await click('Save');
+        await waitFor(() => expect(patches()).toHaveLength(1));
+        return patches()[0].filters.dimensions;
+    };
+
+    it('saves a required filter with its value cleared when off', async () => {
+        expect(await saveWithRequiredFilter()).toEqual([
+            { ...required, disabled: true, values: [] },
+        ]);
+    });
+
+    it('saves a required filter with its default when on', async () => {
+        server.isControlsFlagOn = true;
+        expect(await saveWithRequiredFilter()).toEqual([required]);
+    });
+
+    it('holds the page until the flag answers, so the bar never swaps', async () => {
+        server.isControlsFlagPending = true;
+        renderDashboard(`${DASHBOARD_PATH}/edit`);
+        await waitFor(() => expect(dashboardGets()).toBeGreaterThan(0));
+        await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+
+        expect(screen.queryByTestId('tiles')).not.toBeInTheDocument();
+    });
+
+    it('renders the page once the flag answers off', async () => {
+        server.isControlsFlagPending = true;
+        renderDashboard(`${DASHBOARD_PATH}/edit`);
+        await waitFor(() => expect(dashboardGets()).toBeGreaterThan(0));
+        expect(screen.queryByTestId('tiles')).not.toBeInTheDocument();
+
+        act(() => {
+            server.isControlsFlagPending = false;
+            server.flagListeners.forEach((listener) => listener());
+        });
+        await waitForLoaded();
     });
 });

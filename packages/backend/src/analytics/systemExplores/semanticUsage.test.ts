@@ -27,6 +27,7 @@ import {
 } from '../eventStream/usageDimensions';
 import { buildCompactionSql } from '../eventStream/UsageEventsCompactor';
 import type { QueryCompletedEvent } from '../LightdashAnalytics';
+import { semanticUsageSql } from './semanticUsage';
 
 const literal = (value: string) => `'${value.replaceAll("'", "''")}'`;
 const compile = (
@@ -170,7 +171,7 @@ describe('Semantic usage: capture → JSONL → Parquet → compiled Explore', (
             );
         }
         await db.run(
-            "INSERT INTO lightdash_users VALUES ('org', 'user', 'Alex'), ('other-org', 'user', 'Other tenant')",
+            "INSERT INTO lightdash_users (org_id, user_id, name) VALUES ('org', 'user', 'Alex'), ('other-org', 'user', 'Other tenant')",
         );
         await db.run(
             "INSERT INTO lightdash_charts (org_id, chart_id, name) VALUES ('org', 'chart', 'Revenue'), ('other-org', 'chart', 'Other chart')",
@@ -381,4 +382,176 @@ describe('Semantic usage: capture → JSONL → Parquet → compiled Explore', (
         },
         30_000,
     );
+});
+
+describe('Semantic usage latest-event semantics', () => {
+    let instance: DuckDBInstance;
+    let db: DuckDBConnection;
+    beforeEach(async () => {
+        instance = await DuckDBInstance.create(':memory:', {
+            memory_limit: '256MB',
+            threads: '1',
+        });
+        db = await instance.connect();
+        await db.run(
+            `CREATE TABLE query_events (${queryEventsCompactedColumns.map(({ name, type }) => `"${name}" ${type}`).join(',')})`,
+        );
+    });
+    afterEach(() => {
+        db.closeSync();
+        instance.closeSync();
+    });
+    const insert = async (
+        org: string | null,
+        project: string,
+        id: string | null,
+        day: number | null,
+        references: string | null,
+    ) => {
+        await db.run(
+            `INSERT INTO query_events (org_id, project_id, query_id, event_ts, semantic_field_references) VALUES (?, ?, ?, ?, ?)`,
+            [
+                org,
+                project,
+                id,
+                day === null ? null : `2026-10-${String(day).padStart(2, '0')}`,
+                references,
+            ],
+        );
+    };
+    const refs = (id: string) =>
+        JSON.stringify([
+            {
+                fieldId: id,
+                fieldName: id,
+                fieldLabel: id,
+                tableName: 'orders',
+                fieldKind: 'dimension',
+                fieldOrigin: 'model',
+                definitionHash: 'hash',
+                role: 'dimension',
+            },
+        ]);
+    const rows = async () =>
+        (
+            await db.runAndReadAll(
+                `SELECT org_id, project_id, query_id, field_id FROM ${semanticUsageSql} ORDER BY org_id NULLS FIRST, project_id, query_id NULLS FIRST, field_id`,
+            )
+        ).getRowObjectsJson();
+
+    it('keeps only the latest fields, including removals, across the existing organization/query identity', async () => {
+        await insert('org', 'old-project', 'changed', 1, refs('old'));
+        await insert('org', 'new-project', 'changed', 2, refs('new'));
+        await insert('org', 'project', 'removed', 1, refs('gone'));
+        await insert('org', 'project', 'removed', 2, '[]');
+        await insert('other', 'project', 'changed', 1, refs('other'));
+        await insert('org', 'project', null, 1, refs('null-old'));
+        await insert('org', 'project', null, 2, refs('null-new'));
+        await insert(null, 'project', 'anonymous-org', 1, refs('old'));
+        await insert(null, 'project', 'anonymous-org', 2, refs('new'));
+        expect(await rows()).toEqual([
+            {
+                org_id: null,
+                project_id: 'project',
+                query_id: 'anonymous-org',
+                field_id: 'new',
+            },
+            {
+                org_id: 'org',
+                project_id: 'new-project',
+                query_id: 'changed',
+                field_id: 'new',
+            },
+            {
+                org_id: 'org',
+                project_id: 'project',
+                query_id: null,
+                field_id: 'null-new',
+            },
+            {
+                org_id: 'org',
+                project_id: 'project',
+                query_id: 'removed',
+                field_id: null,
+            },
+            {
+                org_id: 'other',
+                project_id: 'project',
+                query_id: 'changed',
+                field_id: 'other',
+            },
+        ]);
+    });
+
+    it('retains one unavailable row for null, empty and invalid lineage and one winner for tied redelivery', async () => {
+        for (const [id, references] of [
+            ['missing', null],
+            ['empty', '[]'],
+            ['invalid', '{bad'],
+            ['null-json', 'null'],
+        ] as const) {
+            await insert('org', 'project', id, 1, references);
+        }
+        await insert('org', 'project', 'tied', 2, refs('one'));
+        await insert('org', 'project', 'tied', 2, refs('two'));
+        await insert('org', 'project', 'tied', 1, refs('old'));
+        const result = await rows();
+        expect(result).toHaveLength(5);
+        expect(
+            result
+                .filter((r) => r.query_id !== 'tied')
+                .every((r) => r.field_id === null),
+        ).toBe(true);
+        expect(['one', 'two']).toContain(
+            result.find((r) => r.query_id === 'tied')?.field_id,
+        );
+    });
+    it('retains valid references beside unavailable elements and escaped labels', async () => {
+        const field = {
+            fieldId: 'id"\\quoted',
+            fieldLabel: 'Line\n"quoted"\\value',
+        };
+        await insert(
+            'org',
+            'project',
+            'mixed',
+            1,
+            JSON.stringify([
+                field,
+                null,
+                42,
+                'text',
+                {},
+                { fieldId: 'second' },
+            ]),
+        );
+        const result = (
+            await db.runAndReadAll(
+                `SELECT field_id, field_label FROM ${semanticUsageSql}`,
+            )
+        ).getRowObjectsJson();
+        expect(result).toHaveLength(6);
+        expect(result).toEqual(
+            expect.arrayContaining([
+                { field_id: field.fieldId, field_label: field.fieldLabel },
+                { field_id: 'second', field_label: null },
+            ]),
+        );
+        expect(result.filter((r) => r.field_id === null)).toHaveLength(4);
+    });
+
+    it('preserves null timestamp ordering and selects only one all-null timestamp winner', async () => {
+        await insert('org', 'project', 'dated', null, refs('undated'));
+        await insert('org', 'project', 'dated', 1, refs('dated'));
+        await insert('org', 'project', 'undated', null, refs('one'));
+        await insert('org', 'project', 'undated', null, refs('two'));
+        const result = await rows();
+        expect(result).toHaveLength(2);
+        expect(result.find((r) => r.query_id === 'dated')?.field_id).toBe(
+            'dated',
+        );
+        expect(['one', 'two']).toContain(
+            result.find((r) => r.query_id === 'undated')?.field_id,
+        );
+    });
 });

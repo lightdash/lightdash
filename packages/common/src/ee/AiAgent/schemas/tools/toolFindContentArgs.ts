@@ -140,6 +140,11 @@ export const findContentSpaceItemSchema = z.object({
     directAccess: z
         .boolean()
         .describe('Whether the user has direct access to this space.'),
+    canEdit: z
+        .boolean()
+        .describe(
+            'Whether the user can create and edit charts and dashboards in this space.',
+        ),
     space: findContentSpaceMetadataSchema,
 });
 

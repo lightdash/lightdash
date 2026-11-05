@@ -4,6 +4,11 @@ import {
     AgentActionLogTableName,
     type InsertAgentActionLog,
 } from '../database/entities/agentActionLog';
+import {
+    pauseBetweenBatchesMs,
+    type RetentionCleanupOptions,
+    type RetentionCleanupResult,
+} from './retentionCleanup';
 
 export class AgentActionLogModel {
     constructor(private readonly dependencies: { database: Knex }) {}
@@ -19,13 +24,21 @@ export class AgentActionLogModel {
 
     async cleanupBatch(
         cutoffDate: Date,
-        batchSize: number,
-        delayMs: number,
-        maxBatches: number | undefined,
-        totalDeleted = 0,
-        batchCount = 0,
-    ): Promise<{ totalDeleted: number; batchCount: number }> {
+        options: RetentionCleanupOptions,
+    ): Promise<RetentionCleanupResult> {
+        return this.deleteExpiredBatches(cutoffDate, options, {
+            totalDeleted: 0,
+            batchCount: 0,
+        });
+    }
+
+    private async deleteExpiredBatches(
+        cutoffDate: Date,
+        options: RetentionCleanupOptions,
+        progress: { totalDeleted: number; batchCount: number },
+    ): Promise<RetentionCleanupResult> {
         const { database } = this.dependencies;
+        const batchStartedAt = Date.now();
         const deleted = await database(AgentActionLogTableName)
             .whereIn(
                 'agent_action_log_uuid',
@@ -33,27 +46,21 @@ export class AgentActionLogModel {
                     .select('agent_action_log_uuid')
                     .where('occurred_at', '<', cutoffDate)
                     .orderBy('occurred_at', 'asc')
-                    .limit(batchSize),
+                    .limit(options.batchSize),
             )
             .delete();
-        if (deleted === 0) return { totalDeleted, batchCount };
+        if (deleted === 0) return { ...progress, completed: true };
         const next = {
-            totalDeleted: totalDeleted + deleted,
-            batchCount: batchCount + 1,
+            totalDeleted: progress.totalDeleted + deleted,
+            batchCount: progress.batchCount + 1,
         };
-        if (
-            deleted < batchSize ||
-            (maxBatches !== undefined && next.batchCount >= maxBatches)
-        )
-            return next;
-        await sleep(delayMs);
-        return this.cleanupBatch(
-            cutoffDate,
-            batchSize,
-            delayMs,
-            maxBatches,
-            next.totalDeleted,
-            next.batchCount,
+        if (deleted < options.batchSize) return { ...next, completed: true };
+        if (next.batchCount >= options.maxBatches) {
+            return { ...next, completed: false };
+        }
+        await sleep(
+            pauseBetweenBatchesMs(options, Date.now() - batchStartedAt),
         );
+        return this.deleteExpiredBatches(cutoffDate, options, next);
     }
 }

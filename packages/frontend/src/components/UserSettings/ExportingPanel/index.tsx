@@ -5,11 +5,12 @@ import {
 import {
     ActionIcon,
     Button,
-    Checkbox,
+    Divider,
     Group,
     Loader,
+    SimpleGrid,
     Stack,
-    Text,
+    Switch,
     Tooltip,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
@@ -23,6 +24,8 @@ import {
 import { useGetSlack } from '../../../hooks/slack/useSlack';
 import MantineIcon from '../../common/MantineIcon';
 import { NumberInput } from '../../common/NumberInput';
+import { SettingRow } from '../../common/Settings/SettingLayout';
+import { SettingsCard } from '../../common/Settings/SettingsCard';
 
 const SECONDS_PER_DAY = 86400;
 // Generous UI guardrail. There's no backend cap: longer links transparently
@@ -120,102 +123,119 @@ const ExportingForm: FC<{
         );
 
     return (
-        <form onSubmit={handleSubmit}>
-            <Stack gap="lg">
-                <NumberInput
-                    label="Download link expiry"
-                    description="How long a scheduled delivery's download links stay valid before they expire."
-                    suffix=" days"
-                    min={1}
-                    max={MAX_DAYS}
-                    clampBehavior="strict"
-                    allowDecimal={false}
-                    allowNegative={false}
-                    {...form.getInputProps('base')}
-                />
+        <SettingsCard>
+            <form onSubmit={handleSubmit}>
+                <Stack gap="md">
+                    <SettingRow
+                        title="Download link expiry"
+                        description="How long a scheduled delivery's download links stay valid before they expire."
+                        control={
+                            <NumberInput
+                                aria-label="Download link expiry"
+                                size="xs"
+                                w={160}
+                                suffix=" days"
+                                min={1}
+                                max={MAX_DAYS}
+                                clampBehavior="strict"
+                                allowDecimal={false}
+                                allowNegative={false}
+                                {...form.getInputProps('base')}
+                            />
+                        }
+                    />
 
-                {availableChannels.length > 0 && (
-                    <>
-                        <Checkbox
-                            label="Set a different expiry for specific channels"
-                            description="When off, every channel uses the expiry above."
-                            {...form.getInputProps('perChannelEnabled', {
-                                type: 'checkbox',
-                            })}
-                        />
+                    {availableChannels.length > 0 && (
+                        <>
+                            <Divider />
+                            <SettingRow
+                                title="Per-channel expiry"
+                                description="Set a different expiry for specific channels. When off, every channel uses the expiry above."
+                                control={
+                                    <Switch
+                                        aria-label="Per-channel expiry"
+                                        size="md"
+                                        {...form.getInputProps(
+                                            'perChannelEnabled',
+                                            { type: 'checkbox' },
+                                        )}
+                                    />
+                                }
+                            >
+                                {form.values.perChannelEnabled && (
+                                    <SimpleGrid
+                                        cols={{ base: 1, sm: 2 }}
+                                        spacing="sm"
+                                        mt="md"
+                                    >
+                                        {availableChannels.map((channel) => {
+                                            const isOverridden =
+                                                form.values[channel.key] !== '';
+                                            return (
+                                                <NumberInput
+                                                    key={channel.key}
+                                                    label={channel.label}
+                                                    aria-label={`${channel.label} link expiry`}
+                                                    size="xs"
+                                                    placeholder={`Inherits ${baseDays} days`}
+                                                    suffix=" days"
+                                                    min={1}
+                                                    max={MAX_DAYS}
+                                                    clampBehavior="strict"
+                                                    allowDecimal={false}
+                                                    allowNegative={false}
+                                                    hideControls
+                                                    rightSection={
+                                                        isOverridden ? (
+                                                            <Tooltip label="Clear — inherit the expiry above">
+                                                                <ActionIcon
+                                                                    size="sm"
+                                                                    aria-label={`Clear ${channel.label} link expiry`}
+                                                                    onClick={() =>
+                                                                        form.setFieldValue(
+                                                                            channel.key,
+                                                                            '',
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <MantineIcon
+                                                                        icon={
+                                                                            IconX
+                                                                        }
+                                                                    />
+                                                                </ActionIcon>
+                                                            </Tooltip>
+                                                        ) : null
+                                                    }
+                                                    rightSectionPointerEvents={
+                                                        isOverridden
+                                                            ? 'all'
+                                                            : 'none'
+                                                    }
+                                                    {...form.getInputProps(
+                                                        channel.key,
+                                                    )}
+                                                />
+                                            );
+                                        })}
+                                    </SimpleGrid>
+                                )}
+                            </SettingRow>
+                        </>
+                    )}
 
-                        {form.values.perChannelEnabled && (
-                            <Stack gap="xs">
-                                {availableChannels.map((channel) => {
-                                    const isOverridden =
-                                        form.values[channel.key] !== '';
-                                    return (
-                                        <Group
-                                            key={channel.key}
-                                            gap="sm"
-                                            wrap="nowrap"
-                                        >
-                                            <Text w={120} fz="sm">
-                                                {channel.label}
-                                            </Text>
-                                            <NumberInput
-                                                aria-label={`${channel.label} link expiry`}
-                                                placeholder={`Inherits ${baseDays} days`}
-                                                suffix=" days"
-                                                min={1}
-                                                max={MAX_DAYS}
-                                                clampBehavior="strict"
-                                                allowDecimal={false}
-                                                allowNegative={false}
-                                                hideControls
-                                                flex={1}
-                                                rightSection={
-                                                    isOverridden ? (
-                                                        <Tooltip label="Clear — inherit the expiry above">
-                                                            <ActionIcon
-                                                                size="sm"
-                                                                onClick={() =>
-                                                                    form.setFieldValue(
-                                                                        channel.key,
-                                                                        '',
-                                                                    )
-                                                                }
-                                                            >
-                                                                <MantineIcon
-                                                                    icon={IconX}
-                                                                />
-                                                            </ActionIcon>
-                                                        </Tooltip>
-                                                    ) : null
-                                                }
-                                                rightSectionPointerEvents={
-                                                    isOverridden
-                                                        ? 'all'
-                                                        : 'none'
-                                                }
-                                                {...form.getInputProps(
-                                                    channel.key,
-                                                )}
-                                            />
-                                        </Group>
-                                    );
-                                })}
-                            </Stack>
-                        )}
-                    </>
-                )}
-
-                <Group justify="flex-end">
-                    <Button
-                        type="submit"
-                        loading={update.isLoading}
-                        disabled={isUnchanged}
-                    >
-                        Save
-                    </Button>
-                </Group>
-            </Stack>
-        </form>
+                    <Group justify="flex-end">
+                        <Button
+                            type="submit"
+                            loading={update.isLoading}
+                            disabled={isUnchanged}
+                        >
+                            Save
+                        </Button>
+                    </Group>
+                </Stack>
+            </form>
+        </SettingsCard>
     );
 };
 
@@ -224,7 +244,7 @@ const ExportingPanel: FC = () => {
     const health = useHealth();
     const { data: slackInstallation } = useGetSlack();
     if (isInitialLoading || !data) {
-        return <Loader />;
+        return <Loader size="sm" />;
     }
 
     // Only offer a per-channel override for delivery methods the org can use.

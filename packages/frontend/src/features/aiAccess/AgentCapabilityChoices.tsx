@@ -46,14 +46,14 @@ export const AgentCapabilityChoices = ({
                             <Radio.Indicator disabled={disabled} />
                             <Stack gap={0}>
                                 <Group gap="xs">
-                                    <Text fw={500}>
+                                    <Text fz="sm" fw={500}>
                                         {agentPermissionChoiceLabels[value]}
                                     </Text>
                                     {current === value && (
                                         <Badge size="xs">Current</Badge>
                                     )}
                                 </Group>
-                                <Text size="sm" c="dimmed">
+                                <Text fz="xs" c="dimmed">
                                     {descriptions[value]}
                                 </Text>
                             </Stack>
@@ -73,7 +73,7 @@ export const AgentCapabilityChoices = ({
                                 <Badge>× Create and edit content</Badge>
                                 <Badge>× 6 more</Badge>
                             </Group>
-                            <Text size="sm" c="dimmed">
+                            <Text fz="xs" c="dimmed">
                                 Raw SQL runs with the person's warehouse
                                 permissions.
                             </Text>

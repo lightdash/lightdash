@@ -107,11 +107,15 @@ const trackingParams = {
 
 const makeHarness = ({
     models,
+    excludedModels = [],
+    disabledModels = [],
     cachedCatalog,
     warehouseTables,
     adapterType = 'postgres',
 }: {
     models: DbtModelNode[];
+    excludedModels?: DbtModelNode[];
+    disabledModels?: DbtModelNode[];
     cachedCatalog: WarehouseCatalog | undefined;
     warehouseTables: WarehouseTables;
     adapterType?: 'postgres' | 'snowflake';
@@ -134,6 +138,13 @@ const makeHarness = ({
     const dbtClient = {
         getDbtManifest: vi.fn(async () => ({
             manifest: {
+                nodes: Object.fromEntries(
+                    [...models, ...excludedModels].map((model) => [
+                        model.unique_id,
+                        model,
+                    ]),
+                ),
+                disabled: { models: disabledModels },
                 metadata: {
                     adapter_type: adapterType,
                     dbt_schema_version:
@@ -201,6 +212,38 @@ describe('DbtBaseProjectAdapter warehouse catalog cache', () => {
 
     afterEach(() => {
         vi.restoreAllMocks();
+    });
+
+    it('passes raw excluded and disabled models to join resolution before selection and validation', async () => {
+        const orders = makeModel('fct_orders');
+        const excluded = makeModel('dim_calendar');
+        const disabled = makeModel('dim_disabled');
+        const harness = makeHarness({
+            models: [orders],
+            excludedModels: [excluded],
+            disabledModels: [disabled],
+            cachedCatalog: undefined,
+            warehouseTables: { fct_orders: ['id'] },
+        });
+        await harness.compile();
+        expect(
+            vi
+                .mocked(iterateExplores)
+                .mock.calls.at(-1)?.[0]
+                .map((model) => model.name),
+        ).toEqual(['fct_orders']);
+        expect(vi.mocked(iterateExplores).mock.calls.at(-1)?.[5]).toMatchObject(
+            {
+                modelInventory: [orders, excluded, disabled].map(
+                    ({ name, package_name, lightdash_source_name }) => ({
+                        name,
+                        package_name,
+                        lightdash_source_name,
+                    }),
+                ),
+                allowCrossSourceJoinFallback: true,
+            },
+        );
     });
 
     it.each([false, true])(

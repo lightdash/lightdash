@@ -62,22 +62,6 @@ export const toolGetProjectInfoStructuredContentSchema = z.object({
         })
         .nullable()
         .describe('Null when the dbt project is not git-backed.'),
-    previewDeployCi: z
-        .object({
-            hasPreviewDeployWorkflow: z
-                .boolean()
-                .describe(
-                    'Whether the repo has the Lightdash preview-deploy GitHub Actions workflow.',
-                ),
-            workflowPath: z
-                .string()
-                .nullable()
-                .describe('Path of the workflow file when found.'),
-        })
-        .nullable()
-        .describe(
-            'Null when preview-deploy CI cannot be determined (not a git project or no GitHub App).',
-        ),
 });
 
 export type ToolGetProjectInfoStructuredContent = z.infer<

@@ -2,6 +2,7 @@ import {
     FeatureFlags,
     DbtProjectType,
     DbtProjectTypeLabels,
+    hasSemanticLayerExplore,
     ProjectType,
     type AgentOnboardingRun,
     type HealthState,
@@ -19,6 +20,7 @@ import {
 } from '../../../../components/ProjectConnection/ProjectConnectFlow/utils';
 import { useOrganization } from '../../../../hooks/organization/useOrganization';
 import { useGetSlack } from '../../../../hooks/slack/useSlack';
+import { useExplores } from '../../../../hooks/useExplores';
 import { useProject } from '../../../../hooks/useProject';
 import { useProjects } from '../../../../hooks/useProjects';
 import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
@@ -67,7 +69,7 @@ const integrationFlags = (health: HealthState | undefined) => ({
 
 type DbtConnection = Project['dbtConnection'] | undefined;
 
-const hasSemanticLayer = (dbtConnection: DbtConnection): boolean =>
+const hasDbtConnection = (dbtConnection: DbtConnection): boolean =>
     !!dbtConnection && dbtConnection.type !== DbtProjectType.NONE;
 
 export type ActionStatus = {
@@ -86,8 +88,9 @@ const resolveWarehouse = (
     organization: Organization | undefined,
     projects: OrganizationProject[] | undefined,
     project: Project | undefined,
+    isNewOnboarding: boolean,
 ) => {
-    const hasRealWarehouseProject =
+    const hasRealProject =
         organization?.needsProject === false &&
         (projects ?? []).some(
             ({ type, provisioningSource }) =>
@@ -95,23 +98,37 @@ const resolveWarehouse = (
                 !isPlaygroundProvisioningSource(provisioningSource),
         );
     const warehouseType =
-        hasRealWarehouseProject &&
+        hasRealProject &&
         !isPlaygroundProvisioningSource(project?.provisioningSource)
             ? project?.warehouseConnection?.type
             : undefined;
-    return { hasRealWarehouseProject, warehouseType };
+    // Only new-onboarding projects start from live sources and add a warehouse in settings later
+    const needsWarehouse =
+        isNewOnboarding &&
+        !!project &&
+        !isPlaygroundProvisioningSource(project.provisioningSource) &&
+        !project.warehouseConnection;
+    return { hasRealProject, warehouseType, needsWarehouse };
 };
 
-const warehouseStatus = ({
-    hasRealWarehouseProject,
-    warehouseType,
-}: ReturnType<typeof resolveWarehouse>): ActionStatus => ({
+const warehouseStatus = (
+    {
+        hasRealProject,
+        warehouseType,
+        needsWarehouse,
+    }: ReturnType<typeof resolveWarehouse>,
+    settingsProjectUuid: string | null,
+): ActionStatus => ({
     isVisible: true,
-    isComplete: hasRealWarehouseProject,
+    isComplete: hasRealProject && !needsWarehouse,
     annotation: warehouseType ? getWarehouseLabel(warehouseType) : null,
-    doneIcon: warehouseType ? getWarehouseIcon(warehouseType, 'sm') : null,
-    url: '/onboarding/data-source',
-    ctaLabel: DEFAULT_CTA_LABEL,
+    doneIcon: warehouseType ? getWarehouseIcon(warehouseType, 14) : null,
+    // Once a project exists, the onboarding page would only start a second one
+    url:
+        hasRealProject && settingsProjectUuid
+            ? `/generalSettings/projectManagement/${settingsProjectUuid}/settings`
+            : '/onboarding/data-source',
+    ctaLabel: needsWarehouse ? 'Connect' : DEFAULT_CTA_LABEL,
 });
 
 // An agent run left mid-flight is resumable, so the step points at the run
@@ -136,16 +153,18 @@ const semanticLayerUrl = (
 const semanticLayerStatus = ({
     projectUuid,
     dbtConnection,
+    hasSemanticLayer,
     activeAgentRun,
     hasAgentSemanticLayerEntry,
 }: {
     projectUuid: string | null;
     dbtConnection: DbtConnection;
+    hasSemanticLayer: boolean;
     activeAgentRun: AgentOnboardingRun | null;
     hasAgentSemanticLayerEntry: boolean;
 }): ActionStatus => ({
     isVisible: !!projectUuid,
-    isComplete: hasSemanticLayer(dbtConnection),
+    isComplete: hasSemanticLayer,
     annotation: dbtConnection ? DbtProjectTypeLabels[dbtConnection.type] : null,
     doneIcon: null,
     url: semanticLayerUrl(
@@ -170,12 +189,14 @@ const sourceControlAnnotation = (
 };
 
 const sourceControlStatus = ({
+    settingsProjectUuid,
     hasGithub,
     hasGitlab,
     isGithubConnected,
     isGitlabConnected,
     dbtConnection,
 }: {
+    settingsProjectUuid: string | null;
     hasGithub: boolean;
     hasGitlab: boolean;
     isGithubConnected: boolean;
@@ -186,14 +207,16 @@ const sourceControlStatus = ({
     isComplete:
         isGithubConnected ||
         isGitlabConnected ||
-        hasSemanticLayer(dbtConnection),
+        hasDbtConnection(dbtConnection),
     annotation: sourceControlAnnotation(
         isGithubConnected,
         isGitlabConnected,
         dbtConnection,
     ),
     doneIcon: null,
-    url: '/onboarding/dbt',
+    url: settingsProjectUuid
+        ? `/generalSettings/projectManagement/${settingsProjectUuid}/settings`
+        : '/onboarding/dbt',
     ctaLabel: DEFAULT_CTA_LABEL,
 });
 
@@ -225,6 +248,11 @@ const useActionStatuses = (
     const githubConfigQuery = useGithubConfig();
     const slackQuery = useGetSlack();
     const newOnboardingFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
+    const isNewOnboarding = isFlagOn(newOnboardingFlag);
+    // Same args as the setup guide and explore sidebar, so they share one request
+    const exploresQuery = useExplores(projectUuid ?? undefined, true, false, {
+        enabled: !!projectUuid && isNewOnboarding,
+    });
     const codingAgentOnboardingFlag = useServerFeatureFlag(
         FeatureFlags.CodingAgentOnboarding,
     );
@@ -257,6 +285,7 @@ const useActionStatuses = (
             [true, health],
             [true, organizationQuery],
             [!!projectUuid, projectQuery],
+            [!!projectUuid && isNewOnboarding, exploresQuery],
             [true, projectsQuery],
             [gate(isHealthSettled, hasGithub), githubConfigQuery],
             [gate(isHealthSettled, hasGitlab), gitlabQuery],
@@ -271,6 +300,8 @@ const useActionStatuses = (
         ]);
 
     const dbtConnection = projectQuery.data?.dbtConnection;
+    // Without the new onboarding these rows keep linking where they always did
+    const settingsProjectUuid = isNewOnboarding ? projectUuid : null;
 
     return {
         isLoading,
@@ -280,15 +311,21 @@ const useActionStatuses = (
                     organizationQuery.data,
                     projectsQuery.data,
                     projectQuery.data,
+                    isNewOnboarding,
                 ),
+                settingsProjectUuid,
             ),
             'add-semantic-layer': semanticLayerStatus({
                 projectUuid,
                 dbtConnection,
+                hasSemanticLayer: isNewOnboarding
+                    ? hasSemanticLayerExplore(exploresQuery.data ?? [])
+                    : hasDbtConnection(dbtConnection),
                 activeAgentRun,
                 hasAgentSemanticLayerEntry,
             }),
             'connect-source-control': sourceControlStatus({
+                settingsProjectUuid,
                 hasGithub,
                 hasGitlab,
                 isGithubConnected,

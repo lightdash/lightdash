@@ -4,10 +4,12 @@ import type { ContentVerificationInfo } from '../contentVerification';
 import type {
     Dashboard,
     DashboardChartTileProperties,
+    DashboardConfig,
     DashboardDataAppTileProperties,
     DashboardHeadingTileProperties,
     DashboardLoomTileProperties,
     DashboardMarkdownTileProperties,
+    DashboardParameterControl,
     DashboardSqlChartTileProperties,
     DashboardTab,
     DashboardTile,
@@ -131,13 +133,38 @@ export type DashboardTabAsCode = {
     hidden?: DashboardTab['hidden'];
 };
 
-export type DashboardAsCode = Omit<
-    Pick<
-        Dashboard,
-        'name' | 'description' | 'tabs' | 'slug' | 'config' | 'parameters'
-    >,
-    'name' | 'slug' | 'tabs'
-> & {
+export type DashboardParameterControlAsCode = {
+    /** Portable control identifier; matching an existing slug preserves its id. */
+    slug?: string;
+    /** Legacy project-local identifier accepted on upload. */
+    id?: string;
+    label: DashboardParameterControl['label'];
+    value: DashboardParameterControl['value'];
+    valueType: DashboardParameterControl['valueType'];
+    sectionId?: string;
+    parameters: DashboardParameterControl['parameters'];
+    hidden?: boolean;
+};
+
+export type DashboardConfigAsCode = {
+    isDateZoomDisabled: DashboardConfig['isDateZoomDisabled'];
+    isAddFilterDisabled?: DashboardConfig['isAddFilterDisabled'];
+    pinnedParameters?: DashboardConfig['pinnedParameters'];
+    parameterOrder?: DashboardConfig['parameterOrder'];
+    dateZoomGranularities?: DashboardConfig['dateZoomGranularities'];
+    defaultDateZoomGranularity?: DashboardConfig['defaultDateZoomGranularity'];
+    dateZoomConfig?: DashboardConfig['dateZoomConfig'];
+    requiredFiltersNote?: DashboardConfig['requiredFiltersNote'];
+    customMetrics?: DashboardConfig['customMetrics'];
+    controlSections?: DashboardConfig['controlSections'];
+    parameterSections?: DashboardConfig['parameterSections'];
+    parameterControls?: DashboardParameterControlAsCode[];
+};
+
+export type DashboardAsCode = {
+    description?: Dashboard['description'];
+    parameters?: Dashboard['parameters'];
+    config?: DashboardConfigAsCode;
     /**
      * @minLength 1
      */

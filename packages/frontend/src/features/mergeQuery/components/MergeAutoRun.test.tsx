@@ -142,6 +142,34 @@ describe('MergeAutoRun', () => {
             expect(state.setup.handleRun).toHaveBeenCalledTimes(1);
         });
 
+        it('re-runs the merge when only the pivot anchor changes', () => {
+            state.merge.mergeResults = ranBy([
+                {
+                    fieldId: 'b_payments_count',
+                    descending: true,
+                    pivotValues: [
+                        { reference: 'orders_status', value: 'paid' },
+                    ],
+                },
+            ]);
+            state.setup.mergeQuery = {
+                sources: [],
+                sorts: [
+                    {
+                        fieldId: 'b_payments_count',
+                        descending: true,
+                        pivotValues: [
+                            { reference: 'orders_status', value: 'refunded' },
+                        ],
+                    },
+                ],
+            };
+
+            render(<MergeAutoRun />);
+
+            expect(state.setup.handleRun).toHaveBeenCalledTimes(1);
+        });
+
         it('stays put once the result reports the wanted sort', () => {
             state.merge.mergeResults = ranBy([
                 { fieldId: 'b_payments_count', descending: true },

@@ -1,0 +1,37 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`GA4 semantic layer > keeps its field ids stable 1`] = `
+[
+  "ga4_report_date",
+  "ga4_report_year_month",
+  "ga4_report_country",
+  "ga4_report_city",
+  "ga4_report_device_category",
+  "ga4_report_platform",
+  "ga4_report_session_source",
+  "ga4_report_session_medium",
+  "ga4_report_session_campaign",
+  "ga4_report_session_default_channel_group",
+  "ga4_report_first_user_source",
+  "ga4_report_landing_page",
+  "ga4_report_page_path",
+  "ga4_report_event_name",
+  "ga4_report_new_vs_returning",
+  "ga4_report_item_name",
+  "ga4_report_active_users",
+  "ga4_report_total_users",
+  "ga4_report_new_users",
+  "ga4_report_sessions",
+  "ga4_report_engaged_sessions",
+  "ga4_report_engagement_rate",
+  "ga4_report_average_session_duration",
+  "ga4_report_screen_page_views",
+  "ga4_report_event_count",
+  "ga4_report_key_events",
+  "ga4_report_total_revenue",
+  "ga4_report_ecommerce_purchases",
+  "ga4_report_item_revenue",
+  "ga4_report_items_purchased",
+  "ga4_report_items_viewed",
+]
+`;

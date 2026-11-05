@@ -1,4 +1,4 @@
-import { rem } from '@mantine/core';
+import { Box } from '@mantine/core';
 import {
     useCallback,
     useEffect,
@@ -218,10 +218,10 @@ const ThreadScrollToBottom = ({
     }, [lastMessageViz, scrollToBottom]);
 
     return (
-        <div
+        <Box
             ref={messagesEndRef}
             data-testid="thread-scroll-to-bottom"
-            style={{ marginTop: rem(-30) }}
+            mt={-30}
         />
     );
 };

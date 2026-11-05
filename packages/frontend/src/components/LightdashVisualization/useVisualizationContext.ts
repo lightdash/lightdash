@@ -1,5 +1,10 @@
-import { useContext, useMemo, type Context } from 'react';
+import { useCallback, useContext, useMemo, type Context } from 'react';
 import {
+    useVisualizationSelector,
+    type VisualizationStoreState,
+} from '../../features/visualization/store';
+import {
+    ConfigContext,
     LayoutContext,
     ServicesContext,
     StateContext,
@@ -8,6 +13,7 @@ import {
     type VisualizationServices,
     type VisualizationState,
 } from './context';
+import { type VisualizationConfig } from './types';
 
 const useRequiredContext = <T>(context: Context<T | undefined>): T => {
     const value = useContext(context);
@@ -27,17 +33,43 @@ export const useVisualizationServices = (): VisualizationServices =>
 export const useVisualizationLayout = (): VisualizationLayout =>
     useRequiredContext(LayoutContext);
 
-/** Data, config and colours; everything except refs, actions and size. */
-export const useVisualizationState = (): VisualizationState =>
+/** Results, fields, colours and flags; does not re-render on an edit. */
+export const useVisualizationInputs = (): VisualizationState =>
     useRequiredContext(StateContext);
+
+/** Selects from the store with the inputs as the selector's second argument. */
+export const useVisualizationInputSelector = <T>(
+    selector: (state: VisualizationStoreState, inputs: VisualizationState) => T,
+): T => {
+    const inputs = useVisualizationInputs();
+    return useVisualizationSelector(
+        useCallback(
+            (state: VisualizationStoreState) => selector(state, inputs),
+            [selector, inputs],
+        ),
+    );
+};
+
+/** The editor's config and what derives from it; re-renders on every edit. */
+export const useVisualizationConfig = (): VisualizationConfig =>
+    useRequiredContext(ConfigContext).visualizationConfig;
+
+/** The chart config as the editor currently has it. */
+export const useEditedChartConfig = () =>
+    useRequiredContext(ConfigContext).chartConfig;
+
+/** Series colours resolved against the current config. */
+export const useSeriesColor = () =>
+    useRequiredContext(ConfigContext).getSeriesColor;
 
 /** Everything at once: subscribes to every change, including resizes. */
 export function useVisualizationContext(): VisualizationContextValue {
     const services = useVisualizationServices();
     const layout = useVisualizationLayout();
-    const state = useVisualizationState();
+    const inputs = useVisualizationInputs();
+    const config = useRequiredContext(ConfigContext);
     return useMemo(
-        () => ({ ...services, ...layout, ...state }),
-        [services, layout, state],
+        () => ({ ...services, ...layout, ...inputs, ...config }),
+        [services, layout, inputs, config],
     );
 }

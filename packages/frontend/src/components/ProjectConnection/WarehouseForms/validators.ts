@@ -2,8 +2,11 @@ import {
     AthenaAuthenticationType,
     DatabricksAuthenticationType,
     DuckdbConnectionType,
+    isBigqueryWorkloadIdentityAudience,
+    isBigqueryWorkloadIdentityProvider,
     RedshiftAuthenticationType,
     SnowflakeAuthenticationType,
+    usesBigqueryWorkloadIdentity,
     WarehouseTypes,
 } from '@lightdash/common';
 import {
@@ -67,6 +70,21 @@ const athenaWebIdentityValidators = {
             : undefined) satisfies CreateValidator,
 };
 
+const bigqueryWorkloadIdentityValidators = {
+    workloadIdentityProvider: ((value, values) =>
+        usesBigqueryWorkloadIdentity(values.warehouse) &&
+        !isBigqueryWorkloadIdentityProvider(value ?? '')
+            ? 'Enter a provider resource name: projects/<number>/locations/global/workloadIdentityPools/<pool>/providers/<provider>.'
+            : undefined) satisfies Validator,
+    workloadIdentityAudience: ((value, values) =>
+        usesBigqueryWorkloadIdentity(values.warehouse) &&
+        value !== undefined &&
+        value !== '' &&
+        !isBigqueryWorkloadIdentityAudience(value)
+            ? 'Audience must be 256 characters or fewer and contain no whitespace.'
+            : undefined) satisfies Validator,
+};
+
 export const warehouseValueValidators: Record<
     WarehouseTypes,
     Record<string, Validator>
@@ -76,6 +94,7 @@ export const warehouseValueValidators: Record<
         project: hasNoWhiteSpaces('Project'),
         location: hasNoWhiteSpaces('Location'),
         executionProject: hasNoWhiteSpaces('Execution project'),
+        ...bigqueryWorkloadIdentityValidators,
     },
     [WarehouseTypes.DATABRICKS]: {
         database: hasNoWhiteSpaces('Schema'),
@@ -196,6 +215,7 @@ export const createWarehouseValueValidators: Record<
         project: required('Project', hasNoWhiteSpaces),
         location: hasNoWhiteSpaces('Location'),
         executionProject: hasNoWhiteSpaces('Execution project'),
+        ...bigqueryWorkloadIdentityValidators,
     },
     [WarehouseTypes.DATABRICKS]: {
         database: required('Schema', hasNoWhiteSpaces),

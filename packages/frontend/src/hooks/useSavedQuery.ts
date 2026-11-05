@@ -250,6 +250,10 @@ export const useChartVersionRollbackMutation = (
                     'chart_history',
                     chartUuid,
                 ]);
+                await queryClient.invalidateQueries([
+                    'dashboards',
+                    'tileParameterReferences',
+                ]);
                 await queryClient.resetQueries({
                     predicate: (query) =>
                         query.queryKey[0] === 'dashboard_chart_ready_query' &&
@@ -618,6 +622,11 @@ export const useAddVersionMutation = (options?: {
                     data.uuid,
                 ]);
 
+                // A new version can use other parameters than the listed ones
+                await queryClient.invalidateQueries([
+                    'dashboards',
+                    'tileParameterReferences',
+                ]);
                 // Always invalidate dashboard chart queries for this chart,
                 // regardless of whether we came from a dashboard
                 await queryClient.resetQueries({

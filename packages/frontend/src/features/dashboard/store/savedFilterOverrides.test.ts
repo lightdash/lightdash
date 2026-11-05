@@ -30,6 +30,7 @@ const urlOverrideRule = {
     lockedTabUuids: ['tab-1'],
     required: true,
     requiredGroupId: 'group-1',
+    sectionId: 'section-1',
 };
 
 const dimOverride = {
@@ -327,5 +328,16 @@ describe('reconcileSavedFilterOverrideIds', () => {
                 dimensions: [...savedFilters.dimensions],
             }),
         ).toBe(overrides);
+    });
+});
+
+describe('addSavedFilterOverride and sections', () => {
+    it('keeps the section out of the override', () => {
+        const overrides = addSavedFilterOverride(
+            emptySavedFilterOverrides,
+            { ...urlOverrideRule, tileTargets: {} },
+            'dimensions',
+        );
+        expect(overrides.dimensions[0]).toEqual(sanitizedRule);
     });
 });

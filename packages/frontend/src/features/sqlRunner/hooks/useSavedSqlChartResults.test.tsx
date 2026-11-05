@@ -128,4 +128,61 @@ describe('useSavedSqlChartResults', () => {
             );
         },
     );
+
+    it("downloads a dashboard tile with the tile's own parameter resolution", async () => {
+        const chart = {
+            savedSqlUuid: 'sql-uuid',
+            sql: 'select 1',
+            limit: 10,
+            lastUpdatedAt: new Date('2026-01-01T00:00:00Z'),
+            config: { type: 'table', columns: {} },
+        } as unknown as SqlChart;
+        vi.mocked(fetchSavedSqlChart).mockResolvedValue(chart);
+        vi.mocked(getDashboardSqlChartPivotChartData).mockResolvedValue({
+            queryUuid: 'query',
+            originalColumns: {},
+            columns: [],
+            results: [],
+            indexColumn: undefined,
+            valuesColumns: [],
+        } as never);
+        const client = new QueryClient({
+            defaultOptions: { queries: { retry: false } },
+        });
+        const wrapper = ({ children }: PropsWithChildren) => (
+            <QueryClientProvider client={client}>
+                {children}
+            </QueryClientProvider>
+        );
+
+        const { result } = renderHook(
+            () =>
+                useSavedSqlChartResults({
+                    projectUuid: 'project',
+                    savedSqlUuid: 'sql-uuid',
+                    dashboardUuid: 'dashboard',
+                    tileUuid: 'tile',
+                    dashboardFilters: {
+                        dimensions: [],
+                        metrics: [],
+                        tableCalculations: [],
+                    },
+                    dashboardSorts: [],
+                    parameters: {},
+                    excludedParameterKeys: ['region'],
+                }),
+            { wrapper },
+        );
+        await waitFor(() =>
+            expect(result.current.chartResultsQuery.data).toBeDefined(),
+        );
+        vi.mocked(getDashboardSqlChartPivotChartData).mockClear();
+
+        await result.current.getDownloadQueryUuid(null);
+
+        expect(getDashboardSqlChartPivotChartData).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({ excludedParameterKeys: ['region'] }),
+        );
+    });
 });

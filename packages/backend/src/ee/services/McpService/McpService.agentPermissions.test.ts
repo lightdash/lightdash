@@ -6,6 +6,7 @@ import {
     ForbiddenError,
     OrganizationMemberRole,
     type AgentCapabilityPolicy,
+    type McpProjectAccess,
 } from '@lightdash/common';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
@@ -116,6 +117,9 @@ const setup = (
     );
     const getContext = vi.fn().mockResolvedValue({ context: { projectUuid } });
     const service = Object.assign(Object.create(McpService.prototype), {
+        aiOrganizationSettingsService: {
+            getMcpProjectAccess: vi.fn().mockResolvedValue({ mode: 'all' }),
+        },
         lightdashConfig: { siteUrl: 'https://lightdash.example' },
         recordToolCall: vi.fn(),
         agentActionLogModel: deps.agentActionLogModel,
@@ -388,15 +392,23 @@ test.each(['off', 'legacy'] as const)(
     },
 );
 
-const setupResourceProtocol = async () => {
+const setupResourceProtocol = async ({
+    projectContext = true,
+    mcpProjectAccess = { mode: 'all' },
+}: { projectContext?: boolean; mcpProjectAccess?: McpProjectAccess } = {}) => {
     const fixture = setup();
+    if (!projectContext) fixture.getContext.mockResolvedValue({ context: {} });
     const getMyAccess = vi.fn().mockResolvedValue({
         refusal: null,
         identity: 'connected_person',
         expiresAt: null,
     });
     const getMcpSkillResourceBody = vi.fn().mockResolvedValue('built-in body');
+    const getMcpProjectAccess = vi
+        .fn<() => Promise<McpProjectAccess>>()
+        .mockResolvedValue(mcpProjectAccess);
     const service = new McpService({
+        aiOrganizationSettingsService: { getMcpProjectAccess },
         lightdashConfig: {
             mcp: { runSqlMaxLimit: 500 },
             siteUrl: 'https://example.com',
@@ -407,6 +419,7 @@ const setupResourceProtocol = async () => {
         aiAgentSkillService: {
             listMcpSkills: vi.fn().mockResolvedValue([
                 {
+                    projectUuid,
                     name: 'custom-skill',
                     title: 'Custom skill',
                     description: 'Private skill',
@@ -461,7 +474,13 @@ const setupResourceProtocol = async () => {
         });
     await server.connect(serverTransport);
     await client.connect(clientTransport);
-    return { ...fixture, client, getMyAccess, getMcpSkillResourceBody };
+    return {
+        ...fixture,
+        client,
+        getMyAccess,
+        getMcpSkillResourceBody,
+        getMcpProjectAccess,
+    };
 };
 
 const resourceUris = [
@@ -473,6 +492,52 @@ const resourceUris = [
 ];
 
 describe('MCP resource protocol permissions', () => {
+    test('omits excluded project skill resources without any saved project context', async () => {
+        const { client } = await setupResourceProtocol({
+            projectContext: false,
+            mcpProjectAccess: { mode: 'selected', projectUuids: [] },
+        });
+        try {
+            const { resources } = await client.listResources();
+            expect(
+                resources.some((resource) =>
+                    resource.uri.startsWith('skill://custom/'),
+                ),
+            ).toBe(false);
+            expect(
+                resources.some((resource) =>
+                    resource.uri.startsWith('skill://built-in/'),
+                ),
+            ).toBe(true);
+        } finally {
+            await client.close();
+        }
+    });
+
+    test.each(resourceUris.filter((uri) => !uri.includes('built-in')))(
+        'rechecks organization project policy for %s after connection',
+        async (uri) => {
+            const { client, getMcpProjectAccess } =
+                await setupResourceProtocol();
+            try {
+                getMcpProjectAccess.mockClear();
+                await expect(
+                    client.readResource({ uri }),
+                ).resolves.toHaveProperty('contents');
+                expect(getMcpProjectAccess).toHaveBeenCalledOnce();
+                getMcpProjectAccess.mockResolvedValue({
+                    mode: 'selected',
+                    projectUuids: [],
+                });
+                await expect(client.readResource({ uri })).rejects.toThrow(
+                    'MCP access to this project is disabled for your organization',
+                );
+            } finally {
+                await client.close();
+            }
+        },
+    );
+
     test.each(resourceUris)('refuses %s without discovery', async (uri) => {
         const { client, policy, deps } = await setupResourceProtocol();
         policy.systemRoleMatrix = agentSystemRoleMatrix([

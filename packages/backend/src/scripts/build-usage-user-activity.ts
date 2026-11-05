@@ -1,5 +1,3 @@
-import { FeatureFlags } from '@lightdash/common';
-import knex from 'knex';
 import { parseArgs } from 'node:util';
 import { usageProcessingStartDate } from '../analytics/eventStream/usageProcessingWindow';
 import {
@@ -8,8 +6,7 @@ import {
 } from '../analytics/eventStream/UsageUserActivityBuilder';
 import { lightdashConfig } from '../config/lightdashConfig';
 import { parseUsageEventsS3Config } from '../config/parseConfig';
-import knexConfig from '../knexfile';
-import { FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
+import { getEnterpriseAppArguments } from '../ee';
 
 async function main() {
     const { values } = parseArgs({
@@ -39,27 +36,16 @@ async function main() {
             'Usage processing is limited to the previous seven closed UTC days',
         );
     }
-    const database = knex(knexConfig.production);
-    try {
-        const { enabled } = await new FeatureFlagModel({
-            database,
-            lightdashConfig,
-        }).get({
-            featureFlagId: FeatureFlags.AnalyticsProject,
-            user: { organizationUuid: values['org-id'] },
-        });
-        if (!enabled)
-            throw new Error('Analytics is not enabled for this organization');
-        console.log(
-            await new UsageUserActivityBuilder(storage).run(
-                values['org-id'],
-                values.from,
-                values.to,
-            ),
-        );
-    } finally {
-        await database.destroy();
-    }
+    const { serviceProviders } = await getEnterpriseAppArguments();
+    if (!serviceProviders?.analyticsProjectService)
+        throw new Error('Managed analytics is not enabled');
+    console.log(
+        await new UsageUserActivityBuilder(storage).run(
+            values['org-id'],
+            values.from,
+            values.to,
+        ),
+    );
 }
 
 void main().catch((error: unknown) => {

@@ -12,19 +12,9 @@ const PREVIEW_EXCLUDED_FEATURE_FLAGS: ReadonlySet<string> = new Set<string>([
     FeatureFlags.OrganizationTrialWarning,
     // Changes query or compile semantics, so QA results would be misleading.
     FeatureFlags.CalculateSeriesColor,
-    // Needs per-org worker queues that previews don't run.
-    FeatureFlags.ScheduledDeliveryPerOrgQueue,
-    // Opt-in latency experiment holds API connections and increases DB reads.
-    FeatureFlags.ComposerOptimizationQueryPushReadiness,
-    // Opt-in experiment requiring a separately published E2B template.
-    FeatureFlags.ComposerOptimizationPythonWarmTemplate,
-    // Opt-in experiment changing E2B upload and cleanup behaviour.
-    FeatureFlags.ComposerOptimizationPythonBatchSandboxCalls,
     // Changes the signup flow and needs SMTP for the email OTP. The register
     // page evaluates it anonymously, so an override can't switch it back off.
     FeatureFlags.NewOnboarding,
-    // Acts outside the environment: opens pull requests on real repos.
-    FeatureFlags.AiPreviewDeploySetup,
     // Off pending a security review.
     FeatureFlags.SsoOrganizationSettings,
     // Security hardening: previews must not accept long-lived GitHub PATs.
@@ -61,7 +51,7 @@ const KNOWN_FEATURE_FLAG_IDS: ReadonlySet<string> = new Set(
 export const isKnownFeatureFlagId = (flagId: string): boolean =>
     KNOWN_FEATURE_FLAG_IDS.has(flagId);
 
-/** Flags enabled by default in preview/Okteto environments. */
+/** Flags enabled by default in preview environments. */
 export const PREVIEW_ENABLED_FEATURE_FLAGS: ReadonlySet<string> = new Set(
     ALL_FEATURE_FLAG_IDS.filter(
         (flagId) => !PREVIEW_EXCLUDED_FEATURE_FLAGS.has(flagId),

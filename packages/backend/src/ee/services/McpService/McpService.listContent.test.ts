@@ -222,6 +222,7 @@ const makeMcpService = ({
                             appCount: space.appCount,
                             directAccess:
                                 space.userAccess?.hasDirectAccess === true,
+                            canEdit: space.userAccess?.hasDirectAccess === true,
                         })),
                         pagination: {
                             page,
@@ -247,6 +248,8 @@ const makeMcpService = ({
                                   appCount: item.appCount,
                                   directAccess:
                                       item.access?.includes(userUuid) === true,
+                                  canEdit:
+                                      item.access?.includes(userUuid) === true,
                               }
                             : {
                                   ...item,
@@ -269,6 +272,7 @@ const makeMcpService = ({
         aiAgentService,
         aiAgentToolsService,
         aiOrganizationSettingsService: {
+            getMcpProjectAccess: vi.fn().mockResolvedValue({ mode: 'all' }),
             isMcpAgentsEnabled: vi.fn().mockResolvedValue(true),
         },
         aiRouterService: {},
@@ -483,7 +487,7 @@ describe('MCP list_content', () => {
         expect(text).toContain('name="Allowed Space"');
         expect(text).toContain('slug="allowed-space"');
         expect(text).toContain(
-            `href="/projects/${projectUuid}/spaces/${allowedSpaceUuid}"`,
+            `href="https://lightdash.example/projects/${projectUuid}/spaces/${allowedSpaceUuid}"`,
         );
         expect(text).toContain('chartCount="2"');
         expect(text).not.toContain('Blocked Space');
@@ -570,12 +574,12 @@ describe('MCP list_content', () => {
         expect(text).toContain('name="Revenue Chart"');
         expect(text).toContain('slug="revenue-chart"');
         expect(text).toContain(
-            `href="/projects/${projectUuid}/saved/revenue-chart-uuid/view#chart-link"`,
+            `href="https://lightdash.example/projects/${projectUuid}/saved/revenue-chart-uuid/view#chart-link"`,
         );
         expect(text).toContain('name="Child Space"');
         expect(text).toContain('slug="allowed-space/child-space"');
         expect(text).toContain(
-            `href="/projects/${projectUuid}/spaces/child-space-uuid"`,
+            `href="https://lightdash.example/projects/${projectUuid}/spaces/child-space-uuid"`,
         );
     });
 });

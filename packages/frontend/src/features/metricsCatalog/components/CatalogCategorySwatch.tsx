@@ -1,7 +1,7 @@
 import { interpolateUiString } from '@lightdash/common';
 import { Center } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
-import { type CSSProperties, type FC } from 'react';
+import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import { useCategoryColors } from '../styles/useCategoryColors';
@@ -21,13 +21,6 @@ export const CatalogCategorySwatch: FC<Props> = ({
     const colors = useCategoryColors(color);
     const getUiString = useUiStrings();
 
-    const categoryVars = {
-        '--category-text-color': colors.textColor,
-        '--category-background-color': colors.backgroundColor,
-        '--category-hover-background-color': colors.hoverBackgroundColor,
-        '--category-border-color': colors.borderColor,
-    } as CSSProperties;
-
     return (
         <Center
             component="button"
@@ -40,7 +33,13 @@ export const CatalogCategorySwatch: FC<Props> = ({
             h={18}
             w={18}
             className={styles.swatch}
-            style={categoryVars}
+            style={{
+                '--category-text-color': colors.textColor,
+                '--category-background-color': colors.backgroundColor,
+                '--category-hover-background-color':
+                    colors.hoverBackgroundColor,
+                '--category-border-color': colors.borderColor,
+            }}
             onClick={onClick}
         >
             {selected && (

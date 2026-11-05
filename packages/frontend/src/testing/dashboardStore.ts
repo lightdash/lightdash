@@ -14,6 +14,7 @@ import {
     createDashboardStore,
     dashboardEditActions,
     getSavedDateZoomSettings,
+    type DashboardSourceState,
     type DashboardStore,
 } from '../features/dashboard/store';
 import { toDashboardParameters } from '../providers/Dashboard/dashboardParametersUrl';
@@ -43,6 +44,8 @@ export type DashboardStoreTestValues = Partial<{
     invalidateCache: boolean;
     sqlChartTilesMetadata: Record<string, SqlChartTileMetadata>;
     chartSortsByTileUuid: Record<string, SortField[]>;
+    /** What the provider loaded: the dashboard, its project, available filters, comments */
+    source: Partial<DashboardSourceState>;
 }>;
 
 /** A real dashboard store seeded with the given state, for component tests */
@@ -113,6 +116,7 @@ export const createDashboardTestStore = (
             values.chartZoomableFieldsByTileUuid;
     }
     return createDashboardStore({
+        source: { ...state.source, ...values.source },
         filters,
         parameters,
         dateZoom,
@@ -155,6 +159,13 @@ export const seedDashboardEditState = (
 ) => {
     const saved = getSavedDateZoomSettings(values.dashboard?.config);
     const { dispatch } = store;
+    if (values.dashboard?.config?.controlSections) {
+        dispatch(
+            dashboardEditActions.syncControlSections(
+                values.dashboard.config.controlSections,
+            ),
+        );
+    }
     if ('dashboardTiles' in values) {
         dispatch(dashboardEditActions.setTiles(values.dashboardTiles));
     }

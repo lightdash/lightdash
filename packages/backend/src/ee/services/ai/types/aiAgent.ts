@@ -18,6 +18,7 @@ import {
     type AiDeepResearchWorkerTask,
     type AiDeepResearchWorkerTaskInput,
     type AiSemanticChartArtifactConfig,
+    type ApiConnectorType,
 } from '@lightdash/common';
 // eslint-disable-next-line import/extensions
 import { type OAuthClientProvider } from '@modelcontextprotocol/sdk/client/auth.js';
@@ -52,7 +53,6 @@ import {
     EditContentFn,
     EditDbtProjectFn,
     EditProjectContextFn,
-    EditRepoFn,
     ExploreRepoFn,
     ExportCustomChartTypeImageFn,
     FindContentFn,
@@ -103,7 +103,6 @@ import {
     SearchSemanticLayerFn,
     SendFileFn,
     SendSlackBlocksFn,
-    SetupPreviewDeployFn,
     StoreLoadoutFn,
     StoreReasoningFn,
     StoreToolCallErrorFn,
@@ -120,6 +119,13 @@ import {
 } from './aiAgentDependencies';
 
 type AnyAiModel<P = AiProvider> = P extends AiProvider ? AiModel<P> : never;
+
+/** A live data source the agent can read the fields of. */
+export type AgentLiveSource = {
+    connectionUuid: string;
+    name: string;
+    connector: ApiConnectorType;
+};
 
 export type AiAgentMcpServer = AiMcpServer & {
     resolvedCredential: AiMcpCredentialPayload | null;
@@ -144,6 +150,8 @@ export type AiAgentRequestingUser = {
     name: string;
     role: AiAgentRequestingUserRole | null;
     groups: string[];
+    // A service account is shared by everyone using its token.
+    isServiceAccount: boolean;
 };
 
 /** The resource a thread is bound to, resolved for the prompt. The resource is null once it no longer exists. */
@@ -275,7 +283,11 @@ export type AiAgentArgs = AnyAiModel & {
     telemetryEnabled: boolean;
     enableDataAccess: boolean;
     enableSelfImprovement: boolean;
+    // Content setting on; read tools enforce view access per item, so authoring isn't required.
+    enableContentReads: boolean;
+    // Content setting on + user may save a chart or dashboard.
     enableContentTools: boolean;
+    // Content setting on + user may save a Document in a Space; independent of charts.
     enableDocuments: boolean;
     // Data apps enabled + user may create them + content tools (trusted identity).
     enableGenerateDataApp: boolean;
@@ -286,16 +298,11 @@ export type AiAgentArgs = AnyAiModel & {
     // Which GitHub identity a writeback PR would be attributed to (advisory,
     // resolved at prompt-assembly time). null when not applicable/unresolved.
     writebackAttribution: AiWritebackAttribution | null;
-    enablePreviewDeploySetup: boolean;
     enableRepoDiscovery: boolean;
     // The thread owns at least one attached document, so readAttachments is
     // registered.
     enableReadAttachments: boolean;
     enableFilterExpressions: boolean;
-    // Whether the general-purpose coding agent (`editRepo`) is available — the
-    // CodingAgent flag, the org has a writable Git installation, and (in Slack)
-    // a trusted prompt identity. Independent of enableAiWriteback.
-    enableCodingAgent: boolean;
     // dbt project root within the repo (from project_sub_path); '.' = repo root,
     // null when repo discovery is off or the project is not git-backed.
     repoFsRoot: string | null;
@@ -306,10 +313,16 @@ export type AiAgentArgs = AnyAiModel & {
     // Whether the composer query tool is the query path: composer flags, data
     // access and the agent's enableComposerQueries opt-in.
     enableComposerQueries: boolean;
+    // The project's live data sources the user can view, listed in the prompt
+    // for the field tools.
+    liveSources: AgentLiveSource[];
     // Whether the user can save a generated dashboard anywhere in the project.
     // Gates generateDashboard so the agent does not build one the user is then
     // refused permission to keep.
     canCreateDashboards: boolean;
+    // Gates createScheduledDelivery the same way, so a role without
+    // create:ScheduledDeliveries keeps content tools but loses scheduling.
+    canCreateScheduledDeliveries: boolean;
     autoApproveSql: boolean;
     autoApproveSqlUserUuid: string | null;
     // When the modern Slack streaming card is driving progress, tools render
@@ -340,7 +353,6 @@ export type AiAgentArgs = AnyAiModel & {
     maxQueryLimit: number;
     runSqlMaxLimit: number;
     sqlScope?: AgentSqlScope | null;
-    hyphenatedIdentifiers: boolean;
     /** Rows of a query result written into model context; the query keeps the rest. */
     maxContextRows: number;
     siteUrl: string;
@@ -447,9 +459,7 @@ export type AiAgentDependencies = {
     listDataAppConnections: ListDataAppConnectionsFn;
     editDbtProject: EditDbtProjectFn;
     editProjectContext: EditProjectContextFn;
-    editRepo: EditRepoFn;
     syncDbtProject: SyncDbtProjectFn;
-    setupPreviewDeploy: SetupPreviewDeployFn;
     exploreRepo: ExploreRepoFn;
     discoverRepos: DiscoverReposFn;
     listWorkstreams: ListWorkstreamsFn;

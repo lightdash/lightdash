@@ -4,6 +4,7 @@ import {
     FieldType,
     FilterOperator,
     type DashboardFilterRule,
+    type DashboardParameterControl,
     type DashboardTile,
     type FilterableDimension,
 } from '@lightdash/common';
@@ -18,7 +19,10 @@ import {
 } from '../../testing/dashboardStore';
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
-import { type DashboardStore } from '../dashboard/store';
+import {
+    dashboardParametersActions,
+    type DashboardStore,
+} from '../dashboard/store';
 import { getLinkKey } from './linkCandidates';
 import { LinkPrompts } from './LinkPrompts';
 import classes from './TileOverlay.module.css';
@@ -34,6 +38,19 @@ const mockContainers = vi.hoisted(() => ({
 }));
 const mockParams = vi.hoisted(() => ({
     current: {} as { mode?: string },
+}));
+
+const mockParameterEditor = vi.hoisted(() => ({
+    current: {
+        editingId: null as string | null,
+        isMapping: false,
+        add: vi.fn(),
+    },
+}));
+vi.mock('./useParameterEditor', () => ({
+    useParameterEditorSelector: (
+        selector: (value: typeof mockParameterEditor.current) => unknown,
+    ) => selector(mockParameterEditor.current),
 }));
 
 vi.mock('./useControlsSidebar', () => ({
@@ -134,7 +151,7 @@ const dismissLink = vi.fn();
 
 const setSidebar = (overrides: Record<string, unknown> = {}) => {
     mockSidebar.current = {
-        isRailOpen: false,
+        isSidebarOpen: false,
         newTileUuids: [added.uuid],
         dismissedLinks: [],
         updateFilter,
@@ -217,6 +234,9 @@ describe('LinkPrompts', () => {
     beforeEach(() => {
         updateFilter.mockClear();
         dismissLink.mockClear();
+        mockParameterEditor.current.editingId = null;
+        mockParameterEditor.current.isMapping = false;
+        mockParameterEditor.current.add.mockClear();
         document.body.innerHTML = '';
         mockContainers.current = Object.fromEntries(
             allTiles.map((t) => {
@@ -253,10 +273,6 @@ describe('LinkPrompts', () => {
         expect(applyButton(added.uuid)).toHaveTextContent('Apply');
         expect(applyButton(added.uuid)).toHaveAccessibleName(
             'Apply 1 filter to Title tile-added',
-        );
-        expect(container(added.uuid).firstElementChild).toHaveAttribute(
-            'data-wave',
-            '0',
         );
 
         await userEvent.click(applyButton(added.uuid));
@@ -485,8 +501,8 @@ describe('LinkPrompts', () => {
         expect(container(saved.uuid)).toBeEmptyDOMElement();
     });
 
-    it('renders nothing while the rail is open, a filter edited or not', () => {
-        setSidebar({ isRailOpen: true });
+    it('renders nothing while a filter is edited', () => {
+        setSidebar({ isSidebarOpen: true });
         renderWithProviders(<LinkPrompts />);
 
         expect(container(added.uuid)).toBeEmptyDOMElement();
@@ -652,5 +668,173 @@ describe('LinkPrompts', () => {
 
             expect(container(added.uuid)).toHaveFocus();
         });
+    });
+});
+
+describe('parameter link prompts', () => {
+    const control = (
+        id: string,
+        region: DashboardParameterControl['parameters'][string],
+    ): DashboardParameterControl => ({
+        id,
+        label: id,
+        value: null,
+        valueType: { type: 'string', multiple: false },
+        parameters: { region, currency: 'all' },
+    });
+    const configure = (
+        controls: DashboardParameterControl[] | null,
+        references = ['region'],
+        isSaved = true,
+    ) => {
+        setDashboard([], []);
+        dashboardStore = createDashboardTestStore({
+            isEditMode: true,
+            parameterDefinitions: {
+                region: { label: 'Region' },
+                currency: { label: 'Currency' },
+            },
+            tileParameterReferences: {
+                [added.uuid]: references,
+                [saved.uuid]: ['region', 'currency'],
+            },
+        });
+        if (controls !== null)
+            dashboardStore.dispatch(
+                dashboardParametersActions.syncParameterControls({
+                    controls,
+                    isSaved,
+                }),
+            );
+        return renderWithProviders(<LinkPrompts />);
+    };
+    beforeEach(() => {
+        dismissLink.mockClear();
+        mockParameterEditor.current = {
+            editingId: null,
+            isMapping: false,
+            add: vi.fn(),
+        };
+        document.body.innerHTML = '';
+        mockContainers.current = Object.fromEntries(
+            allTiles.map((t) => {
+                const element = document.createElement('div');
+                element.setAttribute('data-tile-uuid', t.uuid);
+                document.body.appendChild(element);
+                return [t.uuid, element];
+            }),
+        );
+        mockParams.current = { mode: 'edit' };
+        setSidebar();
+    });
+    it('offers explicit holders and links only the chosen parameter', async () => {
+        configure(
+            [
+                control('First', { only: [saved.uuid] }),
+                control('Second', { only: [] }),
+            ],
+            ['region', 'currency'],
+        );
+        expect(
+            card(added.uuid).getByRole('button', {
+                name: /Add to the bar: Region/,
+            }),
+        ).toBeInTheDocument();
+        await userEvent.click(
+            card(added.uuid).getByRole('button', {
+                name: /Set by First: Region/,
+            }),
+        );
+        expect(
+            dashboardStore.getState().parameters.parameterControls?.[0]
+                .parameters,
+        ).toEqual({
+            region: { only: [saved.uuid, added.uuid] },
+            currency: 'all',
+        });
+        expect(container(added.uuid)).toBeEmptyDOMElement();
+    });
+    it('starts a duplicate as an explicit draft and does not mutate existing controls', async () => {
+        const original = control('First', { only: [saved.uuid] });
+        configure([original]);
+        await userEvent.click(
+            card(added.uuid).getByRole('button', {
+                name: /Add to the bar: Region/,
+            }),
+        );
+        expect(mockParameterEditor.current.add).toHaveBeenCalledWith(
+            expect.objectContaining({
+                control: expect.objectContaining({
+                    parameters: { region: { only: [added.uuid] } },
+                }),
+                tileUuids: [added.uuid],
+            }),
+        );
+        expect(dashboardStore.getState().parameters.parameterControls).toEqual([
+            original,
+        ]);
+    });
+    it('starts an unheld key as an all-tiles draft', async () => {
+        configure([]);
+        await userEvent.click(
+            card(added.uuid).getByRole('button', {
+                name: /Add to the bar: Region/,
+            }),
+        );
+        expect(mockParameterEditor.current.add).toHaveBeenCalledWith(
+            expect.objectContaining({
+                control: expect.objectContaining({
+                    parameters: { region: 'all' },
+                }),
+            }),
+        );
+    });
+    it('does not prompt for defaults, excluded defaults, unavailable discovery or provisional lists', () => {
+        for (const target of [
+            'all',
+            { except: [added.uuid] },
+        ] as DashboardParameterControl['parameters'][string][]) {
+            const result = configure([control('First', target)]);
+            expect(container(added.uuid)).toBeEmptyDOMElement();
+            result.unmount();
+        }
+        const missing = configure(null);
+        expect(container(added.uuid)).toBeEmptyDOMElement();
+        missing.unmount();
+        configure([], ['region'], false);
+        expect(container(added.uuid)).toBeEmptyDOMElement();
+    });
+    it('skips a parameter prompt until the editor session ends', async () => {
+        configure([]);
+        await userEvent.click(
+            card(added.uuid).getByRole('button', { name: /Skip Region/ }),
+        );
+        expect(dismissLink).toHaveBeenCalledWith(
+            added.uuid,
+            'parameter:region',
+        );
+    });
+    it('hides filter and parameter prompts while a parameter editor is open', () => {
+        mockParameterEditor.current.editingId = 'other';
+        setDashboard([paymentsMethod]);
+        dashboardStore.dispatch(
+            dashboardParametersActions.syncParameterControls({
+                controls: [],
+                isSaved: true,
+            }),
+        );
+        dashboardStore.dispatch(
+            dashboardParametersActions.addParameterReferences({
+                tileUuid: added.uuid,
+                references: ['region'],
+            }),
+        );
+        dashboardStore.dispatch(
+            dashboardParametersActions.addParameterDefinitions({
+                region: { label: 'Region' },
+            }),
+        );
+        renderWithProviders(<LinkPrompts />);
+        expect(container(added.uuid)).toBeEmptyDOMElement();
     });
 });

@@ -98,7 +98,9 @@ it('prepares through the registered HTTP route and writes exactly one pending ro
         Promise.all(
             tables.map(
                 async (table) =>
-                    (await database(table).count('* as count').first())!.count,
+                    (await database(table)
+                        .count<{ count: string }[]>('* as count')
+                        .first())!.count,
             ),
         );
     const before = await counts();

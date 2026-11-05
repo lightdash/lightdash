@@ -17,6 +17,7 @@ import {
     LocalIssuerTypes,
     NotFoundError,
     OpenIdIdentityIssuerType,
+    OpenIdUser,
     OrganizationMemberProfile,
     OrganizationMemberRole,
     OrganizationSettings,
@@ -178,6 +179,9 @@ const emailModel = {
 
 const inviteLinkModel = {
     getByCode: vi.fn(async () => inviteLink),
+    getByCodeWithInviter: vi.fn<InviteLinkModel['getByCodeWithInviter']>(
+        async () => ({ inviteLink, invitedByUserUuid: null }),
+    ),
     deleteByCode: vi.fn(async () => undefined),
     upsert: vi.fn(async () => inviteLink),
 };
@@ -277,6 +281,11 @@ const rolesModelWithoutExtraRoles = {
         systemRole: null,
         customRoleUuids: [],
     })),
+};
+
+const licensedConfigMock: LightdashConfig = {
+    ...lightdashConfigMock,
+    license: { licenseKey: 'license-key', licenseCertificate: null },
 };
 
 const createUserService = (
@@ -794,9 +803,23 @@ describe('UserService', () => {
             expect(account.isServiceAccount()).toBe(false);
         });
 
+        test('should not look up service accounts on an unlicensed instance', async () => {
+            const service = createUserService({
+                ...lightdashConfigMock,
+                license: { licenseKey: null, licenseCertificate: null },
+            });
+
+            const account = await service.getAccountByUserUuid('userUuid');
+
+            expect(
+                userModel.findServiceAccountByUserUuid,
+            ).not.toHaveBeenCalled();
+            expect(account.isSessionUser()).toBe(true);
+        });
+
         test('should return a service account when the user backs a service account', async () => {
             // No env var or feature flag is needed: the licence is the gate.
-            const service = createUserService(lightdashConfigMock, {
+            const service = createUserService(licensedConfigMock, {
                 featureFlagModel: {
                     get: vi.fn(async ({ featureFlagId }) => ({
                         id: featureFlagId,
@@ -841,7 +864,7 @@ describe('UserService', () => {
         });
 
         test('should preserve service-account authentication', async () => {
-            const service = createUserService(lightdashConfigMock);
+            const service = createUserService(licensedConfigMock);
             (
                 userModel.findServiceAccountByUserUuid as import('vitest').Mock
             ).mockResolvedValueOnce({
@@ -960,6 +983,41 @@ describe('UserService', () => {
                     answer: null,
                 },
             });
+        });
+
+        test('saves the trimmed first and last name', async () => {
+            await userService.completeUserSetup(sessionUser, {
+                firstName: ' Ada ',
+                lastName: 'Lovelace ',
+                jobTitle: '',
+                enableEmailDomainAccess: false,
+                isMarketingOptedIn: true,
+                isTrackingAnonymized: false,
+            });
+
+            expect(vi.mocked(userModel.updateUser)).toHaveBeenCalledWith(
+                sessionUser.userUuid,
+                undefined,
+                expect.objectContaining({
+                    firstName: 'Ada',
+                    lastName: 'Lovelace',
+                    isSetupComplete: true,
+                }),
+            );
+        });
+
+        test('rejects a name with HTML', async () => {
+            await expect(
+                userService.completeUserSetup(sessionUser, {
+                    firstName: '<b>Ada</b>',
+                    lastName: 'Lovelace',
+                    jobTitle: '',
+                    enableEmailDomainAccess: false,
+                    isMarketingOptedIn: true,
+                    isTrackingAnonymized: false,
+                }),
+            ).rejects.toThrow(ParameterError);
+            expect(vi.mocked(userModel.updateUser)).not.toHaveBeenCalled();
         });
 
         test('does not track when the referral answer is omitted (invited member)', async () => {
@@ -1341,9 +1399,12 @@ describe('UserService', () => {
         };
 
         test('activates the invited user without a password and consumes the invite', async () => {
-            vi.mocked(inviteLinkModel.getByCode).mockResolvedValueOnce(
-                validInviteLink,
-            );
+            vi.mocked(
+                inviteLinkModel.getByCodeWithInviter,
+            ).mockResolvedValueOnce({
+                inviteLink: validInviteLink,
+                invitedByUserUuid: null,
+            });
             vi.mocked(
                 userModel.activateUserWithoutPassword,
             ).mockResolvedValueOnce(memberUser);
@@ -1387,9 +1448,12 @@ describe('UserService', () => {
         });
 
         test('requires SSO instead of activating the invited user when local authentication is disabled', async () => {
-            vi.mocked(inviteLinkModel.getByCode).mockResolvedValueOnce(
-                validInviteLink,
-            );
+            vi.mocked(
+                inviteLinkModel.getByCodeWithInviter,
+            ).mockResolvedValueOnce({
+                inviteLink: validInviteLink,
+                invitedByUserUuid: null,
+            });
             const service = createUserService(lightdashConfigMock);
             vi.spyOn(service, 'isLoginMethodAllowed').mockResolvedValue(false);
 
@@ -1408,9 +1472,9 @@ describe('UserService', () => {
         });
 
         test('rejects an expired invite without activating the user', async () => {
-            vi.mocked(inviteLinkModel.getByCode).mockRejectedValueOnce(
-                new ExpiredError('Invite link expired'),
-            );
+            vi.mocked(
+                inviteLinkModel.getByCodeWithInviter,
+            ).mockRejectedValueOnce(new ExpiredError('Invite link expired'));
             const service = createUserService(lightdashConfigMock);
 
             await expect(
@@ -1425,9 +1489,9 @@ describe('UserService', () => {
         });
 
         test('returns not found for an unknown invite without activating the user', async () => {
-            vi.mocked(inviteLinkModel.getByCode).mockRejectedValueOnce(
-                new NotFoundError('No invite link found'),
-            );
+            vi.mocked(
+                inviteLinkModel.getByCodeWithInviter,
+            ).mockRejectedValueOnce(new NotFoundError('No invite link found'));
             const service = createUserService(lightdashConfigMock);
 
             await expect(
@@ -1441,8 +1505,11 @@ describe('UserService', () => {
         });
 
         test('returns not found when the same invite is consumed again', async () => {
-            vi.mocked(inviteLinkModel.getByCode)
-                .mockResolvedValueOnce(validInviteLink)
+            vi.mocked(inviteLinkModel.getByCodeWithInviter)
+                .mockResolvedValueOnce({
+                    inviteLink: validInviteLink,
+                    invitedByUserUuid: null,
+                })
                 .mockRejectedValueOnce(
                     new NotFoundError('No invite link found'),
                 );
@@ -1485,9 +1552,12 @@ describe('UserService', () => {
                     ],
                 })),
             };
-            vi.mocked(inviteLinkModel.getByCode).mockResolvedValueOnce(
-                validInviteLink,
-            );
+            vi.mocked(
+                inviteLinkModel.getByCodeWithInviter,
+            ).mockResolvedValueOnce({
+                inviteLink: validInviteLink,
+                invitedByUserUuid: null,
+            });
             vi.mocked(
                 userModel.activateUserWithoutPassword,
             ).mockResolvedValueOnce(memberUser);
@@ -1511,9 +1581,12 @@ describe('UserService', () => {
                 ...memberUser,
                 role: OrganizationMemberRole.ADMIN,
             };
-            vi.mocked(inviteLinkModel.getByCode).mockResolvedValueOnce(
-                validInviteLink,
-            );
+            vi.mocked(
+                inviteLinkModel.getByCodeWithInviter,
+            ).mockResolvedValueOnce({
+                inviteLink: validInviteLink,
+                invitedByUserUuid: null,
+            });
             vi.mocked(
                 userModel.activateUserWithoutPassword,
             ).mockResolvedValueOnce(adminUser);
@@ -1565,9 +1638,9 @@ describe('UserService', () => {
     });
 
     test('keeps password-based invite activation unchanged', async () => {
-        vi.mocked(inviteLinkModel.getByCode).mockResolvedValueOnce({
-            ...inviteLink,
-            expiresAt: new Date('2099-01-01'),
+        vi.mocked(inviteLinkModel.getByCodeWithInviter).mockResolvedValueOnce({
+            inviteLink: { ...inviteLink, expiresAt: new Date('2099-01-01') },
+            invitedByUserUuid: null,
         });
         const service = createUserService(lightdashConfigMock);
         vi.spyOn(service, 'isLoginMethodAllowed').mockResolvedValue(true);
@@ -1606,6 +1679,41 @@ describe('UserService', () => {
                 isOrganizationCreator: false,
             },
         });
+    });
+
+    test('tracks who sent a setup invite when it is accepted', async () => {
+        vi.mocked(inviteLinkModel.getByCodeWithInviter).mockResolvedValueOnce({
+            inviteLink: {
+                ...inviteLink,
+                purpose: InviteLinkPurpose.Setup,
+                expiresAt: new Date('2099-01-01'),
+            },
+            invitedByUserUuid: 'inviter-uuid',
+        });
+        const service = createUserService(lightdashConfigMock);
+        vi.spyOn(service, 'isLoginMethodAllowed').mockResolvedValue(true);
+        vi.spyOn(
+            service,
+            'sendOneTimePasscodeToPrimaryEmail',
+        ).mockResolvedValue({
+            email: inviteLink.email,
+            isVerified: false,
+        });
+
+        await service.activateUserFromInvite(inviteLink.inviteCode, {
+            firstName: 'Invite',
+            lastName: 'User',
+            password: 'password1!',
+        });
+
+        expect(analyticsMock.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'setup_invite.accepted',
+                properties: expect.objectContaining({
+                    invitedByUserId: 'inviter-uuid',
+                }),
+            }),
+        );
     });
 
     describe('email OTP login', () => {
@@ -4002,6 +4110,177 @@ describe('UserService', () => {
         });
     });
 
+    describe('missing profile names from Google', () => {
+        const namelessUser: SessionUser = {
+            ...sessionUser,
+            firstName: '',
+            lastName: '',
+        };
+        const googleUser = (
+            firstName: string | undefined,
+            lastName: string | undefined,
+        ): OpenIdUser => ({
+            openId: { ...openIdUser.openId, firstName, lastName },
+        });
+        const signInWithExistingIdentity = (savedUser: SessionUser) => {
+            userModel.findSessionUserByOpenId.mockResolvedValueOnce(savedUser);
+            userModel.getOrganizationsForUser.mockResolvedValueOnce([
+                {
+                    organizationUuid: savedUser.organizationUuid,
+                    organizationName: savedUser.organizationName,
+                    organizationCreatedAt: savedUser.organizationCreatedAt,
+                },
+            ]);
+        };
+
+        test.each([
+            [
+                'fills both blank names',
+                { firstName: '', lastName: '' },
+                googleUser('Ana', 'Lee'),
+                { firstName: 'Ana', lastName: 'Lee' },
+            ],
+            [
+                'treats whitespace as blank and trims the Google name',
+                { firstName: '  ', lastName: '' },
+                googleUser(' Ana ', 'Lee'),
+                { firstName: 'Ana', lastName: 'Lee' },
+            ],
+            [
+                'keeps a saved last name while filling the first name',
+                { firstName: '', lastName: 'Custom' },
+                googleUser('Ana', 'Lee'),
+                { firstName: 'Ana', lastName: undefined },
+            ],
+        ])(
+            'existing Google identity %s',
+            async (_name, savedNames, googleProfile, expectedUpdate) => {
+                signInWithExistingIdentity({ ...sessionUser, ...savedNames });
+
+                const user = await userService.loginWithOpenId(
+                    googleProfile,
+                    undefined,
+                    undefined,
+                );
+
+                expect(userModel.updateUser).toHaveBeenCalledExactlyOnceWith(
+                    sessionUser.userUuid,
+                    undefined,
+                    expectedUpdate,
+                );
+                expect(user).toEqual(
+                    expect.objectContaining(
+                        Object.fromEntries(
+                            Object.entries(expectedUpdate).filter(
+                                ([, value]) => value !== undefined,
+                            ),
+                        ),
+                    ),
+                );
+            },
+        );
+
+        test.each([
+            [
+                'the user already has names',
+                sessionUser,
+                googleUser('Ana', 'Lee'),
+            ],
+            [
+                'Google sends no names',
+                namelessUser,
+                googleUser(undefined, undefined),
+            ],
+            ['Google sends blank names', namelessUser, googleUser('  ', '')],
+            [
+                'Google sends names the profile rejects',
+                namelessUser,
+                googleUser('<b>Ana', 'Lee>'),
+            ],
+        ])(
+            'existing Google identity is left unchanged when %s',
+            async (_name, savedUser, googleProfile) => {
+                signInWithExistingIdentity(savedUser);
+
+                await expect(
+                    userService.loginWithOpenId(
+                        googleProfile,
+                        undefined,
+                        undefined,
+                    ),
+                ).resolves.toEqual(
+                    expect.objectContaining({ userUuid: savedUser.userUuid }),
+                );
+                expect(userModel.updateUser).not.toHaveBeenCalled();
+            },
+        );
+
+        test('fills blank names when Google links to a verified-email account', async () => {
+            userModel.findSessionUserByPrimaryEmail.mockResolvedValueOnce(
+                namelessUser,
+            );
+            const service = createUserService({
+                ...lightdashConfigMock,
+                auth: {
+                    ...lightdashConfigMock.auth,
+                    enableOidcToEmailLinking: true,
+                },
+            });
+
+            const user = await service.loginWithOpenId(
+                googleUser('Ana', 'Lee'),
+                undefined,
+                undefined,
+            );
+
+            expect(openIdIdentityModel.createIdentity).toHaveBeenCalledOnce();
+            expect(userModel.updateUser).toHaveBeenCalledExactlyOnceWith(
+                namelessUser.userUuid,
+                undefined,
+                { firstName: 'Ana', lastName: 'Lee' },
+            );
+            expect(user).toEqual(
+                expect.objectContaining({ firstName: 'Ana', lastName: 'Lee' }),
+            );
+        });
+
+        test('fills blank names when Google links to the signed-in user', async () => {
+            const user = await userService.loginWithOpenId(
+                googleUser('Ana', 'Lee'),
+                { ...authenticatedUser, firstName: '', lastName: '' },
+                undefined,
+            );
+
+            expect(userModel.updateUser).toHaveBeenCalledExactlyOnceWith(
+                authenticatedUser.userUuid,
+                undefined,
+                { firstName: 'Ana', lastName: 'Lee' },
+            );
+            expect(user).toEqual(
+                expect.objectContaining({ firstName: 'Ana', lastName: 'Lee' }),
+            );
+        });
+
+        test('leaves names from other identity providers alone', async () => {
+            signInWithExistingIdentity(namelessUser);
+            const service = createUserService(lightdashConfigMock);
+            vi.spyOn(service, 'isLoginMethodAllowed').mockResolvedValue(true);
+
+            await service.loginWithOpenId(
+                {
+                    openId: {
+                        ...googleUser('Ana', 'Lee').openId,
+                        issuerType: OpenIdIdentityIssuerType.OKTA,
+                    },
+                },
+                undefined,
+                undefined,
+            );
+
+            expect(userModel.updateUser).not.toHaveBeenCalled();
+        });
+    });
+
     describe('loginWithOpenId', () => {
         const allowedLoginEvents = () =>
             auditLogSpy.mock.calls.filter(
@@ -5133,6 +5412,7 @@ describe('UserService', () => {
                 sessionUser.organizationUuid,
                 newUser.userUuid,
                 InviteLinkPurpose.Member,
+                sessionUser.userUuid,
             );
         });
         test('should cap invite expiry at the organization setting', async () => {
@@ -5155,6 +5435,7 @@ describe('UserService', () => {
                 sessionUser.organizationUuid,
                 newUser.userUuid,
                 InviteLinkPurpose.Member,
+                sessionUser.userUuid,
             );
             dateNowSpy.mockRestore();
         });
@@ -5175,6 +5456,7 @@ describe('UserService', () => {
                 sessionUser.organizationUuid,
                 newUser.userUuid,
                 InviteLinkPurpose.Member,
+                sessionUser.userUuid,
             );
             dateNowSpy.mockRestore();
         });
@@ -5192,6 +5474,7 @@ describe('UserService', () => {
                 sessionUser.organizationUuid,
                 newUser.userUuid,
                 InviteLinkPurpose.Member,
+                sessionUser.userUuid,
             );
         });
         test('should use a changed organization setting for subsequent links only', async () => {
@@ -5219,6 +5502,7 @@ describe('UserService', () => {
                 sessionUser.organizationUuid,
                 newUser.userUuid,
                 InviteLinkPurpose.Member,
+                sessionUser.userUuid,
             );
             expect(vi.mocked(inviteLinkModel.upsert)).toHaveBeenNthCalledWith(
                 2,
@@ -5227,6 +5511,7 @@ describe('UserService', () => {
                 sessionUser.organizationUuid,
                 newUser.userUuid,
                 InviteLinkPurpose.Member,
+                sessionUser.userUuid,
             );
             dateNowSpy.mockRestore();
         });
@@ -5276,6 +5561,7 @@ describe('UserService', () => {
                 sessionUser.organizationUuid,
                 newUser.userUuid,
                 InviteLinkPurpose.Setup,
+                sessionUser.userUuid,
             );
             expect(vi.mocked(emailClient.sendInviteEmail)).toHaveBeenCalledWith(
                 adminUser,

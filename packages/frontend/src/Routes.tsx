@@ -6,7 +6,6 @@ import AppRoute from './components/AppRoute';
 import ProjectLayout from './components/common/ProjectLayout';
 import ForbiddenPanel from './components/ForbiddenPanel';
 import JobDetailsDrawer from './components/JobDetailsDrawer';
-import NavBar from './components/NavBar';
 import { NavBarLayout } from './components/NavBarLayout';
 import PrivateRoute from './components/PrivateRoute';
 import ProjectRoute from './components/ProjectRoute';
@@ -67,12 +66,9 @@ const PUBLIC_ROUTES: RouteObject[] = [
             );
             return {
                 Component: () => (
-                    <>
-                        <NavBar />
-                        <TrackPage name={PageName.ORGANIZATION_SETUP}>
-                            <OrganizationSetup />
-                        </TrackPage>
-                    </>
+                    <TrackPage name={PageName.ORGANIZATION_SETUP}>
+                        <OrganizationSetup />
+                    </TrackPage>
                 ),
             };
         },
@@ -348,20 +344,6 @@ const SQL_RUNNER_ROUTES: RouteObject[] = [
     },
 ];
 
-const SOURCE_CODE_ROUTES: RouteObject[] = [
-    {
-        // Redirect old source-code route to project home with editor drawer open
-        path: 'source-code',
-        lazy: async () => {
-            const SourceCodeEditorRedirect = await loadLazyRouteDefault(
-                './pages/SourceCodeEditorRedirect',
-                () => import('./pages/SourceCodeEditorRedirect'),
-            );
-            return { Component: SourceCodeEditorRedirect };
-        },
-    },
-];
-
 const TABLES_ROUTES: RouteObject[] = [
     {
         path: 'tables',
@@ -519,11 +501,10 @@ const METRICS_ROUTES: RouteObject[] = [
     },
 ];
 
-// Routes that use ProjectLayout (fixed NavBar + SourceCodeDrawer)
+// Routes that use ProjectLayout (fixed NavBar)
 const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
     ...TABLES_ROUTES,
     ...SQL_RUNNER_ROUTES,
-    ...SOURCE_CODE_ROUTES,
     ...CHART_ROUTES,
     ...DASHBOARD_LIST_ROUTES,
     {
@@ -785,6 +766,23 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
         },
     },
     {
+        path: 'semantic-layer/*',
+        handle: { hideAILauncher: true },
+        lazy: async () => {
+            const SemanticStudio = await loadLazyRouteDefault(
+                './features/semanticStudio/SemanticStudioPage',
+                () => import('./features/semanticStudio/SemanticStudioPage'),
+            );
+            return {
+                Component: () => (
+                    <TrackPage name={PageName.SEMANTIC_STUDIO}>
+                        <SemanticStudio />
+                    </TrackPage>
+                ),
+            };
+        },
+    },
+    {
         path: 'funnel-builder',
         handle: { hideAILauncher: true },
         lazy: async () => {
@@ -893,7 +891,7 @@ const APP_ROUTES: RouteObject[] = [
                             return { Component: LegacySqlRunner };
                         },
                     },
-                    // All project routes share ProjectLayout (NavBar + SourceCodeDrawer)
+                    // All project routes share ProjectLayout (NavBar)
                     {
                         element: <ProjectLayout />,
                         children: [
@@ -960,7 +958,6 @@ const PRIVATE_ROUTES: RouteObject[] = [
                 element: <Navigate to="/generalSettings/roadmap" replace />,
             },
             {
-                element: <NavBarLayout />,
                 children: [
                     {
                         path: '/get-started',
@@ -1000,6 +997,42 @@ const PRIVATE_ROUTES: RouteObject[] = [
                         },
                     },
                     {
+                        path: '/onboarding/models/:projectUuid',
+                        handle: { hideAILauncher: true },
+                        lazy: async () => {
+                            const OnboardingModels = await loadLazyRouteDefault(
+                                './pages/OnboardingModels',
+                                () => import('./pages/OnboardingModels'),
+                            );
+                            return {
+                                Component: () => (
+                                    <TrackPage
+                                        name={PageName.ONBOARDING_MODELS}
+                                    >
+                                        <OnboardingModels />
+                                    </TrackPage>
+                                ),
+                            };
+                        },
+                    },
+                    {
+                        path: '/onboarding/tools/:projectUuid',
+                        handle: { hideAILauncher: true },
+                        lazy: async () => {
+                            const OnboardingTools = await loadLazyRouteDefault(
+                                './pages/OnboardingTools',
+                                () => import('./pages/OnboardingTools'),
+                            );
+                            return {
+                                Component: () => (
+                                    <TrackPage name={PageName.ONBOARDING_TOOLS}>
+                                        <OnboardingTools />
+                                    </TrackPage>
+                                ),
+                            };
+                        },
+                    },
+                    {
                         path: '/onboarding/dbt/:method?',
                         handle: { hideAILauncher: true },
                         lazy: async () => {
@@ -1016,6 +1049,11 @@ const PRIVATE_ROUTES: RouteObject[] = [
                             };
                         },
                     },
+                ],
+            },
+            {
+                element: <NavBarLayout />,
+                children: [
                     {
                         path: '/onboarding/invite-expert',
                         handle: { hideAILauncher: true },

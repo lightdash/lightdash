@@ -1,7 +1,6 @@
 {
     "base": "classic",
     "addOns": [
-        "codingAgent",
         "contentReads",
         "contentTools",
         "customChartTypes",
@@ -14,7 +13,6 @@
         "mcp",
         "mcpInventory",
         "memories",
-        "previewDeploySetup",
         "projectContext",
         "pullRequests",
         "readAttachments",
@@ -35,7 +33,6 @@
         "editContent",
         "editDbtProject",
         "editProjectContext",
-        "editRepo",
         "exploreRepo",
         "exportChartAsCode",
         "findContent",
@@ -73,7 +70,6 @@
         "runSql",
         "searchFieldValues",
         "searchSemanticLayer",
-        "setupPreviewDeploy",
         "syncDbtProject",
         "updateUserName"
     ],
@@ -94,7 +90,6 @@
     ],
     "skills": [
         "developing-in-lightdash",
-        "editing-source-code",
         "reading-source-code",
         "repository-writeback"
     ]

@@ -1,5 +1,5 @@
 import { isAiAppThreadCreatedFrom, type AiAgent } from '@lightdash/common';
-import { Box, Group, Loader, Stack, Text, TextInput } from '@mantine/core';
+import { Center, Group, Loader, Stack, Text, TextInput } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
 import { useCallback, useState } from 'react';
 import {
@@ -213,16 +213,9 @@ const AgentPage = () => {
 
     if (isLoadingAgent) {
         return (
-            <Box
-                h="100vh"
-                style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                }}
-            >
+            <Center h="100vh">
                 <Loader color="gray" />
-            </Box>
+            </Center>
         );
     }
 

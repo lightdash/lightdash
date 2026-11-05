@@ -18,3 +18,12 @@
 .sheetSelectorFilled {
     background-color: var(--mantine-color-green-light);
 }
+
+.tooltip {
+    word-break: break-word;
+}
+
+.externalLink {
+    display: flex;
+    align-items: center;
+}

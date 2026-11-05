@@ -244,9 +244,7 @@ describe('defineTool', () => {
 
         const agentInputSchema = tool.for('agent').inputSchema;
         const { jsonSchema, validate } = agentInputSchema;
-        expect(jsonSchema).toEqual(
-            toLlmJsonSchema(inputSchema, { reused: 'ref' }),
-        );
+        expect(jsonSchema).toEqual(toLlmJsonSchema(inputSchema));
         expect(validate?.(input)).toEqual({
             success: true,
             value: input,
@@ -368,6 +366,7 @@ describe('defineTool', () => {
             'list_data_app_connections',
             'list_data_app_themes',
             'list_skills',
+            'query',
             'read_skill',
             'read_skill_resource',
             'render_chart',
@@ -378,9 +377,9 @@ describe('defineTool', () => {
         ]);
     });
 
-    it('keeps ToolNameSchema aligned with agent-available definitions', () => {
+    it('keeps historical tool names alongside active definitions', () => {
         expect(new Set(ToolNameSchema.options)).toEqual(
-            new Set(agentToolNames),
+            new Set([...agentToolNames, 'editRepo']),
         );
     });
 });

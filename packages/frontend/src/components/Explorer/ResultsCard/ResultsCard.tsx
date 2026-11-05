@@ -22,6 +22,10 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import {
+    NOT_ON_LIVE_SOURCES,
+    useApiSourceExplore,
+} from '../../../features/externalConnections/liveSources/apiSourceExplore';
 import { useMergeSafe } from '../../../features/mergeQuery/context/useMerge';
 import { resolveMergeColumnOrder } from '../../../features/mergeQuery/utils/resolveMergeColumnOrder';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
@@ -60,6 +64,7 @@ const ResultsCard: FC = memo(() => {
     const resultsIsOpen = useExplorerSelector(selectIsResultsExpanded);
     const dispatch = useExplorerDispatch();
     const tableName = useExplorerSelector(selectTableName);
+    const apiSource = useApiSourceExplore(tableName);
     const sorts = useExplorerSelector(selectSorts);
     const metricQuery = useExplorerSelector(selectMetricQuery);
     const parameters = useExplorerSelector(selectParameters);
@@ -231,7 +236,15 @@ const ResultsCard: FC = memo(() => {
                                     projectUuid,
                                 })}
                             >
-                                {isEditMode && <AddTableCalculationButton />}
+                                {isEditMode && (
+                                    <AddTableCalculationButton
+                                        disabledReason={
+                                            apiSource
+                                                ? NOT_ON_LIVE_SOURCES
+                                                : undefined
+                                        }
+                                    />
+                                )}
                             </Can>
                         )}
 
@@ -263,7 +276,7 @@ const ResultsCard: FC = memo(() => {
                                         // popover opens on a chooser first;
                                         // the `?` hop is taken only there.
                                         data-tour-then='[data-tour-anchor="export-choose-download"]? >> [data-tour-anchor="export-download"]'
-                                        data-tour-docs="explore/share-charts.mdx#download-results-or-a-chart-image:p2:1"
+                                        data-tour-docs="explore/share-charts.mdx#download-results-or-a-chart-image:p3:1"
                                     >
                                         <MantineIcon icon={IconShare2} />
                                     </ActionIcon>

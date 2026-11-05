@@ -101,12 +101,6 @@ describe.skipIf(!process.env.USAGE_USER_ACTIVITY_SMOKE_ENDPOINT)(
             };
             const compact = () =>
                 new UsageEventsCompactor({
-                    featureFlagModel: {
-                        get: async () => ({
-                            id: 'analytics-project',
-                            enabled: true,
-                        }),
-                    },
                     s3Config: storage,
                     prometheusMetrics: null,
                     usageDimensionsModel: model,
@@ -533,7 +527,7 @@ describe.skipIf(!process.env.USAGE_USER_ACTIVITY_SMOKE_ENDPOINT)(
                     unchanged: 7,
                     failed: 0,
                 });
-                const cli = await promisify(execFile)(
+                const cli = promisify(execFile)(
                     'pnpm',
                     [
                         'exec',
@@ -551,7 +545,8 @@ describe.skipIf(!process.env.USAGE_USER_ACTIVITY_SMOKE_ENDPOINT)(
                     {
                         env: {
                             ...process.env,
-                            LIGHTDASH_ENABLE_FEATURE_FLAGS: 'analytics-project',
+                            LIGHTDASH_LICENSE_KEY: '',
+                            LIGHTDASH_LICENSE_CERTIFICATE: '',
                             LIGHTDASH_PREVIEW_FEATURE_FLAGS_ENABLED: 'false',
                             S3_ENDPOINT: endpoint,
                             S3_BUCKET: storage.bucket,
@@ -569,7 +564,12 @@ describe.skipIf(!process.env.USAGE_USER_ACTIVITY_SMOKE_ENDPOINT)(
                         timeout: 120000,
                     },
                 );
-                expect(cli.stdout).toContain('unchanged: 7');
+                // ENV enablement alone must not authorize the maintenance CLI.
+                await expect(cli).rejects.toMatchObject({
+                    stderr: expect.stringContaining(
+                        'Managed analytics is not enabled',
+                    ),
+                });
                 // Other org has no query/AI/app/step files: its empty views still query.
                 const otherReader = new DuckdbWarehouseClient({
                     type: 'duckdb_parquet',

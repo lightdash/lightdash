@@ -1,7 +1,6 @@
 import {
     DatabricksAuthenticationType,
     DatabricksTokenError,
-    FeatureFlags,
     UserWarehouseCredentialPurpose,
     WarehouseTypes,
     type CreateDatabricksCredentials,
@@ -19,11 +18,7 @@ import {
     connectionContextFromUser,
     WarehouseCredentialKind,
 } from '../WarehouseClientFactory/ConnectionContext';
-import {
-    preparedCredentials,
-    type MaterializedCredentials,
-    type PreparedCredentials,
-} from '../WarehouseClientFactory/CredentialResolver';
+import { type MaterializedCredentials } from '../WarehouseClientFactory/CredentialResolver';
 import type { CredentialResolverRegistry } from '../WarehouseClientFactory/CredentialResolverRegistry';
 import type {
     WarehouseCredentialBase,
@@ -44,11 +39,7 @@ const credentials: CreateDatabricksCredentials = {
     oauthClientId: 'cli-client',
 };
 const actor = { userUuid: 'person', organizationUuid: 'org' };
-const setup = (
-    enabled: boolean,
-    mode = DatabricksAuthenticationType.OAUTH_U2M,
-    organizationCredentialUuid: string | null = null,
-) => {
+const setup = (mode = DatabricksAuthenticationType.OAUTH_U2M) => {
     const connection: CreateDatabricksCredentials = {
         ...credentials,
         authenticationType: mode,
@@ -60,7 +51,6 @@ const setup = (
         ...projectWithSensitiveFields,
         projectUuid: 'project',
         organizationUuid: 'org',
-        organizationWarehouseCredentialsUuid: organizationCredentialUuid,
         warehouseConnection: connection,
     };
     const projectModel = {
@@ -68,13 +58,6 @@ const setup = (
         getOwnWarehouseCredentialsForProject: vi
             .fn()
             .mockResolvedValue(connection),
-        rotateRefreshToken: vi.fn().mockResolvedValue(true),
-    };
-    const organizationWarehouseCredentialsModel = {
-        getByUuidWithSensitiveData: vi.fn().mockResolvedValue({
-            organizationUuid: 'org',
-            credentials: connection,
-        }),
         rotateRefreshToken: vi.fn().mockResolvedValue(true),
     };
     const userWarehouseCredentialsModel = {
@@ -93,14 +76,9 @@ const setup = (
         lightdashConfig: lightdashConfigMock,
         refreshTokenRotation: rotation,
         projectModel,
-        organizationWarehouseCredentialsModel,
         userWarehouseCredentialsModel,
         featureFlagModel: {
-            get: vi.fn(async ({ featureFlagId }) => ({
-                enabled:
-                    featureFlagId === FeatureFlags.WarehouseOAuthRefreshLock &&
-                    enabled,
-            })),
+            get: vi.fn(async () => ({ enabled: false })),
         },
     } as unknown as ProjectServiceArguments);
     const probe = service as unknown as {
@@ -124,12 +102,7 @@ const setup = (
         refreshCredentialsAndPersistRotation: (
             input: CreateDatabricksCredentials,
             userUuid: string,
-            source:
-                | { kind: 'project'; projectUuid: string }
-                | {
-                      kind: 'organization';
-                      organizationWarehouseCredentialsUuid: string;
-                  },
+            source: { kind: 'project'; projectUuid: string },
         ) => Promise<CreateWarehouseCredentials>;
         warehouseClientFactory: {
             credentialResolvers: CredentialResolverRegistry;
@@ -160,7 +133,6 @@ const setup = (
         probe,
         project,
         projectModel,
-        organizationWarehouseCredentialsModel,
         userWarehouseCredentialsModel,
         exchange,
         lockedExchange,
@@ -175,112 +147,49 @@ describe.each([
     DatabricksAuthenticationType.OAUTH_U2M,
     DatabricksAuthenticationType.OAUTH_M2M,
 ])('ProjectService Databricks %s resolver entry points', (mode) => {
-    test.each([true, false])(
-        'direct refresh uses the resolver with lock %s',
-        async (enabled) => {
-            const f = setup(enabled, mode);
-            const result = await f.probe.refreshCredentialsAndPersistRotation(
-                f.project.warehouseConnection,
-                actor.userUuid,
-                { kind: 'project', projectUuid: 'project' },
-            );
-            expect(result).toMatchObject({
-                token: 'fresh-access',
-                refreshToken: 'rotated-refresh',
-                authenticationType: mode,
-            });
-            expect(f.run).toHaveBeenCalledTimes(enabled ? 1 : 0);
-            expect(
-                enabled ? f.lockedExchange : f.exchange,
-            ).toHaveBeenCalledExactlyOnceWith(
-                credentials.serverHostName,
-                'cli-client',
-                'stored-refresh',
-                undefined,
-            );
-            expect(
-                f.projectModel.rotateRefreshToken,
-            ).toHaveBeenCalledExactlyOnceWith(
-                'project',
-                'stored-refresh',
-                'rotated-refresh',
-                ...(enabled ? [{ raw: f.raw }] : []),
-            );
-        },
-    );
+    test('direct refresh uses the resolver', async () => {
+        const f = setup(mode);
+        const result = await f.probe.refreshCredentialsAndPersistRotation(
+            f.project.warehouseConnection,
+            actor.userUuid,
+            { kind: 'project', projectUuid: 'project' },
+        );
+        expect(result).toMatchObject({
+            token: 'fresh-access',
+            refreshToken: 'rotated-refresh',
+            authenticationType: mode,
+        });
+        expect(f.run).toHaveBeenCalledTimes(1);
+        expect(f.lockedExchange).toHaveBeenCalledExactlyOnceWith(
+            credentials.serverHostName,
+            'cli-client',
+            'stored-refresh',
+            undefined,
+        );
+        expect(
+            f.projectModel.rotateRefreshToken,
+        ).toHaveBeenCalledExactlyOnceWith(
+            'project',
+            'stored-refresh',
+            'rotated-refresh',
+            { raw: f.raw },
+        );
+    });
 
-    test.each([true, false])(
-        'direct organization refresh writes the source row with lock %s',
-        async (enabled) => {
-            const f = setup(enabled, mode, 'org-row');
-            await f.probe.refreshCredentialsAndPersistRotation(
-                f.project.warehouseConnection,
-                actor.userUuid,
-                {
-                    kind: 'organization',
-                    organizationWarehouseCredentialsUuid: 'org-row',
-                },
-            );
-            expect(
-                f.organizationWarehouseCredentialsModel.rotateRefreshToken,
-            ).toHaveBeenCalledExactlyOnceWith(
-                'org-row',
-                'stored-refresh',
-                'rotated-refresh',
-                ...(enabled ? [{ raw: f.raw }] : []),
-            );
-            expect(f.projectModel.rotateRefreshToken).not.toHaveBeenCalled();
-        },
-    );
-
-    test.each([true, false])(
-        'legacy compile writes organization rotation only with lock %s',
-        async (enabled) => {
-            const f = setup(enabled, mode, 'org-row');
-            const result = await f.probe.prepareLegacyCompileCredentials(
-                f.project,
-                actor,
-            );
-            expect(result).toMatchObject({
-                token: 'fresh-access',
-                refreshToken: 'rotated-refresh',
-            });
-            expect((result as PreparedCredentials)[preparedCredentials]).toBe(
-                true,
-            );
-            expect(
-                f.organizationWarehouseCredentialsModel.rotateRefreshToken,
-            ).toHaveBeenCalledTimes(enabled ? 1 : 0);
-            if (enabled)
-                expect(
-                    f.organizationWarehouseCredentialsModel.rotateRefreshToken,
-                ).toHaveBeenCalledWith(
-                    'org-row',
-                    'stored-refresh',
-                    'rotated-refresh',
-                    { raw: f.raw },
-                );
-            expect(f.projectModel.rotateRefreshToken).not.toHaveBeenCalled();
-        },
-    );
-
-    test.each([true, false])(
-        'legacy compile preserves raw errors with lock %s',
-        async (enabled) => {
-            const f = setup(enabled, mode);
-            const error = new Error('invalid_grant');
-            (enabled ? f.lockedExchange : f.exchange).mockRejectedValue(error);
-            await expect(
-                f.probe.prepareLegacyCompileCredentials(f.project, actor),
-            ).rejects.toBe(error);
-            expect(f.projectModel.rotateRefreshToken).not.toHaveBeenCalled();
-        },
-    );
+    test('legacy compile preserves raw errors', async () => {
+        const f = setup(mode);
+        const error = new Error('invalid_grant');
+        f.lockedExchange.mockRejectedValue(error);
+        await expect(
+            f.probe.prepareLegacyCompileCredentials(f.project, actor),
+        ).rejects.toBe(error);
+        expect(f.projectModel.rotateRefreshToken).not.toHaveBeenCalled();
+    });
 
     test.each(['save', 'legacy compile', 'legacy token only'] as const)(
         '%s prepares credentials without a second exchange',
         async (entry) => {
-            const f = setup(true, mode);
+            const f = setup(mode);
             if (entry === 'legacy token only')
                 f.project.warehouseConnection.refreshToken = undefined;
             const prepared =
@@ -341,67 +250,60 @@ describe.each([
     );
 });
 
-test.each([true, false])(
-    'legacy U2M compile uses and rotates the personal source with lock %s',
-    async (enabled) => {
-        const f = setup(enabled);
-        f.project.warehouseConnection.refreshToken = undefined;
-        const personal = {
-            uuid: 'user-row',
-            credentials: {
-                ...credentials,
-                refreshToken: 'person-refresh',
-                oauthClientId: 'person-client',
-            },
-        };
-        f.userWarehouseCredentialsModel.findForProjectWithSecrets.mockResolvedValue(
-            personal,
-        );
-        f.userWarehouseCredentialsModel.getByUuidWithSecrets.mockResolvedValue(
-            personal,
-        );
-        const result = await f.probe.prepareLegacyCompileCredentials(
-            f.project,
-            actor,
-        );
-        expect(result).toMatchObject({
-            token: 'fresh-access',
-            refreshToken: 'rotated-refresh',
-            oauthClientId: 'cli-client',
-        });
-        expect(
-            enabled ? f.lockedExchange : f.exchange,
-        ).toHaveBeenCalledExactlyOnceWith(
-            credentials.serverHostName,
-            'person-client',
-            'person-refresh',
-            undefined,
-        );
-        expect(f.projectModel.rotateRefreshToken).not.toHaveBeenCalled();
-        expect(
-            f.userWarehouseCredentialsModel.rotateRefreshToken,
-        ).toHaveBeenCalledTimes(enabled ? 1 : 0);
-        if (enabled) {
-            expect(f.run.mock.calls[0][0].key).toEqual({
-                kind: 'user',
-                uuid: 'user-row',
-                purpose: UserWarehouseCredentialPurpose.DEFAULT,
-            });
-            expect(
-                f.userWarehouseCredentialsModel.rotateRefreshToken,
-            ).toHaveBeenCalledExactlyOnceWith(
-                'user-row',
-                'person-refresh',
-                'rotated-refresh',
-                undefined,
-                { raw: f.raw },
-            );
-        }
-    },
-);
+test('legacy U2M compile uses and rotates the personal source', async () => {
+    const f = setup();
+    f.project.warehouseConnection.refreshToken = undefined;
+    const personal = {
+        uuid: 'user-row',
+        credentials: {
+            ...credentials,
+            refreshToken: 'person-refresh',
+            oauthClientId: 'person-client',
+        },
+    };
+    f.userWarehouseCredentialsModel.findForProjectWithSecrets.mockResolvedValue(
+        personal,
+    );
+    f.userWarehouseCredentialsModel.getByUuidWithSecrets.mockResolvedValue(
+        personal,
+    );
+    const result = await f.probe.prepareLegacyCompileCredentials(
+        f.project,
+        actor,
+    );
+    expect(result).toMatchObject({
+        token: 'fresh-access',
+        refreshToken: 'rotated-refresh',
+        oauthClientId: 'cli-client',
+    });
+    expect(f.lockedExchange).toHaveBeenCalledExactlyOnceWith(
+        credentials.serverHostName,
+        'person-client',
+        'person-refresh',
+        undefined,
+    );
+    expect(f.projectModel.rotateRefreshToken).not.toHaveBeenCalled();
+    expect(
+        f.userWarehouseCredentialsModel.rotateRefreshToken,
+    ).toHaveBeenCalledTimes(1);
+    expect(f.run.mock.calls[0][0].key).toEqual({
+        kind: 'user',
+        uuid: 'user-row',
+        purpose: UserWarehouseCredentialPurpose.DEFAULT,
+    });
+    expect(
+        f.userWarehouseCredentialsModel.rotateRefreshToken,
+    ).toHaveBeenCalledExactlyOnceWith(
+        'user-row',
+        'person-refresh',
+        'rotated-refresh',
+        undefined,
+        { raw: f.raw },
+    );
+});
 
 test('U2M save loads host-matching credentials and retains their original token', async () => {
-    const f = setup(true);
+    const f = setup();
     f.project.warehouseConnection.refreshToken = undefined;
     const result = await f.probe._resolveWarehouseClientCredentials(
         { warehouseConnection: f.project.warehouseConnection },
@@ -422,7 +324,7 @@ test('U2M save loads host-matching credentials and retains their original token'
 });
 
 test('U2M save retains the reconnect error', async () => {
-    const f = setup(true);
+    const f = setup();
     f.exchange.mockRejectedValue(new Error('invalid_grant'));
     await expect(
         f.probe._resolveWarehouseClientCredentials(
@@ -434,7 +336,7 @@ test('U2M save retains the reconnect error', async () => {
 });
 
 test('M2M legacy compile with client credentials stays unlocked', async () => {
-    const f = setup(true, DatabricksAuthenticationType.OAUTH_M2M);
+    const f = setup(DatabricksAuthenticationType.OAUTH_M2M);
     f.project.warehouseConnection = {
         ...f.project.warehouseConnection,
         refreshToken: undefined,
@@ -471,7 +373,6 @@ describe.each(['query', 'compile', 'legacy compile'] as const)(
                           kind: 'original',
                           projectUuid: 'project',
                           organizationUuid: 'org',
-                          organizationWarehouseCredentialsUuid: null,
                           warehouseConnectionUuid: null,
                           connectionRoute: null,
                           credentials: {
@@ -485,17 +386,10 @@ describe.each(['query', 'compile', 'legacy compile'] as const)(
                       }),
                   );
 
-        test.each(
-            [true, false].flatMap((enabled) =>
-                ['host', 'client', 'both'].map((missing) => ({
-                    enabled,
-                    missing,
-                })),
-            ),
-        )(
-            'inherits missing $missing with lock $enabled',
-            async ({ enabled, missing }) => {
-                const f = setup(enabled);
+        test.each(['host', 'client', 'both'])(
+            'inherits missing %s',
+            async (missing) => {
+                const f = setup();
                 f.project.warehouseConnection.refreshToken = undefined;
                 const personal = {
                     uuid: 'user-row',
@@ -523,9 +417,7 @@ describe.each(['query', 'compile', 'legacy compile'] as const)(
                     token: 'fresh-access',
                     refreshToken: 'rotated-refresh',
                 });
-                expect(
-                    enabled ? f.lockedExchange : f.exchange,
-                ).toHaveBeenCalledExactlyOnceWith(
+                expect(f.lockedExchange).toHaveBeenCalledExactlyOnceWith(
                     credentials.serverHostName,
                     missing === 'host' ? 'person-client' : 'cli-client',
                     'person-refresh',
@@ -533,9 +425,7 @@ describe.each(['query', 'compile', 'legacy compile'] as const)(
                 );
                 expect(
                     f.userWarehouseCredentialsModel.rotateRefreshToken,
-                ).toHaveBeenCalledTimes(
-                    enabled || entry !== 'legacy compile' ? 1 : 0,
-                );
+                ).toHaveBeenCalledTimes(1);
                 expect(
                     f.projectModel.rotateRefreshToken,
                 ).not.toHaveBeenCalled();
@@ -545,7 +435,7 @@ describe.each(['query', 'compile', 'legacy compile'] as const)(
         test.each(['host', 'client', 'mode'] as const)(
             'rejects a real personal %s replacement',
             async (field) => {
-                const f = setup(true);
+                const f = setup();
                 f.project.warehouseConnection.refreshToken = undefined;
                 const personal = {
                     uuid: 'user-row',

@@ -2,6 +2,21 @@ import { MetricQuery, ParameterError } from '@lightdash/common';
 
 const DEFAULT_CSV_CELLS_LIMIT = 100000;
 
+const getMetricQueryColumnCount = (
+    metricQuery: Pick<
+        MetricQuery,
+        'dimensions' | 'metrics' | 'tableCalculations'
+    >,
+): number =>
+    metricQuery.dimensions.length +
+    metricQuery.metrics.length +
+    metricQuery.tableCalculations.length;
+
+const getCellLimitedRowCount = (
+    csvCellsLimit: number,
+    numberColumns: number,
+): number => Math.floor(csvCellsLimit / Math.max(numberColumns, 1));
+
 /**
  * Applies CSV limit to a metric query.
  *
@@ -29,15 +44,12 @@ export function metricQueryWithLimit(
         return metricQuery;
     }
 
-    const numberColumns =
-        metricQuery.dimensions.length +
-        metricQuery.metrics.length +
-        metricQuery.tableCalculations.length;
+    const numberColumns = getMetricQueryColumnCount(metricQuery);
     if (numberColumns === 0)
         throw new ParameterError(
             'Query must have at least one dimension, metric, or table calculation',
         );
-    const maxRows = Math.floor(csvCellsLimit / Math.max(numberColumns, 1));
+    const maxRows = getCellLimitedRowCount(csvCellsLimit, numberColumns);
     const csvRowLimit =
         csvLimit === null ? maxRows : Math.min(csvLimit, maxRows);
 
@@ -45,4 +57,35 @@ export function metricQueryWithLimit(
         ...metricQuery,
         limit: csvRowLimit,
     };
+}
+
+/**
+ * Whether stored export results were cut short by the cell limit. Export
+ * queries apply the cap as their row limit (see `metricQueryWithLimit`), so
+ * the results file itself never shows it: a query whose limit equals the cap
+ * and whose rows filled it may have had more rows behind it.
+ */
+export function isCellLimitTruncated({
+    metricQuery,
+    totalRowCount,
+    csvCellsLimit,
+}: {
+    metricQuery: Pick<
+        MetricQuery,
+        'dimensions' | 'metrics' | 'tableCalculations' | 'limit'
+    >;
+    totalRowCount: number | null;
+    csvCellsLimit: number;
+}): boolean {
+    const numberColumns = getMetricQueryColumnCount(metricQuery);
+    if (numberColumns === 0 || totalRowCount === null) return false;
+
+    const cellLimitedRows = getCellLimitedRowCount(
+        csvCellsLimit,
+        numberColumns,
+    );
+    return (
+        metricQuery.limit === cellLimitedRows &&
+        totalRowCount >= cellLimitedRows
+    );
 }

@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type { ListContentFn } from '../types/aiAgentDependencies';
+import { toAbsoluteHref } from '../utils/absoluteHref';
 import type {
     ExecuteStructuredToolResult,
     ExecuteToolErrorResult,
@@ -15,6 +16,7 @@ import { xmlBuilder } from '../xmlBuilder';
 
 type Dependencies = {
     listContent: ListContentFn;
+    siteUrl: string;
 };
 
 const toolDefinition = listContentToolDefinition.for('agent');
@@ -32,11 +34,10 @@ const toStructuredContent = (
     items: content.items,
 });
 
-const renderContent = ({
-    spaceSlug,
-    pagination,
-    items,
-}: ToolListContentStructuredContent) => (
+const renderContent = (
+    { spaceSlug, pagination, items }: ToolListContentStructuredContent,
+    siteUrl: string,
+) => (
     <contentList
         page={pagination.page}
         pageSize={pagination.pageSize}
@@ -51,12 +52,13 @@ const renderContent = ({
                         contentType={item.contentType}
                         name={item.name}
                         slug={item.slug}
-                        href={item.href}
+                        href={toAbsoluteHref(siteUrl, item.href)}
                         chartCount={item.chartCount}
                         dashboardCount={item.dashboardCount}
                         childSpaceCount={item.childSpaceCount}
                         appCount={item.appCount}
                         directAccess={item.directAccess}
+                        canEdit={item.canEdit}
                     />
                 );
             }
@@ -67,7 +69,7 @@ const renderContent = ({
                         uuid={item.uuid}
                         name={item.name}
                         slug={item.slug}
-                        href={item.href}
+                        href={toAbsoluteHref(siteUrl, item.href)}
                     />
                 );
             }
@@ -76,14 +78,14 @@ const renderContent = ({
                     contentType={item.contentType}
                     name={item.name}
                     slug={item.slug}
-                    href={item.href}
+                    href={toAbsoluteHref(siteUrl, item.href)}
                 />
             );
         })}
     </contentList>
 );
 
-export const getListContent = ({ listContent }: Dependencies) =>
+export const getListContent = ({ listContent, siteUrl }: Dependencies) =>
     tool({
         ...toolDefinition,
         execute: async (
@@ -100,7 +102,10 @@ export const getListContent = ({ listContent }: Dependencies) =>
                     }),
                 );
                 return {
-                    result: renderContent(structuredContent).toString(),
+                    result: renderContent(
+                        structuredContent,
+                        siteUrl,
+                    ).toString(),
                     metadata: { status: 'success' },
                     structuredContent,
                 };

@@ -40,7 +40,7 @@ If a Lightdash maintainer has invited you to contribute or approved your propose
 
 1. Confirm the scope and intended approach with the maintainer before you begin.
 2. Make sure the agreement is recorded on the relevant issue or pull request.
-3. Read the repository-level guidance and any instruction or context files relevant to the area you are changing, including `AGENTS.md`, `CLAUDE.md` and `CONTEXT-MAP.md`.
+3. Read the repository-level guidance and any instruction or context files relevant to the area you are changing, including `AGENTS.md` and `CONTEXT-MAP.md`.
 4. Keep the pull request focused on the agreed scope.
 5. Run the relevant tests and checks before requesting review.
 
@@ -390,13 +390,25 @@ the `/etc/hosts` configuration in your computer otherwise it will fail with a `D
    `127.0.0.1    minio`
 3. Save the file
 
+#### Backend debugger
+
+The direct backend `dev` command and PM2 listen on `127.0.0.1` for debugging.
+The default inspector port is `9229`; `DEBUG_PORT` selects a different port for
+an isolated instance. A different listen address requires an explicit
+`DEBUG_HOST` value. For PM2, put these settings in `.env.development.local`.
+
+To debug inside the development container, explicitly set `DEBUG_HOST=0.0.0.0`
+for `lightdash-dev` and run the backend `dev` command. Docker continues to publish
+the inspector at `127.0.0.1:9229:9229` on the host. Use an SSH local forward when
+connecting to a remote development host.
+
 #### Setup Development Environment without Docker
 
 To setup Development Environment without Docker you need following pre-requisites before running Lightdash:
 
 - Node.js 24.18.1 (managed by pnpm; pinned in `package.json` under `devEngines.runtime`)
 - python >= 3.8
-- pnpm 12.3.4 (pinned in `package.json`)
+- pnpm 12.16.1 (pinned in `package.json`)
 - postgres >= 12
 - dbt 1.7.x aliased to `dbt1.7`
 
@@ -424,7 +436,7 @@ For example, on macOS:
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
 # 2 Install the pinned pnpm version, then reopen your terminal so pnpm is on PATH
-curl -fsSL https://get.pnpm.io/install.sh | env PNPM_VERSION=12.3.4 sh -
+curl -fsSL https://get.pnpm.io/install.sh | env PNPM_VERSION=12.16.1 sh -
 
 # 3 Install Node through pnpm; this also creates its project-aware node command
 pnpm runtime set node 24.18.1 --global
@@ -530,16 +542,16 @@ pnpm install
 pnpm common-build
 pnpm warehouses-build
 
-# Run cypress in interactive mode
+# Run Playwright in UI mode
 pnpm e2e-open
 
-# Or run cypress in cli mode
+# Or run Playwright headless
 pnpm e2e-run
 ```
 
 Note:
 
-- Edit `packages/e2e/cypress.json` if you're running Lightdash on a different domain/port than `http://localhost:8080`
+- Set `PLAYWRIGHT_BASE_URL` if you're running Lightdash somewhere other than `http://localhost:3000` (see `packages/e2e/AGENTS.md`)
 
 #### How to check code quality
 

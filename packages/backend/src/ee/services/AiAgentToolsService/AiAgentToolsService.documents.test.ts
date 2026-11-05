@@ -147,6 +147,9 @@ const setup = (
         spaceModel,
         contentService,
         projectService: { getSpaces: vi.fn().mockResolvedValue([space]) },
+        spacePermissionService: {
+            getAccessibleSpaceUuids: vi.fn().mockResolvedValue([]),
+        },
         searchService: {
             findContent: vi.fn().mockResolvedValue({ content: [] }),
         },

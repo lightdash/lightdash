@@ -133,6 +133,7 @@ const makeMcpService = ({
     };
 
     const aiOrganizationSettingsService = {
+        getMcpProjectAccess: vi.fn().mockResolvedValue({ mode: 'all' }),
         isMcpAgentsEnabled: vi.fn().mockResolvedValue(mcpAgentsEnabled),
     };
 

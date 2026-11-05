@@ -60,7 +60,6 @@ type Dependencies = {
     enableDataAccess: boolean;
     slackLinksOnly: boolean;
     sqlScope?: SqlScope | null;
-    hyphenatedIdentifiers: boolean;
     autoApproveSql?: boolean;
     autoApproveSqlUserUuid?: string | null;
     useSlackStreamCard?: boolean;
@@ -159,7 +158,6 @@ export const getRunSql = ({
     maxQueryLimit,
     enableDataAccess,
     sqlScope = null,
-    hyphenatedIdentifiers,
     autoApproveSql = false,
     autoApproveSqlUserUuid = null,
     useSlackStreamCard = false,
@@ -208,9 +206,7 @@ export const getRunSql = ({
 
             // Pre-section errors (bad SQL shape) — no Slack message exists
             // yet, just return the error to the agent.
-            const scopeViolations = findSqlScopeViolations(sql, sqlScope, {
-                hyphenatedIdentifiers,
-            });
+            const scopeViolations = findSqlScopeViolations(sql, sqlScope);
             if (scopeViolations.length > 0 && sqlScope) {
                 return persistIfResumed(
                     nonSuccessOutput(

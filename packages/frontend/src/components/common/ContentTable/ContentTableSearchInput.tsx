@@ -5,7 +5,7 @@ import {
     type TextInputProps,
 } from '@mantine/core';
 import { IconSearch, IconX } from '@tabler/icons-react';
-import { memo, type CSSProperties } from 'react';
+import { memo } from 'react';
 import MantineIcon from '../MantineIcon';
 import classes from './ContentTable.module.css';
 
@@ -24,7 +24,6 @@ export type ContentTableSearchInputProps = Omit<
     collapsedWidth?: CssSize;
     expandedWidth?: CssSize;
     onChange: (value: string) => void;
-    style?: CSSProperties;
     tooltipLabel?: string;
     value: string;
 };
@@ -37,7 +36,6 @@ const ContentTableSearchInputComponent = ({
     expandedWidth,
     onChange,
     placeholder = 'Search...',
-    style,
     tooltipLabel,
     value,
     ...rest
@@ -74,14 +72,11 @@ const ContentTableSearchInputComponent = ({
                 ) : null
             }
             onChange={(event) => onChange(event.currentTarget.value)}
-            style={
-                {
-                    '--content-table-search-width': toCssSize(collapsedWidth),
-                    '--content-table-search-expanded-width':
-                        toCssSize(expandedWidth),
-                    ...style,
-                } as CSSProperties
-            }
+            style={{
+                '--content-table-search-width': toCssSize(collapsedWidth),
+                '--content-table-search-expanded-width':
+                    toCssSize(expandedWidth),
+            }}
         />
     );
 

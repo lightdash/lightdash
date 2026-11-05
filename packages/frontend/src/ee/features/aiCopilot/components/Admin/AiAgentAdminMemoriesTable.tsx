@@ -221,7 +221,7 @@ const AiAgentAdminMemoriesTable = () => {
                     const { agent } = row.original;
                     if (!agent) {
                         return (
-                            <Text c="ldGray.5" fz="xs" fs="italic">
+                            <Text c="dimmed" fz="xs" fs="italic">
                                 Deleted agent
                             </Text>
                         );
@@ -249,7 +249,7 @@ const AiAgentAdminMemoriesTable = () => {
                     const { user } = row.original;
                     if (!user) {
                         return (
-                            <Text c="ldGray.5" fz="xs" fs="italic">
+                            <Text c="dimmed" fz="xs" fs="italic">
                                 Unknown
                             </Text>
                         );
@@ -297,7 +297,7 @@ const AiAgentAdminMemoriesTable = () => {
                     </Group>
                 ),
                 Cell: ({ row }) => (
-                    <Text fz="sm" c="ldGray.7">
+                    <Text fz="sm" c="dimmed">
                         {formatDate(row.original.generatedAt)}
                     </Text>
                 ),
@@ -317,14 +317,13 @@ const AiAgentAdminMemoriesTable = () => {
         enableTopToolbar: true,
         mantineTableContainerProps: {
             ref: tableContainerRef,
-            style: {
-                maxHeight: 'calc(100dvh - 350px)',
-            },
+            mah: 'calc(100dvh - 350px)',
             onScroll,
         },
         mantineTableProps: {
             highlightOnHover: true,
         },
+        mantineTableHeadCellProps: { px: 'xl' },
         mantineTableBodyRowProps: ({ row, table: mantineTable }) => {
             if (mantineTable.getState().showSkeletons) {
                 return {};
@@ -336,7 +335,6 @@ const AiAgentAdminMemoriesTable = () => {
             }
 
             return {
-                style: { cursor: 'pointer' },
                 onClick: () =>
                     setSelectedMemory({
                         projectUuid: project.uuid,
@@ -346,16 +344,7 @@ const AiAgentAdminMemoriesTable = () => {
                     }),
             };
         },
-        mantineTableBodyCellProps: {
-            h: 72,
-            style: {
-                padding: `${theme.spacing.md} ${theme.spacing.xl}`,
-                borderRight: 'none',
-                borderLeft: 'none',
-                borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                borderTop: 'none',
-            },
-        },
+        mantineTableBodyCellProps: { h: 72, py: 'md', px: 'xl' },
         renderTopToolbar: () => (
             <Box>
                 <Group
@@ -371,12 +360,7 @@ const AiAgentAdminMemoriesTable = () => {
                             debounceMs={300}
                         />
 
-                        <Divider
-                            orientation="vertical"
-                            w={1}
-                            h={20}
-                            className={styles.toolbarDivider}
-                        />
+                        <Divider orientation="vertical" w={1} h={20} />
                         <ProjectsFilter
                             selectedProjectUuids={selectedProjectUuids}
                             setSelectedProjectUuids={setSelectedProjectUuids}
@@ -398,12 +382,7 @@ const AiAgentAdminMemoriesTable = () => {
 
                         {hasActiveFilters && (
                             <>
-                                <Divider
-                                    orientation="vertical"
-                                    w={1}
-                                    h={20}
-                                    className={styles.toolbarDivider}
-                                />
+                                <Divider orientation="vertical" w={1} h={20} />
                                 <Button
                                     variant="subtle"
                                     size="xs"
@@ -423,7 +402,6 @@ const AiAgentAdminMemoriesTable = () => {
 
                     <Box
                         bg="ldGray.1"
-                        c="ldGray.9"
                         py="sm"
                         px="xs"
                         className={styles.resultCount}
@@ -445,9 +423,7 @@ const AiAgentAdminMemoriesTable = () => {
                 p={`${theme.spacing.sm} ${theme.spacing.xl} ${theme.spacing.md} ${theme.spacing.xl}`}
                 className={styles.bottomToolbar}
             >
-                <Text fz="xs" c="ldGray.8">
-                    {bottomToolbarLabel}
-                </Text>
+                <Text fz="xs">{bottomToolbarLabel}</Text>
             </Box>
         ),
         state: {

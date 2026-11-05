@@ -27,12 +27,14 @@ type UrlOverrideRule = DashboardFilterRuleOverride & {
     lockedTabUuids?: string[];
     required?: boolean;
     requiredGroupId?: string;
+    sectionId?: string;
 };
 
 const sanitizeOverrideRule = (
     rule: UrlOverrideRule,
 ): DashboardFilterRuleOverride => {
-    const { lockedTabUuids, required, requiredGroupId, ...rest } = rule;
+    const { lockedTabUuids, required, requiredGroupId, sectionId, ...rest } =
+        rule;
     return rest;
 };
 
@@ -69,6 +71,7 @@ export const toSavedFilterOverride = ({
     lockedTabUuids,
     required,
     requiredGroupId,
+    sectionId,
     ...item
 }: DashboardFilterRule): DashboardFilterRuleOverride => item;
 

@@ -9,8 +9,10 @@ import {
 import { useMemo } from 'react';
 import { isCartesianVisualizationConfig } from '../../components/LightdashVisualization/types';
 import {
+    useSeriesColor,
+    useVisualizationConfig,
+    useVisualizationInputs,
     useVisualizationServices,
-    useVisualizationState,
 } from '../../components/LightdashVisualization/useVisualizationContext';
 import { useVisualizationTheme } from '../useVisualizationTheme';
 
@@ -26,17 +28,17 @@ const useEchartsCartesianConfig = (
     chartWidth: number | null = null,
 ) => {
     const { isTouchDevice } = useVisualizationServices();
+    const visualizationConfig = useVisualizationConfig();
+    const getSeriesColor = useSeriesColor();
     const {
-        visualizationConfig,
         pivotDimensions,
         resultsData,
         itemsMap,
-        getSeriesColor,
         minimal,
         parameters,
         colorPalette,
         resolvedTimezone,
-    } = useVisualizationState();
+    } = useVisualizationInputs();
 
     const theme = useVisualizationTheme();
 

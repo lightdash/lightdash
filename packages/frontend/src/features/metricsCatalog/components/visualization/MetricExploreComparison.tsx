@@ -177,7 +177,7 @@ export const MetricExploreComparison: FC<Props> = ({
 
                                                 <Text
                                                     fz="sm"
-                                                    c="ldGray.7"
+                                                    c="dimmed"
                                                     fw={500}
                                                 >
                                                     {comparison.label}
@@ -251,13 +251,12 @@ export const MetricExploreComparison: FC<Props> = ({
                                                 }}
                                             />
                                         ) : (
-                                            <Text span c="ldGray.7" fz="sm">
+                                            <Text span c="dimmed" fz="sm">
                                                 Only metrics with a time
                                                 dimension defined in the .yml
                                                 can be compared.{' '}
                                                 <Anchor
                                                     inherit
-                                                    c="ldGray.9"
                                                     fw={500}
                                                     target="_blank"
                                                     href="https://docs.lightdash.com/guides/metrics-catalog/catalog#configuring-default-time-settings-in-yml"

@@ -2,6 +2,7 @@ import { Group, Text, Tooltip } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../MantineIcon';
+import classes from './TotalCells.module.css';
 
 /** A footer cell for a column whose total cannot be computed exactly. */
 const TotalNotComputableCell: FC<{ reason: string }> = ({ reason }) => (
@@ -13,7 +14,7 @@ const TotalNotComputableCell: FC<{ reason: string }> = ({ reason }) => (
             wrap="nowrap"
             c="dimmed"
             w="100%"
-            style={{ cursor: 'help' }}
+            className={classes.helpCursor}
             aria-label={`No total: ${reason}`}
         >
             <MantineIcon icon={IconInfoCircle} size={14} />

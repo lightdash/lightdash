@@ -1,10 +1,5 @@
 .panelGroup {
-    @mixin light {
-        background-color: var(--mantine-color-white);
-    }
-    @mixin dark {
-        background-color: var(--mantine-color-dark-8);
-    }
+    background-color: var(--mantine-color-body);
 }
 
 .sidebar {
@@ -14,12 +9,7 @@
     overflow: hidden;
 
     padding: var(--mantine-spacing-sm);
-    @mixin light {
-        background: var(--mantine-color-ldGray-0);
-    }
-    @mixin dark {
-        background: var(--mantine-color-ldDark-1);
-    }
+    background: var(--mantine-color-ldGray-0);
     &[data-collapsed] {
         min-width: 3rem;
     }
@@ -33,13 +23,7 @@
 .mobileSidebarContent {
     display: flex;
     flex-direction: column;
-
-    @mixin light {
-        background: var(--mantine-color-ldGray-0);
-    }
-    @mixin dark {
-        background: var(--mantine-color-ldDark-1);
-    }
+    background: var(--mantine-color-ldGray-0);
 }
 
 .mobileSidebarHeader {
@@ -89,14 +73,7 @@
     min-height: rem(52px);
     padding: rem(6px) var(--mantine-spacing-md);
     border-bottom: 1px solid var(--mantine-color-ldGray-2);
-
-    @mixin light {
-        background-color: var(--mantine-color-white);
-    }
-
-    @mixin dark {
-        background-color: var(--mantine-color-dark-8);
-    }
+    background-color: var(--mantine-color-body);
 }
 
 /* Compact follows the agent's container width, not the viewport */
@@ -109,10 +86,7 @@
 .chatContent {
     flex: 1;
     overflow-y: auto;
-    background-color: light-dark(
-        var(--mantine-color-white),
-        var(--mantine-color-dark-8)
-    );
+    background-color: var(--mantine-color-body);
 }
 
 .resizeHandle {
@@ -138,14 +112,7 @@
     min-height: 0;
     overflow: hidden;
     height: calc(100dvh - var(--navbar-height));
-
-    @mixin light {
-        background-color: var(--mantine-color-white);
-    }
-
-    @mixin dark {
-        background-color: var(--mantine-color-dark-8);
-    }
+    background-color: var(--mantine-color-body);
 }
 
 /* Embed pages render without the app navbar */
@@ -171,23 +138,13 @@
     min-height: 0;
     display: flex;
     overflow: hidden;
-
-    @mixin light {
-        background-color: var(--mantine-color-white);
-    }
-
-    @mixin dark {
-        background-color: var(--mantine-color-dark-8);
-    }
+    background-color: var(--mantine-color-body);
 }
 
 .floatingArtifactWrap {
     flex: 1;
     min-height: 0;
-    background: light-dark(
-        var(--mantine-color-white),
-        var(--mantine-color-dark-8)
-    );
+    background: var(--mantine-color-body);
     border-radius: 12px;
     overflow: hidden;
 }
@@ -197,4 +154,9 @@
     width: 0;
     background: transparent;
     z-index: 2;
+}
+
+.previewDrawerBody {
+    padding: 0 0 var(--mantine-spacing-lg);
+    height: 100%;
 }

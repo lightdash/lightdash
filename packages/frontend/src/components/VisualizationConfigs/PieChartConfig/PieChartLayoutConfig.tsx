@@ -13,15 +13,39 @@ import {
 } from '@lightdash/common';
 import { Box, Group, Stack, SegmentedControl, Tooltip } from '@mantine/core';
 import { useMemo } from 'react';
+import {
+    selectPieEditor,
+    selectDimensionsAndNumericMetrics,
+    selectPieGroupFieldIds,
+    selectPieMetricId,
+    selectPieSelectedMetric,
+    useVisualizationSelector,
+} from '../../../features/visualization/store';
+import { usePieEditorActions } from '../../../hooks/usePieChartConfig';
 import FieldSelect from '../../common/FieldSelect';
-import { isPieVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
+import {
+    useVisualizationInputs,
+    useVisualizationInputSelector,
+} from '../../LightdashVisualization/useVisualizationContext';
 import { AddButton } from '../common/AddButton';
 import { Config } from '../common/Config';
 import { useAddFieldsToQuery } from '../common/useAddFieldsToQuery';
 
 export const Layout: React.FC = () => {
-    const { visualizationConfig, itemsMap } = useVisualizationState();
+    const { itemsMap } = useVisualizationInputs();
+    const pools = useVisualizationInputSelector(
+        selectDimensionsAndNumericMetrics,
+    );
+    const groupFieldIds = useVisualizationInputSelector(selectPieGroupFieldIds);
+    const metricId = useVisualizationInputSelector(selectPieMetricId);
+    const selectedMetric = useVisualizationInputSelector(
+        selectPieSelectedMetric,
+    );
+    const isDonut = useVisualizationSelector(
+        (state) => selectPieEditor(state).isDonut,
+    );
+    const { groupAdd, groupChange, groupRemove, metricChange, toggleDonut } =
+        usePieEditorActions();
     const { addableItems, addFieldToQuery, isFieldPending } =
         useAddFieldsToQuery();
 
@@ -43,24 +67,8 @@ export const Layout: React.FC = () => {
         [addableItems],
     );
 
-    if (!isPieVisualizationConfig(visualizationConfig)) return null;
-
-    const numericMetrics = Object.values(visualizationConfig.numericMetrics);
-    const dimensions = Object.values(visualizationConfig.dimensions);
-
-    const {
-        groupFieldIds,
-        groupAdd,
-        groupChange,
-        groupRemove,
-
-        metricId,
-        selectedMetric,
-        metricChange,
-
-        isDonut,
-        toggleDonut,
-    } = visualizationConfig.chartConfig;
+    const numericMetrics = Object.values(pools.numericMetrics);
+    const dimensions = Object.values(pools.dimensions);
 
     const unusedAddableDimensions = addableDimensions.filter(
         (item) => !groupFieldIds.includes(getItemId(item)),

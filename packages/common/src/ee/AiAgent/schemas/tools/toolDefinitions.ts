@@ -33,6 +33,10 @@ import {
 import { MCP_FILTER_EXPRESSION_SKILL_INSTRUCTION } from '../filterExpressions/mcpGuidance';
 import { structuredToolOutputSchema } from '../outputMetadata';
 import {
+    DOCUMENT_CREATE_CONTENT_DESCRIPTION,
+    DOCUMENT_EDIT_CONTENT_DESCRIPTION,
+    documentCreateContentArgsSchema,
+    documentEditContentArgsSchema,
     MCP_CREATE_CONTENT_DESCRIPTION,
     MCP_EDIT_CONTENT_DESCRIPTION,
     MCP_READ_CONTENT_DESCRIPTION,
@@ -66,6 +70,8 @@ import {
     toolClosePullRequestOutputSchema,
 } from './toolClosePullRequestArgs';
 import {
+    MCP_TOOL_QUERY_DESCRIPTION,
+    mcpQueryStructuredOutputSchema,
     TOOL_COMPOSER_QUERIES_DESCRIPTION,
     toolComposerQueriesArgsSchema,
     toolComposerQueriesOutputSchema,
@@ -120,11 +126,6 @@ import {
     toolEditProjectContextArgsSchema,
     toolEditProjectContextOutputSchema,
 } from './toolEditProjectContextArgs';
-import {
-    TOOL_EDIT_REPO_DESCRIPTION,
-    toolEditRepoArgsSchema,
-    toolEditRepoOutputSchema,
-} from './toolEditRepoArgs';
 import {
     TOOL_EXPLORE_REPO_DESCRIPTION,
     toolExploreRepoArgsSchema,
@@ -367,11 +368,6 @@ import {
     toolSearchSemanticLayerArgsSchema,
     toolSearchSemanticLayerOutputSchema,
 } from './toolSearchSemanticLayerArgs';
-import {
-    TOOL_SETUP_PREVIEW_DEPLOY_DESCRIPTION,
-    toolSetupPreviewDeployArgsSchema,
-    toolSetupPreviewDeployOutputSchema,
-} from './toolSetupPreviewDeployArgs';
 import {
     TOOL_SYNC_DBT_PROJECT_DESCRIPTION,
     toolSyncDbtProjectArgsSchema,
@@ -739,21 +735,25 @@ export const runSqlToolDefinition: ToolDefinitionWithMcpOutput<
     },
 });
 
-export const queryToolDefinition: ToolDefinitionWithoutMcpOutput<
+export const queryToolDefinition: ToolDefinitionWithMcpOutput<
     'query',
     typeof toolComposerQueriesArgsSchema,
     typeof toolComposerQueriesArgsSchema,
-    typeof toolComposerQueriesOutputSchema
+    typeof toolComposerQueriesOutputSchema,
+    typeof mcpQueryStructuredOutputSchema
 > = defineTool({
     name: 'query',
     title: 'Run composer queries',
-    description: TOOL_COMPOSER_QUERIES_DESCRIPTION,
+    description: ({ runtime }) =>
+        runtime === 'mcp'
+            ? MCP_TOOL_QUERY_DESCRIPTION
+            : TOOL_COMPOSER_QUERIES_DESCRIPTION,
     availability: ['agent', 'mcp'],
     inputSchema: toolComposerQueriesArgsSchema,
     agent: { outputSchema: toolComposerQueriesOutputSchema },
     mcp: {
-        name: 'run_composer_queries',
         annotations: readOnlyAnnotations,
+        structuredContentSchema: mcpQueryStructuredOutputSchema,
     },
 });
 
@@ -1284,20 +1284,6 @@ export const editProjectContextToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolEditProjectContextOutputSchema },
 });
 
-export const editRepoToolDefinition: ToolDefinitionWithoutMcpOutput<
-    'editRepo',
-    typeof toolEditRepoArgsSchema,
-    typeof toolEditRepoArgsSchema,
-    typeof toolEditRepoOutputSchema
-> = defineTool({
-    name: 'editRepo',
-    title: 'Edit repository',
-    description: TOOL_EDIT_REPO_DESCRIPTION,
-    availability: ['agent'],
-    inputSchema: toolEditRepoArgsSchema,
-    agent: { outputSchema: toolEditRepoOutputSchema },
-});
-
 export const syncDbtProjectToolDefinition: ToolDefinitionWithoutMcpOutput<
     'syncDbtProject',
     typeof toolSyncDbtProjectArgsSchema,
@@ -1380,20 +1366,6 @@ export const getPullRequestDiffToolDefinition: ToolDefinitionWithoutMcpOutput<
     availability: ['agent'],
     inputSchema: toolGetPullRequestDiffArgsSchema,
     agent: { outputSchema: toolGetPullRequestDiffOutputSchema },
-});
-
-export const setupPreviewDeployToolDefinition: ToolDefinitionWithoutMcpOutput<
-    'setupPreviewDeploy',
-    typeof toolSetupPreviewDeployArgsSchema,
-    typeof toolSetupPreviewDeployArgsSchema,
-    typeof toolSetupPreviewDeployOutputSchema
-> = defineTool({
-    name: 'setupPreviewDeploy',
-    title: 'Set up preview deploys',
-    description: TOOL_SETUP_PREVIEW_DEPLOY_DESCRIPTION,
-    availability: ['agent'],
-    inputSchema: toolSetupPreviewDeployArgsSchema,
-    agent: { outputSchema: toolSetupPreviewDeployOutputSchema },
 });
 
 export const runSavedChartToolDefinition: ToolDefinitionWithoutMcpOutput<
@@ -1996,14 +1968,12 @@ type AgentToolDefinitionsByName = {
     listDataAppConnections: typeof listDataAppConnectionsToolDefinition;
     editDbtProject: typeof editDbtProjectToolDefinition;
     editProjectContext: typeof editProjectContextToolDefinition;
-    editRepo: typeof editRepoToolDefinition;
     syncDbtProject: typeof syncDbtProjectToolDefinition;
     exploreRepo: typeof exploreRepoToolDefinition;
     discoverRepos: typeof discoverReposToolDefinition;
     listWorkstreams: typeof listWorkstreamsToolDefinition;
     closePullRequest: typeof closePullRequestToolDefinition;
     getPullRequestDiff: typeof getPullRequestDiffToolDefinition;
-    setupPreviewDeploy: typeof setupPreviewDeployToolDefinition;
     runSavedChart: typeof runSavedChartToolDefinition;
     listWarehouseTables: typeof listWarehouseTablesToolDefinition;
     describeWarehouseTable: typeof describeWarehouseTableToolDefinition;
@@ -2058,14 +2028,12 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     listDataAppConnections: listDataAppConnectionsToolDefinition,
     editDbtProject: editDbtProjectToolDefinition,
     editProjectContext: editProjectContextToolDefinition,
-    editRepo: editRepoToolDefinition,
     syncDbtProject: syncDbtProjectToolDefinition,
     exploreRepo: exploreRepoToolDefinition,
     discoverRepos: discoverReposToolDefinition,
     listWorkstreams: listWorkstreamsToolDefinition,
     closePullRequest: closePullRequestToolDefinition,
     getPullRequestDiff: getPullRequestDiffToolDefinition,
-    setupPreviewDeploy: setupPreviewDeployToolDefinition,
     runSavedChart: runSavedChartToolDefinition,
     listWarehouseTables: listWarehouseTablesToolDefinition,
     describeWarehouseTable: describeWarehouseTableToolDefinition,
@@ -2127,14 +2095,12 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     listDataAppConnectionsToolDefinition,
     editDbtProjectToolDefinition,
     editProjectContextToolDefinition,
-    editRepoToolDefinition,
     syncDbtProjectToolDefinition,
     exploreRepoToolDefinition,
     discoverReposToolDefinition,
     listWorkstreamsToolDefinition,
     closePullRequestToolDefinition,
     getPullRequestDiffToolDefinition,
-    setupPreviewDeployToolDefinition,
     runSavedChartToolDefinition,
     listWarehouseTablesToolDefinition,
     describeWarehouseTableToolDefinition,
@@ -2202,6 +2168,23 @@ export const mcpEditContentToolDefinition = defineTool({
     availability: ['agent', 'mcp'],
     inputSchema: mcpEditContentArgsSchema,
     mcp: { name: 'edit_content', annotations: writeAnnotations },
+});
+
+// Agent tools for an actor who can save Documents but not charts or dashboards.
+export const documentCreateContentToolDefinition = defineTool({
+    name: 'createContent',
+    title: 'Create content',
+    description: DOCUMENT_CREATE_CONTENT_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: documentCreateContentArgsSchema,
+});
+
+export const documentEditContentToolDefinition = defineTool({
+    name: 'editContent',
+    title: 'Edit content',
+    description: DOCUMENT_EDIT_CONTENT_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: documentEditContentArgsSchema,
 });
 
 export const mcpToolDefinitions: readonly ToolDefinitionInstance[] =

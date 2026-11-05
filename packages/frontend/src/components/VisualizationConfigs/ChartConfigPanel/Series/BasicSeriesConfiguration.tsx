@@ -13,7 +13,10 @@ import { IconPalette } from '@tabler/icons-react';
 import { type FC } from 'react';
 import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import MantineIcon from '../../../common/MantineIcon';
-import { useVisualizationState } from '../../../LightdashVisualization/useVisualizationContext';
+import {
+    useSeriesColor,
+    useVisualizationInputs,
+} from '../../../LightdashVisualization/useVisualizationContext';
 import ColorSelector from '../../ColorSelector';
 import { Config } from '../../common/Config';
 import { EditableText } from '../../common/EditableText';
@@ -51,7 +54,8 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
     drawOrder,
     showColorPickerIcon,
 }) => {
-    const { colorPalette, getSeriesColor } = useVisualizationState();
+    const { colorPalette } = useVisualizationInputs();
+    const getSeriesColor = useSeriesColor();
     const [value, setValue] = useDebouncedState(
         getSingleSeries(series)?.name || getItemLabelWithoutTableName(item),
         500,
@@ -91,12 +95,7 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
                             {getItemLabelWithoutTableName(item)}
                         </Config.Heading>
                     ) : (
-                        <Box
-                            style={{
-                                flexGrow: 1,
-                                minWidth: 0,
-                            }}
-                        >
+                        <Box flex="1 1 auto" miw={0}>
                             <EditableText
                                 fw={600}
                                 size="sm"

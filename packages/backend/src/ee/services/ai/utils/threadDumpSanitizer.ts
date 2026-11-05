@@ -44,7 +44,6 @@ const DUMP_TOOL_RESULT_POLICIES = {
     discoverRepos: 'keep',
     listWorkstreams: 'keep',
     closePullRequest: 'keep',
-    setupPreviewDeploy: 'keep',
     // agent-authored prose, same posture as assistant messages
     submitResearchReport: 'keep',
     delegateResearchTask: 'keep',

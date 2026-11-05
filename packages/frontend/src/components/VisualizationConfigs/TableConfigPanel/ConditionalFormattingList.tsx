@@ -10,10 +10,14 @@ import {
 } from '@lightdash/common';
 import { Accordion } from '@mantine/core';
 import { produce } from 'immer';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { isTableVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
+import {
+    selectTableEditor,
+    useVisualizationSelector,
+} from '../../../features/visualization/store';
+import { useTableEditorActions } from '../../../hooks/tableVisualization/useTableConfig';
+import { useVisualizationInputs } from '../../LightdashVisualization/useVisualizationContext';
 import accordionClasses from '../common/Accordion.module.css';
 import { AddButton } from '../common/AddButton';
 import { Config } from '../common/Config';
@@ -24,13 +28,11 @@ const ConditionalFormattingList = ({}) => {
     const { openItems, handleAccordionChange, addNewItem, removeItem } =
         useControlledAccordion();
 
-    const { itemsMap, resultsData, visualizationConfig, colorPalette } =
-        useVisualizationState();
-
-    const chartConfig = useMemo(() => {
-        if (!isTableVisualizationConfig(visualizationConfig)) return undefined;
-        return visualizationConfig.chartConfig;
-    }, [visualizationConfig]);
+    const { itemsMap, resultsData, colorPalette } = useVisualizationInputs();
+    const conditionalFormattings = useVisualizationSelector(
+        (state) => selectTableEditor(state).conditionalFormattings,
+    );
+    const { onSetConditionalFormattings } = useTableEditorActions();
 
     const activeFields = useMemo(() => {
         if (!resultsData?.metricQuery) return new Set<string>();
@@ -55,10 +57,6 @@ const ConditionalFormattingList = ({}) => {
     }, [itemsMap, activeFields]);
 
     const activeConfigs = useMemo(() => {
-        if (!chartConfig) return [];
-
-        const { conditionalFormattings } = chartConfig;
-
         return conditionalFormattings.filter((config) => {
             return config.target
                 ? fieldsForConditionalFormatting.find(
@@ -66,22 +64,15 @@ const ConditionalFormattingList = ({}) => {
                   )
                 : true;
         });
-    }, [chartConfig, fieldsForConditionalFormatting]);
+    }, [conditionalFormattings, fieldsForConditionalFormatting]);
 
     const configIdsRef = useRef<string[]>([]);
-    // Ensure we have best effort stable IDs for each config (generates new IDs for new configs)
-    // This prevents focus loss when editing and ensures correct item deletion.
-    useEffect(() => {
-        while (configIdsRef.current.length < activeConfigs.length) {
-            configIdsRef.current.push(uuidv4());
-        }
-    }, [activeConfigs.length]);
+    // Filled during render so a new rule keeps one key from its first render; idempotent under StrictMode
+    while (configIdsRef.current.length < activeConfigs.length) {
+        configIdsRef.current.push(uuidv4());
+    }
 
     const handleAdd = useCallback(() => {
-        if (!chartConfig) return;
-
-        const { onSetConditionalFormattings } = chartConfig;
-
         onSetConditionalFormattings(
             produce(activeConfigs, (draft) => {
                 draft.push(
@@ -92,15 +83,11 @@ const ConditionalFormattingList = ({}) => {
                 addNewItem(`${draft.length}`);
             }),
         );
-    }, [chartConfig, activeConfigs, colorPalette, addNewItem]);
+    }, [onSetConditionalFormattings, activeConfigs, colorPalette, addNewItem]);
 
     const handleRemove = useCallback(
         (index: number) => {
-            if (!chartConfig) return;
-
             configIdsRef.current.splice(index, 1);
-
-            const { onSetConditionalFormattings } = chartConfig;
 
             onSetConditionalFormattings(
                 produce(activeConfigs, (draft) => {
@@ -108,22 +95,18 @@ const ConditionalFormattingList = ({}) => {
                 }),
             );
         },
-        [chartConfig, activeConfigs],
+        [onSetConditionalFormattings, activeConfigs],
     );
 
     const handleChange = useCallback(
         (index: number, newConfig: ConditionalFormattingConfig) => {
-            if (!chartConfig) return;
-
-            const { onSetConditionalFormattings } = chartConfig;
-
             onSetConditionalFormattings(
                 produce(activeConfigs, (draft) => {
                     draft[index] = newConfig;
                 }),
             );
         },
-        [chartConfig, activeConfigs],
+        [onSetConditionalFormattings, activeConfigs],
     );
 
     return (
@@ -139,11 +122,15 @@ const ConditionalFormattingList = ({}) => {
                     value={openItems}
                     onChange={handleAccordionChange}
                     className={accordionClasses.containedList}
+                    classNames={{
+                        control: accordionClasses.containedControl,
+                        label: accordionClasses.containedLabel,
+                    }}
                     transparentActiveItem
                 >
                     {activeConfigs.map((conditionalFormatting, index) => (
                         <ConditionalFormattingItem
-                            key={configIdsRef.current[index] ?? index}
+                            key={configIdsRef.current[index]}
                             isOpen={openItems.includes(`${index}`)}
                             addNewItem={addNewItem}
                             removeItem={removeItem}

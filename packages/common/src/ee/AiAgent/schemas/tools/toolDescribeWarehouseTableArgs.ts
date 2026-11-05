@@ -1,4 +1,8 @@
 import { z } from 'zod';
+import {
+    PartitionGranularity,
+    PartitionType,
+} from '../../../../types/warehouse';
 import { structuredToolOutputSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
@@ -44,6 +48,19 @@ export const toolDescribeWarehouseTableStructuredContentSchema = z.object({
         .array(z.object({ name: z.string(), type: z.string() }))
         .describe(
             'Column names and warehouse types; empty when the table was not found or has no cached metadata.',
+        ),
+    partitioning: z
+        .object({
+            partitionColumn: z.object({
+                field: z.string(),
+                partitionType: z.nativeEnum(PartitionType),
+            }),
+            granularity: z.nativeEnum(PartitionGranularity).nullable(),
+            requiresPartitionFilter: z.boolean(),
+        })
+        .nullable()
+        .describe(
+            'Partition column of the table; null when it has none or the warehouse does not report one.',
         ),
 });
 

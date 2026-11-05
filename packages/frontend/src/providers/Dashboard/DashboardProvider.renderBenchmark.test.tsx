@@ -50,6 +50,12 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../../ee/providers/Embed/useEmbed', () => ({
     default: () => mocks.embed,
 }));
+vi.mock('../../hooks/dashboard/useDashboardTileParameterReferences', () => ({
+    useDashboardTileParameterReferences: () => undefined,
+}));
+vi.mock('../../hooks/dashboard/useSyncParameterControls', () => ({
+    useSyncParameterControls: () => undefined,
+}));
 vi.mock('../../hooks/dashboard/useDashboard', () => ({
     useDashboardQuery: () => ({
         data: mocks.dashboard,
@@ -519,26 +525,26 @@ const BASELINE: Record<string, Counts> = {
     'update one dimension filter': {
         wholeContextConsumer: 1,
         tiles: 0,
-        filterBar: 2,
+        filterBar: 1,
         parameterBar: 0,
         dateZoomControl: 0,
-        page: 2,
+        page: 1,
     },
     'add a temporary filter': {
         wholeContextConsumer: 1,
         tiles: 0,
-        filterBar: 2,
+        filterBar: 1,
         parameterBar: 0,
         dateZoomControl: 0,
-        page: 2,
+        page: 1,
     },
     'set one parameter': {
         wholeContextConsumer: 1,
         tiles: 0,
-        filterBar: 1,
+        filterBar: 0,
         parameterBar: 1,
         dateZoomControl: 0,
-        page: 2,
+        page: 1,
     },
     'toggle a parameter pin': {
         wholeContextConsumer: 0,
@@ -551,18 +557,18 @@ const BASELINE: Record<string, Counts> = {
     'set the date zoom granularity': {
         wholeContextConsumer: 1,
         tiles: TILE_COUNT,
-        filterBar: 1,
+        filterBar: 0,
         parameterBar: 0,
         dateZoomControl: 1,
-        page: 1,
+        page: 0,
     },
     'set a date zoom control granularity': {
         wholeContextConsumer: 1,
         tiles: TILE_COUNT,
-        filterBar: 1,
+        filterBar: 0,
         parameterBar: 0,
         dateZoomControl: 0,
-        page: 1,
+        page: 0,
     },
     'every tile reports its zoomable fields': {
         wholeContextConsumer: 0,
@@ -633,9 +639,9 @@ const BASELINE: Record<string, Counts> = {
     '10 rapid filter updates': {
         wholeContextConsumer: 10,
         tiles: 0,
-        filterBar: 20,
+        filterBar: 10,
         parameterBar: 0,
         dateZoomControl: 0,
-        page: 20,
+        page: 10,
     },
 };

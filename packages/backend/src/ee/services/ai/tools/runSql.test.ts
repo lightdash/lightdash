@@ -117,7 +117,6 @@ const makeTool = ({
         slackLinksOnly,
         useSlackStreamCard,
         sqlScope,
-        hyphenatedIdentifiers: true,
     };
 
     return {

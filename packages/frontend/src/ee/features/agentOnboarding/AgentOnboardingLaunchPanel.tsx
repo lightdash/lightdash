@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     DuckdbConnectionType,
+    FeatureFlags,
     WarehouseTypes,
     type Project,
     type WarehouseCredentials,
@@ -27,10 +28,13 @@ import { useMemo, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { SettingsCard } from '../../../components/common/Settings/SettingsCard';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { useIsCopilotEnabled } from '../aiCopilot/hooks/useIsCopilotEnabled';
+import classes from './AgentOnboardingLaunchPanel.module.css';
 import { AgentOnboardingProgress } from './AgentOnboardingProgress';
+import { AgentOnboardingProgressLegacy } from './AgentOnboardingProgressLegacy';
 import { useStartAgentOnboardingRun } from './hooks/useAgentOnboarding';
 import { getAgentOnboardingRunUrl } from './utils';
 
@@ -115,6 +119,8 @@ export const AgentOnboardingLaunchPanel: FC<
     const startAgentOnboardingRun = useStartAgentOnboardingRun();
     const { isCopilotEnabled } = useIsCopilotEnabled();
     const { track } = useTracking();
+    const isNewOnboarding =
+        useServerFeatureFlag(FeatureFlags.NewOnboarding).data?.enabled === true;
 
     const agentSetupPrompt = useMemo(() => {
         const normalizedSiteUrl = siteUrl.replace(/\/+$/, '');
@@ -177,11 +183,7 @@ export const AgentOnboardingLaunchPanel: FC<
 
             <Code
                 block
-                className="sentry-block ph-no-capture"
-                style={{
-                    whiteSpace: 'pre-wrap',
-                    overflowWrap: 'anywhere',
-                }}
+                className={`sentry-block ph-no-capture ${classes.prompt}`}
             >
                 {agentSetupPrompt}
             </Code>
@@ -225,14 +227,18 @@ export const AgentOnboardingLaunchPanel: FC<
                                     Let Lightdash build it for you
                                 </Title>
                                 <Text c="dimmed">
-                                    We’ll explore your warehouse, create a
-                                    semantic layer, and build a starter
-                                    dashboard. You can follow every step.
+                                    {isNewOnboarding
+                                        ? 'We’ll explore your warehouse, create a semantic layer, and write a few starter questions. You can follow every step.'
+                                        : 'We’ll explore your warehouse, create a semantic layer, and build a starter dashboard. You can follow every step.'}
                                 </Text>
                             </Stack>
                         </Group>
 
-                        <AgentOnboardingProgress />
+                        {isNewOnboarding ? (
+                            <AgentOnboardingProgress />
+                        ) : (
+                            <AgentOnboardingProgressLegacy />
+                        )}
 
                         <Group justify="space-between">
                             <Button

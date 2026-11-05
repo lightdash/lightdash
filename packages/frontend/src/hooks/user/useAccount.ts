@@ -31,6 +31,5 @@ export const useAccount = <T extends Account>(
         queryKey: ['account'],
         queryFn: () => getAccount<T>(lightdashApi),
         enabled: isAuthenticated,
-        retry: false,
     });
 };

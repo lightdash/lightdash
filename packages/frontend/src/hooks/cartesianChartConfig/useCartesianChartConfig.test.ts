@@ -1,5 +1,6 @@
 import {
     CartesianSeriesType,
+    ChartType,
     createConditionalFormattingConfigWithSingleColor,
     DimensionType,
     FieldType,
@@ -7,11 +8,15 @@ import {
     getSeriesId,
     StackType,
     TimeFrames,
+    type CartesianChart,
     type Dimension,
     type ItemsMap,
+    type MetricQuery,
     type Series,
+    type TableCalculationMetadata,
 } from '@lightdash/common';
 import { act, renderHook } from '@testing-library/react';
+import { createElement, type FC, type PropsWithChildren } from 'react';
 import { describe, expect, test, vi } from 'vitest';
 
 vi.mock('../useServerOrClientFeatureFlag', () => ({
@@ -20,8 +25,24 @@ vi.mock('../useServerOrClientFeatureFlag', () => ({
 
 import { finalizeTimeAxisOptions } from '@lightdash/visualization/editor';
 import { type ReferenceLineField } from '../../components/common/ReferenceLine';
+import {
+    ServicesContext,
+    StateContext,
+    type VisualizationState,
+} from '../../components/LightdashVisualization/context';
+import {
+    buildInitialVisualizationState,
+    cartesianIntentActions,
+    createVisualizationStore,
+} from '../../features/visualization/store';
+import {
+    defaultVisualizationInputs,
+    visualizationTestServices,
+} from '../../testing/visualizationStore';
+import { VisualizationStoreTestProvider } from '../../testing/VisualizationStoreTestProvider';
 import useCartesianChartConfig, {
     applyReferenceLines,
+    useCartesianEditorSync,
     type CartesianTypeOptions,
 } from './useCartesianChartConfig';
 import {
@@ -50,6 +71,82 @@ import {
     mergeExistingAndExpectedSeries,
     sortDimensions,
 } from './utils';
+
+/** What the hook used to take as arguments: the seed config, the inputs and the gallery intent */
+type CartesianHookParams = {
+    initialChartConfig: CartesianChart | undefined;
+    pivotKeys: string[] | undefined;
+    resultsData: VisualizationState['resultsData'];
+    columnOrder: string[];
+    itemsMap: ItemsMap | undefined;
+    stacking: boolean | StackType | undefined;
+    cartesianType: CartesianTypeOptions | undefined;
+    colorPalette: string[];
+    tableCalculationsMetadata?: TableCalculationMetadata[];
+    unsavedMetricQuery?: MetricQuery;
+};
+
+const toInputs = (params: CartesianHookParams): VisualizationState => ({
+    ...defaultVisualizationInputs,
+    resultsData: params.resultsData,
+    itemsMap: params.itemsMap,
+    colorPalette: params.colorPalette,
+    columnOrder: params.columnOrder,
+    pivotDimensions: params.pivotKeys,
+    unsavedMetricQuery: params.unsavedMetricQuery,
+    tableCalculationsMetadata: params.tableCalculationsMetadata,
+});
+
+// Like withVisualizationStore, plus the gallery intent and inputs a rerender can change
+const renderCartesianConfig = (initialParams: CartesianHookParams) => {
+    let inputs = toInputs(initialParams);
+    const store = createVisualizationStore(
+        buildInitialVisualizationState(
+            {
+                type: ChartType.CARTESIAN,
+                config: initialParams.initialChartConfig,
+            },
+            { itemsMap: inputs.itemsMap, hasConfigOwner: false },
+            {
+                stacking: initialParams.stacking,
+                cartesianType: initialParams.cartesianType,
+            },
+        ),
+    );
+    const services = visualizationTestServices(() => inputs);
+    const wrapper: FC<PropsWithChildren> = ({ children }) =>
+        createElement(
+            VisualizationStoreTestProvider,
+            { store },
+            createElement(
+                ServicesContext.Provider,
+                { value: services },
+                createElement(
+                    StateContext.Provider,
+                    { value: inputs },
+                    children,
+                ),
+            ),
+        );
+    const rendered = renderHook(
+        () => {
+            useCartesianEditorSync();
+            return useCartesianChartConfig();
+        },
+        { wrapper },
+    );
+    const rerender = (params: CartesianHookParams) => {
+        inputs = toInputs(params);
+        act(() => {
+            store.dispatch(cartesianIntentActions.setStacking(params.stacking));
+            store.dispatch(
+                cartesianIntentActions.setCartesianType(params.cartesianType),
+            );
+        });
+        rendered.rerender();
+    };
+    return { result: rendered.result, rerender };
+};
 
 describe('sortDimensions', () => {
     test('should not sort anything if no explore', () => {
@@ -1076,7 +1173,7 @@ describe('reference-line semantic to physical axis integration', () => {
         'maps a mis-keyed saved coarse-grain line through the full config hook when $mode',
         ({ resolvedTimezone, expectedSlot, clearedSlot }) => {
             const initialSeries = makeSeries()[0];
-            const params: Parameters<typeof useCartesianChartConfig>[0] = {
+            const params: CartesianHookParams = {
                 initialChartConfig: {
                     layout: {
                         xField: timeField,
@@ -1120,9 +1217,7 @@ describe('reference-line semantic to physical axis integration', () => {
                 cartesianType: undefined,
                 colorPalette: [],
             };
-            const { result } = renderHook(() =>
-                useCartesianChartConfig(params),
-            );
+            const { result } = renderCartesianConfig(params);
             const line =
                 result.current.validConfig.eChartsConfig.series?.[0].markLine
                     ?.data[0];
@@ -1134,9 +1229,7 @@ describe('reference-line semantic to physical axis integration', () => {
 });
 
 describe('useCartesianChartConfig', () => {
-    const getSingleSeriesParams = (): Parameters<
-        typeof useCartesianChartConfig
-    >[0] => ({
+    const getSingleSeriesParams = (): CartesianHookParams => ({
         ...useCartesianChartConfigParamsMock,
         itemsMap: undefined,
         stacking: undefined,
@@ -1175,10 +1268,29 @@ describe('useCartesianChartConfig', () => {
         columnOrder: ['orders_customer_id', 'orders_total_order_amount'],
     });
 
+    test('a new results object for the same query keeps a cleared x field or y field', () => {
+        const params = getSingleSeriesParams();
+        const clearedX = renderCartesianConfig(params);
+        act(() => clearedX.result.current.setXField(undefined));
+        clearedX.rerender({
+            ...params,
+            resultsData: { ...params.resultsData! },
+        });
+        expect(clearedX.result.current.dirtyLayout?.xField).toBeUndefined();
+
+        const removedY = renderCartesianConfig(params);
+        act(() => removedY.result.current.removeSingleSeries(0));
+        removedY.rerender({
+            ...params,
+            resultsData: { ...params.resultsData! },
+        });
+        expect(removedY.result.current.dirtyLayout?.yField).toEqual([]);
+    });
+
     test('should default series yAxisIndex to 0', () => {
-        const { result } = renderHook(
+        const { result } = renderCartesianConfig(
             // @ts-expect-error partially mock params for hook
-            () => useCartesianChartConfig(useCartesianChartConfigParamsMock),
+            useCartesianChartConfigParamsMock,
         );
 
         const series = result.current.validConfig!.eChartsConfig.series!;
@@ -1214,9 +1326,9 @@ describe('useCartesianChartConfig', () => {
             },
         ];
 
-        const { result } = renderHook(() =>
+        const { result } = renderCartesianConfig(
             // @ts-expect-error partially mock params for hook
-            useCartesianChartConfig({
+            {
                 ...useCartesianChartConfigParamsMock,
                 initialChartConfig: {
                     ...useCartesianChartConfigParamsMock.initialChartConfig,
@@ -1225,7 +1337,7 @@ describe('useCartesianChartConfig', () => {
                         series: seriesFromOldChart,
                     },
                 },
-            }),
+            },
         );
 
         const series = result.current.validConfig!.eChartsConfig.series!;
@@ -1235,24 +1347,24 @@ describe('useCartesianChartConfig', () => {
     });
 
     test('should return undefined columnLimit when feature flag is off and no saved limit', () => {
-        const { result } = renderHook(
+        const { result } = renderCartesianConfig(
             // @ts-expect-error partially mock params for hook
-            () => useCartesianChartConfig(useCartesianChartConfigParamsMock),
+            useCartesianChartConfigParamsMock,
         );
 
         expect(result.current.columnLimit).toBeUndefined();
     });
 
     test('should preserve saved columnLimit in validConfig', () => {
-        const { result } = renderHook(() =>
+        const { result } = renderCartesianConfig(
             // @ts-expect-error partially mock params for hook
-            useCartesianChartConfig({
+            {
                 ...useCartesianChartConfigParamsMock,
                 initialChartConfig: {
                     ...useCartesianChartConfigParamsMock.initialChartConfig,
                     columnLimit: 5,
                 },
-            }),
+            },
         );
 
         expect(result.current.validConfig?.columnLimit).toBe(5);
@@ -1266,15 +1378,13 @@ describe('useCartesianChartConfig', () => {
         ];
         const params = getSingleSeriesParams();
 
-        const { result } = renderHook(() =>
-            useCartesianChartConfig({
-                ...params,
-                initialChartConfig: {
-                    ...params.initialChartConfig!,
-                    conditionalFormattings,
-                },
-            }),
-        );
+        const { result } = renderCartesianConfig({
+            ...params,
+            initialChartConfig: {
+                ...params.initialChartConfig!,
+                conditionalFormattings,
+            },
+        });
 
         expect(result.current.validConfig.conditionalFormattings).toEqual(
             conditionalFormattings,
@@ -1283,21 +1393,19 @@ describe('useCartesianChartConfig', () => {
 
     test('should preserve category overrides when conditional formattings are set', () => {
         const params = getSingleSeriesParams();
-        const { result } = renderHook(() =>
-            useCartesianChartConfig({
-                ...params,
-                initialChartConfig: {
-                    ...params.initialChartConfig!,
-                    layout: {
-                        ...params.initialChartConfig!.layout,
-                        colorByCategory: true,
-                        categoryColorOverrides: {
-                            retail: '#00ff00',
-                        },
+        const { result } = renderCartesianConfig({
+            ...params,
+            initialChartConfig: {
+                ...params.initialChartConfig!,
+                layout: {
+                    ...params.initialChartConfig!.layout,
+                    colorByCategory: true,
+                    categoryColorOverrides: {
+                        retail: '#00ff00',
                     },
                 },
-            }),
-        );
+            },
+        });
 
         act(() => {
             result.current.onSetConditionalFormattings([
@@ -1323,15 +1431,13 @@ describe('useCartesianChartConfig', () => {
             }),
         ];
         const params = getSingleSeriesParams();
-        const { result } = renderHook(() =>
-            useCartesianChartConfig({
-                ...params,
-                initialChartConfig: {
-                    ...params.initialChartConfig!,
-                    conditionalFormattings,
-                },
-            }),
-        );
+        const { result } = renderCartesianConfig({
+            ...params,
+            initialChartConfig: {
+                ...params.initialChartConfig!,
+                conditionalFormattings,
+            },
+        });
 
         act(() => {
             result.current.setColorByCategory(true);
@@ -1345,22 +1451,20 @@ describe('useCartesianChartConfig', () => {
 
     test('should clear conditional formattings when adding a second series', () => {
         const params = getSingleSeriesParams();
-        const { result } = renderHook(() =>
-            useCartesianChartConfig({
-                ...params,
-                initialChartConfig: {
-                    ...params.initialChartConfig!,
-                    conditionalFormattings: [
-                        createConditionalFormattingConfigWithSingleColor(
-                            '#ff0000',
-                            {
-                                fieldId: 'orders_total_order_amount',
-                            },
-                        ),
-                    ],
-                },
-            }),
-        );
+        const { result } = renderCartesianConfig({
+            ...params,
+            initialChartConfig: {
+                ...params.initialChartConfig!,
+                conditionalFormattings: [
+                    createConditionalFormattingConfigWithSingleColor(
+                        '#ff0000',
+                        {
+                            fieldId: 'orders_total_order_amount',
+                        },
+                    ),
+                ],
+            },
+        });
 
         act(() => {
             result.current.addSingleSeries('orders_fulfillment_rate');
@@ -1371,7 +1475,7 @@ describe('useCartesianChartConfig', () => {
 
     test('should set and clear y-axis minInterval', () => {
         const params = getSingleSeriesParams();
-        const { result } = renderHook(() => useCartesianChartConfig(params));
+        const { result } = renderCartesianConfig(params);
 
         act(() => {
             result.current.setYMinInterval(0, 1);
@@ -1392,7 +1496,7 @@ describe('useCartesianChartConfig', () => {
 
     test('should set x-axis minInterval', () => {
         const params = getSingleSeriesParams();
-        const { result } = renderHook(() => useCartesianChartConfig(params));
+        const { result } = renderCartesianConfig(params);
 
         act(() => {
             result.current.setXMinInterval(0, 1);
@@ -1410,45 +1514,34 @@ describe('useCartesianChartConfig', () => {
                 fieldId: 'orders_total_order_amount',
             }),
         ];
-        const { result, rerender } = renderHook(
-            ({ params }) =>
-                // @ts-expect-error partially mock params for hook
-                useCartesianChartConfig(params),
-            {
-                initialProps: {
-                    params: {
-                        ...initialParams,
-                        initialChartConfig: {
-                            ...initialParams.initialChartConfig,
-                            layout: {
-                                ...initialParams.initialChartConfig?.layout,
-                                colorByCategory: true,
-                                categoryColorOverrides: {
-                                    retail: '#00ff00',
-                                },
-                            },
-                            conditionalFormattings,
-                        },
+        const { result, rerender } = renderCartesianConfig({
+            ...initialParams,
+            initialChartConfig: {
+                ...initialParams.initialChartConfig!,
+                layout: {
+                    ...initialParams.initialChartConfig!.layout,
+                    colorByCategory: true,
+                    categoryColorOverrides: {
+                        retail: '#00ff00',
                     },
                 },
+                conditionalFormattings,
             },
-        );
+        });
 
         rerender({
-            params: {
-                ...initialParams,
-                stacking: StackType.NORMAL,
-                initialChartConfig: {
-                    ...initialParams.initialChartConfig,
-                    layout: {
-                        ...initialParams.initialChartConfig?.layout,
-                        colorByCategory: true,
-                        categoryColorOverrides: {
-                            retail: '#00ff00',
-                        },
+            ...initialParams,
+            stacking: StackType.NORMAL,
+            initialChartConfig: {
+                ...initialParams.initialChartConfig!,
+                layout: {
+                    ...initialParams.initialChartConfig!.layout,
+                    colorByCategory: true,
+                    categoryColorOverrides: {
+                        retail: '#00ff00',
                     },
-                    conditionalFormattings,
                 },
+                conditionalFormattings,
             },
         });
 
@@ -1467,7 +1560,7 @@ describe('useCartesianChartConfig', () => {
             ...initialParams,
             stacking: StackType.NORMAL,
             initialChartConfig: {
-                ...initialParams.initialChartConfig,
+                ...initialParams.initialChartConfig!,
                 layout: {
                     xField: 'orders_customer_id',
                     yField: ['orders_total_order_amount', 'orders_order_count'],
@@ -1507,10 +1600,7 @@ describe('useCartesianChartConfig', () => {
             },
         };
 
-        const { result } = renderHook(
-            ({ params }) => useCartesianChartConfig(params),
-            { initialProps: { params: multiMetricParams } },
-        );
+        const { result } = renderCartesianConfig(multiMetricParams);
 
         expect(
             result.current.validConfig.conditionalFormattings?.map(
@@ -1521,45 +1611,34 @@ describe('useCartesianChartConfig', () => {
 
     test('should clear conditional formattings when chart becomes ineligible', () => {
         const initialParams = getSingleSeriesParams();
-        const { result, rerender } = renderHook(
-            ({ params }) =>
-                // @ts-expect-error partially mock params for hook
-                useCartesianChartConfig(params),
-            {
-                initialProps: {
-                    params: {
-                        ...initialParams,
-                        initialChartConfig: {
-                            ...initialParams.initialChartConfig,
-                            conditionalFormattings: [
-                                createConditionalFormattingConfigWithSingleColor(
-                                    '#ff0000',
-                                    {
-                                        fieldId: 'orders_total_order_amount',
-                                    },
-                                ),
-                            ],
+        const { result, rerender } = renderCartesianConfig({
+            ...initialParams,
+            initialChartConfig: {
+                ...initialParams.initialChartConfig!,
+                conditionalFormattings: [
+                    createConditionalFormattingConfigWithSingleColor(
+                        '#ff0000',
+                        {
+                            fieldId: 'orders_total_order_amount',
                         },
-                    },
-                },
+                    ),
+                ],
             },
-        );
+        });
 
         rerender({
-            params: {
-                ...initialParams,
-                pivotKeys: ['orders_status'] as string[] | undefined,
-                initialChartConfig: {
-                    ...initialParams.initialChartConfig,
-                    conditionalFormattings: [
-                        createConditionalFormattingConfigWithSingleColor(
-                            '#ff0000',
-                            {
-                                fieldId: 'orders_total_order_amount',
-                            },
-                        ),
-                    ],
-                },
+            ...initialParams,
+            pivotKeys: ['orders_status'] as string[] | undefined,
+            initialChartConfig: {
+                ...initialParams.initialChartConfig!,
+                conditionalFormattings: [
+                    createConditionalFormattingConfigWithSingleColor(
+                        '#ff0000',
+                        {
+                            fieldId: 'orders_total_order_amount',
+                        },
+                    ),
+                ],
             },
         });
 
@@ -1811,7 +1890,7 @@ describe('PROD-11290 series regeneration through useCartesianChartConfig', () =>
     const getParams = (
         pivotField: string,
         pivotValues: string[],
-    ): Parameters<typeof useCartesianChartConfig>[0] => ({
+    ): CartesianHookParams => ({
         itemsMap: undefined,
         stacking: undefined,
         cartesianType: undefined,
@@ -1863,15 +1942,11 @@ describe('PROD-11290 series regeneration through useCartesianChartConfig', () =>
         );
 
     test('a dashboard parameter changing the breakdown values keeps the bar/line mix and both axes', () => {
-        const { result, rerender } = renderHook(
-            (props: Parameters<typeof useCartesianChartConfig>[0]) =>
-                useCartesianChartConfig(props),
-            { initialProps: getParams('dimension_x', ['a']) },
+        const { result, rerender } = renderCartesianConfig(
+            getParams('dimension_x', ['a']),
         );
 
-        act(() => {
-            rerender(getParams('dimension_x', ['b', 'c']));
-        });
+        rerender(getParams('dimension_x', ['b', 'c']));
 
         const series = result.current.validConfig!.eChartsConfig.series!;
         const lineSeries = activeSeriesFor(series, 'my_second_metric');
@@ -1888,15 +1963,11 @@ describe('PROD-11290 series regeneration through useCartesianChartConfig', () =>
     });
 
     test('a dashboard parameter changing the breakdown dimension keeps the bar/line mix and both axes', () => {
-        const { result, rerender } = renderHook(
-            (props: Parameters<typeof useCartesianChartConfig>[0]) =>
-                useCartesianChartConfig(props),
-            { initialProps: getParams('dimension_x', ['a']) },
+        const { result, rerender } = renderCartesianConfig(
+            getParams('dimension_x', ['a']),
         );
 
-        act(() => {
-            rerender(getParams('dimension_y', ['x', 'y']));
-        });
+        rerender(getParams('dimension_y', ['x', 'y']));
 
         const series = result.current.validConfig!.eChartsConfig.series!;
         const lineSeries = activeSeriesFor(series, 'my_second_metric');
@@ -1916,26 +1987,22 @@ describe('PROD-11290 series regeneration through useCartesianChartConfig', () =>
 describe('picking a cartesian type before any series exists', () => {
     // setChartType restores EMPTY_CARTESIAN_CHART_CONFIG when the session has
     // never been cartesian, so there is no series to inherit a type from
-    const getParams = (
-        cartesianType: CartesianTypeOptions,
-    ): Parameters<typeof useCartesianChartConfig>[0] =>
-        ({
-            ...useCartesianChartConfigParamsMock,
-            itemsMap: undefined,
-            stacking: undefined,
-            colorPalette: [],
-            cartesianType,
-        }) as unknown as Parameters<typeof useCartesianChartConfig>[0];
+    const getParams = (cartesianType: CartesianTypeOptions) => ({
+        ...useCartesianChartConfigParamsMock,
+        itemsMap: undefined,
+        stacking: undefined,
+        colorPalette: [],
+        cartesianType,
+    });
 
     test('generates series of the requested type rather than falling back to bar', () => {
-        // Params are hoisted so cartesianType keeps a stable identity; a fresh
-        // object per render would re-fire the effect that applies it forever
         const params = getParams({
             type: CartesianSeriesType.LINE,
             flipAxes: false,
             hasAreaStyle: false,
         });
-        const { result } = renderHook(() => useCartesianChartConfig(params));
+        // @ts-expect-error partially mock params for hook
+        const { result } = renderCartesianConfig(params);
 
         const series = result.current.validConfig!.eChartsConfig.series!;
 

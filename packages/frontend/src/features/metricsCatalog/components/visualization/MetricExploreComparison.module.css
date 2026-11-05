@@ -26,14 +26,7 @@
 }
 
 .comparisonPaper[data-selected] {
-    background-color: light-dark(
-        color-mix(
-            in srgb,
-            var(--mantine-color-ldGray-1) 70%,
-            var(--mantine-color-white)
-        ),
-        var(--mantine-color-ldDark-2)
-    );
+    background-color: var(--mantine-color-ldGray-1);
 }
 
 .comparisonPaper[data-selected][data-with-border] {
@@ -41,8 +34,5 @@
 }
 
 .comparisonPaper:hover {
-    background-color: light-dark(
-        var(--mantine-color-ldGray-0),
-        var(--mantine-color-ldDark-3)
-    );
+    background-color: var(--mantine-color-default-hover);
 }

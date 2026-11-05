@@ -248,12 +248,14 @@ export function validateExternalConnectionConfig(
     }
     if (
         config.type !== 'oauth_client_credentials' &&
+        (config.type !== 'oauth_authorization_code' ||
+            config.oauthClientAuthMethod) &&
         (config.oauthTokenUrl ||
             config.oauthClientId ||
             config.oauthClientAuthMethod)
     ) {
         throw new ParameterError(
-            'OAuth client configuration is only valid for type "oauth_client_credentials"',
+            'OAuth client configuration is only valid for OAuth authentication types',
         );
     }
     switch (config.type) {
@@ -395,6 +397,25 @@ export function validateExternalConnectionConfig(
             });
             break;
         }
+        case 'oauth_authorization_code':
+            // The tokens come from the sign-in flow; a missing one means the
+            // credential destination changed and the user must sign in again.
+            if (!hasSecretAfter) {
+                throw new ParameterError(
+                    'Reconnect this source to sign in again',
+                );
+            }
+            if (config.apiKeyName || config.apiKeyLocation) {
+                throw new ParameterError(
+                    'type "oauth_authorization_code" must not set an api key name or location',
+                );
+            }
+            if (!config.oauthClientId?.trim() || !config.oauthTokenUrl) {
+                throw new ParameterError(
+                    'type "oauth_authorization_code" requires a client ID and token URL',
+                );
+            }
+            break;
         default:
             assertUnreachable(
                 config.type,

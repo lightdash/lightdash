@@ -43,6 +43,7 @@ import {
     IconIndentIncrease,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
+import clsx from 'clsx';
 import {
     useCallback,
     useEffect,
@@ -764,11 +765,11 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
                     resizable={!hideResultsPanel}
                     lineSize={9}
                     handleColor="transparent"
-                    classNames={{ handle: styles.resizeHandle }}
-                    styles={{
-                        handle: {
-                            display: hideResultsPanel ? 'none' : undefined,
-                        },
+                    classNames={{
+                        handle: clsx(
+                            styles.resizeHandle,
+                            hideResultsPanel && styles.resizeHandleHidden,
+                        ),
                     }}
                 >
                     <ResizableSplitter.Pane
@@ -1048,6 +1049,7 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
                                                             <Box
                                                                 px="sm"
                                                                 pb="sm"
+                                                                // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                                                                 style={styles}
                                                             >
                                                                 {activeConfigs.chartConfigs.map(
@@ -1109,11 +1111,12 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
                                                     >
                                                         {(styles) => (
                                                             <Box
-                                                                style={{
-                                                                    flex: 1,
-                                                                    height: inputSectionHeight,
-                                                                    ...styles,
-                                                                }}
+                                                                flex={1}
+                                                                h={
+                                                                    inputSectionHeight
+                                                                }
+                                                                // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
+                                                                style={styles}
                                                             >
                                                                 <ConditionalVisibility
                                                                     isVisible={
@@ -1162,7 +1165,7 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
                                                 size={12}
                                                 color="ldGray.9"
                                             />
-                                            <Text fz="xs" c="ldGray.7">
+                                            <Text fz="xs" c="dimmed">
                                                 Running · <ElapsedTime />
                                             </Text>
                                         </Group>
@@ -1255,7 +1258,7 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
                                                                     <Text
                                                                         fz="xs"
                                                                         fw={400}
-                                                                        c="ldGray.7"
+                                                                        c="dimmed"
                                                                         ta="center"
                                                                     >
                                                                         This
