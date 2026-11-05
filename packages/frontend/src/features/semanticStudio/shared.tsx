@@ -380,14 +380,9 @@ export const AddSourceButton: FC<{
                     {options.map((option) => {
                         const path = pathOf(option);
                         const content = (
-                            <>
-                                <Text fz="sm" fw={500}>
-                                    {option.label}
-                                </Text>
-                                <Text fz="xs" c="dimmed">
-                                    {option.description}
-                                </Text>
-                            </>
+                            <Text fz="sm" fw={500}>
+                                {option.label}
+                            </Text>
                         );
                         return path ? (
                             <Menu.Item
