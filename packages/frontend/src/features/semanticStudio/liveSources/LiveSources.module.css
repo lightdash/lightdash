@@ -61,11 +61,6 @@
     font-weight: 500;
 }
 
-.target {
-    font-size: 12px;
-    color: var(--mantine-color-dimmed);
-}
-
 /* One source: what it reads and how it is used, above its fields. */
 
 .summary {

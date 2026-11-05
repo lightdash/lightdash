@@ -213,14 +213,15 @@ export const LiveSourcesTable: FC<{
                             {integration}
                         </Text>
                     </Group>
-                    <Box miw={0} role="cell">
-                        <Text className={classes.name} truncate>
-                            {connection.name}
-                        </Text>
-                        <Text className={classes.target} truncate>
-                            {target}
-                        </Text>
-                    </Box>
+                    <Text
+                        role="cell"
+                        className={classes.name}
+                        miw={0}
+                        truncate
+                        title={target}
+                    >
+                        {connection.name}
+                    </Text>
                     <span role="cell" className={classes.number}>
                         {used.dataRead}
                     </span>
