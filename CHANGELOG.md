@@ -1,3 +1,10 @@
+## [3.166.1](https://github.com/lightdash/lightdash/compare/3.166.0...3.166.1) (2026-11-05)
+
+
+### Performance Improvements
+
+* **frontend:** keep Prism languages out of the initial bundle ([#32120](https://github.com/lightdash/lightdash/issues/32120)) ([2d5053d](https://github.com/lightdash/lightdash/commit/2d5053d4f9a069c0dd6c12e0fd6950180631cd86))
+
 # [3.166.0](https://github.com/lightdash/lightdash/compare/3.165.2...3.166.0) (2026-11-05)
 
 
