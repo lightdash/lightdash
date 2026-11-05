@@ -9,6 +9,8 @@ import { useMatches } from '@mantine/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { useLocalStorage } from 'react-use';
+import { useChartTypesEnabled } from '../../../../../features/chartTypes/hooks/useChartTypesEnabled';
+import { useDataAppVisualizations } from '../../../../../features/chartTypes/hooks/useDataAppVisualizations';
 import { useExternalConnections } from '../../../../../features/externalConnections/hooks/useExternalConnections';
 import { useExternalSources } from '../../../../../features/externalSources/hooks/useExternalSources';
 import { getSemanticStudioUrl } from '../../../../../features/semanticStudio/urls';
@@ -89,6 +91,10 @@ export const useSetupGuide = (
         },
         enabled,
     );
+    const chartTypesEnabled = useChartTypesEnabled();
+    const chartTypes = useDataAppVisualizations(
+        isEligible && chartTypesEnabled.enabled ? projectUuid : undefined,
+    );
 
     // ponytail: dismissal is per user and project in localStorage, the server skip table only accepts checklist keys
     const [isDismissed, setIsDismissed] = useLocalStorage<boolean>(
@@ -140,6 +146,9 @@ export const useSetupGuide = (
         skippedRows: skippedRows ?? [],
         semanticModelCount: semanticExplores.length,
         chartCount: chartCount ?? 0,
+        chartTypeNames: (chartTypes.data?.pages[0]?.data ?? []).map(
+            ({ name }) => name,
+        ),
         activeRun: activeRunOrNull,
         completedRun,
         semanticStudioUrl,

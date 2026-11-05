@@ -18,6 +18,7 @@ import {
     IconArrowDownLeft,
     IconBrandSlack,
     IconChartBar,
+    IconChartRadar,
     IconChevronRight,
     IconCircleCheckFilled,
     IconDatabase,
@@ -76,6 +77,11 @@ const ROW_COPY: Record<
         icon: IconChartBar,
         pitch: `Ask ${AI_NAME}, or pick a table and build it yourself.`,
         time: '2 min',
+    },
+    'chart-types': {
+        icon: IconChartRadar,
+        pitch: 'Heatmaps, radar charts and more, installed from the chart library.',
+        time: '1 min',
     },
     'source-control': {
         icon: IconGitBranch,

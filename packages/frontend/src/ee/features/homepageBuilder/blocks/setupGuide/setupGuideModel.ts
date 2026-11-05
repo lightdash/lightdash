@@ -25,6 +25,7 @@ export type SetupGuideRowId =
     | 'app-data'
     | 'semantic-layer'
     | 'first-chart'
+    | 'chart-types'
     | 'source-control'
     | 'brand'
     | 'slack'
@@ -80,6 +81,8 @@ export type SetupGuideFacts = {
     skippedRows: SetupGuideRowId[];
     semanticModelCount: number;
     chartCount: number;
+    // Installed chart types, the starter set onboarding adds included
+    chartTypeNames: string[];
     activeRun: AgentOnboardingRun | null;
     // Its run page shows what was built, so review lands there
     completedRun: AgentOnboardingRun | null;
@@ -293,6 +296,22 @@ const firstChartRow = (facts: SetupGuideFacts): SetupGuideRow => {
     };
 };
 
+const chartTypesRow = ({
+    projectUuid,
+    chartTypeNames,
+}: SetupGuideFacts): SetupGuideRow => ({
+    id: 'chart-types',
+    title: 'Try a chart type',
+    status: 'ready',
+    evidence: evidence(
+        `${plural(chartTypeNames.length, 'chart type')} ready: ${chartTypeNames.slice(0, 3).join(', ')}`,
+    ),
+    action: { label: 'Browse', to: `/projects/${projectUuid}/chart-studio` },
+    actionKey: null,
+    preview: null,
+    choices: [],
+});
+
 const MAX_SWATCHES = 4;
 
 const brandRow = (facts: SetupGuideFacts): SetupGuideRow => {
@@ -368,7 +387,12 @@ export const buildSetupGuide = (
             id: 'first-chart',
             title: 'Your first chart',
             why: `Ask ${AI_NAME}, or pick a table and build it yourself.`,
-            rows: [firstChartRow(facts)],
+            rows: [
+                firstChartRow(facts),
+                ...(facts.chartTypeNames.length > 0
+                    ? [chartTypesRow(facts)]
+                    : []),
+            ],
         },
         {
             id: 'brand',
