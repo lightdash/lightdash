@@ -9,8 +9,8 @@ import {
 } from '@mantine/core';
 import { type UseFormReturnType } from '@mantine/form';
 import { type FC } from 'react';
-import { ConnectionTestResult } from '../../../features/externalConnections/components/ConnectionTestResult';
-import { useTestConnectionConfig } from '../../../features/externalConnections/hooks/useTestConnectionConfig';
+import { ConnectionTestResult } from '../components/ConnectionTestResult';
+import { useTestConnectionConfig } from '../hooks/useTestConnectionConfig';
 import {
     getPostHogQueryPath,
     toPostHogCreatePayload,

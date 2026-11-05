@@ -1,8 +1,8 @@
 import { type ExternalConnection } from '@lightdash/common';
 import { type FC } from 'react';
-import { useCreateExternalConnection } from '../../../features/externalConnections/hooks/useCreateExternalConnection';
-import { useUpdateExternalConnection } from '../../../features/externalConnections/hooks/useUpdateExternalConnection';
-import MantineModal from '../../common/MantineModal';
+import MantineModal from '../../../components/common/MantineModal';
+import { useCreateExternalConnection } from '../hooks/useCreateExternalConnection';
+import { useUpdateExternalConnection } from '../hooks/useUpdateExternalConnection';
 import {
     getPostHogSignInUrl,
     toPostHogCreatePayload,

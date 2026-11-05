@@ -27,10 +27,20 @@ import {
     type KeyboardEvent,
 } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
+import { useLiveSourceActions } from './liveSources/liveSourceActions';
+import { LiveSourceManager } from './liveSources/LiveSourceManager';
+import {
+    LiveSourceHeaderActions,
+    LiveSourceSummary,
+    LiveSourcesTable,
+} from './liveSources/LiveSourcesView';
+import { useManagedLiveSource } from './liveSources/useManagedLiveSource';
 import {
     ancestorKeys,
     containerOf,
+    fieldGroups,
     findNode,
+    pageNodes,
     flattenTree,
     getExplore,
     getSource,
@@ -278,6 +288,7 @@ const ExploreBody: FC<{
         canManageLive: view.permissions.live,
     });
     const allFields = useMemo(() => loaded ?? [], [loaded]);
+    const groups = useMemo(() => fieldGroups(allFields), [allFields]);
     const { fields, toolbarProps } = useFieldListState(allFields, openFieldId);
     const isLive = source.kind === 'live';
     const openField = openFieldId
@@ -333,6 +344,7 @@ const ExploreBody: FC<{
                     view={view}
                     explore={explore}
                     field={openField}
+                    groups={groups}
                     onClose={closeField}
                 />
             ) : null}
@@ -380,7 +392,7 @@ const MainPane: FC<{
     const selected = view.selected;
     const ref = selected ? containerOf(selected) : null;
     const node = ref ? findNode(view.tree.nodes, nodeKey(ref)) : undefined;
-    const nodes = node ? node.children : view.tree.nodes;
+    const nodes = pageNodes(view.project, view.tree, ref);
     const explore =
         ref?.type === 'explore'
             ? getExplore(view.project, ref.exploreId)
@@ -399,12 +411,29 @@ const MainPane: FC<{
                 : !ref
                   ? (view.tree.rootSource ?? null)
                   : null;
+    // Admins manage live data sources here: the list on their kind's page,
+    // and each source's usage and controls above its explores and fields.
+    const liveActions = useLiveSourceActions();
+    const isLiveSourcesPage =
+        !!liveActions && ref?.type === 'kind' && ref.kind === 'live';
+    const liveConnection = useManagedLiveSource(
+        view.project.id,
+        ref?.type !== 'kind' && source?.kind === 'live'
+            ? source.connectionUuid
+            : undefined,
+    );
     const trail = node ? trailTo(view.tree.nodes, node.key) : [];
     // A page sits under its parent.
     const crumbs = trail.slice(0, -1);
     const showCrumbs = ref !== null;
 
-    const title = node?.label ?? view.project.name;
+    const title =
+        node?.label ??
+        (isLiveSourcesPage
+            ? 'Live data sources'
+            : ref?.type === 'source' && source
+              ? source.name
+              : view.project.name);
     const icon = ref ? (
         <NodeIcon project={view.project} nodeRef={ref} size={20} />
     ) : null;
@@ -434,6 +463,12 @@ const MainPane: FC<{
                         {ref?.type === 'kind' ? (
                             <AddSourceButton view={view} kind={ref.kind} />
                         ) : null}
+                        {liveConnection ? (
+                            <LiveSourceHeaderActions
+                                projectUuid={view.project.id}
+                                connection={liveConnection}
+                            />
+                        ) : null}
                         {source ? (
                             <SettingsLink
                                 view={view}
@@ -445,7 +480,20 @@ const MainPane: FC<{
                 </Group>
             </Box>
             <Box className={classes.mainBody}>
-                {explore ? (
+                {liveConnection ? (
+                    <LiveSourceSummary
+                        projectUuid={view.project.id}
+                        connection={liveConnection}
+                    />
+                ) : null}
+                {isLiveSourcesPage ? (
+                    <LiveSourcesTable
+                        projectUuid={view.project.id}
+                        onOpen={(connectionUuid) =>
+                            onOpen({ type: 'source', sourceId: connectionUuid })
+                        }
+                    />
+                ) : explore ? (
                     <ExploreBody
                         key={explore.id}
                         view={view}
@@ -624,24 +672,32 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const isEmpty = view.project.explores.length === 0;
 
     return (
-        <Box className={classes.shell}>
-            <Rail
-                view={view}
-                expanded={expanded}
-                onToggle={toggle}
-                onOpen={open}
-            />
-            {isEmpty ? (
-                <Box className={classes.main}>
-                    <EmptyProject view={view} />
-                </Box>
-            ) : (
-                <MainPane
+        <LiveSourceManager
+            projectUuid={view.project.id}
+            enabled={view.permissions.live}
+            onRemoved={() =>
+                view.select({ type: 'kind', kind: 'live' }, { replace: true })
+            }
+        >
+            <Box className={classes.shell}>
+                <Rail
                     view={view}
-                    onOpen={(ref) => (ref ? open(ref) : view.select(null))}
-                    onOpenNode={openNode}
+                    expanded={expanded}
+                    onToggle={toggle}
+                    onOpen={open}
                 />
-            )}
-        </Box>
+                {isEmpty ? (
+                    <Box className={classes.main}>
+                        <EmptyProject view={view} />
+                    </Box>
+                ) : (
+                    <MainPane
+                        view={view}
+                        onOpen={(ref) => (ref ? open(ref) : view.select(null))}
+                        onOpenNode={openNode}
+                    />
+                )}
+            </Box>
+        </LiveSourceManager>
     );
 };

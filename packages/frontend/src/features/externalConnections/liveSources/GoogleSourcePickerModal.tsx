@@ -1,12 +1,12 @@
 import { Alert, Loader, Radio, Stack, Text } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import MantineIcon from '../../../components/common/MantineIcon';
+import MantineModal from '../../../components/common/MantineModal';
 import {
     useFinishGoogleLiveSource,
     usePendingGoogleLiveSource,
-} from '../../../features/externalConnections/hooks/usePendingGoogleLiveSource';
-import MantineIcon from '../../common/MantineIcon';
-import MantineModal from '../../common/MantineModal';
+} from '../hooks/usePendingGoogleLiveSource';
 
 type Props = {
     projectUuid: string;

@@ -96,7 +96,8 @@ const liveSource = (connection: ExternalConnectionListItem): Source => ({
     status: null,
     integration: connection.apiSource?.connector,
     connectionUuid: connection.externalConnectionUuid,
-    settingsPath: `${SETTINGS}/liveDataSources`,
+    // Managed on the live data sources page, not in settings.
+    settingsPath: null,
 });
 
 /**
@@ -128,7 +129,7 @@ const unlistedLiveSource = (explore: SummaryExplore): Source => ({
     onWarehouse: false,
     status: null,
     integration: integrationOf(explore.name),
-    settingsPath: `${SETTINGS}/liveDataSources`,
+    settingsPath: null,
 });
 
 const unlistedExternalSource = (
@@ -238,6 +239,10 @@ export const buildRealProject = ({
             },
         ];
     });
+
+    // A source with no explores yet (just added, or its build failed) still
+    // has a page, so it can be fixed or removed.
+    for (const { connection } of live) register(liveSource(connection));
 
     return {
         id: project.projectUuid,

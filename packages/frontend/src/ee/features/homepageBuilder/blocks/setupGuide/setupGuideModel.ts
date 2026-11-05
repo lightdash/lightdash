@@ -8,6 +8,7 @@ import {
 } from '@lightdash/common';
 import { type ReactNode } from 'react';
 import { AI_NAME } from '../../../../../components/common/aiName';
+import { getSemanticStudioLiveSourcesUrl } from '../../../../../features/semanticStudio/urls';
 import {
     getAgentOnboardingRunUrl,
     plural,
@@ -189,7 +190,7 @@ const warehouseRow = (facts: SetupGuideFacts): SetupGuideRow => {
 
 const appDataRow = (facts: SetupGuideFacts): SetupGuideRow => {
     const { projectUuid, appSourceNames } = facts;
-    const to = `/generalSettings/projectManagement/${projectUuid}/liveDataSources`;
+    const to = getSemanticStudioLiveSourcesUrl(projectUuid);
     const hasSources = appSourceNames.length > 0;
     return {
         id: 'app-data',

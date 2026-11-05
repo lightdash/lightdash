@@ -2,9 +2,9 @@ import { Loader, Text } from '@mantine/core';
 import { IconCircleCheck } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useNavigate } from 'react-router';
-import { useLiveSourceFields } from '../../../features/externalConnections/hooks/useLiveSourceFields';
-import { getSemanticStudioSourceUrl } from '../../../features/semanticStudio/urls';
-import MantineModal from '../../common/MantineModal';
+import MantineModal from '../../../components/common/MantineModal';
+import { getSemanticStudioSourceUrl } from '../../semanticStudio/urls';
+import { useLiveSourceFields } from '../hooks/useLiveSourceFields';
 
 type Props = {
     projectUuid: string;
@@ -31,11 +31,12 @@ export const SourceConnectedModal: FC<Props> = ({
             icon={IconCircleCheck}
             cancelLabel="Done"
             confirmLabel="View fields"
-            onConfirm={() =>
-                navigate(
+            onConfirm={() => {
+                onClose();
+                void navigate(
                     getSemanticStudioSourceUrl(projectUuid, connectionUuid),
-                )
-            }
+                );
+            }}
         >
             {data ? (
                 <Text fz="sm">

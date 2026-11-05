@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { type Field } from './model';
+import { fieldGroups, type Field } from './model';
 import { filterFields } from './useSemanticStudio';
 
 const field = (name: string, overrides: Partial<Field> = {}): Field => ({
@@ -71,5 +71,19 @@ describe('filterFields', () => {
         expect(filterFields(fields, 'all', 'nothing-like-this', true)).toEqual(
             [],
         );
+    });
+});
+
+describe('fieldGroups', () => {
+    it('lists each group once, by name, without the ungrouped', () => {
+        expect(
+            fieldGroups([
+                field('a', { group: 'Session' }),
+                field('b', { group: '' }),
+                field('c', { group: 'Person' }),
+                field('d', { group: ' Session ' }),
+                field('e', { group: '   ' }),
+            ]),
+        ).toEqual(['Person', 'Session']);
     });
 });
