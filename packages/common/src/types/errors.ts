@@ -409,6 +409,10 @@ export class DbtError extends LightdashError {
     }
 }
 
+export class DbtModelTextError extends ParseError {}
+
+export class DbtManifestTextError extends DbtError {}
+
 export class NotFoundError extends LightdashError {
     constructor(message: string, data: Record<string, AnyType> = {}) {
         super({

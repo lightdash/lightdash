@@ -214,7 +214,11 @@ import {
 } from '../../scheduler/compileShutdown';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import SchedulerTask from '../../scheduler/SchedulerTask';
-import type { DbtManifestFetchTimings, ProjectAdapter } from '../../types';
+import type {
+    CachedWarehouse,
+    DbtManifestFetchTimings,
+    ProjectAdapter,
+} from '../../types';
 import { buildCacheHash } from '../../utils/cacheUtils';
 import { metricQueryWithLimit } from '../../utils/csvLimitUtils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
@@ -3197,55 +3201,6 @@ describe('ProjectService', () => {
             });
         });
     });
-    test('keeps primary ref rows when the dbt connection is unchanged', async () => {
-        const deleteForSource = vi.fn();
-        const get = vi.fn(async ({ featureFlagId }) => ({
-            id: featureFlagId,
-            enabled: featureFlagId === FeatureFlags.CrossSourceDbtRefs,
-        }));
-        const warehouseConnection: CreateWarehouseCredentials = {
-            type: WarehouseTypes.POSTGRES,
-            host: 'localhost',
-            port: 5432,
-            user: 'postgres',
-            password: 'postgres',
-            dbname: 'analytics',
-            schema: 'public',
-        };
-        const saved = {
-            ...projectWithSensitiveFields,
-            warehouseConnection,
-            dbtConnection: { type: DbtProjectType.NONE as const },
-        };
-        const configured = getMockedProjectService(
-            lightdashConfigWithGoogleOAuthMock,
-            {
-                projectModel: {
-                    ...projectModel,
-                    getWithSensitiveFields: vi.fn(async () => saved),
-                } as unknown as ProjectModel,
-                dbtSourceRefCatalogModel: { deleteForSource } as never,
-                featureFlagModel: { get } as unknown as FeatureFlagModel,
-            },
-        );
-        await configured.updateAndScheduleAsyncWork(
-            projectUuid,
-            developerAccount,
-            {
-                name: saved.name,
-                dbtVersion: saved.dbtVersion,
-                warehouseConnection,
-                dbtConnection: saved.dbtConnection,
-            },
-            RequestMethod.WEB_APP,
-        );
-        expect(deleteForSource).not.toHaveBeenCalled();
-        expect(get).not.toHaveBeenCalledWith(
-            expect.objectContaining({
-                featureFlagId: FeatureFlags.CrossSourceDbtRefs,
-            }),
-        );
-    });
 
     describe('GitHub App connections on save', () => {
         const postgresWarehouseConnection: CreateWarehouseCredentials = {
@@ -3300,37 +3255,6 @@ describe('ProjectService', () => {
             jobModel.create.mockClear();
             projectModel.getWithSensitiveFields.mockResolvedValueOnce(
                 savedGithubOAuthProject,
-            );
-        });
-
-        test('invalidates the primary ref catalogue after the dbt connection changes', async () => {
-            const deleteForSource = vi.fn(async () => undefined);
-            const configured = getMockedProjectService(
-                lightdashConfigWithGoogleOAuthMock,
-                {
-                    githubAppInstallationsModel: {
-                        findInstallationId: vi.fn(async () => '999'),
-                    } as unknown as GithubAppInstallationsModel,
-                    dbtSourceRefCatalogModel: { deleteForSource } as never,
-                    featureFlagModel: {
-                        get: vi.fn(async ({ featureFlagId }) => ({
-                            id: featureFlagId,
-                            enabled:
-                                featureFlagId ===
-                                FeatureFlags.CrossSourceDbtRefs,
-                        })),
-                    } as unknown as FeatureFlagModel,
-                },
-            );
-            await configured.updateAndScheduleAsyncWork(
-                projectUuid,
-                developerAccount,
-                updateData,
-                RequestMethod.WEB_APP,
-            );
-            expect(deleteForSource).toHaveBeenCalledWith(
-                projectUuid,
-                expect.any(String),
             );
         });
 
@@ -14864,7 +14788,11 @@ type ResolveCompileAdapterArgs = {
         adapter: ProjectAdapter;
         connection: ScopedWarehouseConnection;
         warehouseCredentials: CreateWarehouseCredentials;
-        cachedWarehouse: { warehouseCatalog: {}; warehouseTables: {} };
+        cachedWarehouse: {
+            warehouseCatalog: {};
+            warehouseTables: {};
+            onWarehouseCatalogChange?: CachedWarehouse['onWarehouseCatalogChange'];
+        };
         dbtVersionOption: DbtVersionOptionLatest;
         dbtPartialParse: boolean;
         dbtTargetPolicy: { explicitCredentials: boolean };
@@ -14884,6 +14812,7 @@ type BuildMergedManifestAdapterArgs = {
 
 type ResolvedCompileAdapter = {
     adapter: ProjectAdapter;
+    failedDbtSourceUuids?: string[];
     stagedMergedManifest?: Buffer;
     connectionWarnings?: string[];
 };
@@ -15158,289 +15087,184 @@ describe('ProjectService.resolveCompileAdapter (single-source regression firewal
         return (await adapter).adapter;
     };
 
-    it('writes provisional source catalogues and confirms only when the merged artifact is saved', async () => {
-        const cacheModel = {
-            get: vi.fn(async () => []),
-            upsertProvisional: vi.fn(async () => 'digest'),
-            confirm: vi.fn(async () => undefined),
-        };
-        const projectService = getMockedProjectService(
-            lightdashConfigWithGoogleOAuthMock,
-            {
-                dbtSourceRefCatalogModel: cacheModel as never,
-                featureFlagModel: {
-                    get: vi.fn(async ({ featureFlagId }) => ({
-                        id: featureFlagId,
-                        enabled: true,
-                    })),
-                } as unknown as FeatureFlagModel,
-            },
-        ) as unknown as ProjectServiceInternals;
-        const primaryManifest = buildManifest([
-            {
-                uniqueId: 'model.catalogue_a.orders',
-                name: 'orders',
-                packageName: 'catalogue_a',
-            },
-        ]);
-        primaryManifest.metadata.project_name = 'catalogue_a';
-        const sourceManifest = buildManifest([
-            {
-                uniqueId: 'model.catalogue_b.customers',
-                name: 'customers',
-                packageName: 'catalogue_b',
-            },
-        ]);
-        sourceManifest.metadata.project_name = 'catalogue_b';
-        vi.spyOn(projectService, 'buildSourceAdapter').mockResolvedValue(
-            buildAdapterWithManifest(sourceManifest),
-        );
-        const built = await projectService.buildMergedManifestAdapter({
-            userUuid: 'user-uuid',
-            projectUuid: 'project-uuid',
-            organizationUuid: 'org-uuid',
-            primary: {
-                ...primary,
-                adapter: buildAdapterWithManifest(primaryManifest),
-            },
-            sources: [buildSource('source-b')],
-            manifestFetchAdapters: [],
-            jobUuid: 'compile-job',
-        });
-        expect(cacheModel.get).toHaveBeenCalledWith('project-uuid', 'original');
-        expect(cacheModel.upsertProvisional).toHaveBeenCalledTimes(2);
-        expect(cacheModel.upsertProvisional).toHaveBeenCalledWith(
-            expect.objectContaining({
-                projectUuid: 'project-uuid',
-                connectionGroup: 'original',
-                compileJobUuid: 'compile-job',
-                dbtSourceUuid: 'primary-source-uuid',
-                projectName: 'catalogue_a',
-                referencedProjects: [],
-            }),
-        );
-        expect(cacheModel.upsertProvisional).toHaveBeenCalledWith(
-            expect.objectContaining({
-                projectUuid: 'project-uuid',
-                connectionGroup: 'original',
-                dbtSourceUuid: 'source-b-uuid',
-            }),
-        );
-        expect(cacheModel.confirm).not.toHaveBeenCalled();
-        await projectService.persistMergedManifest(
-            'project-uuid',
-            built.stagedMergedManifest,
-        );
-        expect(cacheModel.confirm).toHaveBeenCalledWith(
-            expect.objectContaining({
-                projectUuid: 'project-uuid',
-                connectionGroup: 'original',
-                entries: expect.arrayContaining([
-                    expect.objectContaining({ nodesDigest: 'digest' }),
-                ]),
-            }),
-        );
-    });
-
-    it('fails a compile before adapter creation settles and releases its disk later', async () => {
-        vi.useFakeTimers();
-        const { projectService } = buildServiceWithMocks([]);
-        projectService.featureFlagModel.get = vi.fn(async (args: unknown) => ({
-            id: (args as { featureFlagId: FeatureFlags }).featureFlagId,
-            enabled: true,
-        }));
-        const sourceAdapter = buildAdapterWithManifest(buildManifest([]));
-        let finish!: (adapter: ProjectAdapter) => void;
-        vi.spyOn(projectService, 'buildSourceAdapter').mockImplementation(
-            () =>
-                new Promise<ProjectAdapter>((resolve) => {
-                    finish = resolve;
-                }),
-        );
-        const log = vi.spyOn(projectService.logger, 'info');
-        let failed = false;
-        const compile = projectService
-            .buildMergedManifestAdapter({
-                userUuid: 'user-uuid',
-                projectUuid: 'project-uuid',
-                organizationUuid: 'org-uuid',
-                primary: {
-                    ...primary,
-                    adapter: buildAdapterWithManifest(buildManifest([])),
+    it.each([
+        { stubIsPrimary: true, includeRealModel: true },
+        { stubIsPrimary: false, includeRealModel: true },
+        { stubIsPrimary: true, includeRealModel: false },
+        { stubIsPrimary: false, includeRealModel: false },
+    ])(
+        'strips Loom stubs before merging sources (primary=$stubIsPrimary, selected=$includeRealModel)',
+        async ({ stubIsPrimary, includeRealModel }) => {
+            const realId = 'model.upstream.customers';
+            const realManifest = buildManifest([
+                {
+                    uniqueId: realId,
+                    name: 'customers',
+                    packageName: 'upstream',
                 },
-                sources: [buildSource('leaf_a')],
-                manifestFetchAdapters: [],
-            })
-            .catch((error: unknown) => {
-                failed = true;
-                return error;
-            });
-        try {
-            await vi.advanceTimersByTimeAsync(
-                lightdashConfigWithGoogleOAuthMock.dbt
-                    .crossSourcePrepareTimeoutMs + 20000,
+            ]);
+            const stubManifest = buildManifest([
+                {
+                    uniqueId: 'model.downstream.orders',
+                    name: 'orders',
+                    packageName: 'downstream',
+                },
+            ]);
+            const realNode = realManifest.nodes[realId] as DbtRawModelNode &
+                DbtManifest['nodes'][string];
+            const stub = {
+                ...realNode,
+                path: '',
+                original_file_path: '',
+            };
+            stubManifest.nodes[realId] = stub;
+            const orphanId = 'model.unavailable.orphan';
+            const orphan = {
+                ...stub,
+                unique_id: orphanId,
+                name: 'orphan',
+                package_name: 'unavailable',
+            };
+            stubManifest.nodes[orphanId] = orphan;
+            const realSelection = includeRealModel ? [realId] : [];
+            const stubSelection = ['model.downstream.orders', realId, orphanId];
+            const adapter = await buildMergedAdapter(
+                stubIsPrimary ? stubManifest : realManifest,
+                stubIsPrimary ? realManifest : stubManifest,
+                {
+                    primary: stubIsPrimary ? stubSelection : realSelection,
+                    source: stubIsPrimary ? realSelection : stubSelection,
+                },
             );
-            expect(failed).toBe(true);
-            expect(log).toHaveBeenCalledWith(
-                'dbt.compile.crossSourceRefsResolved diskEvictions=0 diskRecreations=0 status=failed',
-                expect.objectContaining({
-                    status: 'failed',
-                    diskEvictions: 0,
-                    diskRecreations: 0,
-                }),
-            );
-            expect(await compile).toMatchObject({
-                message: expect.stringContaining('timed out'),
+            const result = await adapter.getDbtManifest();
+            expect(result.manifest.nodes[realId]).toMatchObject({
+                path: 'models/customers.sql',
+                compiled: includeRealModel,
+                lightdash_source_uuid: stubIsPrimary
+                    ? 'source-b-uuid'
+                    : 'primary-source-uuid',
             });
-            expect(sourceAdapter.releaseDisk).not.toHaveBeenCalled();
-            finish(sourceAdapter);
-            await vi.advanceTimersByTimeAsync(0);
-            expect(sourceAdapter.releaseDisk).toHaveBeenCalledOnce();
-            expect(sourceAdapter.getDbtManifest).not.toHaveBeenCalled();
-        } finally {
-            vi.useRealTimers();
-        }
-    });
+            expect(result.manifest.nodes[orphanId]).toBeUndefined();
+            expect(result.selectedModelIds).toEqual(
+                expect.arrayContaining(['model.downstream.orders']),
+            );
+            expect(result.selectedModelIds?.includes(realId)).toBe(
+                includeRealModel,
+            );
+            expect(result.selectedModelIds).not.toContain(orphanId);
+        },
+    );
 
-    it('carries a source preparation failure and fetches the primary manifest', async () => {
-        const { projectService } = buildServiceWithMocks([]);
-        projectService.featureFlagModel.get = vi.fn(async (args: unknown) => ({
-            id: (args as { featureFlagId: FeatureFlags }).featureFlagId,
-            enabled: true,
-        }));
-        const preparedPrimary = buildAdapterWithManifest(buildManifest([]));
-        const sourceAdapter = buildAdapterWithManifest(buildManifest([]));
-        vi.mocked(sourceAdapter.prepareDbtSource).mockRejectedValue(
-            new Error('deps failed'),
-        );
-        vi.spyOn(projectService, 'buildSourceAdapter').mockResolvedValue(
-            sourceAdapter,
-        );
-        const resolved = await projectService.buildMergedManifestAdapter({
-            userUuid: 'user-uuid',
-            projectUuid: 'project-uuid',
-            organizationUuid: 'org-uuid',
-            primary: { ...primary, adapter: preparedPrimary },
-            sources: [buildSource('source-b')],
-            manifestFetchAdapters: [],
-        });
-        expect(resolved).toMatchObject({
-            failedDbtSourceUuids: ['source-b-uuid'],
-            connectionWarnings: [
-                expect.stringContaining('kept its 2 explores'),
-            ],
-        });
-        expect(preparedPrimary.getDbtManifest).toHaveBeenCalledOnce();
-        expect(sourceAdapter.getDbtManifest).not.toHaveBeenCalled();
-    });
-
-    it.each([true, false])(
-        'gates managed cross-source retries with flag enabled=%s',
-        async (enabled) => {
+    it.each([false, true])(
+        'fetches independent sources once with a legacy cross-source override of %s',
+        async (legacyOverrideEnabled) => {
             const { projectService } = buildServiceWithMocks([]);
-            projectService.featureFlagModel.get = vi.fn(
-                async (args: unknown) => {
-                    const { featureFlagId } = args as {
-                        featureFlagId: FeatureFlags;
-                    };
-                    return { id: featureFlagId, enabled };
+            const getFlag = vi.fn(async (args: unknown) => {
+                const { featureFlagId } = args as { featureFlagId: string };
+                return {
+                    id: featureFlagId,
+                    enabled:
+                        featureFlagId === 'cross-source-dbt-refs' &&
+                        legacyOverrideEnabled,
+                };
+            });
+            projectService.featureFlagModel = { get: getFlag };
+            const primarySource = buildAdapterWithManifest(
+                buildManifest([
+                    {
+                        uniqueId: 'model.primary.orders',
+                        name: 'orders',
+                        packageName: 'primary',
+                    },
+                ]),
+            );
+            const additionalSource = buildAdapterWithManifest(
+                buildManifest([
+                    {
+                        uniqueId: 'model.additional.customers',
+                        name: 'customers',
+                        packageName: 'additional',
+                    },
+                ]),
+            );
+            vi.spyOn(projectService, 'buildSourceAdapter').mockResolvedValue(
+                additionalSource,
+            );
+            const resolved = await projectService.buildMergedManifestAdapter({
+                ...baseArgs,
+                primary: { ...primary, adapter: primarySource },
+                sources: [buildSource('additional')],
+                manifestFetchAdapters: [],
+            });
+            expect(resolved.connectionWarnings).toEqual([]);
+            for (const adapter of [primarySource, additionalSource]) {
+                expect(adapter.prepareDbtSource).not.toHaveBeenCalled();
+                expect(adapter.getDbtManifest).toHaveBeenCalledOnce();
+                expect(adapter.releaseDisk).toHaveBeenCalledOnce();
+                expect(
+                    vi.mocked(adapter.releaseDisk).mock.invocationCallOrder[0],
+                ).toBeGreaterThan(
+                    vi.mocked(adapter.getDbtManifest).mock
+                        .invocationCallOrder[0],
+                );
+            }
+            expect(primarySource.releaseDisk).toHaveBeenCalledWith({
+                keepProject: true,
+            });
+            expect(additionalSource.releaseDisk).toHaveBeenCalledWith();
+            const merged = await resolved.adapter.getDbtManifest();
+            expect(merged.manifest.nodes['model.primary.orders']).toMatchObject(
+                {
+                    lightdash_source_uuid: 'primary-source-uuid',
                 },
             );
-            const upstream = buildManifest([
+            expect(
+                merged.manifest.nodes['model.additional.customers'],
+            ).toMatchObject({
+                lightdash_source_uuid: 'additional-uuid',
+            });
+            expect(getFlag).not.toHaveBeenCalledWith(
+                expect.objectContaining({
+                    featureFlagId: 'cross-source-dbt-refs',
+                }),
+            );
+        },
+    );
+
+    it('keeps a failed source on its last-good explores without retrying missing refs', async () => {
+        const { projectService } = buildServiceWithMocks([]);
+        const upstream = buildAdapterWithManifest(
+            buildManifest([
                 {
                     uniqueId: 'model.shared.calendar',
                     name: 'calendar',
                     packageName: 'shared',
                 },
-            ]);
-            upstream.metadata.project_name = 'shared';
-            const downstream = buildManifest([
-                {
-                    uniqueId: 'model.analytics.orders',
-                    name: 'orders',
-                    packageName: 'analytics',
-                },
-            ]);
-            downstream.metadata.project_name = 'analytics';
-            Object.assign(downstream.nodes['model.analytics.orders'], {
-                refs: [{ name: 'calendar', package: null, version: null }],
-                depends_on: { nodes: ['model.shared.calendar'] },
-            });
-            const stub = {
-                ...(upstream.nodes['model.shared.calendar'] as DbtRawModelNode &
-                    DbtManifest['nodes'][string]),
-                path: '',
-                original_file_path: '',
-            };
-            const error = new DbtError(
-                "depends on a node named 'calendar' in package or project 'shared' which was not found",
-            );
-            const downstreamAdapter = buildAdapterWithManifest(downstream);
-            const fetchManifest = vi
-                .mocked(downstreamAdapter.getDbtManifest)
-                .mockRejectedValueOnce(error)
-                .mockResolvedValueOnce({
-                    manifest: {
-                        ...downstream,
-                        nodes: { ...downstream.nodes, [stub.unique_id]: stub },
-                    },
-                    selectedModelIds: [
-                        stub.unique_id,
-                        'model.analytics.orders',
-                    ],
-                    timings: NO_FETCH_TIMINGS,
-                });
-            const build = vi
-                .spyOn(projectService, 'buildSourceAdapter')
-                .mockResolvedValue(downstreamAdapter);
-            const resolution = projectService.buildMergedManifestAdapter({
-                userUuid: 'user-uuid',
-                projectUuid: 'project-uuid',
-                organizationUuid: 'org-uuid',
-                primary: {
-                    ...primary,
-                    adapter: buildAdapterWithManifest(upstream),
-                },
-                sources: [buildSource('analytics')],
-                manifestFetchAdapters: [],
-            });
-            if (enabled) {
-                const { adapter, connectionWarnings } = await resolution;
-                expect(connectionWarnings).toEqual([
-                    "Model \"orders\" in dbt source \"analytics\" uses ref('calendar'), which resolved to external model model.shared.calendar from another dbt source. Use ref('shared', 'calendar') to make the cross-source reference explicit.",
-                ]);
-
-                const merged = await adapter.getDbtManifest();
-                expect(merged.manifest.nodes[stub.unique_id]).toMatchObject({
-                    path: 'models/calendar.sql',
-                });
-                expect(fetchManifest).toHaveBeenCalledTimes(2);
-                expect(downstreamAdapter.releaseDisk).toHaveBeenCalledOnce();
-                expect(
-                    vi.mocked(downstreamAdapter.releaseDisk).mock
-                        .invocationCallOrder[0],
-                ).toBeGreaterThan(fetchManifest.mock.invocationCallOrder[1]);
-                expect(fetchManifest.mock.calls[1][0]?.externalNodes).toEqual([
-                    expect.objectContaining({
-                        package_name: 'shared',
-                        name: 'calendar',
-                    }),
-                ]);
-                expect(build).toHaveBeenCalledTimes(1);
-            } else {
-                expect(await resolution).toMatchObject({
-                    connectionWarnings: [
-                        expect.stringContaining('Source "analytics" failed'),
-                    ],
-                });
-                expect(fetchManifest).toHaveBeenCalledTimes(1);
-            }
-            expect(projectService.featureFlagModel.get).toHaveBeenCalledWith({
-                featureFlagId: FeatureFlags.CrossSourceDbtRefs,
-                user: { userUuid: 'user-uuid', organizationUuid: 'org-uuid' },
-            });
-        },
-    );
+            ]),
+        );
+        const downstream = buildAdapterWithManifest(buildManifest([]));
+        const error = new DbtError(
+            "depends on a node named 'calendar' in package or project 'shared' which was not found",
+        );
+        vi.mocked(downstream.getDbtManifest).mockRejectedValue(error);
+        vi.spyOn(projectService, 'buildSourceAdapter').mockResolvedValue(
+            downstream,
+        );
+        const result = await projectService.buildMergedManifestAdapter({
+            ...baseArgs,
+            primary: { ...primary, adapter: upstream },
+            sources: [buildSource('analytics')],
+            manifestFetchAdapters: [],
+        });
+        expect(result).toMatchObject({
+            failedDbtSourceUuids: ['analytics-uuid'],
+            connectionWarnings: [
+                expect.stringContaining('kept its 2 explores'),
+            ],
+        });
+        expect(downstream.getDbtManifest).toHaveBeenCalledOnce();
+        expect(upstream.getDbtManifest).toHaveBeenCalledOnce();
+    });
 
     it('returns the deduplicated union when both sources select models', async () => {
         const primaryManifest = buildManifest([
@@ -15621,6 +15445,116 @@ describe('ProjectService.resolveCompileAdapter (single-source regression firewal
                     sourceFetchConcurrency,
                 },
             }) as unknown as ProjectServiceInternals;
+
+        it('keeps combined-service availability scoped to participating sources', async () => {
+            const projectService = buildService(2);
+            const primaryInput = primaryManifest();
+            (primaryInput.nodes['model.pkg_a.orders'] as DbtRawModelNode).meta =
+                {
+                    explores: {
+                        bare: {
+                            joins: [
+                                {
+                                    join: 'customers',
+                                    alias: 'target',
+                                    sql_on: '${orders.id} = ${target.id}',
+                                },
+                            ],
+                        },
+                        qualified: {
+                            joins: [
+                                {
+                                    join: 'source-b__customers',
+                                    alias: 'target',
+                                    sql_on: '${orders.id} = ${target.id}',
+                                },
+                            ],
+                        },
+                        failed: {
+                            joins: [
+                                {
+                                    join: 'source-c__customers',
+                                    alias: 'target',
+                                    sql_on: '${orders.id} = ${target.id}',
+                                },
+                            ],
+                        },
+                    },
+                };
+            const failedConfig = { type: DbtProjectType.NONE } as const;
+            vi.spyOn(projectService, 'buildSourceAdapter').mockImplementation(
+                async (config) => {
+                    if (config === failedConfig)
+                        throw new Error('Synthetic source unavailable');
+                    return buildAdapterWithManifest(sourceManifest());
+                },
+            );
+            const { adapter, failedDbtSourceUuids } =
+                await projectService.buildMergedManifestAdapter({
+                    ...baseArgs,
+                    primary: {
+                        ...primary,
+                        cachedWarehouse: {
+                            warehouseCatalog: {},
+                            warehouseTables: {},
+                            onWarehouseCatalogChange: vi.fn(),
+                        },
+                        adapter: buildAdapterWithManifest(primaryInput),
+                        connection: {
+                            ...primary.connection,
+                            deriveClient: () => ({
+                                ...warehouseClientMock,
+                                getCatalog: vi.fn(async () => ({
+                                    analytics: {
+                                        public: {
+                                            orders: {
+                                                id: DimensionType.NUMBER,
+                                            },
+                                            customers: {
+                                                id: DimensionType.NUMBER,
+                                            },
+                                        },
+                                    },
+                                })),
+                            }),
+                        },
+                    },
+                    sources: [
+                        buildSource('source-b'),
+                        {
+                            ...buildSource('source-c'),
+                            dbtConnection: failedConfig,
+                        },
+                        { ...buildSource('ignored'), dbtConnection: null },
+                    ],
+                });
+            const explores = await (
+                adapter as DbtBaseProjectAdapter
+            ).compileAllExplores(undefined, false, true, true);
+            const get = (name: string) =>
+                explores.find((e) => e.name === name) as Explore;
+            expect(failedDbtSourceUuids).toEqual(['source-c-uuid']);
+            expect(get('bare').joinedTables).toEqual([]);
+            expect(get('bare').warnings).toEqual([
+                expect.objectContaining({
+                    message: expect.stringContaining(
+                        'source inventory is unavailable: source-c',
+                    ),
+                }),
+            ]);
+            expect(get('qualified').tables.target).toMatchObject({
+                dbtSourceUuid: 'source-b-uuid',
+                dbtPackageName: 'pkg_b',
+                dbtModelUniqueId: 'model.pkg_b.customers',
+            });
+            expect(get('failed').warnings).toEqual([
+                expect.objectContaining({
+                    message: expect.stringContaining(
+                        'source "source-c" inventory is unavailable',
+                    ),
+                }),
+            ]);
+        });
 
         it('fetches the primary at the same time as the additional sources', async () => {
             const events: string[] = [];
@@ -16176,10 +16110,7 @@ describe('ProjectService.resolveCompileAdapter (single-source regression firewal
             manifestFetchAdapters: [],
         });
 
-        expect(getFlag).toHaveBeenCalledExactlyOnceWith({
-            featureFlagId: FeatureFlags.CrossSourceDbtRefs,
-            user: { userUuid: 'user-uuid', organizationUuid: 'org-uuid' },
-        });
+        expect(getFlag).not.toHaveBeenCalled();
         expect(projectModel.getSummary).not.toHaveBeenCalled();
         expect(buildSourceAdapter).toHaveBeenCalledTimes(2);
         expect(buildSourceAdapter).toHaveBeenNthCalledWith(
@@ -17291,23 +17222,15 @@ describe('ProjectService.resolveCompileAdapter (single-source regression firewal
         );
     });
 
-    it.each([
-        { enabled: true, missingRef: true, warehouseFails: false },
-        { enabled: false, missingRef: true, warehouseFails: false },
-        { enabled: true, missingRef: false, warehouseFails: false },
-        { enabled: true, missingRef: true, warehouseFails: true },
-    ])(
-        'defers only missing cross-project refs when enabled=$enabled missingRef=$missingRef warehouseFails=$warehouseFails',
-        async ({ enabled, missingRef, warehouseFails }) => {
+    it.each([true, false])(
+        'rejects adapter failures without deferring dbt validation (missingRef=%s)',
+        async (missingRef) => {
             const dbtError = new DbtError(
                 missingRef
                     ? "Model 'model.analytics.orders' depends on a node named 'orders' in package or project 'upstream' which was not found"
                     : 'dbt parse failed: invalid configuration',
             );
-            const warehouseError = new Error('warehouse connection failed');
             const warehouseTest = vi.spyOn(warehouseClientMock, 'test');
-            if (warehouseFails)
-                warehouseTest.mockRejectedValueOnce(warehouseError);
             const adapter = new DbtBaseProjectAdapter(
                 {
                     test: vi.fn().mockRejectedValue(dbtError),
@@ -17329,9 +17252,7 @@ describe('ProjectService.resolveCompileAdapter (single-source regression firewal
                 get: vi.fn(
                     async ({ featureFlagId }: { featureFlagId: string }) => ({
                         id: featureFlagId,
-                        enabled:
-                            featureFlagId === FeatureFlags.CrossSourceDbtRefs &&
-                            enabled,
+                        enabled: false,
                     }),
                 ),
             };
@@ -17357,7 +17278,6 @@ describe('ProjectService.resolveCompileAdapter (single-source regression firewal
                     projectOrganizationUuid: string,
                 ) => Promise<unknown>;
             };
-            const info = vi.spyOn(internals.logger, 'info');
             const tested = internals.testProjectAdapter(
                 {
                     ...projectWithSensitiveFields,
@@ -17372,38 +17292,8 @@ describe('ProjectService.resolveCompileAdapter (single-source regression firewal
                 'projectUuid',
                 'organizationUuid',
             );
-            if (enabled && missingRef) {
-                if (warehouseFails)
-                    await expect(tested).rejects.toBe(warehouseError);
-                else await expect(tested).resolves.toMatchObject({ adapter });
-                expect(warehouseTest).toHaveBeenCalledOnce();
-                expect(info).toHaveBeenCalledWith(
-                    'dbt.test.deferredCrossSourceRefs',
-                    {
-                        refs: [
-                            {
-                                packageName: 'upstream',
-                                model: 'orders',
-                                version: null,
-                            },
-                        ],
-                    },
-                );
-                expect(flags.get).toHaveBeenCalledWith({
-                    featureFlagId: FeatureFlags.CrossSourceDbtRefs,
-                    user: {
-                        userUuid: compileUser.userUuid,
-                        organizationUuid: 'organizationUuid',
-                    },
-                });
-            } else {
-                await expect(tested).rejects.toBe(dbtError);
-                expect(warehouseTest).not.toHaveBeenCalled();
-                expect(info).not.toHaveBeenCalledWith(
-                    'dbt.test.deferredCrossSourceRefs',
-                    expect.anything(),
-                );
-            }
+            await expect(tested).rejects.toBe(dbtError);
+            expect(warehouseTest).not.toHaveBeenCalled();
         },
     );
 
@@ -17494,83 +17384,6 @@ describe('ProjectService.resolveCompileAdapter (single-source regression firewal
         ).toBeLessThan(tunnel.disconnect.mock.invocationCallOrder[0]);
     });
 
-    it.each(['shutdown', 'deadline'] as const)(
-        'arms primary preparation before test and deploy and handles %s',
-        async (cause) => {
-            const context: CompileShutdownContext = {
-                controller: new AbortController(),
-                jobUuid: 'leaf_a',
-                armed: false,
-                state: 'running',
-                isStopping: () => false,
-                interrupt: vi.fn(),
-            };
-            let signal: AbortSignal | undefined;
-            const prepare = vi.fn<ProjectAdapter['prepareDbtSource']>(
-                async (options) => {
-                    expect(context.armed).toBe(true);
-                    signal = options?.signal;
-                    return new Promise((_resolve, reject) => {
-                        signal!.addEventListener(
-                            'abort',
-                            () => reject(signal!.reason),
-                            { once: true },
-                        );
-                    });
-                },
-            );
-            const service = buildCompilationBoundaryService(
-                undefined,
-                undefined,
-                prepare,
-            );
-            vi.mocked(service.featureFlagModel.get).mockImplementation(
-                async ({ featureFlagId }) =>
-                    ({
-                        enabled:
-                            featureFlagId === FeatureFlags.CrossSourceDbtRefs,
-                    }) as never,
-            );
-            Object.assign(service, {
-                lightdashConfig: {
-                    ...lightdashConfigWithGoogleOAuthMock,
-                    dbt: {
-                        ...lightdashConfigWithGoogleOAuthMock.dbt,
-                        crossSourcePrepareTimeoutMs: 50,
-                    },
-                },
-            });
-            const reason = new CompileInterruptedError();
-            projectModel.saveMultiConnectionExplores.mockClear();
-            const work = compileShutdown
-                .run(context, () =>
-                    service.testAndCompileProject(
-                        compileUser,
-                        'projectUuid',
-                        RequestMethod.WEB_APP,
-                        'leaf_a',
-                    ),
-                )
-                .catch((error: unknown) => error);
-            await vi.waitFor(() => expect(prepare).toHaveBeenCalledOnce());
-            if (cause === 'shutdown') context.controller.abort(reason);
-            const error = await work;
-            if (cause === 'shutdown') expect(error).toBe(reason);
-            else
-                expect(error).toHaveProperty(
-                    'message',
-                    expect.stringContaining(
-                        'while cloning the repository and installing dbt packages',
-                    ),
-                );
-            expect(signal?.aborted).toBe(true);
-            expect(
-                projectModel.saveMultiConnectionExplores,
-            ).not.toHaveBeenCalled();
-            expect(context.state).toBe('terminal');
-        },
-    );
-
     it.each(['compileProject', 'testAndCompileProject'] as const)(
         '%s fences a shutdown after dbt ls before any publication',
         async (method) => {
@@ -17591,11 +17404,7 @@ describe('ProjectService.resolveCompileAdapter (single-source regression firewal
                 }),
             );
             vi.mocked(projectService.featureFlagModel.get).mockImplementation(
-                async ({ featureFlagId }) =>
-                    ({
-                        enabled:
-                            featureFlagId === FeatureFlags.CrossSourceDbtRefs,
-                    }) as never,
+                async () => ({ enabled: false }) as never,
             );
             projectModel.saveMultiConnectionExplores.mockClear();
             jobModel.update.mockClear();
@@ -17643,11 +17452,7 @@ describe('ProjectService.resolveCompileAdapter (single-source regression firewal
                 }),
             );
             vi.mocked(projectService.featureFlagModel.get).mockImplementation(
-                async ({ featureFlagId }) =>
-                    ({
-                        enabled:
-                            featureFlagId === FeatureFlags.CrossSourceDbtRefs,
-                    }) as never,
+                async () => ({ enabled: false }) as never,
             );
             await compileShutdown.run(context, () =>
                 projectService[method](
@@ -17679,11 +17484,7 @@ describe('ProjectService.resolveCompileAdapter (single-source regression firewal
             const reason = new CompileInterruptedError();
             const projectService = buildCompilationBoundaryService();
             vi.mocked(projectService.featureFlagModel.get).mockImplementation(
-                async ({ featureFlagId }) =>
-                    ({
-                        enabled:
-                            featureFlagId === FeatureFlags.CrossSourceDbtRefs,
-                    }) as never,
+                async () => ({ enabled: false }) as never,
             );
             let committed = false;
             projectModel.saveMultiConnectionExplores.mockImplementationOnce(
@@ -17732,11 +17533,7 @@ describe('ProjectService.resolveCompileAdapter (single-source regression firewal
             };
             const projectService = buildCompilationBoundaryService();
             vi.mocked(projectService.featureFlagModel.get).mockImplementation(
-                async ({ featureFlagId }) =>
-                    ({
-                        enabled:
-                            featureFlagId === FeatureFlags.CrossSourceDbtRefs,
-                    }) as never,
+                async () => ({ enabled: false }) as never,
             );
             projectModel.saveMultiConnectionExplores.mockImplementationOnce(
                 async () => {
