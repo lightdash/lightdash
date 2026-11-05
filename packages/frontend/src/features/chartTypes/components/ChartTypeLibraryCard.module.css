@@ -12,7 +12,7 @@
     border-color: var(--mantine-color-ldGray-3);
 }
 
-/* The title is the card's button; it stretches over the whole card. */
+/* The title is the keyboard target; its clicks bubble to the card. */
 .hit {
     outline: none;
 }

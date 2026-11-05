@@ -75,7 +75,12 @@ const ChartTypeLibraryCard: FC<Props> = ({
         </Paper>
     );
     return (
-        <Paper withBorder radius="lg" className={classes.card}>
+        <Paper
+            withBorder
+            radius="lg"
+            className={classes.card}
+            onClick={onClick}
+        >
             <Box className={classes.preview}>
                 {thumbnail ? (
                     <RegistryAssetImage
@@ -90,11 +95,7 @@ const ChartTypeLibraryCard: FC<Props> = ({
             </Box>
             <Stack gap="xs" px="xs" pt="sm" pb="xs">
                 <Group gap="xs" wrap="nowrap" justify="space-between">
-                    <UnstyledButton
-                        className={classes.hit}
-                        onClick={onClick}
-                        miw={0}
-                    >
+                    <UnstyledButton className={classes.hit} miw={0}>
                         <Text fz="sm" fw={500} truncate="end">
                             {item.name}
                         </Text>
@@ -116,7 +117,10 @@ const ChartTypeLibraryCard: FC<Props> = ({
                     className={classes.install}
                     loading={isInstalling}
                     aria-label={`Install ${item.name}`}
-                    onClick={onInstall}
+                    onClick={(event) => {
+                        event.stopPropagation();
+                        onInstall();
+                    }}
                 >
                     Install
                 </Button>

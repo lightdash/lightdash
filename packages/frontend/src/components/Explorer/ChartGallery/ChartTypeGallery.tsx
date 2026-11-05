@@ -24,9 +24,7 @@ import {
     IconFilePencil,
     IconGitFork,
     IconHammer,
-    IconPackage,
     IconSearch,
-    type Icon as TablerIcon,
 } from '@tabler/icons-react';
 import clsx from 'clsx';
 import { useEffect, useMemo, useRef, useState, type FC } from 'react';
@@ -43,6 +41,7 @@ import {
 } from '../../../features/explorer/store';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useTracking from '../../../providers/Tracking/useTracking';
+import Bolt from '../../../svgs/grey-icon-logo.svg?react';
 import { EventName } from '../../../types/Events';
 import { CHART_GALLERY_SEARCH_ID } from '../../common/ChartGallery/ChartGalleryContext';
 import InlineErrorState from '../../common/InlineErrorState';
@@ -65,15 +64,9 @@ import {
 /** Where a project chart type came from; built-ins carry none. */
 export type ChartTypeProvenance = 'official' | 'custom';
 
-const PROVENANCE: Record<
-    ChartTypeProvenance,
-    { icon: TablerIcon; description: string }
-> = {
-    official: { icon: IconPackage, description: 'Built by Lightdash' },
-    custom: {
-        icon: IconHammer,
-        description: 'Custom chart type, built by your team',
-    },
+const PROVENANCE: Record<ChartTypeProvenance, { description: string }> = {
+    official: { description: 'Built by Lightdash' },
+    custom: { description: 'Custom chart type, built by your team' },
 };
 
 /** The provenance icon in its colour, shared by the tile mark and the Add menu. */
@@ -86,11 +79,11 @@ export const ProvenanceGlyph: FC<{
         className={classes.provenanceGlyph}
         data-provenance={provenance}
     >
-        <MantineIcon
-            icon={PROVENANCE[provenance].icon}
-            size={size}
-            stroke={1.5}
-        />
+        {provenance === 'official' ? (
+            <Bolt width={size} height={size} />
+        ) : (
+            <MantineIcon icon={IconHammer} size={size} stroke={1.5} />
+        )}
     </Box>
 );
 
