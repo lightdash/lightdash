@@ -1,6 +1,6 @@
 {
     "name": "lightdash",
-    "version": "3.158.0",
+    "version": "3.158.1",
     "main": "index.js",
     "license": "MIT",
     "private": true,
@@ -39,7 +39,7 @@
         "tsx": "4.23.12",
         "turbo": "2.9.14",
         "typescript": "7.0.2",
-        "smol-toml": "1.6.1"
+        "smol-toml": "1.9.0"
     },
     "scripts": {
         "test:playground-content": "tsx scripts/playground-bundle/content.test.ts && tsx scripts/playground-bundle/learnBundle.test.ts",
