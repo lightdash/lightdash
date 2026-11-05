@@ -44,7 +44,6 @@ import UrlMenuItems from './UrlMenuItems';
 const CellContextMenu: FC<
     Pick<CellContextMenuProps, 'cell' | 'isEditMode' | 'onViewJsonCell'> & {
         itemsMap: Record<string, Field | TableCalculation>;
-        onExpand: (name: string, data: object) => void;
     }
 > = ({ cell, isEditMode, itemsMap, onViewJsonCell }) => {
     const merge = useMergeSafe();
