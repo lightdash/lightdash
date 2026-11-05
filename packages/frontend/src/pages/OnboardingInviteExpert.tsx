@@ -287,7 +287,7 @@ const OnboardingInviteExpert: FC = () => {
             track({
                 name: EventName.PLAYGROUND_PROJECT_ENTERED,
                 properties: {
-                    organizationId: organization?.organizationUuid ?? '',
+                    organizationId: organization?.organizationUuid ?? null,
                 },
             });
             void navigate(`/projects/${projectUuid}/home`);
@@ -297,7 +297,7 @@ const OnboardingInviteExpert: FC = () => {
             track({
                 name: EventName.PLAYGROUND_PROJECT_SETUP_FAILED,
                 properties: {
-                    organizationId: organization?.organizationUuid ?? '',
+                    organizationId: organization?.organizationUuid ?? null,
                     failureType,
                 },
             });
@@ -322,7 +322,8 @@ const OnboardingInviteExpert: FC = () => {
         track({
             name: EventName.SETUP_INVITE_SENT,
             properties: {
-                organizationId: organization?.organizationUuid ?? '',
+                organizationId: organization?.organizationUuid ?? null,
+                surface: 'invite_expert',
             },
         });
 

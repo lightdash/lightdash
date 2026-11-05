@@ -40,6 +40,7 @@ import { useToggle } from 'react-use';
 import { useGoogleLoginPopup } from '../../../hooks/gdrive/useGdrive';
 import {
     useBigqueryDatasets,
+    useBigqueryKeyfileDatasets,
     useBigqueryProjectRecommendation,
     useBigqueryProjects,
     useIsBigQueryAuthenticated,
@@ -104,15 +105,33 @@ export const BigQuerySchemaInput: FC<{
             BigqueryAuthenticationType.SSO;
     const projectField = form.getInputProps('warehouse.project');
     const [debouncedProject] = useDebouncedValue(projectField.value, 300);
+    const ssoDatasets = useBigqueryDatasets(
+        isAuthenticated && isSso,
+        debouncedProject,
+    );
+    const isNewOnboarding =
+        useServerFeatureFlag(FeatureFlags.NewOnboarding).data?.enabled === true;
+    const keyfileContents =
+        isNewOnboarding &&
+        form.values.warehouse?.type === WarehouseTypes.BIGQUERY &&
+        !isSso
+            ? form.values.warehouse.keyfileContents
+            : undefined;
+    const keyfileDatasets = useBigqueryKeyfileDatasets(keyfileContents);
     const {
         data: datasets,
         isInitialLoading: isLoadingDatasets,
         error: datasetsError,
-    } = useBigqueryDatasets(isAuthenticated && isSso, debouncedProject);
+    } = isSso ? ssoDatasets : keyfileDatasets;
     const datasetField = form.getInputProps('warehouse.dataset');
     const hasProject =
         typeof debouncedProject === 'string' && debouncedProject.length > 0;
-    const recommendedDataset = largestDatasetName(datasets ?? []);
+    // Key files list without sizes, so only an only-child dataset is a safe default
+    const recommendedDataset = isSso
+        ? largestDatasetName(datasets ?? [])
+        : datasets?.length === 1
+          ? datasets[0].datasetId
+          : undefined;
     const hasAppliedRecommendation = useRef(false);
 
     useEffect(() => {
@@ -122,8 +141,7 @@ export const BigQuerySchemaInput: FC<{
     useEffect(() => {
         if (
             hasAppliedRecommendation.current ||
-            !isSso ||
-            !isAuthenticated ||
+            (isSso && !isAuthenticated) ||
             datasetField.value ||
             !recommendedDataset
         ) {
@@ -150,7 +168,7 @@ export const BigQuerySchemaInput: FC<{
         return null;
     }
 
-    if (!isSso || !isAuthenticated) {
+    if (isSso ? !isAuthenticated : !datasets?.length) {
         return (
             <TextInput
                 name="warehouse.dataset"
@@ -169,7 +187,7 @@ export const BigQuerySchemaInput: FC<{
             label="Data set"
             description={description ?? bigQuerySchemaDescription}
             placeholder={
-                !hasProject
+                isSso && !hasProject
                     ? 'Choose a project first'
                     : isLoadingDatasets
                       ? 'Loading data sets...'
@@ -189,14 +207,14 @@ export const BigQuerySchemaInput: FC<{
                     );
                 }
             }}
-            disabled={disabled || !hasProject || isLoadingDatasets}
+            disabled={disabled || (isSso && !hasProject) || isLoadingDatasets}
             data={datasets?.map((dataset) => dataset.datasetId) ?? []}
             renderOption={({ option }) => (
                 <Group justify="space-between" wrap="nowrap" gap="xs" w="100%">
                     <Text size="sm" truncate="end">
                         {option.value}
                     </Text>
-                    {option.value === recommendedDataset ? (
+                    {isSso && option.value === recommendedDataset ? (
                         <Badge size="xs" color="green">
                             Recommended · largest
                         </Badge>

@@ -958,24 +958,7 @@ const PRIVATE_ROUTES: RouteObject[] = [
                 element: <Navigate to="/generalSettings/roadmap" replace />,
             },
             {
-                element: <NavBarLayout />,
                 children: [
-                    {
-                        path: '/get-started',
-                        lazy: async () => {
-                            const { default: NoProjectHomepage } =
-                                await import('./ee/features/homepageBuilder/NoProjectHomepage');
-                            return {
-                                Component: () => (
-                                    <TrackPage
-                                        name={PageName.NO_PROJECT_HOMEPAGE}
-                                    >
-                                        <NoProjectHomepage />
-                                    </TrackPage>
-                                ),
-                            };
-                        },
-                    },
                     {
                         path: '/onboarding/data-source/:warehouse?',
                         handle: { hideAILauncher: true },
@@ -998,6 +981,25 @@ const PRIVATE_ROUTES: RouteObject[] = [
                         },
                     },
                     {
+                        path: '/onboarding/models/:projectUuid',
+                        handle: { hideAILauncher: true },
+                        lazy: async () => {
+                            const OnboardingModels = await loadLazyRouteDefault(
+                                './pages/OnboardingModels',
+                                () => import('./pages/OnboardingModels'),
+                            );
+                            return {
+                                Component: () => (
+                                    <TrackPage
+                                        name={PageName.ONBOARDING_MODELS}
+                                    >
+                                        <OnboardingModels />
+                                    </TrackPage>
+                                ),
+                            };
+                        },
+                    },
+                    {
                         path: '/onboarding/dbt/:method?',
                         handle: { hideAILauncher: true },
                         lazy: async () => {
@@ -1009,6 +1011,27 @@ const PRIVATE_ROUTES: RouteObject[] = [
                                 Component: () => (
                                     <TrackPage name={PageName.ONBOARDING_DBT}>
                                         <OnboardingDbt />
+                                    </TrackPage>
+                                ),
+                            };
+                        },
+                    },
+                ],
+            },
+            {
+                element: <NavBarLayout />,
+                children: [
+                    {
+                        path: '/get-started',
+                        lazy: async () => {
+                            const { default: NoProjectHomepage } =
+                                await import('./ee/features/homepageBuilder/NoProjectHomepage');
+                            return {
+                                Component: () => (
+                                    <TrackPage
+                                        name={PageName.NO_PROJECT_HOMEPAGE}
+                                    >
+                                        <NoProjectHomepage />
                                     </TrackPage>
                                 ),
                             };

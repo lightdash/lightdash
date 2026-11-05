@@ -1,7 +1,12 @@
-import { DbtProjectType, type OrganizationProject } from '@lightdash/common';
+import {
+    DbtProjectType,
+    hasSemanticLayerExplore,
+    type OrganizationProject,
+} from '@lightdash/common';
 import {
     Anchor,
     Box,
+    Button,
     Group,
     Loader,
     Paper,
@@ -18,25 +23,29 @@ import {
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
-import { Navigate, useNavigate, useParams } from 'react-router';
-import AboutFooter from '../components/AboutFooter';
+import { Navigate, useLocation, useNavigate, useParams } from 'react-router';
 import CodeBlock from '../components/common/CodeBlock/CodeBlock';
 import { DocumentTitle } from '../components/common/DocumentTitle';
 import MantineIcon from '../components/common/MantineIcon';
+import OnboardingLayout from '../components/common/OnboardingLayout';
+import { ONBOARDING_DATA_STEPS } from '../components/common/onboardingSteps';
+import { StepVisual } from '../components/common/OnboardingVisuals';
+import { useOnboardingNavigate } from '../components/common/viewTransition';
 import useToaster from '../hooks/toaster/useToaster';
 import { useActiveProjectUuid } from '../hooks/useActiveProject';
+import { useExplores } from '../hooks/useExplores';
 import { useOnboardingPageGuard } from '../hooks/useOnboardingPageGuard';
 import { useProject } from '../hooks/useProject';
 import { useProjects } from '../hooks/useProjects';
 import useApp from '../providers/App/useApp';
 import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
+import { isPlaygroundProvisioningSource } from '../utils/playgroundProject';
 import classes from './OnboardingDbt.module.css';
 
 const DOCS_URL =
     'https://docs.lightdash.com/get-started/setup-lightdash/get-project-lightdash-ready';
 const INTEGRATIONS_ROUTE = '/generalSettings/integrations';
-const GET_STARTED_ROUTE = '/get-started';
 const CLI_ROUTE_PARAM = 'cli';
 const DETECTION_POLL_INTERVAL_MS = 3000;
 
@@ -91,11 +100,8 @@ const DbtMethodPicker: FC = () => {
         <Box className={classes.column}>
             <Stack align="center" gap="xs">
                 <Title order={1} ta="center">
-                    Let's get you set up!
+                    Connect your dbt project
                 </Title>
-                <Text size="md" c="dimmed" ta="center">
-                    Choose how you want to upload your dbt project.
-                </Text>
             </Stack>
 
             <Stack gap="md">
@@ -144,9 +150,20 @@ const useDbtSetupDetection = (isEnabled: boolean) => {
 
     const { data: projects } = useProjects(pollOptions);
     const { data: project } = useProject(activeProjectUuid, pollOptions);
+    // The demo project already has dbt and explores, so it never counts as a deploy
+    const deployTargetUuid =
+        project && !isPlaygroundProvisioningSource(project.provisioningSource)
+            ? project.projectUuid
+            : null;
+    const { data: explores } = useExplores(activeProjectUuid, false, false, {
+        ...pollOptions,
+        enabled: !!deployTargetUuid,
+    });
 
     const baselineProjectUuids = useRef<string[] | null>(null);
-    const [isDetected, setIsDetected] = useState(false);
+    const [createdProjectUuid, setCreatedProjectUuid] = useState<string | null>(
+        null,
+    );
 
     useEffect(() => {
         if (!projects) return;
@@ -157,21 +174,20 @@ const useDbtSetupDetection = (isEnabled: boolean) => {
             baselineProjectUuids.current = uuids;
             return;
         }
-        if (
-            uuids.some((uuid) => !baselineProjectUuids.current?.includes(uuid))
-        ) {
-            setIsDetected(true);
-        }
+        const created = uuids.find(
+            (uuid) => !baselineProjectUuids.current?.includes(uuid),
+        );
+        if (created) setCreatedProjectUuid(created);
     }, [projects]);
 
-    useEffect(() => {
-        const dbtType = project?.dbtConnection?.type;
-        if (dbtType && dbtType !== DbtProjectType.NONE) {
-            setIsDetected(true);
-        }
-    }, [project]);
+    const dbtType = project?.dbtConnection?.type;
+    const isDeployed =
+        (!!dbtType && dbtType !== DbtProjectType.NONE) ||
+        (!!explores && hasSemanticLayerExplore(explores));
+    const detectedProjectUuid =
+        deployTargetUuid && isDeployed ? deployTargetUuid : createdProjectUuid;
 
-    return { isDetected, activeProjectUuid };
+    return { detectedProjectUuid, deployTargetUuid };
 };
 
 const DbtCliWaiting: FC = () => {
@@ -185,11 +201,12 @@ const DbtCliWaiting: FC = () => {
     const siteUrl = health.data?.siteUrl ?? '';
     const version = health.data?.version ?? '';
 
-    const { isDetected } = useDbtSetupDetection(true);
+    const { detectedProjectUuid, deployTargetUuid } =
+        useDbtSetupDetection(true);
     const hasCompletedRef = useRef(false);
 
     useEffect(() => {
-        if (!isDetected || hasCompletedRef.current) return;
+        if (!detectedProjectUuid || hasCompletedRef.current) return;
         hasCompletedRef.current = true;
 
         void (async () => {
@@ -212,9 +229,11 @@ const DbtCliWaiting: FC = () => {
                 // The destination reads these itself if priming failed
             }
             showToastSuccess({ title: 'Your dbt project is connected!' });
-            void navigate(GET_STARTED_ROUTE, { replace: true });
+            void navigate(`/projects/${detectedProjectUuid}/home`, {
+                replace: true,
+            });
         })();
-    }, [isDetected, navigate, queryClient, showToastSuccess]);
+    }, [detectedProjectUuid, navigate, queryClient, showToastSuccess]);
 
     const handleCopy = useCallback(() => {
         track({ name: EventName.COPY_CREATE_PROJECT_CODE_BUTTON_CLICKED });
@@ -239,6 +258,7 @@ const DbtCliWaiting: FC = () => {
                             <CodeBlock
                                 code={npmInstall}
                                 language="bash"
+                                classNames={{ code: classes.command }}
                                 onCopy={handleCopy}
                             />
                         </Tabs.Panel>
@@ -246,6 +266,7 @@ const DbtCliWaiting: FC = () => {
                             <CodeBlock
                                 code={brewInstall}
                                 language="bash"
+                                classNames={{ code: classes.command }}
                                 onCopy={handleCopy}
                             />
                         </Tabs.Panel>
@@ -254,6 +275,7 @@ const DbtCliWaiting: FC = () => {
                     <CodeBlock
                         code={npmInstall}
                         language="bash"
+                        classNames={{ code: classes.command }}
                         onCopy={handleCopy}
                     />
                 ),
@@ -264,6 +286,7 @@ const DbtCliWaiting: FC = () => {
                 <CodeBlock
                     code={`lightdash login ${siteUrl}`}
                     language="bash"
+                    classNames={{ code: classes.command }}
                     onCopy={handleCopy}
                 />
             ),
@@ -272,8 +295,13 @@ const DbtCliWaiting: FC = () => {
             title: 'Deploy your dbt project',
             content: (
                 <CodeBlock
-                    code="lightdash deploy --create"
+                    code={
+                        deployTargetUuid
+                            ? `lightdash deploy --project ${deployTargetUuid}`
+                            : 'lightdash deploy --create'
+                    }
                     language="bash"
+                    classNames={{ code: classes.command }}
                     onCopy={handleCopy}
                 />
             ),
@@ -314,21 +342,51 @@ const DbtCliWaiting: FC = () => {
 
 const OnboardingDbtContent: FC = () => {
     const { method } = useParams<{ method?: string }>();
+    const onboardingNavigate = useOnboardingNavigate();
+    const location = useLocation();
 
     if (method && method !== CLI_ROUTE_PARAM) {
         return <Navigate to="/onboarding/dbt" replace />;
     }
 
     return (
-        <Box className={classes.page}>
-            <DocumentTitle title="Set up your dbt" />
+        <OnboardingLayout
+            screen="dbt"
+            journey={{
+                currentStep: 2,
+                steps: ONBOARDING_DATA_STEPS,
+            }}
+            stackDepth={method === CLI_ROUTE_PARAM ? 2 : 1}
+            aside={<StepVisual step="warehouse" />}
+        >
+            <DocumentTitle title="Connect your dbt project" />
             {method === CLI_ROUTE_PARAM ? (
                 <DbtCliWaiting />
             ) : (
                 <DbtMethodPicker />
             )}
-            <AboutFooter />
-        </Box>
+            <Group justify="space-between" mt="xl">
+                <Button
+                    variant="subtle"
+                    color="gray"
+                    onClick={() =>
+                        location.key === 'default'
+                            ? onboardingNavigate('/onboarding/data-source')
+                            : onboardingNavigate(-1)
+                    }
+                >
+                    Back
+                </Button>
+                <Button
+                    variant="default"
+                    onClick={() =>
+                        onboardingNavigate('/onboarding/data-source')
+                    }
+                >
+                    No dbt? Connect a warehouse
+                </Button>
+            </Group>
+        </OnboardingLayout>
     );
 };
 
