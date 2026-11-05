@@ -379,6 +379,7 @@ export default function AppPreviewTest() {
                     }}
                     rightSection={
                         <AppHeaderActions
+                            previewTools={null}
                             openUrl={null}
                             capturedQueryCount={inspector.readyQueryCount}
                             fullscreenToggle={
