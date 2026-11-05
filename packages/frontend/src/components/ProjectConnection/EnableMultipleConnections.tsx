@@ -3,9 +3,9 @@ import {
     supportsMultipleConnections,
     validateWarehouseConnectionName,
     WAREHOUSE_CONNECTION_NAME_MAX_LENGTH,
+    type ApiError,
     type ApiWarehouseConnectionSwitchRequest,
     type CreateWarehouseCredentials,
-    type WarehouseConnectionSwitchPlan,
     type WarehouseTypes,
 } from '@lightdash/common';
 import {
@@ -13,8 +13,10 @@ import {
     Box,
     Button,
     Card,
+    Fieldset,
     Group,
     List,
+    Loader,
     Stack,
     Text,
     TextInput,
@@ -22,7 +24,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconAlertTriangle, IconPlus } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { useRef, useState, type FC } from 'react';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import {
     usePreviewWarehouseConnectionSwitch,
@@ -38,97 +40,51 @@ import { getWarehouseLabel } from './ProjectConnectFlow/utils';
 import { warehouseDefaultValues } from './WarehouseForms/defaultValues';
 import { warehouseValueValidators } from './WarehouseForms/validators';
 
-type PreviewedSwitch = {
-    plan: WarehouseConnectionSwitchPlan;
-    request: ApiWarehouseConnectionSwitchRequest;
-    idempotencyKey: string;
+type SubmitStep = 'idle' | 'testing' | 'enabling';
+
+const SUBMIT_STATUS: Record<Exclude<SubmitStep, 'idle'>, string> = {
+    testing: 'Testing connection…',
+    enabling: 'Enabling multiple connections…',
 };
 
-const pluralise = (count: number, singular: string, plural: string) =>
-    `${count} ${count === 1 ? singular : plural}`;
+const errorMessage = (error: unknown): string =>
+    (error as Partial<ApiError> | undefined)?.error?.message ??
+    'Something went wrong. Try again.';
 
-const SwitchPlanSummary: FC<{ plan: WarehouseConnectionSwitchPlan }> = ({
-    plan,
-}) => {
-    const { staysOnOriginal } = plan;
+const WhatHappens: FC<{
+    originalName: string;
+    primaryRequiresUserCredentials: boolean;
+}> = ({ originalName, primaryRequiresUserCredentials }) => {
+    const current = originalName.trim() || 'the current connection';
     return (
         <Stack gap="sm">
-            <Text size="sm">
-                The switch adds{' '}
-                <Text span fw={600}>
-                    {plan.connection.name}
-                </Text>{' '}
-                ({getWarehouseLabel(plan.connection.warehouseType)}
-                {plan.connection.database
-                    ? `, database ${plan.connection.database}`
-                    : ''}
-                ). Its connection test passed.
+            <Text size="sm" fw={600}>
+                When you enable multiple connections
             </Text>
-            <Text size="sm">
-                The current connection becomes{' '}
-                <Text span fw={600}>
-                    {plan.original.name}
-                </Text>
-                . Everything that exists today stays on it:
-            </Text>
-            <List size="sm" spacing={2}>
+            <List size="sm" spacing={4}>
                 <List.Item>
-                    {pluralise(staysOnOriginal.explores, 'explore', 'explores')}
+                    The new connection is tested first. Nothing changes if the
+                    test fails.
                 </List.Item>
                 <List.Item>
-                    {pluralise(
-                        staysOnOriginal.sqlCharts,
-                        'SQL chart',
-                        'SQL charts',
-                    )}{' '}
-                    (
-                    {pluralise(
-                        staysOnOriginal.sqlChartVersions,
-                        'version',
-                        'versions',
-                    )}
-                    )
+                    Everything that exists today keeps using{' '}
+                    <Text span fw={600} inherit>
+                        {current}
+                    </Text>
+                    .
                 </List.Item>
                 <List.Item>
-                    {pluralise(
-                        staysOnOriginal.dbtSources,
-                        'dbt source',
-                        'dbt sources',
-                    )}
+                    The SQL runner shows a connection picker. A CLI deploy
+                    without a source keeps using {current}.
                 </List.Item>
-                <List.Item>
-                    {pluralise(
-                        staysOnOriginal.scheduledDeliveries,
-                        'scheduled delivery',
-                        'scheduled deliveries',
-                    )}
-                </List.Item>
-                <List.Item>
-                    {pluralise(
-                        staysOnOriginal.dashboards,
-                        'dashboard',
-                        'dashboards',
-                    )}
-                </List.Item>
+                {primaryRequiresUserCredentials && (
+                    <List.Item>
+                        People with personal credentials keep them for {current}
+                        , and choose one for the new connection when they first
+                        use it.
+                    </List.Item>
+                )}
             </List>
-            {plan.personalCredentials.requireUserCredentials && (
-                <Text size="sm">
-                    This project requires personal credentials.{' '}
-                    {pluralise(
-                        plan.personalCredentials.usersWithPersonalCredentials,
-                        'person',
-                        'people',
-                    )}{' '}
-                    with personal credentials keep them for {plan.original.name}
-                    , and choose one for {plan.connection.name} when they first
-                    use it.
-                </Text>
-            )}
-            <Text size="sm">
-                After the switch, the SQL runner shows a connection picker and
-                these settings list the connections. A CLI deploy without a
-                source keeps using {plan.original.name}.
-            </Text>
             <Alert
                 color="orange"
                 icon={<MantineIcon icon={IconAlertTriangle} />}
@@ -158,7 +114,12 @@ const EnableMultipleConnectionsModal: FC<{
     const [originalName, setOriginalName] = useState(
         () => getWarehouseLabel(warehouseType) ?? 'Original',
     );
-    const [previewed, setPreviewed] = useState<PreviewedSwitch | null>(null);
+    const [step, setStep] = useState<SubmitStep>('idle');
+    const [submitError, setSubmitError] = useState<string | null>(null);
+    const submittingRef = useRef(false);
+    // One key per distinct request, so a retry of the same request can be
+    // recognised by the server if an earlier attempt already went through.
+    const idempotencyKeys = useRef(new Map<string, string>());
     const form = useForm({
         initialValues: {
             name: '',
@@ -185,14 +146,17 @@ const EnableMultipleConnectionsModal: FC<{
             return errors;
         },
         validateInputOnBlur: true,
+        onValuesChange: () => setSubmitError(null),
     });
     const previewMutation = usePreviewWarehouseConnectionSwitch(projectUuid);
     const switchMutation = useSwitchToMultipleConnections(projectUuid, {
         onSuccess: onClose,
     });
     const originalNameError = validateWarehouseConnectionName(originalName);
+    const isSubmitting = step !== 'idle';
 
-    const handlePreview = () => {
+    const handleEnable = async () => {
+        if (submittingRef.current) return;
         if (form.validate().hasErrors || originalNameError) return;
         const request: ApiWarehouseConnectionSwitchRequest = {
             original: {
@@ -205,82 +169,95 @@ const EnableMultipleConnectionsModal: FC<{
                 warehouseConnection: form.values.warehouse,
             },
         };
-        previewMutation.mutate(request, {
-            onSuccess: (plan) =>
-                setPreviewed({
-                    plan,
-                    request,
-                    idempotencyKey: crypto.randomUUID(),
-                }),
-        });
-    };
+        const requestKey = JSON.stringify(request);
+        const idempotencyKey =
+            idempotencyKeys.current.get(requestKey) ?? crypto.randomUUID();
+        idempotencyKeys.current.set(requestKey, idempotencyKey);
 
-    if (previewed) {
-        return (
-            <MantineModal
-                opened
-                onClose={onClose}
-                title="Enable multiple connections"
-                size="lg"
-                confirmLabel="Enable multiple connections"
-                onConfirm={() =>
-                    switchMutation.mutate({
-                        ...previewed.request,
-                        planHash: previewed.plan.planHash,
-                        idempotencyKey: previewed.idempotencyKey,
-                    })
-                }
-                confirmLoading={switchMutation.isLoading}
-                cancelLabel="Back"
-                cancelDisabled={switchMutation.isLoading}
-                onCancel={() => setPreviewed(null)}
-            >
-                <SwitchPlanSummary plan={previewed.plan} />
-            </MantineModal>
-        );
-    }
+        submittingRef.current = true;
+        setSubmitError(null);
+        try {
+            setStep('testing');
+            const plan = await previewMutation.mutateAsync(request);
+            setStep('enabling');
+            await switchMutation.mutateAsync({
+                ...request,
+                planHash: plan.planHash,
+                idempotencyKey,
+            });
+        } catch (error) {
+            setSubmitError(errorMessage(error));
+        } finally {
+            submittingRef.current = false;
+            setStep('idle');
+        }
+    };
 
     return (
         <MantineModal
             opened
-            onClose={onClose}
+            onClose={() => {
+                if (!submittingRef.current) onClose();
+            }}
             title="Enable multiple connections"
             size="lg"
-            confirmLabel="Review the switch"
-            onConfirm={handlePreview}
-            confirmLoading={previewMutation.isLoading}
-            cancelDisabled={previewMutation.isLoading}
+            confirmLabel="Enable multiple connections"
+            onConfirm={() => void handleEnable()}
+            confirmLoading={isSubmitting}
+            cancelLabel="Cancel"
+            cancelDisabled={isSubmitting}
         >
             <Stack gap="md">
-                <TextInput
-                    label="Name of the current connection"
-                    description="Everything that exists today keeps using this connection."
-                    required
-                    maxLength={WAREHOUSE_CONNECTION_NAME_MAX_LENGTH}
-                    value={originalName}
-                    error={originalNameError}
-                    onChange={(event) =>
-                        setOriginalName(event.currentTarget.value)
-                    }
-                />
-                <ConnectionFields
-                    form={form}
-                    projectUuid={projectUuid}
-                    warehouseType={warehouseType}
+                <Fieldset
+                    variant="unstyled"
+                    disabled={isSubmitting}
+                    aria-label="Connection details"
+                >
+                    <Stack gap="md">
+                        <TextInput
+                            label="Name of the current connection"
+                            description="Everything that exists today keeps using this connection."
+                            required
+                            maxLength={WAREHOUSE_CONNECTION_NAME_MAX_LENGTH}
+                            value={originalName}
+                            error={originalNameError}
+                            onChange={(event) => {
+                                setOriginalName(event.currentTarget.value);
+                                setSubmitError(null);
+                            }}
+                        />
+                        <ConnectionFields
+                            form={form}
+                            projectUuid={projectUuid}
+                            warehouseType={warehouseType}
+                            primaryRequiresUserCredentials={
+                                primaryRequiresUserCredentials
+                            }
+                            showName
+                            allowMixedWarehouseTypes={mixedTypesEnabled}
+                            intro={
+                                mixedTypesEnabled
+                                    ? 'Add the first extra connection. It is tested when you enable multiple connections.'
+                                    : 'Add the first extra connection. It uses the same warehouse type, and it is tested when you enable multiple connections.'
+                            }
+                        />
+                    </Stack>
+                </Fieldset>
+                <WhatHappens
+                    originalName={originalName}
                     primaryRequiresUserCredentials={
                         primaryRequiresUserCredentials
                     }
-                    showName
-                    allowMixedWarehouseTypes={mixedTypesEnabled}
-                    intro={
-                        mixedTypesEnabled
-                            ? 'Add the first extra connection. It is tested before the preview.'
-                            : 'Add the first extra connection. It uses the same warehouse type, and it is tested before the preview.'
-                    }
                 />
-                {previewMutation.error && (
+                {step !== 'idle' && (
+                    <Group gap="xs" role="status">
+                        <Loader size="xs" />
+                        <Text size="sm">{SUBMIT_STATUS[step]}</Text>
+                    </Group>
+                )}
+                {submitError && (
                     <Text size="sm" c="red">
-                        {previewMutation.error.error.message}
+                        {submitError}
                     </Text>
                 )}
             </Stack>
