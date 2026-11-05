@@ -32,7 +32,6 @@ import {
 import { useDebouncedValue } from '@mantine/hooks';
 import {
     IconArrowLeft,
-    IconBrush,
     IconCamera,
     IconChartBar,
     IconCheck,
@@ -55,7 +54,6 @@ import {
     type ClipboardEvent,
     type FC,
 } from 'react';
-import { Link } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
 import MantineModal from '../../components/common/MantineModal';
 import { ModelSelector } from '../../components/common/ModelSelector/ModelSelector';
@@ -70,12 +68,6 @@ import scrollAreaClasses from '../../styles/ScrollArea.module.css';
 import { useAppExternalConnections } from '../externalConnections/hooks/useAppExternalConnections';
 import { useExternalConnections } from '../externalConnections/hooks/useExternalConnections';
 import { useUnlinkAppExternalConnection } from '../externalConnections/hooks/useUnlinkAppExternalConnection';
-import { useOrganizationDesigns } from '../organizationDesigns/hooks/useOrganizationDesigns';
-import {
-    MANAGE_THEMES_ROUTE,
-    NO_THEME_DESCRIPTION,
-    NO_THEME_LABEL,
-} from '../organizationDesigns/themeCopy';
 import classes from './AppResourcePicker.module.css';
 import {
     useAttachResourceLink,
@@ -1190,85 +1182,7 @@ export const ConnectionPickerView: FC<{
     );
 };
 
-type AttachView = 'menu' | 'queries' | 'dashboard' | 'connections' | 'theme';
-
-/** The app's theme, offered inside the `+` menu where the toolbar is icon-only. */
-export type AttachTheme = {
-    value: string | null;
-    /** Current theme name, shown under the menu item. */
-    label: string;
-    onChange: (designUuid: string | null) => void;
-    disabled: boolean;
-};
-
-const ThemePickerView: FC<{ theme: AttachTheme; onDone: () => void }> = ({
-    theme,
-    onDone,
-}) => {
-    const { data: themes = [] } = useOrganizationDesigns();
-    const options = [
-        {
-            uuid: null,
-            name: NO_THEME_LABEL,
-            description: NO_THEME_DESCRIPTION,
-            isDefault: false,
-        },
-        ...themes.map((t) => ({
-            uuid: t.designUuid,
-            name: t.name,
-            description: t.description || null,
-            isDefault: t.isDefault,
-        })),
-    ];
-    return (
-        <>
-            <ScrollArea.Autosize mah={280} type="scroll">
-                {options.map((option) => (
-                    <UnstyledButton
-                        key={option.uuid ?? 'none'}
-                        className={classes.attachMenuItem}
-                        ff="inherit"
-                        disabled={theme.disabled}
-                        data-disabled={theme.disabled || undefined}
-                        aria-current={option.uuid === theme.value}
-                        onClick={() => {
-                            theme.onChange(option.uuid);
-                            onDone();
-                        }}
-                    >
-                        <Box flex={1} miw={0}>
-                            <Group gap="xs" wrap="nowrap">
-                                <Text size="sm" fw={500} truncate>
-                                    {option.name}
-                                </Text>
-                                {option.isDefault && (
-                                    <Text size="xs" c="dimmed">
-                                        Default
-                                    </Text>
-                                )}
-                            </Group>
-                            {option.description && (
-                                <Text size="xs" c="dimmed" lineClamp={1}>
-                                    {option.description}
-                                </Text>
-                            )}
-                        </Box>
-                        {option.uuid === theme.value && (
-                            <MantineIcon icon={IconCheck} size={14} />
-                        )}
-                    </UnstyledButton>
-                ))}
-            </ScrollArea.Autosize>
-            <Box className={classes.attachPickerFooter}>
-                <Anchor component={Link} to={MANAGE_THEMES_ROUTE} mr="auto">
-                    <Text size="xs" fw={500}>
-                        Manage themes
-                    </Text>
-                </Anchor>
-            </Box>
-        </>
-    );
-};
+type AttachView = 'menu' | 'queries' | 'dashboard' | 'connections';
 
 /**
  * Compact `+` trigger that opens a single Popover whose contents switch
@@ -1294,8 +1208,6 @@ export const AttachButton: FC<{
     filesHidden?: boolean;
     linkedAppUuid?: string;
     iconOnly?: boolean;
-    /** Null where the theme has its own control. */
-    theme: AttachTheme | null;
 }> = ({
     selectedCharts,
     onSelectChart,
@@ -1312,7 +1224,6 @@ export const AttachButton: FC<{
     filesHidden = false,
     linkedAppUuid,
     iconOnly = false,
-    theme,
 }) => {
     const projectUuid = useProjectUuid();
     const [opened, setOpened] = useState(false);
@@ -1342,18 +1253,14 @@ export const AttachButton: FC<{
             ? 'Add queries'
             : view === 'connections'
               ? 'Add external connections'
-              : view === 'theme'
-                ? 'Theme'
-                : 'Add a dashboard';
+              : 'Add a dashboard';
     const headerSubtitle =
         // eslint-disable-next-line no-nested-ternary
         view === 'queries'
             ? 'Select queries to include in the app'
             : view === 'connections'
               ? 'Let the app fetch from these external APIs'
-              : view === 'theme'
-                ? 'Shared design assets the app is built with'
-                : 'All chart tiles will be included as references';
+              : 'All chart tiles will be included as references';
 
     return (
         <Popover
@@ -1367,11 +1274,7 @@ export const AttachButton: FC<{
         >
             <Popover.Target>
                 <Tooltip
-                    label={
-                        theme
-                            ? 'Add context or change the theme'
-                            : 'Add charts, dashboards, connections or files'
-                    }
+                    label="Add charts, dashboards, connections or files"
                     position="top"
                     disabled={opened}
                 >
@@ -1498,23 +1401,6 @@ export const AttachButton: FC<{
                                 </Text>
                             </Box>
                         </UnstyledButton>
-                        {theme && (
-                            <UnstyledButton
-                                className={classes.attachMenuItem}
-                                onClick={() => setView('theme')}
-                                ff="inherit"
-                            >
-                                <MantineIcon icon={IconBrush} />
-                                <Box flex={1} miw={0}>
-                                    <Text size="sm" fw={500}>
-                                        Theme
-                                    </Text>
-                                    <Text size="xs" c="dimmed" truncate>
-                                        {theme.label}
-                                    </Text>
-                                </Box>
-                            </UnstyledButton>
-                        )}
                     </Box>
                 ) : (
                     <>
@@ -1539,15 +1425,7 @@ export const AttachButton: FC<{
                                 </Text>
                             </Box>
                         </Box>
-                        {view === 'theme' && theme ? (
-                            <ThemePickerView
-                                theme={theme}
-                                onDone={() => {
-                                    setOpened(false);
-                                    setView('menu');
-                                }}
-                            />
-                        ) : view === 'queries' ? (
+                        {view === 'queries' ? (
                             <QueryPickerView
                                 selectedCharts={selectedCharts}
                                 onSelect={onSelectChart}

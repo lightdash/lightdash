@@ -99,7 +99,6 @@ import BuildProgressCard from '../features/apps/components/BuildProgressCard';
 import { formatElapsed } from '../features/apps/components/buildStepUtils';
 import ClarificationStepper from '../features/apps/components/ClarificationStepper';
 import ClearAgentContextAction from '../features/apps/components/ClearAgentContextAction';
-import CollapsibleMessage from '../features/apps/components/CollapsibleMessage';
 import ConnectionChip from '../features/apps/components/ConnectionChip';
 import { ElementPickerButton } from '../features/apps/components/ElementPickerButton';
 import { ElementRefPill } from '../features/apps/components/ElementRefPill';
@@ -183,7 +182,6 @@ import { vizBuildSampleRows } from '../features/chartTypes/utils/vizBuildSampleR
 import { useAppExternalConnections } from '../features/externalConnections/hooks/useAppExternalConnections';
 import { ThemePicker } from '../features/organizationDesigns/components/ThemePicker';
 import { useOrganizationDesigns } from '../features/organizationDesigns/hooks/useOrganizationDesigns';
-import { NO_THEME_LABEL } from '../features/organizationDesigns/themeCopy';
 import useToaster from '../hooks/toaster/useToaster';
 import { useOptionalProjectRoute } from '../hooks/useProjectRoute';
 import { useProjectUuid } from '../hooks/useProjectUuid';
@@ -206,6 +204,8 @@ const AppResourceImage: FC<{
     if (!data?.imageUrl) return null;
     return <Image src={data.imageUrl} className={className} alt="Attached" />;
 };
+
+const NO_THEME_LABEL = 'No theme';
 
 const TemplateChip: FC<{ template: DataAppTemplate }> = ({ template }) => {
     const t = getTemplate(template);
@@ -1052,7 +1052,7 @@ const AppGenerate: FC = () => {
             ? latestVersionDesign.name
             : null;
     const showThemePicker = newAppLanding || hasThemeChipSource;
-    // Icon-only composer (chat column, phones): the theme lives in the + menu.
+    // Icon-only composer in the chat column and on phones.
     const iconToolbar = compact || !newAppLanding;
     const displayThemeName: string | null = hasThemeChipSource
         ? currentThemeUuid
@@ -2639,18 +2639,17 @@ const AppGenerate: FC = () => {
                                                             )
                                                         ) : msg.status !==
                                                           'error' ? (
-                                                            <CollapsibleMessage
-                                                                text={
-                                                                    msg.content
+                                                            <Box
+                                                                className={
+                                                                    classes.completionNote
                                                                 }
-                                                                render={(
-                                                                    shown,
-                                                                ) => (
-                                                                    <AiMarkdown>
-                                                                        {shown}
-                                                                    </AiMarkdown>
-                                                                )}
-                                                            />
+                                                            >
+                                                                <AiMarkdown>
+                                                                    {
+                                                                        msg.content
+                                                                    }
+                                                                </AiMarkdown>
+                                                            </Box>
                                                         ) : (
                                                             renderFailedCard(
                                                                 msg.content,
@@ -2818,13 +2817,29 @@ const AppGenerate: FC = () => {
                                         onDismiss={dismissAddAnalysis}
                                     />
                                 )}
-                                {((!newAppLanding && displayTemplate) ||
+                                {((!newAppLanding &&
+                                    (displayTemplate || showThemePicker)) ||
                                     availableConnectionAliases.length > 0 ||
                                     analysisOffReason !== null) && (
                                     <Group gap="xs" pb="xs">
                                         {!newAppLanding && displayTemplate && (
                                             <TemplateChip
                                                 template={displayTemplate}
+                                            />
+                                        )}
+                                        {!newAppLanding && showThemePicker && (
+                                            <ThemePicker
+                                                compact
+                                                chip
+                                                value={currentThemeUuid}
+                                                onChange={handleThemeChange}
+                                                disabled={isAgentWorking}
+                                                fallbackLabel={
+                                                    currentThemeUuid &&
+                                                    displayThemeName
+                                                        ? displayThemeName
+                                                        : undefined
+                                                }
                                             />
                                         )}
                                         {availableConnectionAliases.length >
@@ -3082,24 +3097,6 @@ const AppGenerate: FC = () => {
                                             >
                                                 <AttachButton
                                                     iconOnly={iconToolbar}
-                                                    theme={
-                                                        showThemePicker &&
-                                                        iconToolbar
-                                                            ? {
-                                                                  value: currentThemeUuid,
-                                                                  label:
-                                                                      displayThemeName ??
-                                                                      (currentThemeUuid
-                                                                          ? 'Selected theme'
-                                                                          : NO_THEME_LABEL),
-                                                                  onChange:
-                                                                      handleThemeChange,
-                                                                  disabled:
-                                                                      !newAppLanding &&
-                                                                      isAgentWorking,
-                                                              }
-                                                            : null
-                                                    }
                                                     selectedCharts={
                                                         selectedCharts
                                                     }
@@ -3204,16 +3201,16 @@ const AppGenerate: FC = () => {
                                                         }
                                                     />
                                                 )}
-                                                {showThemePicker &&
-                                                    !iconToolbar && (
+                                                {newAppLanding &&
+                                                    showThemePicker && (
                                                         <Divider
                                                             orientation="vertical"
                                                             h={16}
                                                             my="auto"
                                                         />
                                                     )}
-                                                {showThemePicker &&
-                                                    !iconToolbar && (
+                                                {newAppLanding &&
+                                                    showThemePicker && (
                                                         <ThemePicker
                                                             compact
                                                             value={
