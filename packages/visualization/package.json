@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/visualization",
-    "version": "3.158.0",
+    "version": "3.158.1",
     "description": "Headless Lightdash chart engine: turns a saved chart's config and query results into ECharts options, table and big number models",
     "license": "MIT",
     "repository": {
@@ -92,7 +92,7 @@
         "oxlint": "1.75.0",
         "oxlint-tsgolint": "7.0.2001",
         "typescript": "7.0.2",
-        "vite": "8.0.16",
+        "vite": "8.1.6",
         "vitest": "4.1.11"
     }
 }
