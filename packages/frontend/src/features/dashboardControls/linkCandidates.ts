@@ -1,5 +1,8 @@
 import {
     getItemId,
+    getParameterControlSetter,
+    type DashboardParameterControl,
+    type LightdashProjectParameter,
     type DashboardFieldTarget,
     type DashboardFilterableField,
     type DashboardFilterRule,
@@ -78,3 +81,52 @@ const dedupe = (targets: DashboardFieldTarget[]): DashboardFieldTarget[] =>
 
 export const getLinkKey = (tileUuid: string, ruleId: string): string =>
     `${tileUuid}|${ruleId}`;
+
+/** A new tile's unassigned key and the existing controls that can take it. */
+export type ParameterLinkPrompt = {
+    key: string;
+    label: string;
+    controlIds: string[];
+};
+
+export const getParameterLinkPrompts = ({
+    tileUuid,
+    controls,
+    tileParameterReferences,
+    definitions,
+}: {
+    tileUuid: string;
+    controls: DashboardParameterControl[];
+    tileParameterReferences: Record<string, string[]>;
+    definitions: Record<string, LightdashProjectParameter>;
+}): ParameterLinkPrompt[] =>
+    [...new Set(tileParameterReferences[tileUuid] ?? [])].flatMap((key) => {
+        const definition = definitions[key];
+        if (
+            !definition ||
+            getParameterControlSetter(
+                controls,
+                key,
+                tileUuid,
+                Object.keys(definitions),
+            )
+        )
+            return [];
+        const holders = controls.filter(({ parameters }) =>
+            Object.hasOwn(parameters, key),
+        );
+        if (
+            holders.some(
+                ({ parameters }) =>
+                    parameters[key] === 'all' || 'except' in parameters[key],
+            )
+        )
+            return [];
+        return [
+            {
+                key,
+                label: definition.label || key,
+                controlIds: holders.map(({ id }) => id),
+            },
+        ];
+    });

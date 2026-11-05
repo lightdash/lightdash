@@ -4,6 +4,7 @@ import {
     Anchor,
     ActionIcon,
     Box,
+    Divider,
     Group,
     ScrollArea,
     Stack,
@@ -29,8 +30,18 @@ import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
-import { SettingsGridCard } from '../components/common/Settings/SettingsCard';
-import { SettingsPage } from '../components/common/Settings/SettingsPage';
+import {
+    SettingRow,
+    SettingsSection,
+} from '../components/common/Settings/SettingLayout';
+import {
+    SettingsCard,
+    SettingsGridCard,
+} from '../components/common/Settings/SettingsCard';
+import {
+    SettingsPage,
+    SettingsPageDocumentationLink,
+} from '../components/common/Settings/SettingsPage';
 import PageSpinner from '../components/PageSpinner';
 import ProjectSettings from '../components/Settings/ProjectSettings';
 import SettingsNavigation from '../components/Settings/SettingsNavigation';
@@ -186,9 +197,8 @@ const Settings: FC = () => {
         isAiOrganizationSettingsLoading,
         showImpersonationPanel,
         isCustomRolesEnabled,
-        isProLimitsEnabled,
         canAccessAnalyticsSettings,
-        isAnalyticsProjectFlagLoading,
+        isAnalyticsProjectLoading,
         isOrganizationRoadmapEnabled,
         canAccessAiCredits,
         isAiCreditsLoading,
@@ -320,85 +330,80 @@ const Settings: FC = () => {
                         title="General"
                         description="Manage organization-wide defaults, access, and account controls."
                     >
-                        <SettingsGridCard>
-                            <Title order={5}>Organization details</Title>
-                            <OrganizationPanel />
-                        </SettingsGridCard>
+                        <SettingsSection label="Workspace" description={null}>
+                            <SettingsCard>
+                                <Stack gap="md">
+                                    <OrganizationPanel />
+                                    <Divider />
+                                    <DefaultProjectPanel />
+                                </Stack>
+                            </SettingsCard>
+                        </SettingsSection>
 
-                        <SettingsGridCard>
-                            <div>
-                                <Title order={5}>Allowed email domains</Title>
-                                <Text c="dimmed" fz="xs">
-                                    Anyone with email addresses at these domains
-                                    can automatically join the organization.
-                                </Text>
-                            </div>
-                            <AllowedDomainsPanel />
-                        </SettingsGridCard>
+                        <SettingsSection label="Joining" description={null}>
+                            <SettingsCard>
+                                <Stack gap="md">
+                                    <AllowedDomainsPanel />
+                                    {user.ability.can(
+                                        'manage',
+                                        'Organization',
+                                    ) && (
+                                        <>
+                                            <Divider />
+                                            <InviteLinkExpirationPanel />
+                                        </>
+                                    )}
+                                </Stack>
+                            </SettingsCard>
+                        </SettingsSection>
 
-                        <SettingsGridCard>
-                            <div>
-                                <Title order={5}>Default project</Title>
-                                <Text c="dimmed" fz="xs">
-                                    This is the project users will see when they
-                                    log in for the first time or from a new
-                                    device. If a user does not have access, they
-                                    will see their next accessible project.
-                                </Text>
-                            </div>
-                            <DefaultProjectPanel />
-                        </SettingsGridCard>
+                        <SettingsSection
+                            label="Impersonation"
+                            description={null}
+                        >
+                            <SettingsCard>
+                                <Stack gap="md">
+                                    {showImpersonationPanel && (
+                                        <>
+                                            <ImpersonationPanel />
+                                            <Divider />
+                                        </>
+                                    )}
+                                    <SupportImpersonationPanel />
+                                </Stack>
+                            </SettingsCard>
+                        </SettingsSection>
 
-                        {user.ability.can('manage', 'Organization') && (
-                            <SettingsGridCard>
-                                <div>
-                                    <Title order={5}>Invitations</Title>
-                                    <Text c="dimmed" fz="xs">
-                                        Control how long new user invitations
-                                        remain valid for your organization.
-                                    </Text>
-                                </div>
-                                <InviteLinkExpirationPanel />
-                            </SettingsGridCard>
-                        )}
-
-                        {showImpersonationPanel && (
-                            <SettingsGridCard>
-                                <Title order={5}>User impersonation</Title>
-                                <ImpersonationPanel />
-                            </SettingsGridCard>
-                        )}
-
-                        <SettingsGridCard>
-                            <Title order={5}>Lightdash support access</Title>
-                            <SupportImpersonationPanel />
-                        </SettingsGridCard>
-
-                        <SettingsGridCard>
-                            <Box>
-                                <Title order={5}>Danger zone</Title>
-                                <Text c="dimmed" fz="xs">
-                                    {
-                                        'Leave the organization to remove yourself from it (you cannot leave if you are the only admin). '
-                                    }
+                        <SettingsSection label="Danger zone" description={null}>
+                            <SettingsCard>
+                                <Stack gap="md">
+                                    <SettingRow
+                                        title="Leave organization"
+                                        description="Remove yourself from the organization. You can't leave if you're the only admin."
+                                        control={
+                                            <LeaveOrganizationPanel
+                                                showDeleteAction={false}
+                                            />
+                                        }
+                                    />
                                     {user.ability?.can(
                                         'delete',
                                         'Organization',
-                                    ) &&
-                                        'Deleting the organization removes the whole workspace and all its content, including users. '}
-                                    These actions are not reversible.
-                                </Text>
-                            </Box>
-                            <Stack gap="sm" align="flex-end">
-                                <LeaveOrganizationPanel
-                                    showDeleteAction={false}
-                                />
-                                {user.ability?.can(
-                                    'delete',
-                                    'Organization',
-                                ) && <DeleteOrganizationPanel />}
-                            </Stack>
-                        </SettingsGridCard>
+                                    ) && (
+                                        <>
+                                            <Divider />
+                                            <SettingRow
+                                                title="Delete organization"
+                                                description="Permanently delete the workspace and all its content, including users. This can't be undone."
+                                                control={
+                                                    <DeleteOrganizationPanel />
+                                                }
+                                            />
+                                        </>
+                                    )}
+                                </Stack>
+                            </SettingsCard>
+                        </SettingsSection>
                     </SettingsPage>
                 ),
             });
@@ -409,28 +414,17 @@ const Settings: FC = () => {
                 element: (
                     <SettingsPage
                         title="Exporting"
-                        description="Control how exported files are shared outside Lightdash."
+                        description="Control how files exported from your organization are shared."
+                        actions={
+                            <SettingsPageDocumentationLink href="https://docs.lightdash.com/guides/how-to-create-scheduled-deliveries" />
+                        }
                     >
-                        <SettingsGridCard>
-                            <div>
-                                <Title order={5}>Scheduled deliveries</Title>
-                                <Text c="dimmed" fz="xs">
-                                    Control how files exported from your
-                                    organization — starting with scheduled
-                                    deliveries — are shared.{' '}
-                                    <Anchor
-                                        inherit
-                                        href="https://docs.lightdash.com/guides/how-to-create-scheduled-deliveries"
-                                        target="_blank"
-                                        rel="noreferrer"
-                                    >
-                                        Learn more about scheduled deliveries
-                                    </Anchor>
-                                    .
-                                </Text>
-                            </div>
+                        <SettingsSection
+                            label="Scheduled deliveries"
+                            description={null}
+                        >
                             <ExportingPanel />
-                        </SettingsGridCard>
+                        </SettingsSection>
                     </SettingsPage>
                 ),
             });
@@ -451,7 +445,7 @@ const Settings: FC = () => {
                 element: <AiCreditsSettingsPage />,
             });
         }
-        if (isProLimitsEnabled && user?.ability.can('manage', 'Organization')) {
+        if (user?.ability.can('manage', 'Organization')) {
             allowedRoutes.push({
                 path: '/limits',
                 element: (
@@ -459,17 +453,7 @@ const Settings: FC = () => {
                         title="Limits"
                         description="Set organization-wide query and export limits."
                     >
-                        <SettingsGridCard>
-                            <div>
-                                <Title order={5}>Query and export limits</Title>
-                                <Text c="dimmed" fz="xs">
-                                    Limit how many rows a query can return and
-                                    how many cells a CSV or Excel export can
-                                    contain for your organization.
-                                </Text>
-                            </div>
-                            <LimitsPanel />
-                        </SettingsGridCard>
+                        <LimitsPanel />
                     </SettingsPage>
                 ),
             });
@@ -915,7 +899,6 @@ const Settings: FC = () => {
         dashboardAnalysisFlag?.enabled,
         isChartStudioAvailable,
         externalSourcesFlag?.enabled,
-        isProLimitsEnabled,
         canAccessAnalyticsSettings,
         isOrganizationRoadmapEnabled,
         canAccessAiCredits,
@@ -1073,7 +1056,7 @@ const Settings: FC = () => {
         isDataAppsFlagLoading &&
         Boolean(matchPath('/generalSettings/dataApps/*', location.pathname));
     const isAwaitingAnalyticsRoute =
-        isAnalyticsProjectFlagLoading &&
+        isAnalyticsProjectLoading &&
         Boolean(
             matchPath('/generalSettings/lightdashAnalytics', location.pathname),
         );

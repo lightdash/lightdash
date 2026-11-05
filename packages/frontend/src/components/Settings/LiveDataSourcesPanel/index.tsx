@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     formatEstimatedBytes,
     type ApiConnectorType,
     type ExternalConnection,
@@ -21,17 +22,19 @@ import {
     IconPencil,
     IconPlus,
     IconRefresh,
+    IconListDetails,
     IconTrash,
 } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
-import { useSearchParams } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { useExternalConnectionApiUsage } from '../../../features/externalConnections/hooks/useExternalConnectionApiUsage';
 import { useExternalConnections } from '../../../features/externalConnections/hooks/useExternalConnections';
 import { getLiveSource } from '../../../features/externalConnections/liveSources/liveSourceCatalog';
 import { LiveSourceIcon } from '../../../features/externalConnections/liveSources/LiveSourceIcon';
+import { getSemanticStudioSourceUrl } from '../../../features/semanticStudio/urls';
 import useHealth from '../../../hooks/health/useHealth';
 import tableStyles from '../../../hooks/styles/tableStyles.module.css';
-import useToaster from '../../../hooks/toaster/useToaster';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { formatDuration } from '../../../utils/formatters';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
@@ -44,6 +47,8 @@ import { GoogleConnectionModal } from './GoogleConnectionModal';
 import { GoogleSourcePickerModal } from './GoogleSourcePickerModal';
 import { getPostHogSignInUrl, toPostHogFormValues } from './postHogConnection';
 import { PostHogConnectionModal } from './PostHogConnectionModal';
+import { SourceConnectedModal } from './SourceConnectedModal';
+import { useLiveSourceSignInResult } from './useLiveSourceSignInResult';
 
 type Props = {
     projectUuid: string;
@@ -62,9 +67,20 @@ const SourceRow: FC<{
     connection: ExternalConnection;
     usage: ExternalConnectionApiUsage | null;
     onEdit: () => void;
+    onViewFields: () => void;
+    /** Field editing lives in Semantic Layer when its flag is on. */
+    fieldsInStudio: boolean;
     onReconnect: (() => void) | null;
     onDelete: () => void;
-}> = ({ connection, usage, onEdit, onReconnect, onDelete }) => (
+}> = ({
+    connection,
+    usage,
+    onEdit,
+    onViewFields,
+    fieldsInStudio,
+    onReconnect,
+    onDelete,
+}) => (
     <Table.Tr>
         <Table.Td>
             {connection.apiSource ? (
@@ -120,6 +136,14 @@ const SourceRow: FC<{
                     >
                         Edit
                     </Menu.Item>
+                    <Menu.Item
+                        leftSection={<MantineIcon icon={IconListDetails} />}
+                        onClick={onViewFields}
+                    >
+                        {fieldsInStudio
+                            ? 'Edit fields in Semantic Layer'
+                            : 'Fields'}
+                    </Menu.Item>
                     {onReconnect && (
                         <Menu.Item
                             leftSection={<MantineIcon icon={IconRefresh} />}
@@ -146,7 +170,8 @@ type ModalState =
     | { kind: 'pick' }
     | { kind: 'create'; connector: ApiConnectorType }
     | { kind: 'edit'; connection: ExternalConnection }
-    | { kind: 'delete'; connection: ExternalConnection };
+    | { kind: 'delete'; connection: ExternalConnection }
+    | { kind: 'connected'; connectionUuid: string };
 
 const modalConnector = (modal: ModalState): ApiConnectorType | null => {
     switch (modal.kind) {
@@ -160,6 +185,10 @@ const modalConnector = (modal: ModalState): ApiConnectorType | null => {
 };
 
 const LiveDataSourcesPanel: FC<Props> = ({ projectUuid }) => {
+    const semanticStudioFlag = useServerFeatureFlag(
+        FeatureFlags.SemanticStudio,
+    );
+    const fieldsInStudio = semanticStudioFlag.data?.enabled === true;
     const { data: connections, isLoading } =
         useExternalConnections(projectUuid);
     const { data: usage } = useExternalConnectionApiUsage(projectUuid);
@@ -168,32 +197,20 @@ const LiveDataSourcesPanel: FC<Props> = ({ projectUuid }) => {
     const { data: health } = useHealth();
     const canSignIn = health?.hasPostHogOAuth ?? false;
     const canUseGoogle = health?.hasGoogleLiveSources ?? false;
-    const { showToastSuccess, showToastError } = useToaster();
-
-    // Sign-in callbacks land here with their outcome.
+    const navigate = useNavigate();
+    const { isPickingGoogleSource, closeGoogleSourcePicker } =
+        useLiveSourceSignInResult({
+            onConnected: (connectionUuid) =>
+                setModal({ kind: 'connected', connectionUuid }),
+        });
+    // ?add=true (the semantic layer's Add menu) opens the add flow.
     const [searchParams, setSearchParams] = useSearchParams();
-    const isPickingGoogleSource =
-        searchParams.get('pickGoogleSource') === 'true';
-    const closeGoogleSourcePicker = () => {
-        searchParams.delete('pickGoogleSource');
-        setSearchParams(searchParams, { replace: true });
-    };
     useEffect(() => {
-        const connected = searchParams.get('connected');
-        const signInError = searchParams.get('signInError');
-        if (!connected && !signInError) return;
-        if (signInError) {
-            showToastError({
-                title: 'Could not connect the source',
-                subtitle: signInError,
-            });
-        } else {
-            showToastSuccess({ title: 'Source connected' });
-        }
-        searchParams.delete('connected');
-        searchParams.delete('signInError');
+        if (searchParams.get('add') !== 'true') return;
+        setModal({ kind: 'pick' });
+        searchParams.delete('add');
         setSearchParams(searchParams, { replace: true });
-    }, [searchParams, setSearchParams, showToastError, showToastSuccess]);
+    }, [searchParams, setSearchParams]);
     const sources = (connections ?? [])
         .filter((connection) => connection.kind === 'live_source')
         .sort(byIntegrationThenName);
@@ -220,6 +237,7 @@ const LiveDataSourcesPanel: FC<Props> = ({ projectUuid }) => {
                               connector,
                               connection.name,
                               connection.externalConnectionUuid,
+                              'settings',
                           ),
                       )
                 : null;
@@ -231,6 +249,7 @@ const LiveDataSourcesPanel: FC<Props> = ({ projectUuid }) => {
                           projectUuid,
                           toPostHogFormValues(connection, canSignIn),
                           connection.externalConnectionUuid,
+                          'settings',
                       ),
                   )
             : null;
@@ -293,6 +312,17 @@ const LiveDataSourcesPanel: FC<Props> = ({ projectUuid }) => {
                                                 connection,
                                             })
                                         }
+                                        fieldsInStudio={fieldsInStudio}
+                                        onViewFields={() =>
+                                            navigate(
+                                                fieldsInStudio
+                                                    ? getSemanticStudioSourceUrl(
+                                                          projectUuid,
+                                                          connection.externalConnectionUuid,
+                                                      )
+                                                    : `/generalSettings/projectManagement/${projectUuid}/liveDataSources/${connection.externalConnectionUuid}/fields`,
+                                            )
+                                        }
                                         onReconnect={getReconnect(connection)}
                                         onDelete={() =>
                                             setModal({
@@ -339,6 +369,9 @@ const LiveDataSourcesPanel: FC<Props> = ({ projectUuid }) => {
                             modal.kind === 'edit' ? modal.connection : null
                         }
                         canSignIn={canSignIn}
+                        onCreated={(connectionUuid) =>
+                            setModal({ kind: 'connected', connectionUuid })
+                        }
                     />
                 ))}
 
@@ -346,6 +379,18 @@ const LiveDataSourcesPanel: FC<Props> = ({ projectUuid }) => {
                 <GoogleSourcePickerModal
                     projectUuid={projectUuid}
                     onClose={closeGoogleSourcePicker}
+                    onConnected={(connectionUuid) => {
+                        closeGoogleSourcePicker();
+                        setModal({ kind: 'connected', connectionUuid });
+                    }}
+                />
+            )}
+
+            {modal.kind === 'connected' && (
+                <SourceConnectedModal
+                    projectUuid={projectUuid}
+                    connectionUuid={modal.connectionUuid}
+                    onClose={closeModal}
                 />
             )}
 

@@ -3,7 +3,9 @@ import {
     getCompiledModels,
     getModelsFromManifest,
     ParameterError,
+    stripExternalDbtNodes,
     UnexpectedServerError,
+    type DbtJoinAvailability,
     type DbtManifest,
     type DbtProjectConfig,
     type ManifestCollision,
@@ -30,6 +32,28 @@ export type SourceManifest = {
     manifest: DbtManifest;
     selectedModelIds?: string[];
 };
+
+export const compileGroupAvailability = (
+    sources: readonly { projectDbtSourceUuid: string; name: string }[],
+    failedSourceUuids: readonly string[],
+): DbtJoinAvailability =>
+    Object.freeze({
+        unavailableSources: Object.freeze(
+            sources
+                .filter((source) =>
+                    failedSourceUuids.includes(source.projectDbtSourceUuid),
+                )
+                .map((source) =>
+                    Object.freeze({
+                        sourceUuid: source.projectDbtSourceUuid,
+                        sourceName: source.name,
+                    }),
+                )
+                .sort((left, right) =>
+                    left.sourceName.localeCompare(right.sourceName),
+                ),
+        ),
+    });
 
 export class ManifestCollisionError extends ParameterError {}
 
@@ -163,13 +187,20 @@ const combineSelectedModelIds = (
 export const mergeCompileGroupManifests = (
     sources: SourceManifest[],
 ): { manifest: DbtManifest; selectedModelIds: string[] | undefined } => {
-    const prepared = sources.map((source) => ({
-        ...source,
-        manifest: withSourceIdentity(
-            withCompilationSelection(source.manifest, source.selectedModelIds),
-            source.dbtSourceUuid,
-        ),
-    }));
+    const prepared = sources.map((source) => {
+        const manifest = stripExternalDbtNodes(source.manifest);
+        const selectedModelIds = source.selectedModelIds?.filter(
+            (id) => id in manifest.nodes,
+        );
+        return {
+            ...source,
+            selectedModelIds,
+            manifest: withSourceIdentity(
+                withCompilationSelection(manifest, selectedModelIds),
+                source.dbtSourceUuid,
+            ),
+        };
+    });
     const { manifest, collisions } = combineManifestSources(
         prepared.map(({ name, precedence, manifest: sourceManifest }) => ({
             name,

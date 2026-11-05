@@ -9,18 +9,14 @@ import {
 } from '@lightdash/common';
 import { randomBytes } from 'crypto';
 import { type AwsWebIdentityAudienceModel } from '../../models/AwsWebIdentityAudienceModel';
-import {
-    getIdTokenSubject,
-    type GoogleIdentityTokenSource,
-} from './googleIdentityTokenSource';
+import { createGoogleIdentitySubjectGetter } from '../googleIdentity/googleIdentitySubject';
+import { type GoogleIdentityTokenSource } from '../googleIdentity/googleIdentityTokenSource';
 import { AWS_WEB_IDENTITY_MESSAGES } from './messages';
 
 export type AwsCredentialProvider = ReturnType<typeof fromWebToken>;
 
 // AWS limits role session names to 64 characters.
 const MAX_ROLE_SESSION_NAME_LENGTH = 64;
-// A fixed audience used only to read this instance's subject.
-const SUBJECT_LOOKUP_AUDIENCE = 'lightdash-subject-lookup';
 
 const toRoleSessionName = (name: string) =>
     name.replace(/[^\w+=,.@-]/g, '-').slice(0, MAX_ROLE_SESSION_NAME_LENGTH);
@@ -69,7 +65,7 @@ export class AwsWebIdentityResolver {
 
     private readonly tokenSource: GoogleIdentityTokenSource;
 
-    private subject: Promise<string | undefined> | undefined;
+    readonly getSubject: () => Promise<string | undefined>;
 
     constructor(args: {
         isEnabledFor: (organizationUuid: string) => Promise<boolean>;
@@ -79,20 +75,7 @@ export class AwsWebIdentityResolver {
         this.isEnabledFor = args.isEnabledFor;
         this.audienceModel = args.audienceModel;
         this.tokenSource = args.tokenSource;
-    }
-
-    /** This instance's Google subject, or undefined when it isn't available. */
-    async getSubject(): Promise<string | undefined> {
-        if (!this.subject) {
-            this.subject = this.tokenSource
-                .getIdToken(SUBJECT_LOOKUP_AUDIENCE)
-                .then(getIdTokenSubject)
-                .catch(() => undefined);
-        }
-        const subject = await this.subject;
-        // Retry a failed lookup next time.
-        if (subject === undefined) this.subject = undefined;
-        return subject;
+        this.getSubject = createGoogleIdentitySubjectGetter(args.tokenSource);
     }
 
     /** Throws when the audience wasn't generated for `organizationUuid`. */

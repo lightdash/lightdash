@@ -13,6 +13,7 @@ import {
     OrganizationBrandLogo,
     OrganizationBrandLogoUpload,
     ParameterError,
+    pickBrandLogo,
     RegisteredAccount,
     SaveOrganizationBrandRequest,
     TooManyRequestsError,
@@ -23,8 +24,10 @@ import { Readable } from 'node:stream';
 import sharp from 'sharp';
 import { LightdashConfig } from '../../config/parseConfig';
 import { OrganizationBrandModel } from '../../models/OrganizationBrandModel';
-import { sanitizeSvg } from '../../utils/sanitizeSvg';
+import { prepareBrandLogoImage } from '../../utils/brandLogoImage';
 import { BaseService } from '../BaseService';
+import type { InstanceBrandService } from '../InstanceBrandService/InstanceBrandService';
+import type { LicenseService } from '../LicenseService/LicenseService';
 
 const BRANDFETCH_API_URL = 'https://api.brandfetch.io/v2/brands';
 
@@ -32,49 +35,7 @@ const BRAND_LOGO_FILE_URL_PREFIX = '/api/v1/org/brand/logos/';
 const BRAND_LOGO_FILE_URL_PATTERN =
     /^\/api\/v1\/org\/brand\/logos\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 
-const BRAND_LOGO_CONTENT_TYPES: Record<
-    OrganizationBrandLogoUpload['format'],
-    string
-> = {
-    png: 'image/png',
-    jpeg: 'image/jpeg',
-    webp: 'image/webp',
-    gif: 'image/gif',
-    svg: 'image/svg+xml',
-};
-
-const startsWithBytes = (body: Buffer, bytes: number[]) =>
-    bytes.every((byte, index) => body[index] === byte);
-
-const detectBrandLogoFormat = (
-    body: Buffer,
-): OrganizationBrandLogoUpload['format'] | null => {
-    if (startsWithBytes(body, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
-        return 'png';
-    if (startsWithBytes(body, [0xff, 0xd8, 0xff])) return 'jpeg';
-    if (
-        body
-            .subarray(0, 6)
-            .toString('ascii')
-            .match(/^GIF8[79]a$/)
-    )
-        return 'gif';
-    if (
-        body.subarray(0, 4).toString('ascii') === 'RIFF' &&
-        body.subarray(8, 12).toString('ascii') === 'WEBP'
-    )
-        return 'webp';
-    const head = body
-        .subarray(0, 1024)
-        .toString('utf8')
-        .replace(/^\uFEFF/, '');
-    if (
-        /^\s*<(\?xml|svg|!--|!doctype)/i.test(head) &&
-        /<svg[\s>]/i.test(body.toString('utf8'))
-    )
-        return 'svg';
-    return null;
-};
+const DEFAULT_FAVICON_URL = '/favicon.ico';
 
 const isAllowedBrandLogoUrl = (url: string): boolean =>
     BRAND_LOGO_FILE_URL_PATTERN.test(url) || /^https?:\/\//i.test(url);
@@ -116,6 +77,11 @@ export class OrganizationBrandService extends BaseService {
                 | 'findBrandLogoFile'
                 | 'deleteUnusedBrandLogoFiles'
             >;
+            instanceBrandService: Pick<
+                InstanceBrandService,
+                'getInstanceBrand'
+            >;
+            licenseService: Pick<LicenseService, 'getLicenseStatus'>;
         },
     ) {
         super();
@@ -126,18 +92,10 @@ export class OrganizationBrandService extends BaseService {
         return !!this.dependencies.lightdashConfig.license.licenseKey;
     }
 
+    // Every org member sees the white-label brand, whatever their role
     async getBrand(account: Account): Promise<OrganizationBrand | null> {
         assertIsAccountWithOrg(account);
         const { organizationUuid } = account.organization;
-        const auditedAbility = this.createAuditedAbility(account);
-        if (
-            auditedAbility.cannot(
-                'view',
-                subject('Organization', { organizationUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
         const brand =
             await this.dependencies.organizationBrandModel.findBrand(
                 organizationUuid,
@@ -404,19 +362,7 @@ export class OrganizationBrandService extends BaseService {
         }
         const rawBody = Buffer.concat(chunks);
 
-        const format = detectBrandLogoFormat(rawBody);
-        if (!format) {
-            throw new ParameterError(
-                'Logo must be a PNG, JPEG, WebP, GIF or SVG image',
-            );
-        }
-        const data =
-            format === 'svg'
-                ? Buffer.from(sanitizeSvg(rawBody.toString('utf8')), 'utf8')
-                : rawBody;
-        if (data.length === 0) {
-            throw new ParameterError('SVG contains no safe content');
-        }
+        const { format, contentType, data } = prepareBrandLogoImage(rawBody);
         const { width, height } = await sharp(data)
             .metadata()
             .catch(() => {
@@ -429,7 +375,7 @@ export class OrganizationBrandService extends BaseService {
         const logoFileUuid =
             await this.dependencies.organizationBrandModel.createBrandLogoFile({
                 organization_uuid: organizationUuid,
-                content_type: BRAND_LOGO_CONTENT_TYPES[format],
+                content_type: contentType,
                 data,
                 size_bytes: data.length,
                 created_by_user_uuid: account.user.userUuid,
@@ -438,21 +384,40 @@ export class OrganizationBrandService extends BaseService {
         return { url: `${BRAND_LOGO_FILE_URL_PREFIX}${logoFileUuid}`, format };
     }
 
+    async getFaviconUrl(
+        account: Account | undefined,
+        isEmailVerified: boolean,
+    ): Promise<string> {
+        const fallback =
+            this.dependencies.instanceBrandService.getInstanceBrand()
+                ?.logoUrl ?? DEFAULT_FAVICON_URL;
+        // Unverified sessions can't load the organization's logo when email is configured
+        const isRestrictedSession =
+            !!this.dependencies.lightdashConfig.smtp && !isEmailVerified;
+        if (
+            !account?.isSessionUser() ||
+            isRestrictedSession ||
+            !this.dependencies.licenseService.getLicenseStatus().valid
+        ) {
+            return fallback;
+        }
+        const { organizationUuid } = account.organization;
+        if (!organizationUuid) {
+            return fallback;
+        }
+        const brand =
+            await this.dependencies.organizationBrandModel.findBrand(
+                organizationUuid,
+            );
+        return (brand ? pickBrandLogo(brand.logos)?.url : null) ?? fallback;
+    }
+
     async getBrandLogo(
         account: Account,
         logoFileUuid: string,
     ): Promise<{ contentType: string; data: Buffer }> {
         assertIsAccountWithOrg(account);
         const { organizationUuid } = account.organization;
-        const auditedAbility = this.createAuditedAbility(account);
-        if (
-            auditedAbility.cannot(
-                'view',
-                subject('Organization', { organizationUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
         if (!this.hasBrandLogoStorage()) {
             throw new NotFoundError('Brand logo not found');
         }

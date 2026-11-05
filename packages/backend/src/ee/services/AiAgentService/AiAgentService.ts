@@ -67,6 +67,7 @@ import {
     ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageVizQuery,
     ApiAiAgentThreadShareResponse,
+    ApiAiAgentVisualizeSlackPreviewRequest,
     ApiAiMcpOAuthCredentialRequest,
     ApiAppendEvaluationRequest,
     ApiCreateAiAgent,
@@ -83,6 +84,7 @@ import {
     buildAgentIdentityClaim,
     CatalogType,
     CommercialFeatureFlags,
+    composerBuiltinChartVizConfigSchemaV1,
     composerNodeContextKey,
     ConflictError,
     ContentType,
@@ -214,7 +216,6 @@ import {
     type ApiAiAgentComposerArtifactVizQuery,
     type ApiGetAsyncQueryResults,
     type AppGeneratePipelineJobPayload,
-    type ComposerApiConnection,
     type ComposerStoredChartVizConfig,
     type DataAppVizChart,
     type DuckdbSourceQuery,
@@ -231,6 +232,7 @@ import {
     type ToolComposerQueriesSuccessMetadata,
     type ToolGenerateDataAppTerminalResult,
     type ToolRunQueryArgsTransformed,
+    type UUID,
     type VerifiedContentListItem,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -258,9 +260,9 @@ import {
 import { createCanvas, loadImage } from 'canvas';
 import { randomBytes, randomUUID } from 'crypto';
 import { type EChartsOption } from 'echarts';
+import { isEqual, uniq } from 'es-toolkit/compat';
 import { EventEmitter } from 'events';
 import fs from 'fs/promises';
-import _ from 'lodash';
 import { nanoid as nanoidGenerator } from 'nanoid';
 import pLimit from 'p-limit';
 import slackifyMarkdown from 'slackify-markdown';
@@ -550,6 +552,7 @@ import {
 import {
     AiAgentArgs,
     AiAgentDependencies,
+    type AgentLiveSource,
     type AiAgentDeepResearchRunContext,
     type AiAgentExecutionConfig,
     type AiAgentMcpServer,
@@ -643,6 +646,7 @@ import { getSlackBigNumbers } from '../ai/utils/slackBigNumbers';
 import { getSlackSelectedCardArtifacts } from '../ai/utils/slackChartSelection';
 import {
     getSlackTableBlocks,
+    splitSlackTableMessage,
     type SlackTableQueryResults,
 } from '../ai/utils/slackTableBlocks';
 import { getSlackTablePreviews } from '../ai/utils/slackTablePreviews';
@@ -842,6 +846,11 @@ const GITHUB_MCP_UNAVAILABLE_STATUS =
 const isGithubMcpBearerServer = (
     server: Pick<AiMcpServer, 'url' | 'authType'>,
 ) => isGithubMcpServerUrl(server.url) && server.authType === 'bearer';
+
+// runQuery saves a data answer (purpose 'answer') as a chart version without a chartConfig.
+const isDataAnswerVersion = (version: AiArtifact) =>
+    version.chartConfig?.source === 'semantic' &&
+    !version.chartConfig.config.chartConfig;
 
 type GenerateAgentExecutionOptions =
     | {
@@ -2482,6 +2491,54 @@ export class AiAgentService extends BaseService {
         }
     }
 
+    /** Debug harness: draws caller-provided rows exactly as the Slack composer chart image. */
+    public async previewVisualizeSlackChart(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        {
+            title,
+            columns,
+            rows,
+            vizConfig,
+        }: ApiAiAgentVisualizeSlackPreviewRequest,
+    ): Promise<Buffer> {
+        if (!(await this.getIsCopilotEnabled(toSessionUser(account)))) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+        const project = await this.projectModel.getSummary(projectUuid);
+        if (
+            project.organizationUuid !==
+                account.organization.organizationUuid ||
+            this.createAuditedAbility(account).cannot(
+                'manage',
+                subject('AiAgent', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const parsed =
+            composerBuiltinChartVizConfigSchemaV1.safeParse(vizConfig);
+        if (!parsed.success) {
+            throw new ParameterError(
+                `Invalid vizConfig: ${parsed.error.message}`,
+            );
+        }
+        const options = await getComposerSlackEchartsConfig({
+            columns,
+            rows,
+            vizConfig: parsed.data,
+            metadata: { title, description: '' },
+            getPivotedResults,
+        });
+        if (!options) {
+            throw new ParameterError('This chart has no Slack image');
+        }
+        return renderEcharts(options);
+    }
+
     private async uploadSlackAgentCardImage(
         {
             organizationUuid,
@@ -3501,6 +3558,7 @@ export class AiAgentService extends BaseService {
             await this.aiAgentToolsService.canAuthorContent({
                 user,
                 projectUuid,
+                spaceUuids: null,
             });
         const canManageContent =
             agent.enableContentTools && canCreateDashboards;
@@ -4530,7 +4588,7 @@ export class AiAgentService extends BaseService {
             liveStatuses.map((status) => [status.threadUuid, status]),
         );
 
-        const slackUserIds = _.uniq(
+        const slackUserIds = uniq(
             threads
                 .filter((thread) => thread.createdFrom === 'slack')
                 .filter((thread) => thread.user.slackUserId !== null)
@@ -4645,7 +4703,7 @@ export class AiAgentService extends BaseService {
             liveStatuses.map((status) => [status.threadUuid, status]),
         );
 
-        const slackUserIds = _.uniq(
+        const slackUserIds = uniq(
             threads
                 .filter((thread) => thread.createdFrom === 'slack')
                 .filter((thread) => thread.user.slackUserId !== null)
@@ -4752,7 +4810,7 @@ export class AiAgentService extends BaseService {
 
         const signals = await this.aiAgentModel.findThreadLiveStateSignals({
             organizationUuid,
-            threadUuids: _.uniq(threadUuids),
+            threadUuids: uniq(threadUuids),
             projectUuid,
             userUuid: user.userUuid,
             agentUuids: accessibleAgentUuids,
@@ -4830,7 +4888,7 @@ export class AiAgentService extends BaseService {
             };
         }
 
-        const slackUserIds = _.uniq(
+        const slackUserIds = uniq(
             messages
                 .filter((message) => message.role === 'user')
                 .filter((message) => message.user.slackUserId !== null)
@@ -5949,16 +6007,20 @@ export class AiAgentService extends BaseService {
                 return;
             }
 
+            const { enabled: isNewOnboarding } =
+                await this.featureFlagService.get({
+                    user,
+                    featureFlagId: FeatureFlags.NewOnboarding,
+                });
             await this.createAgent(
                 user,
                 {
-                    name: 'Aurora',
+                    name: isNewOnboarding ? 'Analytics agent' : 'Aurora',
                     projectUuid,
                     description: null,
                     integrations: [],
                     tags: null,
-                    instruction:
-                        "You are Aurora, this organization's analytics agent. Help people explore and understand their data, and answer questions with clear, concise analysis. If no explores are available yet, use your warehouse tools to discover the schema and answer with SQL.",
+                    instruction: `You are ${isNewOnboarding ? '' : 'Aurora, '}this organization's analytics agent. Help people explore and understand their data, and answer questions with clear, concise analysis. If no explores are available yet, use your warehouse tools to discover the schema and answer with SQL.`,
                     imageUrl: null,
                     groupAccess: [],
                     userAccess: [],
@@ -6441,10 +6503,11 @@ export class AiAgentService extends BaseService {
                 (toolName) =>
                     canRunSql || !isDeepResearchRawSqlMcpTool(toolName),
             );
-            const canUseContentTools = await this.canUseContentTools(
+            const canUseContentWriteTools = await this.canUseContentWriteTools(
                 user,
                 agent,
                 projectUuid,
+                null,
             );
             const knowledgeDocuments =
                 await this.aiAgentDocumentModel.findAllForAgent({
@@ -6513,7 +6576,7 @@ export class AiAgentService extends BaseService {
                     canManageAgent,
                     canRunSql,
                     canUseDataTools: agent.enableDataAccess,
-                    canUseContentTools,
+                    canUseContentTools: canUseContentWriteTools,
                     canUseSelfImprovementTools: canManageAgent,
                     autoApproveSql: true,
                 },
@@ -7623,7 +7686,7 @@ export class AiAgentService extends BaseService {
                 : agent.modelConfig) ?? null;
         const pinOrModelChanged =
             nextProviderCredentialUuid !== agent.providerCredentialUuid ||
-            !_.isEqual(nextModelConfig, agent.modelConfig ?? null);
+            !isEqual(nextModelConfig, agent.modelConfig ?? null);
         if (nextProviderCredentialUuid && pinOrModelChanged) {
             await this.aiOrganizationSettingsService.validateAgentProviderCredential(
                 organizationUuid,
@@ -10345,6 +10408,8 @@ export class AiAgentService extends BaseService {
                         runtimeOptions?.userAttributeOverrides ?? {},
                     invalidateCache: false,
                     plans: {},
+                    // Re-renders stay unattributed: prompt ids mark tool runs only.
+                    aiAttribution: null,
                 });
             const submissions = allSubmissions.filter(
                 ({ nodeId }) => nodeId !== stageNodeId,
@@ -10990,6 +11055,8 @@ export class AiAgentService extends BaseService {
                             runtimeOptions?.userAttributeOverrides ?? {},
                         invalidateCache: false,
                         plans: {},
+                        // Re-renders stay unattributed: prompt ids mark tool runs only.
+                        aiAttribution: null,
                     },
                 );
                 return {
@@ -11686,10 +11753,10 @@ export class AiAgentService extends BaseService {
     }
 
     /** The project's API connections the user may query, offered as composer api nodes. */
-    private async getComposerApiConnections(
+    private async getAgentLiveSources(
         user: SessionUser,
         projectUuid: string,
-    ): Promise<ComposerApiConnection[]> {
+    ): Promise<AgentLiveSource[]> {
         const { enabled } = await this.featureFlagService.get({
             user,
             featureFlagId: FeatureFlags.ApiQuerySources,
@@ -13087,7 +13154,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
     /**
      * The editDbtProject tool enqueues this pipeline job mid-step, so the job
      * can start — and a fast pre-flight failure can call updateToolResult —
-     * before onStepFinish has inserted the tool-result row. updateToolResult is
+     * before onStepEnd has inserted the tool-result row. updateToolResult is
      * an UPDATE, so it would silently match no rows and leave the card stuck.
      * Poll until the row exists (bounded), mirroring
      * waitForOriginalResponseWritten for the model-response field.
@@ -13194,7 +13261,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 return;
             }
 
-            // This job is enqueued mid-step, so it can outrun the onStepFinish
+            // This job is enqueued mid-step, so it can outrun the onStepEnd
             // insert of its own tool-result row — wait for it before any
             // updateToolResult below would otherwise no-op and strand the card.
             await this.waitForToolResultWritten(promptUuid, toolCallId);
@@ -13546,7 +13613,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 );
                 return;
             }
-            // The build can end before onStepFinish inserts the row.
+            // The build can end before onStepEnd inserts the row.
             await this.waitForToolResultWritten(
                 aiAgentToolCall.promptUuid,
                 aiAgentToolCall.toolCallId,
@@ -14830,6 +14897,13 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         ]);
         if (latest?.chartConfig?.source !== 'semantic') return null;
         if (promptContext.get(prompt.promptUuid)?.length) return null;
+        // A data answer saved over a chart leaves "this" ambiguous, so only the agent can tell which to edit.
+        if (
+            isDataAnswerVersion(latest) &&
+            (await this.hasEarlierChartVersion(latest))
+        ) {
+            return null;
+        }
         const artifact = await this.getArtifact(
             user,
             prompt.projectUuid,
@@ -14876,6 +14950,21 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 filterRules: getFilterRules(chartConfig) ?? [],
             }),
         };
+    }
+
+    private async hasEarlierChartVersion(
+        version: AiArtifact,
+    ): Promise<boolean> {
+        const previous = await this.aiAgentModel.getPreviousArtifactVersion(
+            version.artifactUuid,
+            version.versionNumber,
+        );
+        if (!previous) {
+            return false;
+        }
+        return isDataAnswerVersion(previous)
+            ? this.hasEarlierChartVersion(previous)
+            : true;
     }
 
     private async assertFastChartQuery(user: SessionUser, projectUuid: string) {
@@ -15814,16 +15903,44 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         }
     }
 
-    /** The agent offers content editing when the setting is on and the user can save content in the project. */
-    private async canUseContentTools(
+    /** The agent offers content reading when the setting is on; each read checks the user's view access. */
+    private static canReadContent(
+        agent: Pick<AiAgent, 'enableContentTools' | 'enableDataAccess'>,
+    ): boolean {
+        return agent.enableContentTools && agent.enableDataAccess;
+    }
+
+    /** The agent offers chart and dashboard write tools when the setting is on and the user can save one where the run may write. */
+    private async canUseContentWriteTools(
         user: SessionUser,
         agent: Pick<AiAgent, 'enableContentTools' | 'enableDataAccess'>,
         projectUuid: string,
+        writeSpaceUuids: string[] | null,
     ): Promise<boolean> {
         return (
-            agent.enableContentTools &&
-            agent.enableDataAccess &&
-            this.aiAgentToolsService.canAuthorContent({ user, projectUuid })
+            AiAgentService.canReadContent(agent) &&
+            this.aiAgentToolsService.canAuthorContent({
+                user,
+                projectUuid,
+                spaceUuids: writeSpaceUuids,
+            })
+        );
+    }
+
+    /** The agent offers Documents when the setting is on and the user can save a Document in a Space where the run may write. */
+    private async canUseDocumentTools(
+        user: SessionUser,
+        agent: Pick<AiAgent, 'enableContentTools' | 'enableDataAccess'>,
+        projectUuid: string,
+        writeSpaceUuids: string[] | null,
+    ): Promise<boolean> {
+        return (
+            AiAgentService.canReadContent(agent) &&
+            this.aiAgentToolsService.canAuthorDocuments({
+                user,
+                projectUuid,
+                spaceUuids: writeSpaceUuids,
+            })
         );
     }
 
@@ -15848,7 +15965,12 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         if (
             documentSlug === null ||
             pinsOtherContent ||
-            !(await this.canUseContentTools(user, agent, prompt.projectUuid))
+            !(await this.canUseDocumentTools(
+                user,
+                agent,
+                prompt.projectUuid,
+                null,
+            ))
         ) {
             return null;
         }
@@ -15952,7 +16074,11 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             },
         };
         const output = await executeEditContent(
-            { editContent: document.editContent, documentsEnabled: true },
+            {
+                editContent: document.editContent,
+                siteUrl: this.lightdashConfig.siteUrl,
+                documentsEnabled: true,
+            },
             toolCall.input,
         );
         if (output.metadata.status !== 'success') {
@@ -16681,15 +16807,36 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     ? await this.aiAgentToolsService.canAuthorContent({
                           user,
                           projectUuid: promptProject.projectUuid,
+                          spaceUuids:
+                              options.runtimeOptions?.writeSpaceUuids ?? null,
                       })
                     : false;
+                const canCreateScheduledDeliveries =
+                    hasTrustedPromptUserIdentity &&
+                    this.createAuditedAbility(user).can(
+                        'create',
+                        subject('ScheduledDeliveries', {
+                            organizationUuid: promptProject.organizationUuid,
+                            projectUuid: promptProject.projectUuid,
+                        }),
+                    );
 
+                // A project with only live sources has no warehouse to run SQL on
                 const warehouseCredentials = canRunSql
-                    ? await this.projectModel.getWarehouseCredentialsForBinding(
-                          prompt.projectUuid,
-                          { kind: 'connection', warehouseConnectionUuid: null },
-                      )
+                    ? await this.projectModel
+                          .getWarehouseCredentialsForBinding(
+                              prompt.projectUuid,
+                              {
+                                  kind: 'connection',
+                                  warehouseConnectionUuid: null,
+                              },
+                          )
+                          .catch((error: unknown) => {
+                              if (error instanceof NotFoundError) return null;
+                              throw error;
+                          })
                     : null;
+                if (!warehouseCredentials) canRunSql = false;
                 const warehouseConnections = canRunSql
                     ? await this.projectModel.getWarehouseConnectionsMetadata(
                           prompt.projectUuid,
@@ -16789,11 +16936,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                         standardToolAllowlist !== undefined,
                     battleProfile,
                 });
-                const composerApiConnections = enableComposerQueries
-                    ? await this.getComposerApiConnections(
-                          user,
-                          prompt.projectUuid,
-                      )
+                const liveSources = hasTrustedPromptUserIdentity
+                    ? await this.getAgentLiveSources(user, prompt.projectUuid)
                     : [];
                 const { enabled: filterExpressionsEnabled } =
                     await this.featureFlagService.get({
@@ -16849,9 +16993,9 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     }
                 }
 
+                // Stored context is readable on any connection; only writeback needs Git.
                 const projectContextEnabled =
-                    aiWritebackEnabled &&
-                    writebackConnectionSupport.supportsProjectContext &&
+                    hasTrustedPromptUserIdentity &&
                     (await this.aiOrganizationSettingsService.isAiAgentReviewsEnabled(
                         user,
                     ));
@@ -16902,15 +17046,30 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 const repoFsSupportsCodeSearch =
                     promptProject.dbtConnection.type !== DbtProjectType.GITLAB;
 
-                const canUseContentTools =
+                const canReadContent =
                     hasTrustedPromptUserIdentity &&
-                    (await this.canUseContentTools(
-                        user,
-                        agentSettings,
-                        promptProject.projectUuid,
-                    ));
+                    AiAgentService.canReadContent(agentSettings);
+                const writeSpaceUuids =
+                    options.runtimeOptions?.writeSpaceUuids ?? null;
+                const [canUseContentWriteTools, canUseDocumentTools] =
+                    hasTrustedPromptUserIdentity
+                        ? await Promise.all([
+                              this.canUseContentWriteTools(
+                                  user,
+                                  agentSettings,
+                                  promptProject.projectUuid,
+                                  writeSpaceUuids,
+                              ),
+                              this.canUseDocumentTools(
+                                  user,
+                                  agentSettings,
+                                  promptProject.projectUuid,
+                                  writeSpaceUuids,
+                              ),
+                          ])
+                        : [false, false];
                 const enableGenerateDataApp =
-                    canUseContentTools &&
+                    canUseContentWriteTools &&
                     (await this.aiAgentToolsService.canGenerateDataApp({
                         user,
                         projectUuid: promptProject.projectUuid,
@@ -17005,7 +17164,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     suppressWritebackPreview: options.suppressWritebackPreview,
                     dbtSourceUuid: options.dbtSourceUuid,
                     onWarehouseQuery: responseExecution.onWarehouseQuery,
-                    enableDocuments: canUseContentTools,
+                    enableDocuments: canUseDocumentTools,
                     enableRuntimeCache: !!decisions,
                     // Battle sides must not warm one another's result cache. Normal
                     // threads retain production cache behavior.
@@ -17158,6 +17317,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                             .join(' '),
                         role,
                         groups: userGroups.map((group) => group.name),
+                        isServiceAccount: !!user.serviceAccount,
                     };
                 }
 
@@ -17263,8 +17423,9 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                         this.lightdashConfig.ai.copilot.telemetryEnabled,
                     enableDataAccess: agentSettings.enableDataAccess,
                     enableSelfImprovement: agentSettings.enableSelfImprovement,
-                    enableContentTools: canUseContentTools,
-                    enableDocuments: canUseContentTools,
+                    enableContentReads: canReadContent,
+                    enableContentTools: canUseContentWriteTools,
+                    enableDocuments: canUseDocumentTools,
                     enableGenerateDataApp,
                     enableAiWriteback: aiWritebackEnabled,
                     enableEditProjectContext: isReviewRemediationWorkThread,
@@ -17276,8 +17437,9 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     repoFsSupportsCodeSearch,
                     canRunSql,
                     enableComposerQueries,
-                    composerApiConnections,
+                    liveSources,
                     canCreateDashboards,
+                    canCreateScheduledDeliveries,
                     autoApproveSql:
                         (options.autoApproveSql ?? false) ||
                         agentSettings.enableSqlAutoApproval,
@@ -17902,7 +18064,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                                 : result.toUIMessageStream(),
                         );
                     },
-                    onFinish: () => {
+                    onEnd: () => {
                         clearKeepalive();
                         stepProgressEmitter?.removeAllListeners(
                             'artifactReady',
@@ -18541,6 +18703,48 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         };
     }
 
+    // Always ≥1 message so the stream closes. With native tables, the tables and
+    // every block after them (cards, feedback) post as their own last message.
+    private static getSlackAnswerMessages({
+        slackResponse,
+        trailingBlocks,
+        threadUrl,
+    }: {
+        slackResponse: string | null;
+        trailingBlocks: (Block | KnownBlock)[];
+        threadUrl: string;
+    }): (Block | KnownBlock)[][] {
+        const { withAnswer, tableMessage } =
+            splitSlackTableMessage(trailingBlocks);
+        const { messages, truncated } =
+            slackResponse === null
+                ? { messages: [], truncated: false }
+                : splitMarkdownIntoMessages(
+                      slackResponse,
+                      undefined,
+                      withAnswer.length + 1,
+                  );
+        const answerMessages = messages.length > 0 ? messages : [[]];
+        const lastIndex = answerMessages.length - 1;
+        const composed = [
+            ...answerMessages.slice(0, lastIndex),
+            [
+                ...answerMessages[lastIndex],
+                ...withAnswer,
+                ...(truncated
+                    ? [
+                          AiAgentService.slackLinkSection(
+                              ':scroll: This answer was too long to show in full here.',
+                              threadUrl,
+                          ),
+                      ]
+                    : []),
+            ],
+            ...(tableMessage ? [tableMessage] : []),
+        ].filter((blocks) => blocks.length > 0);
+        return composed.length > 0 ? composed : [[]];
+    }
+
     private static readonly SLACK_PROMPT_RETRY_ACTION_ID = 'ai_prompt_retry';
 
     // Generation failures already store their error; this covers failures
@@ -18605,30 +18809,13 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         accessRefusalState: SlackAiAccessRefusalState;
         deliveryGuard: AgentDeliveryGuard;
     }): Promise<void> {
-        const { messages: answerMessages, truncated } =
-            accessRefusalState.selected !== null
-                ? { messages: [], truncated: false }
-                : splitMarkdownIntoMessages(
-                      slackResponse,
-                      undefined,
-                      trailingBlocks.length + 1,
-                  );
-        // Always ≥1 message so the stream closes and trailing cards attach.
-        const messages = answerMessages.length > 0 ? answerMessages : [[]];
         const threadUrl = this.getAgentThreadUrl(slackPrompt, agentUuid);
-
-        // Cards + feedback + any truncation notice ride on the last message only.
-        const lastExtraBlocks: (Block | KnownBlock)[] = [
-            ...trailingBlocks,
-            ...(truncated
-                ? [
-                      AiAgentService.slackLinkSection(
-                          ':scroll: This answer was too long to show in full here.',
-                          threadUrl,
-                      ),
-                  ]
-                : []),
-        ];
+        const messages = AiAgentService.getSlackAnswerMessages({
+            slackResponse:
+                accessRefusalState.selected === null ? slackResponse : null,
+            trailingBlocks,
+            threadUrl,
+        });
         const linkFallbackBlocks: (Block | KnownBlock)[] = [
             ...(accessRefusalState.selected === null
                 ? [
@@ -18660,10 +18847,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 chunks: [
                     {
                         type: 'blocks',
-                        blocks: [
-                            ...messages[0],
-                            ...(isLast(0) ? lastExtraBlocks : []),
-                        ],
+                        blocks: messages[0],
                     },
                 ],
             });
@@ -18703,10 +18887,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                         channel: slackPrompt.slackChannelId,
                         thread_ts: threadTs,
                         text: notificationText,
-                        blocks: [
-                            ...messages[index],
-                            ...(isLast(index) ? lastExtraBlocks : []),
-                        ],
+                        blocks: messages[index],
                         unfurl_links: false,
                         ...(agentName ? { username: agentName } : {}),
                     });
@@ -18769,30 +18950,13 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         accessRefusalState: SlackAiAccessRefusalState;
         deliveryGuard: AgentDeliveryGuard;
     }): Promise<void> {
-        const { messages: answerMessages, truncated } =
-            accessRefusalState.selected !== null
-                ? { messages: [], truncated: false }
-                : splitMarkdownIntoMessages(
-                      slackResponse,
-                      undefined,
-                      trailingBlocks.length + 1,
-                  );
-        // Always ≥1 message so trailing cards attach even to an empty answer.
-        const messages = answerMessages.length > 0 ? answerMessages : [[]];
         const threadUrl = this.getAgentThreadUrl(slackPrompt, agentUuid);
-
-        // Cards + feedback + any truncation notice ride on the last message only.
-        const lastExtraBlocks: (Block | KnownBlock)[] = [
-            ...trailingBlocks,
-            ...(truncated
-                ? [
-                      AiAgentService.slackLinkSection(
-                          ':scroll: This answer was too long to show in full here.',
-                          threadUrl,
-                      ),
-                  ]
-                : []),
-        ];
+        const messages = AiAgentService.getSlackAnswerMessages({
+            slackResponse:
+                accessRefusalState.selected === null ? slackResponse : null,
+            trailingBlocks,
+            threadUrl,
+        });
         const linkFallbackBlocks: (Block | KnownBlock)[] = [
             ...(accessRefusalState.selected === null
                 ? [
@@ -18825,10 +18989,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                         channel: slackPrompt.slackChannelId,
                         thread_ts: threadTs,
                         text: notificationText,
-                        blocks: [
-                            ...messages[index],
-                            ...(isLast(index) ? lastExtraBlocks : []),
-                        ],
+                        blocks: messages[index],
                         unfurl_links: false,
                         ...(agentName ? { username: agentName } : {}),
                     });
@@ -21753,6 +21914,10 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
 
         // Only respond in the designated multi-agent channel
         if (!isMultiAgentChannel) {
+            return;
+        }
+
+        if (slackSettings.aiMultiAgentRequireMention) {
             return;
         }
 

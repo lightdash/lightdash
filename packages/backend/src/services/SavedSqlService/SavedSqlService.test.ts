@@ -115,6 +115,7 @@ const createdScheduler = {
     targets: [],
     includeLinks: false,
     plainTextEmail: false,
+    useCachedResults: false,
     enabled: true,
     options: {},
 };
@@ -173,6 +174,7 @@ const newSchedulerPayload = {
     targets: [],
     includeLinks: false,
     plainTextEmail: false,
+    useCachedResults: false,
     enabled: true,
     appUuid: null,
     appName: null,

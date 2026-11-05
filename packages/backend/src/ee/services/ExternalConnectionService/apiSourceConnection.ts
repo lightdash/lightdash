@@ -9,13 +9,17 @@ import {
 } from '@lightdash/common';
 import {
     GA4_DATA_ORIGIN,
+    getGa4MetadataPath,
     getGa4ReportPath,
 } from '../../../services/QuerySourceService/api/google/Ga4Connector';
 import {
     SEARCH_CONSOLE_ORIGIN,
     SEARCH_CONSOLE_SITES_PATH,
 } from '../../../services/QuerySourceService/api/google/SearchConsoleConnector';
-import { getPostHogQueryPath } from '../../../services/QuerySourceService/api/posthog/PostHogConnector';
+import {
+    getPostHogPropertyDefinitionsPrefix,
+    getPostHogQueryPath,
+} from '../../../services/QuerySourceService/api/posthog/PostHogConnector';
 import { GOOGLE_TOKEN_URL } from './googleOAuth';
 import { getPostHogOAuthEndpoints } from './postHogOAuth';
 
@@ -46,8 +50,12 @@ const getAccessRules = (
     switch (apiSource.connector) {
         case ApiConnectorType.POSTHOG:
             return {
-                allowedPathPrefixes: [getPostHogQueryPath(apiSource.projectId)],
-                allowedMethods: ['POST'],
+                allowedPathPrefixes: [
+                    getPostHogQueryPath(apiSource.projectId),
+                    getPostHogPropertyDefinitionsPrefix(apiSource.projectId),
+                ],
+                // GET reads the property definitions the semantic layer scans
+                allowedMethods: ['POST', 'GET'],
                 allowedContentTypes: ['application/json'],
                 timeoutMs: POSTHOG_TIMEOUT_MS,
                 responseMaxBytes: API_SOURCE_RESPONSE_MAX_BYTES,
@@ -63,8 +71,12 @@ const getAccessRules = (
             };
         case ApiConnectorType.GA4:
             return {
-                allowedPathPrefixes: [getGa4ReportPath(apiSource.propertyId)],
-                allowedMethods: ['POST'],
+                allowedPathPrefixes: [
+                    getGa4ReportPath(apiSource.propertyId),
+                    getGa4MetadataPath(apiSource.propertyId),
+                ],
+                // GET reads the property metadata the semantic layer scans
+                allowedMethods: ['POST', 'GET'],
                 allowedContentTypes: ['application/json'],
                 timeoutMs: GA4_TIMEOUT_MS,
                 responseMaxBytes: API_SOURCE_RESPONSE_MAX_BYTES,
@@ -74,7 +86,11 @@ const getAccessRules = (
     }
 };
 
-/** Api source connections reach only the query endpoint, whatever access rules the request carries. */
+/**
+ * Api source connections reach only their integration's query and metadata
+ * endpoints, whatever access rules the request carries or the stored
+ * connection has.
+ */
 export const withApiSourceAccessRules = <
     T extends { apiSource?: ExternalConnectionApiSource | null },
 >(

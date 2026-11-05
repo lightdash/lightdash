@@ -168,6 +168,27 @@ may save a SQL chart only after the user approves that SQL for publication,
 unless the thread has approved SQL once and for all.
 _Avoid_: SQL Runner chart, saved SQL, raw SQL chart
 
+## Warehouse tables
+
+**Base table**:
+The Lightdash table an explore starts from, named after its model. Other
+tables reach the explore as joined tables. A base table name is not a
+warehouse table name.
+_Avoid_: source table, main table, model table
+
+**Warehouse table**:
+The relation in the warehouse that a Lightdash table reads, written
+`database.schema.table`. It can differ from the model name (dbt aliases,
+`sql_from`); a table whose `sql_from` is SQL has no single warehouse table.
+_Avoid_: physical table, raw table, relation (in copy)
+
+**Partition column**:
+The column a warehouse table is divided on, usually a date. A query that
+filters it directly reads only the matching partitions; one that does not
+reads, and on BigQuery bills, the whole table. Ingestion-time partitioned
+BigQuery tables use the pseudo-column `_PARTITIONTIME`.
+_Avoid_: partition key, partition field, date partition
+
 ## MCP servers
 
 **MCP server**:

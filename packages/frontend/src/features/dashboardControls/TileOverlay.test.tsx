@@ -373,6 +373,8 @@ describe('TileOverlays', () => {
                     rail: 'rail-class',
                     addFilterDropdown: 'ld-dashboard-add-filter-dropdown',
                     filterDropdown: 'ld-dashboard-filter-dropdown',
+                    parameter: 'ld-dashboard-parameter',
+                    parameterDropdown: 'ld-dashboard-parameter-dropdown',
                 }}
             >
                 <TileOverlays />

@@ -100,6 +100,15 @@ since its shape is unknown at build time. Render an empty state for zero
 charts and hide the section when `available` is false. The recipe lives in
 the `sdk-features` skill under `space-charts`.
 
+To draw each chart the way it looks in Lightdash, read
+`chartVisualization` from its `useLightdash` result: the saved
+`chartConfig` (`type` plus a type-specific `config`; for `cartesian`,
+`config.layout.xField` / `config.layout.yField` and
+`config.eChartsConfig.series`), `pivotConfig.columns` and
+`tableConfig.columnOrder`. It is `null` on older hosts and every key inside
+is optional in practice, so guard each read and fall back to `chartKind`
+plus the result columns.
+
 ### Linked charts must be DATA-DRIVEN and crash-proof
 
 A linked chart's query can change in Lightdash *after* the app is generated (the

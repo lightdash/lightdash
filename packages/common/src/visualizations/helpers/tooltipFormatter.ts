@@ -5,7 +5,7 @@ import {
     type LineSeriesOption,
     type TooltipComponentFormatterCallback,
 } from 'echarts';
-import { toNumber } from 'lodash';
+import { toNumber } from 'es-toolkit/compat';
 import {
     isField,
     isTableCalculation,
@@ -1251,10 +1251,9 @@ export const buildCartesianTooltipFormatter =
             })
             .join('');
 
-        // custom HTML template
+        // Resolve raw references before HTML escaping changes their pivot values.
         let tooltipHtml = tooltipHtmlTemplate ?? '';
         if (tooltipHtml) {
-            tooltipHtml = sanitizeHtml(tooltipHtml);
             const firstParam = params[0];
             const firstValue = firstParam?.value;
             const fields = tooltipHtml.match(/\${(.*?)}/g);
@@ -1404,6 +1403,7 @@ export const buildCartesianTooltipFormatter =
             } else {
                 tooltipHtml = '';
             }
+            tooltipHtml = sanitizeHtml(tooltipHtml);
         }
 
         // No data at this x and no custom template (e.g., gap row from

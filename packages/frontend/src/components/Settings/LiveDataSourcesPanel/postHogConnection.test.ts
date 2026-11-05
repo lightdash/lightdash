@@ -85,6 +85,7 @@ describe('getPostHogSignInUrl', () => {
                 'project-1',
                 { name: ' Product ', region: 'eu' },
                 'connection-1',
+                'settings',
             ),
             'https://lightdash.example.com',
         );

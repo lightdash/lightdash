@@ -226,8 +226,10 @@ const buildAgentTools = (overrides: Partial<AiAgentArgs>) => {
         builtInSkills: [],
         customSkills: [{ name: 'test-skill' }],
         canCreateDashboards: true,
+        canCreateScheduledDeliveries: true,
         canRunSql: true,
         enableAiWriteback: true,
+        enableContentReads: true,
         enableContentTools: true,
         enableDataAccess: true,
         enableDocuments: true,
@@ -245,9 +247,20 @@ const buildAgentTools = (overrides: Partial<AiAgentArgs>) => {
         }),
         execution: { mode: 'standard', maxSteps: 10 },
         messageHistory: [{ role: 'user', content: 'Question' }],
-        composerApiConnections: [],
+        liveSources: [
+            {
+                connectionUuid: 'live-source',
+                name: 'Product analytics',
+                connector: 'posthog',
+            },
+        ],
         mcpServers: [],
-        requestingUser: { name: 'User', role: null, groups: [] },
+        requestingUser: {
+            name: 'User',
+            role: null,
+            groups: [],
+            isServiceAccount: false,
+        },
         maxQueryLimit: 5000,
         runSqlMaxLimit: 5000,
         getDashboardChartsPageSize: 10,
@@ -280,6 +293,7 @@ it('covers common agent definitions and all runtime variants without stale entri
         {},
         { enableComposerQueries: true },
         { enableContentTools: false },
+        { enableContentReads: false, enableContentTools: false },
         { decisions: undefined, canRunSql: false, enableDataAccess: false },
         ...(['coordinator', 'worker'] as const).flatMap((role) =>
             [false, true].map((canUseRawSql) => ({

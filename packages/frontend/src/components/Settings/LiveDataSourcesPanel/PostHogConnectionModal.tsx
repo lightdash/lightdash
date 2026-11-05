@@ -17,6 +17,7 @@ type Props = {
     projectUuid: string;
     connection: ExternalConnection | null;
     canSignIn: boolean;
+    onCreated: (connectionUuid: string) => void;
 };
 
 export const PostHogConnectionModal: FC<Props> = ({
@@ -25,6 +26,7 @@ export const PostHogConnectionModal: FC<Props> = ({
     projectUuid,
     connection,
     canSignIn,
+    onCreated,
 }) => {
     const form = usePostHogConnectionForm(connection, canSignIn);
     const createMutation = useCreateExternalConnection();
@@ -34,7 +36,12 @@ export const PostHogConnectionModal: FC<Props> = ({
     const signIn = (connectionUuid: string | null) => {
         if (form.validateField('name').hasError) return;
         window.location.assign(
-            getPostHogSignInUrl(projectUuid, form.values, connectionUuid),
+            getPostHogSignInUrl(
+                projectUuid,
+                form.values,
+                connectionUuid,
+                'settings',
+            ),
         );
     };
 
@@ -49,13 +56,14 @@ export const PostHogConnectionModal: FC<Props> = ({
                 connectionUuid: connection.externalConnectionUuid,
                 data: toPostHogUpdatePayload(values),
             });
-        } else {
-            await createMutation.mutateAsync({
-                projectUuid,
-                data: toPostHogCreatePayload(values),
-            });
+            onClose();
+            return;
         }
-        onClose();
+        const created = await createMutation.mutateAsync({
+            projectUuid,
+            data: toPostHogCreatePayload(values),
+        });
+        onCreated(created.externalConnectionUuid);
     });
 
     return (
@@ -75,6 +83,7 @@ export const PostHogConnectionModal: FC<Props> = ({
             cancelDisabled={isSaving}
         >
             <PostHogConnectionStep
+                showIntro
                 projectUuid={projectUuid}
                 form={form}
                 isEditing={!!connection}

@@ -72,17 +72,23 @@ export class UsageHistoryBackfill extends S3BaseClient {
                 ).run(org);
             }
             // Publish only after every source succeeds, including empty/no-op runs.
-            await this.s3!.putObject(
-                {
-                    Bucket: this.storage.bucket,
-                    Key,
-                    Body: JSON.stringify({
-                        completedAt: new Date().toISOString(),
-                    }),
-                    ContentType: 'application/json',
-                },
-                { abortSignal: AbortSignal.timeout(10_000) },
-            );
+            try {
+                await this.s3!.putObject(
+                    {
+                        Bucket: this.storage.bucket,
+                        Key,
+                        Body: JSON.stringify({
+                            completedAt: new Date().toISOString(),
+                        }),
+                        ContentType: 'application/json',
+                    },
+                    { abortSignal: AbortSignal.timeout(10_000) },
+                );
+            } catch {
+                throw new Error(
+                    'Unable to publish analytics history completion to storage. Retry the backfill or contact your administrator.',
+                );
+            }
         } finally {
             this.s3?.destroy();
         }

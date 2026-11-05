@@ -68,7 +68,7 @@ const PasswordPanel: FC = () => {
 
     return (
         <form onSubmit={handleOnSubmit}>
-            <Stack mt="md">
+            <Stack>
                 {hasPassword && (
                     <PasswordInput
                         label="Current password"

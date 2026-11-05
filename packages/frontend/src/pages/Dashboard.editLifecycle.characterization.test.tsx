@@ -15,6 +15,10 @@ import { type Layout } from 'react-grid-layout';
 import { createMemoryRouter, RouterProvider, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type LightdashApi } from '../api';
+import {
+    dashboardParametersActions,
+    useDashboardDispatch,
+} from '../features/dashboard/store';
 import { AbilityContext } from '../providers/Ability/context';
 import { manageChartRule } from '../testing/savedChartResponse.mock';
 import { renderWithProviders } from '../testing/testUtils';
@@ -155,9 +159,34 @@ type TabsProps = {
         mapping?: Record<string, string>,
     ) => void;
 };
+const TestControlButton = () => {
+    const dispatch = useDashboardDispatch();
+    return (
+        <button
+            type="button"
+            onClick={() =>
+                dispatch(
+                    dashboardParametersActions.setParameterControls([
+                        {
+                            id: 'unset-control',
+                            label: null,
+                            value: null,
+                            valueType: { type: 'string', multiple: false },
+                            parameters: { status: 'all' },
+                        },
+                    ]),
+                )
+            }
+        >
+            Add unset control
+        </button>
+    );
+};
+
 vi.mock('../features/dashboardTabs', () => ({
     default: (props: TabsProps) => (
         <div>
+            <TestControlButton />
             <output data-testid="tiles">
                 {JSON.stringify(props.dashboardTiles ?? null)}
             </output>
@@ -722,6 +751,37 @@ describe('edit lifecycle: refetches and drafts', () => {
 });
 
 describe('dashboard controls flag', () => {
+    it('marks an unset parameter control as a change and saves it', async () => {
+        server.isControlsFlagOn = true;
+        server.dashboard = makeDashboard({
+            config: { isDateZoomDisabled: false, parameterControls: [] },
+        });
+        renderDashboard(`${DASHBOARD_PATH}/edit`);
+        await waitForLoaded();
+        expect(changed()).toBe('false');
+
+        await click('Add unset control');
+        expect(changed()).toBe('true');
+        await click('Save');
+        await waitFor(() => expect(patches()).toHaveLength(1));
+        expect(patches()[0].config.parameterControls).toEqual([
+            {
+                id: 'unset-control',
+                label: null,
+                value: null,
+                valueType: { type: 'string', multiple: false },
+                parameters: { status: 'all' },
+            },
+        ]);
+        expect(patches()[0].parameters).toEqual({});
+    });
+
+    it('ignores parameter control edits when the flag is off', async () => {
+        renderDashboard(`${DASHBOARD_PATH}/edit`);
+        await waitForLoaded();
+        await click('Add unset control');
+        expect(changed()).toBe('false');
+    });
     const required: DashboardFilterRule = {
         id: 'required-filter',
         label: undefined,
@@ -741,8 +801,7 @@ describe('dashboard controls flag', () => {
         renderDashboard(`${DASHBOARD_PATH}/edit`);
         await waitForLoaded();
         await click('Drag tile-1');
-        // With the flag on, Save is the edit band's
-        await click(server.isControlsFlagOn ? 'Save dashboard' : 'Save');
+        await click('Save');
         await waitFor(() => expect(patches()).toHaveLength(1));
         return patches()[0].filters.dimensions;
     };

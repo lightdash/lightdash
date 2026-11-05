@@ -8,8 +8,7 @@ import {
     type DocumentCharts,
     type SemanticChartAsCode,
 } from '@lightdash/common';
-import isEqual from 'lodash/isEqual';
-import omit from 'lodash/omit';
+import { isEqual, omit } from 'es-toolkit/compat';
 import {
     normalizeFilterIds,
     stripFilterIds,

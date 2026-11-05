@@ -3,6 +3,10 @@ import {
     assertUnreachable,
     type ExternalConnectionApiSource,
 } from '@lightdash/common';
+import {
+    setLiveSourceReturnTo,
+    type LiveSourceReturnTo,
+} from './postHogConnection';
 
 export type GoogleConnector =
     | ApiConnectorType.SEARCH_CONSOLE
@@ -49,9 +53,11 @@ export const getGoogleSignInUrl = (
     connector: GoogleConnector,
     name: string,
     connectionUuid: string | null,
+    returnTo: LiveSourceReturnTo,
 ) => {
     const params = new URLSearchParams({ connector, name: name.trim() });
     if (connectionUuid) params.set('connectionUuid', connectionUuid);
+    setLiveSourceReturnTo(params, returnTo);
     return `/api/v1/ee/projects/${projectUuid}/live-sources/google/oauth/start?${params.toString()}`;
 };
 

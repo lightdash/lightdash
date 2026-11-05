@@ -99,6 +99,9 @@ export type Ga4ConnectorArgs = {
 export const getGa4ReportPath = (propertyId: string) =>
     `/v1beta/properties/${propertyId}:runReport`;
 
+export const getGa4MetadataPath = (propertyId: string) =>
+    `/v1beta/properties/${propertyId}/metadata`;
+
 const parseRequest = (query: string): z.infer<typeof requestSchema> => {
     let json: unknown;
     try {
@@ -121,7 +124,8 @@ const parseRequest = (query: string): z.infer<typeof requestSchema> => {
 };
 
 // GA4 names custom fields like customEvent:plan; columns need plain names.
-const toColumnName = (name: string) => name.replace(/[^A-Za-z0-9_]/g, '_');
+export const toGa4ColumnName = (name: string) =>
+    name.replace(/[^A-Za-z0-9_]/g, '_');
 
 // GA4 reports dates as YYYYMMDD.
 const toIsoDate = (value: string) =>
@@ -156,6 +160,22 @@ export class Ga4Connector implements ApiConnector {
             timeoutMs: GA4_TIMEOUT_MS,
             limits: GA4_LIMITS,
         };
+    }
+
+    /** The property's dimensions and metrics, including its custom ones. */
+    async getMetadata(): Promise<unknown> {
+        const response = await this.send({
+            method: 'GET',
+            path: getGa4MetadataPath(this.propertyId),
+            body: null,
+        });
+        if (response.status < 200 || response.status >= 300) {
+            throw toGoogleApiError(response, {
+                label: 'Google Analytics',
+                resource: `property ${this.propertyId}`,
+            });
+        }
+        return response.body;
     }
 
     async execute({
@@ -196,12 +216,12 @@ export class Ga4Connector implements ApiConnector {
         );
         const columns: ApiConnectorColumn[] = [
             ...dimensionNames.map((name) => ({
-                name: toColumnName(name),
+                name: toGa4ColumnName(name),
                 type:
                     name === 'date' ? DimensionType.DATE : DimensionType.STRING,
             })),
             ...metricNames.map((name) => ({
-                name: toColumnName(name),
+                name: toGa4ColumnName(name),
                 type: DimensionType.NUMBER,
             })),
         ];
@@ -217,7 +237,7 @@ export class Ga4Connector implements ApiConnector {
                 dimensionNames.map((name, index) => {
                     const value = row.dimensionValues?.[index]?.value ?? null;
                     return [
-                        toColumnName(name),
+                        toGa4ColumnName(name),
                         name === 'date' && value !== null
                             ? toIsoDate(value)
                             : value,
@@ -226,7 +246,7 @@ export class Ga4Connector implements ApiConnector {
             ),
             ...Object.fromEntries(
                 metricNames.map((name, index) => [
-                    toColumnName(name),
+                    toGa4ColumnName(name),
                     toNumber(row.metricValues?.[index]?.value),
                 ]),
             ),

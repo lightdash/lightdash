@@ -2,6 +2,7 @@ import { Box } from '@mantine/core';
 import { type ComponentProps, type FC, type ReactNode } from 'react';
 import {
     selectControlSections,
+    selectParameterControls,
     useDashboardSelector,
 } from '../dashboard/store';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
@@ -9,9 +10,14 @@ import { AddControl } from './AddControl';
 import classes from './ControlsBar.module.css';
 import { FilterPills } from './FilterPills';
 import { MappingRow } from './MappingRow';
+import { ParameterMappingRow } from './ParameterMappingRow';
+import { ParameterPills } from './ParameterPills';
 import { SectionedFilters } from './SectionedFilters';
 import { SettledFilterFields } from './SettledFilterFields';
 import { useControlsSidebarSelector } from './useControlsSidebar';
+import { useParameterEditorSelector } from './useParameterEditor';
+
+const NO_PARAMETERS = {};
 
 type Props = Omit<
     ComponentProps<typeof DashboardFiltersBar>,
@@ -20,6 +26,7 @@ type Props = Omit<
 
 // The shipped bar with its filter area swapped, in edit and view mode alike
 export const ControlsBar: FC<Props> = (props) => {
+    const controls = useDashboardSelector(selectParameterControls);
     const isSidebarOpen = useControlsSidebarSelector((c) => c.isSidebarOpen);
     const hasSections = useDashboardSelector(
         (state) => selectControlSections(state).length > 0,
@@ -27,6 +34,8 @@ export const ControlsBar: FC<Props> = (props) => {
     const filterRow = (
         <DashboardFiltersBar
             {...props}
+            // Parameters are controls on this bar, after the filters
+            parameters={controls === null ? props.parameters : NO_PARAMETERS}
             // The rail is on the page: a drawer over it would hide it
             isCompactDrawerSuppressed={isSidebarOpen}
             // The flat bar's items share each line's centre with the
@@ -34,6 +43,8 @@ export const ControlsBar: FC<Props> = (props) => {
             filtersAlign={
                 hasSections || props.isEditMode ? 'flex-start' : 'center'
             }
+            // The sectioned flow spans several lines: parameters wrap beside it
+            isParametersColumn={hasSections || props.isEditMode}
             filterArea={
                 <SettledFilterFields>
                     {/* An editor's bar is always sectioned: its selection starts the first section */}
@@ -43,6 +54,7 @@ export const ControlsBar: FC<Props> = (props) => {
                         <>
                             <AddControl />
                             <FilterPills activeTabUuid={props.activeTabUuid} />
+                            <ParameterPills />
                         </>
                     )}
                 </SettledFilterFields>
@@ -56,7 +68,9 @@ export const ControlsBar: FC<Props> = (props) => {
 // place. The filter row stays mounted, faded, inert and out of the layout,
 // so the bar shrinks to one line and the row comes back at once
 export const MappingSwap: FC<{ children: ReactNode }> = ({ children }) => {
-    const isMapping = useControlsSidebarSelector((c) => c.isMapping);
+    const isFilterMapping = useControlsSidebarSelector((c) => c.isMapping);
+    const isParameterMapping = useParameterEditorSelector((c) => c.isMapping);
+    const isMapping = isFilterMapping || isParameterMapping;
     return (
         <Box className={classes.swap}>
             <Box
@@ -66,7 +80,8 @@ export const MappingSwap: FC<{ children: ReactNode }> = ({ children }) => {
             >
                 {children}
             </Box>
-            {isMapping && <MappingRow />}
+            {isFilterMapping && <MappingRow />}
+            {isParameterMapping && <ParameterMappingRow />}
         </Box>
     );
 };

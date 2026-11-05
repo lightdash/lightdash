@@ -127,16 +127,13 @@ export const lightdashConfigMock: LightdashConfig = {
     dbt: {
         environmentVariableAllowlist: [],
         sourceFetchConcurrency: undefined,
-        crossSourceMaxPasses: 3,
         sourceFetchDiskBudgetBytes: undefined,
         sourceFetchDiskPerSourceBytes: 256 * 1024 ** 2,
-        crossSourcePrepareTimeoutMs: 180000,
-        crossSourceLsTimeoutMs: 300000,
-        crossSourceResolutionTimeoutMs: 1200000,
     },
     dashboard: {
         maxTilesPerTab: 50,
         maxTabsPerDashboard: 20,
+        maxConcurrentTileQueries: null,
         disableSentryTracking: false,
     },
     database: {
@@ -240,6 +237,16 @@ export const lightdashConfigMock: LightdashConfig = {
             cleanup: {
                 enabled: true,
                 retentionDays: 30,
+                batchSize: 1000,
+                delayMs: 100,
+                maxBatches: 100,
+            },
+        },
+        appStateHistory: {
+            cleanup: {
+                enabled: true,
+                retentionDays: 90,
+                keepVersions: 50,
                 batchSize: 1000,
                 delayMs: 100,
                 maxBatches: 100,

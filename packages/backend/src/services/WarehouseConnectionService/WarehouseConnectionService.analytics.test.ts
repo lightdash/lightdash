@@ -125,8 +125,9 @@ const buildService = (mixedTypesEnabled = false) => {
         }),
         updateExtraCredentials: vi.fn(),
         getCredentials: vi.fn().mockResolvedValue(credentials),
-        loadOrganizationCredentials: vi.fn(),
-        getExtraCredentialSource: vi.fn(),
+        getExtraCredentialSource: vi.fn().mockResolvedValue({
+            credentials,
+        }),
         transaction: vi.fn(),
     };
     model.transaction.mockImplementation(
@@ -165,12 +166,7 @@ const buildService = (mixedTypesEnabled = false) => {
             .fn()
             .mockResolvedValue(credentials),
     };
-    const dbtSourceRefCatalogModel = {
-        deleteForProject: vi.fn(),
-        deleteForSource: vi.fn(),
-    };
     const service = new WarehouseConnectionService({
-        dbtSourceRefCatalogModel,
         warehouseConnectionModel: model as unknown as WarehouseConnectionModel,
         projectModel: projectModel as unknown as Pick<
             ProjectModel,
@@ -188,7 +184,6 @@ const buildService = (mixedTypesEnabled = false) => {
     });
     return {
         service,
-        dbtSourceRefCatalogModel,
         model,
         analytics,
         featureFlagService,
@@ -198,6 +193,42 @@ const buildService = (mixedTypesEnabled = false) => {
 };
 
 describe('WarehouseConnectionService lifecycle analytics', () => {
+    it.each(
+        (['create', 'update'] as const).flatMap((operation) =>
+            [false, true].map((includeInlineCredentials) => ({
+                operation,
+                includeInlineCredentials,
+            })),
+        ),
+    )(
+        'rejects retired references on $operation with inline credentials $includeInlineCredentials',
+        async ({ operation, includeInlineCredentials }) => {
+            const { service, model, credentialPolicy } = buildService();
+            const request = {
+                name: 'Extra',
+                warehouseType: WarehouseTypes.POSTGRES,
+                organizationWarehouseCredentialsUuid: 'retired-credential',
+                ...(includeInlineCredentials
+                    ? { warehouseConnection: credentials }
+                    : {}),
+            };
+
+            await expect(
+                operation === 'create'
+                    ? service.create(account, projectUuid, request)
+                    : service.update(account, projectUuid, extraUuid, request),
+            ).rejects.toThrow(
+                'Organization warehouse credentials are no longer supported',
+            );
+            expect(model.createExtra).not.toHaveBeenCalled();
+            expect(model.updateExtraCredentials).not.toHaveBeenCalled();
+            expect(model.updateListingSettings).not.toHaveBeenCalled();
+            expect(
+                credentialPolicy.testWarehouseConnectionCredentialsForSave,
+            ).not.toHaveBeenCalled();
+        },
+    );
+
     it('tracks the saved SQL runner listing settings for the primary connection', async () => {
         const { service, model, analytics } = buildService();
 
@@ -405,29 +436,6 @@ describe('WarehouseConnectionService mixed warehouse types', () => {
     );
 
     it.each(['create', 'update'] as const)(
-        'allows a BigQuery organization extra with the flag on on %s',
-        async (operation) => {
-            const { service, model } = buildService(true);
-            model.get.mockResolvedValue({
-                ...connection(extraUuid, false),
-                warehouseType: WarehouseTypes.BIGQUERY,
-            });
-            model.loadOrganizationCredentials.mockResolvedValue({
-                type: WarehouseTypes.BIGQUERY,
-            });
-            const request = {
-                name: 'BigQuery',
-                organizationWarehouseCredentialsUuid:
-                    'organization-credentials-uuid',
-            };
-            await (operation === 'create'
-                ? service.create(account, projectUuid, request)
-                : service.update(account, projectUuid, extraUuid, request));
-            expect(model.loadOrganizationCredentials).toHaveBeenCalled();
-        },
-    );
-
-    it.each(['create', 'update'] as const)(
         'rechecks the warehouse type inside the %s transaction with the same flag value',
         async (operation) => {
             const { service, model, featureFlagService } = buildService();
@@ -559,33 +567,22 @@ describe('WarehouseConnectionService warehouse matrix', () => {
             ).not.toHaveBeenCalled();
         },
     );
-    it.each(['project', 'organization'] as const)(
-        'refuses internal analytics from %s credentials',
-        async (kind) => {
-            const { service, model } = buildService(true);
-            const warehouseConnection = {
-                type: WarehouseTypes.DUCKDB,
-                connectionType: DuckdbConnectionType.ANALYTICS,
-                database: 'memory',
-                schema: 'main',
-            } as const;
-            model.loadOrganizationCredentials.mockResolvedValue(
+    it('refuses internal analytics from project credentials', async () => {
+        const { service, model } = buildService(true);
+        const warehouseConnection = {
+            type: WarehouseTypes.DUCKDB,
+            connectionType: DuckdbConnectionType.ANALYTICS,
+            database: 'memory',
+            schema: 'main',
+        } as const;
+        await expect(
+            service.create(account, projectUuid, {
+                name: 'Analytics',
                 warehouseConnection,
-            );
-            await expect(
-                service.create(account, projectUuid, {
-                    name: 'Analytics',
-                    ...(kind === 'project'
-                        ? { warehouseConnection }
-                        : {
-                              organizationWarehouseCredentialsUuid:
-                                  'org-credentials',
-                          }),
-                }),
-            ).rejects.toThrow('Internal analytics');
-            expect(model.createExtra).not.toHaveBeenCalled();
-        },
-    );
+            }),
+        ).rejects.toThrow('Internal analytics');
+        expect(model.createExtra).not.toHaveBeenCalled();
+    });
 });
 
 describe('WarehouseConnectionService database listing validation', () => {
@@ -680,7 +677,6 @@ describe('connection details credential redaction', () => {
                 warehouseType: savedCredentials.type,
             });
             model.getExtraCredentialSource.mockResolvedValue({
-                organizationWarehouseCredentialsUuid: null,
                 credentials: savedCredentials,
             });
             const response = await service.get(account, projectUuid, extraUuid);
@@ -698,28 +694,17 @@ describe('connection details credential redaction', () => {
 describe('connection type immutability', () => {
     it.each(
         [false, true].flatMap((enabled) =>
-            ['project', 'organization'].map((source) => ({ enabled, source })),
+            ['project'].map((source) => ({ enabled, source })),
         ),
     )(
         "refuses a type change with flag $enabled and $source credentials, with main's message when off",
-        async ({ enabled, source }) => {
+        async ({ enabled }) => {
             const { service, model, credentialPolicy } = buildService(enabled);
             model.get.mockResolvedValue(connection(extraUuid, false));
-            model.loadOrganizationCredentials.mockResolvedValue(
-                trinoCredentials,
-            );
             await expect(
-                service.update(
-                    account,
-                    projectUuid,
-                    extraUuid,
-                    source === 'project'
-                        ? { warehouseConnection: trinoCredentials }
-                        : {
-                              organizationWarehouseCredentialsUuid:
-                                  'org-credentials',
-                          },
-                ),
+                service.update(account, projectUuid, extraUuid, {
+                    warehouseConnection: trinoCredentials,
+                }),
             ).rejects.toThrow(
                 enabled
                     ? "A connection's warehouse type cannot be changed. Add a new connection instead."
@@ -747,123 +732,6 @@ describe('connection type immutability', () => {
             "A connection's warehouse type cannot be changed. Add a new connection instead.",
         );
         expect(model.updateExtraCredentials).not.toHaveBeenCalled();
-    });
-});
-
-describe('cross-source ref cache invalidation', () => {
-    it.each([true, false])(
-        'deletes only the removed connection group when the flag is %s',
-        async (enabled) => {
-            const h = buildService();
-            h.featureFlagService.get.mockImplementation(
-                async ({ featureFlagId }) => ({
-                    id: featureFlagId,
-                    enabled:
-                        featureFlagId !== FeatureFlags.CrossSourceDbtRefs ||
-                        enabled,
-                }),
-            );
-            h.model.get.mockResolvedValue(connection(extraUuid, false));
-            h.model.getBoundContent.mockResolvedValue({
-                explores: [],
-                dbtSources: [],
-                sqlCharts: [],
-                inFlightQueries: 0,
-            });
-            await h.service.delete(account, projectUuid, extraUuid);
-            expect(h.model.deleteExtra).toHaveBeenCalledWith(
-                project,
-                extraUuid,
-            );
-            if (enabled)
-                expect(
-                    h.dbtSourceRefCatalogModel.deleteForProject,
-                ).toHaveBeenCalledExactlyOnceWith(projectUuid, extraUuid);
-            else
-                expect(
-                    h.dbtSourceRefCatalogModel.deleteForProject,
-                ).not.toHaveBeenCalled();
-        },
-    );
-
-    it('keeps rows when the connection cannot be deleted', async () => {
-        const h = buildService();
-        h.model.get.mockResolvedValue(connection(extraUuid, false));
-        await expect(
-            h.service.delete(account, projectUuid, extraUuid),
-        ).rejects.toThrow('cannot be removed while content uses it');
-        expect(
-            h.dbtSourceRefCatalogModel.deleteForProject,
-        ).not.toHaveBeenCalled();
-    });
-
-    it.each([true, false])(
-        'deletes rows for a rebound source when the flag is %s, even if analytics cannot read bindings',
-        async (enabled) => {
-            const h = buildService();
-            const bindDbtSource = vi.fn();
-            const service = new WarehouseConnectionBindingService({
-                projectModel: {
-                    getSummary: h.projectModel.getSummary,
-                    getDbtSourceIdentity: vi.fn(async () => ({
-                        dbtSourceUuid: 'primary-source',
-                        dbtSourceName: 'primary',
-                    })),
-                },
-                warehouseConnectionModel: h.model,
-                warehouseConnectionCompileModel: {
-                    bindDbtSource,
-                    getDbtSourceBindings: vi
-                        .fn()
-                        .mockRejectedValue(new Error('analytics unavailable')),
-                } as never,
-                dbtSourceRefCatalogModel: h.dbtSourceRefCatalogModel,
-                featureFlagService: {
-                    get: vi.fn(async ({ featureFlagId }) => ({
-                        id: featureFlagId,
-                        enabled,
-                    })),
-                } as never,
-                credentialPolicy: h.credentialPolicy,
-                analytics: h.analytics,
-            });
-            await service.bindDbtSource(
-                account,
-                projectUuid,
-                'source',
-                extraUuid,
-            );
-            expect(bindDbtSource).toHaveBeenCalledWith(
-                projectUuid,
-                'source',
-                extraUuid,
-            );
-            if (enabled)
-                expect(
-                    h.dbtSourceRefCatalogModel.deleteForSource,
-                ).toHaveBeenCalledExactlyOnceWith(projectUuid, 'source');
-            else
-                expect(
-                    h.dbtSourceRefCatalogModel.deleteForSource,
-                ).not.toHaveBeenCalled();
-        },
-    );
-
-    it('does not fail a connection deletion when cache cleanup fails', async () => {
-        const h = buildService();
-        h.model.get.mockResolvedValue(connection(extraUuid, false));
-        h.model.getBoundContent.mockResolvedValue({
-            explores: [],
-            dbtSources: [],
-            sqlCharts: [],
-            inFlightQueries: 0,
-        });
-        h.dbtSourceRefCatalogModel.deleteForProject.mockRejectedValue(
-            new Error('cache unavailable'),
-        );
-        await expect(
-            h.service.delete(account, projectUuid, extraUuid),
-        ).resolves.toBeUndefined();
     });
 });
 

@@ -165,8 +165,8 @@ import {
     type UpgradeCandidateFeature,
 } from '@lightdash/common';
 import { generateText, Output } from 'ai';
+import { isEqual } from 'es-toolkit/compat';
 import { Knex } from 'knex';
-import isEqual from 'lodash/isEqual';
 import { createHash } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { PassThrough, Readable } from 'node:stream';

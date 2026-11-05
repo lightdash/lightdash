@@ -310,6 +310,8 @@ interface AgentChatInputProps {
     dense?: boolean;
     // Rendered below the input, right-aligned like the disabled-reason banner.
     footerNotice?: ReactNode;
+    // Rendered in the toolbar after the attach menu, e.g. a starter prompt.
+    toolbarStart?: ReactNode;
     // Thread model shown in the status row under the inline composer.
     threadModelName?: string | null;
     threadModelWarning?: string | null;
@@ -380,6 +382,7 @@ export const AgentChatInput = ({
     revealControlsOnFocus = false,
     dense = false,
     footerNotice,
+    toolbarStart,
     threadModelName,
     threadModelWarning = null,
 }: AgentChatInputProps) => {
@@ -1620,7 +1623,7 @@ export const AgentChatInput = ({
                 data-tour-title="Ask an AI agent"
                 data-tour-interactive="true"
                 data-tour-via='[data-tour-nav="ask-ai"] >> [data-tour-anchor="ai-suggestion"]'
-                data-tour-docs="agents.mdx#intro:2"
+                data-tour-docs="agents/data-access.mdx#who-can-see-what:p4:2-3"
                 disabled={
                     disabled ||
                     !hasValue ||
@@ -1680,6 +1683,7 @@ export const AgentChatInput = ({
                                     <Group gap={4} align="center" wrap="nowrap">
                                         {renderComposerActionsMenu()}
                                         {renderThemeButton()}
+                                        {toolbarStart}
                                     </Group>
                                 }
                                 toolbarRight={
@@ -1747,6 +1751,7 @@ export const AgentChatInput = ({
                             <Group gap="xs" align="center" wrap="nowrap">
                                 {renderComposerActionsMenu()}
                                 {renderThemeButton()}
+                                {toolbarStart}
                             </Group>
                         }
                         toolbarRight={

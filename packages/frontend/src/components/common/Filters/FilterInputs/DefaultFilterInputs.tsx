@@ -7,7 +7,7 @@ import {
     type BaseFilterRule,
 } from '@lightdash/common';
 import { Box, TagsInput } from '@mantine/core';
-import isString from 'lodash/isString';
+import { isString } from 'es-toolkit/compat';
 import { type FilterInputsProps } from '.';
 import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
 import useFiltersContext from '../useFiltersContext';

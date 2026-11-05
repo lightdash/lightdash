@@ -14,6 +14,7 @@ import {
 } from '../eventStream/contentViewsStream';
 import { compactedStreamSchemas } from '../eventStream/registry';
 import type { CompactedStreamColumn } from '../eventStream/types';
+import { contentHealthSql } from './contentHealth';
 
 const compile = (dimensions: string[], metrics = ['total_content']) =>
     new MetricQueryBuilder({
@@ -228,6 +229,83 @@ describe('Content health', () => {
                 ?.content_health_observed_viewers,
         ).toBe('1');
     });
+
+    it.each(['never', 'removed'])(
+        'attributes queries to both chart %s and its dashboard without crossing scopes or content types',
+        async (chartId) => {
+            const query = {
+                org_id: 'org',
+                project_id: 'project',
+                chart_id: chartId,
+                dashboard_id: 'used',
+            };
+            for (const [id, date, time] of [
+                ['shared', '2026-09-20', 10],
+                ['shared', '2026-09-21', 20],
+                [null, '2026-09-22', 5],
+                [null, '2026-09-23', null],
+            ] as const) {
+                await insert('query_events', {
+                    ...query,
+                    query_id: id,
+                    event_ts: date,
+                    warehouse_execution_time_ms: time,
+                });
+            }
+            for (const scope of [
+                { org_id: 'other-org', project_id: 'project' },
+                { org_id: 'org', project_id: 'other-project' },
+            ]) {
+                await insert('lightdash_content', {
+                    ...scope,
+                    content_id: chartId,
+                    content_type: 'saved_chart',
+                });
+                await insert('query_events', {
+                    ...query,
+                    ...scope,
+                    query_id: 'shared',
+                    event_ts: '2026-09-24',
+                    warehouse_execution_time_ms: 1000,
+                });
+            }
+            await insert('query_events', {
+                ...query,
+                query_id: 'wrong-type',
+                chart_id: 'used',
+                dashboard_id: chartId,
+                event_ts: '2026-09-25',
+                warehouse_execution_time_ms: 1000,
+            });
+            const rows = (
+                await db.runAndReadAll(`SELECT content_id, is_deleted,
+                    observed_queries, warehouse_execution_time_ms,
+                    queries_with_execution_time, last_query_at
+                    FROM ${contentHealthSql} health
+                    WHERE org_id = 'org' AND project_id = 'project'`)
+            ).getRowObjectsJson();
+            expect(rows).toHaveLength(5);
+            for (const id of [chartId, 'used']) {
+                expect(rows.find((row) => row.content_id === id)).toMatchObject(
+                    {
+                        observed_queries: '3',
+                        warehouse_execution_time_ms: '25',
+                        queries_with_execution_time: '2',
+                        last_query_at: '2026-09-23 00:00:00',
+                    },
+                );
+            }
+            expect(
+                rows.find((row) => row.content_id === chartId)?.is_deleted,
+            ).toBe(chartId === 'removed');
+            expect(
+                rows.reduce(
+                    (sum, row) => sum + Number(row.observed_queries),
+                    0,
+                ),
+            ).toBe(6);
+        },
+    );
 
     it('handles large retained histories from projects absent from inventory within bounded memory', async () => {
         const directory = await mkdtemp(path.join(tmpdir(), 'content-health-'));

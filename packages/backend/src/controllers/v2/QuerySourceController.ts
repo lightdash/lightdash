@@ -134,6 +134,7 @@ export class QuerySourceController extends BaseController {
                 // HTTP API resolves attributes from the account alone
                 userAttributeOverrides: {},
                 invalidateCache: body.invalidateCache ?? false,
+                aiAttribution: null,
             });
         return { status: 'ok', results };
     }

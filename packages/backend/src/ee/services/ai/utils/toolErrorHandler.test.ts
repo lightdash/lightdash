@@ -5,6 +5,8 @@ import {
     ForbiddenError,
     MissingWarehouseCredentialsError,
     NotFoundError,
+    PersonSignInProvider,
+    SnowflakeTokenError,
     toolErrorStructuredContentSchema,
     toolRunSqlOutputSchema,
     UnexpectedServerError,
@@ -13,6 +15,7 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import Logger from '../../../../logging/logger';
 import {
     isAgentRecoverableError,
     toolErrorHandler,
@@ -27,7 +30,7 @@ vi.mock('@sentry/node', () => ({
 
 vi.mock('../../../../logging/logger', () => ({
     __esModule: true,
-    default: { error: vi.fn(), info: vi.fn(), debug: vi.fn() },
+    default: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }));
 
 const captureException = Sentry.captureException as import('vitest').Mock;
@@ -208,4 +211,53 @@ test('appends plain additional requirements and See why without changing the fir
         error: output.result,
         refusal: error.refusal,
     });
+});
+
+test('preserves personal Snowflake reauthentication through tool metadata parsing', () => {
+    vi.mocked(Logger.error).mockClear();
+    vi.mocked(Logger.warn).mockClear();
+    const output = toolErrorOutput(
+        new SnowflakeTokenError('Error refreshing snowflake token', {
+            requiresUserReauthentication: true,
+        }),
+        'Error running query.',
+    );
+    expect(output.metadata).toMatchObject({
+        requiresSnowflakeReauthentication: true,
+    });
+    expect(toolRunSqlOutputSchema.parse(output).metadata).toMatchObject({
+        requiresSnowflakeReauthentication: true,
+    });
+    expect(output.result).toContain('Your Snowflake sign-in has expired');
+    expect(output.result).not.toContain('Try again');
+    expect(Logger.warn).toHaveBeenCalledWith(
+        '[AiAgent][Tool Error Handler] Personal Snowflake sign-in requires reauthentication',
+    );
+    expect(Logger.error).not.toHaveBeenCalled();
+});
+
+test('does not offer personal reauthentication for an expired shared project sign-in', () => {
+    const error = new SnowflakeTokenError('Ask a project admin to reconnect.', {
+        sharedSignIn: {
+            projectUuid: 'project',
+            provider: PersonSignInProvider.SNOWFLAKE,
+            subjectUserUuid: null,
+            subjectName: null,
+            subjectBasis: null,
+        },
+    });
+    const output = toolErrorOutput(error, 'Error running query.');
+    expect(output.metadata).toEqual({ status: 'error' });
+    expect(output.result).toContain(error.message);
+    expect(output.result).not.toContain('your own Snowflake account');
+});
+
+test('keeps unattributed Snowflake token errors unchanged', () => {
+    const output = toolErrorOutput(
+        new SnowflakeTokenError('Expired token'),
+        'Error running query.',
+    );
+    expect(output.metadata).toEqual({ status: 'error' });
+    expect(output.result).toContain('Expired token');
+    expect(output.result).not.toContain('your own Snowflake account');
 });

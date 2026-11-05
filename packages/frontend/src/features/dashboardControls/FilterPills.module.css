@@ -34,7 +34,7 @@
     opacity: 0.4;
 }
 
-/* The "..." joined to "Add filter", drawn as the shipped eye it replaces */
+/* The settings button shares the Add button’s dashed outline. */
 .joinedMenuTrigger {
     border-left: 0;
     border-style: dashed;

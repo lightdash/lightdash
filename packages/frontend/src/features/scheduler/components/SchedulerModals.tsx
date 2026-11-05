@@ -9,8 +9,9 @@ import {
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import { readAppUrlState } from '../../apps/hooks/useAppUrlStateSync';
 import {
+    selectDashboardEffectiveParameterValues,
     selectDashboardParameterDefinitions,
-    selectParameterValues,
+    selectDashboardWideParameterValues,
     useDashboardSelector,
 } from '../../dashboard/store';
 import {
@@ -52,7 +53,13 @@ export const DashboardSchedulersModal: FC<DashboardSchedulersProps> = ({
     const createMutation = useDashboardSchedulerCreateMutation();
 
     // Extract parameter data from dashboard context
-    const currentParameterValues = useDashboardSelector(selectParameterValues);
+    const currentParameterValues = useDashboardSelector(
+        selectDashboardEffectiveParameterValues,
+    );
+    // With saved controls a delivery carries only the picks: its values beat every control holding the key
+    const outsideParameterValues = useDashboardSelector(
+        selectDashboardWideParameterValues,
+    );
     const availableParameters = useDashboardSelector(
         selectDashboardParameterDefinitions,
     );
@@ -71,6 +78,16 @@ export const DashboardSchedulersModal: FC<DashboardSchedulersProps> = ({
             createMutation={createMutation}
             isChart={false}
             currentParameterValues={currentParameterValues}
+            initialFormValues={
+                outsideParameterValues === currentParameterValues
+                    ? undefined
+                    : {
+                          parameters:
+                              Object.keys(outsideParameterValues).length > 0
+                                  ? outsideParameterValues
+                                  : undefined,
+                      }
+            }
             availableParameters={availableParameters}
             filterableFieldsByTileUuid={filterableFieldsByTileUuid}
             hiddenFilterableFieldIds={hiddenFilterableFieldIds}

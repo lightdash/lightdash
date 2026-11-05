@@ -1,6 +1,7 @@
 import { type LightdashProjectParameter } from '../types/lightdashProjectConfig';
 import {
     getAllowedParameterValue,
+    isParameterCompatible,
     omitDisallowedParameterValues,
 } from './parameterOptions';
 
@@ -79,5 +80,68 @@ describe('omitDisallowedParameterValues', () => {
                 { time_zoom: fixed, other: { label: 'Other' } },
             ),
         ).toEqual({ other: 'x', unknown: 'y' });
+    });
+});
+
+describe('isParameterCompatible', () => {
+    const regions: LightdashProjectParameter = {
+        label: 'Region',
+        options: ['EMEA', 'APAC'],
+        default: 'EMEA',
+    };
+
+    it('takes the same options and default', () => {
+        expect(
+            isParameterCompatible(regions, {
+                label: 'Payments region',
+                options: ['APAC', 'EMEA'],
+            }),
+        ).toBe(true);
+    });
+
+    it('refuses other options', () => {
+        expect(
+            isParameterCompatible(regions, {
+                label: 'Currency',
+                options: ['EUR', 'USD'],
+            }),
+        ).toBe(false);
+    });
+
+    it('refuses a different multiple', () => {
+        expect(
+            isParameterCompatible(regions, { ...regions, multiple: true }),
+        ).toBe(false);
+    });
+
+    it('refuses another type, even one that takes any value', () => {
+        expect(
+            isParameterCompatible(regions, { label: 'Start', type: 'date' }),
+        ).toBe(false);
+        expect(
+            isParameterCompatible(regions, {
+                label: 'Threshold',
+                type: 'number',
+                allow_custom_values: true,
+            }),
+        ).toBe(false);
+        expect(
+            isParameterCompatible(regions, {
+                label: 'Region',
+                type: 'string',
+                options: ['EMEA', 'APAC'],
+                default: 'EMEA',
+            }),
+        ).toBe(true);
+    });
+
+    it('lets one that takes custom values join a fixed-options control, not the reverse', () => {
+        const custom: LightdashProjectParameter = {
+            label: 'Region',
+            options: ['EMEA'],
+            allow_custom_values: true,
+        };
+        expect(isParameterCompatible(regions, custom)).toBe(true);
+        expect(isParameterCompatible(custom, regions)).toBe(false);
     });
 });

@@ -24,6 +24,10 @@ export const DEFAULT_UI_STRINGS = {
     'agentAttribution.dataApp': 'Data app',
     'agentAttribution.aiSummary': 'AI summary',
 
+    'aiAccess.snowflakeSignInExpired': 'Your Snowflake sign-in has expired.',
+    'aiAccess.snowflakeReconnect': 'Re-authenticate with Snowflake',
+    'aiAccess.snowflakeReconnected':
+        'You are reconnected. Send your question again to continue.',
     'aiAccess.runAsMe': 'Run as me',
     'aiAccess.alsoNeeded': 'Also needed: {requirements}',
     'aiAccess.requirements.capabilities.read_discover': 'Read and discover',
@@ -408,6 +412,65 @@ export const DEFAULT_UI_STRINGS = {
     'filters.rail.mappingFilters': 'filters',
     'filters.rail.backToFilter': 'Back to filter',
     'filters.rail.mappingUsing': 'using',
+    'controls.newFilter': 'New filter',
+    'controls.filterName': 'Filter name',
+    'controls.removeFilter': 'Remove filter',
+    'controls.onlyYouSeeFilter': 'Only you see this filter',
+    'controls.collapse': 'Collapse',
+    'controls.tileCount.singular': '{count} tile',
+    'controls.tileCount.plural': '{count} tiles',
+    'controls.countOf': '{applied} of {total}',
+    'controls.tabFraction': '{applied}/{total}',
+    'controls.searchFields': 'Search fields',
+    'controls.noOtherField': 'No tile has another field this filter could use',
+    'controls.sqlColumn': 'SQL column',
+    'controls.thisFilter': 'this filter',
+    'controls.tabCountTooltip.singular':
+        '{applied} of {total} tile on this tab is filtered by {subject}',
+    'controls.tabCountTooltip.plural':
+        '{applied} of {total} tiles on this tab are filtered by {subject}',
+    'controls.sectionCount.singular': '{count} filter',
+    'controls.sectionCount.plural': '{count} filters',
+    'controls.sectionControlCount.singular': '{count} control',
+    'controls.sectionControlCount.plural': '{count} controls',
+    'controls.untitledSection': 'Untitled section',
+    'controls.collapseSection': 'Collapse section {section}',
+    'controls.expandSection': 'Expand section {section}',
+    'controls.add': 'Add',
+    'controls.discard': 'Discard',
+    'controls.applyChangesFirst': 'Apply changes to {filter} first?',
+    'controls.appliesTo': 'Applies to {tiles}',
+    'controls.chooseTiles': 'Choose tiles',
+    'controls.addField': 'Add a field',
+    'controls.mappingFilters': 'filters',
+    'controls.backToFilter': 'Back to filter',
+    'controls.mappingUsing': 'using',
+    'controls.operatorLabel': 'Operator: {operator}',
+    'controls.sets': 'Sets {tiles}',
+    'controls.setsNoTiles': 'Sets no tiles',
+    'controls.parameter.clearedUsesDefault':
+        'If cleared, tiles use the default, {value}.',
+    'controls.parameter.clearedUsesOwnValue':
+        'If cleared, each tile uses its own value.',
+    'controls.parameter.needsValue': 'needs a value',
+    'controls.parameter.isNotSet': 'is not set',
+    'controls.parameter.notSetTooltip':
+        "Tiles use their own value or the parameter's default",
+    'controls.parameter.project': 'Project',
+    'controls.parameter.notAppliedToAnyTiles':
+        'This parameter is not applied to any tiles',
+    'controls.parameter.notAppliedToAnyTabs':
+        'This parameter is not applied to any tabs',
+    'controls.parameter.unnamed': 'Parameter',
+    'controls.parameter.unavailableOptions': 'Unavailable in current options',
+    'controls.parameter.refreshOptions': 'Refresh options',
+    'controls.parameter.everyTileUsingIt': 'Every tile using it',
+    'controls.parameter.onlyChosenTiles': 'Only chosen tiles',
+    'controls.parameter.setEverywhereBy': 'Set by {control} everywhere',
+    'controls.parameter.setOnTilesBy':
+        "Set by {control} on {count} of this control's tiles",
+    'controls.parameter.moveFrom': 'Move from {controls}?',
+    'controls.parameter.nameList': '{list} and {name}',
     'filters.tileCard.locked': 'Tiles are locked while a filter is edited',
     'filters.tileCard.unreachable':
         'This tile has no field this filter can use',
@@ -458,6 +521,8 @@ export const DEFAULT_UI_STRINGS = {
     'aiAgent.composer.emptyResult': 'No rows returned',
     'aiAgent.composer.view.chart': 'Chart',
     'aiAgent.composer.view.lineage': 'Lineage',
+    'aiAgent.composer.actions.quickActions': 'Quick actions',
+    'aiAgent.composer.actions.downloadResults': 'Download results',
     'aiAgent.composer.lineage.focusNode': 'Focus {node}',
     'aiAgent.composer.lineage.resize': 'Resize lineage graph and steps',
     'aiAgent.composer.nodeStatus.pending': 'Queued',
@@ -514,6 +579,52 @@ export type UiStringKey = keyof typeof DEFAULT_UI_STRINGS;
 export type SdkUiOverrides = Partial<Record<UiStringKey, string>>;
 
 export type UiStringResolver = (key: UiStringKey) => string;
+
+const LEGACY_CONTROL_KEYS: Partial<Record<UiStringKey, UiStringKey>> = {
+    'controls.newFilter': 'filters.rail.newFilter',
+    'controls.filterName': 'filters.rail.filterName',
+    'controls.removeFilter': 'filters.rail.removeFilter',
+    'controls.onlyYouSeeFilter': 'filters.rail.onlyYouSeeFilter',
+    'controls.collapse': 'filters.rail.collapse',
+    'controls.tileCount.singular': 'filters.rail.tileCount.singular',
+    'controls.tileCount.plural': 'filters.rail.tileCount.plural',
+    'controls.countOf': 'filters.rail.countOf',
+    'controls.tabFraction': 'filters.rail.tabFraction',
+    'controls.searchFields': 'filters.rail.searchFields',
+    'controls.noOtherField': 'filters.rail.noOtherField',
+    'controls.sqlColumn': 'filters.rail.sqlColumn',
+    'controls.thisFilter': 'filters.rail.thisFilter',
+    'controls.tabCountTooltip.singular':
+        'filters.rail.tabCountTooltip.singular',
+    'controls.tabCountTooltip.plural': 'filters.rail.tabCountTooltip.plural',
+    'controls.sectionCount.singular': 'filters.rail.sectionCount.singular',
+    'controls.sectionCount.plural': 'filters.rail.sectionCount.plural',
+    'controls.untitledSection': 'filters.rail.untitledSection',
+    'controls.collapseSection': 'filters.rail.collapseSection',
+    'controls.expandSection': 'filters.rail.expandSection',
+    'controls.add': 'filters.rail.add',
+    'controls.discard': 'filters.rail.discard',
+    'controls.applyChangesFirst': 'filters.rail.applyChangesFirst',
+    'controls.appliesTo': 'filters.rail.appliesTo',
+    'controls.chooseTiles': 'filters.rail.chooseTiles',
+    'controls.addField': 'filters.rail.addField',
+    'controls.mappingFilters': 'filters.rail.mappingFilters',
+    'controls.backToFilter': 'filters.rail.backToFilter',
+    'controls.mappingUsing': 'filters.rail.mappingUsing',
+};
+
+/** Prefer the current override, then the equivalent shipped SDK key. */
+export const resolveUiString = (
+    key: UiStringKey,
+    override?: (key: UiStringKey) => string | undefined,
+): string => {
+    const legacyKey = LEGACY_CONTROL_KEYS[key];
+    return (
+        override?.(key) ??
+        (legacyKey === undefined ? undefined : override?.(legacyKey)) ??
+        DEFAULT_UI_STRINGS[key]
+    );
+};
 
 export const interpolateUiString = (
     template: string,

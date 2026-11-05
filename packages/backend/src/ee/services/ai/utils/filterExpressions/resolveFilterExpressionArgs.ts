@@ -18,6 +18,7 @@ import {
     isDimension,
     isFilterExpressionCurrentDateOperator,
     isFilterExpressionRelativeDateOperator,
+    isoDateTimeStringSchema,
     MetricType,
     parseFilterExpression,
     TableCalculationType,
@@ -25,6 +26,7 @@ import {
     toolRunQueryExpressionResolvedArgsSchemaTransformed,
     UnitOfTime,
     unitOfTimeSupportsToDate,
+    type AdditionalMetric,
     type Explore,
     type FilterExpressionArgumentCount,
     type FilterExpressionAst,
@@ -118,7 +120,7 @@ const failure = <T = never>(
 
 const dateOrDateTimeSchema = z.union([
     z.string().date(),
-    z.string().datetime(),
+    isoDateTimeStringSchema,
 ]);
 
 const isTimestampField = (field: ResolvedField): boolean =>
@@ -320,21 +322,11 @@ const makeTableCalculationFields = (
         },
     );
 
-const makeQueryFields = ({
-    explore,
-    transformedCustomMetrics,
-    tableCalculations,
-}: {
-    explore: Parameters<typeof getFields>[0];
-    transformedCustomMetrics: ReturnType<
-        typeof customMetricsSchemaTransformed.parse
-    >;
-    tableCalculations: ExpressionQueryConfig['tableCalculations'];
-}): ResolvedField[] => {
-    const customMetricFields = populateCustomMetricsSQL(
-        filterAggregationCustomMetrics(transformedCustomMetrics),
-        explore,
-    ).flatMap((additionalMetric) => {
+const makeAdditionalMetricFields = (
+    explore: Parameters<typeof getFields>[0],
+    additionalMetrics: AdditionalMetric[],
+): ResolvedField[] =>
+    additionalMetrics.flatMap((additionalMetric) => {
         const table = explore.tables[additionalMetric.table];
         if (!table) return [];
         const metric = convertAdditionalMetric({ additionalMetric, table });
@@ -349,12 +341,27 @@ const makeQueryFields = ({
         ];
     });
 
-    return [
-        ...makeExploreFields(explore),
-        ...customMetricFields,
-        ...makeTableCalculationFields(tableCalculations),
-    ];
-};
+const makeQueryFields = ({
+    explore,
+    transformedCustomMetrics,
+    tableCalculations,
+}: {
+    explore: Parameters<typeof getFields>[0];
+    transformedCustomMetrics: ReturnType<
+        typeof customMetricsSchemaTransformed.parse
+    >;
+    tableCalculations: ExpressionQueryConfig['tableCalculations'];
+}): ResolvedField[] => [
+    ...makeExploreFields(explore),
+    ...makeAdditionalMetricFields(
+        explore,
+        populateCustomMetricsSQL(
+            filterAggregationCustomMetrics(transformedCustomMetrics),
+            explore,
+        ),
+    ),
+    ...makeTableCalculationFields(tableCalculations),
+];
 
 const getFieldMatches = (
     fields: ResolvedField[],
@@ -2159,17 +2166,22 @@ const resolveQueryFilters = ({
 export const resolveExploreFilterExpressions = ({
     filters,
     explore,
+    additionalMetrics,
 }: {
     filters: Omit<
         NonNullable<ExpressionQueryConfig['filters']>,
         'tableCalculations'
     > | null;
     explore: Explore;
+    additionalMetrics: AdditionalMetric[];
 }): ResolutionResult<Filters | null> => {
     const result = resolveQueryFilters({
         filters:
             filters === null ? null : { ...filters, tableCalculations: null },
-        fields: makeExploreFields(explore),
+        fields: [
+            ...makeExploreFields(explore),
+            ...makeAdditionalMetricFields(explore, additionalMetrics),
+        ],
         exploreName: explore.name,
     });
     if (!result.success) return result;

@@ -4,7 +4,7 @@ import { DatabaseError } from 'pg';
 
 export type RefreshRowKey =
     | {
-          kind: 'project' | 'organization' | 'user' | 'warehouseConnection';
+          kind: 'project' | 'user' | 'warehouseConnection';
           uuid: string;
           purpose: string | null;
       }

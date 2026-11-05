@@ -128,6 +128,22 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                         slug: 'other-sql-chart',
                     },
                 ]);
+                await db.raw(`
+                    ALTER TABLE saved_queries RENAME TO chart_source;
+                    CREATE TEMP SEQUENCE chart_timeout;
+                    CREATE FUNCTION chart_name(value text) RETURNS text AS $$
+                    BEGIN
+                        IF nextval('chart_timeout') = 1 THEN
+                            RAISE EXCEPTION 'statement timeout' USING ERRCODE = '57014';
+                        END IF;
+                        RETURN value;
+                    END;
+                    $$ LANGUAGE plpgsql;
+                    CREATE VIEW saved_queries AS SELECT saved_query_id,
+                        saved_query_uuid, project_uuid, space_id, dashboard_uuid,
+                        chart_name(name) AS name, slug, last_version_chart_kind,
+                        deleted_at FROM chart_source;
+                `);
                 const result: Record<string, unknown>[] = [];
                 for await (const line of new UsageDimensionsModel(
                     db,
@@ -187,6 +203,42 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     emptyResult.push(line);
                 }
                 expect(emptyResult).toEqual([]);
+
+                await db.raw('ALTER SEQUENCE chart_timeout RESTART WITH 1');
+                const iterator = new UsageDimensionsModel(
+                    db,
+                    'https://lightdash.example.com',
+                ).getJsonLines(
+                    { organization_id: 1, organization_uuid: org },
+                    'charts',
+                );
+                try {
+                    for (let row = 0; row < 1000; row += 1) {
+                        // eslint-disable-next-line no-await-in-loop
+                        expect((await iterator.next()).done).toBe(false);
+                    }
+                    await fixture('projects')
+                        .where('project_uuid', secondProject)
+                        .update({ organization_id: 2 });
+                    const remaining = [];
+                    for await (const line of iterator) {
+                        try {
+                            remaining.push(JSON.parse(line));
+                        } catch (error) {
+                            throw new Error('Expected chart snapshot JSON', {
+                                cause: error,
+                            });
+                        }
+                    }
+                    expect(remaining.map((row) => row.name)).toEqual([
+                        'Tenant chart 1001',
+                        'Tenant chart 1003',
+                        'Tenant chart 1005',
+                        'Tenant SQL chart',
+                    ]);
+                } finally {
+                    await iterator.return(undefined);
+                }
             } finally {
                 await db.raw('DROP SCHEMA IF EXISTS ?? CASCADE', [schema]);
                 await db.destroy();
@@ -468,12 +520,6 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                 });
                 const run = () =>
                     new UsageEventsCompactor({
-                        featureFlagModel: {
-                            get: async () => ({
-                                id: 'analytics-project',
-                                enabled: true,
-                            }),
-                        },
                         s3Config: storage,
                         prometheusMetrics: null,
                         usageDimensionsModel: new UsageDimensionsModel(
@@ -802,12 +848,6 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                 );
                 await expect(
                     new UsageEventsCompactor({
-                        featureFlagModel: {
-                            get: async () => ({
-                                id: 'analytics-project',
-                                enabled: true,
-                            }),
-                        },
                         s3Config: storage,
                         prometheusMetrics: null,
                         usageDimensionsModel: failingModel,

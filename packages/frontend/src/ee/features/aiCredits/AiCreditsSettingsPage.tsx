@@ -2,21 +2,15 @@ import {
     type AiCreditHold,
     type AiCreditUsageSummary,
 } from '@lightdash/common';
-import {
-    Group,
-    Paper,
-    Skeleton,
-    Stack,
-    Text,
-    ThemeIcon,
-    Title,
-} from '@mantine/core';
+import { Group, Skeleton, Stack, Text, ThemeIcon, Title } from '@mantine/core';
 import { IconInfoCircle, IconPlayerPause } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import { type FC } from 'react';
 import InlineErrorState from '../../../components/common/InlineErrorState';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { SettingsSection } from '../../../components/common/Settings/SettingLayout';
+import { SettingsCard } from '../../../components/common/Settings/SettingsCard';
 import { SettingsPage } from '../../../components/common/Settings/SettingsPage';
 import { findBlockingAiCreditHold } from './aiCreditHolds';
 import { AiCreditsAnalyticsLink } from './AiCreditsAnalyticsLink';
@@ -107,23 +101,11 @@ const UsageSummary: FC<{ usage: AiCreditUsageSummary }> = ({ usage }) => {
     const noticeStyle = notice === null ? null : NOTICE_STYLE[notice.severity];
 
     return (
-        <Paper
-            p="md"
+        <SettingsCard
             className={classes.summary}
             data-severity={notice?.severity}
         >
             <Stack gap="sm">
-                <Group justify="space-between" align="baseline">
-                    <Title order={5} fz="sm" fw={500} c="dimmed">
-                        {formatDate(period.periodStart)} –{' '}
-                        {formatLastDay(period.periodEnd)}
-                    </Title>
-                    <Text fz="sm" c="dimmed">
-                        {describePeriodLength(
-                            contract?.resetIntervalMonths ?? 1,
-                        )}
-                    </Text>
-                </Group>
                 <Group gap="xs" wrap="nowrap">
                     {noticeStyle !== null && (
                         <ThemeIcon
@@ -156,10 +138,8 @@ const UsageSummary: FC<{ usage: AiCreditUsageSummary }> = ({ usage }) => {
                     </Text>
                 )}
                 {notice !== null && noticeStyle !== null ? (
-                    <Stack gap={2} role={noticeStyle.role}>
-                        <Text fz="sm" fw={500}>
-                            {notice.title}
-                        </Text>
+                    <Stack gap="xxs" role={noticeStyle.role}>
+                        <Title order={6}>{notice.title}</Title>
                         <Text fz="xs" c="dimmed">
                             {notice.body}
                         </Text>
@@ -172,25 +152,25 @@ const UsageSummary: FC<{ usage: AiCreditUsageSummary }> = ({ usage }) => {
                     )
                 )}
             </Stack>
-        </Paper>
+        </SettingsCard>
     );
 };
 
 const AiCreditsPageSkeleton: FC = () => (
     <Stack gap="lg" aria-busy="true" aria-label="Loading AI credit usage">
-        <Paper p="md">
+        <SettingsCard>
             <Stack gap="sm">
                 <Skeleton h={16} w="30%" />
                 <Skeleton h={24} w="45%" />
                 <Skeleton h={8} radius="xl" />
             </Stack>
-        </Paper>
-        <Paper p="md">
+        </SettingsCard>
+        <SettingsCard>
             <Stack gap="md">
                 <Skeleton h={16} w="25%" />
                 <Skeleton h={200} />
             </Stack>
-        </Paper>
+        </SettingsCard>
     </Stack>
 );
 
@@ -205,7 +185,7 @@ export const AiCreditsSettingsPage: FC = () => {
     return (
         <SettingsPage
             title="AI credits"
-            description="Credits used on AI features in the current period, in real time. Usage history and detail live in your organization's analytics project."
+            description="Credits used on AI features in the current period, in real time."
         >
             {isInitialLoading ? (
                 <AiCreditsPageSkeleton />
@@ -215,11 +195,21 @@ export const AiCreditsSettingsPage: FC = () => {
                     onRetry={() => void refetch()}
                 />
             ) : (
-                <Stack gap="lg">
-                    <UsageSummary usage={usage} />
-                    <AiCreditsDailyUsage />
-                    <AiCreditsAnalyticsLink />
-                </Stack>
+                <>
+                    <SettingsSection
+                        label="Current period"
+                        description={`${formatDate(usage.period.periodStart)} – ${formatLastDay(usage.period.periodEnd)} · ${describePeriodLength(usage.contract?.resetIntervalMonths ?? 1)}`}
+                    >
+                        <UsageSummary usage={usage} />
+                    </SettingsSection>
+                    <SettingsSection
+                        label="Daily usage by feature"
+                        description={null}
+                    >
+                        <AiCreditsDailyUsage />
+                        <AiCreditsAnalyticsLink />
+                    </SettingsSection>
+                </>
             )}
         </SettingsPage>
     );

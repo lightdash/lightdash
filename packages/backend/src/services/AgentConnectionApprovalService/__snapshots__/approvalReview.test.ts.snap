@@ -238,6 +238,22 @@ exports[`pins every real admitted contract, base requirement and payload effect 
     "candidates": [
       {
         "capabilities": [
+          "read_discover",
+        ],
+        "key": "ProjectDashboardControllerV2.getTileParameterReferences",
+        "mapped": true,
+      },
+    ],
+    "key": "ProjectDashboardControllerV2.getTileParameterReferences",
+    "kind": "path_project",
+    "required": [
+      "read_discover",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
           "content_write",
         ],
         "key": "ProjectController.replaceYamlTags",
@@ -248,6 +264,22 @@ exports[`pins every real admitted contract, base requirement and payload effect 
     "kind": "path_project",
     "required": [
       "content_write",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "deploy_upload",
+        ],
+        "key": "ProjectController.replaceProjectContext",
+        "mapped": true,
+      },
+    ],
+    "key": "ProjectController.replaceProjectContext",
+    "kind": "path_project",
+    "required": [
+      "deploy_upload",
     ],
   },
   {

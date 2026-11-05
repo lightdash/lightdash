@@ -397,17 +397,15 @@
             "required": ["w", "h", "y", "x", "type", "properties"],
             "type": "object"
         },
-        "DashboardConfig": {
+        "DashboardConfigAsCode": {
             "properties": {
                 "controlSections": {
-                    "description": "Named sets of controls, in display order. Controls point at a section\nby id; controls with no section render first, unsectioned.",
                     "items": {
                         "$ref": "#/$defs/DashboardControlSection"
                     },
                     "type": "array"
                 },
                 "customMetrics": {
-                    "description": "Custom metrics offered to charts built inside this dashboard. Interim\nstore — moves to a semantic-layer draft later; don't read it elsewhere.",
                     "items": {
                         "$ref": "#/$defs/AdditionalMetric"
                     },
@@ -445,6 +443,12 @@
                 "isDateZoomDisabled": {
                     "type": "boolean"
                 },
+                "parameterControls": {
+                    "items": {
+                        "$ref": "#/$defs/DashboardParameterControlAsCode"
+                    },
+                    "type": "array"
+                },
                 "parameterOrder": {
                     "items": {
                         "type": "string"
@@ -455,7 +459,6 @@
                     "additionalProperties": {
                         "type": "string"
                     },
-                    "description": "Parameter name to section id. Parameters have no saved object of their own.",
                     "properties": {},
                     "type": "object"
                 },
@@ -466,7 +469,6 @@
                     "type": "array"
                 },
                 "requiredFiltersNote": {
-                    "description": "Editor-authored note shown to viewers while filter rules are unmet",
                     "type": "string"
                 }
             },
@@ -482,6 +484,10 @@
                 "id": {
                     "description": "uuid, stable across dashboard versions",
                     "type": "string"
+                },
+                "inline": {
+                    "description": "Sits on the bar line of the section before it; absent, starts a line of its own",
+                    "type": "boolean"
                 },
                 "name": {
                     "type": "string"
@@ -800,8 +806,83 @@
             "required": ["w", "h", "y", "x", "type", "properties"],
             "type": "object"
         },
+        "DashboardParameterControlAsCode": {
+            "properties": {
+                "hidden": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "description": "Legacy project-local identifier accepted on upload.",
+                    "type": "string"
+                },
+                "label": {
+                    "type": ["string", "null"]
+                },
+                "parameters": {
+                    "$ref": "#/$defs/Record_string.DashboardParameterTarget_"
+                },
+                "sectionId": {
+                    "type": "string"
+                },
+                "slug": {
+                    "description": "Portable control identifier; matching an existing slug preserves its id.",
+                    "type": "string"
+                },
+                "value": {
+                    "anyOf": [
+                        {
+                            "allOf": [
+                                {
+                                    "$ref": "#/$defs/ParameterValue"
+                                }
+                            ]
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "valueType": {
+                    "$ref": "#/$defs/Required_Pick_LightdashProjectParameter.type-or-multiple__"
+                }
+            },
+            "required": ["parameters", "valueType", "value", "label"],
+            "type": "object"
+        },
         "DashboardParameters": {
             "$ref": "#/$defs/Record_string.DashboardParameterValue_"
+        },
+        "DashboardParameterTarget_string_": {
+            "anyOf": [
+                {
+                    "properties": {
+                        "only": {
+                            "items": {
+                                "type": "string"
+                            },
+                            "type": "array"
+                        }
+                    },
+                    "required": ["only"],
+                    "type": "object"
+                },
+                {
+                    "properties": {
+                        "except": {
+                            "items": {
+                                "type": "string"
+                            },
+                            "type": "array"
+                        }
+                    },
+                    "required": ["except"],
+                    "type": "object"
+                },
+                {
+                    "enum": ["all"],
+                    "type": "string"
+                }
+            ]
         },
         "DashboardParameterValue": {
             "properties": {
@@ -1433,6 +1514,14 @@
             "required": ["chartName"],
             "type": "object"
         },
+        "Record_string.DashboardParameterTarget_": {
+            "additionalProperties": {
+                "$ref": "#/$defs/DashboardParameterTarget_string_"
+            },
+            "description": "Construct a type with a set of properties K of type T",
+            "properties": {},
+            "type": "object"
+        },
         "Record_string.DashboardParameterValue_": {
             "additionalProperties": {
                 "$ref": "#/$defs/DashboardParameterValue"
@@ -1447,6 +1536,20 @@
             },
             "description": "Construct a type with a set of properties K of type T",
             "properties": {},
+            "type": "object"
+        },
+        "Required_Pick_LightdashProjectParameter.type-or-multiple__": {
+            "description": "Make all properties in T required",
+            "properties": {
+                "multiple": {
+                    "type": "boolean"
+                },
+                "type": {
+                    "enum": ["string", "number", "date"],
+                    "type": "string"
+                }
+            },
+            "required": ["type", "multiple"],
             "type": "object"
         },
         "SpaceMemberRole": {
@@ -1484,14 +1587,14 @@
     "$id": "https://schemas.lightdash.com/lightdash/dashboard-as-code.json",
     "$schema": "http://json-schema.org/draft-07/schema#",
     "additionalProperties": false,
-    "description": "From T, pick a set of properties whose keys are in the union K",
+    "description": "Schema for defining Lightdash dashboards in YAML format for version control",
     "properties": {
         "access": {
             "$ref": "#/$defs/ContentAsCodeDirectAccess",
             "description": "Direct user/group grants. Omission leaves the existing policy unchanged on upload."
         },
         "config": {
-            "$ref": "#/$defs/DashboardConfig"
+            "$ref": "#/$defs/DashboardConfigAsCode"
         },
         "contentType": {
             "$ref": "#/$defs/ContentAsCodeType.DASHBOARD"

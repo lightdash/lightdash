@@ -1,11 +1,12 @@
 import { ProjectType } from '@lightdash/common';
-import { Flex, Stack, Button, Select } from '@mantine/core';
+import { Button, Group, Select } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useEffect, type FC } from 'react';
 import { z } from 'zod';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useOrganizationUpdateMutation } from '../../../hooks/organization/useOrganizationUpdateMutation';
 import { useProjects } from '../../../hooks/useProjects';
+import { SettingRow } from '../../common/Settings/SettingLayout';
 
 const validationSchema = z.object({
     defaultProjectUuid: z.string().or(z.undefined()),
@@ -53,51 +54,60 @@ const DefaultProjectPanel: FC = () => {
     });
 
     return (
-        <form onSubmit={handleOnSubmit}>
-            <Stack>
-                <Select
-                    allowDeselect={false}
-                    key={form.values.defaultProjectUuid}
-                    label="Project name"
-                    data={projects
-                        // Neither previews nor the training playground can
-                        // be the org's landing project.
-                        .filter(
-                            ({ type }) =>
-                                type !== ProjectType.PREVIEW &&
-                                type !== ProjectType.TRAINING,
-                        )
-                        .map((project) => ({
-                            value: project.projectUuid,
-                            label: project.name,
-                        }))}
-                    disabled={isLoading}
-                    required
-                    placeholder="No project selected"
-                    comboboxProps={{
-                        position: 'bottom',
-                        middlewares: { flip: false },
-                    }}
-                    {...form.getInputProps('defaultProjectUuid')}
-                />
-
-                <Flex justify="flex-end" gap="sm">
-                    {form.isDirty() && !isOrganizationUpdateLoading && (
-                        <Button variant="outline" onClick={() => form.reset()}>
-                            Cancel
+        <SettingRow
+            title="Default project"
+            description="The project users see when they log in for the first time or from a new device. Users without access see their next accessible project."
+            control={
+                <form onSubmit={handleOnSubmit}>
+                    <Group gap="xs" align="flex-start">
+                        <Select
+                            allowDeselect={false}
+                            key={form.values.defaultProjectUuid}
+                            aria-label="Default project"
+                            size="xs"
+                            w={260}
+                            data={projects
+                                // Neither previews nor the training playground can
+                                // be the org's landing project.
+                                .filter(
+                                    ({ type }) =>
+                                        type !== ProjectType.PREVIEW &&
+                                        type !== ProjectType.TRAINING,
+                                )
+                                .map((project) => ({
+                                    value: project.projectUuid,
+                                    label: project.name,
+                                }))}
+                            disabled={isLoading}
+                            required
+                            placeholder="No project selected"
+                            comboboxProps={{
+                                position: 'bottom',
+                                middlewares: { flip: false },
+                            }}
+                            {...form.getInputProps('defaultProjectUuid')}
+                        />
+                        {form.isDirty() && !isOrganizationUpdateLoading && (
+                            <Button
+                                size="xs"
+                                variant="default"
+                                onClick={() => form.reset()}
+                            >
+                                Cancel
+                            </Button>
+                        )}
+                        <Button
+                            size="xs"
+                            type="submit"
+                            disabled={isLoading || !form.isDirty()}
+                            loading={isLoading}
+                        >
+                            Update
                         </Button>
-                    )}
-                    <Button
-                        display="block"
-                        type="submit"
-                        disabled={isLoading || !form.isDirty()}
-                        loading={isLoading}
-                    >
-                        Update
-                    </Button>
-                </Flex>
-            </Stack>
-        </form>
+                    </Group>
+                </form>
+            }
+        />
     );
 };
 

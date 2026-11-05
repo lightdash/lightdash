@@ -160,6 +160,8 @@ const FilterDateTimePicker: FC<Props> = ({
                             size="xs"
                             w="100%"
                             miw={185}
+                            // Render inside the outer popover so picks don't dismiss it
+                            popoverProps={{ withinPortal: false }}
                             placeholder={invalidValue}
                             valueFormat={displayFormat}
                             firstDayOfWeek={firstDayOfWeek}

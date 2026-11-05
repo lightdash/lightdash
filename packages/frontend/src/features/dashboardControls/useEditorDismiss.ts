@@ -6,12 +6,15 @@ const EDITOR_ATTRIBUTE = 'data-controls-editor';
 const OWN_ESCAPE_ATTRIBUTE = 'data-own-escape';
 
 // An open list, menu or popover owns Escape; so does a modal. A Mantine
-// combobox target is marked `data-expanded` while its list is open
+// combobox target is marked `data-expanded` while its list is open. A
+// DateInput's calendar marks only itself (`data-dates-dropdown`): its input
+// gets no roles
 const OPEN_LAYER_SELECTOR = [
     '[aria-expanded="true"][aria-haspopup]',
     '[data-expanded][aria-haspopup]',
     '[aria-expanded="true"][role="combobox"]',
     '[aria-modal="true"]',
+    '[data-dates-dropdown]',
 ].join(',');
 
 // The query devtools of a dev build always report an open panel
@@ -37,6 +40,18 @@ type Args = {
     dismiss: () => void;
     /** A press outside the editor: cancels the edit. */
     dismissOutside: () => void;
+    /** The pills whose own click opens or switches (default the filter pills). */
+    pillSelector?: string;
+};
+
+// Blur commits a label that is still being typed, into the edit, before
+// the edit ends; any other focus stays put
+const blurLabel = () => {
+    if (
+        document.activeElement instanceof HTMLElement &&
+        document.activeElement.matches('[data-controls-label]')
+    )
+        document.activeElement.blur();
 };
 
 // One Escape listener while the editor is open, so one press does one thing:
@@ -51,13 +66,14 @@ export const useEditorDismiss = ({
     clearField,
     dismiss,
     dismissOutside,
+    pillSelector = PILL_SELECTOR,
 }: Args) => {
     useEffect(() => {
         if (!isOpen) return;
         const handlePointerDown = (event: PointerEvent) => {
             const target =
                 event.target instanceof Element ? event.target : null;
-            if (target?.closest(`[${EDITOR_ATTRIBUTE}], ${PILL_SELECTOR}`))
+            if (target?.closest(`[${EDITOR_ATTRIBUTE}], ${pillSelector}`))
                 return;
             // The press closes the open list, and only that; a new filter
             // with nothing picked has nothing to lose, unless the press is
@@ -67,6 +83,7 @@ export const useEditorDismiss = ({
                 (!isPristineNew || target?.closest(LIST_SELECTOR))
             )
                 return;
+            blurLabel();
             dismissOutside();
         };
         // Capture: a list is still open when this runs
@@ -78,7 +95,7 @@ export const useEditorDismiss = ({
                 true,
             );
         };
-    }, [isOpen, isPristineNew, dismissOutside]);
+    }, [isOpen, isPristineNew, dismissOutside, pillSelector]);
     useEffect(() => {
         if (!isOpen) return;
         const handleKeyDown = (event: KeyboardEvent) => {
@@ -99,13 +116,8 @@ export const useEditorDismiss = ({
                 !target?.closest(`[${EDITOR_ATTRIBUTE}]`)
             )
                 return;
-            // Blur commits a label that is still being typed; any other focus
-            // stays put, so an Escape that changes nothing keeps the place
-            if (
-                document.activeElement instanceof HTMLElement &&
-                document.activeElement.matches('[data-controls-label]')
-            )
-                document.activeElement.blur();
+            // An Escape that changes nothing keeps the place
+            blurLabel();
             dismiss();
         };
         // Capture: lists are still open when this runs, so they can be seen

@@ -1,4 +1,4 @@
-import { CallSettings } from 'ai';
+import { LanguageModelCallOptions, type RequestOptions } from 'ai';
 import { ProviderOptionsMap } from './types';
 
 export type ModelPresetProvider = 'openai' | 'anthropic' | 'google' | 'bedrock';
@@ -13,6 +13,9 @@ export type ReasoningStyle = 'budget' | 'adaptive';
 export type ReasoningEffort = 'medium' | 'xhigh';
 export const XHIGH_THINKING_BUDGET_TOKENS = 16_000;
 export const XHIGH_MAX_OUTPUT_TOKENS = 24_000;
+// Default explicit cap. Without one, budget-style thinking falls back to
+// `budget + 4096` and other Bedrock requests omit the output cap entirely.
+export const BEDROCK_MAX_OUTPUT_TOKENS = 24_000;
 
 export type ModelPreset<P extends SelectableModelProvider> = {
     name: string;
@@ -32,7 +35,7 @@ export type ModelPreset<P extends SelectableModelProvider> = {
     deprecated?: boolean;
     // Name of the same-provider preset that replaces a deprecated one
     supersededBy?: string;
-    callOptions: CallSettings;
+    callOptions: LanguageModelCallOptions & Omit<RequestOptions, 'timeout'>;
     providerOptions: ProviderOptionsMap[P] | undefined;
 } & (
     | { custom?: false; contextWindowTokens: number }

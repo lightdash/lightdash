@@ -1,5 +1,5 @@
 import { subject, type AbilityBuilder } from '@casl/ability';
-import flow from 'lodash/flow';
+import { flow } from 'es-toolkit/compat';
 import { isChartContent, isDashboardContent, type CreateEmbedJwt } from '../ee';
 import type { EmbedContent, OssEmbed } from '../types/auth';
 import assertUnreachable from '../utils/assertUnreachable';

@@ -10,10 +10,14 @@ import { type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
     selectDateZoomGranularity,
-    selectParameterValues,
+    selectDashboardWideParameterValues,
+    selectParameterControlInputs,
+    selectTileParameterReferences,
+    useDashboardStore,
     useDashboardAllFilters,
     useDashboardSelector,
 } from '../../../../../features/dashboard/store';
+import { getDashboardExportTileParameters } from '../../../../../features/dashboard/store/parameterControls';
 import { useExportDashboardContent } from '../../../../../hooks/dashboard/useDashboard';
 import { type EventData } from '../../../../../providers/Tracking/types';
 import useTracking from '../../../../../providers/Tracking/useTracking';
@@ -33,8 +37,11 @@ const EmbedDashboardExportAll: FC<Props> = ({ dashboard, projectUuid }) => {
     const { track } = useTracking();
     const exportDashboardContentMutation = useExportDashboardContent();
     const dashboardFilters = useDashboardAllFilters();
+    const dashboardStore = useDashboardStore();
     const dateZoomGranularity = useDashboardSelector(selectDateZoomGranularity);
-    const parameterValues = useDashboardSelector(selectParameterValues);
+    const parameterValues = useDashboardSelector(
+        selectDashboardWideParameterValues,
+    );
 
     if (!dashboard.canExportDashboardCsv) {
         return null;
@@ -68,6 +75,15 @@ const EmbedDashboardExportAll: FC<Props> = ({ dashboard, projectUuid }) => {
             dashboardFilters,
             dateZoomGranularity,
             parameters: parameterValues,
+            tileParameters: getDashboardExportTileParameters({
+                controlInputs: selectParameterControlInputs(
+                    dashboardStore.getState(),
+                ),
+                tileUuids: dashboard.tiles.map(({ uuid }) => uuid),
+                tileParameterReferences: selectTileParameterReferences(
+                    dashboardStore.getState(),
+                ),
+            }),
             selectedTabs: null,
         });
     };

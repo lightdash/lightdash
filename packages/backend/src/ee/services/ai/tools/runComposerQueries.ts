@@ -8,7 +8,6 @@ import {
     queryToolDefinition,
     toComposerNodeColumns,
     WarehouseQueryError,
-    type ComposerApiConnection,
     type ParameterDefinitions,
     type SemanticLayerSourceQuery,
     type SourceQuery,
@@ -47,11 +46,11 @@ import { toolErrorOutput } from '../utils/toolErrorHandler';
 import {
     buildComposerPreview,
     buildComposerQueryPipeline,
+    getFailedRunNodes,
     isSaved,
-    renderComposerNodeSummary,
-    renderSavedNodes,
-    toComposerNodeSummaries,
+    renderComposerNodeListing,
     toNodeColumns,
+    toNodeSummary,
 } from './composerQueryPipeline';
 import { getSqlApprovalSteps } from './slackSqlAggregate';
 import { createSqlApprovalGate, type SqlApprovalCopy } from './sqlApprovalGate';
@@ -88,8 +87,6 @@ type Dependencies = {
     enableDataAccess: boolean;
     canRunSql: boolean;
     enablePythonNodes: boolean;
-    // Project API connections api nodes may query; empty disables api nodes.
-    apiConnections: ComposerApiConnection[];
     autoApproveSql?: boolean;
     autoApproveSqlUserUuid?: string | null;
     useSlackStreamCard?: boolean;
@@ -187,7 +184,6 @@ export const getRunComposerQueries = ({
     enableDataAccess,
     canRunSql,
     enablePythonNodes,
-    apiConnections,
     autoApproveSql = false,
     autoApproveSqlUserUuid = null,
     useSlackStreamCard = false,
@@ -213,17 +209,14 @@ export const getRunComposerQueries = ({
         COMPOSER_SQL_APPROVAL_COPY,
     );
 
-    const enableApiNodes = apiConnections.length > 0;
     const inputSchema = createToolComposerQueriesArgsSchema({
         maxLimit: maxQueryLimit,
         enablePythonNodes,
-        enableApiNodes,
     });
 
     return tool({
         description: getToolComposerQueriesDescription({
             enablePythonNodes,
-            apiConnections,
         }),
         inputSchema,
         outputSchema: toolDefinition.outputSchema,
@@ -263,7 +256,6 @@ export const getRunComposerQueries = ({
                     projectParameterDefinitions,
                     reusableNodes: threadNodes,
                     enablePythonNodes,
-                    apiConnections,
                     canRunSql,
                     sqlDisabledMessage:
                         'This pipeline contains "sql" nodes but SQL execution is not enabled for this agent. Rebuild the pipeline without sql nodes (semanticLayer and duckdb nodes are still available).',
@@ -278,6 +270,9 @@ export const getRunComposerQueries = ({
                     terminalNodeId: resolvedTerminalNodeId,
                     appliedParameters,
                 } = built.pipeline;
+                const submittedNodeIds = new Set(
+                    queryNodes.map(({ nodeId }) => nodeId),
+                );
 
                 if (approvalSql !== null) {
                     try {
@@ -303,6 +298,11 @@ export const getRunComposerQueries = ({
                     runComposerQueries({
                         queries,
                         terminalNodeId: resolvedTerminalNodeId,
+                        sampleNodeIds: enableDataAccess
+                            ? [...submittedNodeIds].filter(
+                                  (nodeId) => nodeId !== resolvedTerminalNodeId,
+                              )
+                            : [],
                         // Per-node lifecycle → transient step-progress events the
                         // web stream renders as live statuses on the pipeline.
                         // progressId carries `${toolCallId}:${nodeId}` so the
@@ -353,8 +353,20 @@ export const getRunComposerQueries = ({
                         nodes: savedNodes,
                         nodeColumns: toNodeColumns(saved),
                     });
+                    const nodeListing = renderComposerNodeListing({
+                        queries,
+                        nodes: getFailedRunNodes(
+                            queries,
+                            run.nodeStatuses,
+                            submittedNodeIds,
+                        ),
+                        nodeStatuses: run.nodeStatuses,
+                        reusableNodes: threadNodes,
+                        submittedNodeIds,
+                        maxQueryLimit,
+                    });
                     throw new WarehouseQueryError(
-                        `${run.error}\n${renderSavedNodes(queries, run.nodeStatuses, threadNodes)}`,
+                        `${run.error}\nNodes in this pipeline, failed nodes first. A later call can read any node with rows by node id:\n${nodeListing}`,
                     );
                 }
                 const { terminal, nodeStatuses } = run;
@@ -378,13 +390,31 @@ export const getRunComposerQueries = ({
                     description: description ?? null,
                 };
 
-                const nodes = toComposerNodeSummaries(queries, nodeStatuses);
-                const nodeSummary = renderComposerNodeSummary(
+                const nodes = queries.map((node) => {
+                    const status = nodeStatuses.find(
+                        ({ nodeId }) => nodeId === node.nodeId,
+                    );
+                    // The terminal node's columns and rows are shown in full below.
+                    return node.nodeId === resolvedTerminalNodeId
+                        ? toNodeSummary(
+                              node,
+                              status && { ...status, sample: null },
+                              false,
+                          )
+                        : toNodeSummary(
+                              node,
+                              status,
+                              submittedNodeIds.has(node.nodeId),
+                          );
+                });
+                const nodeSummary = renderComposerNodeListing({
                     queries,
                     nodes,
                     nodeStatuses,
+                    reusableNodes: threadNodes,
+                    submittedNodeIds,
                     maxQueryLimit,
-                );
+                });
                 const preview = buildComposerPreview(terminal);
                 const { columns } = preview;
                 const columnSummary = columns

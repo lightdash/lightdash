@@ -43,6 +43,7 @@ const TemporaryPills: FC<Props> = ({ activeTabUuid }) => {
             startOfWeek={
                 project.data?.warehouseConnection?.startOfWeek ?? undefined
             }
+            warehouseType={project.data?.warehouseConnection?.type}
             dashboardFilters={allFilters}
             dashboardTiles={dashboardTiles}
             filterableFieldsByTileUuid={filterableFieldsByTileUuid}
@@ -52,7 +53,7 @@ const TemporaryPills: FC<Props> = ({ activeTabUuid }) => {
             <TemporaryFilters
                 isEditMode
                 isPlain
-                tablesTooltipNote={getUiString('filters.rail.onlyYouSeeFilter')}
+                tablesTooltipNote={getUiString('controls.onlyYouSeeFilter')}
                 activeTabUuid={activeTabUuid}
                 openPopoverId={openPopoverId}
                 onPopoverOpen={setOpenPopoverId}

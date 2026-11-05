@@ -2,6 +2,7 @@ import { LOGIN_PAGE_ID } from '@lightdash/common';
 import { Box, Card, Stack, Title } from '@mantine/core';
 import { type FC } from 'react';
 import AuthLayout from '../components/common/AuthLayout';
+import AuthBrandLogo from '../components/common/AuthLayout/AuthBrandLogo';
 import LightdashLogo from '../components/LightdashLogo/LightdashLogo';
 import LoginLanding from '../features/users/components/LoginLanding';
 
@@ -10,7 +11,7 @@ const Login: FC<{ minimal?: boolean }> = ({ minimal = false }) => {
         return (
             <Stack m="xl">
                 <Box mx="auto" my="lg">
-                    <LightdashLogo />
+                    <AuthBrandLogo fallback={<LightdashLogo />} />
                 </Box>
                 <Card id={LOGIN_PAGE_ID} p="xl" radius="md">
                     <Title order={3} ta="center" mb="md">
@@ -26,7 +27,6 @@ const Login: FC<{ minimal?: boolean }> = ({ minimal = false }) => {
         <AuthLayout
             pageTitle="Login"
             title="Log in"
-            subtitle="Welcome back — pick up where you left off."
             legacyTitle="Sign in"
             cardId={LOGIN_PAGE_ID}
             withCustomerLogos

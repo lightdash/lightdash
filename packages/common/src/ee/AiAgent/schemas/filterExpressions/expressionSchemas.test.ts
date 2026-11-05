@@ -350,7 +350,7 @@ describe('filter expression input schemas', () => {
         );
     });
 
-    it('requires a strict, separately nullable category shape', () => {
+    it('requires a strict shape whose omitted categories default to null', () => {
         expect(
             filterExpressionsSchema.safeParse({
                 dimensions: 'orders_status equals=completed',
@@ -359,11 +359,14 @@ describe('filter expression input schemas', () => {
             }).success,
         ).toBe(true);
         expect(
-            filterExpressionsSchema.safeParse({
-                dimensions: null,
-                metrics: null,
-            }).success,
-        ).toBe(false);
+            filterExpressionsSchema.parse({
+                dimensions: 'orders_status equals=completed',
+            }),
+        ).toEqual({
+            dimensions: 'orders_status equals=completed',
+            metrics: null,
+            tableCalculations: null,
+        });
         expect(
             filterExpressionsSchema.safeParse({
                 dimensions: null,

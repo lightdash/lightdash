@@ -38,6 +38,12 @@ type Props = {
     unsavedFiltersTooltip?: string | null;
     /** Shown in place of the edit-mode eye (default: the eye). */
     editModeAction?: ReactNode;
+    /** The trigger's text (default: "Add filter"). */
+    label?: string;
+    /** Optional icon displayed before the trigger label. */
+    leadingIcon?: ReactNode;
+    /** The trigger opens a menu: whether it is open (default: no menu). */
+    isMenuOpen?: boolean;
 };
 
 const AddFilterButton: FC<Props> = ({
@@ -52,6 +58,9 @@ const AddFilterButton: FC<Props> = ({
     dropdownClassName,
     unsavedFiltersTooltip,
     editModeAction,
+    label,
+    leadingIcon,
+    isMenuOpen,
 }) => {
     const popoverId = useId();
     const getUiString = useUiStrings();
@@ -209,9 +218,11 @@ const AddFilterButton: FC<Props> = ({
                     >
                         <Button
                             data-dashboard-filter-control
+                            leftSection={leadingIcon}
                             className={clsx(
                                 triggerClassName,
                                 classes.dashed,
+                                editModeAction && classes.splitBorder,
                                 hasAttachedButton && classes.attachedLeft,
                             )}
                             size="xs"
@@ -227,8 +238,12 @@ const AddFilterButton: FC<Props> = ({
                                     ? handleDismiss()
                                     : onPopoverOpen(popoverId)
                             }
+                            {...(isMenuOpen !== undefined && {
+                                'aria-haspopup': 'menu',
+                                'aria-expanded': isMenuOpen,
+                            })}
                         >
-                            {getUiString('filters.addFilter')}
+                            {label ?? getUiString('filters.addFilter')}
                         </Button>
                     </Tooltip>
                 </Popover.Target>

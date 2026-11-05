@@ -92,6 +92,7 @@ import type {
     ApiInstallRegistryChartTypeResponse,
     ApiListDataAppVizsResponse,
     ApiListRegistryChartTypesResponse,
+    ApiLiveSourceFieldsResponse,
     ApiManagedAgentActionResponse,
     ApiManagedAgentRunResponse,
     ApiManagedAgentRunsListResponse,
@@ -109,6 +110,7 @@ import type {
     ApiPromoteAiAgentMemoryResponse,
     ApiPromoteAppDiffResponse,
     ApiPromoteAppResponse,
+    ApiReplaceProjectContextResults,
     ApiResolvedHomepageResponse,
     ApiSkillsAsCodeListResponse,
     ApiSkillsAsCodeUpsertResponse,
@@ -342,7 +344,10 @@ import {
     type UpdateAllowedEmailDomains,
 } from './organization';
 import { type OrganizationAccess } from './organizationAccess';
-import { type ApiOrganizationBrandResponse } from './organizationBrand';
+import {
+    type ApiOrganizationBrandResponse,
+    type InstanceBrand,
+} from './organizationBrand';
 import {
     type DomainVerificationStatus,
     type VerifiedDomain,
@@ -717,6 +722,7 @@ export type HealthState = {
     defaultProject?: DbtProjectConfig;
     isAuthenticated: boolean;
     requiresOrgRegistration: boolean;
+    instanceBrand: InstanceBrand | null;
     hasEmailClient: boolean;
     /**
      * Instance can provision the sample-data playground project (enterprise
@@ -827,6 +833,8 @@ export type HealthState = {
     dashboard: {
         maxTilesPerTab: number;
         maxTabsPerDashboard: number;
+        /** Per-viewer cap on in-flight dashboard tile queries; null means unlimited */
+        maxConcurrentTileQueries: number | null;
         disableSentryTracking: boolean;
     };
     pivotTable: {
@@ -840,6 +848,7 @@ export type HealthState = {
     hasPostHogOAuth: boolean;
     hasGoogleLiveSources: boolean;
     hasHeadlessBrowser: boolean;
+    hasManagedAnalytics?: boolean;
     hasExtendedUsageAnalytics: boolean;
     hasCacheAutocompleResults: boolean;
     appearance: {
@@ -1107,6 +1116,22 @@ export type ApiExecuteAsyncMetricQueryResults =
         metricQuery: MetricQuery;
         fields: ItemsMap;
         warnings: QueryWarning[];
+    };
+
+/** How a saved chart is drawn, as stored on the chart. */
+export type SavedChartVisualization = Pick<
+    SavedChart,
+    'chartConfig' | 'pivotConfig' | 'tableConfig'
+>;
+
+// Flat (not `ApiExecuteAsyncMetricQueryResults & …`) so the OpenAPI schema
+// keeps its shape; nesting the intersection reads as a breaking change.
+export type ApiExecuteAsyncSavedChartQueryResults =
+    ApiExecuteAsyncQueryResultsCommon & {
+        metricQuery: MetricQuery;
+        fields: ItemsMap;
+        warnings: QueryWarning[];
+        chartVisualization: SavedChartVisualization;
     };
 
 type ApiExecuteAsyncMergeQueryMetadata = {
@@ -1448,6 +1473,7 @@ type ApiResults =
     | ApiExploreResults
     | ApiStatusResults
     | ApiRefreshResults
+    | ApiReplaceProjectContextResults
     | ApiCreatePreviewResults
     | ApiDataTimezonePreviewResults
     | WarehouseConnectionTestResults
@@ -1638,6 +1664,7 @@ type ApiResults =
     | ApiVirtualViewAsCodeUpsertResponse['results']
     | ApiExternalConnectionAsCodeListResponse['results']
     | ApiExternalConnectionAsCodeUpsertResponse['results']
+    | ApiLiveSourceFieldsResponse['results']
     | ApiSpaceAsCodeListResponse['results']
     | ApiSpaceAsCodeUpsertResponse['results']
     | ApiChartAsCodeUpsertResponse['results']
@@ -1668,6 +1695,7 @@ type ApiResults =
     | ApiScanQuerySourceSchemaResults
     | ApiExecuteAsyncDashboardSqlChartQueryResults
     | ApiExecuteAsyncMetricQueryResults
+    | ApiExecuteAsyncSavedChartQueryResults
     | ApiQueryHistoryListResponse['results']
     | ApiExecuteAsyncDashboardChartQueryResults
     | ApiGetAsyncQueryResults

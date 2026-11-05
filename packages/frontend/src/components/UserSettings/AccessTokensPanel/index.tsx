@@ -1,7 +1,8 @@
 import { Button } from '@mantine/core';
-import { IconKey } from '@tabler/icons-react';
+import { IconKey, IconPlus } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { useAccessToken } from '../../../hooks/useAccessToken';
+import MantineIcon from '../../common/MantineIcon';
 import { SettingsEmptyState } from '../../common/Settings/SettingsEmptyState';
 import { SettingsPage } from '../../common/Settings/SettingsPage';
 import { CreateTokenModal } from './CreateTokenModal';
@@ -17,7 +18,11 @@ const AccessTokensPanel: FC = () => {
             title="Personal access tokens"
             description="Create and revoke tokens used to access the Lightdash API."
             actions={
-                <Button size="xs" onClick={() => setIsCreatingToken(true)}>
+                <Button
+                    size="xs"
+                    leftSection={<MantineIcon icon={IconPlus} />}
+                    onClick={() => setIsCreatingToken(true)}
+                >
                     Generate new token
                 </Button>
             }

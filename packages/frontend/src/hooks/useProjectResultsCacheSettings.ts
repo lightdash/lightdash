@@ -1,7 +1,10 @@
 import {
     type ApiError,
+    type ApiExploresResultsCacheInvalidationResponse,
     type ApiResultsCacheInvalidationResponse,
     type ApiResultsCacheProjectSettingsResponse,
+    type InvalidateExploresResultsCache,
+    type UpdateResultsCacheClearSchedule,
     type UpdateResultsCacheProjectSettings,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -71,6 +74,47 @@ export const useUpdateResultsCacheSettings = (projectUuid: string) => {
             });
         },
     });
+};
+
+const updateResultsCacheClearSchedule = async (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+    data: UpdateResultsCacheClearSchedule,
+) =>
+    lightdashApi<ApiResultsCacheProjectSettingsResponse['results']>({
+        url: `/projects/${projectUuid}/results-cache-config/clear-schedule`,
+        method: 'PUT',
+        body: JSON.stringify(data),
+    });
+
+export const useUpdateResultsCacheClearSchedule = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
+    const queryClient = useQueryClient();
+    const { showToastApiError, showToastSuccess } = useToaster();
+
+    return useMutation<
+        ApiResultsCacheProjectSettingsResponse['results'],
+        ApiError,
+        UpdateResultsCacheClearSchedule
+    >(
+        (data) =>
+            updateResultsCacheClearSchedule(lightdashApi, projectUuid, data),
+        {
+            mutationKey: ['results_cache_clear_schedule_update', projectUuid],
+            onSuccess: async () => {
+                showToastSuccess({
+                    title: 'Clear schedule updated',
+                });
+                await queryClient.invalidateQueries(queryKey(projectUuid));
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: 'Failed to update clear schedule',
+                    apiError: error,
+                });
+            },
+        },
+    );
 };
 
 const invalidateResultsCache = async (
@@ -152,4 +196,47 @@ export const useInvalidateContentResultsCache = () => {
             });
         },
     });
+};
+
+const invalidateExploresResultsCache = async (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+    body: InvalidateExploresResultsCache,
+) =>
+    lightdashApi<ApiExploresResultsCacheInvalidationResponse['results']>({
+        url: `/projects/${projectUuid}/results-cache/invalidate/explores`,
+        method: 'POST',
+        body: JSON.stringify(body),
+    });
+
+export const useInvalidateExploresResultsCache = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
+    const { showToastApiError, showToastSuccess } = useToaster();
+
+    return useMutation<
+        ApiExploresResultsCacheInvalidationResponse['results'],
+        ApiError,
+        InvalidateExploresResultsCache
+    >(
+        (body) =>
+            invalidateExploresResultsCache(lightdashApi, projectUuid, body),
+        {
+            mutationKey: ['results_cache_invalidate_explores', projectUuid],
+            onSuccess: ({ exploreNames }) => {
+                showToastSuccess({
+                    title:
+                        exploreNames.length === 1
+                            ? 'Cached results cleared'
+                            : `Cached results cleared for ${exploreNames.length} explores`,
+                    subtitle: 'The next load queries the warehouse.',
+                });
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: 'Failed to clear cached results',
+                    apiError: error,
+                });
+            },
+        },
+    );
 };

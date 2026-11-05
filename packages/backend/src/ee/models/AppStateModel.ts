@@ -8,6 +8,11 @@ import {
 import { type Knex } from 'knex';
 import { UserTableName } from '../../database/entities/users';
 import {
+    pauseBetweenBatchesMs,
+    type RetentionCleanupOptions,
+    type RetentionCleanupResult,
+} from '../../models/retentionCleanup';
+import {
     AppSharedStateHistoryTableName,
     AppSharedStateTableName,
     AppUserStateTableName,
@@ -349,6 +354,104 @@ export class AppStateModel {
         await this.database(AppSharedStateTableName)
             .where({ app_uuid: appUuid, key })
             .delete();
+    }
+
+    /**
+     * Deletes history rows older than the cutoff while always keeping each
+     * key's newest `keepVersions` versions regardless of age. Traverses the
+     * (app_uuid, key, version) unique index: scopes are paged by keyset, and
+     * each scope's prunable range is deleted in bounded batches, so no query
+     * scans or sorts the whole table.
+     */
+    async cleanupHistoryBatch(
+        cutoffDate: Date,
+        keepVersions: number,
+        options: RetentionCleanupOptions,
+    ): Promise<RetentionCleanupResult> {
+        // A recreated key continues versioning from its retained history, so
+        // at least one version must survive or a stale writer's old version
+        // could match the restarted counter and overwrite the new value.
+        const keep = Math.max(1, keepVersions);
+        let totalDeleted = 0;
+        let batchCount = 0;
+        let cursor: { app_uuid: string; key: string } | null = null;
+
+        for (;;) {
+            // Keyset hop to the next (app_uuid, key) scope: an index-only
+            // scan with LIMIT 1, where a GROUP BY would seq-scan the table.
+            const scopeQuery = this.database(AppSharedStateHistoryTableName)
+                .select('app_uuid', 'key')
+                .orderBy('app_uuid')
+                .orderBy('key')
+                .limit(1);
+            if (cursor) {
+                void scopeQuery.whereRaw('(app_uuid, key) > (?, ?)', [
+                    cursor.app_uuid,
+                    cursor.key,
+                ]);
+            }
+            // eslint-disable-next-line no-await-in-loop
+            const [scope] = await scopeQuery;
+            if (!scope) {
+                return { totalDeleted, batchCount, completed: true };
+            }
+            cursor = scope;
+
+            // eslint-disable-next-line no-await-in-loop
+            const newest = await this.database(AppSharedStateHistoryTableName)
+                .select('version')
+                .where({ app_uuid: scope.app_uuid, key: scope.key })
+                .orderBy('version', 'desc')
+                .first();
+            // Versions per key are dense and monotonic (each write adds
+            // exactly one), so the newest `keep` versions are exactly those
+            // above max - keep.
+            const maxPrunableVersion = (newest?.version ?? 0) - keep;
+
+            while (maxPrunableVersion >= 1) {
+                if (batchCount >= options.maxBatches) {
+                    return { totalDeleted, batchCount, completed: false };
+                }
+                const batchStartedAt = Date.now();
+                // eslint-disable-next-line no-await-in-loop
+                const deletedCount = await this.database(
+                    AppSharedStateHistoryTableName,
+                )
+                    // Repeating the scope predicates lets the outer delete use
+                    // the unique index instead of scanning for the uuids.
+                    .where('app_uuid', scope.app_uuid)
+                    .andWhere('key', scope.key)
+                    .whereIn('app_shared_state_history_uuid', (builder) => {
+                        void builder
+                            .select('app_shared_state_history_uuid')
+                            .from(AppSharedStateHistoryTableName)
+                            .where('app_uuid', scope.app_uuid)
+                            .andWhere('key', scope.key)
+                            .andWhere('version', '<=', maxPrunableVersion)
+                            .andWhere('created_at', '<', cutoffDate)
+                            .orderBy('version', 'asc')
+                            .limit(options.batchSize);
+                    })
+                    .delete();
+                if (deletedCount === 0) break;
+                totalDeleted += deletedCount;
+                batchCount += 1;
+                // Pause after every batch that deleted rows, including a
+                // partial one — scopes usually drain in a single partial
+                // batch, so pausing only on full batches would never throttle.
+                // eslint-disable-next-line no-await-in-loop
+                await new Promise<void>((resolve) => {
+                    setTimeout(
+                        resolve,
+                        pauseBetweenBatchesMs(
+                            options,
+                            Date.now() - batchStartedAt,
+                        ),
+                    );
+                });
+                if (deletedCount < options.batchSize) break;
+            }
+        }
     }
 
     async getSharedHistory(

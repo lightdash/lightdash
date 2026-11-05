@@ -32,7 +32,7 @@ import {
 import { Group, Skeleton, Text, Tooltip } from '@mantine/core';
 import { IconExclamationCircle, IconKey } from '@tabler/icons-react';
 import { type CellContext } from '@tanstack/react-table';
-import omit from 'lodash/omit';
+import { omit } from 'es-toolkit/compat';
 import { useMemo } from 'react';
 import { JsonCellPreview } from '../components/common/JsonViewer/JsonCellViewer';
 import {

@@ -6,9 +6,10 @@ through fields. User-facing copy says _tile_, never _chart_.
 
 - **Flag**: `FeatureFlags.DashboardControls` (`dashboard-controls`), read with
   `useServerFeatureFlag`. Flag off, the dashboard behaves exactly as before.
-- **Saved data keeps today's shape**: `DashboardFilterRule` (plus
-  `sectionId`) and `DashboardConfig`. Expose only what a dashboard can
-  already save; never add a field the shipped app cannot read.
+- **Saved data grows by optional fields only**: `DashboardFilterRule` (plus
+  `sectionId`) and `DashboardConfig` (including `parameterControls`). Older
+  dashboards must keep loading, and with the flag off the shipped readers
+  ignore the new fields, so flag-off saves carry them forward.
 
 ## Topic docs
 
@@ -17,9 +18,9 @@ Read the matching file before changing that area:
 - [`docs/provider.md`](docs/provider.md): read when changing
   `ControlsSidebarProvider`, an edit's lifecycle (the draft, open, switch,
   Apply, Cancel, mode change), "changed"/dirty rules, undo or focus return.
-- [`docs/editor.md`](docs/editor.md): read when changing the editor popover,
-  `FilterSettings`, the lock or "Required" rules, Escape handling or the
-  label draft.
+- [`docs/editor.md`](docs/editor.md): read when changing the editor popover
+  (`FilterPopover`), the lock or "Required" rules, Escape handling or the
+  name.
 - [`docs/fields-and-tiles.md`](docs/fields-and-tiles.md): read when changing
   multi-field mapping, scopes, `FieldTilesBar`, tile overlays and cards, tab
   counts or pill hover.
@@ -41,14 +42,15 @@ is untouched and removing the flag is deleting these lines.
 Gated on the flag:
 
 - `pages/Dashboard.tsx`: `ControlsSidebarPage` instead of `Page`; the header
-  through `DashboardHeaderGuard`; while the band shows (`isEditBandShown`:
-  edit mode and manage access) `bandScope` on the header and
-  tabs wrapper (`--dashboard-header-height` set to `--dashboard-edit-band-height`, `DASHBOARD_EDIT_BAND_HEIGHT`); `PageSpinner` until the flag's
+  through `DashboardHeaderGuard`; `PageSpinner` until the flag's
   `isInitialLoading` ends, so `Page` is never swapped for
   `ControlsSidebarPage` (that remounts the grid).
 - `features/dashboardTabs/index.tsx`: `ControlsBar` instead of
-  `DashboardFiltersBar`; `hasQuietActions` on each `DraggableTab`; the tabs' stuck detector offset
-  from `getTabsStickyOffset` (`editBand.ts`, the band's height while it shows).
+  `DashboardFiltersBar`; `hasQuietActions` on each `DraggableTab`.
+- `components/common/Dashboard/DashboardHeader.tsx`: the indigo "Editing"
+  badge before the name in edit mode, for users who can manage the dashboard;
+  the `save` class, outlined by `DashboardHeader.module.css` under the guard's
+  `[data-dashboard-header-guard][inert]`.
 - `ee/features/embed/EmbedDashboard/components/EmbedDashboard.tsx`:
   `isEmbedFilterRailEnabled` (flag on, and not an embed editor in edit mode)
   turns on `isControlsEnabled` for the header and filter bar, and
@@ -65,12 +67,13 @@ Openings (optional props, defaults are today's behaviour):
 - `dashboardTabs/Tab.tsx`: `hasQuietActions`; the tab `maw` reads
   `--dashboard-tab-max-width` first (also in the embed's tabs).
 - `DashboardFiltersBar`: `filterArea`, `isCompactDrawerSuppressed`,
-  `filtersAlign`.
+  `filtersAlign`, `isParametersColumn`.
 - `AddFilterButton`: `editModeAction`.
 - `FilterRequirements/FilterRequirementsButton`: `renderTarget` (must take a
   ref; the popover anchors on it).
 - `FilterRequirements/RequiredFilterCard`: `onChangeOtherFilterRule`,
-  `disabledReason`, `isListInPortal`, `withCard`.
+  `disabledReason`, `isListInPortal`, `withCard` (off, Required's icon is the
+  pill's asterisk rather than the dashed circle).
 - `ActiveFilters/FilterPillButton`: `removeLabel`, `fieldIconOverride`,
   `isLockSpaceReserved`, `areActionsHidden`, `dragHandle` (unused
   by the bar since the pill itself drags), `tablesTooltipNote` (through `Filter`, `TemporaryFilters`
@@ -79,12 +82,9 @@ Openings (optional props, defaults are today's behaviour):
   `FilterRuleLabel` takes `isValueBold`).
 - `FilterConfiguration/FilterFieldSelect`: `defaultOpened`, `withLabel`,
   `placeholder`, `withinPortal`.
-- `FilterConfiguration/FilterValueSection`: `withDefaultValueSwitch` and
-  `withRequiredSaveNote` (the editor passes `false` for both: edit mode edits
-  the default, and Save keeps a required filter's value), and
-  `isListClosedOnPick` (the editor passes `true`: an open value list would
-  cover its Apply). It reaches the string inputs as `popoverProps.closeListOnPick`
-  and `popoverProps.openListOnFocus: false`, and `MultiSelectCombobox` as
+- The string value inputs take `popoverProps.closeListOnPick` and
+  `popoverProps.openListOnFocus: false` (the editor passes both: an open
+  value list would cover its Apply), and `MultiSelectCombobox` takes
   `closeOnOptionSubmit` and `openOnFocus` (default `true`): the list waits
   for typing, a click or ArrowDown.
 - `FilterConfiguration/utils`: `getFilterRuleWithRequired` takes
@@ -96,7 +96,8 @@ Pure moves out of shipped files, now shared by both sides:
 `ActiveFilters/` (`FilterRuleLabel`, `FilterPillSkeletons`,
 `TemporaryFilters`, `UnresolvedFilter`, `FilterPillButton`,
 `useFilterTabPlacement`, `filterLabels`, `filterLock`, `filterOrder`),
-`FilterConfiguration/` (`FilterValueSection`, `SqlColumnSelect`, and in
+`FilterConfiguration/` (`FilterValueSection` and its
+`ClearToAnyValueButton`, `SqlColumnSelect`, and in
 `utils` the rule helpers such as `getFilterRuleWithDisabledState`,
 `isLockedRequiredMissingValue`, `getFilterRuleFilterType`,
 `getRequiredGroupMemberUpdates`, `getDimensionFiltersToSave`, and
@@ -115,8 +116,8 @@ Fix behaviour in the shared piece, once, never in a copy.
 | `AddControl.tsx`, `FilterBarMenu.tsx` | "Add filter" and the editor's "..." menu ("Hide for viewers" / "Show for viewers", named for the action as the shipped pin item; "Filter rules"); `InertWhileEditing` |
 | `FilterPills.tsx`, `FilterPill.tsx`, `TemporaryFilterPills.tsx` | Bar pills: an editor's, a viewer's saved and own pills (each anchors the editor), an editor's temporary pills (shipped) |
 | `SettledFilterFields.tsx` | Keeps the last fields while tiles reload, so the bar does not flash a first load |
-| `FilterEditor.tsx` | `EditorPopover`, under a pill or "Add filter": the prompt, the body, Cancel and Apply |
-| `FilterSettings.tsx`, `FilterValueSettings.tsx`, `ViewerControls.tsx` | Popover body: name, value, "Applies to", the Settings view (section, required, lock) |
+| `FilterEditor.tsx` | `EditorPopover`, under a pill or "Add filter"; wires `FilterPopover` to the provider, a placeholder's field search |
+| `FilterPopover.tsx`, `FilterValueSettings.tsx`, `useRuleEdits.ts`, `NameInput.tsx`, `SectionSetting.tsx`, `ViewerControls.tsx`, `settingsSummary.ts`, `editorFocus.ts`, `useSettingsChipFocus.ts` | The popover, by props: header (icon, name, operator menu), value, chips (tiles, Settings), the prompt, Cancel and Apply, the Settings view (section, required, lock) |
 | `FieldsAndTiles.tsx`, `fieldCandidates.ts` | A new filter's field search; field candidates for "Add a field" and the cards |
 | `peers.ts` | Multi-field model on the saved shape, scopes, counts |
 | `FieldTilesBar.tsx`, `useFieldTileActions.ts`, `useBarHost.ts` | Floating field bar; the one place a field's counts and actions are computed |
@@ -126,7 +127,7 @@ Fix behaviour in the shared piece, once, never in a copy.
 | `SectionedFilters.tsx`, `SectionMenu.tsx`, `SectionNameInput.tsx`, `sections.ts`, `nameFocus.ts` | Sections bar, drag and drop, naming (focus after naming, shared with the editor's name); pure section helpers |
 | `SelectionBar.tsx`, `SelectionActions.tsx`, `barSelection.ts` | Multi-select on the sectioned bar |
 | `sectionVersionChanges.ts` | Section rows for the version comparison page |
-| `DashboardHeaderGuard.tsx` | Edit mode band (Editing, name; Add tile, Save dashboard, Cancel, "...") in place of the header for users who can manage the dashboard (`useDashboardManageAccess`, else the shipped header); inert while an editor's filter is edited |
+| `DashboardHeaderGuard.tsx` | Wraps the shipped header; inert while an editor's filter is edited |
 | `useEditorDismiss.ts` | Escape handling while a filter is edited |
 | `DropdownClass.tsx`, `railContractClasses.ts` | Embed class contract on the editor popover and portalled lists |
 | `requirements.ts`, `fieldLabels.ts` | Requirement rules, count copy |
@@ -137,7 +138,7 @@ Each one has broken before or would break silently.
 
 - **One filled button.** While a filter is edited the editor's Apply (the
   mapping row's in mapping) is the only filled button on screen: the inert
-  band draws Save dashboard as an outline, and the selection bar never uses
+  header draws Save changes as an outline, and the selection bar never uses
   `filled`. The one exception is the field bar's Undo right after "Add a
   field", or its Filter right after a tile card's pick (a design decision).
 - **No state reset in an effect.** Open/closed, mapping, highlighted field,
@@ -195,7 +196,7 @@ Each one has broken before or would break silently.
 ## Strings
 
 Viewers and embeds see the editor, tile cards, field bar and tab counts, so
-their copy lives in `DEFAULT_UI_STRINGS` (`filters.rail.*`,
+their copy lives in `DEFAULT_UI_STRINGS` (`controls.*`,
 `filters.tileCard.*`, `filters.fieldBar.*`, or a shipped key that fits),
 read with `useUiStrings`; counts go through `formatTileCount` /
 `formatFieldCount` in `fieldLabels.ts`. Add every new key to both locale
@@ -241,15 +242,20 @@ Every flag-on pill is the default white pill; only these change it, all in
   ink border, the extra 0.5px inset so the box keeps its size.
 - Not saved for everyone (`data-temporary`: a viewer's own filter, or an
   editor's filter not in the saved dashboard, or a temporary pill): dashed.
-  "Only you see this filter" (`filters.rail.onlyYouSeeFilter`) or "Not saved
+  "Only you see this filter" (`controls.onlyYouSeeFilter`) or "Not saved
   yet" is the first line of the tooltip the pill already has: the select
   hint, else the tables tooltip (`tablesTooltipNote`).
 - Picked (edit mode): blue fill and a check, the only blue.
-- Required, locked and "changed since save" have no cue; Save in the band is
-  the one unsaved signal.
+- Required with no value: a muted asterisk on the left, before the field
+  icon, with the requirement's tooltip (the pill is described by it); none
+  once it has a value, nor on a locked pill (no viewer can set it). Locked
+  and "changed since save" have no other cue; Save in the header is the one
+  unsaved signal. An inner part with its own tooltip carries
+  `data-own-tooltip` (or is a button), so the pill's tooltip waits on it.
 
-Apply in the editor is disabled for an editor's required filter with no value
-and for a filter that reaches no tile.
+Apply in the editor is disabled for an editor's filter that reaches no tile
+or is locked and required with no value, and for a viewer's required filter
+they cleared (one still off as saved applies unchanged, as with the flag off).
 
 ## Tests
 

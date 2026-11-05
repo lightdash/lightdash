@@ -44,6 +44,7 @@ import {
     type ApiVirtualViewAsCodeListResponse,
     type ApiVirtualViewAsCodeUpsertResponse,
     type ChartAsCode,
+    type ContentAsCodeReleasableType,
     type ContentAsCodeSettingsStamp,
     type ContentAsCodeSnapshotPrune,
     type ContentDraftRebaseRequest,
@@ -61,6 +62,7 @@ import {
 } from '@lightdash/common';
 import {
     Body,
+    Delete,
     Get,
     Middlewares,
     OperationId,
@@ -582,6 +584,35 @@ export class ProjectCoderController extends BaseController {
             .getContentAsCodeWritebackService()
             .pruneSnapshots(toSessionUser(req.account), projectUuid, body);
         return { status: 'ok', results };
+    }
+
+    /**
+     * Stop managing one chart or dashboard from the repo so UI saves publish
+     * directly again. The content itself is kept.
+     * @summary Release content-as-code snapshot
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_WRITE_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Delete('/code/snapshots/{contentType}/{slug}')
+    @OperationId('releaseContentAsCodeSnapshot')
+    async releaseContentAsCodeSnapshot(
+        @Path() projectUuid: string,
+        @Path() contentType: ContentAsCodeReleasableType,
+        @Path() slug: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        await this.services
+            .getContentAsCodeWritebackService()
+            .releaseSnapshot(
+                toSessionUser(req.account),
+                projectUuid,
+                contentType,
+                slug,
+            );
+        return { status: 'ok', results: undefined };
     }
 
     /**

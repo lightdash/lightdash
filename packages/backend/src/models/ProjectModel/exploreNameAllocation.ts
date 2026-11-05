@@ -11,8 +11,8 @@ import {
     type Explore,
     type ExploreError,
 } from '@lightdash/common';
+import { chunk } from 'es-toolkit/compat';
 import { type Knex } from 'knex';
-import { chunk } from 'lodash';
 import { createHash } from 'node:crypto';
 import {
     ExploreNameAllocationsTableName,
@@ -626,7 +626,7 @@ export const allocateStagedExploreNames = async (
             sourceName && fallback.modelName.startsWith(`${sourceName}__`)
                 ? fallback.modelName.slice(sourceName.length + 2)
                 : fallback.modelName;
-        const matching = (
+        const joinedModelCandidates = (
             providersByModel.get(
                 JSON.stringify([
                     keyForSource(sourceUuid),
@@ -639,6 +639,13 @@ export const allocateStagedExploreNames = async (
                 !table.dbtPackageName ||
                 identity.packageName === table.dbtPackageName,
         );
+        const matching =
+            keyForSource(sourceUuid) !== sourceKey(root) &&
+            joinedModelCandidates.length > 1
+                ? joinedModelCandidates.filter(
+                      (identity) => identity.modelName === modelName,
+                  )
+                : joinedModelCandidates;
         if (
             keyForSource(sourceUuid) !== sourceKey(root) &&
             matching.length !== 1

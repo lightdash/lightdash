@@ -11,12 +11,14 @@ import MantineModal from '../../common/MantineModal';
 type Props = {
     projectUuid: string;
     onClose: () => void;
+    onConnected: (connectionUuid: string) => void;
 };
 
 /** After a Google sign-in that can read several properties, the admin picks the one to connect. */
 export const GoogleSourcePickerModal: FC<Props> = ({
     projectUuid,
     onClose,
+    onConnected,
 }) => {
     const { data, isLoading, error } = usePendingGoogleLiveSource(
         projectUuid,
@@ -36,8 +38,8 @@ export const GoogleSourcePickerModal: FC<Props> = ({
             cancelDisabled={finishMutation.isLoading}
             onConfirm={async () => {
                 if (!choice) return;
-                await finishMutation.mutateAsync(choice);
-                onClose();
+                const connection = await finishMutation.mutateAsync(choice);
+                onConnected(connection.externalConnectionUuid);
             }}
         >
             {isLoading ? (

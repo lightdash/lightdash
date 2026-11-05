@@ -22,8 +22,8 @@ import {
     type FilterRule,
     type ResultColumn,
 } from '@lightdash/common';
+import { isEqual } from 'es-toolkit/compat';
 import { produce } from 'immer';
-import isEqual from 'lodash/isEqual';
 
 /**
  * Describes the relationship between a filter and a tile based on tileTargets configuration.

@@ -1,7 +1,7 @@
 import { type RoleLevel } from '@lightdash/common';
-import { Center, Loader, Stack } from '@mantine/core';
 import { useNavigate, useParams } from 'react-router';
-import PageBreadcrumbs from '../../../components/common/PageBreadcrumbs';
+import EmptyStateLoader from '../../../components/common/EmptyStateLoader';
+import { SettingsPage } from '../../../components/common/Settings/SettingsPage';
 import { RoleBuilder } from '../../features/customRoles/components/RoleBuilder';
 import { useCustomRole } from '../../features/customRoles/useCustomRole';
 
@@ -47,11 +47,7 @@ export const CustomRoleEdit = () => {
     };
 
     if (isLoadingRole) {
-        return (
-            <Center h="100vh">
-                <Loader />
-            </Center>
-        );
+        return <EmptyStateLoader title="Loading role" />;
     }
 
     if (!role) {
@@ -60,20 +56,17 @@ export const CustomRoleEdit = () => {
     }
 
     return (
-        <Stack gap="md" h="100%">
-            <PageBreadcrumbs
-                items={[
-                    {
-                        title: 'Custom roles',
-                        to: '/generalSettings/customRoles',
-                    },
-                    {
-                        title: role.name,
-                        active: true,
-                    },
-                ]}
-            />
-
+        <SettingsPage
+            fillHeight
+            title={role.name}
+            description="Edit the role's details and permissions."
+            breadcrumbs={[
+                {
+                    title: 'Custom roles',
+                    to: '/generalSettings/customRoles',
+                },
+            ]}
+        >
             <RoleBuilder
                 initialValues={{
                     name: role.name,
@@ -85,6 +78,6 @@ export const CustomRoleEdit = () => {
                 isWorking={updateRole.isLoading}
                 mode="edit"
             />
-        </Stack>
+        </SettingsPage>
     );
 };

@@ -15,7 +15,8 @@ A turn's loadout is on its trace: span attributes `ai.agent.loadout.{base,add_on
 
 1. Add the name to `AGENT_TOOL_NAMES` and its builder to `toolBuilders` in `agents/agentV2.ts`.
 2. Choose its owner: the base when it is part of the query path, otherwise an add-on. Add it to an existing add-on with the same condition, or a new add-on with a one-line `description`. A base that needs an add-on's tool accepts that add-on; it never lists the tool.
-3. Run `pnpm -F backend test src/ee/services/ai/loadout` and commit the updated snapshots in `__snapshots__/`; they are the contract reviewers read.
+3. If the tool does something a role controls, gate its add-on on that permission, not only on an agent setting. The service call's own permission check stops the action but still offers the tool, so the agent proposes it and then fails. Compute a boolean from the same CASL ability the service checks, next to `canRunSql`, `canCreateDashboards` and `canCreateScheduledDeliveries` in `AiAgentService`, add it to `LoadoutInput` and use it in the add-on's `when`. An embedded agent runs as the embed's write actor, so this is what lets a role offer content tools without scheduling.
+4. Run `pnpm -F backend test src/ee/services/ai/loadout` and commit the updated snapshots in `__snapshots__/`; they are the contract reviewers read.
 
 ## Adding a built-in skill
 

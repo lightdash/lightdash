@@ -74,6 +74,28 @@ describe('RequiredFilterCard', () => {
         vi.clearAllMocks();
     });
 
+    it.each([
+        ['the card', true, 'circle-dashed'],
+        ["the controls editor's settings row", false, 'asterisk'],
+    ])('marks Required in %s with its icon', (_, withCard, icon) => {
+        const rule = buildRule({ required: true });
+        setDashboardFilters([rule]);
+        const { container } = renderWithProviders(
+            <RequiredFilterCard
+                filterRule={rule}
+                withCard={withCard}
+                onToggleRequired={vi.fn()}
+                onChangeFilterRule={vi.fn()}
+            />,
+        );
+        expect(container.querySelector(`.tabler-icon-${icon}`)).not.toBeNull();
+        expect(
+            container.querySelector(
+                `.tabler-icon-${icon === 'asterisk' ? 'circle-dashed' : 'asterisk'}`,
+            ),
+        ).toBeNull();
+    });
+
     it('renders inactive and reports toggling required on', async () => {
         const rule = buildRule();
         setDashboardFilters([rule]);

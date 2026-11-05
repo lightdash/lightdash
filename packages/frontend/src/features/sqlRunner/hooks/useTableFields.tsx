@@ -4,8 +4,8 @@ import {
     type WarehouseTableSchema,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
+import { isEmpty } from 'es-toolkit/compat';
 import Fuse from 'fuse.js';
-import isEmpty from 'lodash/isEmpty';
 import { type LightdashApi } from '../../../api';
 import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 

@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { agentSettingsMcpMock } from '../../../../../../features/aiAccess/agentSettings.mock';
 import { renderWithProviders } from '../../../../../../testing/testUtils';
@@ -9,6 +9,19 @@ const surfaces = vi.hoisted(() => ({
     aiAgentsVisible: false,
     slackEnabled: false,
 }));
+const storedSlackSettings = vi.hoisted(() => ({
+    notificationChannel: 'C-notify',
+    appProfilePhotoUrl: 'https://example.com/photo.png',
+    slackChannelProjectMappings: [],
+    aiThreadAccessConsent: true,
+    aiRequireOAuth: true,
+    aiLinksOnly: true,
+    aiMultiAgentChannelId: 'C-multi',
+    aiMultiAgentProjectUuids: null,
+    aiMultiAgentRequireMention: true,
+    unfurlsEnabled: false,
+}));
+const updateSlackSettings = vi.hoisted(() => vi.fn());
 vi.mock('../../../hooks/useAiOrganizationSettings', () => ({
     useAiOrganizationAdminSettings: () => ({
         data: {
@@ -26,11 +39,15 @@ vi.mock('../../../hooks/useAiOrganizationSettings', () => ({
 vi.mock('../../../../../../hooks/slack/useSlack', () => ({
     useGetSlack: () => ({
         data: surfaces.slackEnabled
-            ? { organizationUuid: 'org', aiAgentsEnabled: true }
+            ? {
+                  organizationUuid: 'org',
+                  aiAgentsEnabled: true,
+                  ...storedSlackSettings,
+              }
             : undefined,
     }),
     useUpdateSlackAppCustomSettingsMutation: () => ({
-        mutate: vi.fn(),
+        mutate: updateSlackSettings,
         isLoading: false,
     }),
 }));
@@ -45,6 +62,17 @@ vi.mock('../../../../../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: () => ({ data: { enabled: false } }),
 }));
 vi.mock('./AiProvidersCard', () => ({ AiProvidersCard: () => null }));
+vi.mock('./AiSurfacesCard', () => ({
+    AiSurfacesCard: ({
+        onUpdateSlackAgentsEnabled,
+    }: {
+        onUpdateSlackAgentsEnabled: (checked: boolean) => void;
+    }) => (
+        <button onClick={() => onUpdateSlackAgentsEnabled(false)}>
+            Turn off Slack agents
+        </button>
+    ),
+}));
 vi.mock('./ReviewNotificationsSettings', () => ({
     ReviewNotificationsSettings: () => null,
 }));
@@ -56,6 +84,7 @@ beforeEach(() => {
     surfaces.mcpEnabled = true;
     surfaces.aiAgentsVisible = false;
     surfaces.slackEnabled = false;
+    updateSlackSettings.mockClear();
 });
 
 it('disables the router when MCP is off and no other agent surface is enabled', () => {
@@ -76,3 +105,15 @@ it.each(['mcp', 'ui', 'slack'] as const)(
         expect(screen.getByText('Router instructions')).toBeInTheDocument();
     },
 );
+
+it('keeps every stored Slack setting when toggling Slack agents', () => {
+    surfaces.slackEnabled = true;
+    renderWithProviders(<AiGeneralSettingsPage />);
+
+    fireEvent.click(screen.getByText('Turn off Slack agents'));
+
+    expect(updateSlackSettings).toHaveBeenCalledWith({
+        ...storedSlackSettings,
+        aiAgentsEnabled: false,
+    });
+});

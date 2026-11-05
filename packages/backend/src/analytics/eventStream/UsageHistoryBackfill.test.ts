@@ -106,10 +106,12 @@ describe('usage history completion signal', () => {
     });
     it('fails the job if publishing its completion signal fails', async () => {
         storageCalls.putObject.mockRejectedValue(
-            new Error('storage unavailable'),
+            new Error('private storage credentials'),
         );
         await expect(importer().run(org, history)).rejects.toThrow(
-            'storage unavailable',
+            new Error(
+                'Unable to publish analytics history completion to storage. Retry the backfill or contact your administrator.',
+            ),
         );
     });
 });

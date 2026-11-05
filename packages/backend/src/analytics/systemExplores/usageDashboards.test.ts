@@ -28,6 +28,8 @@ import { analyticsContentAsCode } from './sampleContent';
 
 const charts = analyticsContentAsCode.flatMap((bundle) => bundle.charts);
 const explores = createAnalyticsExplores();
+const chartBaseTable = (chart: ChartAsCode) =>
+    explores.find(({ name }) => name === chart.tableName)!.baseTable;
 const compile = (chart: ChartAsCode) =>
     new MetricQueryBuilder({
         explore: explores.find(({ name }) => name === chart.tableName)!,
@@ -67,7 +69,7 @@ describe('built-in usage dashboards', () => {
             if (chart.chartConfig.type !== ChartType.TABLE)
                 throw new Error('Expected table');
             const table = explores.find(({ name }) => name === chart.tableName)!
-                .tables[chart.tableName];
+                .tables[chartBaseTable(chart)];
             for (const fieldId of chart.metricQuery.dimensions.filter((field) =>
                 /_(chart|dashboard|content)_name$/.test(field),
             )) {
@@ -290,14 +292,14 @@ describe('built-in usage dashboards', () => {
             (chart) =>
                 chart.dashboardSlug !== 'lightdash-analytics-ai-tokens' &&
                 chart.metricQuery.dimensions.includes(
-                    `${chart.tableName}_user_name`,
+                    `${chartBaseTable(chart)}_user_name`,
                 ),
         );
         expect(userCharts.length).toBeGreaterThan(0);
         for (const chart of userCharts) {
-            const nameField = `${chart.tableName}_user_name`;
-            const emailField = `${chart.tableName}_user_email`;
-            const idField = `${chart.tableName}_user_id`;
+            const nameField = `${chartBaseTable(chart)}_user_name`;
+            const emailField = `${chartBaseTable(chart)}_user_email`;
+            const idField = `${chartBaseTable(chart)}_user_id`;
             expect(chart.metricQuery.dimensions).toContain(idField);
             expect(chart.metricQuery.dimensions).toContain(emailField);
             expect(chart.metricQuery.tableCalculations).toContainEqual(
@@ -620,16 +622,19 @@ describe('built-in usage dashboards', () => {
     it.each(charts.map((chart) => [chart.slug, chart] as const))(
         'compiles %s without missing fields or join warnings',
         (_slug, chart) => {
+            const explore = explores.find(
+                ({ name }) => name === chart.tableName,
+            )!;
             expect(compile(chart).warnings).toEqual([]);
             expect(chart.metricQuery.limit).toBeLessThanOrEqual(5000);
             expect(
                 chart.metricQuery.dimensions.every(
                     (field) =>
-                        field.startsWith(`${chart.tableName}_`) ||
+                        field.startsWith(`${explore.baseTable}_`) ||
                         chart.metricQuery.customDimensions?.some(
                             (dimension) =>
                                 dimension.id === field &&
-                                dimension.table === chart.tableName,
+                                dimension.table === explore.baseTable,
                         ),
                 ),
             ).toBe(true);

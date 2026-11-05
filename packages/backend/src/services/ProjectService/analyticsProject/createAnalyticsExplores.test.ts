@@ -30,16 +30,17 @@ describe('createAnalyticsExplores', () => {
             'semantic_usage',
             'content_reach',
             'content_health',
+            'content_inventory',
         ]) {
-            const table = explores.find((explore) => explore.name === name)!
-                .tables[name];
+            const explore = explores.find((item) => item.name === name)!;
+            const table = explore.tables[explore.baseTable];
             for (const type of name.startsWith('content_')
                 ? ['content']
                 : ['chart', 'dashboard']) {
                 expect(table.dimensions[`${type}_name`].urls).toEqual([
                     {
                         label: `Open ${type}`,
-                        url: `\${row.${name}.${type}_url.raw}`,
+                        url: `\${row.${table.name}.${type}_url.raw}`,
                     },
                 ]);
             }
@@ -289,7 +290,9 @@ describe('createAnalyticsExplores', () => {
             'tool_activity',
             'content_reach',
             'content_health',
+            'content_inventory',
             'agent_requests',
+            'agent_request_starts',
             'agent_request_events',
             'semantic_usage',
             'data_app_reach',

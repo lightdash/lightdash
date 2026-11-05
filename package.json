@@ -1,6 +1,6 @@
 {
     "name": "lightdash",
-    "version": "3.115.0",
+    "version": "3.158.0",
     "main": "index.js",
     "license": "MIT",
     "private": true,
@@ -128,7 +128,7 @@
         "dev": "pnpm -r --stream --parallel -F common -F visualization -F warehouses -F backend -F frontend run dev",
         "build": "turbo run build --filter=@lightdash/common --filter=@lightdash/visualization --filter=@lightdash/warehouses --filter=backend --filter=@lightdash/frontend",
         "build-published-packages": "pnpm -r --stream --workspace-concurrency=1 -F common -F visualization -F warehouses -F query-sdk -F cli -F formula build && pnpm frontend-build-sdk",
-        "release-packages": "pnpm -r --stream --workspace-concurrency=1 -F common -F visualization -F warehouses -F query-sdk -F cli -F frontend release",
+        "release-packages": "pnpm -r publish -F @lightdash/common -F @lightdash/visualization -F @lightdash/warehouses -F @lightdash/query-sdk -F @lightdash/sdk -F @lightdash/cli --no-git-checks --access public",
         "start": "pnpm run backend-start",
         "prepare": "husky || true",
         "load:env": "dotenv -c -e .env.development.local",
@@ -177,7 +177,8 @@
         "ldenv:test": "tsx --test scripts/ldenv/*.test.ts",
         "ldenv:typecheck": "tsc --project scripts/ldenv/tsconfig.json",
         "ldenv:lint": "pnpm -F backend exec sh -c 'cd ../.. && oxlint -c scripts/ldenv/oxlint.json scripts/ldenv'",
-        "ldenv:format": "oxfmt --check scripts/ldenv"
+        "ldenv:format": "oxfmt --check scripts/ldenv",
+        "dev:onboarding": "pnpm -F backend dev:onboarding"
     },
     "lint-staged": {
         "packages/frontend/src/**/*.(ts|tsx|json|css)": [
@@ -232,5 +233,5 @@
             "pnpm -F formula run formatter"
         ]
     },
-    "packageManager": "pnpm@12.3.4+sha512.961aa41fb077da3a04a441d9f8e15ebc0c96da8ef710b2eb67bf9ee7cb0610eabd48f1fd85f51cffe73846785fa0f87c56a3a872a1d893f8446741b5cce45457"
+    "packageManager": "pnpm@12.16.1+sha512.091d1dee7927575661b25dab3c2ae31cafc1c54d6b71ed6a6600cf0c1cb10434a447eae14015f1b23e2e6bedeed79df94a932e2164d2832280dce3fb32f656d1"
 }

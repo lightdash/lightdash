@@ -231,3 +231,21 @@ export const getSlackTableBlocks = (
         return blocks;
     });
 };
+
+/** Slack rejects native tables sharing a message with markdown or rich_text blocks. */
+export const splitSlackTableMessage = (
+    trailingBlocks: (Block | KnownBlock)[],
+): {
+    withAnswer: (Block | KnownBlock)[];
+    tableMessage: (Block | KnownBlock)[] | null;
+} => {
+    const tableStart = trailingBlocks.findIndex(
+        (block) => block.type === 'data_table',
+    );
+    return tableStart === -1
+        ? { withAnswer: trailingBlocks, tableMessage: null }
+        : {
+              withAnswer: trailingBlocks.slice(0, tableStart),
+              tableMessage: trailingBlocks.slice(tableStart),
+          };
+};

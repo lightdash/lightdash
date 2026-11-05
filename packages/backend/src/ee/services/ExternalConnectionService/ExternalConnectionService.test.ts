@@ -178,6 +178,15 @@ function buildService(opts: {
             }),
     };
     const service = new ExternalConnectionService({
+        projectModel: {
+            replaceApiSourceExplores: vi.fn(),
+            deleteApiSourceExplores: vi.fn(),
+            findExploreNamesTakenByOthers: vi.fn().mockResolvedValue([]),
+            hasApiSourceExplores: vi.fn().mockResolvedValue(false),
+        },
+        savedChartModel: {
+            getChartCountPerField: vi.fn().mockResolvedValue([]),
+        },
         allowedPrivateHostCidrs: {},
         externalConnectionModel: model as never,
         appModel: {} as never,
@@ -208,6 +217,7 @@ function buildService(opts: {
         featureFlagModel: {
             get: vi.fn().mockResolvedValue({ enabled: true }),
         } as never,
+        schedulerClient: { scanApiSourceSchema: vi.fn() },
     });
     return { service, model, orgAiCopilotConfigResolver };
 }

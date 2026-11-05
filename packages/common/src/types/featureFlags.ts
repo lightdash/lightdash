@@ -5,8 +5,6 @@
  * If the feature flag is no longer in use, remove it from this enum.
  */
 export enum FeatureFlags {
-    /** Organization-scoped, off by default. Retry missing cross-project refs with sibling models injected through a generated dbt plugin. */
-    CrossSourceDbtRefs = 'cross-source-dbt-refs',
     DbtExplicitCredentials = 'dbt-explicit-credentials',
     /**
      * Agent identity gates agent query identity, organisation settings and
@@ -19,7 +17,6 @@ export enum FeatureFlags {
     /** Extra warehouse connections of a different type to the project's original connection. */
     MixedWarehouseConnections = 'mixed-warehouse-connections',
     /** Backend-provisioned usage analytics projects. */
-    AnalyticsProject = 'analytics-project',
     /* Show user groups */
     UserGroupsEnabled = 'user-groups-enabled',
 
@@ -161,15 +158,10 @@ export enum FeatureFlags {
     OrganizationTrialBlock = 'organization-trial-block',
 
     /**
-     * Gate the org-level export Limits settings panel (per-org query max rows
-     * and CSV cells limit). Backend enforcement of any stored overrides is
-     * always on; this flag only controls who can see/configure the panel.
-     */
-    ProLimits = 'pro-limits',
-
-    /**
-     * Show the coding-agent project onboarding flow. This gates only the UI;
-     * the CLI, APIs, and installed skills remain available independently.
+     * Show the coding-agent project onboarding flow. With NewOnboarding, people
+     * without a repo can start an onboarding run right after connecting their
+     * warehouse. The CLI, APIs, and installed skills remain available
+     * independently.
      */
     CodingAgentOnboarding = 'coding-agent-onboarding',
 
@@ -226,7 +218,8 @@ export enum FeatureFlags {
     /**
      * Enable api query sources: queries sent live to an external API (HogQL
      * to PostHog) through a project connection, and the Live data sources
-     * project settings page. Off by default; enable per org.
+     * project settings page. Off by default; enable per org. Also on wherever
+     * NewOnboarding is on, unless a user or org override turns it off.
      */
     ApiQuerySources = 'api-query-sources',
 
@@ -236,6 +229,14 @@ export enum FeatureFlags {
      * (GET /api/v2/projects/{projectUuid}/query/history). Off by default.
      */
     QueryHistory = 'query-history',
+
+    /**
+     * Semantic Studio, the internal name of the Semantic Layer page
+     * (/projects/{projectUuid}/semantic-layer): every kind of explore in one
+     * tree, with field details and live data source field editing. Off by
+     * default.
+     */
+    SemanticStudio = 'semantic-studio',
 
     /**
      * Configurable retention for AI agent threads. Off by default; enabled
@@ -308,6 +309,11 @@ export enum FeatureFlags {
      */
     AthenaWebIdentityAuth = 'athena-web-identity-auth',
     /**
+     * Organization-scoped, off by default: BigQuery workload identity federation.
+     * Only enable on instances whose pods run as their own Google service account.
+     */
+    BigqueryWorkloadIdentityAuth = 'bigquery-workload-identity-auth',
+    /**
      * Organization-scoped: org admins can bring their own AI provider keys,
      * restrict model visibility, and route those keys through a custom base
      * URL (an OpenAI/Anthropic/Gemini-compatible gateway). Off by default;
@@ -315,6 +321,12 @@ export enum FeatureFlags {
      * providers are used. Enable it for an org BEFORE it stores a key.
      */
     OrgAiCustomProviders = 'org-ai-custom-providers',
+    /**
+     * Organization-scoped, off by default: when a Redshift dashboard or chart
+     * query has no first row after 30s and Redshift has no record of it,
+     * cancel it and retry on a new connection.
+     */
+    RedshiftStalledQueryRecovery = 'redshift-stalled-query-recovery',
 }
 
 export type FeatureFlag = {

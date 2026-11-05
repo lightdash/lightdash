@@ -1369,6 +1369,7 @@ describe('MCP tool contracts', () => {
         ).toHaveBeenCalledWith({
             user: defaultSessionUser,
             projectUuid: 'project-uuid',
+            spaceUuids: null,
         });
     });
 });

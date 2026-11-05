@@ -3,9 +3,11 @@ import {
     type ApiDataAppAnalysisLookupResponse,
     type ApiDataAppAnalysisResponse,
     type ApiDataAppDetectResponse,
+    type ApiDataAppInstructionInvestigateResponse,
     type ApiDataAppInvestigateResponse,
     type DataAppAnalysisRecord,
     type DataAppAnalysisSource,
+    type DataAppInstructionInvestigation,
     type DataAppInvestigation,
 } from '@lightdash/common';
 import { type LightdashApi } from '../../api';
@@ -128,6 +130,50 @@ export const investigateAnalysisAnomaly = async (
         analysisId: investigationId,
     });
     if (record.operation !== 'investigate') {
+        throw new Error('Unexpected analysis type');
+    }
+    return record;
+};
+
+/**
+ * Queues an investigation of an app-authored instruction, waits for the job,
+ * then reads the persisted result. Apps only; dashboards have no authors.
+ */
+export const investigateAnalysisInstruction = async (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        target,
+        instruction,
+        sources,
+        agentUuid,
+    }: {
+        projectUuid: string;
+        target: AnalysisTargetLocator;
+        instruction: string;
+        sources: DataAppAnalysisSource[];
+        agentUuid: string;
+    },
+): Promise<DataAppInstructionInvestigation> => {
+    const { jobId } = await lightdashApi<
+        ApiDataAppInstructionInvestigateResponse['results']
+    >({
+        version: 'v2',
+        url: `${analysisBase(projectUuid, target)}/investigate-instruction`,
+        method: 'POST',
+        body: JSON.stringify({ instruction, sources, agentUuid }),
+    });
+    const details = await pollJobStatus(lightdashApi, jobId);
+    const investigationId = details?.investigationId;
+    if (typeof investigationId !== 'string') {
+        throw new Error('The investigation finished without a result');
+    }
+    const record: DataAppAnalysisRecord = await getAnalysis(lightdashApi, {
+        projectUuid,
+        target,
+        analysisId: investigationId,
+    });
+    if (record.operation !== 'investigate_instruction') {
         throw new Error('Unexpected analysis type');
     }
     return record;

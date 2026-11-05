@@ -1,68 +1,38 @@
 import { MantineProvider } from '@mantine/core';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { type ComponentProps } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type DashboardHeader from '../../components/common/Dashboard/DashboardHeader';
 import { DashboardHeaderGuard } from './DashboardHeaderGuard';
+import {
+    ParameterEditorContext,
+    type ParameterEditorValue,
+} from './useParameterEditor';
 
 const mockSidebar = vi.hoisted(() => ({
     current: { isSidebarOpen: true, isViewer: false },
 }));
 
-const mockAccess = vi.hoisted(() => ({ userCanManageDashboard: true }));
-
-vi.mock('../../components/common/Dashboard/useDashboardManageAccess', () => ({
-    useDashboardManageAccess: () => mockAccess,
-}));
 vi.mock('./useControlsSidebar', () => ({
     useControlsSidebarSelector: (
         selector: (value: typeof mockSidebar.current) => unknown,
     ) => selector(mockSidebar.current),
 }));
-// The shipped header's shape: a title, then Add tile beside Save and Cancel
 vi.mock('../../components/common/Dashboard/DashboardHeader', () => ({
-    default: ({
-        onSaveDashboard,
-        onCancel,
-    }: ComponentProps<typeof DashboardHeader>) => (
+    default: () => (
         <header>
-            <a href="#title">Title</a>
-            <div>
-                <button>Add tile</button>
-                <button onClick={onSaveDashboard}>Save changes</button>
-                <button onClick={onCancel}>Cancel</button>
-            </div>
+            <button>Save changes</button>
+            <button>Cancel</button>
         </header>
     ),
 }));
-vi.mock('../../components/DashboardTiles/AddTileButton', () => ({
-    default: () => <button>Add tile</button>,
-}));
-vi.mock(
-    '../../components/common/Dashboard/DashboardPerformanceWarning',
-    () => ({ DashboardPerformanceWarning: () => null }),
-);
-vi.mock('../../components/common/modal/DashboardUpdateModal', () => ({
-    default: () => null,
-}));
-vi.mock('../../providers/Tracking/useTracking', () => ({
-    default: () => ({ track: vi.fn() }),
-}));
 
-const baseProps = {
-    dashboard: { uuid: 'd1', name: 'Weekly revenue review' },
-    isEditMode: true,
-    hasDashboardChanged: false,
-    isSaving: false,
-    onSaveDashboard: vi.fn(),
-    onCancel: vi.fn(),
-} as unknown as ComponentProps<typeof DashboardHeader>;
-
-const renderGuard = (props: Partial<ComponentProps<typeof DashboardHeader>>) =>
+const renderGuard = () =>
     render(
         <MantineProvider>
-            <DashboardHeaderGuard {...baseProps} {...props} />
+            <DashboardHeaderGuard
+                {...({} as ComponentProps<typeof DashboardHeader>)}
+            />
         </MantineProvider>,
     );
 
@@ -72,90 +42,78 @@ const button = (name: string) =>
 describe('DashboardHeaderGuard', () => {
     beforeEach(() => {
         mockSidebar.current = { isSidebarOpen: false, isViewer: false };
-        mockAccess.userCanManageDashboard = true;
     });
 
-    describe('edit mode band', () => {
-        it('draws Editing and the name, then Add tile, Save dashboard, Cancel in order', () => {
-            renderGuard({});
+    it('renders the shipped header, unlocked', () => {
+        renderGuard();
+        expect(button('Save changes')).toBeInTheDocument();
+        expect(document.querySelector('[inert]')).toBeNull();
+    });
 
-            const band = screen.getByTestId('dashboard-edit-band');
-            expect(band).toHaveTextContent('Editing');
-            expect(band).toHaveTextContent('Weekly revenue review');
-            expect(screen.queryByText('Save changes')).toBeNull();
+    it('makes the whole header inert while an editor edits a filter', () => {
+        mockSidebar.current = { isSidebarOpen: true, isViewer: false };
+        renderGuard();
+        expect(button('Save changes').closest('[inert]')).not.toBeNull();
+        expect(button('Cancel').closest('[inert]')).not.toBeNull();
+    });
 
-            const names = screen
-                .getAllByRole('button')
-                .map((b) => b.getAttribute('aria-label') ?? b.textContent);
-            expect(names).toEqual([
-                'Add tile',
-                'Save dashboard',
-                'Cancel',
-                'Dashboard actions',
-            ]);
-        });
-
-        it('keeps Save dashboard disabled until there are changes, then saves', async () => {
-            const onSaveDashboard = vi.fn();
-            const { rerender } = renderGuard({ onSaveDashboard });
-            expect(button('Save dashboard')).toBeDisabled();
-
-            rerender(
+    it.each([
+        [false, true],
+        [true, false],
+    ])(
+        'locks the header while a parameter control is edited (viewer %s: %s)',
+        (isViewer, isLocked) => {
+            mockSidebar.current = { isSidebarOpen: false, isViewer };
+            const noop = vi.fn();
+            const editor: ParameterEditorValue = {
+                editingId: 'region',
+                draft: null,
+                isNeedsValue: false,
+                newControl: null,
+                isViewer,
+                isAsking: false,
+                open: noop,
+                add: noop,
+                update: noop,
+                apply: noop,
+                cancel: noop,
+                resolvePending: noop,
+                move: noop,
+                remove: noop,
+                draftControls: null,
+                setKeyTiles: noop,
+                clearAllTiles: noop,
+                isMapping: false,
+                selectedKey: null,
+                mappingUndo: null,
+                startMapping: noop,
+                endMapping: noop,
+                cancelMapping: noop,
+                setTiles: noop,
+                undoMapping: noop,
+                selectKey: noop,
+                hoveredKey: null,
+                hoverKey: noop,
+                mapping: null,
+            };
+            render(
                 <MantineProvider>
-                    <DashboardHeaderGuard
-                        {...baseProps}
-                        onSaveDashboard={onSaveDashboard}
-                        hasDashboardChanged
-                    />
+                    <ParameterEditorContext.Provider value={editor}>
+                        <DashboardHeaderGuard
+                            {...({} as ComponentProps<typeof DashboardHeader>)}
+                        />
+                    </ParameterEditorContext.Provider>
                 </MantineProvider>,
             );
-            expect(button('Save dashboard')).toBeEnabled();
-            await userEvent.click(button('Save dashboard'));
-            expect(onSaveDashboard).toHaveBeenCalledTimes(1);
-        });
+            expect(button('Save changes').closest('[inert]') !== null).toBe(
+                isLocked,
+            );
+        },
+    );
 
-        it('cancels through the shipped cancel path', async () => {
-            const onCancel = vi.fn();
-            renderGuard({ onCancel });
-            await userEvent.click(button('Cancel'));
-            expect(onCancel).toHaveBeenCalledTimes(1);
-        });
-
-        it('makes the whole band inert while a filter is edited', () => {
-            mockSidebar.current = { isSidebarOpen: true, isViewer: false };
-            renderGuard({ hasDashboardChanged: true });
-
-            const band = screen.getByTestId('dashboard-edit-band');
-            expect(band.closest('[inert]')).not.toBeNull();
-            expect(button('Save dashboard').closest('[inert]')).not.toBeNull();
-            expect(button('Cancel').closest('[inert]')).not.toBeNull();
-        });
-
-        it('never locks the band while a viewer edits their filters', () => {
-            mockSidebar.current = { isSidebarOpen: true, isViewer: true };
-            renderGuard({});
-            expect(document.querySelector('[inert]')).toBeNull();
-        });
-    });
-
-    describe('edit mode without manage access', () => {
-        it('renders the shipped header, as it does with the flag off', () => {
-            mockAccess.userCanManageDashboard = false;
-            renderGuard({});
-
-            expect(screen.queryByTestId('dashboard-edit-band')).toBeNull();
-            expect(button('Save changes')).toBeInTheDocument();
-        });
-    });
-
-    describe('view mode', () => {
-        it('renders the shipped header, unlocked', () => {
-            mockSidebar.current = { isSidebarOpen: true, isViewer: true };
-            renderGuard({ isEditMode: false });
-
-            expect(screen.queryByTestId('dashboard-edit-band')).toBeNull();
-            expect(button('Save changes')).toBeInTheDocument();
-            expect(document.querySelector('[inert]')).toBeNull();
-        });
+    it('never locks the header while a viewer edits their filters', () => {
+        mockSidebar.current = { isSidebarOpen: true, isViewer: true };
+        renderGuard();
+        expect(document.querySelector('[inert]')).toBeNull();
     });
 });

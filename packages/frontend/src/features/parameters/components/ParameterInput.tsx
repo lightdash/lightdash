@@ -19,7 +19,7 @@ import {
     type ComboboxItem,
     type ComboboxItemGroup,
 } from '@mantine/core';
-import { IconPlus } from '@tabler/icons-react';
+import { IconPlus, IconRefresh } from '@tabler/icons-react';
 import React, {
     useCallback,
     useEffect,
@@ -48,6 +48,12 @@ type ParameterInputProps = {
     parameterValues?: ParametersValuesMap;
     disabled?: boolean;
     isError?: boolean;
+    dashboardControl?: {
+        label: string;
+        unavailableOptions: string;
+        refreshOptions: string;
+        clearLabel: string;
+    };
 };
 
 const parameterDimensionMap: Record<string, DimensionType> = {
@@ -72,14 +78,17 @@ export const ParameterInput: FC<ParameterInputProps> = ({
     parameterValues,
     disabled,
     isError,
+    dashboardControl,
 }) => {
-    // A value outside the parameter's fixed options is treated as unset
+    const keepCurrentValue = dashboardControl !== undefined;
     const value = useMemo(
         () =>
             rawValue == null
                 ? null
-                : getAllowedParameterValue(parameter, rawValue),
-        [parameter, rawValue],
+                : keepCurrentValue
+                  ? rawValue
+                  : getAllowedParameterValue(parameter, rawValue),
+        [keepCurrentValue, parameter, rawValue],
     );
     const multiSelectRef = useRef<HTMLInputElement>(null);
 
@@ -199,6 +208,9 @@ export const ParameterInput: FC<ParameterInputProps> = ({
             : parameter.type === 'date'
               ? currentDateValues
               : currentStringValues;
+
+    const unavailableOptions = dashboardControl?.unavailableOptions;
+    const refreshOptions = dashboardControl?.refreshOptions;
 
     const optionsData = useMemo(() => {
         const parameterOptions = parameter.options ?? [];
@@ -350,6 +362,23 @@ export const ParameterInput: FC<ParameterInputProps> = ({
                 label: `${formatDisplayValue(value)} (default)`,
             }));
 
+        const unavailableItems =
+            unavailableOptions === undefined
+                ? []
+                : [...new Set(currentValues.map(String))]
+                      .filter(
+                          (optionValue) =>
+                              !existingValues.has(optionValue) &&
+                              !defaultItems.some(
+                                  ({ value: defaultValue }) =>
+                                      defaultValue === optionValue,
+                              ),
+                      )
+                      .map((optionValue) => ({
+                          value: optionValue,
+                          label: formatDisplayValue(optionValue),
+                      }));
+
         const specialItems = [];
 
         // Add create item if search doesn't match existing options and custom values are allowed
@@ -375,7 +404,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
         if (shouldFetch) {
             specialItems.push({
                 value: '__refresh__',
-                label: '__refresh_placeholder__', // Will be replaced in renderOption
+                label: refreshOptions ?? '__refresh_placeholder__',
             });
         }
 
@@ -383,6 +412,9 @@ export const ParameterInput: FC<ParameterInputProps> = ({
             ...regularItems,
             ...defaultItems,
             ...fetchedItems,
+            ...(unavailableItems.length > 0 && unavailableOptions !== undefined
+                ? [{ group: unavailableOptions, items: unavailableItems }]
+                : []),
             ...specialItems,
         ];
     }, [
@@ -392,10 +424,33 @@ export const ParameterInput: FC<ParameterInputProps> = ({
         optionsData,
         parameter,
         search,
+        unavailableOptions,
+        currentValues,
+        refreshOptions,
     ]);
 
     const renderOption = useCallback(
         ({ option }: { option: { value: string; label: string } }) => {
+            if (
+                option.value === '__refresh__' &&
+                refreshOptions !== undefined
+            ) {
+                return (
+                    <Group
+                        gap="xxs"
+                        wrap="nowrap"
+                        className={styles.refreshItem}
+                    >
+                        <MantineIcon icon={IconRefresh} size="sm" />
+                        <Text
+                            size="xs"
+                            title={refreshedAt?.toLocaleTimeString()}
+                        >
+                            {refreshOptions}
+                        </Text>
+                    </Group>
+                );
+            }
             if (option.value === '__refresh__' && shouldFetch && refreshedAt) {
                 const refreshLabel = `${
                     searchedMaxResults
@@ -442,6 +497,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
             refreshedAt,
             searchedMaxResults,
             parameter.allow_custom_values,
+            refreshOptions,
         ],
     );
 
@@ -537,6 +593,15 @@ export const ParameterInput: FC<ParameterInputProps> = ({
         );
     }
 
+    const clearButtonProps = dashboardControl
+        ? {
+              'aria-label': dashboardControl.clearLabel,
+              'aria-hidden': false,
+              tabIndex: 0,
+              onClick: () => multiSelectRef.current?.focus(),
+          }
+        : undefined;
+
     // Render Select or MultiSelect for non-date types or multiple date selection
     if (parameter.multiple) {
         return (
@@ -558,10 +623,19 @@ export const ParameterInput: FC<ParameterInputProps> = ({
                 placeholder={currentValues.length > 0 ? undefined : placeholder}
                 size={size}
                 searchable
+                openOnFocus={dashboardControl === undefined ? undefined : false}
+                aria-label={dashboardControl?.label}
+                clearButtonProps={clearButtonProps}
                 clearable
                 disabled={disabled}
                 error={isError}
-                hidePickedOptions
+                hidePickedOptions={
+                    !selectData.some(
+                        (item) =>
+                            'group' in item &&
+                            item.group === unavailableOptions,
+                    )
+                }
                 maxDropdownHeight={200}
                 scrollAreaProps={{
                     type: 'always',
@@ -601,6 +675,9 @@ export const ParameterInput: FC<ParameterInputProps> = ({
             placeholder={placeholder}
             size={size}
             searchable
+            openOnFocus={dashboardControl === undefined ? undefined : false}
+            aria-label={dashboardControl?.label}
+            clearButtonProps={clearButtonProps}
             clearable
             disabled={disabled}
             error={isError}

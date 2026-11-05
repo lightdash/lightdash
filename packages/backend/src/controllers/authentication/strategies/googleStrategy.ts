@@ -101,7 +101,11 @@ export const googleStrategyVerify = async (
                 );
             }
 
-            return done(null, req.user);
+            const linkedUser = await userService.fillMissingNamesFromGoogle(
+                req.user,
+                openIdUser.openId,
+            );
+            return done(null, linkedUser);
         }
 
         const user = await userService.loginWithOpenId(

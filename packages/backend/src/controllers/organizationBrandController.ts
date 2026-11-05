@@ -3,6 +3,7 @@ import {
     ApiOrganizationBrandLogoUploadResponse,
     ApiOrganizationBrandResponse,
     assertRegisteredAccount,
+    NotFoundError,
     ParameterError,
     SaveOrganizationBrandRequest,
     UpdateOrganizationBrandRequest,
@@ -11,11 +12,13 @@ import {
 import {
     Body,
     Get,
+    Hidden,
     Middlewares,
     OperationId,
     Path,
     Post,
     Put,
+    Query,
     Request,
     Response,
     Route,
@@ -23,6 +26,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -40,7 +44,13 @@ export class OrganizationBrandController extends BaseController {
      * @summary Get organization brand
      * @param req express request
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'OrganizationBrandController.getOrganizationBrand',
+        ),
+    ])
     @Get('/brand')
     @OperationId('GetOrganizationBrand')
     async getOrganizationBrand(
@@ -148,12 +158,76 @@ export class OrganizationBrandController extends BaseController {
     }
 
     /**
+     * Favicon for the app shell: the organization's brand logo when signed in,
+     * otherwise the instance logo, otherwise the default icon.
+     * @summary Get organization favicon
+     * @param req express request
+     */
+    @Hidden()
+    @Get('/brand/favicon')
+    @OperationId('GetOrganizationBrandFavicon')
+    async getOrganizationBrandFavicon(
+        @Request() req: express.Request,
+    ): Promise<void> {
+        const url = await this.services
+            .getOrganizationBrandService()
+            .getFaviconUrl(req.account, req.user?.isEmailVerified === true);
+        const { res } = req as express.Request & { res: express.Response };
+        res.setHeader('Cache-Control', 'private, no-cache');
+        res.redirect(302, url);
+    }
+
+    /**
+     * Instance logo configured as a base64 data URL, served so browsers can
+     * use it as a favicon and cache it.
+     * @summary Get instance logo
+     * @param req express request
+     */
+    @Hidden()
+    @Get('/brand/instance-logo')
+    @OperationId('GetInstanceBrandLogo')
+    async getInstanceBrandLogo(
+        @Request() req: express.Request,
+        @Query() v?: string,
+    ): Promise<void> {
+        const logo = this.services
+            .getInstanceBrandService()
+            .getInstanceLogoFile();
+        if (!logo) {
+            throw new NotFoundError('Instance logo not found');
+        }
+        const { res } = req as express.Request & { res: express.Response };
+        res.status(200);
+        res.setHeader('Content-Type', logo.contentType);
+        res.setHeader('Content-Length', String(logo.data.length));
+        // Only cache the requested version if it's this pod's, e.g. mid rolling deploy
+        res.setHeader(
+            'Cache-Control',
+            v === logo.version
+                ? 'public, max-age=31536000, immutable'
+                : 'no-cache',
+        );
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.setHeader(
+            'Content-Security-Policy',
+            "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+        );
+        res.end(logo.data);
+    }
+
+    /**
      * Get an uploaded organization brand logo image.
      * @summary Get organization brand logo
      * @param req express request
      * @param logoUuid the uuid of the uploaded logo
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'OrganizationBrandController.getOrganizationBrandLogo',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/brand/logos/{logoUuid}')
     @OperationId('GetOrganizationBrandLogo')

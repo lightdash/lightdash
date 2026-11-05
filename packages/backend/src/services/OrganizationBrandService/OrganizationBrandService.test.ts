@@ -9,7 +9,10 @@ import fetch, { Response } from 'node-fetch';
 import { Readable } from 'node:stream';
 import { buildAccount } from '../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { type LightdashConfig } from '../../config/parseConfig';
 import { OrganizationBrandModel } from '../../models/OrganizationBrandModel';
+import { InstanceBrandService } from '../InstanceBrandService/InstanceBrandService';
+import { LicenseService } from '../LicenseService/LicenseService';
 import { OrganizationBrandService } from './OrganizationBrandService';
 
 vi.mock('node-fetch', async (importOriginal) => ({
@@ -40,10 +43,14 @@ describe('brand logos', () => {
                 },
             },
             organizationBrandModel,
+            instanceBrandService: new InstanceBrandService(),
+            licenseService: new LicenseService({ licenseKey: null }),
         });
     const organizationService = new OrganizationBrandService({
         lightdashConfig: lightdashConfigMock,
         organizationBrandModel,
+        instanceBrandService: new InstanceBrandService(),
+        licenseService: new LicenseService({ licenseKey: null }),
     });
     const buildAdminAccount = () => {
         const account = buildAccount();
@@ -73,13 +80,34 @@ describe('brand logos', () => {
         );
     });
 
-    it('rejects reading branding without organization access', async () => {
+    it('reads branding for an organization member with no other permissions', async () => {
         const account = buildAccount();
         account.user.ability = new Ability<PossibleAbilities>([]);
-        await expect(
-            buildLicensedService().getBrand(account),
-        ).rejects.toBeInstanceOf(ForbiddenError);
-        expect(organizationBrandModel.findBrand).not.toHaveBeenCalled();
+        organizationBrandModel.findBrand.mockResolvedValueOnce(null);
+        expect(await buildLicensedService().getBrand(account)).toBeNull();
+        expect(organizationBrandModel.findBrand).toHaveBeenCalledWith(
+            account.organization.organizationUuid,
+        );
+    });
+
+    it('reads uploaded logos for an organization member with no other permissions', async () => {
+        const account = buildAccount();
+        account.user.ability = new Ability<PossibleAbilities>([]);
+        const logoFile = {
+            content_type: 'image/png',
+            data: Buffer.from('logo'),
+        };
+        organizationBrandModel.findBrandLogoFile.mockResolvedValueOnce(
+            logoFile,
+        );
+        const logoUuid = '6f1d0a52-8b0a-4b6a-9a52-3f0a7c1f2d11';
+        expect(
+            await buildLicensedService().getBrandLogo(account, logoUuid),
+        ).toEqual({ contentType: logoFile.content_type, data: logoFile.data });
+        expect(organizationBrandModel.findBrandLogoFile).toHaveBeenCalledWith(
+            account.organization.organizationUuid,
+            logoUuid,
+        );
     });
 
     it('fetches a normalized domain without persisting the brand', async () => {
@@ -95,6 +123,8 @@ describe('brand logos', () => {
                 brandfetch: { apiKey: 'test-key' },
             },
             organizationBrandModel,
+            instanceBrandService: new InstanceBrandService(),
+            licenseService: new LicenseService({ licenseKey: null }),
         });
         const result = await service.fetchBrandFromDomain(
             buildAdminAccount(),
@@ -265,5 +295,127 @@ describe('brand logos', () => {
             ),
         ).rejects.toBeInstanceOf(NotFoundError);
         expect(organizationBrandModel.findBrandLogoFile).not.toHaveBeenCalled();
+    });
+});
+
+describe('favicon', () => {
+    const instanceLogoUrl = 'https://cdn.example.com/instance.png';
+    const buildService = ({
+        validLicense,
+        instanceLogo,
+    }: {
+        validLicense: boolean;
+        instanceLogo: boolean;
+    }) =>
+        new OrganizationBrandService({
+            lightdashConfig: lightdashConfigMock,
+            organizationBrandModel,
+            instanceBrandService: {
+                getInstanceBrand: () =>
+                    instanceLogo
+                        ? { logoUrl: instanceLogoUrl, name: 'Acme' }
+                        : null,
+            },
+            licenseService: {
+                getLicenseStatus: () => ({
+                    valid: validLicense,
+                    hasLicenseKey: true,
+                }),
+            },
+        });
+    const brandWithLogos = (urls: string[]) => ({
+        logos: urls.map((url) => ({
+            url,
+            type: 'icon',
+            theme: null,
+            format: 'png',
+        })),
+    });
+
+    it.each([
+        ['no session', undefined],
+        ['an embed account', buildAccount({ accountType: 'jwt' })],
+    ])('uses the instance logo for %s', async (_, account) => {
+        const service = buildService({
+            validLicense: true,
+            instanceLogo: true,
+        });
+        expect(await service.getFaviconUrl(account, true)).toBe(
+            instanceLogoUrl,
+        );
+        expect(organizationBrandModel.findBrand).not.toHaveBeenCalled();
+    });
+
+    it('uses the default icon without an instance logo', async () => {
+        expect(
+            await buildService({
+                validLicense: true,
+                instanceLogo: false,
+            }).getFaviconUrl(undefined, true),
+        ).toBe('/favicon.ico');
+    });
+
+    it('ignores the organization brand when the license is not valid', async () => {
+        expect(
+            await buildService({
+                validLicense: false,
+                instanceLogo: false,
+            }).getFaviconUrl(buildAccount(), true),
+        ).toBe('/favicon.ico');
+        expect(organizationBrandModel.findBrand).not.toHaveBeenCalled();
+    });
+
+    it('falls back to the instance logo when the organization has none', async () => {
+        organizationBrandModel.findBrand.mockResolvedValueOnce(
+            brandWithLogos([]),
+        );
+        expect(
+            await buildService({
+                validLicense: true,
+                instanceLogo: true,
+            }).getFaviconUrl(buildAccount(), true),
+        ).toBe(instanceLogoUrl);
+    });
+
+    it('uses the organization logo for any organization member', async () => {
+        const account = buildAccount();
+        account.user.ability = new Ability<PossibleAbilities>([]);
+        const logoUrl =
+            '/api/v1/org/brand/logos/6f1d0a52-8b0a-4b6a-9a52-3f0a7c1f2d11';
+        organizationBrandModel.findBrand.mockResolvedValueOnce(
+            brandWithLogos([logoUrl]),
+        );
+        expect(
+            await buildService({
+                validLicense: true,
+                instanceLogo: true,
+            }).getFaviconUrl(account, true),
+        ).toBe(logoUrl);
+        expect(organizationBrandModel.findBrand).toHaveBeenCalledWith(
+            account.organization.organizationUuid,
+        );
+    });
+
+    it('uses the instance logo for unverified users when email is configured', async () => {
+        const service = new OrganizationBrandService({
+            lightdashConfig: {
+                ...lightdashConfigMock,
+                smtp: {} as LightdashConfig['smtp'],
+            },
+            organizationBrandModel,
+            instanceBrandService: {
+                getInstanceBrand: () => ({
+                    logoUrl: instanceLogoUrl,
+                    name: null,
+                }),
+            },
+            licenseService: {
+                getLicenseStatus: () => ({ valid: true, hasLicenseKey: true }),
+            },
+        });
+        expect(await service.getFaviconUrl(buildAccount(), false)).toBe(
+            instanceLogoUrl,
+        );
+        expect(organizationBrandModel.findBrand).not.toHaveBeenCalled();
     });
 });
