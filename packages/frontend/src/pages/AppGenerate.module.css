@@ -97,6 +97,12 @@
     background-color: var(--mantine-color-body);
 }
 
+/* Split view: a tinted conversation column so the preview reads as the
+   canvas and chat cards (bubbles, builds, versions) sit on top of it. */
+.chatPanel:not(.chatPanelCompose) {
+    background-color: var(--mantine-color-ldGray-0);
+}
+
 /* Cute springy expand when the centered composer morphs into the split
    sidebar (and the preview panel slides in). */
 :global(::view-transition-group(app-composer)) {
@@ -118,6 +124,10 @@
 
 .composeTitle {
     letter-spacing: -0.02em;
+}
+
+.composeSubtitle {
+    color: var(--mantine-color-ldGray-7);
 }
 
 /* Non-interactive "starting point" chip. Sits in a row of borderless icon
@@ -148,31 +158,11 @@
        fanout can't both fit. */
     height: auto;
     max-height: min(760px, calc(100dvh - 84px));
-    border-radius: var(--mantine-radius-lg);
-    border: 1px solid;
     overflow: hidden auto;
     /* Reserve room for the window-chrome dots / back button row. */
     padding-top: 4px;
-    border-color: var(--mantine-color-default-border);
-    box-shadow:
-        0 1px 2px alpha(var(--mantine-color-black), 0.04),
-        0 12px 32px -12px alpha(var(--mantine-color-black), 0.12);
-}
-
-/* Three traffic-light dots, echoing the data-app (window) icon. */
-.chatPanelCompose::before {
-    content: '';
-    position: absolute;
-    top: 18px;
-    left: 22px;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    z-index: 1;
-    background-color: var(--mantine-color-ldGray-3);
-    box-shadow:
-        14px 0 0 var(--mantine-color-ldGray-3),
-        28px 0 0 var(--mantine-color-ldGray-3);
+    /* No card of its own: heading, composer and formats sit on the page. */
+    background-color: transparent;
 }
 
 .chatMessages {
@@ -208,20 +198,25 @@
 
 .userMessage {
     display: flex;
-    justify-content: flex-end;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+/* Each user prompt opens a new turn; give turns room to read as groups. */
+.userMessage:not(:first-child) {
+    margin-top: var(--mantine-spacing-md);
 }
 
 .userBubble {
     max-width: 85%;
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
-    border-radius: var(--mantine-radius-md);
+    padding: 10px 14px;
+    border-radius: var(--mantine-radius-lg);
     font-size: var(--mantine-font-size-sm);
-    line-height: 1.5;
+    line-height: 1.55;
     white-space: pre-wrap;
-    border: 1px solid;
-    background-color: var(--mantine-color-ldGray-0);
+    background-color: var(--mantine-color-body);
+    border: 1px solid var(--mantine-color-default-border);
     color: var(--mantine-color-text);
-    border-color: var(--mantine-color-ldGray-3);
 }
 
 .assistantMessage {
@@ -230,9 +225,12 @@
 }
 
 .assistantBubble {
-    max-width: 90%;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: var(--mantine-spacing-xs);
     font-size: var(--mantine-font-size-sm);
-    line-height: 1.5;
+    line-height: 1.55;
 }
 
 /* Dimmed "building…" status line — the AiMarkdown wrapper already handles
@@ -242,26 +240,26 @@
     color: var(--mantine-color-dimmed) !important;
 }
 
-/* Matches the Reasoning/Activity rows' 12px horizontal padding so the
- * working line's text starts flush with their icon chips. */
-.workingLine {
-    padding-left: 12px;
-}
-
-/* Same 12px inset for the assistant meta row (version chip + timestamp) so
- * the chip lines up with the Reasoning/Activity icon chips below it. */
-.assistantBubbleMeta {
-    padding-left: 12px;
-}
-
 .chatInputArea {
     flex: 0 1 auto;
     min-height: 0;
     max-height: 46%;
     overflow-y: auto;
     padding: var(--mantine-spacing-sm);
-    border-top: 1px solid;
-    border-color: var(--mantine-color-default-border);
+    container: composer / inline-size;
+}
+
+/* Narrow chat: labelled tools fall back to icons (tooltips keep the names). */
+@container composer (max-width: 400px) {
+    .chatInputArea [data-composer-label] {
+        display: none;
+    }
+
+    .chatInputArea
+        :global(.mantine-Button-root:has([data-composer-label]))
+        :global(.mantine-Button-section) {
+        margin-inline-end: 0;
+    }
 }
 
 /* Compose screen: heading + input both take their natural height and sit
@@ -269,6 +267,12 @@
    The input keeps its toolbar fully visible (no internal max-height clip). */
 .chatPanelCompose .composeHeading {
     flex: 0 0 auto;
+}
+
+.composeTemplates {
+    flex: 0 0 auto;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md)
+        var(--mantine-spacing-md);
 }
 
 .chatPanelCompose .chatInputArea {
@@ -290,6 +294,11 @@
     cursor: col-resize;
     transition: background-color 120ms ease;
     background-color: var(--mantine-color-ldGray-2);
+
+    /* Keep the widened hit area horizontal only; vertical overflow made the split view scrollable. */
+    &::after {
+        inset-block: 0;
+    }
 
     &:hover,
     &[data-active] {
@@ -396,19 +405,14 @@
     line-height: 1;
 }
 
-/* Full-width framed panel that hosts the clarifying questions. Sits on the
- * chat-panel bg with a slight tint + border so the user's eye is anchored
- * here (paired with `.dimmedHistory` on the messages above). */
+/* The questions card sits at the end of the chat, right above the composer. */
 .clarifyContainer {
-    display: flex;
-    flex-direction: column;
-    gap: var(--mantine-spacing-sm);
     width: 100%;
-    padding: var(--mantine-spacing-md);
+    padding: 12px;
+    border: 1px solid var(--mantine-color-ldGray-3);
     border-radius: var(--mantine-radius-md);
-    border: 1px solid;
-    background-color: var(--mantine-color-ldGray-1);
-    border-color: var(--mantine-color-ldGray-3);
+    background-color: var(--mantine-color-body);
+    box-shadow: var(--mantine-shadow-xs);
 }
 
 /* Wraps the rendered chat history. Reproduces `.chatMessages` flex-column
@@ -458,10 +462,41 @@
     cursor: pointer;
 }
 
-.themeBadge {
-    cursor: pointer;
+.headerVersionBadge {
+    flex-shrink: 0;
+    text-transform: none;
+    font-variant-numeric: tabular-nums;
 }
 
-.themeBadge:disabled {
-    cursor: not-allowed;
+/* Composer icon actions read as available, not faint placeholders. */
+.composerTools
+    :global(.mantine-ActionIcon-root):not(:disabled):not([data-disabled]):not(
+        [data-variant='light']
+    ) {
+    color: var(--mantine-color-ldGray-8);
+}
+
+/* Mantine pads ProseMirror on top of the composer's own padding. */
+.chatInputArea :global(.ProseMirror) {
+    padding: 4px 2px;
+}
+
+/* Fade the last line above the composer so cut-off content reads as scrollable. */
+.chatPanel:not(.chatPanelCompose) .chatMessages {
+    padding-bottom: var(--mantine-spacing-xl);
+    mask-image: linear-gradient(
+        to bottom,
+        #000 calc(100% - var(--mantine-spacing-lg)),
+        transparent
+    );
+}
+
+/* Disabled quiet icons fade instead of gaining a filled chip. */
+.chatPanel
+    :global(.mantine-ActionIcon-root):is(:disabled, [data-disabled]):is(
+        [data-variant='subtle'],
+        [data-variant='transparent']
+    ) {
+    background: transparent;
+    color: var(--mantine-color-ldGray-5);
 }

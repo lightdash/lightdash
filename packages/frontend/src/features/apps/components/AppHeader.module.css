@@ -10,3 +10,29 @@
         --header-padding-x: var(--mantine-spacing-sm);
     }
 }
+
+/* Title doubles as the app-details trigger, like a document name menu. */
+.titleButton {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    margin-left: -6px;
+    padding: 2px 6px;
+    border-radius: var(--mantine-radius-sm);
+
+    &:hover,
+    &[aria-expanded='true'] {
+        background: var(--mantine-color-default-hover);
+    }
+}
+
+.titleChevron {
+    flex-shrink: 0;
+    color: var(--mantine-color-ldGray-6);
+}
+
+/* Borderless header icons stay legible against the white bar. */
+.header :global(.mantine-ActionIcon-root[data-variant='subtle']) {
+    color: var(--mantine-color-ldGray-8);
+}

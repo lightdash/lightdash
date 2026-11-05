@@ -1,0 +1,360 @@
+/* Live build progress: an unboxed status line, like the finished build log row. */
+.progressCard {
+    width: 100%;
+}
+
+.cardHeader {
+    padding: 7px 12px 4px;
+}
+
+.cardSection {
+    padding: 0 12px 10px;
+    display: block;
+}
+
+/* Step list shared by live and persisted builds */
+.steps {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.step {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    height: 22px;
+    color: var(--mantine-color-ldGray-8);
+}
+
+.step[data-current] {
+    color: var(--mantine-color-text);
+}
+
+.stepIcon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    flex-shrink: 0;
+    color: var(--mantine-color-ldGray-7);
+}
+
+.stepVerb {
+    flex-shrink: 0;
+    color: inherit;
+}
+
+.stepTarget {
+    min-width: 0;
+    font-size: var(--mantine-font-size-xs);
+    color: var(--mantine-color-ldGray-7);
+}
+
+.thinkingLive {
+    margin: 0 0 4px 22px;
+    color: var(--mantine-color-ldGray-8);
+    white-space: pre-line;
+
+    &[data-open] {
+        max-height: 240px;
+        overflow-y: auto;
+    }
+}
+
+.stepTargets {
+    list-style: none;
+    margin: 0 0 4px 22px;
+    padding: 0;
+    color: var(--mantine-color-ldGray-7);
+    line-height: 20px;
+}
+
+/* Live work: a light sweep across the text instead of a spinner. */
+[data-shimmer] {
+    color: transparent;
+    background: linear-gradient(
+            90deg,
+            var(--mantine-color-ldGray-6) 0%,
+            var(--mantine-color-ldGray-6) 40%,
+            var(--mantine-color-text) 50%,
+            var(--mantine-color-ldGray-6) 60%,
+            var(--mantine-color-ldGray-6) 100%
+        )
+        0 0 / 200% 100%;
+    background-clip: text;
+    -webkit-background-clip: text;
+    animation: shimmer 2s linear infinite;
+}
+
+@keyframes shimmer {
+    from {
+        background-position: 100% 0;
+    }
+    to {
+        background-position: -100% 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    [data-shimmer] {
+        animation: none;
+        color: var(--mantine-color-text);
+        background: none;
+    }
+}
+
+/* Persisted Activity row (matches ReasoningHistoryRow metrics) */
+.activityHeader {
+    display: block;
+    container: build-log / inline-size;
+    padding: 7px 12px;
+    border-radius: 10px;
+    text-align: left;
+    font-family: var(--mantine-font-family);
+}
+
+.activityLabel {
+    flex-shrink: 0;
+    color: var(--mantine-color-ldGray-8);
+}
+
+.activityChevron {
+    flex-shrink: 0;
+    color: var(--mantine-color-ldGray-6);
+    transition: transform 200ms ease;
+}
+
+.activityChevron[data-open] {
+    transform: rotate(90deg);
+}
+
+.buildLogBody {
+    padding: 0 12px 6px;
+}
+
+.activityBody {
+    padding: 0 12px 6px 12px;
+}
+
+/* Failed / stopped build */
+.failedCard {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid;
+    border-radius: var(--mantine-radius-md);
+    border-color: light-dark(
+        var(--mantine-color-red-2),
+        alpha(var(--mantine-color-red-8), 0.5)
+    );
+    background-color: light-dark(
+        var(--mantine-color-red-0),
+        alpha(var(--mantine-color-red-9), 0.15)
+    );
+}
+
+.failedCard[data-kind='stopped'] {
+    border-color: var(--mantine-color-default-border);
+    background-color: var(--mantine-color-body);
+}
+
+.failedIcon {
+    flex-shrink: 0;
+    margin-top: 2px;
+    color: var(--mantine-color-red-7);
+}
+
+.failedCard[data-kind='stopped'] .failedIcon {
+    color: var(--mantine-color-ldGray-7);
+}
+
+.failedBody {
+    color: var(--mantine-color-ldGray-8);
+}
+
+.failedActions {
+    padding-left: 24px;
+}
+
+/* Preview pane states */
+.previewBuilding {
+    position: relative;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background-color: var(--mantine-color-body);
+}
+
+/* Fills the pane like the finished app, so nothing jumps when the build lands. */
+.wireframe {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.wireframeBody {
+    display: flex;
+    flex-direction: column;
+    gap: var(--mantine-spacing-md);
+    padding: var(--mantine-spacing-xl);
+}
+
+/* Same strip as the "Building vN" status above an existing preview. */
+.stages {
+    list-style: none;
+    margin: 0;
+    padding: 10px var(--mantine-spacing-md);
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px 10px;
+    border-bottom: 1px solid var(--mantine-color-default-border);
+    background-color: var(--mantine-color-ldGray-0);
+}
+
+.stage {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 22px;
+    color: var(--mantine-color-text);
+}
+
+.stage[data-state='todo'] {
+    color: var(--mantine-color-ldGray-7);
+}
+
+/* Connector between stages so the row reads as one sequence. */
+.stage + .stage::before {
+    content: '';
+    width: 20px;
+    height: 1px;
+    margin-right: 4px;
+    background-color: var(--mantine-color-ldGray-4);
+}
+
+.stageIcon {
+    flex-shrink: 0;
+    color: var(--mantine-color-ldGray-5);
+}
+
+/* Done reads as solid ink, pending as faint outline. */
+.stage[data-state='done'] .stageIcon {
+    color: var(--mantine-color-ldGray-9);
+}
+
+/* Status strip above the preview (CSS order), so it never covers the app. */
+.previewPill {
+    order: -1;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 0;
+    padding: 6px var(--mantine-spacing-md);
+    border-bottom: 1px solid var(--mantine-color-default-border);
+    background-color: var(--mantine-color-ldGray-0);
+    white-space: nowrap;
+}
+
+.previewPill[data-tone='warning'] {
+    border-bottom-color: light-dark(
+        var(--mantine-color-yellow-3),
+        alpha(var(--mantine-color-yellow-7), 0.5)
+    );
+    background-color: light-dark(
+        var(--mantine-color-yellow-0),
+        var(--mantine-color-dark-6)
+    );
+}
+
+.previewPillIcon {
+    flex-shrink: 0;
+    color: var(--mantine-color-ldGray-7);
+}
+
+.previewPill[data-tone='warning'] .previewPillIcon {
+    color: light-dark(
+        var(--mantine-color-yellow-8),
+        var(--mantine-color-yellow-4)
+    );
+}
+
+.previewPillDetail {
+    color: var(--mantine-color-ldGray-8);
+}
+
+.previewEmptyState {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding-bottom: 50px;
+    color: var(--mantine-color-text);
+}
+
+.previewEmptyIcon {
+    color: var(--mantine-color-ldGray-6);
+}
+
+.previewEmptyHint {
+    color: var(--mantine-color-ldGray-8);
+}
+
+/* Assistant completion note */
+.message {
+    padding-inline: 12px;
+    --ai-markdown-padding-left: 0;
+}
+
+.messageToggle {
+    margin-top: 2px;
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 500;
+    color: var(--mantine-color-ldGray-7);
+}
+
+.messageToggle:hover {
+    color: var(--mantine-color-text);
+}
+
+/* Narrow chat: keep label and time; the counts live in the expanded log. */
+.buildLogCount {
+    color: var(--mantine-color-ldGray-7);
+}
+
+@container build-log (max-width: 300px) {
+    .buildLogCount {
+        display: none;
+    }
+}
+
+.turnActions {
+    margin-top: 2px;
+    padding-inline: 6px;
+}
+
+.turnAction {
+    color: var(--mantine-color-ldGray-7);
+    font-weight: 500;
+
+    &:hover {
+        color: var(--mantine-color-text);
+    }
+}
+
+.turnActionPending {
+    display: flex;
+    align-items: center;
+    height: 22px;
+    padding-inline: 8px;
+}

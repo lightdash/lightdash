@@ -5,8 +5,8 @@ import {
     type ContentVerificationInfo,
     type DataAppConsumerAccess,
 } from '@lightdash/common';
-import { ActionIcon, Group, Popover, Title, Tooltip } from '@mantine/core';
-import { IconCircleCheckFilled, IconInfoCircle } from '@tabler/icons-react';
+import { Group, Popover, Title, Tooltip, UnstyledButton } from '@mantine/core';
+import { IconChevronDown, IconCircleCheckFilled } from '@tabler/icons-react';
 import { useState, type FC, type ReactNode } from 'react';
 import { FavoriteActionIcon } from '../../../components/common/FavoriteActionIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -43,6 +43,8 @@ type Props = {
      *  the right. The builder and viewer have different actions, so each owns
      *  its own slot while sharing this header chrome. */
     rightSection: ReactNode;
+    /** Which version the page shows, next to the title; null hides it. */
+    versionBadge: ReactNode;
 };
 
 /**
@@ -69,7 +71,12 @@ const appInSpaceTourProps = {
     'data-tour-resultdocs': 'data-apps.mdx#sharing-an-app:2-3',
 };
 
-const AppHeader: FC<Props> = ({ projectUuid, app, rightSection }) => {
+const AppHeader: FC<Props> = ({
+    projectUuid,
+    app,
+    rightSection,
+    versionBadge,
+}) => {
     const displayName = getAppDisplayName(app.name, app.uuid);
 
     const { data: favorites } = useFavorites(projectUuid);
@@ -85,27 +92,32 @@ const AppHeader: FC<Props> = ({ projectUuid, app, rightSection }) => {
                 className: classes.header,
             }}
         >
-            <Group gap="xs" flex={1} wrap="nowrap" miw={0}>
-                <Title
-                    order={6}
-                    lineClamp={1}
-                    miw={0}
-                    {...(app.spaceUuid ? appInSpaceTourProps : {})}
-                >
-                    {displayName}
-                </Title>
-
+            <Group gap={6} flex={1} wrap="nowrap" miw={0}>
                 <Popover
                     withArrow
-                    offset={{
-                        mainAxis: -2,
-                        crossAxis: 6,
-                    }}
+                    position="bottom-start"
+                    offset={{ mainAxis: 4 }}
                 >
                     <Popover.Target>
-                        <ActionIcon size="md" aria-label="App information">
-                            <MantineIcon icon={IconInfoCircle} />
-                        </ActionIcon>
+                        <UnstyledButton
+                            className={classes.titleButton}
+                            aria-haspopup="dialog"
+                            title="App details"
+                        >
+                            <Title
+                                order={6}
+                                lineClamp={1}
+                                miw={0}
+                                {...(app.spaceUuid ? appInSpaceTourProps : {})}
+                            >
+                                {displayName}
+                            </Title>
+                            <MantineIcon
+                                icon={IconChevronDown}
+                                size={14}
+                                className={classes.titleChevron}
+                            />
+                        </UnstyledButton>
                     </Popover.Target>
 
                     <Popover.Dropdown
@@ -124,6 +136,7 @@ const AppHeader: FC<Props> = ({ projectUuid, app, rightSection }) => {
                         />
                     </Popover.Dropdown>
                 </Popover>
+                {versionBadge}
 
                 {app.verification && (
                     <Tooltip
@@ -159,7 +172,7 @@ const AppHeader: FC<Props> = ({ projectUuid, app, rightSection }) => {
                 )}
             </Group>
 
-            <Group gap="sm" wrap="wrap">
+            <Group gap={6} wrap="wrap">
                 {rightSection}
             </Group>
 

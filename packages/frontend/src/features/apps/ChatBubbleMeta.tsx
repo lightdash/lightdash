@@ -101,7 +101,7 @@ const ChatBubbleMeta: FC<Props> = ({
                 offset={2}
                 label={dayjs(timestamp).format('YYYY-MM-DD HH:mm:ss')}
             >
-                <Text fz="10px" c="dimmed" className={classes.time}>
+                <Text fz="xs" className={classes.time}>
                     {timeAgo}
                 </Text>
             </Tooltip>

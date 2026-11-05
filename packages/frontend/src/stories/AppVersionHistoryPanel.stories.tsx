@@ -120,7 +120,7 @@ const meta: Meta<typeof AppVersionHistoryPanel> = {
         isFetchingEarlier: false,
         fetchEarlier: fn(),
         emptyPromptLabel: null,
-        olderVersionTime: 'relative',
+        versionTime: 'relative',
         showTimeline: true,
         currentThreadNumber: null,
         thumbnailSource: null,
@@ -238,6 +238,6 @@ export const ChartTypeBuilderHost: Story = {
         onBack: null,
         onClose: fn(),
         emptyPromptLabel: 'Uploaded from source',
-        olderVersionTime: 'absolute',
+        versionTime: 'absolute',
     },
 };

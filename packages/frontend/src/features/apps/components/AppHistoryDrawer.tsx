@@ -22,6 +22,8 @@ type Props = Pick<
 > & {
     opened: boolean;
     onClose: () => void;
+    /** Matches the host's chat column; null falls back to the default size. */
+    width: number | null;
 };
 
 /**
@@ -29,16 +31,21 @@ type Props = Pick<
  * slid over the chat. "Back to chat" and the overlay both close it; the
  * host owns what Preview and Restore do.
  */
-const AppHistoryDrawer: FC<Props> = ({ opened, onClose, ...panelProps }) => (
+const AppHistoryDrawer: FC<Props> = ({
+    opened,
+    onClose,
+    width,
+    ...panelProps
+}) => (
     <Drawer.Root
         opened={opened}
         onClose={onClose}
         position="left"
-        size="lg"
+        size={width ?? 'lg'}
         lockScroll={false}
         classNames={{ inner: classes.inner, content: classes.content }}
     >
-        <Drawer.Overlay opacity={0.1} blur={0} />
+        <Drawer.Overlay opacity={0} blur={0} />
         <Drawer.Content aria-label="Project history">
             <Drawer.Body className={classes.body}>
                 <AppVersionHistoryPanel
@@ -46,7 +53,7 @@ const AppHistoryDrawer: FC<Props> = ({ opened, onClose, ...panelProps }) => (
                     onBack={onClose}
                     onClose={null}
                     emptyPromptLabel={null}
-                    olderVersionTime="relative"
+                    versionTime="absolute"
                 />
             </Drawer.Body>
         </Drawer.Content>

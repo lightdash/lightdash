@@ -1,7 +1,7 @@
 .panel {
     /* One accent for the live pill, its dot and the Previewing button. */
-    --history-accent: var(--mantine-color-ldBrandViolet-5);
-    --history-accent-text: var(--mantine-color-ldBrandViolet-7);
+    --history-accent: var(--mantine-color-text);
+    --history-accent-text: var(--mantine-color-text);
     width: 100%;
     height: 100%;
     /* Fills a flex host (the drawer body) as well as a sized one. */
@@ -62,6 +62,7 @@
 
 .node[data-tone='live'] {
     background: var(--history-accent);
+    box-shadow: 0 0 0 3px var(--mantine-color-ldGray-3);
 }
 
 .node[data-tone='failed'] {
@@ -116,19 +117,19 @@
     white-space: nowrap;
 }
 
+.currentLabel {
+    flex-shrink: 0;
+    color: var(--history-accent-text);
+}
+
 .pill {
     display: inline-flex;
     align-items: center;
     flex-shrink: 0;
-    height: 18px;
-    padding: 0 6px;
-    border-radius: var(--mantine-radius-xs);
-    font-family: var(--mantine-font-family-monospace);
     font-size: var(--mantine-font-size-xs);
-    font-weight: 500;
+    font-weight: 600;
     line-height: 1;
-    background: var(--mantine-color-ldGray-1);
-    color: var(--mantine-color-ldGray-7);
+    color: var(--mantine-color-ldGray-8);
 }
 
 .pill[data-help] {
@@ -136,29 +137,16 @@
 }
 
 .pill[data-tone='live'] {
-    background: color-mix(in srgb, var(--history-accent) 10%, transparent);
-    color: var(--history-accent-text);
+    color: var(--mantine-color-text);
 }
 
 .pill[data-tone='failed'] {
-    background: var(--mantine-color-red-light);
-    color: var(--mantine-color-red-light-color);
+    color: var(--mantine-color-red-7);
 }
 
-/* Revealed on hover or keyboard focus, so no row changes height. The
-   pinned version keeps its Previewing button visible. */
+/* Quiet text actions: always visible, no borders to repeat down the list. */
 .actions {
     margin-left: auto;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 120ms ease;
-}
-
-.entry:hover .actions,
-.entry:focus-within .actions,
-.actions[data-visible] {
-    opacity: 1;
-    pointer-events: auto;
 }
 
 .action {
@@ -166,7 +154,8 @@
     --button-padding-x: 6px;
     --button-fz: var(--mantine-font-size-xs);
     --button-radius: var(--mantine-radius-sm);
-    color: var(--mantine-color-ldGray-7);
+    font-weight: 500;
+    color: var(--mantine-color-ldGray-9);
 
     &:hover {
         color: var(--mantine-color-text);
@@ -178,18 +167,20 @@
     }
 }
 
+.title {
+    line-height: var(--mantine-line-height-sm);
+    overflow-wrap: anywhere;
+    color: var(--mantine-color-text);
+}
+
 .prompt {
     line-height: var(--mantine-line-height-sm);
     overflow-wrap: anywhere;
     font-weight: 400;
-    color: var(--mantine-color-ldGray-8);
+    color: var(--mantine-color-ldGray-7);
 }
 
 /* The live version's prompt is the only 500 in the list. */
-.entry[data-live] .prompt {
-    font-weight: 500;
-    color: var(--mantine-color-text);
-}
 
 /* Author under the prompt: an 18px initials avatar and the name. */
 .byline {

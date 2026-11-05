@@ -490,6 +490,7 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
 
                     <Group gap={2} className={artifactStyles.headRight}>
                         <AppActionsMenu
+                            shareMenu={null}
                             projectUuid={projectUuid}
                             appUuid={appUuid}
                             appName={app.name}

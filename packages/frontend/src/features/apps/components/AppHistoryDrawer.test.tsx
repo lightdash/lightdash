@@ -36,6 +36,7 @@ describe('AppHistoryDrawer', () => {
         const onClose = vi.fn();
         renderWithProviders(
             <AppHistoryDrawer
+                width={null}
                 {...baseProps}
                 onClose={onClose}
                 versions={[entry(1, 1), entry(2, 1)]}
@@ -53,6 +54,7 @@ describe('AppHistoryDrawer', () => {
         const onRestore = vi.fn();
         renderWithProviders(
             <AppHistoryDrawer
+                width={null}
                 {...baseProps}
                 onView={onView}
                 onRestore={onRestore}

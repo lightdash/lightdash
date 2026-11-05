@@ -1,6 +1,7 @@
 import {
     type AppChartReference,
     type AppClarification,
+    type AppClarifyQuestion,
     type AppDashboardReference,
     type DataAppTemplate,
 } from '@lightdash/common';
@@ -29,7 +30,7 @@ type Args<TRequest> = {
 
 export type ClarificationRound<TRequest> = {
     /** The round awaiting answers; null when no questions are on screen. */
-    pending: { prompt: string; questions: string[] } | null;
+    pending: { prompt: string; questions: AppClarifyQuestion[] } | null;
     answers: string[];
     /** The prompt whose clarify request is in flight. */
     clarifyingPrompt: string | null;
@@ -66,7 +67,7 @@ export const useClarificationRound = <TRequest>({
         request: TRequest;
         prompt: string;
         template: DataAppTemplate | undefined;
-        questions: string[];
+        questions: AppClarifyQuestion[];
     } | null>(null);
     const [answers, setAnswers] = useState<string[]>([]);
     const [fellThrough, setFellThrough] = useState(false);
@@ -136,8 +137,17 @@ export const useClarificationRound = <TRequest>({
                 signal: controller.signal,
             })
                 .then(
-                    ({ questions }) => {
+                    (response) => {
                         if (current !== round.current) return;
+                        // A server from before suggested answers sends only strings.
+                        const items: AppClarifyQuestion[] | undefined =
+                            response.items;
+                        const questions =
+                            items ??
+                            response.questions.map((question) => ({
+                                question,
+                                options: [],
+                            }));
                         inFlightRequest.current = null;
                         setInFlight(null);
                         if (questions.length === 0) {
@@ -181,7 +191,7 @@ export const useClarificationRound = <TRequest>({
             const clarifications: AppClarification[] = skip
                 ? []
                 : pending.questions
-                      .map((question, index) => ({
+                      .map(({ question }, index) => ({
                           question,
                           answer: (answers[index] ?? '').trim(),
                       }))

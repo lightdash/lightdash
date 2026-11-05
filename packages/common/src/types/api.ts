@@ -132,6 +132,7 @@ import type {
     ApiAppStateAdminOverviewResponse,
     ApiAppStateHistoryResponse,
 } from '../ee/apps/appState';
+import type { AppClarifyResult } from '../ee/apps/types';
 import type { DashboardPreAggregateAudit } from '../ee/preAggregates/audit';
 import type { ApiScimRequestLogListResponse } from '../ee/scim/requestLogs';
 import type { ApiQueryCostEstimateResponse } from '../utils/queryCostEstimate';
@@ -1465,6 +1466,7 @@ type ApiResults =
     | ApiQueryCostEstimateResponse['results']
     | ApiAppStateAdminOverviewResponse['results']
     | ApiAppStateHistoryResponse['results']
+    | AppClarifyResult
     | ReleaseHighlightsResult
     | AgentConnectionApprovalReviewResponse['results']
     | AgentConnectionApprovalDecisionResponse['results']

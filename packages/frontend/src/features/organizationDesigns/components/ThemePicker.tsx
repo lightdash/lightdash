@@ -83,8 +83,8 @@ export const ThemePicker: FC<Props> = ({
                 color="gray"
                 size={32}
                 radius="xl"
-                className={classes.compactTrigger}
-                data-selected={hasSelection}
+                className={classes.iconTrigger}
+                data-selected={hasSelection || undefined}
                 onClick={() => setOpened(!opened)}
                 disabled={disabled || lockedAfterCreation}
                 aria-label={
@@ -186,9 +186,7 @@ export const ThemePicker: FC<Props> = ({
             aria-current={isActive}
             classNames={{ itemLabel: classes.optionLabel }}
             rightSection={
-                isActive ? (
-                    <MantineIcon icon={IconCheck} size={14} color="indigo.6" />
-                ) : null
+                isActive ? <MantineIcon icon={IconCheck} size={14} /> : null
             }
         >
             <Group gap="xs" align="center" wrap="nowrap">

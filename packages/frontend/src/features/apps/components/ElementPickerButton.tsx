@@ -1,4 +1,4 @@
-import { ActionIcon, Tooltip } from '@mantine/core';
+import { Button, Text, Tooltip } from '@mantine/core';
 import { IconClick } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -20,17 +20,30 @@ export const ElementPickerButton: FC<{
         }
         position="top"
     >
-        <ActionIcon
-            variant={enabled ? 'light' : 'subtle'}
-            color={enabled ? 'indigo' : 'gray'}
-            size="md"
+        <Button
+            variant={enabled ? 'default' : 'subtle'}
+            color="gray"
+            size="xs"
             radius="xl"
+            h="auto"
+            px={8}
+            py={6}
             onClick={onToggle}
             disabled={disabled}
             aria-label="Toggle element picker"
             aria-pressed={enabled}
+            leftSection={<MantineIcon icon={IconClick} size={14} />}
         >
-            <MantineIcon icon={IconClick} size={16} />
-        </ActionIcon>
+            <Text
+                span
+                size="xs"
+                fw={600}
+                lh={1.2}
+                c="inherit"
+                data-composer-label
+            >
+                Select element
+            </Text>
+        </Button>
     </Tooltip>
 );

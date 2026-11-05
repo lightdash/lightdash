@@ -33,3 +33,12 @@ export const hasVersionNarration = ({
     activity,
 }: AppVersionNarrationData): boolean =>
     reasoning.length > 0 || activity.length > 0;
+
+export const versionNarrationCountLabel = ({
+    reasoning,
+    activity,
+}: AppVersionNarrationData): string => {
+    if (activity.length > 0)
+        return `${activity.length} ${activity.length === 1 ? 'action' : 'actions'}`;
+    return `${reasoning.length} ${reasoning.length === 1 ? 'thought' : 'thoughts'}`;
+};

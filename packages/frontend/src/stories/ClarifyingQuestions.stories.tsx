@@ -1,19 +1,33 @@
+import { type AppClarifyQuestion } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState, type FC } from 'react';
 import promptBar from '../features/chartTypes/builder/BuilderPromptBar.module.css';
 import ClarifyingQuestions from '../features/chartTypes/builder/ClarifyingQuestions';
 
-const QUESTIONS = [
-    'Should teams be compared side by side, or stacked into one total?',
-    'Is revenue shown over time, or as a single period per team?',
-    'How should teams beyond the top few be handled?',
-    'Absolute revenue, or each team’s share of the total?',
+const QUESTIONS: AppClarifyQuestion[] = [
+    {
+        question:
+            'Should teams be compared side by side, or stacked into one total?',
+        options: ['Side by side', 'Stacked'],
+    },
+    {
+        question: 'Is revenue shown over time, or as a single period per team?',
+        options: ['Over time', 'Single period'],
+    },
+    {
+        question: 'How should teams beyond the top few be handled?',
+        options: ['Group as Other', 'Show all', 'Hide them'],
+    },
+    {
+        question: 'Absolute revenue, or each team’s share of the total?',
+        options: [],
+    },
 ];
 
 type Props = {
     prompt: string;
-    questions: string[];
+    questions: AppClarifyQuestion[];
     initialAnswers: string[];
 };
 
@@ -60,12 +74,12 @@ export default meta;
 
 type Story = StoryObj<typeof Harness>;
 
-/** How the round opens: nothing answered, both ways out on the same row. */
+/** How the round opens: the first question with its suggested answers. */
 export const Unanswered: Story = {};
 
-/** Partial answers are fine, and answered questions recede. */
+/** A suggested answer already picked. */
 export const PartiallyAnswered: Story = {
-    args: { initialAnswers: ['side by side', '', ''] },
+    args: { initialAnswers: ['Side by side', '', ''] },
 };
 
 /** The cap, at the longest the clarifier's own prompt allows. */
@@ -73,10 +87,15 @@ export const FourQuestions: Story = {
     args: { questions: QUESTIONS, initialAnswers: ['', '', '', ''] },
 };
 
-/** One question, where the counter reads oddly if it is not worded per-item. */
+/** One question: no counter, just a lead-in. */
 export const SingleQuestion: Story = {
     args: {
-        questions: ['Over time, or a single period?'],
+        questions: [
+            {
+                question: 'Over time, or a single period?',
+                options: ['Over time', 'Single period'],
+            },
+        ],
         initialAnswers: [''],
     },
 };
