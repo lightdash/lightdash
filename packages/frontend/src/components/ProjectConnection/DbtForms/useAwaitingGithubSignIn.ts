@@ -7,12 +7,11 @@ import { useProjectFormContext } from '../useProjectFormContext';
 export const useAwaitingGithubSignIn = () => {
     const { revealAfterSignIn } = useProjectFormContext();
     const form = useFormContext();
-    const { data: githubConfig } = useGithubConfig();
     const { dbt } = form.values;
-    return (
+    const needsInstallation =
         !!revealAfterSignIn &&
         dbt.type === DbtProjectType.GITHUB &&
-        (dbt.authorization_method ?? 'installation_id') === 'installation_id' &&
-        githubConfig?.installationId === undefined
-    );
+        (dbt.authorization_method ?? 'installation_id') === 'installation_id';
+    const { data: githubConfig } = useGithubConfig(needsInstallation);
+    return needsInstallation && githubConfig?.installationId === undefined;
 };
