@@ -1,3 +1,10 @@
+## [3.159.2](https://github.com/lightdash/lightdash/compare/3.159.1...3.159.2) (2026-11-05)
+
+
+### Bug Fixes
+
+* **release:** restore x64 macOS CLI builds ([#32112](https://github.com/lightdash/lightdash/issues/32112)) ([4d3a7d8](https://github.com/lightdash/lightdash/commit/4d3a7d81ac35dadd24a33beb3474cb0cdbf23047))
+
 ## [3.159.1](https://github.com/lightdash/lightdash/compare/3.159.0...3.159.1) (2026-11-05)
 
 

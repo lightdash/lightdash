@@ -1,27 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "3.159.1",
-  "previousVersion": "3.159.0",
-  "releaseDate": "2026-11-05T14:43:52.266Z",
+  "version": "3.159.2",
+  "previousVersion": "3.159.1",
+  "releaseDate": "2026-11-05T15:08:24.812Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20261105120000_create_ai_agent_warehouse_table_lists.ts",
-        "edition": "core",
-        "tables": [
-          "ai_agent_warehouse_table_lists"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
