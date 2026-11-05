@@ -111,6 +111,20 @@ describe('DraggableTab', () => {
         expect(isDragging()).toBe(false);
     });
 
+    it('lifts a grip tab from the keyboard on its wrapper, outside the Mantine tab', async () => {
+        renderTab({ isEditMode: true });
+
+        const wrapper = screen
+            .getByRole('tab')
+            .closest('[aria-roledescription="sortable"]');
+        expect(wrapper).not.toBeNull();
+        fireEvent.keyDown(wrapper!, { code: 'Space' });
+        expect(isDragging()).toBe(true);
+
+        await userEvent.keyboard('{Escape}');
+        expect(isDragging()).toBe(false);
+    });
+
     it('never lifts a quiet tab on space or enter inside it', async () => {
         renderTab({ isEditMode: true, hasQuietActions: true });
 
