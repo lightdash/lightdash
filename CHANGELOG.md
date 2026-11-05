@@ -1,3 +1,10 @@
+## [3.166.3](https://github.com/lightdash/lightdash/compare/3.166.2...3.166.3) (2026-11-05)
+
+
+### Bug Fixes
+
+* **connections:** enable multiple connections from one dialog ([#32115](https://github.com/lightdash/lightdash/issues/32115)) ([6ae2e64](https://github.com/lightdash/lightdash/commit/6ae2e645dab39770aaa9be4a47a79d353d944615))
+
 ## [3.166.2](https://github.com/lightdash/lightdash/compare/3.166.1...3.166.2) (2026-11-05)
 
 
