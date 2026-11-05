@@ -120,7 +120,7 @@ const FunnelBuilder: FC = () => {
                     Experimental
                 </Badge>
             </Group>
-            <FunnelMainContent />
+            <FunnelMainContent projectUuid={projectUuid} />
         </Page>
     );
 };

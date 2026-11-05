@@ -25,6 +25,7 @@ export const addFunnelConfigChangeListener = (
                 prev.steps !== curr.steps ||
                 prev.dateRangePreset !== curr.dateRangePreset ||
                 prev.customDateRange !== curr.customDateRange ||
+                prev.filters !== curr.filters ||
                 prev.conversionWindowValue !== curr.conversionWindowValue ||
                 prev.conversionWindowUnit !== curr.conversionWindowUnit ||
                 prev.breakdownDimensionId !== curr.breakdownDimensionId

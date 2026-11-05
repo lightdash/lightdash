@@ -1771,6 +1771,8 @@ export const REST_OPERATION_CAPABILITIES = {
     'RenameController.renameChartFields': [AgentCapability.ReadDiscover],
     'RenameController.renameDashboardFields': [AgentCapability.ReadDiscover],
     'RenameController.renameDashboardFilter': [AgentCapability.ContentWrite],
+    'RetentionController.getEventNames': [AgentCapability.Query],
+    'RetentionController.runRetentionQuery': [AgentCapability.Query],
     'RunViewChartQueryController.postUnderlyingData': [AgentCapability.Query],
     'RunViewChartQueryController.runMetricQuery': [AgentCapability.Query],
     'SavedChartController.calculateTotalFromSavedChart': [

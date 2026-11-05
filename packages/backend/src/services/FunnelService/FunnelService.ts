@@ -1,7 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    CompiledDimension,
-    CompiledField,
     Explore,
     ForbiddenError,
     FunnelConversionWindowUnit,
@@ -10,13 +8,10 @@ import {
     FunnelStep,
     FunnelStepResult,
     getFieldMap,
-    isDimension,
     isExploreError,
-    NotFoundError,
     resolveFunnelDateRange,
     SessionUser,
     TimeIntervalUnit,
-    type AdditionalMetric,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
@@ -27,6 +22,13 @@ import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type { ConnectionBinding } from '../../models/WarehouseConnectionRouter/WarehouseConnectionRouter';
 import { traceSpan } from '../../tracing/tracing';
 import { BaseService } from '../BaseService';
+import {
+    buildEventNamesSql,
+    compileEventAnalyticsFilterSql,
+    getBaseTableFromSql,
+    getDimensionFromFieldMap,
+    quoteStringLiteral,
+} from '../EventAnalytics/eventAnalyticsSql';
 import type { ProjectService } from '../ProjectService/ProjectService';
 
 type FunnelServiceArguments = {
@@ -95,59 +97,40 @@ export class FunnelService extends BaseService {
         }
     }
 
-    private static getDimensionFromFieldMap(
-        fieldMap: Record<string, CompiledField | AdditionalMetric>,
-        fieldId: string,
-    ): CompiledDimension {
-        const field = fieldMap[fieldId];
-
-        if (!field) {
-            throw new NotFoundError(`Field '${fieldId}' not found in explore`);
-        }
-
-        if (!isDimension(field)) {
-            throw new NotFoundError(`Field '${fieldId}' is not a dimension`);
-        }
-
-        return field;
-    }
-
     private static generateFunnelSql(
         request: FunnelQueryRequest,
         explore: Explore,
         sqlBuilder: WarehouseSqlBuilder,
     ): string {
-        const stringQuote = sqlBuilder.getStringQuoteChar();
         const fieldQuote = sqlBuilder.getFieldQuoteChar();
         const fieldMap = getFieldMap(explore);
-
-        // Helper to safely quote user-provided string values
         const quoteString = (value: string) =>
-            `${stringQuote}${value.replace(
-                new RegExp(stringQuote, 'g'),
-                stringQuote + stringQuote,
-            )}${stringQuote}`;
+            quoteStringLiteral(sqlBuilder, value);
 
-        const timestampField = FunnelService.getDimensionFromFieldMap(
+        const timestampField = getDimensionFromFieldMap(
             fieldMap,
             request.timestampFieldId,
         );
-        const userIdField = FunnelService.getDimensionFromFieldMap(
+        const userIdField = getDimensionFromFieldMap(
             fieldMap,
             request.userIdFieldId,
         );
-        const eventNameField = FunnelService.getDimensionFromFieldMap(
+        const eventNameField = getDimensionFromFieldMap(
             fieldMap,
             request.eventNameFieldId,
         );
         const breakdownField = request.breakdownDimensionId
-            ? FunnelService.getDimensionFromFieldMap(
-                  fieldMap,
-                  request.breakdownDimensionId,
-              )
+            ? getDimensionFromFieldMap(fieldMap, request.breakdownDimensionId)
             : null;
 
-        const baseTable = explore.tables[explore.baseTable].sqlTable;
+        const baseTable = getBaseTableFromSql(explore, sqlBuilder);
+        // Dashboard-style dimension filters, same payload as the semantic layer
+        const filterSql = compileEventAnalyticsFilterSql({
+            filters: request.filters,
+            explore,
+            sqlBuilder,
+            timezone: 'UTC',
+        });
 
         // Escape user-provided event names
         const stepNames = request.steps.map((s: FunnelStep) =>
@@ -276,7 +259,9 @@ WITH filtered_events AS (
     FROM ${baseTable}
     WHERE ${timestampField.compiledSql} >= ${sqlBuilder.castToTimestamp(start)}
       AND ${timestampField.compiledSql} < ${sqlBuilder.castToTimestamp(end)}
-      AND ${eventNameField.compiledSql} IN (${stepNames.join(', ')})
+      AND ${eventNameField.compiledSql} IN (${stepNames.join(', ')})${
+          filterSql ? `\n      AND ${filterSql}` : ''
+      }
 ),
 user_step_times AS (
     SELECT
@@ -364,46 +349,37 @@ ORDER BY ${
 
                 const explore = exploreResult;
                 const fieldMap = getFieldMap(explore);
-                const eventField = FunnelService.getDimensionFromFieldMap(
-                    fieldMap,
-                    eventDimensionId,
-                );
-                const timestampField = FunnelService.getDimensionFromFieldMap(
-                    fieldMap,
-                    timestampFieldId,
-                );
-                const baseTableSql = explore.tables[explore.baseTable].sqlTable;
-                const baseTableName = explore.baseTable;
-
                 const exploreBinding: ConnectionBinding = {
                     kind: 'explore',
                     exploreName: explore.name,
                 };
-                const { type } =
+                const { type, startOfWeek } =
                     await this.projectService.getWarehouseSqlBuilderSettings(
                         projectUuid,
                         exploreBinding,
                     );
-                const sqlBuilder = warehouseSqlBuilderFromType(type);
+                const sqlBuilder = warehouseSqlBuilderFromType(
+                    type,
+                    startOfWeek,
+                );
 
                 // Filter to last 30 days to limit scan cost
                 const thirtyDaysAgo = new Date();
                 thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-                const quoteChar = sqlBuilder.getFieldQuoteChar();
-
-                const sql = `
-            SELECT DISTINCT ${
-                eventField.compiledSql
-            } AS ${quoteChar}event_name${quoteChar}
-            FROM ${baseTableSql} AS ${quoteChar}${baseTableName}${quoteChar}
-            WHERE ${eventField.compiledSql} IS NOT NULL
-              AND ${timestampField.compiledSql} >= ${sqlBuilder.castToTimestamp(
-                  thirtyDaysAgo,
-              )}
-            ORDER BY ${quoteChar}event_name${quoteChar}
-            LIMIT 1000
-        `;
+                const sql = buildEventNamesSql({
+                    explore,
+                    sqlBuilder,
+                    eventField: getDimensionFromFieldMap(
+                        fieldMap,
+                        eventDimensionId,
+                    ),
+                    timestampField: getDimensionFromFieldMap(
+                        fieldMap,
+                        timestampFieldId,
+                    ),
+                    since: thirtyDaysAgo,
+                });
 
                 try {
                     const results = await this.projectService.runSqlQuery(
@@ -470,12 +446,15 @@ ORDER BY ${
                     kind: 'explore',
                     exploreName: explore.name,
                 };
-                const { type } =
+                const { type, startOfWeek } =
                     await this.projectService.getWarehouseSqlBuilderSettings(
                         projectUuid,
                         exploreBinding,
                     );
-                const sqlBuilder = warehouseSqlBuilderFromType(type);
+                const sqlBuilder = warehouseSqlBuilderFromType(
+                    type,
+                    startOfWeek,
+                );
 
                 const sql = FunnelService.generateFunnelSql(
                     request,
@@ -526,6 +505,7 @@ ORDER BY ${
                             stepCount: request.steps.length,
                             hasBreakdown: !!request.breakdownDimensionId,
                             hasConversionWindow: !!request.conversionWindow,
+                            hasFilters: !!request.filters?.dimensions,
                         },
                     });
 

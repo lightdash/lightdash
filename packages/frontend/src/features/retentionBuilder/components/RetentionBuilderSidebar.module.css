@@ -1,0 +1,12 @@
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: var(--mantine-spacing-md);
+    gap: var(--mantine-spacing-md);
+}
+
+.sidebarContent {
+    flex: 1;
+    overflow-y: auto;
+}

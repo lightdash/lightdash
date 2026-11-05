@@ -61,17 +61,18 @@ export const runFunnelQuery = createAsyncThunk<
         eventNameFieldId: fb.eventNameFieldId!,
         steps: fb.steps,
         dateRange,
+        filters: fb.filters,
         conversionWindowValue: fb.conversionWindowValue,
         conversionWindowUnit: fb.conversionWindowUnit,
         breakdownDimensionId: fb.breakdownDimensionId,
     });
 
     try {
-        return (await sharedLightdashApi<null>({
+        return await sharedLightdashApi<FunnelQueryResult>({
             url: `/projects/${fb.projectUuid}/funnel/query`,
             method: 'POST',
             body: JSON.stringify(request),
-        })) as unknown as FunnelQueryResult;
+        });
     } catch (error) {
         if (isApiError(error)) {
             return rejectWithValue(error.error);

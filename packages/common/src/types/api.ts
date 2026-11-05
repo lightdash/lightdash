@@ -281,6 +281,7 @@ import {
 } from './field';
 import { type FieldValueSearchResult } from './fieldMatch';
 import { type DashboardFilters } from './filter';
+import { type FunnelQueryResult } from './funnel';
 import {
     type ApiGitFileContent,
     type ApiPullRequestsResponse,
@@ -421,6 +422,7 @@ import {
     type ApiResultsCacheProjectSettingsResponse,
     type ApiResultsCacheStatusResponse,
 } from './resultsCacheProjectSettings';
+import { type RetentionQueryResult } from './retention';
 import {
     type ApiRoadmapFollowProjectResponse,
     type ApiRoadmapProjectResponse,
@@ -1466,6 +1468,8 @@ type ApiResults =
     | ApiWarehouseConnectCodeClaimResponse['results']
     | ApiQueryResults
     | ApiSqlQueryResults
+    | FunnelQueryResult
+    | RetentionQueryResult
     | ApiCompiledQueryResults
     | ApiCompiledMergeQueryResults
     | ApiExecuteAsyncMergeQueryResults

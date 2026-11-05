@@ -488,6 +488,8 @@ export const OAUTH_CASL_CHECKED_ROUTES: readonly string[] = [
     'RenameController.renameChartFields',
     'RenameController.renameDashboardFields',
     'RenameController.renameDashboardFilter',
+    'RetentionController.getEventNames',
+    'RetentionController.runRetentionQuery',
     'RunViewChartQueryController.runMetricQuery',
     'SavedChartController.createSavedChartScheduler',
     'SavedChartController.getChartHistory',

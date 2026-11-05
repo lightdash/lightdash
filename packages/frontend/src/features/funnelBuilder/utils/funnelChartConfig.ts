@@ -1,4 +1,5 @@
 import {
+    type Filters,
     type FunnelDatePreset,
     type FunnelDateRange,
     type FunnelQueryRequest,
@@ -66,6 +67,7 @@ export function buildFunnelQueryRequest(config: {
     eventNameFieldId: string;
     steps: FunnelStep[];
     dateRange: FunnelDateRange;
+    filters: Filters;
     conversionWindowValue: number;
     conversionWindowUnit: 'hours' | 'days' | 'weeks';
     breakdownDimensionId: string | null;
@@ -77,6 +79,7 @@ export function buildFunnelQueryRequest(config: {
         eventNameFieldId: config.eventNameFieldId,
         steps: config.steps.filter((s) => s.eventName),
         dateRange: config.dateRange,
+        filters: config.filters,
         conversionWindow: {
             value: config.conversionWindowValue,
             unit: config.conversionWindowUnit,

@@ -1,5 +1,6 @@
 import {
     type ApiErrorDetail,
+    type Filters,
     type FunnelDatePreset,
     type FunnelQueryResult,
     type FunnelStep,
@@ -31,6 +32,9 @@ export interface FunnelBuilderState {
     dateRangePreset: FunnelDatePreset;
     customDateRange: [string | null, string | null]; // ISO strings for serialization
 
+    // Dimension filters, same payload as the semantic layer
+    filters: Filters;
+
     // Conversion window
     conversionWindowValue: number;
     conversionWindowUnit: 'hours' | 'days' | 'weeks';
@@ -57,6 +61,7 @@ const initialState: FunnelBuilderState = {
     steps: [{ stepOrder: 1, eventName: '' }],
     dateRangePreset: 'last_30_days',
     customDateRange: [null, null],
+    filters: {},
     conversionWindowValue: 7,
     conversionWindowUnit: 'days',
     eventNames: [],
@@ -80,6 +85,7 @@ export const funnelBuilderSlice = createSlice({
         selectSteps: (state) => state.steps,
         selectDateRangePreset: (state) => state.dateRangePreset,
         selectCustomDateRange: (state) => state.customDateRange,
+        selectFilters: (state) => state.filters,
         selectConversionWindowValue: (state) => state.conversionWindowValue,
         selectConversionWindowUnit: (state) => state.conversionWindowUnit,
         selectEventNames: (state) => state.eventNames,
@@ -104,6 +110,7 @@ export const funnelBuilderSlice = createSlice({
             state.userIdFieldId = null;
             state.eventNameFieldId = null;
             state.breakdownDimensionId = null;
+            state.filters = {};
         },
         setTimestampFieldId: (state, action: PayloadAction<string | null>) => {
             state.timestampFieldId = action.payload;
@@ -157,6 +164,9 @@ export const funnelBuilderSlice = createSlice({
             action: PayloadAction<[string | null, string | null]>,
         ) => {
             state.customDateRange = action.payload;
+        },
+        setFilters: (state, action: PayloadAction<Filters>) => {
+            state.filters = action.payload;
         },
         setConversionWindowValue: (state, action: PayloadAction<number>) => {
             state.conversionWindowValue = action.payload;
@@ -219,6 +229,7 @@ export const {
     resetSteps,
     setDateRangePreset,
     setCustomDateRange,
+    setFilters,
     setConversionWindowValue,
     setConversionWindowUnit,
     clearResults,
@@ -234,6 +245,7 @@ export const {
     selectSteps,
     selectDateRangePreset,
     selectCustomDateRange,
+    selectFilters,
     selectConversionWindowValue,
     selectConversionWindowUnit,
     selectEventNames,

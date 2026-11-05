@@ -1,60 +1,55 @@
-import { FUNNEL_DATE_PRESETS, type FunnelDatePreset } from '@lightdash/common';
-import { Group, SegmentedControl } from '@mantine/core';
+import { type Filters } from '@lightdash/common';
+import { Stack } from '@mantine/core';
 import { useCallback, type FC } from 'react';
-import CalendarRangePickerInput from '../../../components/common/DatePickers/CalendarRangePickerInput';
-import { type CalendarDateRange } from '../../../components/common/DatePickers/types';
+import { EventDateRangeFilter } from '../../eventAnalytics/components/EventDateRangeFilter';
+import { EventFiltersForm } from '../../eventAnalytics/components/EventFiltersForm';
 import { useAppDispatch, useAppSelector } from '../store';
 import {
     selectCustomDateRange,
     selectDateRangePreset,
+    selectExploreName,
+    selectFilters,
     setCustomDateRange,
     setDateRangePreset,
+    setFilters,
 } from '../store/funnelBuilderSlice';
 
-export const FunnelDateFilter: FC = () => {
+type Props = {
+    projectUuid: string;
+};
+
+export const FunnelDateFilter: FC<Props> = ({ projectUuid }) => {
     const dispatch = useAppDispatch();
     const dateRangePreset = useAppSelector(selectDateRangePreset);
     const customDateRange = useAppSelector(selectCustomDateRange);
+    const exploreName = useAppSelector(selectExploreName);
+    const filters = useAppSelector(selectFilters);
 
-    // Convert ISO strings to Date objects for the picker
-    const customDateRangeDates: CalendarDateRange = [
-        customDateRange[0] ? new Date(customDateRange[0]) : null,
-        customDateRange[1] ? new Date(customDateRange[1]) : null,
-    ];
-
-    const handleCustomDateChange = useCallback(
-        (range: CalendarDateRange) => {
-            // Persisting a calendar date as an ISO instant is funnel policy
-            dispatch(
-                setCustomDateRange([
-                    range[0]?.toISOString() ?? null,
-                    range[1]?.toISOString() ?? null,
-                ]),
-            );
-        },
+    const handleFiltersChange = useCallback(
+        (value: Filters) => dispatch(setFilters(value)),
         [dispatch],
     );
 
     return (
-        <Group gap="md" wrap="nowrap">
-            <SegmentedControl
-                value={dateRangePreset}
-                onChange={(value) =>
-                    dispatch(setDateRangePreset(value as FunnelDatePreset))
+        <Stack gap="sm">
+            <EventDateRangeFilter
+                preset={dateRangePreset}
+                customRange={customDateRange}
+                onPresetChange={(preset) =>
+                    dispatch(setDateRangePreset(preset))
                 }
-                data={FUNNEL_DATE_PRESETS.map((p) => ({
-                    value: p.value,
-                    label: p.label,
-                }))}
+                onCustomRangeChange={(range) =>
+                    dispatch(setCustomDateRange(range))
+                }
             />
-
-            {dateRangePreset === 'custom' && (
-                <CalendarRangePickerInput
-                    label="Custom Date Range"
-                    value={customDateRangeDates}
-                    onChange={handleCustomDateChange}
+            {exploreName && (
+                <EventFiltersForm
+                    projectUuid={projectUuid}
+                    exploreName={exploreName}
+                    filters={filters}
+                    onChange={handleFiltersChange}
                 />
             )}
-        </Group>
+        </Stack>
     );
 };

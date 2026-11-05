@@ -12,6 +12,10 @@ import {
     funnelBuilderSlice,
 } from '../../funnelBuilder/store';
 import { metricsCatalogSlice } from '../../metricsCatalog/store/metricsCatalogSlice';
+import {
+    retentionBuilderListenerMiddleware,
+    retentionBuilderSlice,
+} from '../../retentionBuilder/store';
 import { listenerMiddleware } from './listenerMiddleware';
 import { sqlRunnerSlice } from './sqlRunnerSlice';
 
@@ -27,6 +31,7 @@ export const store = configureStore({
         tableVisConfig: tableVisSlice.reducer,
         [metricsCatalogSlice.name]: metricsCatalogSlice.reducer,
         [funnelBuilderSlice.name]: funnelBuilderSlice.reducer,
+        [retentionBuilderSlice.name]: retentionBuilderSlice.reducer,
     },
     // Add the listener middleware to the store, this is useful for listening to actions and running side effects
     middleware: (getDefaultMiddleware) =>
@@ -38,7 +43,8 @@ export const store = configureStore({
             },
         })
             .prepend(listenerMiddleware.middleware)
-            .prepend(funnelBuilderListenerMiddleware.middleware),
+            .prepend(funnelBuilderListenerMiddleware.middleware)
+            .prepend(retentionBuilderListenerMiddleware.middleware),
     devTools: process.env.NODE_ENV === 'development',
 });
 

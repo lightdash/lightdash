@@ -102,6 +102,7 @@ import { QuerySourceService } from './QuerySourceService/QuerySourceService';
 import type { ReadinessService } from './ReadinessService/ReadinessService';
 import { RecentContentService } from './RecentContentService/RecentContentService';
 import { RenameService } from './RenameService/RenameService';
+import { RetentionService } from './RetentionService/RetentionService';
 import { RolesService } from './RolesService/RolesService';
 import { SavedChartService } from './SavedChartsService/SavedChartService';
 import { SavedSqlService } from './SavedSqlService/SavedSqlService';
@@ -205,6 +206,7 @@ interface ServiceManifest {
     contentAsCodeWritebackService: ContentAsCodeWritebackService;
     featureFlagService: FeatureFlagService;
     funnelService: FunnelService;
+    retentionService: RetentionService;
     spotlightService: SpotlightService;
     lightdashAnalyticsService: LightdashAnalyticsService;
     asyncQueryService: AsyncQueryService;
@@ -2069,6 +2071,19 @@ export class ServiceRepository
                 new FunnelService({
                     analytics: this.context.lightdashAnalytics,
                     lightdashConfig: this.context.lightdashConfig,
+                    projectModel: this.models.getProjectModel(),
+                    projectService: this.getProjectService(),
+                }),
+        );
+    }
+
+    public getRetentionService(): RetentionService {
+        return this.getService(
+            'retentionService',
+            () =>
+                new RetentionService({
+                    analytics: this.context.lightdashAnalytics,
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                     projectModel: this.models.getProjectModel(),
                     projectService: this.getProjectService(),
                 }),

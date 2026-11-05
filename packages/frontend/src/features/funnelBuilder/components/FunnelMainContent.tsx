@@ -10,7 +10,11 @@ import { FunnelResultsTable } from './FunnelResultsTable';
 
 const LOADING_DEBOUNCE_MS = 200;
 
-export const FunnelMainContent: FC = () => {
+type Props = {
+    projectUuid: string;
+};
+
+export const FunnelMainContent: FC<Props> = ({ projectUuid }) => {
     const results = useAppSelector(selectResults);
     const isLoading = useAppSelector(selectQueryLoading);
 
@@ -43,7 +47,7 @@ export const FunnelMainContent: FC = () => {
     return (
         <div className={styles.mainContent}>
             <div className={styles.dateFilters}>
-                <FunnelDateFilter />
+                <FunnelDateFilter projectUuid={projectUuid} />
             </div>
 
             {showLoading && (
