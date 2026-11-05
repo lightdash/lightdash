@@ -140,7 +140,7 @@ export type EmbedWriteActions = {
     spaceUuid?: string;
     /** Spaces the write actor may write to; the first is the default save target. */
     writeSpaceUuids?: string[];
-    /** Extra spaces whose charts dashboards may reference; the write actor still needs view access. */
+    /** Extra spaces whose charts dashboards may reference; the write actor still needs view access. AI agent tokens may list only source spaces to read without writing. */
     sourceSpaceUuids?: string[];
     /** Use scopes instead of dashboard flags; AI additionally requires EmbedAiAgent. */
     permissionsMode?: 'default' | 'roles';
@@ -191,6 +191,15 @@ export const getEmbedDefaultWriteSpaceUuid = (
         | Pick<EmbedWriteActions, 'spaceUuid' | 'writeSpaceUuids'>
         | undefined,
 ): string | undefined => getEmbedWriteSpaceUuids(writeActions)[0];
+
+/** AI agent tokens with source spaces and no write spaces can only read. */
+export const isEmbedReadOnlyAiAgentToken = (
+    token: Pick<CreateEmbedJwt, 'content' | 'writeActions'>,
+): boolean =>
+    token.content.type === 'aiAgent' &&
+    token.writeActions !== undefined &&
+    getEmbedWriteSpaceUuids(token.writeActions).length === 0 &&
+    (token.writeActions.sourceSpaceUuids ?? []).length > 0;
 
 export const EmbedJwtSchema = z
     .object({

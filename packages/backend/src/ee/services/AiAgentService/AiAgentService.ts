@@ -145,6 +145,7 @@ import {
     isAiWritebackRunInProgress,
     isComposerQueryToolName,
     isDashboardChartTileType,
+    isEmbedReadOnlyAiAgentToken,
     isGithubMcpServerUrl,
     isGitProjectType,
     isJwtUser,
@@ -399,6 +400,7 @@ import {
     type AiMcpCredential,
     type AiMcpServerWithSensitiveData,
     type AiPromptResponseState,
+    type EmbedThreadScope,
 } from '../../models/AiAgentModel';
 import { AiAgentReviewClassifierModel } from '../../models/AiAgentReviewClassifierModel';
 import { AiAgentReviewNotificationModel } from '../../models/AiAgentReviewNotificationModel';
@@ -926,10 +928,11 @@ type MessageQueryPipelineRef = {
 };
 
 type EmbedAiAgentRuntimeOptions = {
-    // A thread belongs to every write space of the token that created it.
+    // Empty for read-only tokens.
     writeSpaceUuids: string[];
     // The host application's id for the viewer, when its token carries one.
     externalUserId: string | null;
+    threadScope: EmbedThreadScope;
     spaceAccess: string[];
     // Source spaces the agent may read but not write to.
     readOnlySpaceUuids: string[];
@@ -3161,10 +3164,15 @@ export class AiAgentService extends BaseService {
         const { writeActions, content } = account.authentication.data;
         const writeSpaceUuids = getEmbedWriteSpaceUuids(writeActions);
         const chartSpaceUuids = getEmbedActorChartSpaceUuids(account);
+        const externalUserId =
+            account.authentication.data.user?.externalId || null;
+        const isReadOnly = isEmbedReadOnlyAiAgentToken(
+            account.authentication.data,
+        );
 
         if (
             content.type !== 'aiAgent' ||
-            writeSpaceUuids.length === 0 ||
+            (writeSpaceUuids.length === 0 && !isReadOnly) ||
             !account.embedWriteUser ||
             account.embedWriteContext?.canUseAiAgent !== true ||
             account.embed.projectUuid !== projectUuid
@@ -3175,13 +3183,24 @@ export class AiAgentService extends BaseService {
             );
         }
 
+        let threadScope: EmbedThreadScope;
+        if (!isReadOnly) {
+            threadScope = { type: 'writeSpaces', writeSpaceUuids };
+        } else if (externalUserId !== null) {
+            threadScope = { type: 'externalUser', externalUserId };
+        } else {
+            throw new ForbiddenError(
+                'Embed tokens without write spaces must include user.externalId',
+            );
+        }
+
         return {
             user: account.embedWriteUser,
             tokenAgentUuid: content.agentUuid,
             runtimeOptions: {
                 writeSpaceUuids,
-                externalUserId:
-                    account.authentication.data.user?.externalId || null,
+                externalUserId,
+                threadScope,
                 spaceAccess: chartSpaceUuids,
                 readOnlySpaceUuids: chartSpaceUuids.filter(
                     (uuid) => !writeSpaceUuids.includes(uuid),
@@ -3192,24 +3211,26 @@ export class AiAgentService extends BaseService {
         };
     }
 
+    // Read-only tokens have no write spaces, so their readable spaces decide.
     private static isAgentAvailableInEmbedSpaces(
         agent: AiAgent,
-        writeSpaceUuids: string[],
+        runtimeOptions: EmbedAiAgentRuntimeOptions,
     ) {
-        return writeSpaceUuids.some((spaceUuid) =>
+        const embedSpaceUuids =
+            runtimeOptions.writeSpaceUuids.length > 0
+                ? runtimeOptions.writeSpaceUuids
+                : runtimeOptions.spaceAccess;
+        return embedSpaceUuids.some((spaceUuid) =>
             hasAiAgentAccessToSpace(agent, spaceUuid),
         );
     }
 
     private static assertAgentAvailableInEmbedSpaces(
         agent: AiAgent,
-        writeSpaceUuids: string[],
+        runtimeOptions: EmbedAiAgentRuntimeOptions,
     ) {
         if (
-            !AiAgentService.isAgentAvailableInEmbedSpaces(
-                agent,
-                writeSpaceUuids,
-            )
+            !AiAgentService.isAgentAvailableInEmbedSpaces(agent, runtimeOptions)
         ) {
             throw new ForbiddenError(
                 'AI agent is not available in the embedded space',
@@ -3231,10 +3252,7 @@ export class AiAgentService extends BaseService {
         }
 
         const agent = await this.getAgent(user, agentUuid, projectUuid);
-        AiAgentService.assertAgentAvailableInEmbedSpaces(
-            agent,
-            runtimeOptions.writeSpaceUuids,
-        );
+        AiAgentService.assertAgentAvailableInEmbedSpaces(agent, runtimeOptions);
         return {
             user,
             agent,
@@ -3295,12 +3313,12 @@ export class AiAgentService extends BaseService {
     ) {
         if (!runtimeOptions) return;
 
-        const isInEmbedSpaces =
-            await this.aiAgentModel.isWebAppThreadInEmbedSpaces(
+        const isInEmbedScope =
+            await this.aiAgentModel.isWebAppThreadInEmbedScope(
                 threadUuid,
-                runtimeOptions.writeSpaceUuids,
+                runtimeOptions.threadScope,
             );
-        if (!isInEmbedSpaces) {
+        if (!isInEmbedScope) {
             throw new ForbiddenError(
                 'AI agent thread is outside the embedded space',
             );
@@ -3350,7 +3368,7 @@ export class AiAgentService extends BaseService {
                     agent.uuid === tokenAgentUuid &&
                     AiAgentService.isAgentAvailableInEmbedSpaces(
                         agent,
-                        runtimeOptions.writeSpaceUuids,
+                        runtimeOptions,
                     ),
             )
             .map((agent) => this.forEmbedViewer(agent));
@@ -5425,6 +5443,7 @@ export class AiAgentService extends BaseService {
             createdFrom,
             agentUuid,
             embedSpaceUuids: runtimeOptions?.writeSpaceUuids,
+            embedExternalUserId: runtimeOptions?.externalUserId ?? null,
             battleProfile: body.battleProfile ?? null,
             binding,
             threadContext,
@@ -9234,7 +9253,7 @@ export class AiAgentService extends BaseService {
             agentUuid,
             userUuid: user.userUuid,
             createdFrom: ['web_app'],
-            embedWriteSpaceUuids: runtimeOptions.writeSpaceUuids,
+            embedThreadScope: runtimeOptions.threadScope,
         });
 
         return this.withVisibleThreadContext(account, agent, threads);
