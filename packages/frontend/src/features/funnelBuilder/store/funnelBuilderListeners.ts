@@ -54,6 +54,7 @@ export const addEventFieldChangeListener = (
             const prev = previousState.funnelBuilder;
             const curr = currentState.funnelBuilder;
             return (
+                prev.projectUuid !== curr.projectUuid ||
                 prev.eventNameFieldId !== curr.eventNameFieldId ||
                 prev.timestampFieldId !== curr.timestampFieldId ||
                 prev.dateRangePreset !== curr.dateRangePreset ||

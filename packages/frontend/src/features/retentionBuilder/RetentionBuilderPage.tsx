@@ -28,7 +28,16 @@ const RetentionBuilder: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const queryError = useAppSelector(selectQueryError);
     const eventNamesError = useAppSelector(selectEventNamesError);
 
+    // Set the project before the URL restore so listeners can query it
+    useEffect(() => {
+        dispatch(setProjectUuid(projectUuid));
+        return () => {
+            dispatch(resetState());
+        };
+    }, [projectUuid, dispatch]);
+
     useRetentionUrlSync();
+
     useQueryErrorToasts(
         useMemo(
             () => [
@@ -41,13 +50,6 @@ const RetentionBuilder: FC<{ projectUuid: string }> = ({ projectUuid }) => {
             [queryError, eventNamesError],
         ),
     );
-
-    useEffect(() => {
-        dispatch(setProjectUuid(projectUuid));
-        return () => {
-            dispatch(resetState());
-        };
-    }, [projectUuid, dispatch]);
 
     return (
         <EventAnalyticsPage
