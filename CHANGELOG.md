@@ -1,3 +1,10 @@
+## [3.165.1](https://github.com/lightdash/lightdash/compare/3.165.0...3.165.1) (2026-11-05)
+
+
+### Bug Fixes
+
+* **metrics-catalog:** hide models without visible metrics from Tables filter ([#32102](https://github.com/lightdash/lightdash/issues/32102)) ([c5c7192](https://github.com/lightdash/lightdash/commit/c5c7192e3f22446f1af549ed3f84997c5cc1223b))
+
 # [3.165.0](https://github.com/lightdash/lightdash/compare/3.164.0...3.165.0) (2026-11-05)
 
 
