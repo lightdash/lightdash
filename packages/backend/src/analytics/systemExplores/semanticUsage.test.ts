@@ -483,6 +483,26 @@ describe('Semantic usage latest-event semantics', () => {
         ]);
     });
 
+    it('does not resurrect older events when an outer project or date filter excludes the latest event', async () => {
+        await insert('org', 'old-project', 'changed-project', 1, refs('old'));
+        await insert('org', 'new-project', 'changed-project', 2, refs('new'));
+        await insert('org', 'project', 'changed-date', 1, refs('old'));
+        await insert('org', 'project', 'changed-date', 2, refs('new'));
+        await insert('org', 'old-project', 'unique', 1, refs('unique'));
+        for (const filter of [
+            "project_id = 'old-project'",
+            "event_ts < TIMESTAMP '2026-10-02'",
+        ]) {
+            expect(
+                (
+                    await db.runAndReadAll(
+                        `SELECT query_id FROM ${semanticUsageSql} WHERE ${filter}`,
+                    )
+                ).getRowObjectsJson(),
+            ).toEqual([{ query_id: 'unique' }]);
+        }
+    });
+
     it('retains one unavailable row for null, empty and invalid lineage and one winner for tied redelivery', async () => {
         for (const [id, references] of [
             ['missing', null],
