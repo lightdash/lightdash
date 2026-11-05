@@ -86,7 +86,8 @@ const ChartTypeGallery = () => {
         chartTypesEnabled.enabled,
     );
     const isLibraryEnabled =
-        chartTypesEnabled.enabled && registryQuery.data?.registryEnabled === true;
+        chartTypesEnabled.enabled &&
+        registryQuery.data?.registryEnabled === true;
     const registryEntriesBySlug = useMemo(() => {
         const entries = new Map<string, RegistryChartTypeListItem>();
         for (const chart of registryQuery.data?.charts ?? []) {
@@ -304,9 +305,7 @@ const ChartTypeGallery = () => {
                                     )}
                                 </Group>
                             </Tabs.Tab>
-                            <Tabs.Tab
-                                value={GalleryTab.CHART_LIBRARY}
-                            >
+                            <Tabs.Tab value={GalleryTab.CHART_LIBRARY}>
                                 Chart type library
                             </Tabs.Tab>
                         </Tabs.List>

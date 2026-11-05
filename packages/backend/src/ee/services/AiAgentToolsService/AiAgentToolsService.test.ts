@@ -504,9 +504,6 @@ describe('AiAgentToolsService', () => {
             viz_schema: latestRenderableSchema,
         });
         const service = makeService({
-            appGenerateService: {
-                chartTypesEnabledFor: vi.fn().mockResolvedValue(true),
-            },
             appModel: {
                 findDataAppVisualizationBySlug,
                 getLatestRenderableDataAppVizVersion,

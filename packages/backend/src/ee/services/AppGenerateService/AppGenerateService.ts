@@ -11246,7 +11246,6 @@ export class AppGenerateService extends BaseService {
             dataAppVizUuid,
         );
 
-
         this.assertCanUseChartTypes(user, {
             organizationUuid: dataAppViz.organization_uuid,
             projectUuid: dataAppViz.project_uuid,
@@ -11272,7 +11271,6 @@ export class AppGenerateService extends BaseService {
             projectUuid,
             dataAppVizUuid,
         );
-
 
         await this.savedChartService.hasAccess(
             'view',

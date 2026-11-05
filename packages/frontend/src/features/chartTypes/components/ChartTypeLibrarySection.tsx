@@ -80,7 +80,8 @@ const ChartTypeLibrarySection: FC<Props> = ({
 
     const hasTrackedView = useRef(false);
     useEffect(() => {
-        if (hasTrackedView.current || !chartTypesEnabled || !registryEnabled) return;
+        if (hasTrackedView.current || !chartTypesEnabled || !registryEnabled)
+            return;
         hasTrackedView.current = true;
         track({
             name: EventName.CHART_TYPE_LIBRARY_VIEWED,
