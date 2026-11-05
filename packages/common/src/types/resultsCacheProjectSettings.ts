@@ -121,9 +121,6 @@ export type ResultsCacheRecommendation = {
 export type ResultsCacheStats = {
     days: ResultsCacheStatsDays;
     summary: ResultsCacheStatsSummary;
-    byContext: Array<
-        { group: ResultsCacheStatsContextGroup } & ResultsCacheStatsTotals
-    >;
     missReasons: Array<{
         reason: ResultsCacheStatsMissReason;
         misses: number;

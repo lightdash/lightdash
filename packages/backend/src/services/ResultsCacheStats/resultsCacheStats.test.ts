@@ -7,7 +7,6 @@ import {
 import {
     buildResultsCacheStats,
     getContextsInGroup,
-    getResultsCacheContextGroup,
     parseResultsCacheStatsDays,
     type ResultsCacheContextStatsRow,
     type ResultsCacheRecommendationRow,
@@ -37,40 +36,7 @@ const recommendationRow = (
     ...overrides,
 });
 
-describe('getResultsCacheContextGroup', () => {
-    test.each([
-        [
-            QueryExecutionContext.DASHBOARD,
-            ResultsCacheStatsContextGroup.DASHBOARDS,
-        ],
-        [
-            QueryExecutionContext.AUTOREFRESHED_DASHBOARD,
-            ResultsCacheStatsContextGroup.DASHBOARDS,
-        ],
-        [
-            QueryExecutionContext.CHART,
-            ResultsCacheStatsContextGroup.CHARTS_AND_EXPLORE,
-        ],
-        [
-            QueryExecutionContext.EXPLORE,
-            ResultsCacheStatsContextGroup.CHARTS_AND_EXPLORE,
-        ],
-        [
-            QueryExecutionContext.SCHEDULED_DELIVERY,
-            ResultsCacheStatsContextGroup.SCHEDULED,
-        ],
-        [
-            QueryExecutionContext.GSHEETS,
-            ResultsCacheStatsContextGroup.SCHEDULED,
-        ],
-        [QueryExecutionContext.ALERT, ResultsCacheStatsContextGroup.SCHEDULED],
-        [QueryExecutionContext.API, ResultsCacheStatsContextGroup.OTHER],
-        [null, ResultsCacheStatsContextGroup.OTHER],
-        ['legacyUnknownContext', ResultsCacheStatsContextGroup.OTHER],
-    ])('%s → %s', (context, group) => {
-        expect(getResultsCacheContextGroup(context)).toBe(group);
-    });
-
+describe('getContextsInGroup', () => {
     test('scheduled contexts list matches the grouping', () => {
         expect(
             getContextsInGroup(ResultsCacheStatsContextGroup.SCHEDULED).sort(),
@@ -102,7 +68,7 @@ describe('parseResultsCacheStatsDays', () => {
 });
 
 describe('buildResultsCacheStats', () => {
-    test('sums contexts into groups and the summary', () => {
+    test('sums context rows into the summary', () => {
         const stats = buildResultsCacheStats({
             days: 7,
             contextRows: [
@@ -121,26 +87,6 @@ describe('buildResultsCacheStats', () => {
             ],
             recommendationRows: [],
         });
-        expect(stats.byContext).toEqual([
-            {
-                group: ResultsCacheStatsContextGroup.DASHBOARDS,
-                runs: 20,
-                hits: 10,
-                misses: 10,
-                hitRate: 0.5,
-                warehouseTimeOnMissesMs: 8000,
-                warehouseTimeSavedMs: 12000,
-            },
-            {
-                group: ResultsCacheStatsContextGroup.SCHEDULED,
-                runs: 5,
-                hits: 0,
-                misses: 5,
-                hitRate: 0,
-                warehouseTimeOnMissesMs: 4000,
-                warehouseTimeSavedMs: 0,
-            },
-        ]);
         expect(stats.summary).toMatchObject({
             runs: 25,
             hits: 10,
@@ -158,7 +104,6 @@ describe('buildResultsCacheStats', () => {
             recommendationRows: [],
         });
         expect(stats.summary.hitRate).toBeNull();
-        expect(stats.byContext).toEqual([]);
     });
 
     test('builds recommendations, reasons and avoidable totals from passing rows', () => {

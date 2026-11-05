@@ -37,14 +37,6 @@ export type ResultsCacheRecommendationRow = {
     warehouseTimeMs: number;
 };
 
-const QUERY_EXECUTION_CONTEXTS = new Set<string>(
-    Object.values(QueryExecutionContext),
-);
-
-const isQueryExecutionContext = (
-    value: string,
-): value is QueryExecutionContext => QUERY_EXECUTION_CONTEXTS.has(value);
-
 const groupOf = (
     context: QueryExecutionContext,
 ): ResultsCacheStatsContextGroup => {
@@ -93,13 +85,6 @@ const groupOf = (
             return assertUnreachable(context, 'Unknown query context');
     }
 };
-
-export const getResultsCacheContextGroup = (
-    context: string | null,
-): ResultsCacheStatsContextGroup =>
-    context !== null && isQueryExecutionContext(context)
-        ? groupOf(context)
-        : ResultsCacheStatsContextGroup.OTHER;
 
 export const getContextsInGroup = (
     group: ResultsCacheStatsContextGroup,
@@ -168,13 +153,6 @@ const toTarget = (
     }
 };
 
-const GROUP_ORDER = [
-    ResultsCacheStatsContextGroup.DASHBOARDS,
-    ResultsCacheStatsContextGroup.CHARTS_AND_EXPLORE,
-    ResultsCacheStatsContextGroup.SCHEDULED,
-    ResultsCacheStatsContextGroup.OTHER,
-];
-
 export const buildResultsCacheStats = ({
     days,
     contextRows,
@@ -184,15 +162,6 @@ export const buildResultsCacheStats = ({
     contextRows: ResultsCacheContextStatsRow[];
     recommendationRows: ResultsCacheRecommendationRow[];
 }): ResultsCacheStats => {
-    const byContext = GROUP_ORDER.map((group) => ({
-        group,
-        ...toTotals(
-            contextRows.filter(
-                (row) => getResultsCacheContextGroup(row.context) === group,
-            ),
-        ),
-    })).filter((group) => group.runs > 0);
-
     // Rows arrive ordered by warehouse time desc and already pass the minimum bar.
     const recommendations: ResultsCacheRecommendation[] =
         recommendationRows.flatMap((row) => {
@@ -234,7 +203,6 @@ export const buildResultsCacheStats = ({
                 0,
             ),
         },
-        byContext,
         missReasons,
         recommendations: recommendations.slice(0, MAX_RECOMMENDATIONS),
     };

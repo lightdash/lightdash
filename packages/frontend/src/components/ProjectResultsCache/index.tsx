@@ -109,12 +109,9 @@ const EnableResultsCache: FC<EnableCacheProps> = ({
 
     return (
         <SettingsCard>
-            <Group justify="space-between" wrap="nowrap" align="flex-start">
+            <Group justify="space-between" wrap="nowrap">
                 <Box>
                     <Title order={5}>Enable results caching</Title>
-                    <Text c="dimmed" fz="sm">
-                        Reuse results when the same query runs again.
-                    </Text>
                     {lockReason && (
                         <Text c="dimmed" fz="xs" mt="xs">
                             {lockReason}

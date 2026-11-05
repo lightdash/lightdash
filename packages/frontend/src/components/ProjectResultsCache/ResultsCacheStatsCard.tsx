@@ -1,6 +1,5 @@
 import {
     assertUnreachable,
-    ResultsCacheStatsContextGroup,
     ResultsCacheStatsMissReason,
     type ResultsCacheRecommendationTarget,
     type ResultsCacheStats,
@@ -8,45 +7,31 @@ import {
 } from '@lightdash/common';
 import {
     Anchor,
-    Box,
     Collapse,
     Divider,
     Group,
     Loader,
+    Paper,
     SegmentedControl,
+    SimpleGrid,
     Stack,
     Table,
     Text,
     Title,
 } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
-import { Fragment, useState, type FC } from 'react';
+import { useState, type FC } from 'react';
 import { Link } from 'react-router';
 import { useResultsCacheStats } from '../../hooks/useProjectResultsCacheSettings';
+import { BigNumberDisplay } from '../common/BigNumber/BigNumberDisplay';
 import InlineErrorState from '../common/InlineErrorState';
 import MantineIcon from '../common/MantineIcon';
 import { PolymorphicGroupButton } from '../common/PolymorphicGroupButton';
 import { SettingsCard } from '../common/Settings/SettingsCard';
 import { formatWarehouseTime } from './formatWarehouseTime';
-import classes from './ResultsCacheStatsCard.module.css';
 
 const formatPercent = (rate: number | null) =>
     rate === null ? 'n/a' : `${Math.round(rate * 100)}%`;
-
-const contextLabel = (group: ResultsCacheStatsContextGroup): string => {
-    switch (group) {
-        case ResultsCacheStatsContextGroup.DASHBOARDS:
-            return 'Dashboards';
-        case ResultsCacheStatsContextGroup.CHARTS_AND_EXPLORE:
-            return 'Charts and explore';
-        case ResultsCacheStatsContextGroup.SCHEDULED:
-            return 'Scheduled deliveries and syncs';
-        case ResultsCacheStatsContextGroup.OTHER:
-            return 'API and other';
-        default:
-            return assertUnreachable(group, 'Unknown context group');
-    }
-};
 
 const reasonLabel = (reason: ResultsCacheStatsMissReason): string => {
     switch (reason) {
@@ -108,19 +93,20 @@ const DAYS_OPTIONS = [
     { value: '30', label: 'Last 30 days' },
 ];
 
-const STATS_COLUMN_WIDTH = '20%';
+const STAT_TILE_HEIGHT = 120;
 
 type StatProps = { label: string; value: string };
 
 const Stat: FC<StatProps> = ({ label, value }) => (
-    <Box flex={1}>
-        <Text c="dimmed" fz="sm" className={classes.statLabel}>
-            {label}
-        </Text>
-        <Text fw={600} fz="xl">
-            {value}
-        </Text>
-    </Box>
+    <Paper withBorder radius="md" h={STAT_TILE_HEIGHT}>
+        <BigNumberDisplay
+            value={value}
+            label={label}
+            showLabel
+            comparison={undefined}
+            flipColors={false}
+        />
+    </Paper>
 );
 
 const pluralizeMisses = (count: number) =>
@@ -248,33 +234,15 @@ const StatsContent: FC<StatsContentProps> = ({ projectUuid, stats }) => {
 
     return (
         <Stack gap="lg">
-            <Group gap="lg" wrap="nowrap" align="stretch">
-                {items.map((item, index) => (
-                    <Fragment key={item.label}>
-                        {index > 0 && <Divider orientation="vertical" />}
-                        <Stat label={item.label} value={item.value} />
-                    </Fragment>
+            <SimpleGrid cols={4} spacing="md">
+                {items.map((item) => (
+                    <Stat
+                        key={item.label}
+                        label={item.label}
+                        value={item.value}
+                    />
                 ))}
-            </Group>
-
-            <Table fz="sm">
-                <Table.Thead>
-                    <Table.Tr>
-                        <Table.Th>Source</Table.Th>
-                        <Table.Th w={STATS_COLUMN_WIDTH}>Runs</Table.Th>
-                        <Table.Th w={STATS_COLUMN_WIDTH}>Hit rate</Table.Th>
-                    </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                    {stats.byContext.map((row) => (
-                        <Table.Tr key={row.group}>
-                            <Table.Td>{contextLabel(row.group)}</Table.Td>
-                            <Table.Td>{row.runs.toLocaleString()}</Table.Td>
-                            <Table.Td>{formatPercent(row.hitRate)}</Table.Td>
-                        </Table.Tr>
-                    ))}
-                </Table.Tbody>
-            </Table>
+            </SimpleGrid>
 
             <Divider />
 
