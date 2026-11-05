@@ -10,7 +10,7 @@ on:
 jobs:
 
   build:
-    name: "🧪 unit · easy install"
+    name: Easy install
 
     runs-on: ubuntu-latest
 

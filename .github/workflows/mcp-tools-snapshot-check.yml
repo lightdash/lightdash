@@ -30,7 +30,7 @@ permissions:
 
 jobs:
   mcp-tools-snapshot-check:
-    name: "📐 contract · mcp tool snapshot"
+    name: Committed MCP tool snapshot is fresh
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

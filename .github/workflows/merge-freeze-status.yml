@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   flag:
-    name: "🔒 policy · merge freeze"
+    name: Merge freeze status
     # Stacked PRs merging into their parent are not covered by the main ruleset
     # and are not blocked, so they are not flagged either.
     if: >-

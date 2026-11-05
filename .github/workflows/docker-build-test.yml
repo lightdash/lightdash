@@ -74,7 +74,7 @@ permissions:
 
 jobs:
   build-and-describe:
-    name: "🧹 build · docker image"
+    name: Build image (no push) and describe it
     # Fork PRs cannot see DEPOT_PROJECT_TOKEN. Skip rather than fail red.
     if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: depot-ubuntu-24.04-8

@@ -24,7 +24,7 @@ permissions:
 
 jobs:
     check:
-        name: "🧹 build · playground bundle"
+        name: Playground bundle
         runs-on: ubuntu-latest
         env:
             BASE_BRANCH: ${{ github.base_ref || 'main' }}

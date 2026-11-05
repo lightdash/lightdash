@@ -21,7 +21,7 @@ jobs:
   # Stage 0: Fast checks (no install needed)
   # ============================================================================
   check-exact-deps:
-    name: "🔒 policy · exact dependency versions"
+    name: Enforce Exact Dependency Versions
     runs-on: ubuntu-latest
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
@@ -111,7 +111,7 @@ jobs:
   # Stage 1: Build, lint, typecheck, and test
   # ============================================================================
   build-and-lint:
-    name: "🧹 build · build & lint"
+    name: Build & Lint
     runs-on: depot-ubuntu-24.04-8
     env:
       TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
@@ -158,7 +158,7 @@ jobs:
   # PR that does not touch a package replays its cached result. Vitest shard
   # args are part of the Turbo hash, so shards cache independently.
   unit-tests:
-    name: "🧪 unit · ${{ matrix.name }}"
+    name: "Unit Tests (${{ matrix.name }})"
     runs-on: depot-ubuntu-24.04-4
     env:
       TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
@@ -206,7 +206,7 @@ jobs:
   # that breaks consumers on a strict CSP (no 'unsafe-eval'). See issue #21276.
   # Runs in parallel so it doesn't extend the critical Build & Lint path.
   sdk-csp-check:
-    name: "🧹 build · sdk csp guard"
+    name: SDK CSP Guard
     runs-on: depot-ubuntu-24.04-4
     env:
       NODE_OPTIONS: "--max-old-space-size=8192"
@@ -231,7 +231,7 @@ jobs:
   # Draws every chart type through @lightdash/visualization in a real Chromium
   # and checks the DOM ECharts produces. Runs in parallel with Build & Lint.
   visualization-browser:
-    name: "🎨 viz · chromium"
+    name: Visualization in Chromium
     runs-on: depot-ubuntu-24.04-4
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
@@ -261,7 +261,7 @@ jobs:
   # published, installs them outside the monorepo, and imports them from Node
   # ESM, Node CommonJS and TypeScript (node16 and bundler resolution).
   visualization-pack:
-    name: "🎨 viz · package as published"
+    name: Visualization package as published
     runs-on: depot-ubuntu-24.04-4
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
@@ -285,7 +285,7 @@ jobs:
   # Stage 2: Deploy preview environment (only if stage 1 passes)
   # ============================================================================
   files-changed:
-    name: "⚙️ setup · select tests"
+    name: Select Tests to Run
     runs-on: ubuntu-latest
     outputs:
       # Rainbow builds a preview for same-repo PRs only; forks get no preview
@@ -310,7 +310,7 @@ jobs:
 
   openapi-breaking-change-check:
     if: needs.files-changed.outputs.api_schema == 'true'
-    name: "📐 contract · openapi breaking changes"
+    name: OpenAPI Breaking Change Check
     runs-on: depot-ubuntu-24.04-4
     needs: files-changed
     env:
@@ -359,7 +359,7 @@ jobs:
         run: echo "Skipping OpenAPI breaking-change check because allow-api-breaking-change is in the PR description."
 
   post-test-selection-comment:
-    name: "⚙️ setup · post test selection"
+    name: Post Test Selection Comment
     runs-on: ubuntu-latest
     needs: files-changed
     steps:
@@ -459,7 +459,7 @@ jobs:
 
   preview:
     timeout-minutes: 45
-    name: "🌐 preview · deploy"
+    name: Deploy Preview
     runs-on: ubuntu-latest
     # Fail fast: every E2E and CLI job needs this one, so waiting here for
     # lint, types and unit tests means a push that breaks any of them never
@@ -532,7 +532,7 @@ jobs:
     timeout-minutes: 25
     runs-on: depot-ubuntu-24.04-4
     needs: [preview, files-changed]
-    name: "🎭 e2e · api"
+    name: "E2E: API (Vitest)"
     env:
       PREVIEW_URL: ${{ needs.preview.outputs.url }}
       NODE_OPTIONS: "--max-old-space-size=8192"
@@ -602,7 +602,7 @@ jobs:
       fail-fast: false
       matrix:
         shard: [1, 2, 3, 4, 5]
-    name: "🎭 e2e · app ${{ matrix.shard }}/${{ strategy.job-total }}"
+    name: "E2E: App (${{ matrix.shard }}/${{ strategy.job-total }})"
     env:
       PREVIEW_URL: ${{ needs.preview.outputs.url }}
       NODE_OPTIONS: "--max-old-space-size=8192"
@@ -662,7 +662,7 @@ jobs:
       fail-fast: false
       matrix:
         timezone: ["America/New_York", "Europe/Madrid", "Asia/Tokyo"]
-    name: "🎭 e2e · timezone"
+    name: "E2E: Timezone"
     env:
       PREVIEW_URL: ${{ needs.preview.outputs.url }}
       NODE_OPTIONS: "--max-old-space-size=8192"
@@ -700,7 +700,7 @@ jobs:
     timeout-minutes: 30
     runs-on: depot-ubuntu-24.04-4
     needs: [preview, files-changed]
-    name: "🧰 cli · without dbt"
+    name: "CLI: Without dbt"
     env:
       PREVIEW_URL: ${{ needs.preview.outputs.url }}
       NODE_OPTIONS: "--max-old-space-size=8192"
@@ -745,7 +745,7 @@ jobs:
     timeout-minutes: 30
     runs-on: depot-ubuntu-24.04-4
     needs: [preview, files-changed]
-    name: "🧰 cli · integration"
+    name: "CLI: Integration"
     env:
       PREVIEW_URL: ${{ needs.preview.outputs.url }}
       NODE_OPTIONS: "--max-old-space-size=8192"
@@ -823,7 +823,7 @@ jobs:
       fail-fast: false
       matrix:
         dbt: ["1.10", "1.11"]
-    name: "🧰 cli · dbt"
+    name: "CLI: dbt"
     env:
       PREVIEW_URL: ${{ needs.preview.outputs.url }}
       NODE_OPTIONS: "--max-old-space-size=8192"
@@ -901,7 +901,7 @@ jobs:
     if: always() && needs.files-changed.outputs.cli == 'true'
     runs-on: depot-ubuntu-24.04-4
     needs: [files-changed, cli-tests-without-dbt, cli-tests, cli-dbt-tests]
-    name: "⚙️ setup · cleanup test schemas"
+    name: Cleanup test schemas
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
@@ -945,7 +945,7 @@ jobs:
         cli-tests,
         cli-dbt-tests,
       ]
-    name: "🚦 ci result"
+    name: "🚦 CI result"
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
