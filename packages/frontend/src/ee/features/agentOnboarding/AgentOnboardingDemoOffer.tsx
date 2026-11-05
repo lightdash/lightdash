@@ -95,7 +95,7 @@ export const AgentOnboardingDemoOffer: FC<{ run: AgentOnboardingRun }> = ({
             track({
                 name: EventName.AGENT_ONBOARDING_DEMO_OFFER_ACCEPTED,
                 properties: {
-                    organizationId: organizationUuid ?? '',
+                    organizationId: organizationUuid ?? null,
                     projectUuid,
                     agentOnboardingRunUuid,
                     offerType: mode,
