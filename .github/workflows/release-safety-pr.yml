@@ -55,7 +55,7 @@ permissions:
 
 jobs:
   changes:
-    name: Resolve base and changed surfaces
+    name: "⚙️ setup · resolve changed surfaces"
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
@@ -355,7 +355,7 @@ jobs:
             core.info(`Sticky comment marked pending for ${short}.`);
 
   openapi-specs:
-    name: Generate API snapshots
+    name: "⚙️ setup · generate api snapshots"
     needs: changes
     if: needs.changes.outputs.open == 'true' && needs.changes.outputs.openapi == 'true' && needs.changes.outputs.fresh != 'true'
     runs-on: depot-ubuntu-24.04-4
@@ -693,7 +693,7 @@ jobs:
   # start, and a stale ✅ describing a migration that had left the diff). Only
   # ever UPDATES an existing comment; a PR that never had one gets no noise.
   retract:
-    name: Retract a stale verdict
+    name: "⚙️ setup · retract stale verdict"
     needs: changes
     if: ${{ needs.changes.result == 'success' && needs.changes.outputs.open == 'true' && needs.changes.outputs.watched != 'true' && github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest

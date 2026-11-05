@@ -21,7 +21,7 @@ grows storage until the org retention policy removes it.
 
 ## Checking a change
 After touching caching, search each job log in a PR run for
-`Cache saved with the key`. Only Build & Lint may print it, and only after a
+`Cache saved with the key`. Only `🧹 build · build & lint` may print it, and only after a
 lockfile change.
 
 ## When the heavy suites run
@@ -39,8 +39,8 @@ lockfile change.
 - Depot runners (`depot-ubuntu-24.04-4` / `-8`) are for jobs that do real CPU
   work: installs, builds, test suites.
 - Jobs that only wait, poll, post a comment or run a tiny script use
-  `ubuntu-latest`: Select Tests to Run, Post Test Selection Comment, Deploy
-  Preview (it waits on Rainbow's commit status) and Renovate.
+  `ubuntu-latest`: `⚙️ setup · select tests`, `⚙️ setup · post test selection`, `🌐 preview · deploy`
+  (it waits on Rainbow's commit status) and Renovate.
 - GitHub-hosted jobs share one org-wide concurrency limit with every other
   repo. Do not move a job that runs many times per PR to `ubuntu-latest`
   without checking peak concurrency first.

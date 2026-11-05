@@ -21,7 +21,7 @@ permissions:
 
 jobs:
   release-safety-tests:
-    name: Run scripts/*.test.ts
+    name: "🧪 unit · release-safety scripts"
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

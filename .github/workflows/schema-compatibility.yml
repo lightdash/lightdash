@@ -27,7 +27,7 @@ env:
 
 jobs:
   changes:
-    name: Detect schema and backend changes
+    name: "⚙️ setup · detect schema changes"
     runs-on: ubuntu-latest
     outputs:
       schema: ${{ steps.filter.outputs.schema == 'true' || github.event_name == 'workflow_dispatch' }}
@@ -59,7 +59,7 @@ jobs:
               - '.github/workflows/schema-compatibility.yml'
 
   column-names:
-    name: New column names
+    name: "📐 contract · new column names"
     needs: changes
     if: needs.changes.outputs.schema == 'true'
     runs-on: ubuntu-latest
@@ -99,7 +99,7 @@ jobs:
           BASE_REF: ${{ github.base_ref || 'main' }}
 
   real-schema-tests:
-    name: Real-schema integration tests
+    name: "📐 contract · real-schema tests"
     needs: changes
     if: needs.changes.outputs.backend == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: depot-ubuntu-24.04-4
@@ -177,7 +177,7 @@ jobs:
           PGCONNECTIONURI: postgres://postgres:password@localhost:5432/postgres
 
   previous-release:
-    name: Previous release against this schema
+    name: "📐 contract · previous release on new schema"
     needs: changes
     if: needs.changes.outputs.schema == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: depot-ubuntu-24.04-4
@@ -246,7 +246,7 @@ jobs:
           TZ: UTC
 
   gate:
-    name: Schema compatibility gate
+    name: "📐 contract · schema compatibility"
     if: always()
     needs: [changes, column-names, real-schema-tests, previous-release]
     runs-on: ubuntu-latest

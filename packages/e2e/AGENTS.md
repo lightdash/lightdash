@@ -19,9 +19,9 @@ support/api.ts         login/logout, seed users, create/delete content, tokens, 
 support/ui.ts          selectMantine, scrollTreeToItem, getMonacoEditorText, dragAndDrop
 support/cli.ts         runCli: shell out to `lightdash` from packages/e2e
 support/cleanup.ts     records created content and deletes it when the worker exits
-tests/app/**           UI specs            (CI job "E2E: App", 5 shards)
+tests/app/**           UI specs            (CI job "🎭 e2e · app", 5 shards)
 tests/api/**           request-only specs  (run with the app shards)
-tests/cli/**           CLI specs           (CI jobs "CLI: ...")
+tests/cli/**           CLI specs           (CI jobs "🧰 cli · ...")
 fixtures/              credentials.json written by CI (gitignored)
 ```
 
