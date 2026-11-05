@@ -402,6 +402,8 @@ export const OAUTH_CASL_CHECKED_ROUTES: readonly string[] = [
     'ProjectController.getProjectPreviewExpirationSettings',
     'ProjectController.getProjectResultsCacheSettings',
     'ProjectController.getProjectResultsCacheStatus',
+    'ProjectController.getProjectResultsCacheStats',
+    'ProjectController.getProjectResultsCacheTtlProjections',
     'ProjectController.getProjectTableGroups',
     'ProjectController.getProjectUserWarehouseCredentials',
     'ProjectController.getSharedSignInStatus',

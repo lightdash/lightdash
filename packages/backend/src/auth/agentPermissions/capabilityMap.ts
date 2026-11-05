@@ -1562,6 +1562,12 @@ export const REST_OPERATION_CAPABILITIES = {
     'ProjectController.getProjectResultsCacheStatus': [
         AgentCapability.ReadDiscover,
     ],
+    'ProjectController.getProjectResultsCacheStats': [
+        AgentCapability.ReadDiscover,
+    ],
+    'ProjectController.getProjectResultsCacheTtlProjections': [
+        AgentCapability.ReadDiscover,
+    ],
     'ProjectController.getProjectTableGroups': [AgentCapability.ReadDiscover],
     'ProjectController.getProjectUserWarehouseCredentials': [
         AgentCapability.ReadDiscover,
