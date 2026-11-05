@@ -187,6 +187,7 @@ import { vizBuildSampleRows } from '../features/chartTypes/utils/vizBuildSampleR
 import { useAppExternalConnections } from '../features/externalConnections/hooks/useAppExternalConnections';
 import { ThemePicker } from '../features/organizationDesigns/components/ThemePicker';
 import { useOrganizationDesigns } from '../features/organizationDesigns/hooks/useOrganizationDesigns';
+import { NO_THEME_LABEL } from '../features/organizationDesigns/themeCopy';
 import useToaster from '../hooks/toaster/useToaster';
 import { useProject } from '../hooks/useProject';
 import { useOptionalProjectRoute } from '../hooks/useProjectRoute';
@@ -219,8 +220,6 @@ const TemplateChip: FC<{ template: DataAppTemplate }> = ({ template }) => {
         </Badge>
     );
 };
-
-const NO_THEME_LABEL = 'No theme';
 
 /** A small informational badge shown on assistant bubbles for versions that
  *  were uploaded with a custom dependency set. Lists `name@version` per line
@@ -1068,6 +1067,8 @@ const AppGenerate: FC = () => {
             ? latestVersionDesign.name
             : null;
     const showThemePicker = newAppLanding || hasThemeChipSource;
+    // Icon-only composer (chat column, phones): the theme lives in the + menu.
+    const iconToolbar = compact || !newAppLanding;
     const displayThemeName: string | null = hasThemeChipSource
         ? currentThemeUuid
             ? (orgThemes.find((t) => t.designUuid === currentThemeUuid)?.name ??
@@ -3098,9 +3099,24 @@ const AppGenerate: FC = () => {
                                                 }
                                             >
                                                 <AttachButton
-                                                    iconOnly={
-                                                        compact ||
-                                                        !newAppLanding
+                                                    iconOnly={iconToolbar}
+                                                    theme={
+                                                        showThemePicker &&
+                                                        iconToolbar
+                                                            ? {
+                                                                  value: currentThemeUuid,
+                                                                  label:
+                                                                      displayThemeName ??
+                                                                      (currentThemeUuid
+                                                                          ? 'Selected theme'
+                                                                          : NO_THEME_LABEL),
+                                                                  onChange:
+                                                                      handleThemeChange,
+                                                                  disabled:
+                                                                      !newAppLanding &&
+                                                                      isAgentWorking,
+                                                              }
+                                                            : null
                                                     }
                                                     selectedCharts={
                                                         selectedCharts
@@ -3181,34 +3197,6 @@ const AppGenerate: FC = () => {
                                                         activeAppUuid
                                                     }
                                                 />
-                                                {previewApp &&
-                                                    screenshotAvailable &&
-                                                    capturesEnabled && (
-                                                        <ScreenshotButton
-                                                            onClick={() =>
-                                                                void handleCaptureScreenshot()
-                                                            }
-                                                            disabled={
-                                                                isSubmitting ||
-                                                                fileAttachments.length >=
-                                                                    MAX_APP_FILES_PER_VERSION
-                                                            }
-                                                            loading={
-                                                                isCapturingScreenshot ||
-                                                                isCapturingThumbnail
-                                                            }
-                                                        />
-                                                    )}
-                                                {elementPicker.available && (
-                                                    <ElementPickerButton
-                                                        enabled={
-                                                            elementPicker.enabled
-                                                        }
-                                                        onToggle={
-                                                            elementPicker.toggle
-                                                        }
-                                                    />
-                                                )}
                                                 {showVizSampleConsent && (
                                                     <SampleDataButton
                                                         enabled={
@@ -3234,37 +3222,36 @@ const AppGenerate: FC = () => {
                                                         }
                                                     />
                                                 )}
-                                                {showThemePicker && (
-                                                    <Divider
-                                                        orientation="vertical"
-                                                        h={16}
-                                                        my="auto"
-                                                    />
-                                                )}
-                                                {showThemePicker && (
-                                                    <ThemePicker
-                                                        compact
-                                                        // The chat column is too narrow for a labelled trigger.
-                                                        iconOnly={
-                                                            compact ||
-                                                            !newAppLanding
-                                                        }
-                                                        value={currentThemeUuid}
-                                                        onChange={
-                                                            handleThemeChange
-                                                        }
-                                                        disabled={
-                                                            !newAppLanding &&
-                                                            isAgentWorking
-                                                        }
-                                                        fallbackLabel={
-                                                            currentThemeUuid &&
-                                                            displayThemeName
-                                                                ? displayThemeName
-                                                                : undefined
-                                                        }
-                                                    />
-                                                )}
+                                                {showThemePicker &&
+                                                    !iconToolbar && (
+                                                        <Divider
+                                                            orientation="vertical"
+                                                            h={16}
+                                                            my="auto"
+                                                        />
+                                                    )}
+                                                {showThemePicker &&
+                                                    !iconToolbar && (
+                                                        <ThemePicker
+                                                            compact
+                                                            value={
+                                                                currentThemeUuid
+                                                            }
+                                                            onChange={
+                                                                handleThemeChange
+                                                            }
+                                                            disabled={
+                                                                !newAppLanding &&
+                                                                isAgentWorking
+                                                            }
+                                                            fallbackLabel={
+                                                                currentThemeUuid &&
+                                                                displayThemeName
+                                                                    ? displayThemeName
+                                                                    : undefined
+                                                            }
+                                                        />
+                                                    )}
                                                 {newAppLanding &&
                                                     selectedTemplate !==
                                                         null && (
@@ -3452,6 +3439,44 @@ const AppGenerate: FC = () => {
                                     }}
                                     rightSection={
                                         <AppHeaderActions
+                                            previewTools={
+                                                (elementPicker.available ||
+                                                    (previewApp &&
+                                                        screenshotAvailable &&
+                                                        capturesEnabled)) && (
+                                                    <>
+                                                        {elementPicker.available && (
+                                                            <ElementPickerButton
+                                                                iconOnly
+                                                                enabled={
+                                                                    elementPicker.enabled
+                                                                }
+                                                                onToggle={
+                                                                    elementPicker.toggle
+                                                                }
+                                                            />
+                                                        )}
+                                                        {previewApp &&
+                                                            screenshotAvailable &&
+                                                            capturesEnabled && (
+                                                                <ScreenshotButton
+                                                                    onClick={() =>
+                                                                        void handleCaptureScreenshot()
+                                                                    }
+                                                                    disabled={
+                                                                        isSubmitting ||
+                                                                        fileAttachments.length >=
+                                                                            MAX_APP_FILES_PER_VERSION
+                                                                    }
+                                                                    loading={
+                                                                        isCapturingScreenshot ||
+                                                                        isCapturingThumbnail
+                                                                    }
+                                                                />
+                                                            )}
+                                                    </>
+                                                )
+                                            }
                                             fullscreenToggle={null}
                                             onEdit={null}
                                             shareUrl={

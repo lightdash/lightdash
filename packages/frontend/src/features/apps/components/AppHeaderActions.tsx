@@ -43,6 +43,9 @@ type Props = Pick<
     /** Opens the running app in a new tab. Pass null where the app is
      *  already the page (the viewer). */
     openUrl: string | null;
+    /** Builder-only tools that act on the preview (element picker,
+     *  screenshot), shown first. Null on the viewer. */
+    previewTools: ReactNode;
 };
 
 /**
@@ -61,10 +64,17 @@ const AppHeaderActions: FC<Props> = ({
     shareUrl,
     fullscreenToggle,
     openUrl,
+    previewTools,
     ...menuProps
 }) => {
     return (
         <>
+            {previewTools && (
+                <>
+                    {previewTools}
+                    <Divider orientation="vertical" h={16} my="auto" />
+                </>
+            )}
             {onEdit && (
                 <>
                     <Tooltip

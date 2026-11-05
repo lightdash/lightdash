@@ -3,8 +3,7 @@ import { IconSettings } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
-
-const MANAGE_THEMES_ROUTE = '/generalSettings/dataApps/themes';
+import { MANAGE_THEMES_ROUTE } from '../themeCopy';
 
 /** Trailing entry of a theme list: opens organization theme settings. */
 export const ManageThemesMenuItem: FC = () => {
