@@ -1,3 +1,13 @@
+## [3.159.1](https://github.com/lightdash/lightdash/compare/3.159.0...3.159.1) (2026-11-05)
+
+
+### Bug Fixes
+
+* **agents:** save agent table lists per identity, project and scope ([#31968](https://github.com/lightdash/lightdash/issues/31968)) ([9cefda1](https://github.com/lightdash/lightdash/commit/9cefda13d20d841b173e80cfa52658d58984deec))
+* **connections:** keep the enable multiple connections dialog open ([#32040](https://github.com/lightdash/lightdash/issues/32040)) ([7cf4be6](https://github.com/lightdash/lightdash/commit/7cf4be6d5fc7284f4e1f181b4d1de64f729127da))
+* **docker:** copy referenced tsconfigs into the frontend build stage ([#32110](https://github.com/lightdash/lightdash/issues/32110)) ([6c1c4cd](https://github.com/lightdash/lightdash/commit/6c1c4cd2ad277783dd89c3f637e8300b4e2762a6)), closes [#32109](https://github.com/lightdash/lightdash/issues/32109)
+* **live-sources:** fingerprint live explore results like the result read check ([#32104](https://github.com/lightdash/lightdash/issues/32104)) ([c496454](https://github.com/lightdash/lightdash/commit/c4964546b2d3d3920529ecc0d59fc4bf1ca85957))
+
 # [3.159.0](https://github.com/lightdash/lightdash/compare/3.158.1...3.159.0) (2026-11-05)
 
 
