@@ -118,6 +118,7 @@ import {
     QuerySourceType,
     resolveQueryTimezone,
     ResultRow,
+    ResultsCacheMissReason,
     ResultsExpiredError,
     S3Error,
     SchedulerFormat,
@@ -1453,43 +1454,39 @@ export class AsyncQueryService extends ProjectService {
         identityEnabled: boolean = false,
         reader: QueryResultReader = buildResultReader(account),
     ): Promise<CreateCacheResult> {
-        if (!invalidateCache) {
-            // CommercialCacheService gates internally on the project's
-            // results cache setting.
-            const existingCache =
-                await this.cacheService?.findCachedResultsFile(
+        // CommercialCacheService gates internally on the project setting.
+        const lookup = await this.cacheService?.lookupCachedResultsFile(
+            projectUuid,
+            cacheKey,
+            {
+                userUuid: account.user.id,
+                organizationUuid: account.organization.organizationUuid,
+                organizationName: account.organization.name,
+            },
+            requesterProducer,
+            identityEnabled ?? undefined,
+        );
+        if (!lookup) return cacheMiss(ResultsCacheMissReason.CACHE_DISABLED);
+        if (!lookup.cacheHit) return cacheMiss(lookup.missReason);
+        // Probe only: a forced refresh records that it skipped a valid result.
+        if (invalidateCache) return cacheMiss(null);
+        if (identityEnabled) {
+            if (!lookup.queryUuid || !lookup.queryHistory)
+                return cacheMiss(ResultsCacheMissReason.ACCESS_RESTRICTED);
+            try {
+                await this.assertCanReadStoredResultsForQueries(
+                    account,
                     projectUuid,
-                    cacheKey,
-                    {
-                        userUuid: account.user.id,
-                        organizationUuid: account.organization.organizationUuid,
-                        organizationName: account.organization.name,
-                    },
-                    requesterProducer,
-                    identityEnabled ?? undefined,
+                    [lookup.queryHistory],
+                    reader,
+                    identityEnabled,
+                    true,
                 );
-            if (existingCache) {
-                if (identityEnabled) {
-                    if (!existingCache.queryUuid || !existingCache.queryHistory)
-                        return cacheMiss(null);
-                    try {
-                        await this.assertCanReadStoredResultsForQueries(
-                            account,
-                            projectUuid,
-                            [existingCache.queryHistory],
-                            reader,
-                            identityEnabled,
-                            true,
-                        );
-                    } catch {
-                        return cacheMiss(null);
-                    }
-                }
-                return existingCache;
+            } catch {
+                return cacheMiss(ResultsCacheMissReason.ACCESS_RESTRICTED);
             }
         }
-
-        return cacheMiss(null);
+        return lookup;
     }
 
     private async getResultsPageFromS3(
@@ -6719,15 +6716,17 @@ export class AsyncQueryService extends ProjectService {
                         : sharedCacheKey;
 
                     const cacheCheckStart = Date.now();
+                    const refreshRequested =
+                        requestParameters.invalidateCache ??
+                        args.invalidateCache ??
+                        false;
                     const resultsCache = bypassResultsCache
-                        ? cacheMiss(null)
+                        ? cacheMiss(ResultsCacheMissReason.BYPASSED)
                         : await this.findResultsCache(
                               projectUuid,
                               cacheKey,
                               account,
-                              requestParameters.invalidateCache ??
-                                  args.invalidateCache ??
-                                  false,
+                              refreshRequested,
                               ...((identityEnabled
                                   ? [
                                         requesterProducer,
@@ -6768,6 +6767,12 @@ export class AsyncQueryService extends ProjectService {
                             timezone: displayTimezone ?? undefined,
                         },
                         cacheKey,
+                        cacheOutcome: resultsCache.cacheHit
+                            ? { missReason: null, refreshRequested: false }
+                            : {
+                                  missReason: resultsCache.missReason,
+                                  refreshRequested,
+                              },
                         pivotConfiguration: pivotConfiguration ?? null,
                         originalColumns: originalColumns ?? null,
                     };

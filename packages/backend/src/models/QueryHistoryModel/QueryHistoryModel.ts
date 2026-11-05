@@ -39,6 +39,7 @@ import { ProjectTableName } from '../../database/entities/projects';
 import {
     DbQueryHistory,
     DbQueryHistoryUpdate,
+    QueryHistoryCacheOutcome,
     QueryHistoryTableName,
 } from '../../database/entities/queryHistory';
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
@@ -230,7 +231,10 @@ export class QueryHistoryModel {
             | 'createdByUserUuid'
             | 'createdByActorType'
             | 'createdBy'
-        > & { agentIdentity?: AgentIdentityClaim | null },
+        > & {
+            agentIdentity?: AgentIdentityClaim | null;
+            cacheOutcome?: QueryHistoryCacheOutcome;
+        },
         binding?: { warehouseConnectionUuid: string | null },
     ) {
         const [result] = await this.database(QueryHistoryTableName)
@@ -268,6 +272,10 @@ export class QueryHistoryModel {
                     [queryHistory.projectUuid],
                 ) as unknown as number,
                 cache_invalidated_at: null,
+                cache_miss_reason:
+                    queryHistory.cacheOutcome?.missReason ?? null,
+                cache_refresh_requested:
+                    queryHistory.cacheOutcome?.refreshRequested ?? false,
                 pivot_configuration: queryHistory.pivotConfiguration,
                 pivot_values_columns: null,
                 pivot_total_column_count: null,
