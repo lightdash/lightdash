@@ -319,6 +319,12 @@ export enum FeatureFlags {
      * cancel it and retry on a new connection.
      */
     RedshiftStalledQueryRecovery = 'redshift-stalled-query-recovery',
+    /**
+     * Experiment, off by default: dashboards always fit the screen in view
+     * mode, and the fit to screen toggle is removed. Enabled for internal
+     * instances only while we gather feedback.
+     */
+    DashboardFitToScreenDefault = 'dashboard-fit-to-screen-default',
 }
 
 export type FeatureFlag = {
