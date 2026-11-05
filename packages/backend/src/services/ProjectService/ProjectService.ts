@@ -3007,8 +3007,20 @@ export class ProjectService
         };
         switch (target.kind) {
             case 'original': {
-                const resolvedCredentials =
-                    await this.getSingleRouteWarehouseCredentials(args);
+                const resolvedCredentials: ResolvedWarehouseCredentials =
+                    await this.getSingleRouteWarehouseCredentials(args).catch(
+                        async (error: unknown) => {
+                            if (!(error instanceof NotFoundError)) throw error;
+                            return {
+                                ...(await this.projectModel.liveSourceCredentialsOrThrow(
+                                    error,
+                                    args.projectUuid,
+                                    binding,
+                                )),
+                                userWarehouseCredentialsUuid: undefined,
+                            };
+                        },
+                    );
                 const { aiPlan, ...warehouseCredentials } = resolvedCredentials;
                 return {
                     warehouseCredentials: copyWarehouseCredentialVersions(

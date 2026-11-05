@@ -1598,6 +1598,40 @@ describe('AiAgentToolsService', () => {
         expect(searchFieldUniqueValues).not.toHaveBeenCalled();
     });
 
+    it('searches a live source through the async query path', async () => {
+        const searchFieldUniqueValues = vi.fn();
+        const searchFieldValuesAndWait = vi
+            .fn()
+            .mockResolvedValue({ results: ['$pageview'] });
+        const service = makeService({
+            explores: {
+                posthog_events: {
+                    ...makeExplore({ name: 'posthog_events' }),
+                    type: ExploreType.API_SOURCE,
+                },
+            },
+            searchFieldUniqueValues,
+            asyncQueryService: { searchFieldValuesAndWait },
+        });
+        const runtime = service.createRuntime(makeRuntimeContext());
+
+        await expect(
+            runtime.searchFieldValues({
+                table: 'posthog_events',
+                fieldId: 'posthog_events_event',
+                query: 'page',
+            }),
+        ).resolves.toEqual(['$pageview']);
+        expect(searchFieldValuesAndWait).toHaveBeenCalledWith(
+            expect.objectContaining({
+                table: 'posthog_events',
+                search: 'page',
+                context: QueryExecutionContext.AI,
+            }),
+        );
+        expect(searchFieldUniqueValues).not.toHaveBeenCalled();
+    });
+
     it('returns a note with the empty result when there is nothing to autocomplete', async () => {
         const searchFieldUniqueValues = vi.fn();
         const service = makeService({
