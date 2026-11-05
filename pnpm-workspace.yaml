@@ -30,7 +30,7 @@ overrides:
   express-rate-limit: 8.3.0
   '@hapi/content': 6.0.3
   undici: 6.29.1
-  handlebars: 4.7.9
+  handlebars: 4.7.10
   basic-ftp: 6.2.1
   'vite@>=7.0.0 <7.3.2': 7.3.7
   systeminformation: 5.33.16
@@ -126,6 +126,8 @@ minimumReleaseAgeExclude:
   - "@opentelemetry/instrumentation-knex@0.65.0"
   # Renovate security update: storybook@10.6.2
   - storybook@10.6.2
+  # Renovate security update: handlebars@4.7.10
+  - handlebars@4.7.10
 
 # pnpm 11 defaults verifyDepsBeforeRun to `install`, which re-verifies (and
 # reinstalls) node_modules before running any package script. The production
