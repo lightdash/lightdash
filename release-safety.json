@@ -1,18 +1,31 @@
 {
   "schemaVersion": "2",
-  "version": "3.165.2",
-  "previousVersion": "3.165.1",
-  "releaseDate": "2026-11-05T19:31:06.649Z",
+  "version": "3.166.0",
+  "previousVersion": "3.165.2",
+  "releaseDate": "2026-11-05T19:50:45.100Z",
   "migrations": {
-    "present": false,
-    "count": 0,
-    "coreCount": 0,
+    "present": true,
+    "count": 1,
+    "coreCount": 1,
     "eeCount": 0,
-    "files": []
+    "files": [
+      {
+        "name": "20261105170000_add_results_cache_enabled_to_projects.ts",
+        "edition": "core",
+        "tables": [
+          "projects"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": true,
+          "scansTable": true
+        }
+      }
+    ]
   },
   "compatibility": {
-    "rollingUpdateSafe": true,
-    "recommendedStrategy": "RollingUpdate"
+    "rollingUpdateSafe": false,
+    "recommendedStrategy": "Recreate"
   },
   "api": {
     "rest": {
@@ -41,6 +54,12 @@
     "minPreviousVersion": "2.497.1",
     "requiredStops": []
   },
-  "declaredBreaks": [],
+  "declaredBreaks": [
+    {
+      "id": "results-cache-enabled-flag-removed",
+      "reason": "The ResultsCacheEnabled member is removed from the exported FeatureFlags enum. TypeScript consumers referencing this rollout flag must remove it when upgrading; results caching is now a per-project setting, and the migration copies each organization's flag value into its projects.",
+      "requiredStop": false
+    }
+  ],
   "declaredAdvisories": []
 }

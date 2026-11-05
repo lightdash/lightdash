@@ -1,3 +1,10 @@
+# [3.166.0](https://github.com/lightdash/lightdash/compare/3.165.2...3.166.0) (2026-11-05)
+
+
+### Features
+
+* enable results caching per project in project settings ([#32114](https://github.com/lightdash/lightdash/issues/32114)) ([2fa99e5](https://github.com/lightdash/lightdash/commit/2fa99e51820eae098a8b992eae4702c3ac43113e))
+
 ## [3.165.2](https://github.com/lightdash/lightdash/compare/3.165.1...3.165.2) (2026-11-05)
 
 
