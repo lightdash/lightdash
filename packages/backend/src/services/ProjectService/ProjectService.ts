@@ -1360,14 +1360,21 @@ export class ProjectService
         organizationUuid: string,
         onboardingFlow: OnboardingFlow,
     ): Promise<void> {
-        await trackFirstQuery({
-            account,
-            organizationUuid,
-            onboardingFlow,
-            onboardingModel: this.onboardingModel,
-            userModel: this.userModel,
-            analytics: this.analytics,
-        });
+        // Analytics only: never fail the query
+        try {
+            await trackFirstQuery({
+                account,
+                organizationUuid,
+                onboardingFlow,
+                onboardingModel: this.onboardingModel,
+                userModel: this.userModel,
+                analytics: this.analytics,
+            });
+        } catch (error) {
+            this.logger.warn(
+                `Failed to track first query for organization ${organizationUuid}: ${getErrorMessage(error)}`,
+            );
+        }
     }
 
     protected async getOnboardingFlow(
@@ -6724,7 +6731,9 @@ export class ProjectService
             userUuid: account.user.id,
             compilationSource: 'project_connection_form',
         });
-        await this.trackWarehouseAddedToProject(account, savedProject);
+        if (updatedProject.warehouseConnection?.type) {
+            await this.trackWarehouseAddedToProject(account, savedProject);
+        }
         return {
             jobUuid: job.jobUuid,
         };
@@ -6875,7 +6884,9 @@ export class ProjectService
                     );
                 });
         }
-        await this.trackWarehouseAddedToProject(account, savedProject);
+        if (updatedProject.warehouseConnection?.type) {
+            await this.trackWarehouseAddedToProject(account, savedProject);
+        }
     }
 
     async testAndCompileProject(

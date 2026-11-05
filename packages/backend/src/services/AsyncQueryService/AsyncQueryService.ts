@@ -11957,7 +11957,6 @@ export class AsyncQueryService extends ProjectService {
     }: ExecuteAsyncApiQueryArgs): Promise<{ queryUuid: string }> {
         assertIsAccountWithOrg(account);
         await this.assertApiQuerySourcesEnabled(account);
-        await this.trackFirstQueryForAccount(account);
 
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -11970,6 +11969,7 @@ export class AsyncQueryService extends ProjectService {
         if (effectiveLimit > maxLimit) {
             throw new ParameterError(`limit must be at most ${maxLimit} rows`);
         }
+        await this.trackFirstQueryForAccount(account);
         const requestParameters: ExecuteAsyncApiQueryRequestParams = {
             connectionUuid,
             payload,
@@ -12041,14 +12041,21 @@ export class AsyncQueryService extends ProjectService {
     private async trackFirstQueryForAccount(account: Account): Promise<void> {
         assertIsAccountWithOrg(account);
         const { organizationUuid } = account.organization;
-        await this.trackFirstQuery(
-            account,
-            organizationUuid,
-            await this.getOnboardingFlow({
-                userUuid: account.user.id,
+        // Analytics only: never fail the query
+        try {
+            await this.trackFirstQuery(
+                account,
                 organizationUuid,
-            }),
-        );
+                await this.getOnboardingFlow({
+                    userUuid: account.user.id,
+                    organizationUuid,
+                }),
+            );
+        } catch (error) {
+            this.logger.warn(
+                `Failed to track first query for organization ${organizationUuid}: ${getErrorMessage(error)}`,
+            );
+        }
     }
 
     private async executePreparedApiSourceQuery(
@@ -12728,8 +12735,6 @@ export class AsyncQueryService extends ProjectService {
     }: ExecuteAsyncDuckdbSourceQueryArgs): Promise<{ queryUuid: string }> {
         assertIsAccountWithOrg(account);
 
-        await this.trackFirstQueryForAccount(account);
-
         const projectSummary = await this.projectModel.getSummary(projectUuid);
         const { organizationUuid } = projectSummary;
         const identityEnabled = await this.isResultIdentityEnabled(account);
@@ -12809,6 +12814,8 @@ export class AsyncQueryService extends ProjectService {
         } catch (e) {
             throw new ParameterError(getErrorMessage(e));
         }
+
+        await this.trackFirstQueryForAccount(account);
 
         // Parameter values change the executed SQL without changing its text
         const sharedCacheKey = QueryHistoryModel.getCacheKey(projectUuid, {
@@ -13411,7 +13418,6 @@ export class AsyncQueryService extends ProjectService {
         if (!composeSqlFlag.enabled) {
             throw new ForbiddenError('Compose SQL queries are not enabled');
         }
-        await this.trackFirstQueryForAccount(account);
 
         const projectSummary = await this.projectModel.getSummary(projectUuid);
         const { organizationUuid } = projectSummary;
@@ -13497,6 +13503,8 @@ export class AsyncQueryService extends ProjectService {
             undefined,
             parameters,
         );
+
+        await this.trackFirstQueryForAccount(account);
 
         // Table versions invalidate cached SQL results after refresh.
         const externalSourceSalt = resolvedTables

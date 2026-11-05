@@ -5059,6 +5059,73 @@ describe('ProjectService', () => {
             ).toEqual([]);
         });
 
+        const saveConnectionForm = async (warehouseConnection: unknown) => {
+            const trackingService = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+            );
+            vi.mocked(trackingService.featureFlagModel.get).mockImplementation(
+                async ({ featureFlagId }) => ({
+                    id: featureFlagId,
+                    enabled: featureFlagId === FeatureFlags.NewOnboarding,
+                }),
+            );
+            projectModel.getWithSensitiveFields.mockResolvedValueOnce(
+                warehouselessProject,
+            );
+            projectModel.getAllByOrganizationUuid.mockResolvedValue([]);
+            const track = vi.spyOn(analyticsMock, 'trackAccount');
+            track.mockClear();
+            try {
+                await trackingService.updateAndScheduleAsyncWork(
+                    warehouselessProject.projectUuid,
+                    developerAccount,
+                    {
+                        name: warehouselessProject.name,
+                        dbtConnection: { type: DbtProjectType.NONE },
+                        dbtVersion: warehouselessProject.dbtVersion,
+                        warehouseConnection,
+                    } as never,
+                    RequestMethod.WEB_APP,
+                );
+                return track.mock.calls.filter(
+                    ([, payload]) =>
+                        payload.event === 'onboarding.step_completed',
+                );
+            } finally {
+                projectModel.getAllByOrganizationUuid.mockReset();
+                track.mockRestore();
+            }
+        };
+
+        test('completes the warehouse step from the connection form', async () => {
+            expect(
+                await saveConnectionForm(warehouseClientMock.credentials),
+            ).toHaveLength(1);
+        });
+
+        test('stays quiet when the connection form saves an empty warehouse', async () => {
+            expect(await saveConnectionForm({})).toEqual([]);
+        });
+
+        test('a tracking failure does not fail the save', async () => {
+            const trackingService = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+            );
+            vi.mocked(trackingService.featureFlagModel.get).mockRejectedValue(
+                new Error('flag lookup failed'),
+            );
+            projectModel.getWithSensitiveFields.mockResolvedValueOnce(
+                warehouselessProject,
+            );
+            await expect(
+                trackingService.updateWarehouseCredentials(
+                    warehouselessProject.projectUuid,
+                    developerAccount,
+                    { warehouseConnection: warehouseClientMock.credentials },
+                ),
+            ).resolves.toBeUndefined();
+        });
+
         test('stays quiet in the legacy flow', async () => {
             expect(await saveAndTrack({ newOnboardingEnabled: false })).toEqual(
                 [],
