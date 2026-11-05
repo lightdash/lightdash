@@ -447,7 +447,7 @@ describe('ChartTypeGallery', () => {
         ).toBeInTheDocument();
         expect(document.title).toContain('Chart Studio');
         expect(
-            await screen.findByRole('tab', { name: 'Installed (2)' }),
+            await screen.findByRole('tab', { name: 'Installed 2' }),
         ).toBeInTheDocument();
 
         fireEvent.click(screen.getByText('Radial gauge'));
@@ -470,7 +470,7 @@ describe('ChartTypeGallery', () => {
         renderPage();
 
         const chartTypesTab = await screen.findByRole('tab', {
-            name: 'Installed (1)',
+            name: 'Installed 1',
         });
         const libraryTab = screen.getByRole('tab', {
             name: 'Library',

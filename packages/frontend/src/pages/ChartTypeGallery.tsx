@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
+    Badge,
     Box,
     Button,
     Group,
@@ -321,7 +322,7 @@ const ChartTypeGallery = () => {
                         <Title order={3} fw={600}>
                             Chart Studio
                         </Title>
-                        <Text fz="sm" c="dimmed" maw={560}>
+                        <Text fz="sm" c="dimmed" maw={720}>
                             Chart types added here show up in the explorer's
                             chart picker for everyone in this project.
                         </Text>
@@ -344,10 +345,20 @@ const ChartTypeGallery = () => {
                                         value={GalleryTab.INSTALLED_CHARTS}
                                         className={classes.tab}
                                     >
-                                        Installed
-                                        {!isEmptyGallery &&
-                                            totalCount !== null &&
-                                            ` (${totalCount})`}
+                                        <Group gap={6} wrap="nowrap">
+                                            Installed
+                                            {!isEmptyGallery &&
+                                                totalCount !== null && (
+                                                    <Badge
+                                                        size="xs"
+                                                        variant="light"
+                                                        color="gray"
+                                                        radius="sm"
+                                                    >
+                                                        {totalCount}
+                                                    </Badge>
+                                                )}
+                                        </Group>
                                     </Tabs.Tab>
                                     <Tabs.Tab
                                         value={GalleryTab.CHART_LIBRARY}
