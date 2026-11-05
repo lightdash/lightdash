@@ -1,3 +1,11 @@
+## [3.154.1](https://github.com/lightdash/lightdash/compare/3.154.0...3.154.1) (2026-11-05)
+
+
+### Bug Fixes
+
+* **ai:** name shared schema definitions ([#31892](https://github.com/lightdash/lightdash/issues/31892)) ([7ea3792](https://github.com/lightdash/lightdash/commit/7ea37927eac75ed19c045271cad6b7fa2516699f))
+* **deps:** upgrade Zod to 4.6.7 ([#31894](https://github.com/lightdash/lightdash/issues/31894)) ([d9943fd](https://github.com/lightdash/lightdash/commit/d9943fde20a8dfec236873f5776bfb7b434354f7))
+
 # [3.154.0](https://github.com/lightdash/lightdash/compare/3.153.1...3.154.0) (2026-11-04)
 
 
