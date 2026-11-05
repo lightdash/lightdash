@@ -30889,6 +30889,61 @@ describe('findResultsCache miss reasons', () => {
             service.findResultsCache('project', 'key', buildAccount(), false),
         ).resolves.toEqual(hit);
     });
+
+    const buildWithIdentity = (canRead: boolean) => {
+        const { service } = build({
+            ...hit,
+            queryHistory: { queryUuid: 'source' } as QueryHistory,
+        });
+        const readCheck = vi
+            .spyOn(
+                service as unknown as {
+                    assertCanReadStoredResultsForQueries: () => Promise<void>;
+                },
+                'assertCanReadStoredResultsForQueries',
+            )
+            .mockImplementation(async () => {
+                if (!canRead) throw new ForbiddenError();
+            });
+        return { service, readCheck };
+    };
+
+    test('a forced refresh with identity reports a restricted result as access restricted', async () => {
+        const { service, readCheck } = buildWithIdentity(false);
+        await expect(
+            service.findResultsCache(
+                'project',
+                'key',
+                buildAccount(),
+                true,
+                null,
+                true,
+            ),
+        ).resolves.toMatchObject({
+            cacheHit: false,
+            missReason: ResultsCacheMissReason.ACCESS_RESTRICTED,
+        });
+        expect(readCheck).toHaveBeenCalledTimes(1);
+    });
+
+    test('a forced refresh with identity never returns a readable hit', async () => {
+        const { service } = buildWithIdentity(true);
+        await expect(
+            service.findResultsCache(
+                'project',
+                'key',
+                buildAccount(),
+                true,
+                null,
+                true,
+            ),
+        ).resolves.toEqual({
+            cacheHit: false,
+            updatedAt: undefined,
+            expiresAt: undefined,
+            missReason: null,
+        });
+    });
 });
 
 describe('results cache stats', () => {

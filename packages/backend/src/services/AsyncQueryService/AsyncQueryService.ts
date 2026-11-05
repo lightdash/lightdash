@@ -1483,8 +1483,6 @@ export class AsyncQueryService extends ProjectService {
         );
         if (!lookup) return cacheMiss(ResultsCacheMissReason.CACHE_DISABLED);
         if (!lookup.cacheHit) return cacheMiss(lookup.missReason);
-        // Probe only: a forced refresh records that it skipped a valid result.
-        if (invalidateCache) return cacheMiss(null);
         if (identityEnabled) {
             if (!lookup.queryUuid || !lookup.queryHistory)
                 return cacheMiss(ResultsCacheMissReason.ACCESS_RESTRICTED);
@@ -1501,6 +1499,8 @@ export class AsyncQueryService extends ProjectService {
                 return cacheMiss(ResultsCacheMissReason.ACCESS_RESTRICTED);
             }
         }
+        // Probe only: a forced refresh records that it skipped a readable result.
+        if (invalidateCache) return cacheMiss(null);
         return lookup;
     }
 
