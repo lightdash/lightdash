@@ -1000,6 +1000,23 @@ const PRIVATE_ROUTES: RouteObject[] = [
                         },
                     },
                     {
+                        path: '/onboarding/tools/:projectUuid',
+                        handle: { hideAILauncher: true },
+                        lazy: async () => {
+                            const OnboardingTools = await loadLazyRouteDefault(
+                                './pages/OnboardingTools',
+                                () => import('./pages/OnboardingTools'),
+                            );
+                            return {
+                                Component: () => (
+                                    <TrackPage name={PageName.ONBOARDING_TOOLS}>
+                                        <OnboardingTools />
+                                    </TrackPage>
+                                ),
+                            };
+                        },
+                    },
+                    {
                         path: '/onboarding/dbt/:method?',
                         handle: { hideAILauncher: true },
                         lazy: async () => {
