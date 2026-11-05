@@ -82,8 +82,8 @@
     }
 }
 
-.groupToggle {
-    align-self: flex-start;
-    font-weight: 400;
-    color: var(--mantine-color-dimmed);
+.loadMore {
+    display: flex;
+    justify-content: center;
+    min-height: rem(24px);
 }

@@ -1162,7 +1162,13 @@ export const AgentChatInput = ({
                 onChipClick={handleChipClick}
                 onImpression={handleImpression}
                 layout={isThreadInput ? 'compact' : suggestionLayout}
-                maxVisible={isPhoneLayout ? 2 : undefined}
+                maxVisible={
+                    isPhoneLayout
+                        ? 2
+                        : !isThreadInput && suggestionLayout === 'list'
+                          ? 3
+                          : undefined
+                }
             />
         );
     }, [

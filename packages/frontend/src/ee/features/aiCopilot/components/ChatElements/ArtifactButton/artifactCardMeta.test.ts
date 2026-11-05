@@ -1,12 +1,6 @@
-import {
-    DEFAULT_UI_STRINGS,
-    type AiAgentJevDecision,
-    type UiStringKey,
-} from '@lightdash/common';
+import { type AiAgentJevDecision } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { getArtifactCardMeta, isArtifactRevision } from './artifactCardMeta';
-
-const english = (key: UiStringKey) => DEFAULT_UI_STRINGS[key];
+import { isArtifactRevision } from './artifactCardMeta';
 
 const decision = (
     outcome: AiAgentJevDecision['outcome'],
@@ -49,49 +43,5 @@ describe('isArtifactRevision', () => {
                 jevDecision: decision('intent'),
             }),
         ).toBe(false);
-    });
-});
-
-describe('getArtifactCardMeta', () => {
-    it('omits the marker for an unrevised result', () => {
-        expect(
-            getArtifactCardMeta(
-                {
-                    artifactType: 'chart',
-                    isRevision: false,
-                    isArtifactOpen: true,
-                    isTurnFinishing: false,
-                },
-                english,
-            ),
-        ).toBe('Chart · Shown in panel');
-    });
-
-    it('marks revised results', () => {
-        expect(
-            getArtifactCardMeta(
-                {
-                    artifactType: 'chart',
-                    isRevision: true,
-                    isArtifactOpen: false,
-                    isTurnFinishing: false,
-                },
-                english,
-            ),
-        ).toBe('Chart · Edited · Ready to view');
-    });
-
-    it('leaves the status to the turn while the agent is still replying', () => {
-        expect(
-            getArtifactCardMeta(
-                {
-                    artifactType: 'dashboard',
-                    isRevision: false,
-                    isArtifactOpen: true,
-                    isTurnFinishing: true,
-                },
-                english,
-            ),
-        ).toBe('Dashboard');
     });
 });

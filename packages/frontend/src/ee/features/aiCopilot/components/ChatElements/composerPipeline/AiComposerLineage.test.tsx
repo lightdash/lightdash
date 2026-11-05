@@ -184,15 +184,6 @@ describe('AiComposerLineage graph', () => {
         );
     });
 
-    it('expands the graph and restores the steps', () => {
-        renderPanel({});
-        fireEvent.click(screen.getByRole('button', { name: 'Expand graph' }));
-        fireEvent.click(screen.getByRole('button', { name: 'Show steps' }));
-        expect(
-            screen.getByRole('button', { name: 'Expand graph' }),
-        ).toBeInTheDocument();
-    });
-
     it('links the hovered graph node to its cells and dims unlinked nodes', async () => {
         renderPanel({
             queries: [

@@ -8,13 +8,6 @@
     position: relative;
 }
 
-.graphToggle {
-    position: absolute;
-    top: var(--mantine-spacing-xs);
-    right: var(--mantine-spacing-xs);
-    z-index: 5;
-}
-
 /* Explains the faded nodes while one is focused. */
 .focusHint {
     position: absolute;

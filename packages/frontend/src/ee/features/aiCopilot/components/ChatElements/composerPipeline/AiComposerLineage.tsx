@@ -6,10 +6,6 @@ import {
     type SplitterPaneSize,
 } from '@mantine/hooks';
 import {
-    IconLayoutBottombarCollapse,
-    IconLayoutBottombarExpand,
-} from '@tabler/icons-react';
-import {
     Background,
     Handle,
     Position,
@@ -25,7 +21,6 @@ import {
 import { clsx } from 'clsx';
 import { useEffect, useMemo, useRef, useState, type FC } from 'react';
 import '@xyflow/react/dist/style.css';
-import MantineIcon from '../../../../../../components/common/MantineIcon';
 import DefaultEdge from '../../../../../../components/common/ReactFlow/DefaultEdge';
 import reactFlowStyles from '../../../../../../components/common/ReactFlow/reactFlow.module.css';
 import ResizableSplitter from '../../../../../../components/common/ResizableSplitter';
@@ -165,9 +160,6 @@ const DEFAULT_SIZES: SplitterPaneSize[] = [
     GRAPH_SHARE_BOUNDS.max,
     100 - GRAPH_SHARE_BOUNDS.max,
 ];
-const EXPANDED_GRAPH_SIZES: SplitterPaneSize[] = [80, 20];
-const isGraphExpanded = ([graph]: SplitterPaneSize[]) =>
-    typeof graph === 'number' && graph >= 60;
 
 const LineageFlow: FC<
     {
@@ -338,15 +330,9 @@ export const AiComposerLineage: FC<Props> = ({
         GRAPH_SHARE_BOUNDS,
     );
     const fittedSizes: SplitterPaneSize[] = [fittedShare, 100 - fittedShare];
-    // null follows the fitted default until the user resizes or expands.
+    // null follows the fitted default until the user resizes.
     const [userSizes, setUserSizes] = useState<SplitterPaneSize[] | null>(null);
     const sizes = userSizes ?? fittedSizes;
-    const graphExpanded = isGraphExpanded(sizes);
-    const toggleGraphLabel = getUiString(
-        graphExpanded
-            ? 'aiAgent.composer.lineage.restoreGraph'
-            : 'aiAgent.composer.lineage.expandGraph',
-    );
     useWindowEvent('keydown', (event) => {
         if (event.key === 'Escape' && selectedNodeId !== null) {
             // Claims the key so the panel stays expanded.
@@ -370,28 +356,6 @@ export const AiComposerLineage: FC<Props> = ({
                     min={15}
                     className={styles.graphPane}
                 >
-                    <Button
-                        variant="default"
-                        size="compact-xs"
-                        className={styles.graphToggle}
-                        leftSection={
-                            <MantineIcon
-                                icon={
-                                    graphExpanded
-                                        ? IconLayoutBottombarExpand
-                                        : IconLayoutBottombarCollapse
-                                }
-                                size={14}
-                            />
-                        }
-                        onClick={() =>
-                            setUserSizes(
-                                graphExpanded ? null : EXPANDED_GRAPH_SIZES,
-                            )
-                        }
-                    >
-                        {toggleGraphLabel}
-                    </Button>
                     {layers.length > 0 && (
                         <ReactFlowProvider key={pipelineKey(layers)}>
                             <LineageFlow

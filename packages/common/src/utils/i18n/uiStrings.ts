@@ -525,8 +525,6 @@ export const DEFAULT_UI_STRINGS = {
     'aiAgent.composer.actions.downloadResults': 'Download results',
     'aiAgent.composer.lineage.focusNode': 'Focus {node}',
     'aiAgent.composer.lineage.resize': 'Resize lineage graph and steps',
-    'aiAgent.composer.lineage.expandGraph': 'Expand graph',
-    'aiAgent.composer.lineage.restoreGraph': 'Show steps',
     'aiAgent.composer.lineage.focusHint':
         'Faded steps are not linked to {node}',
     'aiAgent.composer.lineage.clearFocus': 'Clear',
@@ -563,8 +561,6 @@ export const DEFAULT_UI_STRINGS = {
     'aiAgent.activity.writingSummary': 'Writing summary',
     'aiAgent.artifact.type.chart': 'Chart',
     'aiAgent.artifact.type.dashboard': 'Dashboard',
-    'aiAgent.artifact.readyToView': 'Ready to view',
-    'aiAgent.artifact.shownInPanel': 'Shown in panel',
     'aiAgent.artifact.pending.building': 'Building…',
     'aiAgent.stepFailure.title': 'Step failed',
     'aiAgent.stepFailure.openInSqlRunner': 'Open in SQL Runner',

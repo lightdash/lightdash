@@ -111,20 +111,18 @@
     white-space: nowrap;
 }
 
-/* Inline padding matches the lg composer's text inset, so labels line up with it. */
+/* Inline padding matches the lg composer's text inset, so labels line up with it.
+ * Quiet by default: the composer stays the focus. */
 .listItem {
     height: auto;
-    min-height: rem(40px);
-    padding: var(--mantine-spacing-xs) rem(24px);
+    min-height: rem(32px);
+    padding: rem(6px) rem(24px);
     border-radius: var(--mantine-radius-md);
-    color: var(--mantine-color-ldGray-7);
+    color: var(--mantine-color-dimmed);
+    font-size: var(--mantine-font-size-sm);
     font-weight: 400;
 
     &:hover {
-        color: var(--mantine-color-text);
-    }
-
-    &[data-kind='navigate'] {
         color: var(--mantine-color-text);
     }
 }
@@ -148,10 +146,13 @@
 
 .listItemIcon {
     color: var(--mantine-color-dimmed);
+    opacity: 0;
 }
 
-.listItem:hover .listItemIcon {
+.listItem:hover .listItemIcon,
+.listItem:focus-visible .listItemIcon {
     color: var(--mantine-color-text);
+    opacity: 1;
 }
 
 .fadeIn {

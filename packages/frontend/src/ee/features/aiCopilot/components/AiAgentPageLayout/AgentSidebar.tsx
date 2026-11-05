@@ -10,6 +10,7 @@ import {
     Box,
     Button,
     Divider,
+    Loader,
     Group,
     Menu,
     NavLink,
@@ -21,6 +22,7 @@ import {
     TextInput,
     Tooltip,
 } from '@mantine/core';
+import { useInViewport } from '@mantine/hooks';
 import {
     IconBrandSlack,
     IconChevronDown,
@@ -31,7 +33,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { differenceInCalendarDays, parseISO } from 'date-fns';
-import { useRef, useState, type FC } from 'react';
+import { useEffect, useRef, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
@@ -292,8 +294,6 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
     );
 };
 
-const GROUP_PREVIEW_LIMIT = 5;
-
 type ThreadDateGroup = {
     title: string;
     threads: AiAgentProjectThreadSummary[];
@@ -356,22 +356,13 @@ const ThreadGroup: FC<ThreadGroupProps> = ({
     onRename,
     onTogglePin,
 }) => {
-    const [isExpanded, setIsExpanded] = useState(false);
-    const visibleThreads = isExpanded
-        ? threads
-        : threads.filter(
-              (thread, index) =>
-                  index < GROUP_PREVIEW_LIMIT || thread.uuid === threadUuid,
-          );
-    const hiddenCount = threads.length - visibleThreads.length;
-
     return (
         <Stack component="section" aria-label={title} gap={2}>
             <Text size="xs" fw={500} c="dimmed" mx="xs" mb={2}>
                 {title}
             </Text>
             <Box>
-                {visibleThreads.map((thread) => (
+                {threads.map((thread) => (
                     <ThreadNavLink
                         key={thread.uuid}
                         thread={thread}
@@ -385,17 +376,6 @@ const ThreadGroup: FC<ThreadGroupProps> = ({
                     />
                 ))}
             </Box>
-            {(hiddenCount > 0 ||
-                (isExpanded && threads.length > GROUP_PREVIEW_LIMIT)) && (
-                <Button
-                    size="compact-xs"
-                    variant="subtle"
-                    className={classes.groupToggle}
-                    onClick={() => setIsExpanded((prev) => !prev)}
-                >
-                    {hiddenCount > 0 ? `Show ${hiddenCount} more` : 'Show less'}
-                </Button>
-            )}
         </Stack>
     );
 };
@@ -417,6 +397,13 @@ const ThreadList: FC<ThreadListProps> = ({
         useInfiniteAiAgentThreads(projectUuid, { agentUuid });
 
     const threads = data?.pages.flatMap((page) => page.data) ?? [];
+    // Older threads load as the end of the list scrolls into view.
+    const { ref: loadMoreRef, inViewport: isLoadMoreVisible } = useInViewport();
+    useEffect(() => {
+        if (isLoadMoreVisible && hasNextPage && !isFetchingNextPage) {
+            void fetchNextPage();
+        }
+    }, [isLoadMoreVisible, hasNextPage, isFetchingNextPage, fetchNextPage]);
     const pinnedThreads = threads.filter((thread) => thread.pinnedAt !== null);
     const recentGroups = groupThreadsByDate(
         threads.filter((thread) => thread.pinnedAt === null),
@@ -507,17 +494,10 @@ const ThreadList: FC<ThreadListProps> = ({
                 )}
 
                 {hasNextPage && (
-                    <Box>
-                        <Button
-                            size="compact-xs"
-                            variant="subtle"
-                            className={classes.groupToggle}
-                            loading={isFetchingNextPage}
-                            onClick={() => fetchNextPage()}
-                            leftSection={<MantineIcon icon={IconChevronDown} />}
-                        >
-                            Load older threads
-                        </Button>
+                    <Box ref={loadMoreRef} className={classes.loadMore}>
+                        {isFetchingNextPage && (
+                            <Loader size="xs" color="ldGray.5" />
+                        )}
                     </Box>
                 )}
 

@@ -1170,7 +1170,6 @@ export const AssistantBubble: FC<Props> = memo(
                                           messageArtifact.versionUuid
                                   }
                                   artifact={messageArtifact}
-                                  isTurnFinishing={isLoading}
                                   isRevision={isArtifactRevision({
                                       versionNumber:
                                           messageArtifact.versionNumber,

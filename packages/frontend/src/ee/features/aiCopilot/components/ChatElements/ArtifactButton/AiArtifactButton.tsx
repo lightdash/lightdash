@@ -13,7 +13,7 @@ import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../../../providers/Embed/useUiStrings';
 import styles from './AiArtifactButton.module.css';
-import { getArtifactCardMeta, getArtifactTypeLabel } from './artifactCardMeta';
+import { getArtifactTypeLabel } from './artifactCardMeta';
 import { type ArtifactType } from './pendingArtifact';
 
 interface AiArtifactButtonProps {
@@ -21,7 +21,6 @@ interface AiArtifactButtonProps {
     isArtifactOpen: boolean;
     artifact: NonNullable<AiAgentMessageAssistant['artifacts']>[0] | null;
     isLoading?: boolean;
-    isTurnFinishing?: boolean;
     isRevision?: boolean;
 }
 
@@ -29,7 +28,6 @@ export const AiArtifactButton: FC<AiArtifactButtonProps> = ({
     onClick,
     isLoading = false,
     isArtifactOpen = false,
-    isTurnFinishing = false,
     isRevision = false,
     artifact,
 }) => {
@@ -83,19 +81,13 @@ export const AiArtifactButton: FC<AiArtifactButtonProps> = ({
                                 <Text className={styles.title}>
                                     {displayTitle}
                                 </Text>
-                                <Text className={styles.meta}>
-                                    {getArtifactCardMeta(
-                                        {
-                                            artifactType:
-                                                artifact?.artifactType ??
-                                                'chart',
-                                            isRevision,
-                                            isArtifactOpen,
-                                            isTurnFinishing,
-                                        },
-                                        getUiString,
-                                    )}
-                                </Text>
+                                {isRevision && (
+                                    <Text className={styles.meta}>
+                                        {getUiString(
+                                            'aiAgent.artifactPanel.edited',
+                                        )}
+                                    </Text>
+                                )}
                             </>
                         )
                     )}
