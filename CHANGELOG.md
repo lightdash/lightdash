@@ -1,3 +1,10 @@
+# [3.156.0](https://github.com/lightdash/lightdash/compare/3.155.0...3.156.0) (2026-11-05)
+
+
+### Features
+
+* enable managed analytics by default ([#31778](https://github.com/lightdash/lightdash/issues/31778)) ([ff55b02](https://github.com/lightdash/lightdash/commit/ff55b02814da2395a592aa0ccd40d336ab5edb2b))
+
 # [3.155.0](https://github.com/lightdash/lightdash/compare/3.154.3...3.155.0) (2026-11-05)
 
 
