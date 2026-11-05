@@ -106,7 +106,7 @@ export default defineConfig({
                     groups: [
                         {
                             name: 'react',
-                            test: /node_modules[\\/](react|react-dom|react-router|react-use|@hello-pangea[\\/]dnd|@tanstack[\\/]react-query|@tanstack[\\/]react-table|@tanstack[\\/]react-virtual)[\\/]/,
+                            test: /node_modules[\\/](react|react-dom|react-router|react-use|@tanstack[\\/]react-query|@tanstack[\\/]react-table|@tanstack[\\/]react-virtual)[\\/]/,
                             priority: 20,
                         },
                         {

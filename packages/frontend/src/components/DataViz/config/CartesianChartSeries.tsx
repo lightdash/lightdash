@@ -1,4 +1,3 @@
-import { type DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
 import {
     CartesianChartDataModel,
     ECHARTS_DEFAULT_COLORS,
@@ -25,6 +24,7 @@ import {
 } from '../../../features/sqlRunner/store/hooks';
 import { selectProjectUuid } from '../../../features/sqlRunner/store/sqlRunnerSlice';
 import { useProjectColorPalette } from '../../../hooks/appearance/useProjectColorPalette';
+import { type SortableHandleProps } from '../../common/Sortable/Sortable';
 import {
     SeriesDepthControl,
     type SeriesDrawOrderControl,
@@ -257,7 +257,7 @@ export const CartesianChartSeries = ({
     const renderSeries = useCallback(
         (
             series: ConfigurableSeries,
-            dragHandleProps?: DraggableProvidedDragHandleProps | null,
+            dragHandleProps?: SortableHandleProps | null,
             drawOrder?: SeriesDrawOrderControl,
         ) => (
             <SingleSeriesConfiguration
