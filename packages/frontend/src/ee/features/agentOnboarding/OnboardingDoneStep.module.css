@@ -89,6 +89,11 @@
     font-weight: 500;
     line-height: 18px;
     vertical-align: middle;
+    text-decoration: none;
+}
+
+a.source:hover {
+    background: var(--mantine-color-default-hover);
 }
 
 @media (prefers-reduced-motion: reduce) {

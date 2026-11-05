@@ -65,6 +65,7 @@ const Guide = ({ state }: { state: GuideState }) => {
         chartCount: state === 'mostly-done' ? 2 : 0,
         activeRun: state === 'building' ? storyAgentRun(false) : null,
         completedRun: null,
+        semanticStudioUrl: null,
         canAddLiveSources: true,
         appSourceNames:
             state === 'mostly-done' ? ['PostHog', 'Wholesale accounts'] : [],
