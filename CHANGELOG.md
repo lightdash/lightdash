@@ -1,3 +1,11 @@
+# [3.161.0](https://github.com/lightdash/lightdash/compare/3.160.0...3.161.0) (2026-11-05)
+
+
+### Features
+
+* **chart-types:** warmer Chart Studio page with calmer cards and one toolbar ([#32113](https://github.com/lightdash/lightdash/issues/32113)) ([3deb041](https://github.com/lightdash/lightdash/commit/3deb041235d5cce5f97f311c8eaa914f5c9ba907))
+* **onboarding:** open the Semantic Layer page from the setup guide and Done step ([#32107](https://github.com/lightdash/lightdash/issues/32107)) ([2165022](https://github.com/lightdash/lightdash/commit/2165022dd767a6be72560413e59148c23d3bbeb4))
+
 # [3.160.0](https://github.com/lightdash/lightdash/compare/3.159.2...3.160.0) (2026-11-05)
 
 
