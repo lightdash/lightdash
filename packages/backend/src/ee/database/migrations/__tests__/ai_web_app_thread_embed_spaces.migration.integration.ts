@@ -302,6 +302,22 @@ describe('embedded AI thread write spaces', () => {
         ).resolves.toBe(true);
     });
 
+    test('keeps write-space threads out of read-only tokens after their first space is deleted', async () => {
+        const threadUuid = await createThread([f.spaces.tenantA], 'viewer-a');
+        // What ON DELETE SET NULL does when the space is deleted.
+        await migrated.database.raw(
+            'UPDATE ai_web_app_thread SET embed_space_uuid = NULL WHERE ai_thread_uuid = ?',
+            [threadUuid],
+        );
+
+        await expect(
+            isInScope(threadUuid, externalUser('viewer-a')),
+        ).resolves.toBe(false);
+        expect(await listThreadUuids(externalUser('viewer-a'))).not.toContain(
+            threadUuid,
+        );
+    });
+
     test('never matches a non-embed thread by viewer', async () => {
         const threadUuid = await createThread(undefined);
         await expect(

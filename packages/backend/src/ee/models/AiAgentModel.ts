@@ -7331,7 +7331,7 @@ export class AiAgentModel {
             }
             case 'externalUser':
                 return this.database.raw(
-                    `(${AiWebAppThreadTableName}.embed_space_uuid IS NULL AND ${AiWebAppThreadTableName}.embed_external_user_id = ?)`,
+                    `(${AiWebAppThreadTableName}.embed_space_uuid IS NULL AND ${AiWebAppThreadTableName}.embed_space_uuids IS NULL AND ${AiWebAppThreadTableName}.embed_external_user_id = ?)`,
                     [scope.externalUserId],
                 );
             default:

@@ -134,11 +134,20 @@ describe('isEmbedReadOnlyAiAgentToken', () => {
         ).toBe(false);
     });
 
-    it('is false without source spaces or write actions', () => {
+    it('stays read-only when every source space is narrowed away', () => {
         expect(
             isEmbedReadOnlyAiAgentToken({
                 content: aiAgent,
                 writeActions: { ...actor, sourceSpaceUuids: [] },
+            }),
+        ).toBe(true);
+    });
+
+    it('is false without declared source spaces or write actions', () => {
+        expect(
+            isEmbedReadOnlyAiAgentToken({
+                content: aiAgent,
+                writeActions: actor,
             }),
         ).toBe(false);
         expect(isEmbedReadOnlyAiAgentToken({ content: aiAgent })).toBe(false);

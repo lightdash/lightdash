@@ -192,14 +192,14 @@ export const getEmbedDefaultWriteSpaceUuid = (
         | undefined,
 ): string | undefined => getEmbedWriteSpaceUuids(writeActions)[0];
 
-/** AI agent tokens with source spaces and no write spaces can only read. */
+/** AI agent tokens that declare source spaces and no write spaces can only read. */
 export const isEmbedReadOnlyAiAgentToken = (
     token: Pick<CreateEmbedJwt, 'content' | 'writeActions'>,
 ): boolean =>
     token.content.type === 'aiAgent' &&
     token.writeActions !== undefined &&
     getEmbedWriteSpaceUuids(token.writeActions).length === 0 &&
-    (token.writeActions.sourceSpaceUuids ?? []).length > 0;
+    token.writeActions.sourceSpaceUuids !== undefined;
 
 export const EmbedJwtSchema = z
     .object({
@@ -371,6 +371,7 @@ export type CreateEmbedJwt = {
     userAttributes?: { [key: string]: string };
     user?: {
         email?: string;
+        /** Must be unique per viewer within the organization: it owns the threads of read-only AI agent tokens. */
         externalId?: string;
     };
     expiresIn?: string;
