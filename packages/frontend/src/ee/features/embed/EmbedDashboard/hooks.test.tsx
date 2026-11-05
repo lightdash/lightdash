@@ -10,9 +10,10 @@ vi.mock('./api', () => ({
 }));
 
 const setSavedParameters = vi.hoisted(() => vi.fn());
+const setParameterPicks = vi.hoisted(() => vi.fn());
 vi.mock('../../../../providers/Dashboard/useDashboardContext', () => ({
     default: (selector: (value: Record<string, unknown>) => unknown) =>
-        selector({ setSavedParameters }),
+        selector({ setSavedParameters, setParameterPicks }),
 }));
 
 import { postEmbedDashboard } from './api';
@@ -110,6 +111,7 @@ describe('useEmbedDashboard', () => {
 describe('useEmbedSavedParameters', () => {
     beforeEach(() => {
         setSavedParameters.mockClear();
+        setParameterPicks.mockClear();
     });
 
     it('passes the dashboard saved parameters to the dashboard state', () => {
@@ -131,5 +133,54 @@ describe('useEmbedSavedParameters', () => {
         renderHook(() => useEmbedSavedParameters(undefined));
 
         expect(setSavedParameters).not.toHaveBeenCalled();
+    });
+
+    it('puts the token values over the saved parameters and picks them', () => {
+        const parameters = {
+            status: { parameterName: 'status', value: 'shipped' },
+            region: { parameterName: 'region', value: 'EMEA' },
+        };
+        renderHook(() =>
+            useEmbedSavedParameters({
+                parameters,
+                parameterInteractivity: {
+                    enabled: true,
+                    values: { region: 'APAC' },
+                },
+            }),
+        );
+
+        expect(setSavedParameters).toHaveBeenCalledWith({
+            status: { parameterName: 'status', value: 'shipped' },
+            region: { parameterName: 'region', value: 'APAC' },
+        });
+        const updatePicks = setParameterPicks.mock.calls[0][0] as (
+            picks: Record<string, unknown>,
+        ) => Record<string, unknown>;
+        expect(updatePicks({ region: 'EMEA', other: 1 })).toEqual({
+            region: 'APAC',
+            other: 1,
+        });
+    });
+
+    it('keeps the token values out of edit mode', () => {
+        const parameters = {
+            region: { parameterName: 'region', value: 'EMEA' },
+        };
+        renderHook(() =>
+            useEmbedSavedParameters(
+                {
+                    parameters,
+                    parameterInteractivity: {
+                        enabled: true,
+                        values: { region: 'APAC' },
+                    },
+                },
+                true,
+            ),
+        );
+
+        expect(setSavedParameters).toHaveBeenCalledWith(parameters);
+        expect(setParameterPicks).not.toHaveBeenCalled();
     });
 });

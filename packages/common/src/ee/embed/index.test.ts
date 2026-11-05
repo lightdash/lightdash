@@ -1,10 +1,16 @@
 import {
     canAddDashboardFiltersInEmbed,
+    canEmbedViewerResolveTileParameters,
     EMBED_MAX_WRITE_SPACE_UUIDS,
     EmbedJwtSchema,
     FilterInteractivityValues,
     getEmbedDefaultWriteSpaceUuid,
+    getEmbedExcludedParameterKeys,
+    getEmbedParameterValues,
     getEmbedWriteSpaceUuids,
+    isParameterAllowedInEmbed,
+    isParameterControlLockedInEmbed,
+    isParameterInteractivityVisible,
     type DashboardFilterInteractivityOptions,
 } from './index';
 
@@ -237,5 +243,149 @@ describe('canAddDashboardFiltersInEmbed', () => {
 
     it.each(cases)('$name -> $expected', ({ options, expected }) => {
         expect(canAddDashboardFiltersInEmbed(options)).toBe(expected);
+    });
+});
+
+describe('embed parameter interactivity', () => {
+    const jwtWithParameters = (parameterInteractivity: unknown) => ({
+        ...baseJwt,
+        content: { ...baseJwt.content, parameterInteractivity },
+    });
+
+    it('accepts allowed parameters, hidden and values in the token', () => {
+        const result = EmbedJwtSchema.safeParse(
+            jwtWithParameters({
+                enabled: true,
+                allowedParameters: ['region'],
+                hidden: false,
+                values: { region: 'EMEA', ids: [1, 2], from: '2026-01-01' },
+            }),
+        );
+        expect(result.success).toBe(true);
+    });
+
+    it('accepts null allowed parameters from python clients', () => {
+        const result = EmbedJwtSchema.safeParse(
+            jwtWithParameters({ enabled: true, allowedParameters: null }),
+        );
+        expect(result.success).toBe(true);
+    });
+
+    it('rejects a value that is not a parameter value', () => {
+        const result = EmbedJwtSchema.safeParse(
+            jwtWithParameters({ enabled: true, values: { region: { a: 1 } } }),
+        );
+        expect(result.success).toBe(false);
+    });
+
+    it('lets the viewer change every parameter when none are listed', () => {
+        expect(isParameterAllowedInEmbed({ enabled: true }, 'region')).toBe(
+            true,
+        );
+        expect(
+            isParameterAllowedInEmbed(
+                { enabled: true, allowedParameters: null },
+                'region',
+            ),
+        ).toBe(true);
+    });
+
+    it('lets the viewer change only the listed parameters', () => {
+        const options = { enabled: true, allowedParameters: ['region'] };
+        expect(isParameterAllowedInEmbed(options, 'region')).toBe(true);
+        expect(isParameterAllowedInEmbed(options, 'currency')).toBe(false);
+        expect(
+            isParameterAllowedInEmbed(
+                { enabled: true, allowedParameters: [] },
+                'region',
+            ),
+        ).toBe(false);
+    });
+
+    it('lets the viewer change nothing while interactivity is off', () => {
+        expect(isParameterAllowedInEmbed(undefined, 'region')).toBe(false);
+        expect(
+            isParameterAllowedInEmbed(
+                { enabled: false, allowedParameters: ['region'] },
+                'region',
+            ),
+        ).toBe(false);
+    });
+
+    it('runs with the token values, then the allowed viewer values', () => {
+        expect(
+            getEmbedParameterValues(
+                {
+                    enabled: true,
+                    allowedParameters: ['region'],
+                    values: { region: 'EMEA', currency: 'GBP' },
+                },
+                { region: 'APAC', currency: 'USD', other: 'x' },
+            ),
+        ).toEqual({ region: 'APAC', currency: 'GBP' });
+    });
+
+    it('applies the token values with interactivity off and drops viewer values', () => {
+        expect(
+            getEmbedParameterValues(
+                { enabled: false, values: { region: 'EMEA' } },
+                { region: 'APAC', currency: 'USD' },
+            ),
+        ).toEqual({ region: 'EMEA' });
+        expect(getEmbedParameterValues(undefined, { region: 'APAC' })).toEqual(
+            {},
+        );
+    });
+
+    it('keeps every viewer value without a token list, as before', () => {
+        expect(
+            getEmbedParameterValues({ enabled: true }, { region: 'APAC' }),
+        ).toEqual({ region: 'APAC' });
+    });
+
+    it('trusts the viewer tile resolution only when every parameter is theirs', () => {
+        expect(canEmbedViewerResolveTileParameters({ enabled: true })).toBe(
+            true,
+        );
+        expect(
+            canEmbedViewerResolveTileParameters({
+                enabled: true,
+                allowedParameters: ['region'],
+            }),
+        ).toBe(false);
+        expect(canEmbedViewerResolveTileParameters({ enabled: false })).toBe(
+            false,
+        );
+        expect(
+            getEmbedExcludedParameterKeys({ enabled: true }, ['region']),
+        ).toEqual(['region']);
+        expect(
+            getEmbedExcludedParameterKeys(
+                { enabled: true, allowedParameters: [] },
+                ['region'],
+            ),
+        ).toBeUndefined();
+    });
+
+    it('keeps a viewer from a control that sets a parameter they may not change', () => {
+        const options = { enabled: true, allowedParameters: ['region'] };
+        expect(
+            isParameterControlLockedInEmbed(options, {
+                parameters: { region: 'all' },
+            }),
+        ).toBe(false);
+        expect(
+            isParameterControlLockedInEmbed(options, {
+                parameters: { region: 'all', currency: 'all' },
+            }),
+        ).toBe(true);
+    });
+
+    it('shows the parameters unless hidden', () => {
+        expect(isParameterInteractivityVisible({ enabled: true })).toBe(true);
+        expect(
+            isParameterInteractivityVisible({ enabled: true, hidden: true }),
+        ).toBe(false);
+        expect(isParameterInteractivityVisible({ enabled: false })).toBe(false);
     });
 });

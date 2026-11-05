@@ -78,8 +78,8 @@ export const dashboardParametersActions = {
         value: ParameterValue | null;
     }>('dashboardParameters/setParameter'),
     clearAllParameters: createAction('dashboardParameters/clearAllParameters'),
-    /** Key-addressed values from a scheduled delivery */
-    setParameterPicks: createAction<ParametersValuesMap>(
+    /** Key-addressed values from a scheduled delivery or an embed token */
+    setParameterPicks: createAction<Record<string, ParameterValue | null>>(
         'dashboardParameters/setParameterPicks',
     ),
     setParameterControlPick: createAction<{

@@ -1,7 +1,14 @@
 import { z } from 'zod';
 import type { EmbedContent, OssEmbed } from '../../types/auth';
-import type { Dashboard } from '../../types/dashboard';
+import type {
+    Dashboard,
+    DashboardParameterControl,
+} from '../../types/dashboard';
 import type { OrganizationColorPalette } from '../../types/organization';
+import type {
+    ParametersValuesMap,
+    ParameterValue,
+} from '../../types/parameters';
 import assertUnreachable from '../../utils/assertUnreachable';
 
 /** @deprecated Use OssEmbed instead */
@@ -60,8 +67,22 @@ export type DashboardFilterInteractivityOptions = z.infer<
     typeof DashboardFilterInteractivityOptionsSchema
 >;
 
+const EmbedParameterValueSchema: z.ZodType<ParameterValue> = z.union([
+    z.string(),
+    z.number(),
+    z.array(z.string()),
+    z.array(z.number()),
+]);
+
 export const ParameterInteractivityOptionsSchema = z.object({
     enabled: z.boolean(),
+    // Parameters the viewer may change. Nullish (all) because python clients serialize None to null
+    allowedParameters: z.array(z.string()).nullish(),
+    // Apply the parameters but don't show them to the viewer
+    hidden: z.boolean().optional(),
+    // Values applied on render, over the dashboard's saved values. They apply even when
+    // `enabled` is false; a viewer can change one only when it is allowed.
+    values: z.record(z.string(), EmbedParameterValueSchema).optional(),
 });
 
 export type ParameterInteractivityOptions = z.infer<
@@ -276,6 +297,12 @@ export type CommonEmbedJwtContent = {
     };
     parameterInteractivity?: {
         enabled: boolean;
+        // Parameters the viewer may change; omitted or null allows all
+        allowedParameters?: string[] | null;
+        // Apply the parameters but don't show them to the viewer
+        hidden?: boolean;
+        // Values applied on render, over the dashboard's saved values
+        values?: ParametersValuesMap;
     };
     canExportCsv?: boolean;
     canExportDashboardCsv?: boolean;
@@ -456,4 +483,85 @@ export function isParameterInteractivityEnabled(
     parameterInteractivityOptions?: ParameterInteractivityOptions,
 ): boolean {
     return parameterInteractivityOptions?.enabled ?? false;
+}
+
+/** Whether the embed viewer sees the parameters (they may still apply while hidden) */
+export function isParameterInteractivityVisible(
+    parameterInteractivityOptions?: ParameterInteractivityOptions,
+): boolean {
+    return (
+        isParameterInteractivityEnabled(parameterInteractivityOptions) &&
+        parameterInteractivityOptions?.hidden !== true
+    );
+}
+
+/** Whether the embed viewer may change this parameter */
+export function isParameterAllowedInEmbed(
+    parameterInteractivityOptions: ParameterInteractivityOptions | undefined,
+    parameterName: string,
+): boolean {
+    if (!isParameterInteractivityEnabled(parameterInteractivityOptions)) {
+        return false;
+    }
+    const allowed = parameterInteractivityOptions?.allowedParameters;
+    return allowed === undefined || allowed === null
+        ? true
+        : allowed.includes(parameterName);
+}
+
+/** Whether an embed viewer is kept from a parameter control: it sets a parameter they may not change */
+export function isParameterControlLockedInEmbed(
+    parameterInteractivityOptions: ParameterInteractivityOptions | undefined,
+    control: Pick<DashboardParameterControl, 'parameters'>,
+): boolean {
+    return Object.keys(control.parameters).some(
+        (name) =>
+            !isParameterAllowedInEmbed(parameterInteractivityOptions, name),
+    );
+}
+
+/**
+ * The parameters an embed request runs with: the token's values, then the
+ * viewer's values for the parameters they may change.
+ */
+export function getEmbedParameterValues(
+    parameterInteractivityOptions: ParameterInteractivityOptions | undefined,
+    viewerParameters: ParametersValuesMap | undefined,
+): ParametersValuesMap {
+    const viewerValues = Object.entries(viewerParameters ?? {}).filter(
+        ([name]) =>
+            isParameterAllowedInEmbed(parameterInteractivityOptions, name),
+    );
+    return {
+        ...parameterInteractivityOptions?.values,
+        ...Object.fromEntries(viewerValues),
+    };
+}
+
+/**
+ * Whether an embed viewer's own per-tile parameter resolution can be trusted:
+ * only when they may change every parameter.
+ */
+export function canEmbedViewerResolveTileParameters(
+    parameterInteractivityOptions: ParameterInteractivityOptions | undefined,
+): boolean {
+    const allowed = parameterInteractivityOptions?.allowedParameters;
+    return (
+        isParameterInteractivityEnabled(parameterInteractivityOptions) &&
+        (allowed === undefined || allowed === null)
+    );
+}
+
+/**
+ * The viewer's per-tile exclusions, trusted only when they may change every
+ * parameter. Otherwise the server resolves each tile from the saved controls,
+ * so a viewer can't drop a value the token fixes.
+ */
+export function getEmbedExcludedParameterKeys(
+    parameterInteractivityOptions: ParameterInteractivityOptions | undefined,
+    excludedParameterKeys: string[] | undefined,
+): string[] | undefined {
+    return canEmbedViewerResolveTileParameters(parameterInteractivityOptions)
+        ? excludedParameterKeys
+        : undefined;
 }
