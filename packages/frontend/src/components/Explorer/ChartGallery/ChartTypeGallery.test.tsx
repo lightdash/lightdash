@@ -14,6 +14,7 @@ import { sharedLightdashApi } from '../../../api';
 import useEmbed from '../../../ee/providers/Embed/useEmbed';
 import { useChartStudioAvailable } from '../../../features/chartTypes/hooks/useChartStudioAvailable';
 import { useDataAppVisualizations } from '../../../features/chartTypes/hooks/useDataAppVisualizations';
+import { useRegistryChartTypes } from '../../../features/chartTypes/hooks/useRegistryChartTypes';
 import { mockedLightdashApi } from '../../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { EventName } from '../../../types/Events';
@@ -92,6 +93,17 @@ const itemsMap = { orders_status: { name: 'status' } } as unknown as ItemsMap;
 
 vi.mock('../../../features/chartTypes/hooks/useChartStudioAvailable');
 vi.mock('../../../features/chartTypes/hooks/useDataAppVisualizations');
+vi.mock('../../../features/chartTypes/hooks/useRegistryChartTypes');
+const { embedded } = vi.hoisted(() => ({ embedded: { current: false } }));
+vi.mock('../../../ee/providers/Embed/useIsEmbedded', () => ({
+    default: () => embedded.current,
+}));
+vi.mock(
+    '../../../features/chartTypes/components/ChartTypeLibraryModal',
+    () => ({
+        default: () => <div role="dialog" aria-label="Chart type library" />,
+    }),
+);
 vi.mock('../../../api');
 vi.mock('../../../ee/providers/Embed/useEmbed', () => ({
     default: vi.fn(() => ({})),
@@ -212,6 +224,7 @@ const galleryProps = (overrides: Partial<GalleryProps> = {}): GalleryProps => ({
     moreCount: 0,
     loadingMore: false,
     disabledReason: null,
+    onBrowseLibrary: null,
     ...overrides,
 });
 
@@ -748,6 +761,15 @@ describe('ChartTypeGallery', () => {
 
 const mockedUseDataAppVisualizations = vi.mocked(useDataAppVisualizations);
 
+const setRegistryStates = (states: string[]) => {
+    vi.mocked(useRegistryChartTypes).mockReturnValue({
+        data: {
+            registryEnabled: true,
+            charts: states.map((state) => ({ state })),
+        },
+    } as unknown as ReturnType<typeof useRegistryChartTypes>);
+};
+
 const setProjectQuery = (error: Error | null = null) => {
     mockedUseDataAppVisualizations.mockReturnValue({
         data: error
@@ -841,6 +863,50 @@ describe('ExplorerChartTypeGallery', () => {
         mocks.canEditChartType.mockReturnValue(false);
         mocks.canFork.mockReturnValue(false);
         setProjectQuery();
+        setRegistryStates([]);
+        embedded.current = false;
+    });
+
+    describe('more chart types tile', () => {
+        const moreTile = () =>
+            screen.queryByRole('button', { name: 'More chart types' });
+
+        it('opens the library when an uninstalled library type exists', async () => {
+            setRegistryStates(['installed', 'not_installed']);
+            renderGallery();
+
+            await userEvent.click(moreTile()!);
+            expect(
+                screen.getByRole('dialog', { name: 'Chart type library' }),
+            ).toBeInTheDocument();
+        });
+
+        it('stays hidden when everything in the library is installed', () => {
+            setRegistryStates(['installed']);
+            renderGallery();
+            expect(moreTile()).not.toBeInTheDocument();
+        });
+
+        it('stays hidden in an embed', () => {
+            setRegistryStates(['not_installed']);
+            embedded.current = true;
+            renderGallery();
+            expect(moreTile()).not.toBeInTheDocument();
+        });
+
+        it('stays hidden when chart types are off', () => {
+            setRegistryStates(['not_installed']);
+            featureFlags.current = {};
+            vi.mocked(useChartStudioAvailable).mockReturnValue(false);
+            renderWithProviders(
+                <ExplorerChartTypeGallery
+                    {...selectedTypeProps}
+                    onConfigure={vi.fn()}
+                />,
+                { health: { license: { hasLicenseKey: false, valid: false } } },
+            );
+            expect(moreTile()).not.toBeInTheDocument();
+        });
     });
 
     it.each([
