@@ -726,7 +726,7 @@ const AssistantBubbleContent: FC<{
                                     data-tour-scope="create:AiAgentThread"
                                     data-tour-result="1"
                                     data-tour-label="Read the answer"
-                                    data-tour-docs="agents/use-ai-agents.mdx#core-capabilities:p2:2"
+                                    data-tour-docs="agents.mdx#intro:2"
                                 >
                                     {finalAnswerMd}
                                 </Box>
@@ -792,7 +792,7 @@ const AssistantBubbleContent: FC<{
                                 data-tour-scope="create:AiAgentThread"
                                 data-tour-result="1"
                                 data-tour-label="Read the answer"
-                                data-tour-docs="agents/use-ai-agents.mdx#core-capabilities:p2:2"
+                                data-tour-docs="agents.mdx#intro:2"
                             >
                                 <AiMarkdown
                                     className={styles.persistedAnswer}
@@ -1093,9 +1093,9 @@ export const AssistantBubble: FC<Props> = memo(
                 data-tour-step="1"
                 data-tour-route="/projects/:projectUuid/ai-agents/:agentUuid/threads/:threadUuid"
                 data-tour-label="Ask the agent a question"
-                data-tour-docs="agents.mdx#intro:1"
+                data-tour-docs="agents.mdx#intro:2"
                 data-tour-return="none"
-                data-tour-resultdocs="agents.mdx#intro:3"
+                data-tour-resultdocs="agents/data-access.mdx#user-attributes-and-permissions"
                 data-tour-busy='[data-tour-anchor="ai-working"]'
             >
                 <AssistantBubbleContent
@@ -1130,7 +1130,7 @@ export const AssistantBubble: FC<Props> = memo(
                                       data-tour-scope="create:AiAgentThread"
                                       data-tour-result="2"
                                       data-tour-label="The chart the agent built"
-                                      data-tour-docs="agents/use-ai-agents.mdx#core-capabilities:li2"
+                                      data-tour-docs="agents/use-ai-agents.mdx#query-and-visualizations-constraints:p4"
                                   >
                                       <AiArtifactButton
                                           onClick={() => {
