@@ -3,7 +3,9 @@ import {
     supportsMultipleConnections,
     validateWarehouseConnectionName,
     WAREHOUSE_CONNECTION_NAME_MAX_LENGTH,
+    WAREHOUSE_CONNECTION_SWITCH_PLAN_CHANGED_MESSAGE,
     type ApiError,
+    type ApiExecuteWarehouseConnectionSwitchRequest,
     type ApiWarehouseConnectionSwitchRequest,
     type CreateWarehouseCredentials,
     type WarehouseTypes,
@@ -47,14 +49,37 @@ const SUBMIT_STATUS: Record<Exclude<SubmitStep, 'idle'>, string> = {
     enabling: 'Enabling multiple connections…',
 };
 
+const apiErrorOf = (error: unknown) =>
+    (error as Partial<ApiError> | undefined)?.error;
+
 const errorMessage = (error: unknown): string =>
-    (error as Partial<ApiError> | undefined)?.error?.message ??
-    'Something went wrong. Try again.';
+    apiErrorOf(error)?.message ?? 'Something went wrong. Try again.';
+
+// The server refused this plan for good; a fresh test is needed.
+const isPlanChanged = (error: unknown): boolean =>
+    apiErrorOf(error)?.statusCode === 409 &&
+    apiErrorOf(error)?.message ===
+        WAREHOUSE_CONNECTION_SWITCH_PLAN_CHANGED_MESSAGE;
+
+// One submission attempt per distinct request. `saved` is the exact switch
+// payload once a test has passed, so a retry after an unknown outcome
+// replays it instead of testing again (the server answers a repeated key
+// with the stored result). In memory only; never persisted.
+type Attempt = {
+    requestKey: string;
+    idempotencyKey: string;
+    saved: ApiExecuteWarehouseConnectionSwitchRequest | null;
+};
 
 const WhatHappens: FC<{
     originalName: string;
     primaryRequiresUserCredentials: boolean;
-}> = ({ originalName, primaryRequiresUserCredentials }) => {
+    newRequiresUserCredentials: boolean;
+}> = ({
+    originalName,
+    primaryRequiresUserCredentials,
+    newRequiresUserCredentials,
+}) => {
     const current = originalName.trim() || 'the current connection';
     return (
         <Stack gap="sm">
@@ -63,8 +88,8 @@ const WhatHappens: FC<{
             </Text>
             <List size="sm" spacing={4}>
                 <List.Item>
-                    The new connection is tested first. Nothing changes if the
-                    test fails.
+                    The new connection is tested when you enable multiple
+                    connections. If the test fails, nothing changes.
                 </List.Item>
                 <List.Item>
                     Everything that exists today keeps using{' '}
@@ -79,9 +104,9 @@ const WhatHappens: FC<{
                 </List.Item>
                 {primaryRequiresUserCredentials && (
                     <List.Item>
-                        People with personal credentials keep them for {current}
-                        , and choose one for the new connection when they first
-                        use it.
+                        {newRequiresUserCredentials
+                            ? `People with personal credentials keep them for ${current}, and choose one for the new connection when they first use it.`
+                            : `People with personal credentials keep them for ${current}.`}
                     </List.Item>
                 )}
             </List>
@@ -117,9 +142,7 @@ const EnableMultipleConnectionsModal: FC<{
     const [step, setStep] = useState<SubmitStep>('idle');
     const [submitError, setSubmitError] = useState<string | null>(null);
     const submittingRef = useRef(false);
-    // One key per distinct request, so a retry of the same request can be
-    // recognised by the server if an earlier attempt already went through.
-    const idempotencyKeys = useRef(new Map<string, string>());
+    const attemptRef = useRef<Attempt | null>(null);
     const form = useForm({
         initialValues: {
             name: '',
@@ -154,10 +177,20 @@ const EnableMultipleConnectionsModal: FC<{
     });
     const originalNameError = validateWarehouseConnectionName(originalName);
     const isSubmitting = step !== 'idle';
+    const newWarehouse = form.values.warehouse;
+    // Same warehouse type: the new connection follows the current one's
+    // personal-credentials setting. Another type has its own setting.
+    const newRequiresUserCredentials =
+        newWarehouse.type === warehouseType
+            ? primaryRequiresUserCredentials
+            : 'requireUserCredentials' in newWarehouse &&
+              newWarehouse.requireUserCredentials === true;
 
     const handleEnable = async () => {
         if (submittingRef.current) return;
         if (form.validate().hasErrors || originalNameError) return;
+        // Snapshot the values so nothing sent later can follow form edits.
+        const values = structuredClone(form.values);
         const request: ApiWarehouseConnectionSwitchRequest = {
             original: {
                 name: originalName.trim(),
@@ -165,27 +198,36 @@ const EnableMultipleConnectionsModal: FC<{
                 additionalDatabases: [],
             },
             connection: {
-                name: form.values.name.trim(),
-                warehouseConnection: form.values.warehouse,
+                name: values.name.trim(),
+                warehouseConnection: values.warehouse,
             },
         };
         const requestKey = JSON.stringify(request);
-        const idempotencyKey =
-            idempotencyKeys.current.get(requestKey) ?? crypto.randomUUID();
-        idempotencyKeys.current.set(requestKey, idempotencyKey);
+        if (attemptRef.current?.requestKey !== requestKey) {
+            attemptRef.current = {
+                requestKey,
+                idempotencyKey: crypto.randomUUID(),
+                saved: null,
+            };
+        }
+        const attempt = attemptRef.current;
 
         submittingRef.current = true;
         setSubmitError(null);
         try {
-            setStep('testing');
-            const plan = await previewMutation.mutateAsync(request);
+            if (!attempt.saved) {
+                setStep('testing');
+                const plan = await previewMutation.mutateAsync(request);
+                attempt.saved = {
+                    ...structuredClone(request),
+                    planHash: plan.planHash,
+                    idempotencyKey: attempt.idempotencyKey,
+                };
+            }
             setStep('enabling');
-            await switchMutation.mutateAsync({
-                ...request,
-                planHash: plan.planHash,
-                idempotencyKey,
-            });
+            await switchMutation.mutateAsync(attempt.saved);
         } catch (error) {
+            if (isPlanChanged(error)) attempt.saved = null;
             setSubmitError(errorMessage(error));
         } finally {
             submittingRef.current = false;
@@ -201,6 +243,11 @@ const EnableMultipleConnectionsModal: FC<{
             }}
             title="Enable multiple connections"
             size="lg"
+            withCloseButton={!isSubmitting}
+            modalRootProps={{
+                closeOnEscape: !isSubmitting,
+                closeOnClickOutside: !isSubmitting,
+            }}
             confirmLabel="Enable multiple connections"
             onConfirm={() => void handleEnable()}
             confirmLoading={isSubmitting}
@@ -208,9 +255,11 @@ const EnableMultipleConnectionsModal: FC<{
             cancelDisabled={isSubmitting}
         >
             <Stack gap="md">
+                {/* disabled covers form controls; inert also covers links. */}
                 <Fieldset
                     variant="unstyled"
                     disabled={isSubmitting}
+                    inert={isSubmitting}
                     aria-label="Connection details"
                 >
                     <Stack gap="md">
@@ -248,6 +297,7 @@ const EnableMultipleConnectionsModal: FC<{
                     primaryRequiresUserCredentials={
                         primaryRequiresUserCredentials
                     }
+                    newRequiresUserCredentials={newRequiresUserCredentials}
                 />
                 {step !== 'idle' && (
                     <Group gap="xs" role="status">
