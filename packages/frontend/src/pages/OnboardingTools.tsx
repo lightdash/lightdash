@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     ApiConnectorType,
     FeatureFlags,
+    isSemanticLayerExplore,
     type ExternalConnectionListItem,
     type WarehouseTypes,
 } from '@lightdash/common';
@@ -65,6 +66,7 @@ import { useLiveSourceFields } from '../features/externalConnections/hooks/useLi
 import { getLiveSource } from '../features/externalConnections/liveSources/liveSourceCatalog';
 import { LiveSourceIcon } from '../features/externalConnections/liveSources/LiveSourceIcon';
 import { useGetSlack } from '../hooks/slack/useSlack';
+import { useExplores } from '../hooks/useExplores';
 import { useOnboardingPageGuard } from '../hooks/useOnboardingPageGuard';
 import { useProject } from '../hooks/useProject';
 import { type UserWithAbility } from '../hooks/user/useUser';
@@ -537,7 +539,15 @@ const OnboardingToolsContent: FC<{
     const showGoogle =
         showLiveSources && health.data?.hasGoogleLiveSources === true;
 
-    const { data: project } = useProject(projectUuid);
+    const { data: project, isInitialLoading: isLoadingProject } =
+        useProject(projectUuid);
+    const hasNoWarehouse = !!project && !project.warehouseConnection;
+    const { data: explores, isInitialLoading: isLoadingExplores } = useExplores(
+        projectUuid,
+        true,
+        false,
+        { enabled: hasNoWarehouse },
+    );
     const { data: connections = [] } = useExternalConnections(
         showLiveSources ? projectUuid : undefined,
     );
@@ -590,6 +600,17 @@ const OnboardingToolsContent: FC<{
         (connection) => connection.kind === 'live_source',
     );
     const hasConnected = liveSources.length > 0;
+    // Started from tools: no warehouse and no models (CLI-deployed projects have models)
+    const needsSource =
+        hasNoWarehouse &&
+        explores !== undefined &&
+        !explores.some(isSemanticLayerExplore);
+    const mustConnect = needsSource && !hasConnected;
+    const canContinue = hasConnected || needsSource;
+    const title = needsSource ? 'Connect your tools' : copy.title;
+    const subtitle = needsSource
+        ? 'Connect at least one to start asking questions. You can add a warehouse later.'
+        : copy.subtitle;
     const latestLiveSource = liveSources[liveSources.length - 1] ?? null;
     const connectLabel = (isConnected: boolean) =>
         isConnected ? 'Add another' : 'Connect';
@@ -611,11 +632,11 @@ const OnboardingToolsContent: FC<{
                 />
             }
         >
-            <DocumentTitle title="Connect other tools" />
+            <DocumentTitle title={title} />
             <Stack className={classes.column} gap="xl">
                 <Stack gap={4}>
-                    <Title order={1}>{copy.title}</Title>
-                    {copy.subtitle && <Text c="dimmed">{copy.subtitle}</Text>}
+                    <Title order={1}>{title}</Title>
+                    {subtitle && <Text c="dimmed">{subtitle}</Text>}
                 </Stack>
 
                 <ToolGroup title="Product analytics">
@@ -712,8 +733,16 @@ const OnboardingToolsContent: FC<{
                 )}
 
                 <Group justify="flex-end">
+                    {mustConnect && (
+                        <Text fz="xs" c="dimmed">
+                            Connect at least one tool to continue
+                        </Text>
+                    )}
                     <Button
-                        variant={hasConnected ? 'filled' : 'default'}
+                        variant={canContinue ? 'filled' : 'default'}
+                        disabled={
+                            mustConnect || isLoadingProject || isLoadingExplores
+                        }
                         onClick={() => {
                             if (!hasConnected) {
                                 track({
@@ -724,7 +753,7 @@ const OnboardingToolsContent: FC<{
                             onboardingNavigate(teamStepPath);
                         }}
                     >
-                        {hasConnected ? 'Continue' : 'Skip for now'}
+                        {canContinue ? 'Continue' : 'Skip for now'}
                     </Button>
                 </Group>
             </Stack>

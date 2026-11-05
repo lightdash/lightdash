@@ -29,6 +29,11 @@ const state = vi.hoisted(() => ({
     isNewOnboarding: true,
 }));
 
+vi.mock(
+    '../../../../features/externalConnections/hooks/useExternalConnections',
+    () => ({ useExternalConnections: () => ({ data: [] }) }),
+);
+
 vi.mock('../hooks/useHomepageAiState', () => ({
     useHomepageAiState: () => ({
         canAskAi: state.canAskAi,

@@ -88,8 +88,9 @@ const resolveWarehouse = (
     organization: Organization | undefined,
     projects: OrganizationProject[] | undefined,
     project: Project | undefined,
+    isNewOnboarding: boolean,
 ) => {
-    const hasRealWarehouseProject =
+    const hasRealProject =
         organization?.needsProject === false &&
         (projects ?? []).some(
             ({ type, provisioningSource }) =>
@@ -97,30 +98,37 @@ const resolveWarehouse = (
                 !isPlaygroundProvisioningSource(provisioningSource),
         );
     const warehouseType =
-        hasRealWarehouseProject &&
+        hasRealProject &&
         !isPlaygroundProvisioningSource(project?.provisioningSource)
             ? project?.warehouseConnection?.type
             : undefined;
-    return { hasRealWarehouseProject, warehouseType };
+    // Only new-onboarding projects start from live sources and add a warehouse in settings later
+    const needsWarehouse =
+        isNewOnboarding &&
+        !!project &&
+        !isPlaygroundProvisioningSource(project.provisioningSource) &&
+        !project.warehouseConnection;
+    return { hasRealProject, warehouseType, needsWarehouse };
 };
 
 const warehouseStatus = (
     {
-        hasRealWarehouseProject,
+        hasRealProject,
         warehouseType,
+        needsWarehouse,
     }: ReturnType<typeof resolveWarehouse>,
     settingsProjectUuid: string | null,
 ): ActionStatus => ({
     isVisible: true,
-    isComplete: hasRealWarehouseProject,
+    isComplete: hasRealProject && !needsWarehouse,
     annotation: warehouseType ? getWarehouseLabel(warehouseType) : null,
     doneIcon: warehouseType ? getWarehouseIcon(warehouseType, 14) : null,
-    // Once connected, the onboarding page would only start a second project
+    // Once a project exists, the onboarding page would only start a second one
     url:
-        hasRealWarehouseProject && settingsProjectUuid
+        hasRealProject && settingsProjectUuid
             ? `/generalSettings/projectManagement/${settingsProjectUuid}/settings`
             : '/onboarding/data-source',
-    ctaLabel: DEFAULT_CTA_LABEL,
+    ctaLabel: needsWarehouse ? 'Connect' : DEFAULT_CTA_LABEL,
 });
 
 // An agent run left mid-flight is resumable, so the step points at the run
@@ -303,6 +311,7 @@ const useActionStatuses = (
                     organizationQuery.data,
                     projectsQuery.data,
                     projectQuery.data,
+                    isNewOnboarding,
                 ),
                 settingsProjectUuid,
             ),

@@ -1,5 +1,10 @@
 import { subject } from '@casl/ability';
-import { ProjectType, WarehouseTypes } from '@lightdash/common';
+import {
+    DbtProjectType,
+    DefaultSupportedDbtVersion,
+    ProjectType,
+    WarehouseTypes,
+} from '@lightdash/common';
 import {
     Anchor,
     Box,
@@ -14,14 +19,17 @@ import { useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useEnsurePlaygroundProject } from '../../../hooks/useEnsurePlaygroundProject';
+import { useCreateProjectWithoutCompileMutation } from '../../../hooks/useProject';
+import { useProjects } from '../../../hooks/useProjects';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import LogoIcon from '../../../svgs/logo-icon.svg?react';
 import { EventName } from '../../../types/Events';
+import { isPlaygroundProvisioningSource } from '../../../utils/playgroundProject';
 import { useOnboardingNavigate } from '../../common/viewTransition';
 import classes from './DataSourceChooser.module.css';
 import { InviteTeammateModal } from './InviteTeammateModal';
-import { LiveSourcesCard } from './LiveSourcesTeaser';
+import { LiveSourcesStartCard } from './LiveSourcesTeaser';
 import { getPlaygroundSetupFailure } from './playgroundSetupFailure';
 import { type SelectedWarehouse } from './types';
 import {
@@ -54,6 +62,18 @@ export const DataSourceChooser: FC = () => {
     const [isOpeningSample, setIsOpeningSample] = useState(false);
     const [hasFailed, setHasFailed] = useState(false);
     const [isInviteOpen, setIsInviteOpen] = useState(false);
+    const createProject = useCreateProjectWithoutCompileMutation();
+    const { data: projects, isInitialLoading: isLoadingProjects } =
+        useProjects();
+    const isBusy = isOpeningSample || createProject.isLoading;
+    // Coming back from the tools step resumes that project instead of starting another
+    const toolsProject = projects?.find(
+        (project) =>
+            project.type === ProjectType.DEFAULT &&
+            !project.warehouseType &&
+            !isPlaygroundProvisioningSource(project.provisioningSource) &&
+            project.createdByUserUuid === user.data?.userUuid,
+    );
 
     const organizationUuid = organization?.organizationUuid;
     const canUseSampleWorkspace =
@@ -84,6 +104,40 @@ export const DataSourceChooser: FC = () => {
             },
         });
         onboardingNavigate(getWarehouseRoute(warehouse));
+    };
+
+    const startWithTools = () => {
+        track({
+            name: EventName.ONBOARDING_WAREHOUSE_SELECTED,
+            properties: {
+                organizationId: organizationUuid ?? null,
+                warehouse: 'none',
+                tier: 'all',
+                onboardingFlow: 'new',
+            },
+        });
+        if (toolsProject) {
+            onboardingNavigate(`/onboarding/tools/${toolsProject.projectUuid}`);
+            return;
+        }
+        createProject.mutate(
+            {
+                name: user.data?.organizationName || 'My project',
+                type: ProjectType.DEFAULT,
+                // No dbt project to refresh, so skip the CLI deploy hint
+                dbtConnection: {
+                    type: DbtProjectType.NONE,
+                    hideRefreshButton: true,
+                },
+                dbtVersion: DefaultSupportedDbtVersion,
+            },
+            {
+                onSuccess: ({ project }) =>
+                    onboardingNavigate(
+                        `/onboarding/tools/${project.projectUuid}`,
+                    ),
+            },
+        );
     };
 
     const openSampleWorkspace = async () => {
@@ -121,6 +175,7 @@ export const DataSourceChooser: FC = () => {
                     <UnstyledButton
                         key={key}
                         className={classes.tile}
+                        disabled={isBusy}
                         onClick={() => openWarehouseForm(key)}
                     >
                         <Box className={classes.tileLogo}>
@@ -134,7 +189,7 @@ export const DataSourceChooser: FC = () => {
                 {canUseSampleWorkspace && (
                     <UnstyledButton
                         className={classes.tile}
-                        disabled={isOpeningSample}
+                        disabled={isBusy}
                         onClick={() => void openSampleWorkspace()}
                     >
                         <Box className={classes.tileLogo}>
@@ -172,7 +227,11 @@ export const DataSourceChooser: FC = () => {
                 </Text>
             )}
 
-            <LiveSourcesCard />
+            <LiveSourcesStartCard
+                // Holds until projects load so a click can't create a second tools project
+                isStarting={createProject.isLoading || isLoadingProjects}
+                onStart={startWithTools}
+            />
 
             {canInvite && (
                 <InviteTeammateModal

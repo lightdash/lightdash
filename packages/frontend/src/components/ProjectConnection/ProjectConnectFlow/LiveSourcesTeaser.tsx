@@ -1,5 +1,14 @@
 import { ApiConnectorType, FeatureFlags } from '@lightdash/common';
-import { Box, Group, Image, Stack, Text } from '@mantine/core';
+import {
+    Box,
+    Group,
+    Image,
+    Loader,
+    Stack,
+    Text,
+    UnstyledButton,
+} from '@mantine/core';
+import { IconChevronRight } from '@tabler/icons-react';
 import { type FC } from 'react';
 import {
     isAvailableLiveSource,
@@ -8,6 +17,7 @@ import {
 } from '../../../features/externalConnections/liveSources/liveSourceCatalog';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
+import MantineIcon from '../../common/MantineIcon';
 import { NextUpCard } from '../../common/OnboardingVisuals';
 import classes from './DataSourceChooser.module.css';
 
@@ -45,23 +55,39 @@ const TeaserIcons: FC<{ sources: AvailableLiveSource[] }> = ({ sources }) => (
     </Box>
 );
 
-export const LiveSourcesCard: FC = () => {
+/** Starts a project with live sources only; a warehouse can be connected later */
+export const LiveSourcesStartCard: FC<{
+    isStarting: boolean;
+    onStart: () => void;
+}> = ({ isStarting, onStart }) => {
     const { isEnabled, hasGoogle, sources } = useTeasedLiveSources();
     if (!isEnabled) return null;
     return (
-        <Group gap="sm" wrap="nowrap" className={classes.infoCard}>
-            <TeaserIcons sources={sources} />
-            <Stack gap={0} className={classes.shortcutText}>
-                <Text fw={500} size="sm">
-                    {hasGoogle
-                        ? 'You can also connect PostHog, GA4 and Search Console'
-                        : 'You can also connect PostHog'}
-                </Text>
-                <Text size="xs" c="dimmed">
-                    Right after you connect your warehouse.
-                </Text>
-            </Stack>
-        </Group>
+        <UnstyledButton
+            className={`${classes.tile} ${classes.infoCard}`}
+            disabled={isStarting}
+            onClick={onStart}
+        >
+            <Group gap="sm" wrap="nowrap" w="100%">
+                <TeaserIcons sources={sources} />
+                <Stack gap={0} className={classes.shortcutText}>
+                    <Text fw={500} size="sm">
+                        {hasGoogle
+                            ? 'Start with PostHog, GA4 or Search Console'
+                            : 'Start with PostHog'}
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                        No warehouse yet? Connect a tool now and add your
+                        warehouse whenever you're ready.
+                    </Text>
+                </Stack>
+                {isStarting ? (
+                    <Loader size={14} color="gray" />
+                ) : (
+                    <MantineIcon icon={IconChevronRight} color="ldGray.5" />
+                )}
+            </Group>
+        </UnstyledButton>
     );
 };
 

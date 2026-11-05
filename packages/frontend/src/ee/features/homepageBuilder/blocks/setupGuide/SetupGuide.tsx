@@ -49,6 +49,7 @@ import {
     type SetupGuideSection,
 } from './setupGuideModel';
 import { ChoiceArt, StepArt } from './StepArt';
+import { useCanAiAnswer } from './useCanAiAnswer';
 import { useSetupGuide } from './useSetupGuide';
 import { YourData } from './YourData';
 
@@ -58,7 +59,7 @@ const ROW_COPY: Record<
 > = {
     warehouse: {
         icon: IconDatabase,
-        pitch: 'Every chart and answer runs on data in your warehouse.',
+        pitch: 'Add your own tables so charts and answers can use them.',
         time: '3 min',
     },
     'app-data': {
@@ -435,6 +436,7 @@ export const SetupGuide: FC<{
 }> = ({ projectUuid, actions, onAsk, withTour }) => {
     const { track } = useTracking();
     const guide = useSetupGuide(projectUuid, actions);
+    const aiAnswer = useCanAiAnswer(projectUuid, actions);
     if (guide.isLoading) return <Skeleton h={120} radius="md" />;
     if (!guide.isEligible) return null;
     return (
@@ -480,11 +482,7 @@ export const SetupGuide: FC<{
                     });
                 }}
             />
-            {withTour && (
-                <HomepageTour
-                    ready={actions.statuses['connect-warehouse'].isComplete}
-                />
-            )}
+            {withTour && <HomepageTour ready={aiAnswer.canAnswer} />}
         </>
     );
 };

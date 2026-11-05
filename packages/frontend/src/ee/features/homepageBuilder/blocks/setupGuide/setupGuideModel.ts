@@ -341,11 +341,16 @@ export const buildSetupGuide = (
 ): SetupGuideSection[] => {
     const isVisible = (key: HomepageRecommendedActionKey) =>
         facts.visibleActions.includes(key);
+    const answersFromSourcesOnly =
+        !facts.statuses['connect-warehouse'].isComplete &&
+        facts.appSourceNames.length > 0;
     const sections: SetupGuideSection[] = [
         {
             id: 'data',
             title: 'Your data',
-            why: `${AI_NAME} answers by querying your warehouse.`,
+            why: answersFromSourcesOnly
+                ? `${AI_NAME} already answers from ${facts.appSourceNames.join(', ')}. Connect a warehouse to add your own tables.`
+                : `${AI_NAME} answers by querying your warehouse.`,
             rows: [warehouseRow(facts)],
         },
         {

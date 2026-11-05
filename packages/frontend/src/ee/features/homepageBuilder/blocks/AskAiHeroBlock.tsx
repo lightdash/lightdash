@@ -24,6 +24,7 @@ import {
     RecommendedActionsChecklistPlaceholder,
 } from './RecommendedActionsChecklist';
 import { SetupGuide } from './setupGuide/SetupGuide';
+import { useCanAiAnswer } from './setupGuide/useCanAiAnswer';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 import { useRecommendedActions } from './useRecommendedActions';
 
@@ -52,16 +53,15 @@ export const AskAiHero: FC<{
     // holds on, so neither reveals before the other. The composer holds its own slot from the first
     // render — gating its mount here would stop it fetching until the reveal
     // and land it a beat late.
-    const isReady = !actions.isLoading;
-    const isWarehouseConnected =
-        actions.statuses['connect-warehouse'].isComplete;
+    const aiAnswer = useCanAiAnswer(projectUuid, actions);
+    const isReady = !actions.isLoading && !aiAnswer.isLoading;
     const [prefillRequest, setPrefillRequest] = useState(0);
     return (
         <Stack gap={16} align="center" w="100%">
             {showGreeting &&
                 (isReady ? (
                     <Text component="h1" className={layout.heroGreeting}>
-                        {isWarehouseConnected
+                        {aiAnswer.canAnswer
                             ? `${getGreeting(user.data?.firstName)}. What do you want to know?`
                             : "Let's get started"}
                     </Text>
