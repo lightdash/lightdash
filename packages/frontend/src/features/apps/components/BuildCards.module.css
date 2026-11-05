@@ -74,16 +74,16 @@
     line-height: 20px;
 }
 
-/* Live work: a light sweep across the text instead of a spinner. */
+/* Live work: a light sweep across dark text instead of a spinner. */
 [data-shimmer] {
     color: transparent;
     background: linear-gradient(
             90deg,
-            var(--mantine-color-ldGray-6) 0%,
-            var(--mantine-color-ldGray-6) 40%,
-            var(--mantine-color-text) 50%,
-            var(--mantine-color-ldGray-6) 60%,
-            var(--mantine-color-ldGray-6) 100%
+            var(--mantine-color-text) 0%,
+            var(--mantine-color-text) 40%,
+            var(--mantine-color-ldGray-4) 50%,
+            var(--mantine-color-text) 60%,
+            var(--mantine-color-text) 100%
         )
         0 0 / 200% 100%;
     background-clip: text;

@@ -1,16 +1,13 @@
 import { Box, Group, Text } from '@mantine/core';
 import { type FC } from 'react';
-import { useElapsedMs } from '../hooks/useElapsedMs';
 import { BUILD_STAGES, getBuildStageLabel } from '../utils/buildStage';
 import { type AppVersionNarrationData } from '../utils/versionNarration';
 import classes from './BuildCards.module.css';
 import BuildSteps from './BuildSteps';
-import { formatElapsed } from './buildStepUtils';
 
 type Props = {
     /** Null until the server has assigned the version number. */
     version: number | null;
-    startedAt: Date | null;
     narration: AppVersionNarrationData;
     /** Server status line for non-generating stages (e.g. bundling). */
     statusMessage: string | null;
@@ -22,13 +19,11 @@ type Props = {
 
 const BuildProgressCard: FC<Props> = ({
     version,
-    startedAt,
     narration,
     statusMessage,
     stageIndex,
     showStage,
 }) => {
-    const elapsed = useElapsedMs(startedAt);
     const steps = statusMessage
         ? [...narration.activity, statusMessage]
         : narration.activity;
@@ -37,16 +32,13 @@ const BuildProgressCard: FC<Props> = ({
     return (
         <Box className={classes.progressCard} data-live="true">
             <Group gap={8} wrap="nowrap" className={classes.cardHeader}>
-                {/* The current step carries the live sweep once there is one. */}
                 <Text
                     size="xs"
                     fw={500}
                     className={classes.activityLabel}
-                    data-shimmer={!hasSteps || undefined}
+                    data-shimmer
                 >
-                    {startedAt
-                        ? `Working for ${formatElapsed(elapsed)}`
-                        : 'Working…'}
+                    Working
                 </Text>
                 {showStage && stageIndex < BUILD_STAGES.length && (
                     <Text

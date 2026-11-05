@@ -734,13 +734,6 @@ const AppGenerate: FC = () => {
     // "Build" on the question bubble.
     const hasPendingClarification = clarification.pending !== null;
     const isClarifying = clarification.clarifyingPrompt !== null;
-    const buildStartedAt = useMemo(
-        () =>
-            latestBuildingVersion
-                ? new Date(latestBuildingVersion.createdAt)
-                : null,
-        [latestBuildingVersion],
-    );
     const buildStageIndex = getBuildStageIndex(
         latestBuildingVersion?.status ?? null,
         liveNarration.activity,
@@ -2741,9 +2734,6 @@ const AppGenerate: FC = () => {
                                                                     version={
                                                                         latestBuildingVersion?.version ??
                                                                         null
-                                                                    }
-                                                                    startedAt={
-                                                                        buildStartedAt
                                                                     }
                                                                     narration={
                                                                         liveNarration
