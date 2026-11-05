@@ -1,3 +1,10 @@
+## [3.156.2](https://github.com/lightdash/lightdash/compare/3.156.1...3.156.2) (2026-11-05)
+
+
+### Bug Fixes
+
+* **ai:** absolute link in document-saved fast response ([#32094](https://github.com/lightdash/lightdash/issues/32094)) ([408372e](https://github.com/lightdash/lightdash/commit/408372e7563e5a1a33b7bb30233cc25807dceef4))
+
 ## [3.156.1](https://github.com/lightdash/lightdash/compare/3.156.0...3.156.1) (2026-11-05)
 
 
