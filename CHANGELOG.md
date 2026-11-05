@@ -1,3 +1,10 @@
+## [3.158.1](https://github.com/lightdash/lightdash/compare/3.158.0...3.158.1) (2026-11-05)
+
+
+### Bug Fixes
+
+* **deps:** regenerate pnpm-lock.yaml after a duplicate sharp entry ([#32101](https://github.com/lightdash/lightdash/issues/32101)) ([e29536a](https://github.com/lightdash/lightdash/commit/e29536a5901c99dd1483ee6e46e5b2c2ea320eac))
+
 # [3.158.0](https://github.com/lightdash/lightdash/compare/3.157.0...3.158.0) (2026-11-05)
 
 
