@@ -68,7 +68,8 @@ const FORBIDDEN_SIGNATURES = [
 // bundle.) The current dormant occurrences, none reached on a dashboard render:
 //   Function() codegen: ajv validator codegen, ECharts GeoJSON fallback
 //     (unreachable dead branch — guarded by `typeof JSON.parse`), html2canvas
-//     calc() colour parser, source-map, lodash/webpack `Function('return this')`
+//     calc() colour parser, source-map, source-map-js's try/catch-guarded
+//     eval probe (falls back to a sort without eval), lodash/webpack `Function('return this')`
 //     global-this probes (try/catch-guarded), and Vega's expression compiler —
 //     now bypassed at render by the `ast: true` interpreter (CustomVisualization).
 //   eval(: highlight.js keyword regex text, vega-dataflow `.eval()` method.
@@ -77,7 +78,7 @@ const FORBIDDEN_SIGNATURES = [
 // A fresh build is the canonical count; a stale local Vite/rollup cache only ever
 // lowers it, so this exact ceiling never false-fails — only a genuinely new
 // code-generator pushes the total above it.
-const BASELINE = 27;
+const BASELINE = 28;
 
 const regressions = FORBIDDEN_SIGNATURES.map((s) => ({
     ...s,
