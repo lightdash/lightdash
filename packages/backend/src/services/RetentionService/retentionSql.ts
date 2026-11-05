@@ -1,7 +1,6 @@
 import {
     computeRetentionAverages,
     DimensionType,
-    getFieldMap,
     getLastCompleteRetentionPeriod,
     getSqlForTruncatedDate,
     ParameterError,
@@ -17,11 +16,10 @@ import {
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
 import {
-    compileEventAnalyticsFilterSql,
-    getBaseTableFromSql,
-    getDimensionFromFieldMap,
-    quoteStringLiteral,
-} from '../EventAnalytics/eventAnalyticsSql';
+    ACTIVITY_COLUMNS,
+    ActivityStreamQuery,
+    resolveActivityStream,
+} from '../EventAnalytics/activityStream';
 
 const UNIT_TIME_FRAME: Record<RetentionUnit, TimeFrames> = {
     day: TimeFrames.DAY,
@@ -66,6 +64,12 @@ type GenerateRetentionSqlArgs = {
     now: Date;
 };
 
+/**
+ * Retention as an Activity Schema query: the cohort is the born activity
+ * (first ever, or first per bucket for recurring cohorts) and the return
+ * activity is appended with an "all after" relationship, then bucketed into
+ * periods and counted per cohort.
+ */
 export const generateRetentionSql = ({
     request,
     explore,
@@ -75,25 +79,14 @@ export const generateRetentionSql = ({
 }: GenerateRetentionSqlArgs): string => {
     validateRetentionRequest(request);
 
-    const q = sqlBuilder.getFieldQuoteChar();
-    const col = (name: string) => `${q}${name}${q}`;
-    const fieldMap = getFieldMap(explore);
-
-    const timestampField = getDimensionFromFieldMap(
-        fieldMap,
-        request.timestampFieldId,
-    );
-    const userIdField = getDimensionFromFieldMap(
-        fieldMap,
-        request.userIdFieldId,
-    );
-    const eventNameField = getDimensionFromFieldMap(
-        fieldMap,
-        request.eventNameFieldId,
-    );
-    const breakdownField = request.breakdownDimensionId
-        ? getDimensionFromFieldMap(fieldMap, request.breakdownDimensionId)
-        : null;
+    const stream = resolveActivityStream({
+        explore,
+        mapping: request,
+        sqlBuilder,
+        timezone,
+    });
+    const query = new ActivityStreamQuery(stream, sqlBuilder);
+    const col = (name: string) => query.col(name);
 
     const { unit, periods, criteria, mode, cohortType } = request;
     const { start, end } = resolveEventAnalyticsDateRange(
@@ -108,178 +101,131 @@ export const generateRetentionSql = ({
         UNIT_INTERVAL[unit],
     )}`;
 
-    const bornSql = quoteStringLiteral(sqlBuilder, request.bornEvent);
-    const returnSql = request.returnEvent
-        ? quoteStringLiteral(sqlBuilder, request.returnEvent)
-        : null;
-
-    const tsSql = timestampField.compiledSql;
-    const eventTimestampSql =
-        timestampField.type === DimensionType.DATE
-            ? `CAST(${tsSql} AS TIMESTAMP)`
-            : tsSql;
-    const periodStartSql = getSqlForTruncatedDate(
-        sqlBuilder.getAdapterType(),
-        UNIT_TIME_FRAME[unit],
-        eventTimestampSql,
-        DimensionType.TIMESTAMP,
-        sqlBuilder.getStartOfWeek(),
-    );
-
-    const eventPredicate = returnSql
-        ? `${eventNameField.compiledSql} IN (${bornSql}, ${returnSql})`
-        : null;
-    // First-time cohorts need every born event to find each user's first one;
-    // recurring cohorts only need events inside the cohort window.
-    const windowPredicate =
-        cohortType === 'first_time'
-            ? `${tsSql} < ${scanEndSql} AND (${eventNameField.compiledSql} = ${bornSql} OR ${tsSql} >= ${startSql})`
-            : `${tsSql} >= ${startSql} AND ${tsSql} < ${scanEndSql}`;
-    const filterSql = compileEventAnalyticsFilterSql({
-        filters: request.filters,
-        explore,
-        sqlBuilder,
-        timezone,
-    });
-    const wherePredicates = [
-        `${userIdField.compiledSql} IS NOT NULL`,
-        windowPredicate,
-        eventPredicate,
-        filterSql,
-    ].filter((p): p is string => p !== null);
-
-    const bd = breakdownField ? col('breakdown_value') : null;
-    const bdSelect = (alias: string) => (bd ? `, ${alias}.${bd}` : '');
+    const bd = query.hasBreakdown ? col(ACTIVITY_COLUMNS.breakdown) : null;
     const bdGroup = bd ? `, ${bd}` : '';
+    const bdSelect = (alias: string) => (bd ? `, ${alias}.${bd}` : '');
+    const customer = col(ACTIVITY_COLUMNS.customer);
+    const periodStart = col('period_start');
+    const cohortColumns = [
+        ACTIVITY_COLUMNS.customer,
+        'period_start',
+        ...(query.hasBreakdown ? [ACTIVITY_COLUMNS.breakdown] : []),
+    ];
 
     const diff = (startTs: string, endTs: string) =>
         sqlBuilder.getTimestampDiffSeconds(startTs, endTs);
     let periodSql: string;
     if (mode === 'rolling') {
         periodSql = `FLOOR(${diff(
-            `b.${col('birth_time')}`,
-            `e.${col('event_timestamp')}`,
+            `c.${col('birth_ts')}`,
+            `s.${col(ACTIVITY_COLUMNS.ts)}`,
         )} / ${UNIT_SECONDS[unit]})`;
     } else if (unit === 'month') {
-        periodSql = `(EXTRACT(YEAR FROM e.${col(
-            'period_start',
-        )}) - EXTRACT(YEAR FROM b.${col(
-            'cohort_date',
-        )})) * 12 + (EXTRACT(MONTH FROM e.${col(
-            'period_start',
-        )}) - EXTRACT(MONTH FROM b.${col('cohort_date')}))`;
+        periodSql = `(EXTRACT(YEAR FROM s.${periodStart}) - EXTRACT(YEAR FROM c.${periodStart})) * 12 + (EXTRACT(MONTH FROM s.${periodStart}) - EXTRACT(MONTH FROM c.${periodStart}))`;
     } else {
         // Both sides are bucket starts, so the difference is a whole number of units
         periodSql = `ROUND(${diff(
-            `b.${col('cohort_date')}`,
-            `e.${col('period_start')}`,
+            `c.${periodStart}`,
+            `s.${periodStart}`,
         )} / ${UNIT_SECONDS[unit]})`;
     }
 
-    const retainedCte =
-        criteria === 'on'
-            ? `
-retained AS (
+    const ctes: Record<string, string> = {
+        stream: query.streamCte({
+            activities: request.returnEvent
+                ? [request.bornEvent, request.returnEvent]
+                : null,
+            tsFrom: startSql,
+            tsTo: scanEndSql,
+            // First-time cohorts need every born event to find each customer's first one
+            activitiesWithFullHistory:
+                cohortType === 'first_time' ? [request.bornEvent] : [],
+            extraColumns: {
+                period_start: (tsSql) =>
+                    getSqlForTruncatedDate(
+                        sqlBuilder.getAdapterType(),
+                        UNIT_TIME_FRAME[unit],
+                        tsSql,
+                        DimensionType.TIMESTAMP,
+                        sqlBuilder.getStartOfWeek(),
+                    ),
+            },
+        }),
+        births: query.cohortCte({
+            streamCte: 'stream',
+            activity: request.bornEvent,
+            occurrence:
+                cohortType === 'first_time'
+                    ? 'first_in_window'
+                    : 'first_in_bucket',
+            bucketColumn: 'period_start',
+            tsFrom: startSql,
+            tsTo: endSql,
+            tsAlias: 'birth_ts',
+        }),
+        returns: query.allAfterCte({
+            cohortCte: 'births',
+            cohortColumns,
+            cohortTsColumn: 'birth_ts',
+            streamCte: 'stream',
+            activity: request.returnEvent,
+            appendColumns: { period: periodSql },
+        }),
+    };
+
+    if (criteria === 'on') {
+        ctes.retained = `
     SELECT
-        ${col('cohort_date')}${bdGroup},
+        ${periodStart}${bdGroup},
         ${col('period')},
-        COUNT(DISTINCT ${col('user_id')}) AS ${col('users')}
+        COUNT(DISTINCT ${customer}) AS ${col('users')}
     FROM returns
     WHERE ${col('period')} >= 0 AND ${col('period')} <= ${periods}
-    GROUP BY ${col('cohort_date')}${bdGroup}, ${col('period')}
-)`
-            : `
-user_last_period AS (
+    GROUP BY ${periodStart}${bdGroup}, ${col('period')}`;
+    } else {
+        // Group customers by their last period; earlier periods are accumulated after the query
+        ctes.customer_last_period = `
     SELECT
-        ${col('cohort_date')}${bdGroup},
-        ${col('user_id')},
+        ${periodStart}${bdGroup},
+        ${customer},
         CASE WHEN MAX(${col('period')}) > ${periods} THEN ${periods} ELSE MAX(${col(
             'period',
         )}) END AS ${col('period')}
     FROM returns
     WHERE ${col('period')} >= 0
-    GROUP BY ${col('cohort_date')}${bdGroup}, ${col('user_id')}
-),
-retained AS (
+    GROUP BY ${periodStart}${bdGroup}, ${customer}`;
+        ctes.retained = `
     SELECT
-        ${col('cohort_date')}${bdGroup},
+        ${periodStart}${bdGroup},
         ${col('period')},
-        COUNT(DISTINCT ${col('user_id')}) AS ${col('users')}
-    FROM user_last_period
-    GROUP BY ${col('cohort_date')}${bdGroup}, ${col('period')}
-)`;
+        COUNT(DISTINCT ${customer}) AS ${col('users')}
+    FROM customer_last_period
+    GROUP BY ${periodStart}${bdGroup}, ${col('period')}`;
+    }
+
+    ctes.cohorts = `
+    SELECT
+        ${periodStart}${bdGroup},
+        COUNT(DISTINCT ${customer}) AS ${col('cohort_size')}
+    FROM births
+    GROUP BY ${periodStart}${bdGroup}`;
 
     const breakdownJoin = bd
         ? ` AND ${sqlBuilder.getNullSafeEqualJoinSql(`r.${bd}`, `c.${bd}`)}`
         : '';
 
-    return `
-WITH events AS (
-    SELECT
-        ${userIdField.compiledSql} AS ${col('user_id')},
-        ${eventNameField.compiledSql} AS ${col('event_name')},
-        ${eventTimestampSql} AS ${col('event_timestamp')},
-        ${periodStartSql} AS ${col('period_start')}${
-            breakdownField
-                ? `,\n        ${breakdownField.compiledSql} AS ${bd}`
-                : ''
-        }
-    FROM ${getBaseTableFromSql(explore, sqlBuilder)}
-    WHERE ${wherePredicates.join('\n      AND ')}
-),
-born_events AS (
-    SELECT
-        ${col('user_id')},
-        ${col('event_timestamp')},
-        ${col('period_start')}${bdGroup},
-        ROW_NUMBER() OVER (
-            PARTITION BY ${col('user_id')}${
-                cohortType === 'recurring' ? `, ${col('period_start')}` : ''
-            }
-            ORDER BY ${col('event_timestamp')}
-        ) AS ${col('rn')}
-    FROM events
-    WHERE ${col('event_name')} = ${bornSql}
-),
-births AS (
-    SELECT
-        ${col('user_id')},
-        ${col('event_timestamp')} AS ${col('birth_time')},
-        ${col('period_start')} AS ${col('cohort_date')}${bdGroup}
-    FROM born_events
-    WHERE ${col('rn')} = 1
-      AND ${col('event_timestamp')} >= ${startSql}
-      AND ${col('event_timestamp')} < ${endSql}
-),
-returns AS (
-    SELECT
-        b.${col('user_id')},
-        b.${col('cohort_date')}${bdSelect('b')},
-        ${periodSql} AS ${col('period')}
-    FROM births b
-    JOIN events e
-      ON e.${col('user_id')} = b.${col('user_id')}
-     AND e.${col('event_timestamp')} > b.${col('birth_time')}${
-         returnSql ? `\n     AND e.${col('event_name')} = ${returnSql}` : ''
-     }
-),${retainedCte},
-cohorts AS (
-    SELECT
-        ${col('cohort_date')}${bdGroup},
-        COUNT(DISTINCT ${col('user_id')}) AS ${col('cohort_size')}
-    FROM births
-    GROUP BY ${col('cohort_date')}${bdGroup}
-)
-SELECT
-    c.${col('cohort_date')}${bdSelect('c')},
+    return ActivityStreamQuery.render(
+        ctes,
+        `SELECT
+    c.${periodStart} AS ${col('cohort_date')}${bdSelect('c')},
     c.${col('cohort_size')},
     r.${col('period')},
     r.${col('users')}
 FROM cohorts c
 LEFT JOIN retained r
-  ON r.${col('cohort_date')} = c.${col('cohort_date')}${breakdownJoin}
-ORDER BY c.${col('cohort_date')}${bdSelect('c')}, r.${col('period')}
-`;
+  ON r.${periodStart} = c.${periodStart}${breakdownJoin}
+ORDER BY c.${periodStart}${bdSelect('c')}, r.${col('period')}`,
+    );
 };
 
 const pad = (n: number) => String(n).padStart(2, '0');

@@ -113,19 +113,19 @@ describe('generateRetentionSql', () => {
         const sql = generate();
         expect(sql).toContain('FROM "analytics"."raw_events" AS "events"');
         expect(sql).toContain(`"events".event_name IN ('signup', 'purchase')`);
-        expect(sql).toContain(`WHERE "event_name" = 'signup'`);
-        expect(sql).toContain(`AND e."event_name" = 'purchase'`);
+        expect(sql).toContain(`WHERE "activity" = 'signup'`);
+        expect(sql).toContain(`AND s."activity" = 'purchase'`);
         expect(sql).toContain('ROW_NUMBER() OVER (');
-        expect(sql).toContain('PARTITION BY "user_id"\n');
+        expect(sql).toContain('PARTITION BY "customer"\n');
         expect(sql).toContain(`DATE_TRUNC('WEEK', "events".occurred_at)`);
         expect(sql).toContain('LEFT JOIN retained r');
-        expect(sql).toContain('COUNT(DISTINCT "user_id") AS "cohort_size"');
+        expect(sql).toContain('COUNT(DISTINCT "customer") AS "cohort_size"');
     });
 
     it('first-time cohorts scan all born events but only in-window returns', () => {
         const sql = generate();
         expect(sql).toContain(
-            `("events".event_name = 'signup' OR "events".occurred_at >= CAST('2024-02-01T00:00:00.000Z' AS TIMESTAMP))`,
+            `("events".occurred_at >= CAST('2024-02-01T00:00:00.000Z' AS TIMESTAMP) OR "events".event_name IN ('signup'))`,
         );
         expect(sql).toContain(
             `+ INTERVAL '5 WEEK'`, // periods + 1 buckets past the window end
@@ -134,35 +134,35 @@ describe('generateRetentionSql', () => {
 
     it('recurring cohorts partition births by period', () => {
         const sql = generate({ cohortType: 'recurring' });
-        expect(sql).toContain('PARTITION BY "user_id", "period_start"');
+        expect(sql).toContain('PARTITION BY "customer", "period_start"');
         expect(sql).toContain(
-            `"events".occurred_at >= CAST('2024-02-01T00:00:00.000Z' AS TIMESTAMP) AND "events".occurred_at <`,
+            `"events".occurred_at >= CAST('2024-02-01T00:00:00.000Z' AS TIMESTAMP)\n      AND "events".occurred_at <`,
         );
     });
 
     it('any return event drops the event predicate on the return join', () => {
         const sql = generate({ returnEvent: null });
-        expect(sql).not.toContain('IN (');
-        expect(sql).not.toContain(`AND e."event_name" =`);
+        expect(sql).not.toContain(`'signup', 'purchase'`);
+        expect(sql).not.toContain(`AND s."activity" =`);
     });
 
     it('rolling mode measures periods from the birth timestamp', () => {
         const sql = generate({ mode: 'rolling', unit: 'day' });
         expect(sql).toContain(
-            'FLOOR(EXTRACT(EPOCH FROM (e."event_timestamp" - b."birth_time")) / 86400)',
+            'FLOOR(EXTRACT(EPOCH FROM (s."ts" - c."birth_ts")) / 86400)',
         );
     });
 
     it('calendar months use calendar month arithmetic', () => {
         const sql = generate({ unit: 'month' });
         expect(sql).toContain(
-            '(EXTRACT(YEAR FROM e."period_start") - EXTRACT(YEAR FROM b."cohort_date")) * 12',
+            '(EXTRACT(YEAR FROM s."period_start") - EXTRACT(YEAR FROM c."period_start")) * 12',
         );
     });
 
     it('on_or_after caps each user at their last period', () => {
         const sql = generate({ criteria: 'on_or_after' });
-        expect(sql).toContain('user_last_period AS');
+        expect(sql).toContain('customer_last_period AS');
         expect(sql).toContain('CASE WHEN MAX("period") > 4 THEN 4');
     });
 
@@ -170,7 +170,7 @@ describe('generateRetentionSql', () => {
         const sql = generate({ breakdownDimensionId: 'events_platform' });
         expect(sql).toContain('"events".platform AS "breakdown_value"');
         expect(sql).toContain(
-            'GROUP BY "cohort_date", "breakdown_value", "period"',
+            'GROUP BY "period_start", "breakdown_value", "period"',
         );
         expect(sql).toContain(
             '(r."breakdown_value" IS NULL AND c."breakdown_value" IS NULL)',
