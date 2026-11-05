@@ -14,6 +14,7 @@ import {
     Tabs,
     Text,
     TextInput,
+    Title,
     Tooltip,
 } from '@mantine/core';
 import { useDebouncedValue, useIntersection } from '@mantine/hooks';
@@ -24,7 +25,6 @@ import EmptyStateLoader from '../components/common/EmptyStateLoader';
 import InlineErrorState from '../components/common/InlineErrorState';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
-import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import ChartTypeCardSkeletons from '../features/chartTypes/components/ChartTypeCardSkeletons';
 import ChartTypeDeleteModal from '../features/chartTypes/components/ChartTypeDeleteModal';
 import ChartTypeDetailModal from '../features/chartTypes/components/ChartTypeDetailModal';
@@ -48,6 +48,8 @@ const GalleryTab = {
     INSTALLED_CHARTS: 'installed-charts',
     CHART_LIBRARY: 'chart-library',
 } as const;
+
+const SEARCH_MIN_COUNT = 9;
 
 const ChartTypeGallery = () => {
     const projectUuid = useProjectUuid();
@@ -180,14 +182,10 @@ const ChartTypeGallery = () => {
         );
     }
 
-    // Optimistic until the registry says otherwise, so the copy doesn't flicker.
-    const mayUseLibrary = registryQuery.data?.registryEnabled !== false;
-    const howToGetOne =
-        chartStudioAvailable && mayUseLibrary
-            ? "Describe the chart you want and it's built for you, or start from one in the library."
-            : chartStudioAvailable
-              ? "Describe the chart you want and it's built for you."
-              : 'Start from a ready-made chart in the library.';
+    // A handful of chart types fit on screen; search only earns its place past that.
+    const showSearch =
+        activeTab === GalleryTab.INSTALLED_CHARTS &&
+        (search !== '' || (totalCount ?? 0) >= SEARCH_MIN_COUNT);
 
     const newChartTypeButton = chartStudioAvailable && (
         <Can
@@ -208,49 +206,42 @@ const ChartTypeGallery = () => {
         </Can>
     );
 
-    // The empty state carries its own CTAs, so the header stays quiet then.
-    const toolbar = (tabsList: ReactNode) => (
-        <Group justify="space-between" gap="sm">
-            {tabsList ?? <span />}
-            {!isEmptyGallery && (
-                <Group gap="xs" wrap="nowrap">
-                    {activeTab === GalleryTab.INSTALLED_CHARTS &&
-                        (isSearchOpen || search ? (
-                            <TextInput
-                                size="sm"
-                                autoFocus
-                                className={classes.search}
-                                placeholder="Search chart types"
-                                aria-label="Search chart types"
-                                leftSection={
-                                    <MantineIcon icon={IconSearch} size={15} />
-                                }
-                                value={search}
-                                onChange={(e) =>
-                                    setSearch(e.currentTarget.value)
-                                }
-                                onBlur={() => setIsSearchOpen(false)}
-                                onKeyDown={(e) => {
-                                    if (e.key !== 'Escape') return;
-                                    setSearch('');
-                                    setIsSearchOpen(false);
-                                }}
-                            />
-                        ) : (
-                            <ActionIcon
-                                variant="default"
-                                size={32}
-                                aria-label="Search chart types"
-                                onClick={() => setIsSearchOpen(true)}
-                            >
+    const toolbar = (tabsList: ReactNode) =>
+        (tabsList || showSearch) && (
+            <Group justify="space-between" gap="sm">
+                {tabsList ?? <span />}
+                {showSearch &&
+                    (isSearchOpen || search ? (
+                        <TextInput
+                            size="sm"
+                            autoFocus
+                            className={classes.search}
+                            placeholder="Search chart types"
+                            aria-label="Search chart types"
+                            leftSection={
                                 <MantineIcon icon={IconSearch} size={15} />
-                            </ActionIcon>
-                        ))}
-                    {newChartTypeButton}
-                </Group>
-            )}
-        </Group>
-    );
+                            }
+                            value={search}
+                            onChange={(e) => setSearch(e.currentTarget.value)}
+                            onBlur={() => setIsSearchOpen(false)}
+                            onKeyDown={(e) => {
+                                if (e.key !== 'Escape') return;
+                                setSearch('');
+                                setIsSearchOpen(false);
+                            }}
+                        />
+                    ) : (
+                        <ActionIcon
+                            variant="default"
+                            size={32}
+                            aria-label="Search chart types"
+                            onClick={() => setIsSearchOpen(true)}
+                        >
+                            <MantineIcon icon={IconSearch} size={15} />
+                        </ActionIcon>
+                    ))}
+            </Group>
+        );
 
     const chartTypesContent = isInitialLoading ? (
         <ChartTypeCardSkeletons label="Loading chart types" />
@@ -324,17 +315,19 @@ const ChartTypeGallery = () => {
             withXLargePaddedContent
             withLargeContent
         >
-            <Stack gap="lg" w="100%">
-                <PageBreadcrumbs
-                    items={[
-                        { title: 'Home', to: '/home' },
-                        { title: 'Chart Studio', active: true },
-                    ]}
-                />
-
-                <Text fz="sm" c="dimmed" maw={880} lh={1.5}>
-                    Show your data exactly the way you picture it. {howToGetOne}
-                </Text>
+            <Stack gap="xl" w="100%">
+                <Group justify="space-between" align="flex-start" gap="md">
+                    <Stack gap={4}>
+                        <Title order={3} fw={600}>
+                            Chart Studio
+                        </Title>
+                        <Text fz="sm" c="dimmed" maw={560}>
+                            Show your data exactly the way you picture it.
+                        </Text>
+                    </Stack>
+                    {/* The empty state carries its own CTAs. */}
+                    {!isEmptyGallery && newChartTypeButton}
+                </Group>
 
                 {isLibraryEnabled ? (
                     <Tabs
@@ -343,7 +336,7 @@ const ChartTypeGallery = () => {
                         keepMounted={false}
                         variant="unstyled"
                     >
-                        <Stack gap="lg">
+                        <Stack gap="md">
                             {toolbar(
                                 <Tabs.List className={classes.tabList}>
                                     <Tabs.Tab
@@ -393,7 +386,7 @@ const ChartTypeGallery = () => {
                         </Stack>
                     </Tabs>
                 ) : (
-                    <Stack gap="lg">
+                    <Stack gap="md">
                         {toolbar(null)}
                         {chartTypesContent}
                     </Stack>

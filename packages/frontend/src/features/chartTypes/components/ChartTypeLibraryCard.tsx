@@ -81,14 +81,14 @@ const ChartTypeLibraryCard: FC<Props> = ({ item, onClick }) => {
             </Box>
             <Stack gap="xs" px="xs" pt="sm" pb="xs">
                 <Group gap="xs" wrap="nowrap" justify="space-between">
-                    <Text fz={13} fw={600} truncate="end">
+                    <Text fz="sm" fw={500} truncate="end">
                         {item.name}
                     </Text>
                     <Group gap={4} wrap="nowrap" flex="0 0 auto">
                         <OfficialChartTypeBadge />
                     </Group>
                 </Group>
-                <Text fz="xs" c="dimmed" lh={1.35} lineClamp={2}>
+                <Text fz="xs" c="dimmed" lh={1.35} lineClamp={1}>
                     {item.description || 'No description'}
                 </Text>
                 <StateBadge item={item} />

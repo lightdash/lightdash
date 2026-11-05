@@ -90,13 +90,13 @@ const ChartTypeGalleryCard: FC<Props> = ({
                                 icon={getChartTypeIcon(dataAppViz.icon)}
                                 color="dimmed"
                             />
-                            <Text fz="sm" fw={600} truncate="end">
+                            <Text fz="sm" fw={500} truncate="end">
                                 {displayName}
                             </Text>
                         </Group>
                         {isOfficial && <OfficialChartTypeBadge />}
                     </Group>
-                    <Text fz="xs" c="dimmed" lh={1.35} lineClamp={2}>
+                    <Text fz="xs" c="dimmed" lh={1.35} lineClamp={1}>
                         {dataAppViz.description || 'No description'}
                     </Text>
                     {hasRegistryUpdate && (

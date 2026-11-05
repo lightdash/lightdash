@@ -911,8 +911,24 @@ describe('ChartTypeGallery', () => {
         ).not.toBeInTheDocument();
     });
 
-    it('shows a no-results message for an empty searched page', async () => {
+    it('hides search while every chart type fits on screen', () => {
         setData([makeDataAppViz({})]);
+        renderPage();
+
+        expect(
+            screen.queryByRole('button', { name: 'Search chart types' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('shows a no-results message for an empty searched page', async () => {
+        setData(
+            Array.from({ length: 9 }, (_, i) =>
+                makeDataAppViz({
+                    dataAppVizUuid: `viz-${i}`,
+                    name: `Viz ${i}`,
+                }),
+            ),
+        );
         renderPage();
 
         fireEvent.click(
