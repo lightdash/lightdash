@@ -21,6 +21,14 @@ function inferGranularity(name: string): DateGranularity | undefined {
     return undefined;
 }
 
+// Lightdash returns dates/timestamps as the project's wall-clock reading with
+// a `Z` suffix (e.g. a March 1st date arrives as '2025-03-01T00:00:00Z').
+// Parsing that with `parseISO`/`new Date` and formatting locally shifts it
+// into the viewer's timezone — a UTC-7 viewer would see "Feb 28". Render the
+// wall-clock components exactly as the server sent them instead.
+const ISO_WALL_CLOCK_RE =
+    /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?)?/;
+
 function toDate(value: unknown): Date | null {
     if (value === null || value === undefined || value === '') return null;
     if (value instanceof Date)
@@ -30,6 +38,21 @@ function toDate(value: unknown): Date | null {
         return Number.isNaN(d.getTime()) ? null : d;
     }
     if (typeof value === 'string') {
+        const wallClock = ISO_WALL_CLOCK_RE.exec(value);
+        if (wallClock) {
+            const [, year, month, day, hours, minutes, seconds, millis] =
+                wallClock;
+            const d = new Date(
+                Number(year),
+                Number(month) - 1,
+                Number(day),
+                Number(hours ?? 0),
+                Number(minutes ?? 0),
+                Number(seconds ?? 0),
+                Number(millis?.padEnd(3, '0') ?? 0),
+            );
+            return Number.isNaN(d.getTime()) ? null : d;
+        }
         const d = parseISO(value);
         return Number.isNaN(d.getTime()) ? null : d;
     }
