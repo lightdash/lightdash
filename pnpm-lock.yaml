@@ -200,7 +200,7 @@ packageExtensionsChecksum: sha256-gmxw0e7pkqpT8MR6Z3qxKwKNWZPNzpYJNWCIv5jjcps=
 pnpmfileChecksum: sha256-o1QtWIlgEjjL8bDSRr9nQwG/oM2WttnwQNHJevp/IMg=
 
 patchedDependencies:
-  '@modelcontextprotocol/sdk@1.31.0': 935d4f6b76220a0884ea03024e3d6d74da767c32abb5657c52905c25d440f4ac
+  '@modelcontextprotocol/sdk@1.32.0': 8ddd650062d401c1833a672fa7fffbbbb228101bbc01e6b2603c86fa93996377
   scim-patch@0.9.3: 4de2501c306a9217656f6499387bbb2bed68a5037a46446d6340e93ac0cf4e92
   vega-lite@6.4.1: 95d51bbc3ae37867237637a4561f6721c7e79a43b4aee6c4e19f3ddced309a46
 
@@ -385,8 +385,8 @@ importers:
         specifier: workspace:*
         version: link:../warehouses
       '@modelcontextprotocol/sdk':
-        specifier: 1.31.0
-        version: 1.31.0(patch_hash=935d4f6b76220a0884ea03024e3d6d74da767c32abb5657c52905c25d440f4ac)(@cfworker/json-schema@4.1.1)(supports-color@5.5.0)(zod@4.6.7)
+        specifier: 1.32.0
+        version: 1.32.0(patch_hash=8ddd650062d401c1833a672fa7fffbbbb228101bbc01e6b2603c86fa93996377)(@cfworker/json-schema@4.1.1)(supports-color@5.5.0)(zod@4.6.7)
       '@node-oauth/oauth2-server':
         specifier: 5.3.0
         version: 5.3.0
@@ -894,7 +894,7 @@ importers:
         version: link:../../../../../../common
       '@modelcontextprotocol/ext-apps':
         specifier: 1.7.1
-        version: 1.7.1(@modelcontextprotocol/sdk@1.31.0(patch_hash=935d4f6b76220a0884ea03024e3d6d74da767c32abb5657c52905c25d440f4ac)(@cfworker/json-schema@4.1.1)(supports-color@9.1.0)(zod@4.6.7))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(zod@4.6.7)
+        version: 1.7.1(@modelcontextprotocol/sdk@1.32.0(patch_hash=8ddd650062d401c1833a672fa7fffbbbb228101bbc01e6b2603c86fa93996377)(@cfworker/json-schema@4.1.1)(supports-color@9.1.0)(zod@4.6.7))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(zod@4.6.7)
       echarts:
         specifier: 5.6.0
         version: 5.6.0
@@ -4325,8 +4325,8 @@ packages:
       react-dom:
         optional: true
 
-  '@modelcontextprotocol/sdk@1.31.0':
-    resolution: {integrity: sha512-UvTMgnNlnIBO/22ob2RcVGDlcvOslQs8T59+FTGdA0L27a39fdGF/EDETNtDVK4DZGpwomlsYpRdA8UXcVL/pw==}
+  '@modelcontextprotocol/sdk@1.32.0':
+    resolution: {integrity: sha512-8BviX/hK4Gd2eL1KdTwm0gfl4d3wdoErW0Jd00h6nomUAtk6IJk5vwQJc6kfWtJTzN5OEV/lgIiJKI8fiDGAlA==}
     engines: {node: '>=18'}
     peerDependencies:
       '@cfworker/json-schema': ^4.1.1
@@ -19507,16 +19507,16 @@ snapshots:
 
   '@mixmark-io/domino@2.2.0': {}
 
-  '@modelcontextprotocol/ext-apps@1.7.1(@modelcontextprotocol/sdk@1.31.0(patch_hash=935d4f6b76220a0884ea03024e3d6d74da767c32abb5657c52905c25d440f4ac)(@cfworker/json-schema@4.1.1)(supports-color@9.1.0)(zod@4.6.7))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(zod@4.6.7)':
+  '@modelcontextprotocol/ext-apps@1.7.1(@modelcontextprotocol/sdk@1.32.0(patch_hash=8ddd650062d401c1833a672fa7fffbbbb228101bbc01e6b2603c86fa93996377)(@cfworker/json-schema@4.1.1)(supports-color@9.1.0)(zod@4.6.7))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(zod@4.6.7)':
     dependencies:
-      '@modelcontextprotocol/sdk': 1.31.0(patch_hash=935d4f6b76220a0884ea03024e3d6d74da767c32abb5657c52905c25d440f4ac)(@cfworker/json-schema@4.1.1)(supports-color@9.1.0)(zod@4.6.7)
+      '@modelcontextprotocol/sdk': 1.32.0(patch_hash=8ddd650062d401c1833a672fa7fffbbbb228101bbc01e6b2603c86fa93996377)(@cfworker/json-schema@4.1.1)(supports-color@9.1.0)(zod@4.6.7)
       '@standard-schema/spec': 1.1.0
       zod: 4.6.7
     optionalDependencies:
       react: 19.3.0
       react-dom: 19.3.0(react@19.3.0)
 
-  '@modelcontextprotocol/sdk@1.31.0(patch_hash=935d4f6b76220a0884ea03024e3d6d74da767c32abb5657c52905c25d440f4ac)(@cfworker/json-schema@4.1.1)(supports-color@5.5.0)(zod@4.6.7)':
+  '@modelcontextprotocol/sdk@1.32.0(patch_hash=8ddd650062d401c1833a672fa7fffbbbb228101bbc01e6b2603c86fa93996377)(@cfworker/json-schema@4.1.1)(supports-color@5.5.0)(zod@4.6.7)':
     dependencies:
       '@hono/node-server': 1.19.9(hono@4.13.11)
       ajv: 8.18.0
@@ -19540,7 +19540,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@modelcontextprotocol/sdk@1.31.0(patch_hash=935d4f6b76220a0884ea03024e3d6d74da767c32abb5657c52905c25d440f4ac)(@cfworker/json-schema@4.1.1)(supports-color@9.1.0)(zod@4.6.7)':
+  '@modelcontextprotocol/sdk@1.32.0(patch_hash=8ddd650062d401c1833a672fa7fffbbbb228101bbc01e6b2603c86fa93996377)(@cfworker/json-schema@4.1.1)(supports-color@9.1.0)(zod@4.6.7)':
     dependencies:
       '@hono/node-server': 1.19.9(hono@4.13.11)
       ajv: 8.18.0
