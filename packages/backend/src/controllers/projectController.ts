@@ -1706,8 +1706,10 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
 
     /**
      * Estimated hit rate for the next longer cache durations, replayed from
-     * the last 30 days of queries. Requires project admin access.
+     * the queries in the selected period (last 7 or 30 days). Requires
+     * project admin access.
      * @summary Get results cache TTL projections
+     * @param days Number of days to replay: 7 (default) or 30
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -1716,11 +1718,16 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
     async getProjectResultsCacheTtlProjections(
         @Path() projectUuid: UUID,
         @Request() req: express.Request,
+        @Query() days?: number,
     ): Promise<ApiResultsCacheTtlProjectionsResponse> {
         assertRegisteredAccount(req.account);
         const results = await this.services
             .getAsyncQueryService()
-            .getResultsCacheTtlProjections(req.account, projectUuid);
+            .getResultsCacheTtlProjections(
+                req.account,
+                projectUuid,
+                parseResultsCacheStatsDays(days),
+            );
         return { status: 'ok', results };
     }
 

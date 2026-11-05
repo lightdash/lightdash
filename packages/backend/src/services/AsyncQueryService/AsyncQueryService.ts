@@ -391,7 +391,6 @@ import {
 import {
     buildResultsCacheTtlProjections,
     getTtlCandidates,
-    TTL_PROJECTION_DAYS,
     TTL_PROJECTION_MAX_RUNS,
 } from '../ResultsCacheStats/ttlProjections';
 import { mergeDraftIntoChart } from '../SavedChartsService/chartDraftOverlay';
@@ -17011,6 +17010,7 @@ export class AsyncQueryService extends ProjectService {
     async getResultsCacheTtlProjections(
         account: Account,
         projectUuid: string,
+        days: ResultsCacheStatsDays,
     ): Promise<ResultsCacheTtlProjections> {
         await this.assertCanViewResultsCacheStats(account, projectUuid);
         const currentTtlSeconds =
@@ -17023,7 +17023,7 @@ export class AsyncQueryService extends ProjectService {
         const { totals, runs } =
             await this.queryHistoryModel.getResultsCacheTtlReplayRows(
                 projectUuid,
-                TTL_PROJECTION_DAYS,
+                days,
                 TTL_PROJECTION_MAX_RUNS + 1,
             );
         return buildResultsCacheTtlProjections({

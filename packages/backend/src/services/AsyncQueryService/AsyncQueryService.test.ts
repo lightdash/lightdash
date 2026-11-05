@@ -30949,6 +30949,10 @@ describe('findResultsCache miss reasons', () => {
 describe('results cache stats', () => {
     const build = (canManage: boolean) => {
         const getResultsCacheRecommendationRows = vi.fn(async () => []);
+        const getResultsCacheTtlReplayRows = vi.fn(async () => ({
+            totals: { runs: 4, hits: 2 },
+            runs: [],
+        }));
         const service = getMockedAsyncQueryService(lightdashConfigMock, {
             queryHistoryModel: {
                 getResultsCacheContextStats: vi.fn(async () => [
@@ -30961,10 +30965,7 @@ describe('results cache stats', () => {
                     },
                 ]),
                 getResultsCacheRecommendationRows,
-                getResultsCacheTtlReplayRows: vi.fn(async () => ({
-                    totals: { runs: 4, hits: 2 },
-                    runs: [],
-                })),
+                getResultsCacheTtlReplayRows,
             } as unknown as QueryHistoryModel,
             projectModel: {
                 getSummary: vi.fn(async () => ({
@@ -30984,7 +30985,11 @@ describe('results cache stats', () => {
         ).mockReturnValue({
             cannot: (action: string) => action !== 'manage' || !canManage,
         });
-        return { service, getResultsCacheRecommendationRows };
+        return {
+            service,
+            getResultsCacheRecommendationRows,
+            getResultsCacheTtlReplayRows,
+        };
     };
 
     test('returns stats for project admins', async () => {
@@ -31026,10 +31031,35 @@ describe('results cache stats', () => {
             build(true).service.getResultsCacheTtlProjections(
                 buildAccount(),
                 'project',
+                7,
             ),
         ).resolves.toMatchObject({
             kind: 'projections',
             currentTtlSeconds: 86400,
         });
+    });
+
+    test('replays TTL projections over the selected period', async () => {
+        const { service, getResultsCacheTtlReplayRows } = build(true);
+        await service.getResultsCacheTtlProjections(
+            buildAccount(),
+            'project',
+            30,
+        );
+        expect(getResultsCacheTtlReplayRows).toHaveBeenCalledWith(
+            'project',
+            30,
+            expect.any(Number),
+        );
+    });
+
+    test('forbids TTL projections for users who cannot manage the project', async () => {
+        await expect(
+            build(false).service.getResultsCacheTtlProjections(
+                buildAccount(),
+                'project',
+                7,
+            ),
+        ).rejects.toThrow(ForbiddenError);
     });
 });

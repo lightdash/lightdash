@@ -13,7 +13,6 @@ export const TTL_PROJECTION_LADDER_SECONDS = [
     3 * DAY_SECONDS,
     7 * DAY_SECONDS,
 ];
-export const TTL_PROJECTION_DAYS = 30;
 export const TTL_PROJECTION_MAX_RUNS = 200_000;
 
 export type TtlReplayRun = {
