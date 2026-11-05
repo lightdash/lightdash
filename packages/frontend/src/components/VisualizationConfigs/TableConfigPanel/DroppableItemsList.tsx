@@ -47,6 +47,7 @@ const DroppableItemsList: FC<DroppableItemsListProps> = ({
                 <Stack
                     gap="xs"
                     ref={setNodeRef}
+                    data-pivot-list={droppableId}
                     mih={isDragging ? '30px' : undefined}
                     bg={
                         isDraggingOver
@@ -76,6 +77,7 @@ const DroppableItemsList: FC<DroppableItemsListProps> = ({
                                         wrap="nowrap"
                                         gap="xs"
                                         ref={sortable.ref}
+                                        data-pivot-item={itemId}
                                         // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                                         style={sortable.style}
                                         className={clsx(
