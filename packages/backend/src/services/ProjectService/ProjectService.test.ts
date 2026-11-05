@@ -4967,6 +4967,105 @@ describe('ProjectService', () => {
         });
     });
 
+    describe('warehouse added after project creation', () => {
+        const warehouselessProject = {
+            ...projectWithSensitiveFields,
+            warehouseConnection: undefined,
+        };
+
+        const saveAndTrack = async ({
+            savedProject = warehouselessProject,
+            organizationProjects = [],
+            newOnboardingEnabled = true,
+        }: {
+            savedProject?:
+                | typeof projectWithSensitiveFields
+                | typeof warehouselessProject;
+            organizationProjects?: Awaited<
+                ReturnType<ProjectModel['getAllByOrganizationUuid']>
+            >;
+            newOnboardingEnabled?: boolean;
+        }) => {
+            const trackingService = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+            );
+            vi.mocked(trackingService.featureFlagModel.get).mockImplementation(
+                async ({ featureFlagId }) => ({
+                    id: featureFlagId,
+                    enabled:
+                        featureFlagId === FeatureFlags.NewOnboarding &&
+                        newOnboardingEnabled,
+                }),
+            );
+            projectModel.getWithSensitiveFields.mockResolvedValueOnce(
+                savedProject,
+            );
+            projectModel.getAllByOrganizationUuid.mockResolvedValue(
+                organizationProjects,
+            );
+            const track = vi.spyOn(analyticsMock, 'trackAccount');
+            track.mockClear();
+            try {
+                await trackingService.updateWarehouseCredentials(
+                    savedProject.projectUuid,
+                    developerAccount,
+                    { warehouseConnection: warehouseClientMock.credentials },
+                );
+                return track.mock.calls
+                    .map(([, payload]) => payload)
+                    .filter(
+                        (payload) =>
+                            payload.event === 'onboarding.step_completed',
+                    );
+            } finally {
+                projectModel.getAllByOrganizationUuid.mockReset();
+                track.mockRestore();
+            }
+        };
+
+        test('completes the warehouse step for a warehouse-less project', async () => {
+            expect(await saveAndTrack({})).toEqual([
+                expect.objectContaining({
+                    properties: expect.objectContaining({
+                        step: 'warehouse_connected',
+                        organizationId: expect.any(String),
+                    }),
+                }),
+            ]);
+        });
+
+        test('stays quiet when the project already had a warehouse', async () => {
+            expect(
+                await saveAndTrack({
+                    savedProject: {
+                        ...projectWithSensitiveFields,
+                        warehouseConnection: warehouseClientMock.credentials,
+                    },
+                }),
+            ).toEqual([]);
+        });
+
+        test('stays quiet when another project already has a warehouse', async () => {
+            expect(
+                await saveAndTrack({
+                    organizationProjects: [
+                        {
+                            ...defaultProject,
+                            projectUuid: 'other-project-uuid',
+                            warehouseType: WarehouseTypes.SNOWFLAKE,
+                        },
+                    ],
+                }),
+            ).toEqual([]);
+        });
+
+        test('stays quiet in the legacy flow', async () => {
+            expect(await saveAndTrack({ newOnboardingEnabled: false })).toEqual(
+                [],
+            );
+        });
+    });
+
     describe('project.created analytics', () => {
         const creationUser: SessionUser = {
             ...user,

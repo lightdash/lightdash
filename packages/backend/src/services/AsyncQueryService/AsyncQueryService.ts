@@ -11957,6 +11957,7 @@ export class AsyncQueryService extends ProjectService {
     }: ExecuteAsyncApiQueryArgs): Promise<{ queryUuid: string }> {
         assertIsAccountWithOrg(account);
         await this.assertApiQuerySourcesEnabled(account);
+        await this.trackFirstQueryForAccount(account);
 
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -12037,6 +12038,19 @@ export class AsyncQueryService extends ProjectService {
      * Answers a metric query on a live data source explore with one call to
      * its integration. Callers MUST authorize the account for the explore.
      */
+    private async trackFirstQueryForAccount(account: Account): Promise<void> {
+        assertIsAccountWithOrg(account);
+        const { organizationUuid } = account.organization;
+        await this.trackFirstQuery(
+            account,
+            organizationUuid,
+            await this.getOnboardingFlow({
+                userUuid: account.user.id,
+                organizationUuid,
+            }),
+        );
+    }
+
     private async executePreparedApiSourceQuery(
         args: PreparedAsyncQueryArgs,
         requestParameters: ExecuteAsyncQueryRequestParams,
@@ -12071,6 +12085,7 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError('Live data sources are not enabled');
         }
         await this.assertApiQuerySourcesEnabled(account);
+        await this.trackFirstQueryForAccount(account);
 
         const metricQuery = queryComposer.getMetricQuery();
         const fields = queryComposer.getFields();
@@ -12712,6 +12727,8 @@ export class AsyncQueryService extends ProjectService {
         invalidateCache,
     }: ExecuteAsyncDuckdbSourceQueryArgs): Promise<{ queryUuid: string }> {
         assertIsAccountWithOrg(account);
+
+        await this.trackFirstQueryForAccount(account);
 
         const projectSummary = await this.projectModel.getSummary(projectUuid);
         const { organizationUuid } = projectSummary;
@@ -13394,6 +13411,7 @@ export class AsyncQueryService extends ProjectService {
         if (!composeSqlFlag.enabled) {
             throw new ForbiddenError('Compose SQL queries are not enabled');
         }
+        await this.trackFirstQueryForAccount(account);
 
         const projectSummary = await this.projectModel.getSummary(projectUuid);
         const { organizationUuid } = projectSummary;
