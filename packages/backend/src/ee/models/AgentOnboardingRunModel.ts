@@ -298,7 +298,7 @@ export class AgentOnboardingRunModel {
         )
             .where('agent_onboarding_run_uuid', agentOnboardingRunUuid)
             .where('status', 'running')
-            .update({ updated_at: new Date() });
+            .update({ updated_at: this.database.fn.now() as unknown as Date });
     }
 
     async markCancelled(agentOnboardingRunUuid: string): Promise<boolean> {

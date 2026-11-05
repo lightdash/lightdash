@@ -781,12 +781,6 @@ export type ProjectServiceArguments = {
         additionalMetrics: Set<string>;
     }>;
     getAiAgentService?: () => AiAgentService | undefined;
-    onProjectCreated?: (args: {
-        user: SessionUser;
-        projectUuid: string;
-        projectType: ProjectType;
-        provisioningSource?: InternalProvisioningSource;
-    }) => Promise<void>;
     provisionPlaygroundProject?: (args: {
         user: SessionUser;
         projectService: ProjectService;
@@ -995,8 +989,6 @@ export class ProjectService
 
     getAiAgentService: (() => AiAgentService | undefined) | undefined;
 
-    onProjectCreated: ProjectServiceArguments['onProjectCreated'];
-
     provisionPlaygroundProject: ProjectServiceArguments['provisionPlaygroundProject'];
 
     provisionTrainingProject: ProjectServiceArguments['provisionTrainingProject'];
@@ -1064,7 +1056,6 @@ export class ProjectService
         getAppGenerateService,
         getDataAppCustomSqlProvenance,
         getAiAgentService,
-        onProjectCreated,
         provisionPlaygroundProject,
         provisionTrainingProject,
         seedTrainingCopyEnterpriseContent,
@@ -1188,7 +1179,6 @@ export class ProjectService
         this.getAppGenerateService = getAppGenerateService;
         this.getDataAppCustomSqlProvenance = getDataAppCustomSqlProvenance;
         this.getAiAgentService = getAiAgentService;
-        this.onProjectCreated = onProjectCreated;
         this.provisionPlaygroundProject = provisionPlaygroundProject;
         this.provisionTrainingProject = provisionTrainingProject;
         this.seedTrainingCopyEnterpriseContent =
@@ -1506,21 +1496,6 @@ export class ProjectService
             projectType,
             provisioningSource,
         );
-
-        try {
-            await this.onProjectCreated?.({
-                user,
-                projectUuid,
-                projectType,
-                provisioningSource,
-            });
-        } catch (error) {
-            // Provisioning failures must not fail project creation
-            Sentry.captureException(error);
-            this.logger.error(
-                `Failed to run post-creation provisioning for project ${projectUuid}: ${error instanceof Error ? error.message : String(error)}`,
-            );
-        }
     }
 
     static getMetricQueryExecutionProperties({
