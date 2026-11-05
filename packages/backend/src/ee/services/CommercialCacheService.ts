@@ -4,6 +4,7 @@ import { type LightdashConfig } from '../../config/parseConfig';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
+import { getResultsCacheExpiryBufferMs } from '../../services/CacheService/expiryBuffer';
 import type {
     CacheServiceUser,
     ICacheService,
@@ -21,10 +22,6 @@ type CacheServiceDependencies = {
     storageClient: S3ResultsFileStorageClient;
     featureFlagModel: FeatureFlagModel;
 };
-
-// Buffer time to ensure cache doesn't expire while being fetched
-// This prevents queries from expiring during pagination requests
-const DEFAULT_CACHE_EXPIRY_BUFFER_MS = 10 * 60 * 1000; // 10 minutes in milliseconds
 
 export class CommercialCacheService implements ICacheService {
     private readonly lightdashConfig: LightdashConfig;
@@ -116,13 +113,9 @@ export class CommercialCacheService implements ICacheService {
 
         const staleTimeMilliseconds = staleTimeSeconds * 1000;
 
-        // If stale time is greater than quadruple default buffer, use default buffer
-        // Otherwise, use quarter of stale time
-        // This is to still allow any stale time to be used and keep a buffer for pagination requests
-        const expiryBuffer =
-            staleTimeMilliseconds > DEFAULT_CACHE_EXPIRY_BUFFER_MS * 4
-                ? DEFAULT_CACHE_EXPIRY_BUFFER_MS
-                : staleTimeMilliseconds / 4;
+        const expiryBuffer = getResultsCacheExpiryBufferMs(
+            staleTimeMilliseconds,
+        );
 
         const cacheExpiresAt = latestMatchingQuery?.resultsUpdatedAt
             ? new Date(
