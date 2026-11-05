@@ -118,6 +118,8 @@ minimumReleaseAgeExclude:
   - zod@4.6.6
   # Renovate security update: node-forge@1.4.1
   - node-forge@1.4.1
+  # Renovate security update: react-router@7.18.2
+  - react-router@7.18.2
 
 # pnpm 11 defaults verifyDepsBeforeRun to `install`, which re-verifies (and
 # reinstalls) node_modules before running any package script. The production
