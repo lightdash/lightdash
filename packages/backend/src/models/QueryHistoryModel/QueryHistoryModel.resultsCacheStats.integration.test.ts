@@ -257,6 +257,67 @@ describe('QueryHistoryModel results cache stats', () => {
         ).resolves.toEqual([]);
     });
 
+    test('a group with exactly minMisses passes and one fewer is hidden', async () => {
+        await insertRun({
+            minutesAgo: 50,
+            reason: ResultsCacheMissReason.EXPIRED,
+        });
+        await insertRun({
+            minutesAgo: 40,
+            reason: ResultsCacheMissReason.EXPIRED,
+        });
+        await insertRun({
+            minutesAgo: 30,
+            reason: ResultsCacheMissReason.EXPIRED,
+            withChart: false,
+        });
+
+        const rows = await model.getResultsCacheRecommendationRows(
+            projectUuid,
+            7,
+            thresholds,
+        );
+
+        expect(rows.map((row) => [row.chartKind, row.misses])).toEqual([
+            ['chart', 2],
+        ]);
+    });
+
+    test('a group with exactly minWarehouseTimeMs passes and 1 ms less is hidden', async () => {
+        await insertRun({
+            minutesAgo: 50,
+            reason: ResultsCacheMissReason.EXPIRED,
+            warehouseMs: 500,
+        });
+        await insertRun({
+            minutesAgo: 40,
+            reason: ResultsCacheMissReason.EXPIRED,
+            warehouseMs: 500,
+        });
+        await insertRun({
+            minutesAgo: 30,
+            reason: ResultsCacheMissReason.EXPIRED,
+            warehouseMs: 500,
+            withChart: false,
+        });
+        await insertRun({
+            minutesAgo: 20,
+            reason: ResultsCacheMissReason.EXPIRED,
+            warehouseMs: 499,
+            withChart: false,
+        });
+
+        const rows = await model.getResultsCacheRecommendationRows(
+            projectUuid,
+            7,
+            thresholds,
+        );
+
+        expect(rows.map((row) => [row.chartKind, row.warehouseTimeMs])).toEqual(
+            [['chart', 1000]],
+        );
+    });
+
     test('replay rows only cover keys with a miss after another run, ordered by key and time', async () => {
         await insertRun({ minutesAgo: 50, cacheKey: 'single' });
         await insertRun({ minutesAgo: 40, cacheKey: 'all-hits', hit: true });

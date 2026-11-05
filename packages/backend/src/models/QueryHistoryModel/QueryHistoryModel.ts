@@ -1347,10 +1347,15 @@ export class QueryHistoryModel {
         };
     }
 
-    // Counted cache runs: ready, non-bypassed, cache-eligible runs in the window.
-    private static readonly RESULTS_CACHE_RUNS_CTE = `runs AS (
-        SELECT
-            qh.context,
+    // Counted cache runs: ready, non-bypassed, cache-eligible runs since the cutoff.
+    private static readonly RESULTS_CACHE_RUN_FILTER = `qh.project_uuid = ?
+          AND qh.created_at >= ?
+          AND qh.status = 'ready'
+          AND qh.cache_key IS NOT NULL
+          AND strpos(qh.cache_key, '.') = 0
+          AND (qh.cache_miss_reason IS NULL OR qh.cache_miss_reason NOT IN ('${ResultsCacheMissReason.BYPASSED}', '${ResultsCacheMissReason.CACHE_DISABLED}'))`;
+
+    private static readonly RESULTS_CACHE_RUN_COLUMNS = `qh.context,
             qh.cache_key,
             qh.results_file_name,
             qh.results_created_at,
@@ -1358,18 +1363,28 @@ export class QueryHistoryModel {
             qh.cache_miss_reason,
             qh.cache_refresh_requested,
             COALESCE(qh.warehouse_execution_time_ms, 0) AS warehouse_ms,
-            COALESCE(qh.results_created_at < qh.created_at, false) AS is_hit,
+            COALESCE(qh.results_created_at < qh.created_at, false) AS is_hit`;
+
+    // Skips the JSON columns; use for aggregates that don't need chart targets.
+    private static readonly RESULTS_CACHE_RUNS_SLIM_CTE = `runs AS (
+        SELECT ${QueryHistoryModel.RESULTS_CACHE_RUN_COLUMNS}
+        FROM ${QueryHistoryTableName} qh
+        WHERE ${QueryHistoryModel.RESULTS_CACHE_RUN_FILTER}
+    )`;
+
+    private static readonly RESULTS_CACHE_RUNS_WITH_TARGETS_CTE = `runs AS (
+        SELECT
+            ${QueryHistoryModel.RESULTS_CACHE_RUN_COLUMNS},
             qh.request_parameters->>'chartUuid' AS chart_uuid,
             qh.request_parameters->>'savedSqlUuid' AS saved_sql_uuid,
             qh.metric_query->>'exploreName' AS explore_name
         FROM ${QueryHistoryTableName} qh
-        WHERE qh.project_uuid = ?
-          AND qh.created_at >= now() - make_interval(days => ?)
-          AND qh.status = 'ready'
-          AND qh.cache_key IS NOT NULL
-          AND strpos(qh.cache_key, '.') = 0
-          AND (qh.cache_miss_reason IS NULL OR qh.cache_miss_reason NOT IN ('${ResultsCacheMissReason.BYPASSED}', '${ResultsCacheMissReason.CACHE_DISABLED}'))
+        WHERE ${QueryHistoryModel.RESULTS_CACHE_RUN_FILTER}
     )`;
+
+    private static resultsCacheStatsCutoff(days: number): Date {
+        return new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    }
 
     async getResultsCacheContextStats(
         projectUuid: string,
@@ -1384,28 +1399,34 @@ export class QueryHistoryModel {
                 warehouse_time_saved_ms: number;
             }>;
         }>(
-            `WITH ${QueryHistoryModel.RESULTS_CACHE_RUNS_CTE}
+            `WITH ${QueryHistoryModel.RESULTS_CACHE_RUNS_SLIM_CTE},
+            producers AS (
+                SELECT DISTINCT ON (cache_key, results_file_name)
+                    cache_key, results_file_name, warehouse_execution_time_ms
+                FROM ${QueryHistoryTableName}
+                WHERE project_uuid = ?
+                  AND results_created_at >= created_at
+                  AND cache_key IN (SELECT cache_key FROM runs WHERE is_hit)
+                ORDER BY cache_key, results_file_name, created_at DESC
+            )
             SELECT
                 r.context,
                 count(*)::int AS runs,
                 (count(*) FILTER (WHERE r.is_hit))::int AS hits,
                 COALESCE(sum(r.warehouse_ms) FILTER (WHERE NOT r.is_hit), 0)::float8 AS warehouse_time_on_misses_ms,
-                COALESCE(sum(p.warehouse_execution_time_ms), 0)::float8 AS warehouse_time_saved_ms
+                COALESCE(sum(p.warehouse_execution_time_ms) FILTER (WHERE r.is_hit), 0)::float8 AS warehouse_time_saved_ms
             FROM runs r
-            LEFT JOIN LATERAL (
-                SELECT producer.warehouse_execution_time_ms
-                FROM ${QueryHistoryTableName} producer
-                WHERE r.is_hit
-                  AND producer.project_uuid = ?
-                  AND producer.cache_key = r.cache_key
-                  AND producer.results_file_name = r.results_file_name
-                  AND producer.results_created_at >= producer.created_at
-                ORDER BY producer.created_at DESC
-                LIMIT 1
-            ) p ON true
+            LEFT JOIN producers p
+                ON r.is_hit
+                AND p.cache_key = r.cache_key
+                AND p.results_file_name = r.results_file_name
             GROUP BY r.context
             ORDER BY r.context`,
-            [projectUuid, days, projectUuid],
+            [
+                projectUuid,
+                QueryHistoryModel.resultsCacheStatsCutoff(days),
+                projectUuid,
+            ],
         );
         return rows.map((row) => ({
             context: row.context,
@@ -1442,7 +1463,7 @@ export class QueryHistoryModel {
                 warehouse_time_ms: number;
             }>;
         }>(
-            `WITH ${QueryHistoryModel.RESULTS_CACHE_RUNS_CTE},
+            `WITH ${QueryHistoryModel.RESULTS_CACHE_RUNS_WITH_TARGETS_CTE},
             classified AS (
                 SELECT
                     r.*,
@@ -1489,7 +1510,7 @@ export class QueryHistoryModel {
             ORDER BY g.warehouse_time_ms DESC, g.target`,
             [
                 projectUuid,
-                days,
+                QueryHistoryModel.resultsCacheStatsCutoff(days),
                 scheduledContexts,
                 minMisses,
                 minShareOfRuns,
@@ -1515,11 +1536,12 @@ export class QueryHistoryModel {
         totals: { runs: number; hits: number };
         runs: TtlReplayRun[];
     }> {
+        const since = QueryHistoryModel.resultsCacheStatsCutoff(days);
         const [totalsResult, runsResult] = await Promise.all([
             this.database.raw<{ rows: Array<{ runs: number; hits: number }> }>(
-                `WITH ${QueryHistoryModel.RESULTS_CACHE_RUNS_CTE}
+                `WITH ${QueryHistoryModel.RESULTS_CACHE_RUNS_SLIM_CTE}
                 SELECT count(*)::int AS runs, (count(*) FILTER (WHERE is_hit))::int AS hits FROM runs`,
-                [projectUuid, days],
+                [projectUuid, since],
             ),
             this.database.raw<{
                 rows: Array<{
@@ -1531,7 +1553,7 @@ export class QueryHistoryModel {
                     warehouse_ms: number;
                 }>;
             }>(
-                `WITH ${QueryHistoryModel.RESULTS_CACHE_RUNS_CTE},
+                `WITH ${QueryHistoryModel.RESULTS_CACHE_RUNS_SLIM_CTE},
                 keys AS (
                     SELECT cache_key FROM runs
                     GROUP BY cache_key
@@ -1548,7 +1570,7 @@ export class QueryHistoryModel {
                 JOIN keys k ON k.cache_key = r.cache_key
                 ORDER BY r.cache_key, r.created_at
                 LIMIT ?`,
-                [projectUuid, days, limit],
+                [projectUuid, since, limit],
             ),
         ]);
         return {
