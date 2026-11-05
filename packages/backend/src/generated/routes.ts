@@ -13,6 +13,8 @@ import type {
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { AwsWebIdentityController } from './../controllers/awsWebIdentityController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { BigqueryController } from './../controllers/BigqueryController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { BigquerySSOController } from './../controllers/bigquerySSOController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { BigqueryWorkloadIdentityController } from './../controllers/bigqueryWorkloadIdentityController';
@@ -15620,6 +15622,105 @@ const models: TsoaRoute.Models = {
                         dataType: 'refAlias',
                         ref: 'ExternalConnectionApiUsage',
                     },
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSourceSchemaEvent: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                count: { dataType: 'double', required: true },
+                name: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSourceSchemaScan: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        requestedAt: { dataType: 'datetime', required: true },
+                        status: {
+                            dataType: 'enum',
+                            enums: ['pending'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        propertyKeys: {
+                            dataType: 'union',
+                            subSchemas: [
+                                {
+                                    dataType: 'array',
+                                    array: { dataType: 'string' },
+                                },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        eventsTruncated: {
+                            dataType: 'boolean',
+                            required: true,
+                        },
+                        events: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refAlias',
+                                ref: 'ApiSourceSchemaEvent',
+                            },
+                            required: true,
+                        },
+                        windowDays: { dataType: 'double', required: true },
+                        scannedAt: { dataType: 'datetime', required: true },
+                        status: {
+                            dataType: 'enum',
+                            enums: ['ready'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        error: { dataType: 'string', required: true },
+                        scannedAt: { dataType: 'datetime', required: true },
+                        status: {
+                            dataType: 'enum',
+                            enums: ['failed'],
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiExternalConnectionSchemaResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'ApiSourceSchemaScan' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
                     required: true,
                 },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
@@ -47220,6 +47321,11 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                starterQuestions: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
                 dashboardUrl: {
                     dataType: 'union',
                     subSchemas: [
@@ -63202,6 +63308,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['ingestExternalSource'] },
                 { dataType: 'enum', enums: ['ingestExternalSourceAttachment'] },
                 { dataType: 'enum', enums: ['maintainExternalSources'] },
+                { dataType: 'enum', enums: ['scanApiSourceSchema'] },
                 { dataType: 'enum', enums: ['sweepUnclaimedAiThreadFiles'] },
                 { dataType: 'enum', enums: ['mobilePushLiveActivityStart'] },
                 { dataType: 'enum', enums: ['mobilePushLiveActivity'] },
@@ -63259,6 +63366,7 @@ const models: TsoaRoute.Models = {
                 },
                 { dataType: 'enum', enums: ['reconcilePlaygroundBundles'] },
                 { dataType: 'enum', enums: ['backfillDefaultUserSpaces'] },
+                { dataType: 'enum', enums: ['warmWarehouseTablesCache'] },
                 { dataType: 'enum', enums: ['learnSandboxCommand'] },
             ],
             validators: {},
@@ -88540,6 +88648,7 @@ export function RegisterRoutes(app: Router) {
             name: 'connectionUuid',
             dataType: 'string',
         },
+        returnTo: { in: 'query', name: 'returnTo', dataType: 'string' },
     };
     app.get(
         '/api/v1/ee/projects/:projectUuid/live-sources/posthog/oauth/start',
@@ -89618,6 +89727,7 @@ export function RegisterRoutes(app: Router) {
             name: 'connectionUuid',
             dataType: 'string',
         },
+        returnTo: { in: 'query', name: 'returnTo', dataType: 'string' },
     };
     app.get(
         '/api/v1/ee/projects/:projectUuid/live-sources/google/oauth/start',
@@ -90736,6 +90846,73 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'getExternalConnectionApiUsage',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsExternalConnectionController_getExternalConnectionSchema: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        connectionUuid: {
+            in: 'path',
+            name: 'connectionUuid',
+            required: true,
+            dataType: 'string',
+        },
+    };
+    app.get(
+        '/api/v1/ee/projects/:projectUuid/external-connections/:connectionUuid/schema',
+        ...fetchMiddlewares<RequestHandler>(ExternalConnectionController),
+        ...fetchMiddlewares<RequestHandler>(
+            ExternalConnectionController.prototype.getExternalConnectionSchema,
+        ),
+
+        async function ExternalConnectionController_getExternalConnectionSchema(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsExternalConnectionController_getExternalConnectionSchema,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<ExternalConnectionController>(
+                        ExternalConnectionController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getExternalConnectionSchema',
                     controller,
                     response,
                     next,
@@ -110895,6 +111072,67 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'getActiveRun',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsOnboardingAgentController_getLatestRun: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+    };
+    app.get(
+        '/api/v1/ee/projects/:projectUuid/agent-onboarding/latest',
+        ...fetchMiddlewares<RequestHandler>(OnboardingAgentController),
+        ...fetchMiddlewares<RequestHandler>(
+            OnboardingAgentController.prototype.getLatestRun,
+        ),
+
+        async function OnboardingAgentController_getLatestRun(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsOnboardingAgentController_getLatestRun,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<OnboardingAgentController>(
+                        OnboardingAgentController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getLatestRun',
                     controller,
                     response,
                     next,
@@ -137321,6 +137559,7 @@ export function RegisterRoutes(app: Router) {
         TsoaRoute.ParameterSchema
     > = {
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        redirect: { in: 'query', name: 'redirect', dataType: 'string' },
     };
     app.get(
         '/api/v1/github/install',
@@ -145506,6 +145745,71 @@ export function RegisterRoutes(app: Router) {
                     next,
                     validatedArgs,
                     successStatus: undefined,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsBigqueryController_getBigQueryDatasetsFromKeyfile: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                keyfileContents: {
+                    ref: 'Record_string.unknown_',
+                    required: true,
+                },
+            },
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.post(
+        '/api/v1/bigquery/datasets',
+        ...fetchMiddlewares<RequestHandler>(BigqueryController),
+        ...fetchMiddlewares<RequestHandler>(
+            BigqueryController.prototype.getBigQueryDatasetsFromKeyfile,
+        ),
+
+        async function BigqueryController_getBigQueryDatasetsFromKeyfile(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsBigqueryController_getBigQueryDatasetsFromKeyfile,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<BigqueryController>(BigqueryController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getBigQueryDatasetsFromKeyfile',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
                 });
             } catch (err) {
                 return next(err);

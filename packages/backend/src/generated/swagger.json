@@ -16151,6 +16151,121 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ApiSourceSchemaEvent": {
+                "properties": {
+                    "count": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["count", "name"],
+                "type": "object"
+            },
+            "ApiSourceSchemaScan": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "requestedAt": {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": ["pending"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["requestedAt", "status"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "propertyKeys": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array",
+                                "nullable": true,
+                                "description": "Null when the property scan failed."
+                            },
+                            "eventsTruncated": {
+                                "type": "boolean"
+                            },
+                            "events": {
+                                "items": {
+                                    "$ref": "#/components/schemas/ApiSourceSchemaEvent"
+                                },
+                                "type": "array",
+                                "description": "Busiest first; capped, see eventsTruncated."
+                            },
+                            "windowDays": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "scannedAt": {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": ["ready"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "propertyKeys",
+                            "eventsTruncated",
+                            "events",
+                            "windowDays",
+                            "scannedAt",
+                            "status"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "error": {
+                                "type": "string"
+                            },
+                            "scannedAt": {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": ["failed"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["error", "scannedAt", "status"],
+                        "type": "object"
+                    }
+                ],
+                "description": "What a live source's schema scan found, kept so onboarding and the AI agent know its data up front."
+            },
+            "ApiExternalConnectionSchemaResponse": {
+                "properties": {
+                    "results": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ApiSourceSchemaScan"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Null when the connection was never scanned."
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ExternalConnectionLinkedApp": {
                 "properties": {
                     "aliases": {
@@ -42315,16 +42430,23 @@
             },
             "AgentOnboardingHandoff": {
                 "properties": {
+                    "starterQuestions": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
                     "dashboardUrl": {
                         "type": "string",
-                        "nullable": true
+                        "nullable": true,
+                        "description": "Set only by runs that build the starter dashboard"
                     },
                     "summary": {
                         "type": "string",
                         "nullable": true
                     }
                 },
-                "required": ["dashboardUrl", "summary"],
+                "required": ["starterQuestions", "dashboardUrl", "summary"],
                 "type": "object"
             },
             "AgentOnboardingUsage": {
@@ -57700,6 +57822,7 @@
                     "ingestExternalSource",
                     "ingestExternalSourceAttachment",
                     "maintainExternalSources",
+                    "scanApiSourceSchema",
                     "sweepUnclaimedAiThreadFiles",
                     "mobilePushLiveActivityStart",
                     "mobilePushLiveActivity",
@@ -57748,6 +57871,7 @@
                     "cleanAgentConnectionApprovalRequests",
                     "reconcilePlaygroundBundles",
                     "backfillDefaultUserSpaces",
+                    "warmWarehouseTablesCache",
                     "learnSandboxCommand"
                 ]
             },
@@ -75663,7 +75787,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.156.2",
+        "version": "3.157.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -91156,6 +91280,46 @@
                 },
                 "description": "Get the agent onboarding run that is currently queued or running for a\nproject, if any.",
                 "summary": "Get active agent onboarding run",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/ee/projects/{projectUuid}/agent-onboarding/latest": {
+            "get": {
+                "operationId": "getLatestAgentOnboardingRun",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAgentOnboardingActiveRunResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the most recent agent onboarding run for a project, finished or not.",
+                "summary": "Get latest agent onboarding run",
                 "security": [],
                 "parameters": [
                     {
@@ -109961,7 +110125,17 @@
                 "description": "Install the Lightdash GitHub App and link to an organization",
                 "summary": "Install GitHub App",
                 "security": [],
-                "parameters": []
+                "parameters": [
+                    {
+                        "description": "Optional app path to return to after installation",
+                        "in": "query",
+                        "name": "redirect",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/github/user/authorize": {
@@ -116385,6 +116559,54 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/bigquery/datasets": {
+            "post": {
+                "operationId": "GetBigQueryDatasetsFromKeyfile",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiBigqueryDatasets"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List the datasets a service account key can see, before a project exists",
+                "summary": "List BigQuery datasets for a key file",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "keyfileContents": {
+                                        "$ref": "#/components/schemas/Record_string.unknown_"
+                                    }
+                                },
+                                "required": ["keyfileContents"],
+                                "type": "object"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v2/user/agent-connections/requests": {

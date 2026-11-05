@@ -1,3 +1,18 @@
+# [3.157.0](https://github.com/lightdash/lightdash/compare/3.156.2...3.157.0) (2026-11-05)
+
+
+### Features
+
+* **onboarding:** agent run screens ([#32075](https://github.com/lightdash/lightdash/issues/32075)) ([095fecc](https://github.com/lightdash/lightdash/commit/095feccbc589db01cb1b8a2ea282e118e08b8d03))
+* **onboarding:** connect your data step ([#32074](https://github.com/lightdash/lightdash/issues/32074)) ([377f371](https://github.com/lightdash/lightdash/commit/377f371d8b7719a08be847f3fac4892d90b81bbf))
+* **onboarding:** new sign up and organization setup screens ([#32073](https://github.com/lightdash/lightdash/issues/32073)) ([e2fff72](https://github.com/lightdash/lightdash/commit/e2fff722d9caa8fa9e3359ceaf9f94b40bb8810f))
+* **onboarding:** query live sources in a project without a warehouse ([#32083](https://github.com/lightdash/lightdash/issues/32083)) ([993ec4e](https://github.com/lightdash/lightdash/commit/993ec4ecb2fdfb6f62bdc9e89ec616e4c0b8e4b1))
+* **onboarding:** run the onboarding agent on request and scan live sources ([#32072](https://github.com/lightdash/lightdash/issues/32072)) ([eb4ac45](https://github.com/lightdash/lightdash/commit/eb4ac456333c4de4fe91894f25e60ae616959389))
+* **onboarding:** setup guide on the default homepage ([#32077](https://github.com/lightdash/lightdash/issues/32077)) ([9806e97](https://github.com/lightdash/lightdash/commit/9806e97051f6e732f9367bb67e68921aa8501c7c))
+* **onboarding:** start with PostHog and connect a warehouse later ([#32084](https://github.com/lightdash/lightdash/issues/32084)) ([063b243](https://github.com/lightdash/lightdash/commit/063b24370d7ed80260f671307c3e5fe7a502dd64))
+* **onboarding:** tools, team and done steps ([#32076](https://github.com/lightdash/lightdash/issues/32076)) ([313e5f6](https://github.com/lightdash/lightdash/commit/313e5f6e05f2f2077803e44172d60bb7c0616017))
+* **onboarding:** track the onboarding funnel on the backend ([#32071](https://github.com/lightdash/lightdash/issues/32071)) ([8011c28](https://github.com/lightdash/lightdash/commit/8011c289da1311bdbe923c5611c3586f607f1369))
+
 ## [3.156.2](https://github.com/lightdash/lightdash/compare/3.156.1...3.156.2) (2026-11-05)
 
 
