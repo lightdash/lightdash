@@ -26,6 +26,8 @@ import {
     QueryLanguage,
     QueryResultProducer,
     QueryTrigger,
+    ResultsCacheMissReason,
+    ResultsCacheStatsMissReason,
     sleep,
     SQL_LANGUAGE_REQUEST_PARAMETER_KEYS,
     type AgentConnectionGrantRef,
@@ -45,6 +47,11 @@ import {
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import { SavedSqlTableName } from '../../database/entities/savedSql';
 import KnexPaginate from '../../database/pagination';
+import type {
+    ResultsCacheContextStatsRow,
+    ResultsCacheRecommendationRow,
+} from '../../services/ResultsCacheStats/resultsCacheStats';
+import type { TtlReplayRun } from '../../services/ResultsCacheStats/ttlProjections';
 import {
     pauseBetweenBatchesMs,
     type RetentionCleanupOptions,
@@ -1337,6 +1344,223 @@ export class QueryHistoryModel {
             warehouseTimeMsLast7Days: Number(
                 windowRow?.warehouseTimeMsLast7Days ?? 0,
             ),
+        };
+    }
+
+    // Counted cache runs: ready, non-bypassed, cache-eligible runs in the window.
+    private static readonly RESULTS_CACHE_RUNS_CTE = `runs AS (
+        SELECT
+            qh.context,
+            qh.cache_key,
+            qh.results_file_name,
+            qh.results_created_at,
+            qh.created_at,
+            qh.cache_miss_reason,
+            qh.cache_refresh_requested,
+            COALESCE(qh.warehouse_execution_time_ms, 0) AS warehouse_ms,
+            COALESCE(qh.results_created_at < qh.created_at, false) AS is_hit,
+            qh.request_parameters->>'chartUuid' AS chart_uuid,
+            qh.request_parameters->>'savedSqlUuid' AS saved_sql_uuid,
+            qh.metric_query->>'exploreName' AS explore_name
+        FROM ${QueryHistoryTableName} qh
+        WHERE qh.project_uuid = ?
+          AND qh.created_at >= now() - make_interval(days => ?)
+          AND qh.status = 'ready'
+          AND qh.cache_key IS NOT NULL
+          AND strpos(qh.cache_key, '.') = 0
+          AND (qh.cache_miss_reason IS NULL OR qh.cache_miss_reason NOT IN ('${ResultsCacheMissReason.BYPASSED}', '${ResultsCacheMissReason.CACHE_DISABLED}'))
+    )`;
+
+    async getResultsCacheContextStats(
+        projectUuid: string,
+        days: number,
+    ): Promise<ResultsCacheContextStatsRow[]> {
+        const { rows } = await this.database.raw<{
+            rows: Array<{
+                context: string | null;
+                runs: number;
+                hits: number;
+                warehouse_time_on_misses_ms: number;
+                warehouse_time_saved_ms: number;
+            }>;
+        }>(
+            `WITH ${QueryHistoryModel.RESULTS_CACHE_RUNS_CTE}
+            SELECT
+                r.context,
+                count(*)::int AS runs,
+                (count(*) FILTER (WHERE r.is_hit))::int AS hits,
+                COALESCE(sum(r.warehouse_ms) FILTER (WHERE NOT r.is_hit), 0)::float8 AS warehouse_time_on_misses_ms,
+                COALESCE(sum(p.warehouse_execution_time_ms), 0)::float8 AS warehouse_time_saved_ms
+            FROM runs r
+            LEFT JOIN LATERAL (
+                SELECT producer.warehouse_execution_time_ms
+                FROM ${QueryHistoryTableName} producer
+                WHERE r.is_hit
+                  AND producer.project_uuid = ?
+                  AND producer.cache_key = r.cache_key
+                  AND producer.results_file_name = r.results_file_name
+                  AND producer.results_created_at >= producer.created_at
+                ORDER BY producer.created_at DESC
+                LIMIT 1
+            ) p ON true
+            GROUP BY r.context
+            ORDER BY r.context`,
+            [projectUuid, days, projectUuid],
+        );
+        return rows.map((row) => ({
+            context: row.context,
+            runs: row.runs,
+            hits: row.hits,
+            warehouseTimeOnMissesMs: row.warehouse_time_on_misses_ms,
+            warehouseTimeSavedMs: row.warehouse_time_saved_ms,
+        }));
+    }
+
+    async getResultsCacheRecommendationRows(
+        projectUuid: string,
+        days: number,
+        {
+            scheduledContexts,
+            minMisses,
+            minShareOfRuns,
+            minWarehouseTimeMs,
+        }: {
+            scheduledContexts: string[];
+            minMisses: number;
+            minShareOfRuns: number;
+            minWarehouseTimeMs: number;
+        },
+    ): Promise<ResultsCacheRecommendationRow[]> {
+        const { rows } = await this.database.raw<{
+            rows: Array<{
+                reason: ResultsCacheStatsMissReason;
+                chart_kind: 'chart' | 'sqlChart' | 'explore';
+                target: string;
+                name: string | null;
+                slug: string | null;
+                misses: number;
+                warehouse_time_ms: number;
+            }>;
+        }>(
+            `WITH ${QueryHistoryModel.RESULTS_CACHE_RUNS_CTE},
+            classified AS (
+                SELECT
+                    r.*,
+                    CASE
+                        WHEN NOT r.cache_refresh_requested AND r.cache_miss_reason = '${ResultsCacheMissReason.EXPIRED}' THEN '${ResultsCacheStatsMissReason.EXPIRED}'
+                        WHEN NOT r.cache_refresh_requested AND r.cache_miss_reason = '${ResultsCacheMissReason.CLEARED}' THEN '${ResultsCacheStatsMissReason.CLEARED}'
+                        WHEN r.cache_refresh_requested AND r.cache_miss_reason IS NULL AND r.context = ANY(?::text[]) THEN '${ResultsCacheStatsMissReason.SCHEDULED_REFRESH}'
+                    END AS reason,
+                    CASE
+                        WHEN r.chart_uuid IS NOT NULL THEN 'chart'
+                        WHEN r.saved_sql_uuid IS NOT NULL THEN 'sqlChart'
+                        WHEN r.explore_name IS NOT NULL THEN 'explore'
+                    END AS chart_kind,
+                    COALESCE(r.chart_uuid, r.saved_sql_uuid, r.explore_name) AS target
+                FROM runs r
+            ),
+            target_runs AS (
+                SELECT chart_kind, target, count(*) AS runs
+                FROM classified
+                WHERE target IS NOT NULL
+                GROUP BY chart_kind, target
+            ),
+            grouped AS (
+                SELECT reason, chart_kind, target, count(*)::int AS misses, sum(warehouse_ms)::float8 AS warehouse_time_ms
+                FROM classified
+                WHERE NOT is_hit AND reason IS NOT NULL AND target IS NOT NULL
+                GROUP BY reason, chart_kind, target
+            )
+            SELECT
+                g.reason,
+                g.chart_kind,
+                g.target,
+                COALESCE(sq.name, ss.name) AS name,
+                ss.slug AS slug,
+                g.misses,
+                g.warehouse_time_ms
+            FROM grouped g
+            JOIN target_runs t ON t.chart_kind = g.chart_kind AND t.target = g.target
+            LEFT JOIN ${SavedChartsTableName} sq ON g.chart_kind = 'chart' AND sq.saved_query_uuid::text = g.target AND sq.deleted_at IS NULL
+            LEFT JOIN ${SavedSqlTableName} ss ON g.chart_kind = 'sqlChart' AND ss.saved_sql_uuid::text = g.target AND ss.deleted_at IS NULL
+            WHERE g.misses >= ?
+              AND g.misses >= ?::float8 * t.runs
+              AND g.warehouse_time_ms >= ?
+            ORDER BY g.warehouse_time_ms DESC, g.target`,
+            [
+                projectUuid,
+                days,
+                scheduledContexts,
+                minMisses,
+                minShareOfRuns,
+                minWarehouseTimeMs,
+            ],
+        );
+        return rows.map((row) => ({
+            reason: row.reason,
+            chartKind: row.chart_kind,
+            target: row.target,
+            name: row.name,
+            slug: row.slug,
+            misses: row.misses,
+            warehouseTimeMs: row.warehouse_time_ms,
+        }));
+    }
+
+    async getResultsCacheTtlReplayRows(
+        projectUuid: string,
+        days: number,
+        limit: number,
+    ): Promise<{
+        totals: { runs: number; hits: number };
+        runs: TtlReplayRun[];
+    }> {
+        const [totalsResult, runsResult] = await Promise.all([
+            this.database.raw<{ rows: Array<{ runs: number; hits: number }> }>(
+                `WITH ${QueryHistoryModel.RESULTS_CACHE_RUNS_CTE}
+                SELECT count(*)::int AS runs, (count(*) FILTER (WHERE is_hit))::int AS hits FROM runs`,
+                [projectUuid, days],
+            ),
+            this.database.raw<{
+                rows: Array<{
+                    cache_key: string;
+                    created_at: Date;
+                    results_created_at: Date | null;
+                    is_hit: boolean;
+                    forced_miss: boolean;
+                    warehouse_ms: number;
+                }>;
+            }>(
+                `WITH ${QueryHistoryModel.RESULTS_CACHE_RUNS_CTE},
+                keys AS (
+                    SELECT cache_key FROM runs
+                    GROUP BY cache_key
+                    HAVING count(*) > 1 AND bool_or(NOT is_hit)
+                )
+                SELECT
+                    r.cache_key,
+                    r.created_at,
+                    r.results_created_at,
+                    r.is_hit,
+                    (r.cache_refresh_requested OR COALESCE(r.cache_miss_reason IN ('${ResultsCacheMissReason.CLEARED}', '${ResultsCacheMissReason.ACCESS_RESTRICTED}'), false)) AS forced_miss,
+                    r.warehouse_ms::float8 AS warehouse_ms
+                FROM runs r
+                JOIN keys k ON k.cache_key = r.cache_key
+                ORDER BY r.cache_key, r.created_at
+                LIMIT ?`,
+                [projectUuid, days, limit],
+            ),
+        ]);
+        return {
+            totals: totalsResult.rows[0] ?? { runs: 0, hits: 0 },
+            runs: runsResult.rows.map((row) => ({
+                cacheKey: row.cache_key,
+                createdAt: row.created_at,
+                resultsCreatedAt: row.results_created_at,
+                isHit: row.is_hit,
+                forcedMiss: row.forced_miss,
+                warehouseTimeMs: row.warehouse_ms,
+            })),
         };
     }
 }
