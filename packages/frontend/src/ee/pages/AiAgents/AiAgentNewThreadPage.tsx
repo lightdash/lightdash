@@ -88,9 +88,9 @@ const agentTourProps = {
     'data-tour-step': '1',
     'data-tour-route': '/projects/:projectUuid/ai-agents/:agentUuid',
     'data-tour-label': 'Your agent is ready to ask',
-    'data-tour-docs': 'agents/set-up-agents.mdx#intro:1',
+    'data-tour-docs': 'agents/set-up-agents.mdx#intro',
     'data-tour-return': 'none',
-    'data-tour-resultdocs': 'agents/set-up-agents.mdx#data-access:1',
+    'data-tour-resultdocs': 'agents/data-access.mdx#intro:2',
 };
 
 const battleProfileA: Record<BattleType, AiAgentBattleProfile | undefined> = {
@@ -436,9 +436,9 @@ const AiAgentNewThreadPage: FC = () => {
                         data-tour-step="1"
                         data-tour-route="/projects/:projectUuid/ai-agents/:agentUuid"
                         data-tour-label="Explore an AI agent"
-                        data-tour-docs="agents.mdx#intro:1"
+                        data-tour-docs="agents.mdx#intro:2"
                         data-tour-return="none"
-                        data-tour-resultdocs="agents/use-ai-agents.mdx#core-capabilities:li1"
+                        data-tour-resultdocs="agents.mdx#ask-more-questions:p1:3"
                     >
                         <Box className={styles.agentAvatarWrap}>
                             <LightdashUserAvatar
@@ -498,7 +498,7 @@ const AiAgentNewThreadPage: FC = () => {
                                 data-tour-scope="view:AiAgent"
                                 data-tour-result="1"
                                 data-tour-label="Read the agent description"
-                                data-tour-docs="agents/effective-analytics-with-agents.mdx#think-specialized-not-general:1"
+                                data-tour-docs="agents/effective-analytics-with-agents.mdx#think-specialized-not-general:p3:2"
                             >
                                 {agent.description}
                             </Text>

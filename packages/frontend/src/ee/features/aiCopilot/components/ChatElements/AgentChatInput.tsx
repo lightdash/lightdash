@@ -1620,7 +1620,7 @@ export const AgentChatInput = ({
                 data-tour-title="Ask an AI agent"
                 data-tour-interactive="true"
                 data-tour-via='[data-tour-nav="ask-ai"] >> [data-tour-anchor="ai-suggestion"]'
-                data-tour-docs="agents.mdx#intro:2"
+                data-tour-docs="agents/data-access.mdx#who-can-see-what:p4:2-3"
                 disabled={
                     disabled ||
                     !hasValue ||
