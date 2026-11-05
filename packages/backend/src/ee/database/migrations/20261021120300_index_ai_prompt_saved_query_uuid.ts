@@ -29,7 +29,7 @@ async function changeIndex(
 
         try {
             await knex.raw('SET statement_timeout = 0').connection(connection);
-            await knex.raw("SET lock_timeout = '5s'").connection(connection);
+            await knex.raw("SET lock_timeout = 0").connection(connection);
             if (direction === 'up') {
                 const invalid = await knex
                     .raw<{ rows: { invalid: boolean }[] }>(
