@@ -11,6 +11,7 @@ import { useEffect } from 'react';
 import { useLocalStorage } from 'react-use';
 import { useChartTypesEnabled } from '../../../../../features/chartTypes/hooks/useChartTypesEnabled';
 import { useDataAppVisualizations } from '../../../../../features/chartTypes/hooks/useDataAppVisualizations';
+import { useRegistryChartTypes } from '../../../../../features/chartTypes/hooks/useRegistryChartTypes';
 import { useExternalConnections } from '../../../../../features/externalConnections/hooks/useExternalConnections';
 import { useExternalSources } from '../../../../../features/externalSources/hooks/useExternalSources';
 import { getSemanticStudioUrl } from '../../../../../features/semanticStudio/urls';
@@ -122,6 +123,9 @@ export const useSetupGuide = (
     const chartCount = charts.data
         ? (charts.data.pages[0]?.pagination?.totalResults ?? 0)
         : null;
+    const canSuggestChartTypes =
+        isEligible && chartTypesEnabled.enabled && (chartCount ?? 0) > 0;
+    const registry = useRegistryChartTypes(projectUuid, canSuggestChartTypes);
     const completedRun =
         latestRun.data?.status === 'completed' ? latestRun.data : null;
     const semanticExplores = (explores.data ?? []).filter(
@@ -163,6 +167,10 @@ export const useSetupGuide = (
         teammateCount: (users.data ?? []).filter(
             (member) => member.userUuid !== userUuid,
         ).length,
+        libraryChartTypes:
+            canSuggestChartTypes && registry.data?.registryEnabled
+                ? registry.data.charts
+                : null,
     });
 
     return {

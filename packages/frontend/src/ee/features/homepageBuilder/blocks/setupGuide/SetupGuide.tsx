@@ -39,6 +39,7 @@ import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import { HomepageTour } from '../../onboarding';
 import { type RecommendedActionsState } from '../useRecommendedActions';
+import { ChartTypeSuggestions } from './ChartTypeSuggestions';
 import classes from './SetupGuide.module.css';
 import {
     countProgress,
@@ -226,7 +227,11 @@ const GuideRow: FC<
             disabled={!canPreview}
             position="right-start"
             offset={24}
-            width={row.choices.length > 0 ? 360 : 280}
+            width={
+                row.choices.length > 0 || row.preview?.kind === 'chart-types'
+                    ? 360
+                    : 280
+            }
             openDelay={120}
             closeDelay={80}
         >
@@ -294,6 +299,12 @@ const GuideRow: FC<
                             ))}
                         </Box>
                     </Box>
+                ) : row.preview?.kind === 'chart-types' && action ? (
+                    <ChartTypeSuggestions
+                        projectUuid={projectUuid}
+                        chartTypes={row.preview.chartTypes}
+                        libraryUrl={action.to}
+                    />
                 ) : (
                     <>
                         <StepArt

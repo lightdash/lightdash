@@ -179,3 +179,15 @@
         animation: none;
     }
 }
+
+.chartTypeThumb {
+    flex: 0 0 auto;
+    width: rem(48px);
+    height: rem(32px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    object-fit: cover;
+    border-radius: var(--mantine-radius-sm);
+    background: var(--mantine-color-ldGray-0);
+}
