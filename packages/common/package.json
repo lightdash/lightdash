@@ -12,6 +12,16 @@
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
   "types": "dist/esm/index.d.ts",
+  "sideEffects": [
+    "./dist/*/index.js",
+    "./dist/*/utils/formatting.js",
+    "./dist/*/utils/metricsExplorer.js",
+    "./dist/*/visualizations/helpers/tooltipFormatter.js",
+    "./src/index.ts",
+    "./src/utils/formatting.ts",
+    "./src/utils/metricsExplorer.ts",
+    "./src/visualizations/helpers/tooltipFormatter.ts"
+  ],
   "exports": {
     ".": {
       "types": "./dist/esm/index.d.ts",
