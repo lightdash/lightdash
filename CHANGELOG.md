@@ -1,3 +1,10 @@
+## [3.165.2](https://github.com/lightdash/lightdash/compare/3.165.1...3.165.2) (2026-11-05)
+
+
+### Bug Fixes
+
+* refuse web generation on Slack-origin AI agent threads ([#32126](https://github.com/lightdash/lightdash/issues/32126)) ([8e12b9d](https://github.com/lightdash/lightdash/commit/8e12b9d3ad8d1c5785de566bedf2b6355991d538))
+
 ## [3.165.1](https://github.com/lightdash/lightdash/compare/3.165.0...3.165.1) (2026-11-05)
 
 
