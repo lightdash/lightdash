@@ -1,3 +1,10 @@
+## [3.156.1](https://github.com/lightdash/lightdash/compare/3.156.0...3.156.1) (2026-11-05)
+
+
+### Performance Improvements
+
+* avoid redundant analytics file signing ([#32093](https://github.com/lightdash/lightdash/issues/32093)) ([2eba121](https://github.com/lightdash/lightdash/commit/2eba121e79787b10cc34c041a78f21731301b666))
+
 # [3.156.0](https://github.com/lightdash/lightdash/compare/3.155.0...3.156.0) (2026-11-05)
 
 
