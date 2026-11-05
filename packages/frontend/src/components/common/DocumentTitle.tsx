@@ -27,10 +27,8 @@ const setAppName = (name: string | null) => {
 };
 
 export const BrandedAppNameSync: FC = () => {
-    const { brand, isResolved } = useWhiteLabelBrand();
-    const brandName = isResolved
-        ? brand?.name?.trim() || DEFAULT_APP_NAME
-        : null;
+    const { name, isResolved } = useWhiteLabelBrand();
+    const brandName = isResolved ? name || DEFAULT_APP_NAME : null;
     useEffect(() => {
         setAppName(brandName);
     }, [brandName]);

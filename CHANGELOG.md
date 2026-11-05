@@ -1,3 +1,32 @@
+# [3.155.0](https://github.com/lightdash/lightdash/compare/3.154.3...3.155.0) (2026-11-05)
+
+
+### Features
+
+* instance logo and name for signed-out pages and bookmarks ([#32049](https://github.com/lightdash/lightdash/issues/32049)) ([c45eb12](https://github.com/lightdash/lightdash/commit/c45eb12d1d8424bb89522ba5c036ecca57c9e9e3))
+
+## [3.154.3](https://github.com/lightdash/lightdash/compare/3.154.2...3.154.3) (2026-11-05)
+
+
+### Bug Fixes
+
+* **learn:** repair canonical Agents references ([#32087](https://github.com/lightdash/lightdash/issues/32087)) ([917e254](https://github.com/lightdash/lightdash/commit/917e254825d682bba8a81f8e875494b20a749a76))
+
+## [3.154.2](https://github.com/lightdash/lightdash/compare/3.154.1...3.154.2) (2026-11-05)
+
+
+### Bug Fixes
+
+* **release:** wait for npm availability ([#31889](https://github.com/lightdash/lightdash/issues/31889)) ([e4467f5](https://github.com/lightdash/lightdash/commit/e4467f53db618703151441d7fb36d2f4b0c47dbf))
+
+## [3.154.1](https://github.com/lightdash/lightdash/compare/3.154.0...3.154.1) (2026-11-05)
+
+
+### Bug Fixes
+
+* **ai:** name shared schema definitions ([#31892](https://github.com/lightdash/lightdash/issues/31892)) ([7ea3792](https://github.com/lightdash/lightdash/commit/7ea37927eac75ed19c045271cad6b7fa2516699f))
+* **deps:** upgrade Zod to 4.6.7 ([#31894](https://github.com/lightdash/lightdash/issues/31894)) ([d9943fd](https://github.com/lightdash/lightdash/commit/d9943fde20a8dfec236873f5776bfb7b434354f7))
+
 # [3.154.0](https://github.com/lightdash/lightdash/compare/3.153.1...3.154.0) (2026-11-04)
 
 

@@ -96,3 +96,33 @@ export const isSquareBrandLogo = (width: number, height: number): boolean =>
     width > 0 &&
     height > 0 &&
     Math.abs(width - height) <= Math.max(width, height) * 0.01;
+
+export type InstanceBrand = {
+    logoUrl: string | null;
+    name: string | null;
+};
+
+const BRAND_LOGO_TYPE_PRIORITY = ['symbol', 'icon', 'logo'];
+
+const rankIndex = (values: string[], value: string | null) => {
+    const index = value === null ? -1 : values.indexOf(value);
+    return index === -1 ? values.length : index;
+};
+
+export const rankBrandLogos = (
+    logos: OrganizationBrandLogo[],
+): OrganizationBrandLogo[] => {
+    const primary = logos.filter(
+        (logo) => logo.theme === 'dark' || logo.theme === null,
+    );
+    return [...(primary.length > 0 ? primary : logos)].sort(
+        (a, b) =>
+            rankIndex(BRAND_LOGO_TYPE_PRIORITY, a.type) -
+                rankIndex(BRAND_LOGO_TYPE_PRIORITY, b.type) ||
+            rankIndex(['svg'], a.format) - rankIndex(['svg'], b.format),
+    );
+};
+
+export const pickBrandLogo = (
+    logos: OrganizationBrandLogo[],
+): OrganizationBrandLogo | null => rankBrandLogos(logos)[0] ?? null;
