@@ -907,7 +907,7 @@ describe('ChartTypeGallery', () => {
             screen.getByText(/Chart types are new ways to draw your data/),
         ).toBeInTheDocument();
         expect(
-            screen.queryByPlaceholderText('Search chart types'),
+            screen.queryByRole('button', { name: 'Search chart types' }),
         ).not.toBeInTheDocument();
     });
 
@@ -915,6 +915,9 @@ describe('ChartTypeGallery', () => {
         setData([makeDataAppViz({})]);
         renderPage();
 
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Search chart types' }),
+        );
         fireEvent.change(screen.getByPlaceholderText('Search chart types'), {
             target: { value: 'prog' },
         });

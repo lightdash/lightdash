@@ -34,6 +34,8 @@ import ChartTypeUpgradeAllModal from './ChartTypeUpgradeAllModal';
 type Props = {
     projectUuid: string;
     withHeader?: boolean;
+    /** The page shows its own hint in the toolbar instead. */
+    withIntro?: boolean;
     onShowInstalled?: (appUuid: string) => void;
     /** Called after a successful install with the installed app's uuid. */
     onInstalled?: (appUuid: string) => void;
@@ -48,6 +50,7 @@ type Props = {
 const ChartTypeLibrarySection: FC<Props> = ({
     projectUuid,
     withHeader = true,
+    withIntro = true,
     onShowInstalled,
     onInstalled,
 }) => {
@@ -215,10 +218,12 @@ const ChartTypeLibrarySection: FC<Props> = ({
                 </Stack>
             )}
 
-            <Text fz="sm" c="dimmed" lh={1.5}>
-                Ready-made chart types, kept up to date for you. Install one and
-                anyone in this project can pick it in the explorer.
-            </Text>
+            {withIntro && (
+                <Text fz="sm" c="dimmed" lh={1.5}>
+                    Ready-made chart types, kept up to date for you. Install one
+                    and anyone in this project can pick it in the explorer.
+                </Text>
+            )}
 
             {registryQuery.isInitialLoading ? (
                 <ChartTypeCardSkeletons label="Loading the chart type library" />

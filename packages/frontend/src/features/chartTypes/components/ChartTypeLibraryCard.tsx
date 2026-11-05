@@ -10,7 +10,6 @@ import { PolymorphicPaperButton } from '../../../components/common/PolymorphicPa
 import { useAppColorScheme } from '../../../providers/ColorSchemeContext';
 import { registryThumbnailPath } from '../utils/registryAssetUrl';
 import classes from './ChartTypeLibraryCard.module.css';
-import ChartTypeReleaseStageBadge from './ChartTypeReleaseStageBadge';
 import OfficialChartTypeBadge from './OfficialChartTypeBadge';
 import RegistryAssetImage from './RegistryAssetImage';
 
@@ -86,7 +85,6 @@ const ChartTypeLibraryCard: FC<Props> = ({ item, onClick }) => {
                         {item.name}
                     </Text>
                     <Group gap={4} wrap="nowrap" flex="0 0 auto">
-                        <ChartTypeReleaseStageBadge stage={item.releaseStage} />
                         <OfficialChartTypeBadge />
                     </Group>
                 </Group>

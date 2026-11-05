@@ -4,6 +4,7 @@ import {
     type RegistryChartTypeListItem,
 } from '@lightdash/common';
 import {
+    ActionIcon,
     Box,
     Button,
     Group,
@@ -13,9 +14,10 @@ import {
     Tabs,
     Text,
     TextInput,
+    Tooltip,
 } from '@mantine/core';
 import { useDebouncedValue, useIntersection } from '@mantine/hooks';
-import { IconPlus, IconSearch } from '@tabler/icons-react';
+import { IconInfoCircle, IconPlus, IconSearch } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router';
 import EmptyStateLoader from '../components/common/EmptyStateLoader';
@@ -58,6 +60,7 @@ const ChartTypeGallery = () => {
     const chartStudioAvailable = useChartStudioAvailable();
 
     const [search, setSearch] = useState('');
+    const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [debouncedSearch] = useDebouncedValue(search, 300);
     const [selectedUuid, setSelectedUuid] = useState<string | null>(null);
     const [deleteUuid, setDeleteUuid] = useState<string | null>(null);
@@ -211,19 +214,38 @@ const ChartTypeGallery = () => {
             {tabsList ?? <span />}
             {!isEmptyGallery && (
                 <Group gap="xs" wrap="nowrap">
-                    {activeTab === GalleryTab.INSTALLED_CHARTS && (
-                        <TextInput
-                            size="sm"
-                            className={classes.search}
-                            placeholder="Search chart types"
-                            aria-label="Search chart types"
-                            leftSection={
+                    {activeTab === GalleryTab.INSTALLED_CHARTS &&
+                        (isSearchOpen || search ? (
+                            <TextInput
+                                size="sm"
+                                autoFocus
+                                className={classes.search}
+                                placeholder="Search chart types"
+                                aria-label="Search chart types"
+                                leftSection={
+                                    <MantineIcon icon={IconSearch} size={15} />
+                                }
+                                value={search}
+                                onChange={(e) =>
+                                    setSearch(e.currentTarget.value)
+                                }
+                                onBlur={() => setIsSearchOpen(false)}
+                                onKeyDown={(e) => {
+                                    if (e.key !== 'Escape') return;
+                                    setSearch('');
+                                    setIsSearchOpen(false);
+                                }}
+                            />
+                        ) : (
+                            <ActionIcon
+                                variant="default"
+                                size={32}
+                                aria-label="Search chart types"
+                                onClick={() => setIsSearchOpen(true)}
+                            >
                                 <MantineIcon icon={IconSearch} size={15} />
-                            }
-                            value={search}
-                            onChange={(e) => setSearch(e.currentTarget.value)}
-                        />
-                    )}
+                            </ActionIcon>
+                        ))}
                     {newChartTypeButton}
                 </Group>
             )}
@@ -337,7 +359,21 @@ const ChartTypeGallery = () => {
                                         value={GalleryTab.CHART_LIBRARY}
                                         className={classes.tab}
                                     >
-                                        Library
+                                        <Group gap={4} wrap="nowrap">
+                                            Library
+                                            <Tooltip
+                                                withinPortal
+                                                maw={240}
+                                                multiline
+                                                label="Ready-made chart types, kept up to date for you. Install one and anyone in this project can use it."
+                                            >
+                                                <MantineIcon
+                                                    icon={IconInfoCircle}
+                                                    size={13}
+                                                    color="dimmed"
+                                                />
+                                            </Tooltip>
+                                        </Group>
                                     </Tabs.Tab>
                                 </Tabs.List>,
                             )}
@@ -350,6 +386,7 @@ const ChartTypeGallery = () => {
                                 <ChartTypeLibrarySection
                                     projectUuid={projectUuid}
                                     withHeader={false}
+                                    withIntro={false}
                                     onShowInstalled={setSelectedUuid}
                                 />
                             </Tabs.Panel>

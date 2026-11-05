@@ -36,6 +36,13 @@
 
 .search {
     width: 240px;
+    animation: searchOpen 150ms ease-out;
+}
+
+@keyframes searchOpen {
+    from {
+        width: 32px;
+    }
 }
 
 @media (max-width: 48em) {

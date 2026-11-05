@@ -383,34 +383,6 @@ describe('ChartTypeLibrarySection', () => {
         ).toBeInTheDocument();
     });
 
-    it('badges charts by release stage, leaving stable ones unbadged', () => {
-        setEnabled(true);
-        setRegistryData([
-            makeItem({
-                slug: 'a',
-                name: 'Stable chart',
-                channel: 'stable',
-                releaseStage: 'stable',
-            }),
-            makeItem({
-                slug: 'b',
-                name: 'Unpointed chart',
-                releaseStage: 'prerelease',
-            }),
-            makeItem({
-                slug: 'c',
-                name: 'Beta chart',
-                channel: 'beta',
-                releaseStage: 'beta',
-            }),
-        ]);
-        renderSection();
-
-        expect(screen.getByText('Beta chart')).toBeInTheDocument();
-        expect(screen.getAllByText('Beta')).toHaveLength(1);
-        expect(screen.getAllByText('Pre-release')).toHaveLength(1);
-    });
-
     it('renders each card as a keyboard-focusable button', () => {
         setEnabled(true);
         setRegistryData([makeItem({ slug: 'radial-gauge' })]);
