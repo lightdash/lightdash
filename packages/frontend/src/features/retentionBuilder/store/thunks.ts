@@ -53,7 +53,7 @@ export const runRetentionQuery = createAsyncThunk<
 
         try {
             return await sharedLightdashApi<RetentionQueryResult>({
-                url: `/projects/${rb.projectUuid}/retention/query`,
+                url: `/projects/${rb.projectUuid}/event-analytics/retention`,
                 method: 'POST',
                 body: JSON.stringify(request),
             });
