@@ -1,3 +1,15 @@
+# [3.159.0](https://github.com/lightdash/lightdash/compare/3.158.1...3.159.0) (2026-11-05)
+
+
+### Bug Fixes
+
+* avoid optional AI access checks in embedded chart editors ([#32086](https://github.com/lightdash/lightdash/issues/32086)) ([e5fe9b0](https://github.com/lightdash/lightdash/commit/e5fe9b016646c0ab6abb9ae2a1447719ef61d7af))
+
+
+### Features
+
+* **dashboards-as-code:** use slugs for control sections ([#32098](https://github.com/lightdash/lightdash/issues/32098)) ([4e1e365](https://github.com/lightdash/lightdash/commit/4e1e365ca0f0ad68d081cd3000a3da562e883bd5))
+
 ## [3.158.1](https://github.com/lightdash/lightdash/compare/3.158.0...3.158.1) (2026-11-05)
 
 

@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "3.158.1",
-  "previousVersion": "3.158.0",
-  "releaseDate": "2026-11-05T12:32:38.029Z",
+  "version": "3.159.0",
+  "previousVersion": "3.158.1",
+  "releaseDate": "2026-11-05T13:21:29.748Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -17,11 +17,70 @@
   "api": {
     "rest": {
       "checked": true,
-      "breaking": false,
-      "changes": [],
-      "breakingCount": 0,
-      "advisories": [],
-      "advisoryCount": 0
+      "breaking": true,
+      "changes": [
+        "GET /api/v1/projects/{projectUuid}/code/dashboards — the response property `results/dashboards/items/config/controlSections/items/id` became optional for the status `200`",
+        "POST /api/v1/projects/{projectUuid}/code/dashboards/{slug} — added `#/components/schemas/DashboardFilterRule` to the `allOf[#/components/schemas/Omit_DashboardAsCode.tiles-or-description_]/filters/metrics/items/` request property `allOf` list",
+        "POST /api/v1/projects/{projectUuid}/code/dashboards/{slug} — added `#/components/schemas/DashboardFilterRule` to the `allOf[#/components/schemas/Omit_DashboardAsCode.tiles-or-description_]/filters/tableCalculations/items/` request property `allOf` list",
+        "GET /api/v1/projects/{projectUuid}/dashboards/code — the response property `results/dashboards/items/config/controlSections/items/id` became optional for the status `200`",
+        "POST /api/v1/projects/{projectUuid}/dashboards/{slug}/code — added `#/components/schemas/DashboardFilterRule` to the `allOf[#/components/schemas/Omit_DashboardAsCode.tiles-or-description_]/filters/metrics/items/` request property `allOf` list",
+        "POST /api/v1/projects/{projectUuid}/dashboards/{slug}/code — added `#/components/schemas/DashboardFilterRule` to the `allOf[#/components/schemas/Omit_DashboardAsCode.tiles-or-description_]/filters/tableCalculations/items/` request property `allOf` list"
+      ],
+      "breakingCount": 6,
+      "advisories": [
+        "GET /api/v1/projects/{projectUuid}/code/dashboards — removed the optional property `results/dashboards/items/filters/metrics/items/allOf[subschema #2]/label` from the response with the `200` status",
+        "GET /api/v1/projects/{projectUuid}/code/dashboards — removed the optional property `results/dashboards/items/filters/metrics/items/allOf[subschema #2]/lockedTabUuids` from the response with the `200` status",
+        "GET /api/v1/projects/{projectUuid}/code/dashboards — removed the optional property `results/dashboards/items/filters/metrics/items/allOf[subschema #2]/requiredGroupId` from the response with the `200` status",
+        "GET /api/v1/projects/{projectUuid}/code/dashboards — removed the optional property `results/dashboards/items/filters/metrics/items/allOf[subschema #2]/sectionId` from the response with the `200` status",
+        "GET /api/v1/projects/{projectUuid}/code/dashboards — removed the optional property `results/dashboards/items/filters/metrics/items/allOf[subschema #2]/singleValue` from the response with the `200` status",
+        "GET /api/v1/projects/{projectUuid}/code/dashboards — removed the optional property `results/dashboards/items/filters/metrics/items/allOf[subschema #2]/tileTargets` from the response with the `200` status",
+        "GET /api/v1/projects/{projectUuid}/code/dashboards — removed the optional property `results/dashboards/items/filters/tableCalculations/items/allOf[subschema #2]/label` from the response with the `200` status",
+        "GET /api/v1/projects/{projectUuid}/code/dashboards — removed the optional property `results/dashboards/items/filters/tableCalculations/items/allOf[subschema #2]/lockedTabUuids` from the response with the `200` status",
+        "GET /api/v1/projects/{projectUuid}/code/dashboards — removed the optional property `results/dashboards/items/filters/tableCalculations/items/allOf[subschema #2]/requiredGroupId` from the response with the `200` status",
+        "GET /api/v1/projects/{projectUuid}/code/dashboards — removed the optional property `results/dashboards/items/filters/tableCalculations/items/allOf[subschema #2]/sectionId` from the response with the `200` status",
+        "GET /api/v1/projects/{projectUuid}/code/dashboards — removed the optional property `results/dashboards/items/filters/tableCalculations/items/allOf[subschema #2]/singleValue` from the response with the `200` status",
+        "GET /api/v1/projects/{projectUuid}/code/dashboards — removed the optional property `results/dashboards/items/filters/tableCalculations/items/allOf[subschema #2]/tileTargets` from the response with the `200` status",
+        "POST /api/v1/projects/{projectUuid}/code/dashboards/{slug} — removed `#/components/schemas/FilterRule_FilterOperator.DashboardFieldTarget.AnyType.AnyType_` from the `allOf[#/components/schemas/Omit_DashboardAsCode.tiles-or-description_]/filters/metrics/items/` request property `allOf` list",
+        "POST /api/v1/projects/{projectUuid}/code/dashboards/{slug} — removed `#/components/schemas/FilterRule_FilterOperator.DashboardFieldTarget.AnyType.AnyType_` from the `allOf[#/components/schemas/Omit_DashboardAsCode.tiles-or-description_]/filters/tableCalculations/items/` request property `allOf` list",
+        "POST /api/v1/projects/{projectUuid}/code/dashboards/{slug} — removed the request property `allOf[#/components/schemas/Omit_DashboardAsCode.tiles-or-description_]/filters/metrics/items/allOf[subschema #2]/label`",
+        "POST /api/v1/projects/{projectUuid}/code/dashboards/{slug} — removed the request property `allOf[#/components/schemas/Omit_DashboardAsCode.tiles-or-description_]/filters/metrics/items/allOf[subschema #2]/lockedTabUuids`",
+        "POST /api/v1/projects/{projectUuid}/code/dashboards/{slug} — removed the request property `allOf[#/components/schemas/Omit_DashboardAsCode.tiles-or-description_]/filters/metrics/items/allOf[subschema #2]/requiredGroupId`",
+        "POST /api/v1/projects/{projectUuid}/code/dashboards/{slug} — removed the request property `allOf[#/components/schemas/Omit_DashboardAsCode.tiles-or-description_]/filters/metrics/items/allOf[subschema #2]/sectionId`",
+        "POST /api/v1/projects/{projectUuid}/code/dashboards/{slug} — removed the request property `allOf[#/components/schemas/Omit_DashboardAsCode.tiles-or-description_]/filters/metrics/items/allOf[subschema #2]/singleValue`",
+        "POST /api/v1/projects/{projectUuid}/code/dashboards/{slug} — removed the request property `allOf[#/components/schemas/Omit_DashboardAsCode.tiles-or-description_]/filters/metrics/items/allOf[subschema #2]/tileTargets`",
+        "POST /api/v1/projects/{projectUuid}/code/dashboards/{slug} — removed the request property `allOf[#/components/schemas/Omit_DashboardAsCode.tiles-or-description_]/filters/tableCalculations/items/allOf[subschema #2]/label`",
+        "POST /api/v1/projects/{projectUuid}/code/dashboards/{slug} — removed the request property `allOf[#/components/schemas/Omit_DashboardAsCode.tiles-or-description_]/filters/tableCalculations/items/allOf[subschema #2]/lockedTabUuids`",
+        "POST /api/v1/projects/{projectUuid}/code/dashboards/{slug} — removed the request property `allOf[#/components/schemas/Omit_DashboardAsCode.tiles-or-description_]/filters/tableCalculations/items/allOf[subschema #2]/requiredGroupId`",
+        "POST /api/v1/projects/{projectUuid}/code/dashboards/{slug} — removed the request property `allOf[#/components/schemas/Omit_DashboardAsCode.tiles-or-description_]/filters/tableCalculations/items/allOf[subschema #2]/sectionId`",
+        "POST /api/v1/projects/{projectUuid}/code/dashboards/{slug} — removed the request property `allOf[#/components/schemas/Omit_DashboardAsCode.tiles-or-description_]/filters/tableCalculations/items/allOf[subschema #2]/singleValue`",
+        "POST /api/v1/projects/{projectUuid}/code/dashboards/{slug} — removed the request property `allOf[#/components/schemas/Omit_DashboardAsCode.tiles-or-description_]/filters/tableCalculations/items/allOf[subschema #2]/tileTargets`",
+        "GET /api/v1/projects/{projectUuid}/dashboards/code — removed the optional property `results/dashboards/items/filters/metrics/items/allOf[subschema #2]/label` from the response with the `200` status",
+        "GET /api/v1/projects/{projectUuid}/dashboards/code — removed the optional property `results/dashboards/items/filters/metrics/items/allOf[subschema #2]/lockedTabUuids` from the response with the `200` status",
+        "GET /api/v1/projects/{projectUuid}/dashboards/code — removed the optional property `results/dashboards/items/filters/metrics/items/allOf[subschema #2]/requiredGroupId` from the response with the `200` status",
+        "GET /api/v1/projects/{projectUuid}/dashboards/code — removed the optional property `results/dashboards/items/filters/metrics/items/allOf[subschema #2]/sectionId` from the response with the `200` status",
+        "GET /api/v1/projects/{projectUuid}/dashboards/code — removed the optional property `results/dashboards/items/filters/metrics/items/allOf[subschema #2]/singleValue` from the response with the `200` status",
+        "GET /api/v1/projects/{projectUuid}/dashboards/code — removed the optional property `results/dashboards/items/filters/metrics/items/allOf[subschema #2]/tileTargets` from the response with the `200` status",
+        "GET /api/v1/projects/{projectUuid}/dashboards/code — removed the optional property `results/dashboards/items/filters/tableCalculations/items/allOf[subschema #2]/label` from the response with the `200` status",
+        "GET /api/v1/projects/{projectUuid}/dashboards/code — removed the optional property `results/dashboards/items/filters/tableCalculations/items/allOf[subschema #2]/lockedTabUuids` from the response with the `200` status",
+        "GET /api/v1/projects/{projectUuid}/dashboards/code — removed the optional property `results/dashboards/items/filters/tableCalculations/items/allOf[subschema #2]/requiredGroupId` from the response with the `200` status",
+        "GET /api/v1/projects/{projectUuid}/dashboards/code — removed the optional property `results/dashboards/items/filters/tableCalculations/items/allOf[subschema #2]/sectionId` from the response with the `200` status",
+        "GET /api/v1/projects/{projectUuid}/dashboards/code — removed the optional property `results/dashboards/items/filters/tableCalculations/items/allOf[subschema #2]/singleValue` from the response with the `200` status",
+        "GET /api/v1/projects/{projectUuid}/dashboards/code — removed the optional property `results/dashboards/items/filters/tableCalculations/items/allOf[subschema #2]/tileTargets` from the response with the `200` status",
+        "POST /api/v1/projects/{projectUuid}/dashboards/{slug}/code — removed `#/components/schemas/FilterRule_FilterOperator.DashboardFieldTarget.AnyType.AnyType_` from the `allOf[#/components/schemas/Omit_DashboardAsCode.tiles-or-description_]/filters/metrics/items/` request property `allOf` list",
+        "POST /api/v1/projects/{projectUuid}/dashboards/{slug}/code — removed `#/components/schemas/FilterRule_FilterOperator.DashboardFieldTarget.AnyType.AnyType_` from the `allOf[#/components/schemas/Omit_DashboardAsCode.tiles-or-description_]/filters/tableCalculations/items/` request property `allOf` list",
+        "POST /api/v1/projects/{projectUuid}/dashboards/{slug}/code — removed the request property `allOf[#/components/schemas/Omit_DashboardAsCode.tiles-or-description_]/filters/metrics/items/allOf[subschema #2]/label`",
+        "POST /api/v1/projects/{projectUuid}/dashboards/{slug}/code — removed the request property `allOf[#/components/schemas/Omit_DashboardAsCode.tiles-or-description_]/filters/metrics/items/allOf[subschema #2]/lockedTabUuids`",
+        "POST /api/v1/projects/{projectUuid}/dashboards/{slug}/code — removed the request property `allOf[#/components/schemas/Omit_DashboardAsCode.tiles-or-description_]/filters/metrics/items/allOf[subschema #2]/requiredGroupId`",
+        "POST /api/v1/projects/{projectUuid}/dashboards/{slug}/code — removed the request property `allOf[#/components/schemas/Omit_DashboardAsCode.tiles-or-description_]/filters/metrics/items/allOf[subschema #2]/sectionId`",
+        "POST /api/v1/projects/{projectUuid}/dashboards/{slug}/code — removed the request property `allOf[#/components/schemas/Omit_DashboardAsCode.tiles-or-description_]/filters/metrics/items/allOf[subschema #2]/singleValue`",
+        "POST /api/v1/projects/{projectUuid}/dashboards/{slug}/code — removed the request property `allOf[#/components/schemas/Omit_DashboardAsCode.tiles-or-description_]/filters/metrics/items/allOf[subschema #2]/tileTargets`",
+        "POST /api/v1/projects/{projectUuid}/dashboards/{slug}/code — removed the request property `allOf[#/components/schemas/Omit_DashboardAsCode.tiles-or-description_]/filters/tableCalculations/items/allOf[subschema #2]/label`",
+        "POST /api/v1/projects/{projectUuid}/dashboards/{slug}/code — removed the request property `allOf[#/components/schemas/Omit_DashboardAsCode.tiles-or-description_]/filters/tableCalculations/items/allOf[subschema #2]/lockedTabUuids`",
+        "POST /api/v1/projects/{projectUuid}/dashboards/{slug}/code — removed the request property `allOf[#/components/schemas/Omit_DashboardAsCode.tiles-or-description_]/filters/tableCalculations/items/allOf[subschema #2]/requiredGroupId`",
+        "POST /api/v1/projects/{projectUuid}/dashboards/{slug}/code — removed the request property `allOf[#/components/schemas/Omit_DashboardAsCode.tiles-or-description_]/filters/tableCalculations/items/allOf[subschema #2]/sectionId`",
+        "… and 2 more advisory note(s)"
+      ],
+      "advisoryCount": 52
     },
     "mcp": {
       "checked": true,
@@ -42,5 +101,24 @@
     "requiredStops": []
   },
   "declaredBreaks": [],
-  "declaredAdvisories": []
+  "declaredAdvisories": [
+    {
+      "id": "dashboard-control-section-slugs-experimental-exports",
+      "reason": "Experimental dashboard section downloads use slugs when dashboard-controls is enabled. The flag defaults off on Cloud and self-hosted; disabled exports retain IDs, including previously saved sections. Legacy ID uploads and stored identities remain supported. Experimental readers must adopt slugs. POST findings are allOf restructuring; existing request fields and requirements are unchanged.",
+      "requiredStop": false,
+      "impact": {
+        "kind": "no-external-callers",
+        "featureFlag": "dashboard-controls",
+        "covers": {
+          "rest": [
+            "GET /api/v1/projects/{projectUuid}/code/dashboards",
+            "GET /api/v1/projects/{projectUuid}/dashboards/code",
+            "POST /api/v1/projects/{projectUuid}/code/dashboards/{slug}",
+            "POST /api/v1/projects/{projectUuid}/dashboards/{slug}/code"
+          ],
+          "mcp": []
+        }
+      }
+    }
+  ]
 }

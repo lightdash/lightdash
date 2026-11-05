@@ -6152,11 +6152,13 @@
                 ],
                 "type": "string"
             },
-            "DateZoomControl": {
+            "DateZoomControlAsCode": {
                 "properties": {
+                    "sectionSlug": {
+                        "type": "string"
+                    },
                     "sectionId": {
-                        "type": "string",
-                        "description": "Id of a DashboardConfig.controlSections entry; unsectioned if absent or dangling."
+                        "type": "string"
                     },
                     "hidden": {
                         "type": "boolean"
@@ -6206,40 +6208,26 @@
                 "type": "object",
                 "description": "Construct a type with a set of properties K of type T"
             },
-            "DateZoomConfig": {
-                "properties": {
-                    "tileTargets": {
-                        "$ref": "#/components/schemas/Record_string.DateZoomTileTarget_"
-                    },
-                    "controls": {
-                        "items": {
-                            "$ref": "#/components/schemas/DateZoomControl"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["tileTargets", "controls"],
-                "type": "object"
-            },
-            "DashboardControlSection": {
+            "DashboardControlSectionAsCode": {
                 "properties": {
                     "inline": {
-                        "type": "boolean",
-                        "description": "Sits on the bar line of the section before it; absent, starts a line of its own"
+                        "type": "boolean"
                     },
                     "collapsed": {
-                        "type": "boolean",
-                        "description": "Starts folded in the rail and on the bar; absent, the bar folds only a dense section"
+                        "type": "boolean"
                     },
                     "name": {
                         "type": "string"
                     },
                     "id": {
                         "type": "string",
-                        "description": "uuid, stable across dashboard versions"
+                        "description": "Legacy section identifier accepted on upload."
+                    },
+                    "slug": {
+                        "type": "string"
                     }
                 },
-                "required": ["name", "id"],
+                "required": ["name"],
                 "type": "object"
             },
             "Required_Pick_LightdashProjectParameter.type-or-multiple__": {
@@ -6304,6 +6292,9 @@
                     "parameters": {
                         "$ref": "#/components/schemas/Record_string.DashboardParameterTarget_"
                     },
+                    "sectionSlug": {
+                        "type": "string"
+                    },
                     "sectionId": {
                         "type": "string"
                     },
@@ -6342,6 +6333,13 @@
                         },
                         "type": "array"
                     },
+                    "parameterSectionSlugs": {
+                        "properties": {},
+                        "additionalProperties": {
+                            "type": "string"
+                        },
+                        "type": "object"
+                    },
                     "parameterSections": {
                         "properties": {},
                         "additionalProperties": {
@@ -6351,7 +6349,7 @@
                     },
                     "controlSections": {
                         "items": {
-                            "$ref": "#/components/schemas/DashboardControlSection"
+                            "$ref": "#/components/schemas/DashboardControlSectionAsCode"
                         },
                         "type": "array"
                     },
@@ -6365,7 +6363,19 @@
                         "type": "string"
                     },
                     "dateZoomConfig": {
-                        "$ref": "#/components/schemas/DateZoomConfig"
+                        "properties": {
+                            "tileTargets": {
+                                "$ref": "#/components/schemas/Record_string.DateZoomTileTarget_"
+                            },
+                            "controls": {
+                                "items": {
+                                    "$ref": "#/components/schemas/DateZoomControlAsCode"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["tileTargets", "controls"],
+                        "type": "object"
                     },
                     "defaultDateZoomGranularity": {
                         "anyOf": [
@@ -6852,7 +6862,7 @@
                 "type": "object",
                 "description": "Deliberately an index-signature literal, not `Record<string, ...>`. When\nTSOA first resolves `Record<string, DashboardTileTarget>` inside a mapped\ntype (e.g. `Omit<DashboardFilterRule, 'id'>` in content-as-code types), it\ncaches an EMPTY model under the shared `Record_string.DashboardTileTarget_`\nname, and request validation then strips every tileTargets entry from\nbodies — silently breaking dashboard filters on SQL chart tiles. The\nindex-signature form resolves correctly in every context."
             },
-            "Pick_DashboardFilterRule.Exclude_keyofDashboardFilterRule.id__": {
+            "Pick_DashboardFilterRuleAsCode.Exclude_keyofDashboardFilterRuleAsCode.id__": {
                 "properties": {
                     "target": {
                         "$ref": "#/components/schemas/DashboardFieldTarget",
@@ -6909,14 +6919,17 @@
                     "sectionId": {
                         "type": "string",
                         "description": "Id of a DashboardConfig.controlSections entry; unsectioned if absent or dangling."
+                    },
+                    "sectionSlug": {
+                        "type": "string"
                     }
                 },
                 "required": ["target", "operator"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "Omit_DashboardFilterRule.id_": {
-                "$ref": "#/components/schemas/Pick_DashboardFilterRule.Exclude_keyofDashboardFilterRule.id__",
+            "Omit_DashboardFilterRuleAsCode.id_": {
+                "$ref": "#/components/schemas/Pick_DashboardFilterRuleAsCode.Exclude_keyofDashboardFilterRuleAsCode.id__",
                 "description": "Construct a type with the properties of T except for those in type K."
             },
             "FilterRule_FilterOperator.DashboardFieldTarget.AnyType.AnyType_": {
@@ -7001,6 +7014,21 @@
                     }
                 ]
             },
+            "DashboardFilterRuleAsCode": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DashboardFilterRule"
+                    },
+                    {
+                        "properties": {
+                            "sectionSlug": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
             "DashboardAsCode": {
                 "properties": {
                     "access": {
@@ -7029,19 +7057,19 @@
                         "properties": {
                             "tableCalculations": {
                                 "items": {
-                                    "$ref": "#/components/schemas/DashboardFilterRule"
+                                    "$ref": "#/components/schemas/DashboardFilterRuleAsCode"
                                 },
                                 "type": "array"
                             },
                             "metrics": {
                                 "items": {
-                                    "$ref": "#/components/schemas/DashboardFilterRule"
+                                    "$ref": "#/components/schemas/DashboardFilterRuleAsCode"
                                 },
                                 "type": "array"
                             },
                             "dimensions": {
                                 "items": {
-                                    "$ref": "#/components/schemas/Omit_DashboardFilterRule.id_"
+                                    "$ref": "#/components/schemas/Omit_DashboardFilterRuleAsCode.id_"
                                 },
                                 "type": "array"
                             }
@@ -8365,6 +8393,73 @@
                     }
                 ]
             },
+            "Pick_DashboardFilterRule.Exclude_keyofDashboardFilterRule.id__": {
+                "properties": {
+                    "target": {
+                        "$ref": "#/components/schemas/DashboardFieldTarget",
+                        "description": "Target field for the filter"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "settings": {
+                        "description": "Additional settings for date/time filters"
+                    },
+                    "disabled": {
+                        "type": "boolean",
+                        "description": "Whether this filter is disabled"
+                    },
+                    "required": {
+                        "type": "boolean",
+                        "description": "Whether this filter is required"
+                    },
+                    "caseSensitive": {
+                        "type": "boolean",
+                        "description": "Overrides the field/explore case-sensitivity for this rule only.\nUsed by internal features like autocomplete search that must always\nmatch case-insensitively regardless of the field's configured setting."
+                    },
+                    "operator": {
+                        "$ref": "#/components/schemas/FilterOperator",
+                        "description": "Filter operator"
+                    },
+                    "values": {
+                        "items": {},
+                        "type": "array",
+                        "description": "Values to filter by"
+                    },
+                    "includeNull": {
+                        "type": "boolean",
+                        "description": "For the `equals` operator on string fields, also match rows where the\nfield is null (compiles to `field IN (...) OR field IS NULL`). Lets users\ncombine null with selected values in a single \"is\" rule."
+                    },
+                    "tileTargets": {
+                        "$ref": "#/components/schemas/DashboardTileTargets"
+                    },
+                    "singleValue": {
+                        "type": "boolean"
+                    },
+                    "requiredGroupId": {
+                        "type": "string",
+                        "description": "Dashboard filters sharing a requiredGroupId form an \"any-one required\"\ngroup: the dashboard is locked until at least one member has a value."
+                    },
+                    "lockedTabUuids": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Tab UUIDs where this filter is locked. When the active tab is in this\nlist, viewers see the filter but cannot change it, and URL / embed\nfilter overrides targeting the same field are ignored on that tab.\nEmpty or omitted means the filter is not locked anywhere."
+                    },
+                    "sectionId": {
+                        "type": "string",
+                        "description": "Id of a DashboardConfig.controlSections entry; unsectioned if absent or dangling."
+                    }
+                },
+                "required": ["target", "operator"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_DashboardFilterRule.id_": {
+                "$ref": "#/components/schemas/Pick_DashboardFilterRule.Exclude_keyofDashboardFilterRule.id__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
             "DashboardScheduledDeliveryAsCode": {
                 "allOf": [
                     {
@@ -9629,6 +9724,75 @@
             },
             "PromotedSpace": {
                 "$ref": "#/components/schemas/SpaceSummaryBase"
+            },
+            "DateZoomControl": {
+                "properties": {
+                    "sectionId": {
+                        "type": "string",
+                        "description": "Id of a DashboardConfig.controlSections entry; unsectioned if absent or dangling."
+                    },
+                    "hidden": {
+                        "type": "boolean"
+                    },
+                    "granularity": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/DateGranularity"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ]
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["granularity", "name", "uuid"],
+                "type": "object"
+            },
+            "DateZoomConfig": {
+                "properties": {
+                    "tileTargets": {
+                        "$ref": "#/components/schemas/Record_string.DateZoomTileTarget_"
+                    },
+                    "controls": {
+                        "items": {
+                            "$ref": "#/components/schemas/DateZoomControl"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["tileTargets", "controls"],
+                "type": "object"
+            },
+            "DashboardControlSection": {
+                "properties": {
+                    "inline": {
+                        "type": "boolean",
+                        "description": "Sits on the bar line of the section before it; absent, starts a line of its own"
+                    },
+                    "collapsed": {
+                        "type": "boolean",
+                        "description": "Starts folded in the rail and on the bar; absent, the bar folds only a dense section"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "id": {
+                        "type": "string",
+                        "description": "uuid, stable across dashboard versions"
+                    },
+                    "slug": {
+                        "type": "string",
+                        "description": "Portable identity supplied by content as code."
+                    }
+                },
+                "required": ["name", "id"],
+                "type": "object"
             },
             "DashboardParameterControl": {
                 "properties": {
@@ -11294,19 +11458,19 @@
                         "properties": {
                             "tableCalculations": {
                                 "items": {
-                                    "$ref": "#/components/schemas/DashboardFilterRule"
+                                    "$ref": "#/components/schemas/DashboardFilterRuleAsCode"
                                 },
                                 "type": "array"
                             },
                             "metrics": {
                                 "items": {
-                                    "$ref": "#/components/schemas/DashboardFilterRule"
+                                    "$ref": "#/components/schemas/DashboardFilterRuleAsCode"
                                 },
                                 "type": "array"
                             },
                             "dimensions": {
                                 "items": {
-                                    "$ref": "#/components/schemas/Omit_DashboardFilterRule.id_"
+                                    "$ref": "#/components/schemas/Omit_DashboardFilterRuleAsCode.id_"
                                 },
                                 "type": "array"
                             }
@@ -75845,7 +76009,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.158.1",
+        "version": "3.159.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
