@@ -72,6 +72,7 @@ const Guide = ({ state }: { state: GuideState }) => {
             state === 'mostly-done' ? ['PostHog', 'Wholesale accounts'] : [],
         brand: null,
         teammateCount: state === 'mostly-done' ? 2 : 0,
+        libraryChartTypes: null,
     };
     return (
         <Container size="lg" py="xl">
